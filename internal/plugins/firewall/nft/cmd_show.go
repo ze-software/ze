@@ -143,8 +143,11 @@ func handleShowFirewallRuleset(_ *pluginserver.CommandContext, args []string) (*
 			elementRows = append(elementRows, row)
 		}
 		setRows = append(setRows, map[string]any{
-			keyName:    set.Name,
-			"type":     int(set.Type),
+			keyName: set.Name,
+			// The nft-native token (ipv4_addr, inet_service), never the
+			// numeric SetType. An operator reads this payload, and every
+			// other typed field beside it renders through String() too.
+			"type":     set.Type.String(),
 			"elements": elementRows,
 		})
 	}

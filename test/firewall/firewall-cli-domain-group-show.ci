@@ -1,6 +1,6 @@
 # Test: `show firewall ruleset <table>` over the real SSH `ze cli` path names the
 #       DNS name that supplied each address in a domain group's set.
-# Spec: plan/spec-firewall-domain-group.md -- Wiring Test row 5, user story 3
+# Spec: spec-firewall-domain-group -- Wiring Test row 5, user story 3
 # VALIDATES: the enrichment reaches an operator. handleShowFirewallRuleset
 #            (internal/plugins/firewall/nft/cmd_show.go) calls show.Enrich, the
 #            hub forwards `enrich-show` to the domain plugin, enrichShow

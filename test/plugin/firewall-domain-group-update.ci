@@ -1,7 +1,7 @@
 # Test: `update firewall domain-group <name>` resolves the group's names now,
 #       programs the addresses into the group's nftables set, and records the
 #       move from the old addresses to the new ones in the change log.
-# Spec: plan/spec-firewall-domain-group.md -- Wiring Test row 4, user story 1
+# Spec: spec-firewall-domain-group -- Wiring Test row 4, user story 1
 # VALIDATES: the operator path. The command is typed at `ze cli` over SSH and
 #            reaches the forwarded plugin command handler (updateDomainGroup,
 #            internal/component/firewall/plugins/domain/command.go), which

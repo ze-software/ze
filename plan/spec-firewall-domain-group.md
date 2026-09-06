@@ -318,11 +318,11 @@ Two, and they are different in kind:
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | The plugin reaches the kernel only through `firewall.RegisterTables` plus `ApplyAll` (`applyTables`, `domain.go`) and never through a backend. It reaches DNS only through the SDK's `ResolveDNS`, whose hub handler is `opResolveDNS` (`dispatch_resolve.go`) |
+| No unintended coupling (components stay isolated) | Yes | `internal/component/plugin/server` holds no `*resolve.Resolvers`: `opResolveDNS` reads the handler slot `rpc.GetDNSResolver` (`pkg/plugin/rpc/bridge.go`), which `registerPluginDNSResolver` (`cmd/ze/hub/main_system.go`) fills at hub startup. That keeps the boundary `core-design.md` states for that package |
+| No duplicated functionality (extends existing, does not recreate) | Yes | No second `Resolver` and no second DNS cache: `registerPluginDNSResolver` publishes the same instance `resolvecmd.SetResolvers` publishes to `show dns`. The set names come from one declaration, `firewall.DomainGroupSetNames`, called by both the parser (`domainSetMatch`) and the plugin (`setNames`, `sets.go`) |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | No wire path. The refresh loop runs once per name per TTL, so it is control plane by construction; string building goes through `textbuf.Buffer` rather than `fmt.Sprintf` |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes, with one named exception | The plugin registers (`register.go`), its commands register (`sdk.Registration.Commands`), its enricher registers (`EnricherDecl` read by `show.Enrich`), its doctor check registers (`diagnostic.RegisterDoctorCheck`), and `firewall.SetElement` gained no field. The exception is `providedV6Twin` (`internal/component/firewall/config.go`), a two-row table naming the IPv4/IPv6 set prefixes of the two owners that supply both families. It sits in the parser that already enumerates `source-asn`, `source-as-set` and `source-domain-group`, so a third owner edits one file it had to edit anyway; a registry for two entries is the machinery `ai/rules/simplicity.md` cuts |
 
 ## Risks & Assumptions
 
@@ -360,9 +360,9 @@ Two, and they are different in kind:
 <!-- What a wrong landing costs, and how to get out. A reviewer reads this first. -->
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | [live sessions dropped / routes mis-encoded / config rejected / nothing user-visible] |
-| How is it reverted? | [single commit revert / needs config migration / not revertible once peers see it] |
-| Who else touches this path? | [other plugins, components, or specs working the same files] |
+| What breaks if this is wrong? | A rule naming a domain group filters on the wrong addresses, or on none. A permit rule then admits a source it should refuse, and a deny rule stops refusing one. Nothing outside the firewall moves: no BGP session, no route, no config other than a `domain-group` block is touched, and `dropTablesMissingAProvidedSet` confines a group with no addresses to the one table naming it |
+| How is it reverted? | A single commit revert. The plugin is discovered by blank import, so removing it removes the feature; the `domain-group` config block is then refused as unknown, which is the same treatment every compiled-out plugin's block gets. The zefs cache file and the JSON-lines log are left on disk and read by nothing |
+| Who else touches this path? | `plan/spec-firewall-remote-group.md` adds a URL source to this same plugin. `plan/immediate/spec-firewall-dynamic-address-group.md` owns `flags-dynamic` and `flags-timeout` lowering in `applySet`. `internal/component/firewall/config.go` and `internal/plugins/firewall/nft/cmd_show.go` are shared with every other firewall owner |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -854,12 +854,13 @@ Functional tests and fixtures:
      is not worth a row. -->
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-N has an implementation at file:line |
+| Completeness | Every AC-N has an implementation named at its producing function |
 | Feature completeness | Every user story has a working path, no broken links |
-| Correctness | [feature-specific, for example "merge order correct", "error messages name the offending value"] |
-| Naming | [feature-specific, for example "JSON keys kebab-case", "YANG leaf matches env var leaf"] |
-| Data flow | [feature-specific, for example "resolution in X only, reactor unaware of Y"] |
-| Rule: [relevant rule] | [what to check] |
+| Correctness | The four response codes branch two ways and only NXDOMAIN empties a set; "keeps the last good" leaves the registered tables in place rather than merely returning early; an unchanged answer writes nothing after the first |
+| Naming | JSON keys kebab-case (`source-name`, `interval-end`, `timeout-seconds`, `failing-since`); the YANG leaf names carry no unit suffix and state `units seconds`; `domain-names` is plural because it is a leaf-list |
+| Data flow | DNS resolution happens in the hub's single resolver only, reached over one RPC; the firewall component imports no resolver; provenance reaches the operator through the enricher and never through `SetElement` |
+| Rule: `ai/rules/principles.md` | No zero is an answer: an unregistered resolver is refused rather than answered empty, `Status` has an explicit `StatusUnspecified`, `nextDue` separates "nothing scheduled" from "due at the zero time", and a cache entry that cannot be read is logged rather than read as absence |
+| Rule: `ai/rules/goroutine-lifecycle.md` | One long-lived worker with an owner, a stop channel and a `done` channel; `stop` closes and waits, and the doc comment states the pairing |
 
 ### Deliverables Checklist
 
@@ -867,7 +868,12 @@ Functional tests and fixtures:
      verification method. -->
 | Deliverable | Verification method |
 |-------------|---------------------|
-| [concrete thing that must exist] | [grep/ls/test command] |
+| The `firewall-domain` plugin package, discovered by codegen | `ls internal/component/firewall/plugins/domain/` (19 files); `grep -n firewall/plugins/domain internal/component/plugin/all/all.go` |
+| The YANG config and command modules, with generated glue | `ls internal/component/firewall/plugins/domain/yang/` (5 files) |
+| The resolver's response code, surfaced to callers | `go test ./internal/component/resolve/dns/` -- `TestResolveWithTTLSurfacesRcode`, `TestQueryExistingCallersUnaffected` |
+| The plugin-to-hub resolve RPC, wired to the hub's single resolver | `grep -rn RegisterDNSResolver --include=*.go .` names `cmd/ze/hub/main_system.go` as the non-test caller; `go test -run Resolve ./internal/component/plugin/server/` |
+| The three `.ci` functional tests | `ls test/plugin/firewall-domain-group-*.ci test/firewall/firewall-cli-domain-group-show.ci`; each ran green through its own suite runner on 2026-09-06 after being observed red |
+| The owning design document and the operator guide section | `ls docs/architecture/firewall/firewall-domain-group.md`; `grep -c domain-group docs/guide/firewall.md` (21) |
 
 ### Security Review Checklist
 
@@ -875,7 +881,12 @@ Functional tests and fixtures:
      leakage, authorization that could fail open. -->
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | [what inputs need validation and how] |
+| Untrusted input: the DNS answer | A hostile or hijacked answer must not insert unbounded addresses into a group a permit rule trusts, and must not carry an unparseable or wrong-family value into the kernel |
+| Resource exhaustion: the refresh schedule | A TTL of 0 or a very low TTL must not drive a query loop, and a very high TTL must not park a name forever |
+| Resource exhaustion: the change log | A name whose addresses rotate must not fill the disk, and a corrupted log must not make the reader allocate without limit |
+| Path handling | The group name and the DNS name reach a zefs key and a set name; neither may reach a filesystem path |
+| Failing open | A DNS outage, an unregistered resolver, or an unreadable cache must never be answered with an empty set that a deny rule then matches nothing against |
+| Information leakage | An error message reaching an operator must name the group and the command, not internal state |
 
 ### Failure Routing
 
@@ -989,3 +1000,264 @@ constraints, message ordering, and every MUST/MUST NOT.
 Deferred by spec-firewall-remote-group.
 
 FQDN and domain groups
+
+Discharged: the `domain-group` config surface and the `firewall-domain` plugin
+are landed, so the row is closed by this spec rather than passed on.
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+- **The `firewall-domain` plugin** (`internal/component/firewall/plugins/domain/`, 19 files), registered
+  as an engine plugin and discovered by codegen. It owns firewall tables under the owner string
+  `firewall-domain`, holds one refresh worker, one zefs address cache and one JSON-lines change log.
+- **The group and its per-name, per-family TTL schedule.** `nameKey` is the unit of everything the
+  package does, and it carries the family, so A and AAAA keep separate due times, separate last-good
+  values and separate change records (`schedule.go`, `cache.go`).
+- **The resolver's response code, surfaced.** `query` (`internal/component/resolve/dns/resolver.go`)
+  returned `(nil, 0, nil)` for every non-success rcode. It now returns a typed `dns.Status` whose zero
+  is `StatusUnspecified`, so an error carries no answer a caller could act on. `Resolve`, `ResolveA`,
+  `ResolveAAAA`, `ResolveTXT` and `ResolvePTR` keep their signatures.
+- **One resolve RPC, not a second resolver.** `Plugin.ResolveDNS` (`pkg/plugin/sdk/sdk_engine.go`) to
+  `opResolveDNS` (`internal/component/plugin/server/dispatch_resolve.go`), which reads the handler slot
+  `rpc.GetDNSResolver`. `registerPluginDNSResolver` (`cmd/ze/hub/main_system.go`) fills that slot at hub
+  startup with the same `resolve.Resolvers` instance `show dns` reads.
+- **A commit refusal for a group that has never resolved** (`verify`, `domain.go`), and last-good
+  persistence in zefs so a restart with DNS down programs the sets before any query (`configure`).
+- **The DNS name beside the address**, through the show-enricher registry. `handleShowFirewallRuleset`
+  (`internal/plugins/firewall/nft/cmd_show.go`) now returns `sets` and calls
+  `show.Enrich("show firewall ruleset", data)`; `enrichShow` (`enrich.go`) attaches `source-name`.
+  `firewall.SetElement` gained no field.
+
+### Bugs Found/Fixed
+
+| Bug | Found by | Now covered by |
+|-----|----------|----------------|
+| The daemon refused to start: `configure` started the refresh worker, whose first act is a resolve, and the startup coordinator read that engine call where it expected the plugin's `ready` (`stage 5: expected ready, got ze-plugin-engine:resolve-dns`). The worker starts from `OnStarted` | writing the three `.ci` files | `TestDomainGroupConfigureStartsNoRefreshWorker`, which goes red with both assertions and a data race when the call is moved back |
+| `expect=file:` resolved against the `.ci` directory unless a tmpfs was declared, so the update test's five change-log assertions read the checkout while the daemon wrote its work directory. `validateFileChecks` (`internal/test/runner/runner_validate.go`) now bases on `rec.WorkDir` | writing the update fixture | `runner_validate_test.go`; landed in `63071f9a66` with a row in `plan/journal/guard-added-to-one-half-of-a-pair.md` |
+| `handleShowFirewallRuleset` published the set type as `int(set.Type)` while every other typed field beside it rendered through `String()`, so an operator reading the ruleset as JSON got a bare integer where `ipv4_addr` was available. `SetType.String()`'s own doc comment states it exists so operators see the token they wrote | the closure review, round 1 | `go test ./internal/plugins/firewall/nft/` |
+| `store.open` skipped a cache entry on ANY `ReadFile` error and on any decode failure, silently, so a corrupt entry was indistinguishable from a name never resolved. The function's own doc comment forbids exactly that at the file level. `fs.ErrNotExist` still passes silently; anything else is now logged at WARN naming the group, name and family | the closure review, round 1 | `go test ./internal/component/firewall/plugins/domain/` |
+
+### Documentation Updates
+
+Landed with the implementation in `164f03607f` and verified against their producers at closure:
+
+- `docs/architecture/firewall/firewall-domain-group.md` (new) -- the owning design document every new
+  source file's `// Design:` header declares.
+- `docs/guide/firewall.md` -- the operator section: config example, command table, the two doctor codes
+  and the four `ze_firewall_domain_group_*` metrics. The metric names and the five label values match
+  `setMetricsRegistry` and the `outcome*` constants (`domain.go`) exactly, `panic` included.
+- `docs/architecture/api/process-protocol.md` -- the `resolve-dns` row in the plugin-engine RPC method
+  table, beside `route-install` and `batch-validate`.
+- `docs/architecture/hub-architecture.md` -- `registerPluginDNSResolver` beside `resolvecmd.SetResolvers`,
+  with the reason the two calls sit together.
+- `docs/architecture/firewall/backend-command-dispatch.md` -- the ruleset handler returning `sets` and
+  calling `show.Enrich`.
+- `docs/features.md` -- the Firewall row's domain-group paragraph, carrying two `<!-- source: -->` anchors
+  into this plugin. It landed in another session's commit `6c15058cea` rather than in `164f03607f`.
+
+`./le doc check verify` and `./le doc check links` are both RED at HEAD, and neither red names a file this
+spec touched: the verify failures are `show errors` and `show interface errors` in the generated gh-pages
+command surface, and the 32 dead references are in `plan/`, `rfc/` and `test/rfc-changed/`.
+
+**One documentation obligation is written and cannot be committed.**
+`docs/guide/command-reference.md` needs a `### show, update and clear firewall domain-group` section
+(checklist row 3). That section is written and correct in the working tree, and the same file carries an
+uncommitted `ze bgp decode pcap` hunk belonging to another session, so naming the file would carry their
+work. Recorded in `plan/journal/documentation-stranded-by-a-siblings-hunk.md`, which already holds one
+row of the same shape.
+
+### Security Review Answers
+
+| Check | Answer |
+|-------|--------|
+| Untrusted input: the DNS answer | `addressesFromRecords` (`cache.go`) parses each record with `netip.ParseAddr`, drops what does not parse, drops the wrong family, and stops at `maxAddressesPerName` (64) reporting truncation, which the caller logs at WARN naming the effect on the filter. `TestRefreshCapsAddressesPerName`, `TestRefreshRejectsUnparseableRecords`, `TestRefreshRejectsWrongFamilyRecords` |
+| Resource exhaustion: the refresh schedule | `refreshInterval` (`schedule.go`) is `max(ttl, floor)` capped at `maxRefreshInterval` (86400s). TTL=0 therefore waits the floor rather than firing at once, and a server naming a date 136 years out is asked again within a day. `TestScheduleTreatsTTLZeroAsDoNotCache`, `TestScheduleClampsBelowFloor`, `TestScheduleBoundsTheLongestWait` |
+| Resource exhaustion: the change log | Only an actual change appends (`resolveAndRecord`), the file is bounded at `changeLogMaxEntries` with oldest-first eviction through a temp file and rename, and the scanner is bounded at `maxChangeLogLineBytes` (64 KiB) so a corrupted file cannot drive an unbounded allocation. `TestChangeLogEvictsAtTheBound`, `TestChangeLogSkipsATruncatedTail` |
+| Path handling | Neither the group name nor the DNS name reaches a path. The group name is YANG-constrained to `[a-zA-Z0-9_-]+`, and both names are key SEGMENTS through `zefs.KeyFirewallDomainGroup.Key`. The two file paths come from `cacheStorePath` and `changeLogPath`, built from the config directory, which is why `keepNewest` carries `//nolint:gosec` with that reason |
+| Failing open | A transport error, SERVFAIL, REFUSED and an unknown status all keep the last-good addresses and empty nothing. An unregistered resolver is refused by `opResolveDNS` rather than answered with an empty record list. An unreadable cache entry now logs. A group with no addresses yields NO set rather than an empty one, because an empty permit blocks everything and an empty deny matches nothing (`buildGroupSets`) |
+| Information leakage | The operator-facing errors name the group and the command that fixes it (`uncachedGroupMessage`, `unknownGroupError`, the two `clearDomainGroup` messages). None carries a path, a key or a stack |
+
+### Deviations from Plan
+
+| Planned | Delivered | Why |
+|---------|-----------|-----|
+| `cmd_domain.go` for the command forwarders | `register_cmd.go` plus `command.go` | The registration and the dispatch are two concerns and the sibling `firewall-irr` splits them the same way |
+| One `_test.go` per source file | No `cache_test.go` and no `verify_test.go` | The cache and the verify refusal are exercised through the paths that use them: `TestDomainGroupColdStartProgramsFromCache`, `TestClearDomainGroupSurvivesARestart`, `TestSteadyStateWritesNothingAfterTheFirstAnswer`, `TestDomainGroupVerifyRefusesUncachedName` and four siblings. Driving them from the entry point is what `ai/rules/principles.md` asks for |
+| `ttl-floor` range `60..86400` (Integration Checklist) | `range "1..86400"`, default 60 | 60 as a FLOOR on the floor would stop an operator asking for faster refresh on a name they control, and the spin the floor exists to prevent is stopped at any non-zero value. The documented range and the YANG agree |
+| AC-2 reads "no zefs write occurs" | The steady state writes nothing after the FIRST answer, and one write ends an outage | Two facts cannot be told apart without a written entry: "never asked" versus "asked, and it holds nothing" (an IPv4-only name answers NOERROR-empty for AAAA forever), and a name still marked failing after it recovered would report a healthy group as failing. Both are one-time transition writes, not repeats. `TestSteadyStateWritesNothingAfterTheFirstAnswer`, `TestFirstAnswerIsRecordedEvenWhenEmpty`, `TestFailureIsMarkedOnceAndClearedOnRecovery` |
+| AC-10 reads "does not reprogram the other" family | Each family keeps its own TTL, its own last-good value and its own change record; the APPLY is whole-ruleset | `ApplyAll` (`internal/component/firewall/registry.go`) merges every owner's tables under one process-wide reconcile lock and reconciles the result. No owner can apply one family, one set or one table alone, so a per-family apply is not reachable from any plugin |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-3 assumed zefs could hold a bounded, growing DNS change log at acceptable cost | zefs has no append: `BlobStore.WriteFile` replaces a whole value, and `docs/architecture/zefs-format.md` already names `internal/core/audit` as a raw-filesystem exception for exactly this reason | Research, 2026-09-02, before code | The log is JSON-lines outside zefs at `<config-dir>/firewall-domain-group.dns.jsonl`; only the small, bounded last-good state goes to zefs |
+| assumption | A-6 assumed the resolver could already tell a deleted name from a broken server | `query` discarded `resp.Rcode` and returned `(nil, 0, nil)` for NXDOMAIN, SERVFAIL and REFUSED alike | Reading `resolver.go` at research, 2026-09-02 | Taken into scope: `ResolveWithTTL` returns a typed `dns.Status`, and this spec is the first caller that branches on it |
+| approach | The refresh worker was started from `configure`, the callback that has the config | An engine call made while the startup coordinator waits for `ready` is read AS that message, and the daemon refuses to start | Running the three `.ci` files for the first time | The worker starts from `OnStarted`, which the SDK names as the safe place for an engine call, and `TestDomainGroupConfigureStartsNoRefreshWorker` holds it there |
+| approach | The three `.ci` files were written to dispatch the plugin command from their fixture directly | A fixture launched as a separate process holds no plugin channel, and adding a `plugin { external ... }` block would change what the daemon under test runs | Writing the fixtures, 2026-09-06 | They drive `ze cli` over SSH instead, which is the operator path wiring rows 4 and 5 asked for |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. The group and its TTL schedule, per answer rather than on a shared interval | Done | `schedule.go` `arm`, `refreshInterval`, `nextDue`; `nameKey` carries the family | Floor and ceiling both stated in code |
+| 2. Showing the name beside the address, at the operator-facing handler | Done | `enrich.go` `enrichShow`; `internal/plugins/firewall/nft/cmd_show.go` `handleShowFirewallRuleset` | The offline `ze firewall show` binary stayed out of scope as the spec said |
+| 3. A DNS change record split across two stores | Done | `cache.go` `store.put` (zefs); `changelog.go` `changeLog.append` (JSON-lines) | The operator audit log is untouched |
+| 4. A resolver change separating a deleted name from a broken server | Done | `internal/component/resolve/dns/resolver.go` `Status`, `statusFromRcode`, `query`, `ResolveWithTTL` | `Resolve`, `ResolveA`, `ResolveAAAA`, `ResolveTXT`, `ResolvePTR` unchanged |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `buildGroupSets` and `buildTables` (`sets.go`) then `applyTables` (`domain.go`); `TestBuildDomainGroupTablesMatchesResolvedAddresses`, `TestDomainGroupConfigureRegistersSet`, `test/plugin/firewall-domain-group-update.ci` | |
+| AC-2 | Done | `resolveAndRecord` `sameAddresses` branch (`domain.go`), `recordSteadyAnswer`; `TestRefreshSameAddressesSkipsReprogramAndLog`, `TestSteadyStateWritesNothingAfterTheFirstAnswer`, `TestRefreshSameAddressesInADifferentOrderIsNotAChange` | Refined reading recorded under Deviations |
+| AC-3 | Done | `resolveAndRecord` change branch: one `cache.put`, one `changeLog.append`, then `applyTables`; `TestRefreshChangedAddressesReprogramsAndLogsOnce`, `TestDomainGroupChangeLogRecordsOldAndNew` | The record carries `old`, `new` and `time` |
+| AC-4 | Done | `resolveAndRecord` transport-error branch: rearm, `markFailing`, return `false`, and `refreshOne` logs at WARN. The registered tables are untouched, so the kernel keeps the addresses; `TestRefreshTransportErrorKeepsLastGood`, `TestTransportErrorIsMarkedToo` | |
+| AC-5 | Done | `Status.Authoritative()` (`resolver.go`) admits NOERROR and NXDOMAIN only; `TestClassifyRcodeNXDOMAINEmptiesSet`, `TestClassifyRcodeServfailKeepsLastGood`, `TestClassifyRcodeRefusedKeepsLastGood`, `TestClassifyUnknownStatusKeepsLastGood` | All four codes read; the fifth case, an unknown status, keeps the last good too |
+| AC-6 | Done | `verify` (`domain.go`) returns an error naming the group and the fetch command; the plugin server emits verify-failed and the orchestrator's `verifyFailedCh` branch returns an error naming the plugin, so the transaction ABORTS. `TestDomainGroupVerifyRefusesUncachedName`, `TestDomainGroupVerifyPerformsNoNetworkIO` | Refusal, not a hold-back |
+| AC-7 | Done | `configure` opens the cache and calls `applyTables` BEFORE arming the schedule and before the worker exists; `TestDomainGroupColdStartProgramsFromCache`, `TestDomainGroupConfigureProgramsBeforeResolving` | |
+| AC-8 | Done | `handleShowFirewallRuleset` returns `sets` and calls `show.Enrich`; `enrichShow` attaches `source-name`; `TestEnrichShowAttachesNameToAddress`, `TestEnrichCommandMatchesTheShowHandler`, and `test/firewall/firewall-cli-domain-group-show.ci` over the real SSH `ze cli` path | The `.ci` was observed red with `enrichShow` answering `nothingToAdd` |
+| AC-9 | Done | `refreshInterval` takes the larger of the TTL and the floor; `TestScheduleTreatsTTLZeroAsDoNotCache`, `TestScheduleClampsBelowFloor`, `TestScheduleFloorZeroFallsBackToTheDefault` | TTL=0 waits the floor, so it cannot spin |
+| AC-10 | Done | `nameKey` carries `family`; `arm` and `cache.put` touch one key; `TestScheduleFamiliesIndependentTTL`, `TestScheduleFamiliesAskForDifferentRecordTypes`, `TestRefreshGroupNowAsksBothFamiliesOfEveryName` | The apply is whole-ruleset by construction of `ApplyAll`; recorded under Deviations |
+| AC-11 | Done | `changeLog.open` counts what is on disk and `append` opens the file for append, so nothing is truncated; `store.open` reloads from zefs; `TestDomainGroupOnConfigureAfterRespawnPreservesChangeLogAndCache`, `TestChangeLogSurvivesAReopen`, `TestClearDomainGroupSurvivesARestart` | Respawn itself is `ProcessManager.Respawn` and is proven generically |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| All 20 named unit tests | Done | 92 tests across the package plus `resolver_test.go` and `dispatch_resolve_test.go` | Every planned name exists; `verify_test.go` and `cache_test.go` merged into `domain_test.go` (Deviations) |
+| Boundary: `ttl-floor` 1..86400 | Done | `TestParseTTLFloorBoundaries`, `TestParseTTLFloorReadsEveryDeliveredShape` | 0 takes the default, above the max clamps |
+| Boundary: change log entry bound | Done | `TestChangeLogEvictsAtTheBound`, `TestEvictOldestKeepsTheNewest`, `TestEvictOldestTrimsToTheBound` | |
+| `firewall-domain-group-update` | Done | `test/plugin/firewall-domain-group-update.ci` | 2/2 PASS in the plugin suite runner, red observed first |
+| `firewall-domain-group-clear` | Done | `test/plugin/firewall-domain-group-clear.ci` | in the same 2/2 |
+| `firewall-cli-domain-group-show` | Done | `test/firewall/firewall-cli-domain-group-show.ci` | 1/1 PASS in the firewall suite runner, red observed first |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| The 12 planned plugin source files | Done | Delivered as 11 plus `register_cmd.go`; `cmd_domain.go` split (Deviations) |
+| The 4 planned YANG files | Done | `ze-firewall-domain-group.yang`, `ze-firewall-domain-group-cmd.yang`, plus generated `doc.go`, `embed.go`, `register.go` |
+| `internal/component/plugin/server/dispatch_resolve.go` | Done | |
+| The 8 files to modify | Done | All eight carry the change, `cmd/ze/hub/main.go` through `registerPluginDNSResolver` in `main_system.go` |
+| The 3 `.ci` files and their fixtures | Done | Fixtures in `netfilter_fixture_domain_group.go`, registered in `register_domain_group.go` |
+| `docs/architecture/firewall/firewall-domain-group.md` | Done | |
+
+### Audit Summary
+- **Total items:** 11 ACs, 4 task requirements, 6 test groups, 6 file groups = 27
+- **Done:** 27
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 5, each recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A firewall group whose members are the addresses a DNS name resolves to | functional | `test/plugin/firewall-domain-group-update.ci`, run through `./le job run label functional-plugin` under `unshare -Urn`, 2/2 PASS 12.2s. It types the update command at `ze cli` over SSH and asserts the resolved addresses in the kernel. Observed RED first by making `changeLog.append` return before it writes |
+| Re-resolved when the answer's TTL expires | functional and unit | `TestDomainGroupRefreshFiresAtTTL` drives the worker across a real due time; `TestScheduleClampsBelowFloor`, `TestScheduleTreatsTTLZeroAsDoNotCache` and `TestScheduleBoundsTheLongestWait` pin the three edges of the interval |
+| Reprogrammed only when the addresses actually changed | unit, both polarities | `TestRefreshSameAddressesSkipsReprogramAndLog` asserts no apply, no cache write and no log record; `TestRefreshChangedAddressesReprogramsAndLogsOnce` asserts exactly one of each. `TestSteadyStateWritesNothingAfterTheFirstAnswer` closes the repeat case |
+| Every change recorded so an operator can answer what a name pointed at, and when | functional | The same update `.ci` reads the change log with five `expect=file:` assertions over the daemon's `firewall-domain-group.dns.jsonl`, covering the old set, the new set and the timestamp. Those five assertions are what went red when `changeLog.append` was broken |
+| An operator sees which name supplied each address | functional | `test/firewall/firewall-cli-domain-group-show.ci`, 1/1 PASS 3.4s through `./le job run label functional-firewall`. It reads `show firewall ruleset` over the real SSH `ze cli` path and matches the source-name pattern. Observed RED by making `enrichShow` answer `nothingToAdd`, with the two needles above it still passing |
+| A DNS outage is never enforced as a filter | unit, four codes | `TestRefreshTransportErrorKeepsLastGood`, `TestClassifyRcodeServfailKeepsLastGood`, `TestClassifyRcodeRefusedKeepsLastGood` and `TestClassifyUnknownStatusKeepsLastGood` keep the addresses; `TestClassifyRcodeNXDOMAINEmptiesSet` is the one that empties. `opResolveDNS` refuses rather than answering empty when no resolver is registered (`TestResolveRPCRefusesWithNoResolverRegistered`) |
+| One resolver and one DNS cache, not two | wiring | A tree-wide grep for `RegisterDNSResolver` finds exactly one non-test caller, `registerPluginDNSResolver` (`cmd/ze/hub/main_system.go`), which passes the same `resolvers.DNS` that `resolvecmd.SetResolvers` publishes to `show dns`. The plugin constructs no `Resolver`: `resolveFunc` is the only route out (`domain.go`), and `TestPluginResolveRPCReachesHubResolver` drives it |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Nothing. Every acceptance criterion, every wiring row and every user story is implemented and proven | -- | -- |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/firewall-domain-group-zeclose-fwdg-226700.md`, 15 files, hash-pinned |
+| `./le spec session review check` | OK, clean, hashes match |
+| Rounds | 2. Round 1 read every producer and found the four findings below; round 2 re-read the changed code and re-ran the package tests green |
+| Reviewer lenses used | AC-by-AC at the producing function; wiring from each entry point (config commit, TTL expiry, operator command, restart); security over untrusted DNS input, bounds and failing-open; `docs/contributing/ze-go-style.md` (guard clauses, typed values, zero-is-never-an-answer, goroutine ownership, no peer-reachable `panic()`); registration over hardcoding; documentation read at the current page rather than at the diff |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The operator payload published the set type as a bare integer while `family`, `hook` and `policy` beside it rendered through `String()`. `SetType.String()` exists, and its own doc comment says it exists so operators read the token they wrote | `internal/plugins/firewall/nft/cmd_show.go` `handleShowFirewallRuleset` | The payload now carries `set.Type.String()`, with the reason in a comment. No test or fixture pinned the integer |
+| 2 | ISSUE | `store.open` skipped a cache entry on any read error and any decode failure, silently. A corrupt entry then read as "this name never resolved", which the same function's doc comment names as the outcome it must not produce | `internal/component/firewall/plugins/domain/cache.go` `store.open` | A key never written still passes silently, because that is the normal state of an unresolved name. Every other read error and every decode failure now logs at WARN naming the group, name and family |
+| 3 | NOTE | A comment said the outcome constants "are the four outcomes AC-2 through AC-5 define" over five constants | `internal/component/firewall/plugins/domain/domain.go` | Corrected, naming why `panic` is the fifth and which criterion it belongs to |
+| 4 | NOTE | `parseDomainConfig` assigns rather than merges, so two config sections carrying the same root would drop the earlier one. `WantsConfig` declares one root, so at most one arrives | `internal/component/firewall/plugins/domain/config.go` | Not changed. The branch would be machinery for a case the SDK does not produce; recorded so the next reader knows it was considered |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/firewall/plugins/domain/` | Yes | `ls` -- cache.go changelog.go changelog_test.go command.go command_test.go config.go config_test.go doctor.go doctor_test.go domain.go domain_test.go enrich.go enrich_test.go register.go register_cmd.go schedule.go schedule_test.go sets.go sets_test.go yang/ |
+| `internal/component/firewall/plugins/domain/yang/` | Yes | `ls` -- doc.go embed.go register.go ze-firewall-domain-group-cmd.yang ze-firewall-domain-group.yang |
+| `internal/component/plugin/server/dispatch_resolve.go` | Yes | `ls` returns the path |
+| `test/plugin/firewall-domain-group-update.ci` | Yes | `ls` returns the path |
+| `test/plugin/firewall-domain-group-clear.ci` | Yes | `ls` returns the path |
+| `test/firewall/firewall-cli-domain-group-show.ci` | Yes | `ls` returns the path |
+| `internal/test/fixture/netfilter_fixture_domain_group.go` and `register_domain_group.go` | Yes | `ls` returns both |
+| `docs/architecture/firewall/firewall-domain-group.md` | Yes | `ls` returns the path |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | The set holds exactly the resolved addresses | `go test ./internal/component/firewall/plugins/domain/` -- ok 11.7s, with `TestBuildDomainGroupTablesMatchesResolvedAddresses` and `TestDomainGroupConfigureRegistersSet` among the 92 |
+| AC-2 | An unchanged answer writes nothing | Read at `resolveAndRecord`: the `sameAddresses` branch returns before `cache.put`, before `changeLog.append` and before any `applyTables`; `recordSteadyAnswer` returns early once the entry is seen and not failing |
+| AC-3 | Exactly one record, naming old, new and time | Read at `resolveAndRecord`: one `changeLog.append` carrying the previous addresses, the new addresses and the instant |
+| AC-4 | A transport error keeps the last good | Read at `resolveAndRecord`: the transport-error branch rearms and reports no change, so `refreshOne` never calls `applyTables` and the registered tables and the kernel are untouched |
+| AC-5 | NXDOMAIN empties; SERVFAIL and REFUSED do not | Read at `Status.Authoritative()` (`resolver.go`), which admits `StatusSuccess` and `StatusNameError` only, and at `statusFromRcode`, which maps all four codes. `go test ./internal/component/resolve/dns/` -- ok 2.3s |
+| AC-6 | The commit is REFUSED, not held back | Read at `verify` (returns an error), at `runRPC` (`config_tx_bridge.go`, emits verify-failed), and at the orchestrator's `verifyFailedCh` branch, which returns an error naming the plugin and aborts the transaction |
+| AC-7 | Programmed from cache before any resolution | Read at `configure`: `cache.open`, then `applyTables`, then `rearmSchedule`; the worker starts from `OnStarted` and cannot run earlier |
+| AC-8 | The name is displayed beside the address | Read at `handleShowFirewallRuleset` (the `show.Enrich` call is present) and at `enrichShow`; `go test ./internal/plugins/firewall/nft/` -- ok 0.026s; `test/firewall/firewall-cli-domain-group-show.ci` 1/1 PASS through its suite runner |
+| AC-9 | TTL=0 is "do not cache", not "expired now" | Read at `refreshInterval`, which takes the larger of the TTL and the floor, so a TTL of 0 yields the floor and the function cannot return zero |
+| AC-10 | Each family on its own TTL | Read at `nameKey` (carries `family`), `arm` and `store.put` (one key each). The apply is whole-ruleset: read at `ApplyAll`, which merges every owner under one lock |
+| AC-11 | The change log survives a respawn | Read at `changeLog.open` (counts, never truncates) and `append` (opens for append and create only); `TestDomainGroupOnConfigureAfterRespawnPreservesChangeLogAndCache` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| A committed config carrying a domain group | -- | `TestDomainGroupConfigureRegistersSet`; the boot config of all three `.ci` files declares the group and the term |
+| A name's answer TTL expiring | -- | `TestDomainGroupRefreshFiresAtTTL` |
+| The SDK resolve call from the plugin | -- | `TestPluginResolveRPCReachesHubResolver`, plus the one non-test `RegisterDNSResolver` caller |
+| The update command typed by an operator | `test/plugin/firewall-domain-group-update.ci` | Read: it provisions credentials with `ze init`, runs the command through `ze cli --user operator -c` over SSH, then reads the kernel and the change log |
+| `show firewall ruleset` typed by an operator | `test/firewall/firewall-cli-domain-group-show.ci` | Read: it drives the same SSH `ze cli` path and matches the source-name pattern, which is the assertion the forced red broke |
+| A daemon restart with a populated cache | -- | `TestDomainGroupColdStartProgramsFromCache`, `TestDomainGroupConfigureProgramsBeforeResolving` |
+| A commit naming a never-resolved group | -- | `TestDomainGroupVerifyRefusesUncachedName`, and the orchestrator abort path read at source |
+| A DNS answer carrying a non-success rcode | -- | `TestResolveWithTTLSurfacesRcode`, `TestQueryExistingCallersUnaffected` |
+
+`test/plugin/firewall-domain-group-clear.ci` covers user story 6 the same way, over SSH, red observed by breaking the `applyTables` call in `clearDomainGroup`.
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `ResolveWithTTL` returns the remaining TTL on a cache hit and the answer TTL on a miss; the schedule reads it and clamps. `TestDomainGroupRefreshFiresAtTTL`, `TestScheduleResetKeepsExistingDueTimes` |
+| A-2 | confirmed | One RPC, one resolver. `registerPluginDNSResolver` (`cmd/ze/hub/main_system.go`) is the only non-test caller of `rpc.RegisterDNSResolver`, and it passes `resolvers.DNS`, the same instance `show dns` reads. The plugin builds no `Resolver` |
+| A-3 | broken (as found) | zefs has no append. The change log is JSON-lines outside zefs; only the bounded last-good state is a zefs value. Mistake Log row 1 |
+| A-4 | confirmed | `firewall.SetElement` still carries `Value`, `Timeout` and `IntervalEnd` and nothing else. Provenance travels through `enrichShow` |
+| A-5 | confirmed, in the other direction | `plan/spec-firewall-remote-group.md` (design) carries the owner's decision that ONE plugin serves both sources, and now names `internal/component/firewall/plugins/domain/` as the plugin it adds the URL source to. The shape is settled by landing rather than by agreement in advance |
+| A-6 | broken (as found), then fixed in scope | `query` discarded the response code. It now returns `dns.Status`. `TestResolveWithTTLSurfacesRcode` and the four classify tests |
+| A-7 | confirmed | Every registration point has a live call: `registry.Register` with `RunEngine`, the YANG glue, `pluginserver.RegisterRPCs`, `firewall.RegisterTables`, `diagnostic.RegisterDoctorCheck`, and the plugin's row in the generated `internal/component/plugin/all/all.go` |
+| A-8 | confirmed | `OnEnrichShow(plug.enrichShow)` is wired in `runFirewallDomain`, `handleShowFirewallRuleset` calls `show.Enrich`, and the two command strings are pinned against each other by `TestEnrichCommandMatchesTheShowHandler` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Row 1, the `docs/features.md` Firewall row | The paragraph's claims read against `domain.go`, `schedule.go` and `sets.go`; both `<!-- source: -->` anchors resolve | Yes, landed in `6c15058cea` |
+| Row 3, `docs/guide/command-reference.md` | The section is written and correct in the working tree and cannot be committed: the same file carries another session's uncommitted `ze bgp decode pcap` hunk | No -- stranded, recorded in `plan/journal/documentation-stranded-by-a-siblings-hunk.md` |
+| Rows 6 and 14, `docs/guide/firewall.md` | The config example checked leaf by leaf against `ze-firewall-domain-group.yang` (`range "1..86400"`, `default "60"`, `units "seconds"`, the `domain-names` leaf-list); the four metric names and five label values against `setMetricsRegistry` and the outcome constants; the two doctor codes against `doctor.go` | Yes |
+| Row 8, `docs/architecture/api/process-protocol.md` | The `resolve-dns` row checked against `rpc.MethodResolveDNS`, `ResolveDNSInput` and `ResolveDNSOutput` | Yes |
+| Rows 12 and 16, the four declared design docs | `firewall-domain-group.md` (new), `backend-command-dispatch.md` and `hub-architecture.md` each carry the change and name the producing symbol; `procfs-diagnostics.md` needed no edit, because `show_dns.go`'s only change is one call site | Yes |
+| Row 17, existing examples still match | The firewall config example in `docs/guide/firewall.md` parses under the delivered YANG; no existing `set` or `irr` example changed | Yes |
+| Rows 2, 4, 5, 10, 11 and 15 answered No; rows 7, 9 and 13 answered N-A | Each backed by the greps recorded in the checklist at design time and re-confirmed at closure: `docs/comparison.md`, `docs/plugin-overview.md`, `docs/features/plugins.md` and `docs/guide/status.md` still hold zero `firewall-irr` and zero `firewall-domain` mentions, so a new firewall plugin earns no row there either | Yes |
+
+## Core Insight
+
+The classification is the feature. Everything else in this plugin is machinery around one question:
+what does silence from a name mean? Ze could not answer it, because `query` returned the same empty
+result for a name that was deleted and a server that was down, and a firewall cannot act on a signal
+that means both "empty the set" and "keep enforcing what you have". So the smallest correct version of
+this feature was not the schedule, the cache or the change log. It was making the resolver say why, and
+the four-way branch in `resolveAndRecord` is the only place in the package where getting it wrong is an
+operator-visible security failure rather than a stale set.

@@ -117,11 +117,26 @@ func (s *store) open(groups []group) error {
 			for _, fam := range families {
 				key := zefs.KeyFirewallDomainGroup.Key(g.Name, name, fam.label)
 				data, readErr := blob.ReadFile(key)
-				if readErr != nil || len(data) == 0 {
+				if readErr != nil {
+					// A key this box never wrote is the normal state of a name
+					// that has not resolved yet, and it says nothing. Any other
+					// read failure is an entry that EXISTS and cannot be
+					// recovered, and it is reported: skipping it silently would
+					// leave the group short of addresses the box did learn,
+					// which is the outcome this function is written to avoid.
+					if !errors.Is(readErr, fs.ErrNotExist) {
+						logger().Warn("firewall-domain: cached addresses could not be read, the name reads as unresolved",
+							"group", g.Name, "name", name, "family", fam.label, "error", readErr)
+					}
+					continue
+				}
+				if len(data) == 0 {
 					continue
 				}
 				var value resolvedName
-				if json.Unmarshal(data, &value) != nil {
+				if decodeErr := json.Unmarshal(data, &value); decodeErr != nil {
+					logger().Warn("firewall-domain: cached addresses could not be decoded, the name reads as unresolved",
+						"group", g.Name, "name", name, "family", fam.label, "error", decodeErr)
 					continue
 				}
 				entries[nameKey{group: g.Name, name: name, family: fam}] = value

@@ -86,8 +86,10 @@ that touches the leaf type, the `resolv.conf` writer and `dnsServerResponds`.
 That is a product change with an operator-visible surface, and no test needs it
 yet.
 
-**The three firewall domain-group `.ci` files are still unwritten.** They were
-the reason this spec existed, and the stub is not what blocks them: they run the
-daemon with no external-plugin block and launch their fixture as a separate
-process, so it holds no channel to dispatch on. That is a design decision inside
-`plan/spec-firewall-domain-group.md`, which owns them.
+**The three firewall domain-group `.ci` files are written and green**, in
+`57925ff89d`. The stub was never what blocked them: they run the daemon with no
+external-plugin block and launch their fixture as a separate process, so it
+holds no channel to dispatch on. `spec-firewall-domain-group` settled that on
+2026-09-06 by driving them over SSH through `ze cli`, which is the operator path
+its wiring rows asked for
+(`internal/test/fixture/netfilter_fixture_domain_group.go`).

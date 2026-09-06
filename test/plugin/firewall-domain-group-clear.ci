@@ -1,6 +1,6 @@
 # Test: `clear firewall domain-group <name>` drops the group's cached addresses
 #       and the set they were programmed into leaves the kernel.
-# Spec: plan/spec-firewall-domain-group.md -- user story 6
+# Spec: spec-firewall-domain-group -- user story 6
 # VALIDATES: the deliberate exit from last-known-good. The command is typed at
 #            `ze cli` over SSH and reaches clearDomainGroup
 #            (internal/component/firewall/plugins/domain/command.go), which

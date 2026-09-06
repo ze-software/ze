@@ -64,9 +64,11 @@ const tableOwner = "firewall-domain"
 // table name (internal/component/firewall/registry.go).
 const tableNamePrefix = "ze_"
 
-// refreshOutcome values label the refresh counter. They are the four outcomes
-// AC-2 through AC-5 define, so a dashboard shows the same distinction the code
-// branches on.
+// refreshOutcome values label the refresh counter. Four of them are the
+// outcomes AC-2 through AC-5 define, so a dashboard shows the same distinction
+// the code branches on. The fifth, panic, is the one no acceptance criterion
+// names: a refresh that recovered rather than resolving must be countable, or
+// a name that fails on every answer looks idle.
 const (
 	outcomeUnchanged = "unchanged"
 	outcomeChanged   = "changed"

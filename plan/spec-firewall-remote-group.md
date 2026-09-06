@@ -57,7 +57,7 @@ Provenance: VyOS T9076 added a per-group `interval` on top of an existing
 Everything above is preserved as written on 2026-08-01. Two things changed, and
 both WIDEN this spec.
 
-**One plugin serves both sources, not two plugins.** `plan/spec-firewall-domain-group.md`
+**One plugin serves both sources, not two plugins.** `spec-firewall-domain-group`
 was written on 2026-09-02 as a separate plugin that would depend on this spec
 for shared substrate: the cache, keeping the last good answer when a source
 fails, programming the set, and the show, update and clear commands. That left
@@ -238,7 +238,7 @@ Three, differing in kind:
    exclusivity.
 2. Verify. A set naming a source that has never been fetched refuses the commit,
    the same rule `verifyRefs` (`irr.go`) applies to an uncached IRR reference,
-   and the same rule `plan/spec-firewall-domain-group.md` applies to a name.
+   and the same rule `spec-firewall-domain-group` applied to a name.
    Verify reads the cache only and performs no network I/O.
 3. Fetch. `http.NewRequestWithContext` with the loop's cancelable context, an
    explicit client timeout, and the stored `ETag` and `Last-Modified` sent as
@@ -264,7 +264,7 @@ Three, differing in kind:
 | Plugin → the internet | HTTPS GET with a context, a client timeout, a body cap, and conditional headers | No |
 | Plugin → Firewall registry | `firewall.RegisterTables` and `ApplyAll` under one owner | No |
 | Plugin → zefs | Registered key per set holding entries and the cache validators | No |
-| Plugin → Hub (resolution) | The resolve RPC that `plan/spec-firewall-domain-group.md` adds, used by the domain source | No |
+| Plugin → Hub (resolution) | The `resolve-dns` RPC (`docs/architecture/api/process-protocol.md`), already carrying the domain source | No |
 | Hub → Plugin (show) | `enrich-show` carrying source provenance into `show firewall group` | No |
 | Operator → Plugin | `pluginserver.RegisterRPCs` and `ForwardToPlugin` | No |
 
@@ -308,7 +308,7 @@ Three, differing in kind:
 | R-4 | A URL is attacker-influenced input that decides what a firewall permits or drops | None at runtime; the box does what the config asked | Cap the body with `io.LimitReader`, cap the entry count, treat a truncated body as a failed fetch, and require HTTPS in the leaf pattern. Document that a permit rule sourced from a URL trusts whoever serves it |
 | R-5 | A fetch failure that retries too eagerly hammers the publisher, and one that retries too slowly leaves the list stale | Refresh outcome counters, and the retry interval relative to the refresh interval | A `retry-interval` leaf with a sane default, and exponential growth with jitter written locally, since `managed.Backoff` cannot be imported |
 | R-6 | A panic while parsing an untrusted downloaded list kills the plugin | The plugin process exiting, `ze_plugin_restarts_total` rising | Recover in the refresh loop so a bad list costs one cycle. `ze-go-style.md`: "A peer MUST NOT be able to panic the daemon", and a downloaded list is the same class of input |
-| R-7 | Cold start with no cached list holds back every table naming the set | The WARN in `dropTablesMissingAProvidedSet` | Persist to the cache and refuse the commit at verify, the same treatment `plan/spec-firewall-domain-group.md` chose and `verifyRefs` already implements for IRR |
+| R-7 | Cold start with no cached list holds back every table naming the set | The WARN in `dropTablesMissingAProvidedSet` | Persist to the cache and refuse the commit at verify, the same treatment `spec-firewall-domain-group` chose and `verifyRefs` already implements for IRR |
 
 ## Blast Radius
 
@@ -316,7 +316,7 @@ Three, differing in kind:
 |----------|--------|
 | What breaks if this is wrong? | Two things, in increasing severity. A bad fetch path leaves a set stale, which under-filters or over-filters. A bad `choice` change breaks parsing of firewall config operators have already written, which takes the whole firewall section down on upgrade. A-1 exists for the second |
 | How is it reverted? | Single commit revert for the plugin. The `choice` schema change is also a single revert, because it adds no new required node and rewrites no existing config |
-| Who else touches this path? | `plan/spec-firewall-domain-group.md` adds the domain source to this same plugin. `plan/immediate/spec-firewall-dynamic-address-group.md` owns `flags-dynamic` and `flags-timeout` lowering in `applySet`. `internal/component/firewall/plugins/irr/sets.go` is touched by the cap move |
+| Who else touches this path? | The `firewall-domain` plugin (`internal/component/firewall/plugins/domain/`) already holds the domain source, so this spec adds the URL source beside it. `plan/immediate/spec-firewall-dynamic-address-group.md` owns `flags-dynamic` and `flags-timeout` lowering in `applySet`. `internal/component/firewall/plugins/irr/sets.go` is touched by the cap move |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
