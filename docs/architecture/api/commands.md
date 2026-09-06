@@ -1717,7 +1717,7 @@ as an address.
 <!-- source: internal/component/command/pipe_origin.go -- originJSON -->
 
 Every `show bgp` command declares a shape, and two channels write them. Go
-compiled into the daemon declares sixteen paths. Nine of those name an address
+compiled into the daemon declares nineteen paths. Nine of those name an address
 field. `show bgp rib` and `show bgp irr` are served by a plugin process, and an
 in-core shim declares for them. Scope is therefore the registration site rather
 than the process boundary.
