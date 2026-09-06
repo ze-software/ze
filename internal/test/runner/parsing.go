@@ -551,15 +551,20 @@ type parsingRunner struct {
 	baseDir string
 	zePath  string
 	colors  *Colors
+	// timeoutFactor widens an authored `cmd=...:timeout=` when this run
+	// executes tests concurrently. Set by Run; 1 until then, so a caller that
+	// never went through Run gets the authored value unchanged.
+	timeoutFactor int
 }
 
 // NewParsingRunner creates a parsing test runner.
 func NewParsingRunner(tests *ParsingTests, baseDir, zePath string) *parsingRunner {
 	return &parsingRunner{
-		tests:   tests,
-		baseDir: baseDir,
-		zePath:  zePath,
-		colors:  NewColors(),
+		tests:         tests,
+		baseDir:       baseDir,
+		zePath:        zePath,
+		colors:        NewColors(),
+		timeoutFactor: 1,
 	}
 }
 
@@ -578,6 +583,16 @@ func (r *parsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 	runner.SetLabel("parse")
 	runner.setNoHeader(true) // header managed by caller
 	runner.SetBaseDir(r.baseDir)
+
+	// An authored `timeout=` is measured on an uncontended run, so a budget set
+	// near the uncontended time flakes when tests share CPU. Widen it by the
+	// same ParallelTimeoutHeadroom the generic runner applies, and only when
+	// this run really is concurrent: a single selected test keeps the authored
+	// value, so a real slowdown still surfaces quickly.
+	r.timeoutFactor = 1
+	if min(runner.concurrencyLimit(), len(selected)) > 1 {
+		r.timeoutFactor = ParallelTimeoutHeadroom
+	}
 
 	for _, test := range selected {
 		rec := runner.AddTestWithNick(test.Name, test.Nick, test, func(runCtx context.Context, t *parsingTest) (bool, error) {
@@ -744,7 +759,7 @@ func (r *parsingRunner) runOneCommand(ctx context.Context, test *parsingTest, ci
 			return false
 		}
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, d)
+		ctx, cancel = context.WithTimeout(ctx, d*time.Duration(r.timeoutFactor))
 		defer cancel()
 	}
 

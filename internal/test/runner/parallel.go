@@ -163,6 +163,16 @@ func (r *parallelRunner[T]) SetConcurrency(n int) {
 	r.concurrency = n
 }
 
+// concurrencyLimit is the configured maximum with the default applied. Run and
+// every caller deciding whether this run is contended read it, so the zero
+// meaning of the field is stated once.
+func (r *parallelRunner[T]) concurrencyLimit() int {
+	if r.concurrency > 0 {
+		return r.concurrency
+	}
+	return DefaultParallelConcurrent
+}
+
 // setStatusInterval sets the status ticker interval.
 // Zero means StatusUpdateInterval.
 func (r *parallelRunner[T]) setStatusInterval(d time.Duration) {
@@ -251,10 +261,7 @@ func (r *parallelRunner[T]) Run(ctx context.Context) bool {
 			r.display.Header()
 		}
 	}
-	conc := r.concurrency
-	if conc <= 0 {
-		conc = DefaultParallelConcurrent
-	}
+	conc := r.concurrencyLimit()
 	r.display.SetParallel(conc, len(r.tests))
 	r.display.Start()
 

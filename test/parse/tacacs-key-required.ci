@@ -15,13 +15,22 @@
 #     (`cmd/ze/hub/main_reload.go`, "reload: rebuild aaa bundle"), but only
 #     while a bundle is already live: the rebuild is skipped when it is nil.
 #
-# THE EXIT CODE BELOW DISCRIMINATES NOTHING. Measured on 2026-09-04: this same
-# config WITH a key also ends in exit 1 at the same 242ms, because `ze -` given
-# a config that starts no BGP and no plugin has nothing to run. It is asserted
-# only because the runner expects success from a foreground command that
-# declares no code. The stderr line is the whole proof: it carries
-# ErrNoSharedSecret, which nothing but this guard produces, and it is absent
-# from the run whose server declares a key.
+# WHAT THIS TEST PROVES, and what it used to. The daemon STARTS, reads the
+# config, drops the tacacs backend from the chain, and keeps running. That is
+# the correct behavior, so there is no exit code to assert and none is asserted:
+# the evidence is the error text and the backend it names.
+#
+# It asserted one until 2026-09-06, and that assertion was the whole reason this
+# file passed while proving nothing. The measurement recorded here on 2026-09-04
+# -- that `ze -` "ends in exit 1 because a config that starts no BGP and no
+# plugin has nothing to run" -- was WRONG. The parse suite's runner rewrote the
+# bare `-` into the PATH of the stdin file, so the command ran as `ze <path>`, a
+# form the CLI does not have. The daemon answered "unknown command: <path>" with
+# its usage text and exit 1 before reading one line of config, and
+# `expect=exit:code=1` was satisfied by that. Meanwhile the one line that could
+# discriminate, `expect=stderr:pattern=`, was a spelling the parse suite's parser
+# did not read and dropped in silence. Both halves are fixed in
+# `internal/test/runner/parsing.go`; a bare `ze -` now runs as `ze start <file>`.
 #
 # VALIDATES: a tacacs server declared with no key is refused by name when the
 #            AAA bundle is built.
@@ -42,10 +51,15 @@ system {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
-# See the note above: this asserts what `ze -` does with a config that runs
-# nothing, not what the guard does.
-expect=exit:code=1
-# This is the discriminating assertion. Remove the guard in tacacsBackend.Build
-# and the line goes with it.
-expect=stderr:pattern=no shared secret configured for this TACACS\+ server
+# The daemon does not exit, so the runner stops it at this deadline and then
+# checks the assertion against what it wrote. 3s is 15x the 200ms at which the
+# error was observed, and a parallel run widens it by ParallelTimeoutHeadroom.
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=3s
+# The whole proof, and it binds three facts to one log line: the backend that
+# was DROPPED is tacacs, the server is the one this config declares, and the
+# reason is ErrNoSharedSecret, which nothing but tacacsBackend.Build produces.
+# Each fact is load-bearing. Without the backend name a dropped radius or
+# ldap backend would satisfy it; without the error text any drop reason would,
+# a refused dial included; without the drop message the error could be logged
+# by a path that went on to use the server anyway.
+expect=stderr:pattern=backend dropped from the chain.*backend=tacacs error="tacacs server 127\.0\.0\.1:49: no shared secret configured for this TACACS\+ server"

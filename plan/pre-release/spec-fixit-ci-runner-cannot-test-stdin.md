@@ -267,6 +267,28 @@ B, C and D are live and Thomas picks.
 | C. Remove the substitution entirely | every `stdin=` block is piped. Daemon-launch tests declare their config as a `tmpfs=` block and name the path in `exec=` | rewriting the same 900 lines AND every fixture that depends on the file's NAME: `action=rewrite:dest=ze-bgp.conf`, the SIGHUP reload tests, the restart-against-the-same-file tests, the rollback assertions on `rollback/ze-bgp-*.conf`, and `zeConfigFileName`'s two-daemon rule. The netns chown of the config file moves to the tmpfs writer | one meaning for `stdin=`, no special case anywhere, and `-` in a `.ci` means what it means in a shell |
 | D. Narrow the branch to a true daemon launch | substitute only when the matched `-`'s index equals `zeDaemonConfigArgIndex(args)`. Pipe in every other case | the 423 `ze config validate -` lines flip from the path form to the pipe form. Content-identical, but any assertion naming the file changes, and `ze config fmt -w -` style commands change branch. `ze-peer` still needs its own answer, since it has no `-` to test. Requires a full functional-suite run to prove nothing else moved | the smallest diff by a wide margin, and the discriminator already exists and is already about the daemon rather than about a list of commands |
 
+**Option D is already built for ONE of the two runners (2026-09-06, commit
+`d1e6e2d200`), so the decision below is smaller than the table states.** The
+parse suite has a second runner with its own copy of the substitution
+(`runOneCommand`, `internal/test/runner/parsing.go`), and that copy now narrows
+exactly as D describes: it inserts the `start` verb when the matched `-`'s index
+equals `zeDaemonConfigArgIndex(args)`, and substitutes in place otherwise. It
+was fixed rather than left because the unnarrowed branch had made a security
+test vacuous, `test/parse/tacacs-key-required.ci`
+(`plan/journal/green-that-could-not-have-been-red.md`).
+
+Two facts this produced, both bearing on D's cost column:
+
+- The full `test/parse` suite ran green over the change, 328/330, with the two
+  failures pre-existing and unrelated. So D's "requires a full functional-suite
+  run to prove nothing else moved" is discharged for this suite's 330 files.
+- The parse suite's `-` substitution is the PATH form for `ze config validate -`
+  and stays so under D, because `zeDaemonConfigArgIndex` returns `-1` there.
+  The generic runner's 423 lines are the same case, which supports A-1.
+
+What is NOT settled: the generic runner (`runner_exec.go`) is untouched, and
+`ze-peer` still has no answer under D.
+
 Two sub-questions ride on the choice and Thomas should answer them together:
 
 | Sub-question | If B | If C | If D |
