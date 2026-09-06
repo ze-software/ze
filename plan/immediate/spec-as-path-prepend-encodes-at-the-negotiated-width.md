@@ -319,7 +319,11 @@ AS4_PATH as RFC 6793 Section 4.2.2 requires.
 ## Known Limitations
 
 - The forwarded rail toward a NON-EBGP destination does not call `aspathEdit.Record` at all (`reactor_api_forward.go` guards it on `facts.isEBGP`), so a width difference between an iBGP source and an iBGP destination is not transcoded on that rail. That is a separate question from this spec's defect, it predates it, and this spec neither fixes nor relies on it.
-- The interop scenario named above is written but has never been run in this session.
+- The interop scenario named above is NOT written and has never been run. The
+  fix landed with unit tests only, at both widths and both directions, asserting
+  on the bytes. `as-path-prepend-two-octet-peer` remains owed:
+  `test/interop/scenarios/as-path-prepend-two-octet-peer`, run by
+  `./le integration scenario as-path-prepend-two-octet-peer`.
 
 ## RFC Documentation (Scope: protocol)
 
