@@ -521,8 +521,38 @@ two rows that lack proof would still lack it. `domainGroupUpdate`,
 **All three ran and each was observed RED first**, outside the gate under a user
 namespace, with red forced separately in `changeLog.append`, the `applyTables`
 call in `clearDomainGroup`, and `enrichShow` — each breaking only the assertion
-written for it. They remain unexecuted by `./le functional plugin` and
-`./le functional firewall`, which is where the release reads them.
+written for it.
+
+**All three then PASSED through their own suite runners**, 2026-09-06, which is
+what the release reads:
+
+```
+./le job run label functional-plugin command unshare -Urn --map-root-user \
+  sh -c 'ip link set lo up; exec ./bin/ze-test bgp plugin \
+         firewall-domain-group-update firewall-domain-group-clear'
+  -> 2/2 PASS, 12.2s
+
+./le job run label functional-firewall command unshare -Urn --map-root-user \
+  sh -c 'ip link set lo up; exec ./bin/ze-test firewall \
+         firewall-cli-domain-group-show'
+  -> 1/1 PASS, 3.4s
+```
+
+Two things about that run are worth keeping, because both mislead a reader who
+sees only the green.
+
+Without the user namespace the show test SKIPS rather than passing, on its
+`caps=net-bind` token — the gate working, not a test that runs anywhere. And
+without `ip link set lo up` inside the namespace it FAILS loudly, `the SSH CLI
+server never listened on 127.0.0.1:1807`, because the CLI binds loopback. A
+green here therefore means the namespace was built correctly as well as the
+product behaving.
+
+The whole `./le functional firewall` suite was NOT run and could not be: it was
+killed by the kernel for low memory at load average 2.48, with 3G free and one
+`gopls` holding 3.2G. That is recorded in
+`plan/journal/gate-verdict-depends-on-the-machine.md` and is a property of a
+shared workstation rather than of these tests.
 
 Two blocking defects were found by writing them, and both are fixed:
 
