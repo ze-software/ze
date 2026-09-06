@@ -2104,6 +2104,44 @@ func TestApplyTakeKeepsIdentityKeys(t *testing.T) {
 	}
 }
 
+// TestApplyTakeKeepsIdentityKeysOverArrayRows proves a row whose value is a
+// LIST is taken and put back under the key that names it.
+//
+// `show bgp adj-rib-in` answers a map of peer address to that peer's routes, so
+// its rows are lists rather than records. The row's identity is the peer
+// address, which is the map key and is already in the answer: nothing has to be
+// invented for `| first 1` to name what it kept.
+//
+// VALIDATES: `show bgp adj-rib-in | first 1` answers one peer's routes.
+// PREVENTS: the row set being read as the envelope, over which `first 1`
+// answered the whole table and `count` answered 1.
+func TestApplyTakeKeepsIdentityKeysOverArrayRows(t *testing.T) {
+	const answer = `{"adj-rib-in":{"10.0.0.1":[{"key":"a"},{"key":"b"}],"10.0.0.3":[{"key":"c"}]}}`
+
+	got, msg := applyFirst(answer, "1")
+	if msg != "" {
+		t.Fatalf("first refused: %s", msg)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal([]byte(got), &decoded); err != nil {
+		t.Fatalf("answer does not parse: %v", err)
+	}
+	peers, isMap := decoded["adj-rib-in"].(map[string]any)
+	if !isMap {
+		t.Fatalf("the peers are no longer keyed by identity: %s", got)
+	}
+	if len(peers) != 1 {
+		t.Fatalf("first 1 kept %d peers, want 1: %s", len(peers), got)
+	}
+	routes, isList := peers["10.0.0.1"].([]any)
+	if !isList {
+		t.Fatalf("first 1 kept the wrong peer, or changed what it holds: %s", got)
+	}
+	if len(routes) != 2 {
+		t.Errorf("the kept peer holds %d routes, want its own 2: %s", len(routes), got)
+	}
+}
+
 // TestApplyMatchFiltersRows is the measured defect: a bare `| match idle` over
 // three peers answered all three, because the default chain appends its format
 // operator at the END and match therefore ran over the dispatcher's compact

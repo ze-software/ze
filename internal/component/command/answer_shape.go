@@ -232,14 +232,24 @@ func normalizedNames(names []string) []string {
 //
 // Two spellings carry rows in Ze's answers and both are common:
 //
-//   - an ARRAY of objects, which is what a streamed walk collapses to;
-//   - a MAP keyed by identity, whose every value is an object. `show bgp peer
-//     list` answers this shape, keyed by peer address.
+//   - an ARRAY, which is what a streamed walk collapses to;
+//   - a MAP keyed by identity. `show bgp peer list` answers this shape, keyed
+//     by peer address.
 //
 // The identity spelling is why this cannot be an array test. The old countItems
 // happened to answer correctly for it, by unwrapping a single-key map and
 // counting the inner map's keys, and the audit recorded that as right by
 // accident. It is a real shape and it is handled deliberately here.
+//
+// An identity map's VALUE is a row whether it is an object or a list. `show
+// bgp adj-rib-in` maps a peer address to that peer's routes, so its rows are
+// lists, and refusing them made `| first 1` refuse a command whose rows are
+// there and whose identity is the map key. What a row HOLDS is the row's own
+// business; what makes it a row is being addressed by an identity.
+//
+// The values MUST share one shape, so a map mixing an object with a list is no
+// row set. Such a map is a record that happens to hold a list, and reading its
+// field names as identities would answer rows nobody has.
 //
 // Rows from an identity map come back in sorted key order, so `| first 2`
 // answers the same two rows every time.
@@ -254,11 +264,11 @@ func rowSet(v any) (rows []any, keys []string, ok bool) {
 		if len(typed) == 0 {
 			return nil, []string{}, true
 		}
+		if !identityValuesShareOneShape(typed) {
+			return nil, nil, false
+		}
 		names := make([]string, 0, len(typed))
-		for name, value := range typed {
-			if _, isObject := value.(map[string]any); !isObject {
-				return nil, nil, false
-			}
+		for name := range typed {
 			names = append(names, name)
 		}
 		sort.Strings(names)
@@ -270,6 +280,29 @@ func rowSet(v any) (rows []any, keys []string, ok bool) {
 	default:
 		return nil, nil, false
 	}
+}
+
+// identityValuesShareOneShape reports whether every value of a map is an
+// object, or every value is a list.
+//
+// One shape throughout is what tells an identity map from a record. A record's
+// fields hold whatever each field holds, so a map answering both is read as one
+// document; a map answering one shape under every key is a set of rows, and the
+// key names each of them.
+func identityValuesShareOneShape(values map[string]any) bool {
+	objects := 0
+	lists := 0
+	for _, value := range values {
+		switch value.(type) {
+		case map[string]any:
+			objects++
+		case []any:
+			lists++
+		default:
+			return false
+		}
+	}
+	return objects == len(values) || lists == len(values)
 }
 
 // rowsIn finds the rows in a decoded answer and answers them, the key they sit

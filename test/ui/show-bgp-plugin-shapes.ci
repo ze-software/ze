@@ -4,7 +4,8 @@
 # command is dispatched to the plugin process.
 #
 # VALIDATES: spec-plugin-declares-answer-shape AC-9, AC-10, AC-10b, AC-11,
-#   AC-12, AC-13 and AC-17 for the rs, adj-rib-in and healthcheck commands.
+#   AC-12, AC-13, AC-16 and AC-17 for the rs, adj-rib-in and healthcheck
+#   commands.
 # PREVENTS: a plugin command reaching no pre-dispatch check. validateDeclaredShape
 #   (internal/component/command/pipe.go) returns at `if !declared`, so before
 #   this every plugin-served `show bgp` path accepted every operator until its

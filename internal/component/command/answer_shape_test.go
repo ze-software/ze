@@ -61,6 +61,28 @@ func TestRowsInFindsTheRows(t *testing.T) {
 			payload: `{"peers":{}}`,
 			want:    0, wantKey: "peers", wantOK: true,
 		},
+		{
+			name:    "an identity map of objects is one row for each key",
+			payload: `{"peers":{"192.0.2.1":{"state":"up"},"192.0.2.2":{"state":"idle"}}}`,
+			want:    2, wantKey: "peers", wantOK: true,
+		},
+		{
+			// `show bgp adj-rib-in` answers this: a peer address maps to that
+			// peer's routes. The key is the row's identity and it is already in
+			// the answer, so the rows come back keyed by it and nothing is
+			// invented to name them.
+			name:    "an identity map of arrays is one row for each key",
+			payload: `{"adj-rib-in":{"10.0.0.1":[{"key":"a"}],"10.0.0.3":[{"key":"b"},{"key":"c"}]}}`,
+			want:    2, wantKey: "adj-rib-in", wantOK: true,
+		},
+		{
+			// An identity map holds values of ONE shape. A map that mixes them
+			// is a record whose fields happen to hold a list, and reading its
+			// field names as row identities would answer rows nobody has.
+			name:    "a map mixing objects and arrays is no identity map",
+			payload: `{"report":{"peer":{"state":"up"},"routes":[{"key":"a"}]},"total":2}`,
+			wantOK:  false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

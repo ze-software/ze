@@ -254,17 +254,17 @@ func commandDecls() []sdk.CommandDecl {
 		{
 			Name: "show bgp adj-rib-in",
 			// show (rib_commands.go) writes {"adj-rib-in": {<peer>: [route,
-			// ...]}}. The inner map's values are ARRAYS, so rowSet refuses it as
-			// a row set for the same reason the status answer is refused, and
-			// the one remaining candidate is the envelope itself: a single row
-			// named "adj-rib-in" carrying every peer. Declaring a row shape here
-			// would publish `| first 1` over that one row, so it would answer
-			// the WHOLE table and `| count` would answer 1, which is a plausible
-			// number and the wrong question. This is the case
-			// validateDeclaredShape (internal/component/command/pipe.go) was
-			// written for: the command knows it is one document, and the payload
-			// does not say so.
-			Shape: "doc",
+			// ...]}}. That inner map is rows keyed by peer address, and each
+			// row is that peer's routes. rowSet
+			// (internal/component/command/answer_shape.go) reads an identity
+			// map whose values share one shape, so a row is a list here and an
+			// object under `show bgp peer list`. `| first 1` therefore answers
+			// one peer's routes, under the peer address the answer already
+			// carries, and `| count` answers the number of peers.
+			//
+			// No column order goes with it. A column name orders the keys of a
+			// ROW, and a row here is a list whose keys sit one level below it.
+			Shape: "map",
 		},
 		{Name: "request bgp adj-rib-in replay"},
 		// Plugin-to-plugin plumbing, not an operator verb: bgp-rs claims

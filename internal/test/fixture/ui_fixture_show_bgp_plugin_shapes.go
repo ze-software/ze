@@ -367,6 +367,29 @@ system {
 		return fmt.Errorf("`show bgp healthcheck | count` = %v, want 0", decoded)
 	}
 
+	// AC-16: the rows of `show bgp adj-rib-in` are its peers, each keyed by the
+	// peer address, so the row operators apply. No peer is configured here, so
+	// the row set is empty and the count is zero: what this asserts is that the
+	// operator is ADMITTED, which the `doc` declaration used to refuse by name.
+	answer, err = cli("show bgp adj-rib-in | count")
+	if err != nil {
+		return err
+	}
+	count, decoded, err = pluginShapesCount(answer)
+	if err != nil {
+		return err
+	}
+	if count != 0 {
+		return fmt.Errorf("`show bgp adj-rib-in | count` = %v, want 0", decoded)
+	}
+	answer, err = cli("show bgp adj-rib-in | first 1 | json")
+	if err != nil {
+		return err
+	}
+	if strings.Contains(answer, "cannot apply here") {
+		return fmt.Errorf("`show bgp adj-rib-in | first 1` was refused: %s", answer)
+	}
+
 	refusals := []struct {
 		command  string
 		operator string
@@ -376,8 +399,6 @@ system {
 		{"show bgp rpki summary | first 2", pipeFirst, shapeOneDocument},
 		{"show bgp rpki status | count", pipeCount, shapeOneDocument},
 		{"show bgp rs status | count", pipeCount, shapeOneDocument},
-		{"show bgp adj-rib-in | first 1", pipeFirst, shapeOneDocument},
-		{"show bgp adj-rib-in | count", pipeCount, shapeOneDocument},
 		{"show bgp adj-rib-in status | count", pipeCount, shapeOneDocument},
 		// AC-10b: address-field requirements are declared per child command.
 		{"show bgp rpki summary | resolve", pipeResolve, shapeIPAddress},

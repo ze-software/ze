@@ -1728,6 +1728,16 @@ half covers every command including the ones that declare nothing. The
 declaration is what makes the published catalog true, because `ze help command
 --json` lists a declared command's operators from its shape.
 
+An answer HAS rows in two spellings, and the second is what makes an identity
+readable. A LIST is rows. A MAP whose values share one shape is rows keyed by
+identity, and the key names each row: `show bgp peer list` maps a peer address
+to that peer's record, and `show bgp adj-rib-in` maps a peer address to that
+peer's routes. A row operator keeps the spelling it was given, so
+`show bgp adj-rib-in | first 1` answers one peer's routes under that peer's
+address. A map that mixes an object with a list under different keys is one
+document, because its keys are field names rather than identities.
+<!-- source: internal/component/command/answer_shape.go -- rowSet, identityValuesShareOneShape, selectRows -->
+
 Both halves of that message are derived, because one operator needs more than
 rows. `| fill` brings back the columns a command declared. So it acts on `tab`
 alone, and it means nothing over a `map` answer whose rows carry their own keys.
