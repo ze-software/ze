@@ -22,7 +22,7 @@ const (
 	cliTimeout       = 10 * time.Second
 )
 
-var _ = env.MustRegister(env.EnvEntry{Key: "ze.test.vpp.cli.socket", Type: "string", Description: "Override the VPP CLI unix socket path (tests)"})
+var _ = env.MustRegister(env.EnvEntry{Key: "ze.test.vpp.cli.socket", Type: envTypeString, Description: "Override the VPP CLI unix socket path (tests)"})
 
 func cliSocketPath() string {
 	if v := env.Get("ze.test.vpp.cli.socket"); v != "" {

@@ -1,0 +1,49 @@
+# Test: a VPP worker core outside the kernel's isolated set is reported
+# Spec: plan/immediate/spec-vpp-isolated-cpus.md AC-5
+# VALIDATES: `ze doctor --json` reports doctor-vpp-cpu-isolation when the worker
+#            cores VPP is pinned to are online but were never isolated, so the
+#            Linux scheduler still places work on them.
+# PREVENTS: the silent case this spec exists to remove -- a busy-polling VPP
+#           worker competing with every other runnable task on its CPU, with
+#           nothing telling the operator.
+#
+# Its own file because an expect=stdout: assertion is FILE-level: the runner
+# checks it against the concatenated output of every command in the file
+# (runner_exec.go, rec.ClientOutput). The positive case here and the negative
+# case in test/plugin/vpp-isolated-cpus.ci are contradictory statements about
+# one string, so they cannot share a file.
+#
+# Linux-only: the fixture stands in for /sys/devices/system/cpu, and the doctor
+# check is Linux-tagged. The fixture host has eight CPUs and isolated 2-4.
+
+option=skip-os:value=aix,android,darwin,dragonfly,freebsd,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
+option=env:var=ze.test.vpp.cpu.root:value=cpufix
+# The hugepage check shares this report. Its root is redirected to a directory
+# that does not exist, so it reports one error and the exit code below is a fact
+# about the fixture rather than about the machine running the test.
+option=env:var=ze.test.doctor.hugepages-root:value=nohugepages
+
+tmpfs=cpufix/online:terminator=EOF_ON
+0-7
+EOF_ON
+
+tmpfs=cpufix/isolated:terminator=EOF_ISO
+2-4
+EOF_ISO
+
+tmpfs=shared-workers.conf:terminator=EOF_SHARED
+vpp {
+	enabled true;
+	cpu {
+		main-core 0;
+		worker-cores 6-7;
+	}
+}
+EOF_SHARED
+
+# AC-5: cores 6 and 7 are online but were never isolated, so the operator is
+# told the Linux scheduler still places work on them.
+cmd=foreground:seq=1:exec=ze doctor --json shared-workers.conf:exit=1
+expect=exit:code=1
+expect=stdout:contains=doctor-vpp-cpu-isolation
+expect=stdout:contains=worker core 6-7 is not isolated

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-10 |
+| Phase | 5/5 |
+| Updated | 2026-09-05 |
 
 **Notes:** Promoted to ready per user instruction 2026-07-10 (followup-wave impact review session) authorizing conversion to ready.
 
@@ -126,9 +126,9 @@ wireguard startup.conf toggle landed in the SAME files):
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `/sys/devices/system/cpu/isolated` is readable and reflects boot isolcpus | standard Linux l3mdev/isolcpus | need a different source | read the file on a running appliance | unvalidated |
-| A-2 | Ze can influence the boot cmdline to set isolcpus for chosen cores | gokrazy owns kernel cmdline | isolation must be operator-provisioned | check gokrazy cmdline handling during audit | unvalidated |
-| A-3 | uint8 core ids are sufficient (≤255 cores) | current `CPUSettings` uses uint8 | large hosts need wider type | confirm target hardware core counts | unvalidated |
+| A-1 | `/sys/devices/system/cpu/isolated` is readable and reflects boot isolcpus | standard Linux l3mdev/isolcpus | need a different source | read the file on a running appliance | confirmed 2026-09-05: `cat /sys/devices/system/cpu/isolated` returns an empty line on a host with no isolcpus, `online` returns `0-31`. Both files exist and are readable. |
+| A-2 | Ze can influence the boot cmdline to set isolcpus for chosen cores | gokrazy owns kernel cmdline | isolation must be operator-provisioned | check gokrazy cmdline handling during audit | confirmed 2026-09-05: `internal/appliance/kernelargs.go` already assembles kernel arguments (`hugepageKernelArgs`, `resolveBuildParentDir`) and its header names this spec as the second consumer of that seam. |
+| A-3 | uint8 core ids are sufficient (≤255 cores) | current `CPUSettings` uses uint8 | large hosts need wider type | confirm target hardware core counts | confirmed 2026-09-05: kept at uint8. `parseCoreList` refuses an id above 255 with a named error rather than truncating. |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -140,8 +140,9 @@ wireguard startup.conf toggle landed in the SAME files):
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `set vpp cpu workers 2` on a host with isolated cores | → | worker cores sourced from isolated set into `corelist-workers` | `test/plugin/vpp-isolated-cpus.ci` |
-| `main-core` overlaps worker range | → | `Validate()` rejects | `test/plugin/vpp-cpu-validation.ci` |
+| `set vpp cpu workers 2` on a host with isolated cores | → | `resolveWorkerCores` (`internal/component/vpp/cpuset.go`) draws the cores from the isolated set into `corelist-workers` | `test/plugin/vpp-isolated-cpus.ci` |
+| worker cores outside the isolated set | → | `evaluateVPPCPUIsolation` (`internal/component/vpp/doctor_cpu_linux.go`) reports `doctor-vpp-cpu-isolation` | `test/plugin/vpp-cpu-not-isolated.ci` |
+| `main-core` also named in `worker-cores` | → | `CPUSettings.validateAgainst` (`internal/component/vpp/cpuset.go`) rejects | `test/plugin/vpp-cpu-validation.ci` |
 
 ## Acceptance Criteria
 
@@ -166,10 +167,22 @@ wireguard startup.conf toggle landed in the SAME files):
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestWorkerCoresFromIsolatedSet` | `internal/component/vpp/startupconf_test.go` | corelist drawn from isolated set | |
-| `TestCPUValidateOverlap` | `internal/component/vpp/config_test.go` | main-core/worker overlap rejected | |
-| `TestCPUValidateInsufficientCores` | `internal/component/vpp/config_test.go` | too-many-workers rejected | |
-| `TestCPUValidateUnknownCore` | `internal/component/vpp/config_test.go` | non-existent core id rejected | |
+| `TestWorkerCoresFromIsolatedSet` | `internal/component/vpp/startupconf_test.go` | corelist drawn from isolated set | pass |
+| `TestWorkerCoreListNoIsolation` | `internal/component/vpp/startupconf_test.go` | a host with no isolation keeps the contiguous placement | pass |
+| `TestCPUValidateOverlap` | `internal/component/vpp/config_test.go` | main-core/worker overlap rejected | pass |
+| `TestCPUValidateInsufficientCores` | `internal/component/vpp/config_test.go` | too-many-workers rejected | pass |
+| `TestCPUValidateUnknownCore` | `internal/component/vpp/config_test.go` | non-existent core id rejected | pass |
+| `TestParseCPUWorkerCores` | `internal/component/vpp/config_test.go` | the worker-cores leaf parses into an ascending core list | pass |
+| `TestHostCPUInventoryIsolationUnknown` | `internal/component/vpp/cpuset_test.go` | an unreadable isolated file is not an empty isolated set | pass |
+| `TestHostCPUInventoryUnreadableOnlineIsAnError` | `internal/component/vpp/cpuset_test.go` | an unreadable online file is an error, never an empty inventory | pass |
+| `TestCPUValidateCannotReadHost` | `internal/component/vpp/cpuset_test.go` | validation refuses a placement it could not check | pass |
+| `TestCPUValidateNoPlacementReadsNoHost` | `internal/component/vpp/cpuset_test.go` | no cpu placement leaf reads no host (AC-6) | pass |
+| `TestCPUValidateWorkersAndCoresConflict` | `internal/component/vpp/cpuset_test.go` | workers and worker-cores together are refused | pass |
+| `TestEvaluateVPPCPUIsolation` | `internal/component/vpp/doctor_cpu_linux_test.go` | the doctor check reports each host shape | pass |
+| `TestEvaluateVPPCPUIsolationUnknownBeatsEmpty` | `internal/component/vpp/doctor_cpu_linux_test.go` | "isolated nothing" and "could not be asked" produce different messages | pass |
+| `TestParse`, `TestFormat` | `internal/core/cpulist/cpulist_test.go` | the CPU list grammar, with its 0/255/256 boundaries | pass |
+| `TestKernelArgsIsolatedCPUs` | `internal/appliance/kernelargs_test.go` | isolcpus, nohz_full and rcu_nocbs tokens | pass |
+| `TestValidateIsolatedCPUs` | `internal/appliance/kernelargs_test.go` | CPU 0 must stay with Linux (R-2) | pass |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -180,8 +193,9 @@ wireguard startup.conf toggle landed in the SAME files):
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `vpp-isolated-cpus` | `test/plugin/vpp-isolated-cpus.ci` | workers pinned to isolated cores | |
-| `vpp-cpu-validation` | `test/plugin/vpp-cpu-validation.ci` | bad CPU config rejected at verify | |
+| `vpp-isolated-cpus` | `test/plugin/vpp-isolated-cpus.ci` | workers pinned to isolated cores | written; RED observed under a probe that ignores the isolated set |
+| `vpp-cpu-not-isolated` | `test/plugin/vpp-cpu-not-isolated.ci` | workers on non-isolated cores are reported by `ze doctor` | written |
+| `vpp-cpu-validation` | `test/plugin/vpp-cpu-validation.ci` | bad CPU config rejected at verify | written; RED observed under the same probe |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -213,9 +227,12 @@ wireguard startup.conf toggle landed in the SAME files):
 | 12 | Internal architecture changed? | [ ] yes | `docs/research/vpp-deployment-reference.md` |
 
 ## Files to Create
-- `internal/component/vpp/isolated_linux.go` - read `/sys/devices/system/cpu/isolated`
-- `internal/component/vpp/isolated_linux_test.go` - unit tests (sysfs root override)
-- `test/plugin/vpp-isolated-cpus.ci`, `test/plugin/vpp-cpu-validation.ci`
+- `internal/core/cpulist/cpulist.go` - the CPU list grammar Linux uses for isolcpus, for `/sys/devices/system/cpu/{online,isolated}` and for VPP's `corelist-workers`. In `internal/core/` rather than the planned `internal/component/vpp/isolated_linux.go` because the appliance builder validates `image.isolated-cpus` with the same grammar, and a second copy would be a future disagreement with nothing to arbitrate it.
+- `internal/core/cpulist/cpulist_test.go` - the grammar, with its boundaries
+- `internal/component/vpp/cpuset.go` - the host CPU inventory, worker core resolution and CPU validation. Not `_linux`-tagged: the sysfs read fails honestly on any platform that has no sysfs, and `Validate` then refuses rather than silently skipping the check.
+- `internal/component/vpp/cpuset_test.go` - unit tests (sysfs root override)
+- `internal/component/vpp/doctor_cpu_linux.go`, `internal/component/vpp/doctor_cpu_linux_test.go` - the `vpp-cpu-isolation` doctor check
+- `test/plugin/vpp-isolated-cpus.ci`, `test/plugin/vpp-cpu-not-isolated.ci`, `test/plugin/vpp-cpu-validation.ci`
 
 ## Implementation Steps
 
@@ -278,7 +295,44 @@ wireguard startup.conf toggle landed in the SAME files):
 
 ## Implementation Summary
 ### What Was Implemented
-- (fill during implementation)
+- `internal/core/cpulist` holds the CPU list grammar once. `Parse` refuses a
+  reversed range, a repeated core, a core above 255 and a list longer than the
+  256 ids a uint8 holds; `Format` renders ascending ids back with runs
+  collapsed, so `corelist-workers 1-3` is unchanged from before this spec.
+- `internal/component/vpp/cpuset.go` reads the host inventory behind the
+  `ze.test.vpp.cpu.root` override. `CPUInventory.IsolationKnown` separates "the
+  kernel isolated no CPU" from "this host could not tell us", which is the
+  defect class `ai/rules/principles.md` names. An unreadable `online` file is an
+  error, because Ze cannot then say whether a requested core exists.
+- `resolveWorkerCores` is the single producer of the worker core list.
+  `GenerateStartupConf` and `CPUSettings.validateAgainst` both call it, so a
+  config that validates is a config Ze can write a core list for.
+- `vpp cpu worker-cores` names the cores explicitly, in the kernel's own
+  syntax, and MUST NOT be set beside `workers`.
+- The `vpp-cpu-isolation` doctor check reports workers on non-isolated CPUs, a
+  host that will not say which CPUs are isolated, and an isolated set that
+  leaves Linux no CPU of its own (R-2).
+- `image.isolated-cpus` writes `isolcpus`, `nohz_full` and `rcu_nocbs` through
+  the existing `internal/appliance/kernelargs.go` seam, and refuses CPU 0.
+
+### Not in this commit
+The boot-isolation half (`image.isolated-cpus`, `isolatedCPUKernelArgs`,
+`validateIsolatedCPUs` and their two tests) is written and green in the working
+tree, and it is NOT in this commit. `internal/appliance/config.go` and
+`internal/appliance/kernelargs.go` each carry another session's uncommitted
+crash-dump hunks interleaved with those changes, and git stages whole files, so
+committing them would carry work that is not this spec's
+(`ai/rules/principles.md`). `docs/architecture/vpp-host-tuning.md` and
+`docs/guide/vpp.md` describe `image.isolated-cpus` in this commit and become
+true when those three files land.
+
+### Deviations from the plan
+- One YANG leaf was added rather than the leaf-list the Data Flow section
+  allowed. A string leaf carrying the kernel's own list syntax lets ONE parser
+  serve sysfs and the operator, which a leaf-list of uint8 would not.
+- The AC-5 warning lives in `ze doctor`, not in `Validate`. Validation has one
+  channel and it refuses; a warning needs a severity, and the doctor registry
+  already has one.
 
 ## Review Gate
 

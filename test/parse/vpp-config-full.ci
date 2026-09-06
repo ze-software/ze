@@ -3,6 +3,26 @@
 #            memory, dpdk, stats, lcp) is accepted at non-default values.
 # PREVENTS: silent YANG schema drift where a leaf gets renamed, the type
 #           tightens, or a container disappears between revisions.
+#
+# The CPU root is a fixture. cpu main-core and cpu workers are now checked
+# against the host's online and isolated CPUs (VPPSettings.Validate ->
+# CPUSettings.validate, internal/component/vpp/cpuset.go), so without the
+# fixture this file would accept or refuse `workers 3` according to how many
+# cores the machine running it happens to have.
+#
+# cpu worker-cores is absent on purpose: it is the alternative to cpu workers
+# and MUST NOT be set beside it, so the leaf is covered by
+# test/plugin/vpp-cpu-validation.ci rather than by this every-leaf file.
+option=env:var=ze.test.vpp.cpu.root:value=cpufix
+
+tmpfs=cpufix/online:terminator=EOF_ONLINE
+0-7
+EOF_ONLINE
+
+tmpfs=cpufix/isolated:terminator=EOF_ISOLATED
+2-4
+EOF_ISOLATED
+
 stdin=config:terminator=EOF_CONF
 vpp {
 	enabled true;

@@ -4,10 +4,12 @@
 package vpp
 
 import (
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/cpulist"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -17,9 +19,20 @@ var vppLogPath = "/var/" + "log/vpp/vpp.log"
 // confKeyForLog is the startup.conf directive for the VPP logfile path.
 var confKeyForLog = "lo" + "g"
 
-// GenerateStartupConf writes a VPP startup.conf to w based on the given settings.
-// The output follows the production-proven template from IPng.ch / VyOS.
-func GenerateStartupConf(w io.Writer, s *VPPSettings) error {
+// GenerateStartupConf writes a VPP startup.conf to w based on the given
+// settings and the host CPU inventory. The output follows the
+// production-proven template from IPng.ch / VyOS.
+//
+// The inventory is a parameter rather than a read inside this function, so the
+// caller states which host the file is written for and this function stays
+// pure. VPPManager.writeStartupConf passes the running host's
+// (hostCPUInventory, cpuset.go).
+func GenerateStartupConf(w io.Writer, s *VPPSettings, inv CPUInventory) error {
+	workerCores, err := resolveWorkerCores(&s.CPU, inv)
+	if err != nil {
+		return fmt.Errorf("vpp cpu %w", err)
+	}
+
 	b := &confBuilder{w: w}
 
 	b.section("unix", func() {
@@ -50,12 +63,8 @@ func GenerateStartupConf(w io.Writer, s *VPPSettings) error {
 		if s.CPU.MainCore != nil {
 			b.kv("main-core", strconv.Itoa(int(*s.CPU.MainCore)))
 		}
-		if s.CPU.Workers != nil && *s.CPU.Workers > 0 {
-			var mainCore uint8
-			if s.CPU.MainCore != nil {
-				mainCore = *s.CPU.MainCore
-			}
-			b.kv("corelist-workers", workerCoreList(mainCore, *s.CPU.Workers))
+		if len(workerCores) > 0 {
+			b.kv("corelist-workers", cpulist.Format(workerCores))
 		}
 	})
 
@@ -144,18 +153,6 @@ func GenerateStartupConf(w io.Writer, s *VPPSettings) error {
 	})
 
 	return b.err
-}
-
-// workerCoreList generates a core list string for VPP workers.
-// Starting from mainCore+1, allocates count cores.
-func workerCoreList(mainCore, count uint8) string {
-	start := int(mainCore) + 1
-	end := start + int(count) - 1
-	if start == end {
-		return strconv.Itoa(start)
-	}
-	var b textbuf.Buffer
-	return b.Reset().Int(int64(start)).Byte('-').Int(int64(end)).String()
 }
 
 // pageSize converts YANG hugepage-size enum to VPP page-size value.

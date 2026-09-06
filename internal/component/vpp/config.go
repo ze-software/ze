@@ -19,6 +19,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/ze-software/ze/internal/core/cpulist"
 	"github.com/ze-software/ze/internal/core/naming"
 )
 
@@ -51,6 +52,12 @@ type PluginSettings struct {
 type CPUSettings struct {
 	MainCore *uint8 // nil = auto
 	Workers  *uint8 // nil = auto
+	// WorkerCores is the explicit CPU list the operator pinned the workers to,
+	// ascending. Empty means the operator gave a Workers count instead, and
+	// resolveWorkerCores draws that count from the host's isolated CPUs. The
+	// two are mutually exclusive: validateCPU refuses a config that sets both,
+	// because they are two answers to one question.
+	WorkerCores []uint8
 	// PollSleepMicroseconds is VPP's fixed sleep between main-loop polls
 	// (emitted as unix { poll-sleep-usec N }). nil = unset (VPP default: no
 	// sleep, busy-poll at 100% CPU). An explicit 0 is emitted (VPP treats 0 as
@@ -332,6 +339,10 @@ func (s *VPPSettings) Validate() error {
 		return err
 	}
 
+	if err := s.CPU.validate(); err != nil {
+		return err
+	}
+
 	if s.LCP.Enabled {
 		if err := validateNetns(s.LCP.Netns); err != nil {
 			return err
@@ -355,7 +366,7 @@ func parseCPU(data json.RawMessage, cpu *CPUSettings) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("vpp cpu: %w", err)
 	}
-	if err := unknownKeys("cpu", raw, []string{"main-core", "workers", "poll-sleep"}); err != nil {
+	if err := unknownKeys("cpu", raw, []string{"main-core", "workers", "worker-cores", "poll-sleep"}); err != nil {
 		return err
 	}
 	if v, ok := raw["main-core"]; ok {
@@ -371,6 +382,13 @@ func parseCPU(data json.RawMessage, cpu *CPUSettings) error {
 			return fmt.Errorf("vpp cpu workers: %w", err)
 		}
 		cpu.Workers = &n
+	}
+	if v, ok := raw["worker-cores"]; ok {
+		cores, err := cpulist.Parse(strings.Trim(string(v), `"`))
+		if err != nil {
+			return fmt.Errorf("vpp cpu worker-cores: %w", err)
+		}
+		cpu.WorkerCores = cores
 	}
 	if v, ok := raw["poll-sleep"]; ok {
 		usec, err := parsePollSleepMs(strings.Trim(string(v), `"`))

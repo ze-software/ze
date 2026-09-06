@@ -231,8 +231,9 @@ the stats poll interval only when the defaults do not fit the workload.
 | `vpp.enabled` | boolean | `false` | Master switch. `false` means ze does not start VPP at all. |
 | `vpp.external` | boolean | `false` | When `true`, ze connects to an existing VPP via `api-socket` but does NOT generate `startup.conf`, bind DPDK NICs, or exec the VPP binary. Use this on systemd-managed hosts, container sidecars, or the `ze-test vpp` stub harness. Default `false` preserves the ze-owned-lifecycle behaviour. |
 | `vpp.api-socket` | string | `/run/vpp/api.sock` | GoVPP Unix socket. Ze validates it is absolute, has no `..`, and fits in 108 characters. |
-| `vpp.cpu.main-core` | uint8 | auto | CPU core pinned to the VPP main thread. Omit for VPP default. |
-| `vpp.cpu.workers` | uint8 | auto | Number of worker threads. Ze allocates `main-core+1 .. main-core+workers` for `corelist-workers` in startup.conf. |
+| `vpp.cpu.main-core` | uint8 | auto | CPU core pinned to the VPP main thread. The core is excluded from the worker set. Omit for VPP default. A core the host does not hold online is refused at commit. |
+| `vpp.cpu.workers` | uint8 | auto | Number of worker threads. Ze takes the cores from the kernel's isolated set (`/sys/devices/system/cpu/isolated`), lowest first, `main-core` excluded, and writes them as `corelist-workers`. On a host that isolated nothing, the list falls back to `main-core+1 .. main-core+workers` and `ze doctor` reports `doctor-vpp-cpu-isolation`. A count the host cannot satisfy is refused at commit. <!-- source: internal/component/vpp/cpuset.go -- resolveWorkerCores --> |
+| `vpp.cpu.worker-cores` | CPU list | unset | Explicit worker cores in the kernel's `isolcpus` syntax (`2-4`, `2,4,6`). Names the cores instead of deriving them, and MUST NOT be set beside `workers`. A core off the host, a core that is also `main-core`, and a core listed twice are each refused at commit. <!-- source: internal/core/cpulist/cpulist.go -- Parse --> |
 | `vpp.cpu.poll-sleep` | `Nms` (0ms–100ms) | unset | Fixed sleep between VPP main-loop polls, expressed in whole milliseconds (`ms` is the only accepted unit, e.g. `10ms`), emitted as `unix { poll-sleep-usec N }` (1ms = 1000µs). Omit for lowest latency (workers busy-poll at 100% CPU); set a non-zero value on shared or dev hosts to trade latency for idle CPU. An explicit `0ms` is emitted and equals VPP's default. <!-- source: internal/component/vpp/config.go -- parsePollSleepMs --> |
 | `vpp.memory.main-heap` | size string | `1G` | VPP main heap. Use `1536M` for a full DFZ (approximately 958k IPv4 + 198k IPv6 routes). |
 | `vpp.memory.hugepage-size` | `2M` or `1G` | `2M` | Hugepage size. `2M` is the common case; `1G` for large installations. |
@@ -291,7 +292,7 @@ insufficient, or clamped. Before enabling VPP:
 |-------------|-------------------|
 | Hugepages (approximately 6 GB for production 10G, 2 GB for lab) | Appliance: `image.hugepages { page-size, count }` in `appliance.json`. Non-appliance host: `echo 3072 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages` or via `/etc/sysctl.d/`. <!-- source: internal/appliance/kernelargs.go -- hugepageKernelArgs --> |
 | IOMMU enabled | BIOS: enable VT-d / AMD-Vi. Kernel cmdline: `intel_iommu=on iommu=pt` |
-| CPU isolation for VPP workers | Kernel cmdline: `isolcpus=<worker-cores>` so Linux does not schedule on them |
+| CPU isolation for VPP workers | Appliance: `image.isolated-cpus` in `appliance.json`, which writes `isolcpus`, `nohz_full` and `rcu_nocbs` for those cores. Non-appliance host: the same three kernel cmdline arguments. Ze then draws its worker cores from that set, and `ze doctor` reports `doctor-vpp-cpu-isolation` when it cannot. <!-- source: internal/appliance/kernelargs.go -- isolatedCPUKernelArgs --> |
 | Netlink buffer for route injection | `sysctl net.core.rmem_default=67108864` |
 | Minimum hardware | 4 CPU cores, 8 GB RAM, a DPDK-compatible NIC <!-- source: docs/research/vpp-deployment-reference.md -- system prerequisites table --> |
 

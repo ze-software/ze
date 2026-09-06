@@ -444,7 +444,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/core/configorder` | reads a YANG list declared `ordered-by user`, in the order the operator wrote its entries |  |
 | `internal/core/configvalue` | reads a YANG leaf-list or a YANG list out of the config map that Tree.ToMap produces (internal/component/config/tree.go) |  |
 | `internal/core/cos` | holds the shared registry of named class-of-service QoS profiles and their resolver |  |
-| `internal/core/cpulist` | TODO |  |
+| `internal/core/cpulist` | parses and renders the CPU list syntax Linux uses for isolcpus, for /sys/devices/system/cpu and for VPP corelist-workers |  |
 | `internal/core/crashlog` | captures stderr output (including Go panic traces) and forwards it to syslog and a crash file on disk |  |
 | `internal/core/ddosevent` | defines the destination-oriented DDoS attack detection event contract |  |
 | `internal/core/diagnostic` | provides stable diagnostic records, codes, and explanations for Ze's agent-facing tooling surface |  |

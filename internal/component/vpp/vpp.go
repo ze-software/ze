@@ -329,8 +329,14 @@ func (m *VPPManager) runOnce(ctx context.Context, confPath string) error {
 	return err
 }
 
-// writeStartupConf generates and writes the VPP startup.conf file.
+// writeStartupConf generates and writes the VPP startup.conf file. The host CPU
+// inventory is read here, so the worker core list names the CPUs this machine
+// isolated rather than the ones a config author guessed at.
 func (m *VPPManager) writeStartupConf(path string) error {
+	inv, err := hostCPUInventory()
+	if err != nil {
+		return fmt.Errorf("vpp: read host CPU inventory: %w", err)
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return err
 	}
@@ -339,7 +345,7 @@ func (m *VPPManager) writeStartupConf(path string) error {
 		return err
 	}
 	defer func() { _ = f.Close() }()
-	return GenerateStartupConf(f, m.settings)
+	return GenerateStartupConf(f, m.settings, inv)
 }
 
 // emitEvent emits a VPP lifecycle event on the EventBus.

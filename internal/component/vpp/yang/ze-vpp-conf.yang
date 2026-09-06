@@ -52,20 +52,24 @@ module ze-vpp-conf {
 
         container cpu {
             description "VPP CPU pinning configuration.";
-            ze:help "These leaves write the cpu section of startup.conf. The main-core leaf pins the VPP main thread, and
-                the workers leaf derives a contiguous core list that starts one core after it. The poll-sleep leaf
-                sits here for the operator, and Ze emits it in the unix section, because that is where VPP reads
-                poll-sleep-usec. Omit every leaf to let VPP place its own threads.";
+            ze:help "These leaves write the cpu section of startup.conf, and the main-core leaf pins the VPP main
+                thread. The workers leaf asks for a count, and Ze takes those cores from the set the kernel
+                isolated, which it reads from /sys/devices/system/cpu/isolated. The worker-cores leaf names the
+                cores instead, and it MUST NOT be set beside workers. The poll-sleep leaf sits here for the
+                operator, and Ze emits it in the unix section, because that is where VPP reads poll-sleep-usec.
+                Omit every leaf to let VPP place its own threads, and Ze checks a placement leaf you set at
+                commit. Ze refuses a core the host does not hold, a worker core that is also main-core, and a
+                worker count the host cannot satisfy.";
 
             leaf main-core {
                 type uint8;
                 description
                     "CPU core for VPP main thread.
                      Omit for automatic assignment.";
-                ze:help "Ze writes this core number into the cpu section of startup.conf as main-core. The worker core list
-                    starts one core after it, so main-core 0 with workers 2 emits corelist-workers 1-2. Omit the leaf
-                    and VPP picks the main core itself, and Ze still counts the worker list from core 1. Ze does not
-                    compare the number against the cores the host holds.";
+                ze:help "Ze writes this core number into the cpu section of startup.conf as main-core. The core is excluded
+                    from the worker set, so the main thread and a worker never share a CPU. Omit the leaf and VPP picks
+                    the main core itself, and Ze still counts the worker list from core 1. A core the host does not hold
+                    online is refused at commit.";
             }
 
             leaf workers {
@@ -73,10 +77,29 @@ module ze-vpp-conf {
                 description
                     "Number of VPP worker threads.
                      Omit for automatic (one per available core).";
-                ze:help "Ze turns this count into the corelist-workers line of the cpu section in startup.conf. The list is
+                ze:help "Ze turns this count into the corelist-workers line of the cpu section in startup.conf, and
+                    the worker-cores leaf names those cores instead. Ze takes the cores from the set the kernel
+                    isolated at boot, lowest first, with main-core excluded. Isolated 2-4 with main-core 2 and
+                    workers 2 therefore emits corelist-workers 3-4. When the kernel isolated no core, the list is
                     contiguous and starts one core after main-core, so 4 workers with main-core 1 emits
-                    corelist-workers 2-5. A value of 0 emits no line at all, which is what an absent leaf does. Ze
-                    does not compare the count against the cores the host holds.";
+                    corelist-workers 2-5. The vpp-cpu-isolation doctor check then reports that the workers share
+                    their CPUs with Linux. A count the host cannot satisfy is refused at commit, and a value of 0
+                    emits no line, which is what an absent leaf does.";
+            }
+
+            leaf worker-cores {
+                type string {
+                    pattern '[0-9]+(-[0-9]+)?(,[0-9]+(-[0-9]+)?)*';
+                }
+                description "Explicit CPU core list for the VPP worker threads.";
+                ze:help "Ze writes these cores into the corelist-workers line of the cpu section in startup.conf,
+                    and writes no line when neither leaf is set. The syntax is the one the kernel uses for
+                    isolcpus: single cores, ranges, or both, as in 2-4 or 2,4,6. Set this leaf when the isolated
+                    set holds cores to keep for something else, and omit it to derive the cores from workers. It
+                    MUST NOT be set beside workers, because the two are separate answers to the same question,
+                    and Ze refuses a config that carries both. A core the host does not hold online, a core that
+                    is also main-core, and a core listed twice are each refused at commit. Cores outside the
+                    kernel's isolated set are accepted, and the vpp-cpu-isolation doctor check reports them.";
             }
 
             leaf poll-sleep {

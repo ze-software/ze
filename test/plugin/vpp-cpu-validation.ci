@@ -1,0 +1,114 @@
+# Test: bad VPP CPU placement is refused at config verify
+# Spec: plan/immediate/spec-vpp-isolated-cpus.md AC-2, AC-3, AC-4, AC-6
+# VALIDATES: `ze config validate` runs the vpp InProcessConfigVerifier, which
+#            reaches VPPSettings.Validate, reads the host CPU inventory, and
+#            refuses a placement the host contradicts: a worker count larger
+#            than the cores available (AC-2), a main-core that is also a worker
+#            core (AC-3), and a core id the host does not hold online (AC-4). A
+#            config with no cpu placement leaf is accepted unchanged (AC-6).
+# PREVENTS: a VPP CPU configuration passing verify and then failing, or silently
+#           underperforming, at runtime -- which is the defect this spec closes.
+#
+# An expect=stdout: assertion is FILE-level: the runner checks it against the
+# concatenated output of every command (runner_exec.go, rec.ClientOutput). Every
+# needle below is therefore worded so only one of the six commands can produce
+# it. The exit code IS per-command (cmd=...:exit=N), so the two accepted configs
+# are pinned by their own exit 0.
+#
+# The CPU inventory root is redirected to a fixture through
+# ze.test.vpp.cpu.root, so every case below asserts the same result whatever the
+# machine running the test holds. The fixture host has eight CPUs and isolated
+# three of them, which is the shape the spec's AC table describes.
+# Linux-only: the fixture stands in for /sys/devices/system/cpu, which only a
+# Linux host has.
+
+option=skip-os:value=aix,android,darwin,dragonfly,freebsd,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
+option=env:var=ze.test.vpp.cpu.root:value=cpufix
+
+tmpfs=cpufix/online:terminator=EOF_ONLINE
+0-7
+EOF_ONLINE
+
+tmpfs=cpufix/isolated:terminator=EOF_ISOLATED
+2-4
+EOF_ISOLATED
+
+# AC-2: three cores are isolated, so a fourth worker has nowhere to run.
+stdin=toomany:terminator=EOF_MANY
+vpp {
+	enabled true;
+	cpu {
+		main-core 0;
+		workers 4;
+	}
+}
+EOF_MANY
+
+# AC-3: core 3 is asked to run the main thread and a worker at once.
+stdin=overlap:terminator=EOF_OVERLAP
+vpp {
+	enabled true;
+	cpu {
+		main-core 3;
+		worker-cores 2-4;
+	}
+}
+EOF_OVERLAP
+
+# AC-4: the fixture host stops at core 7.
+stdin=unknown:terminator=EOF_UNKNOWN
+vpp {
+	enabled true;
+	cpu {
+		main-core 9;
+	}
+}
+EOF_UNKNOWN
+
+# The two ways to name the worker cores are separate answers to one question.
+stdin=both:terminator=EOF_BOTH
+vpp {
+	enabled true;
+	cpu {
+		main-core 0;
+		workers 2;
+		worker-cores 3-4;
+	}
+}
+EOF_BOTH
+
+# AC-1: three isolated cores, main-core outside them, two workers requested.
+stdin=good:terminator=EOF_GOOD
+vpp {
+	enabled true;
+	cpu {
+		main-core 0;
+		workers 2;
+	}
+}
+EOF_GOOD
+
+# AC-6: no cpu container at all is accepted, as it was before this feature.
+stdin=nocpu:terminator=EOF_NOCPU
+vpp {
+	enabled true;
+}
+EOF_NOCPU
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=toomany:exit=1
+cmd=foreground:seq=2:exec=ze config validate -:stdin=overlap:exit=1
+cmd=foreground:seq=3:exec=ze config validate -:stdin=unknown:exit=1
+cmd=foreground:seq=4:exec=ze config validate -:stdin=both:exit=1
+cmd=foreground:seq=5:exec=ze config validate -:stdin=good:exit=0
+cmd=foreground:seq=6:exec=ze config validate -:stdin=nocpu:exit=0
+
+# One exit assertion, matching the last command: the file-level expect=exit
+# holds ONE code (Record.ExpectExitCode, record_parse.go), so a second line
+# would silently replace the first. Each command above carries its own
+# per-command :exit=, which the runner does check separately.
+expect=exit:code=0
+expect=stdout:contains=isolated 2-4
+expect=stdout:contains=is also main-core
+expect=stdout:contains=core 9 is not online
+expect=stdout:contains=not both
+expect=stdout:contains=valid

@@ -45,7 +45,7 @@ var defaultHugepageDoctorRoots = hugepageDoctorRoots{
 
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         doctorHugepagesRootEnv,
-	Type:        "string",
+	Type:        envTypeString,
 	Description: "Override procfs/sysfs root prefix for the VPP hugepage doctor check (functional tests)",
 	Private:     true,
 })

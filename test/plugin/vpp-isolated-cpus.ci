@@ -1,0 +1,81 @@
+# Test: VPP worker cores come from the kernel's isolated set, and ze doctor
+#       reports a placement that does not
+# Spec: plan/immediate/spec-vpp-isolated-cpus.md AC-1, AC-5
+# VALIDATES: on a host whose kernel isolated cores 2-4, `vpp cpu workers 2`
+#            places the workers on isolated cores, so the vpp-cpu-isolation
+#            doctor check stays silent (AC-1); a worker core outside the
+#            isolated set is reported (AC-5).
+# PREVENTS: a busy-polling VPP worker sharing a CPU with the Linux scheduler
+#           while the operator believes the isolated cores were used, which is
+#           the silent underperformance this spec exists to remove.
+#
+# This is the end-to-end discrimination for AC-1. The arithmetic this spec
+# replaces gave main-core+1 .. main-core+N, so `main-core 0, workers 2` used to
+# answer cores 1-2. Core 1 is NOT in the fixture's isolated set, so the first
+# command below would report doctor-vpp-cpu-isolation under the old placement
+# and reports nothing under the new one.
+#
+# Linux-only: the fixture stands in for /sys/devices/system/cpu, and the doctor
+# check is Linux-tagged. The fixture host has eight CPUs and isolated 2-4.
+#
+# ONE SCENARIO PER FILE, and that is not style. An expect=stdout: assertion is
+# FILE-level: the runner checks it against the concatenated output of every
+# command in the file (runner_exec.go, rec.ClientOutput). A file that asserts
+# !contains for one command and contains for another asserts two contradictory
+# things about one string, and whichever the runner reaches first decides. So
+# the case where a worker core is NOT isolated lives in
+# test/plugin/vpp-cpu-not-isolated.ci, and only the exit code is per-command.
+#
+# NOT covered by a .ci, covered by unit tests in the same change: a host whose
+# isolated file cannot be read at all reports "does not report which CPUs are
+# isolated" rather than a clean state. That needs a second CPU root, and
+# option=env carries one value per FILE. It is asserted at the producer by
+# TestEvaluateVPPCPUIsolationUnknownBeatsEmpty and
+# TestHostCPUInventoryIsolationUnknown
+# (internal/component/vpp/doctor_cpu_linux_test.go, cpuset_test.go).
+
+option=skip-os:value=aix,android,darwin,dragonfly,freebsd,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
+option=env:var=ze.test.vpp.cpu.root:value=cpufix
+# The hugepage check shares this report. Its root is redirected to a directory
+# that does not exist, so it reports one error on every vpp-enabled config and
+# the exit code below is a fact about the fixture rather than about the machine
+# running the test.
+option=env:var=ze.test.doctor.hugepages-root:value=nohugepages
+
+tmpfs=cpufix/online:terminator=EOF_ON
+0-7
+EOF_ON
+
+tmpfs=cpufix/isolated:terminator=EOF_ISO
+2-4
+EOF_ISO
+
+tmpfs=isolated-workers.conf:terminator=EOF_ISOW
+vpp {
+	enabled true;
+	cpu {
+		main-core 0;
+		workers 2;
+	}
+}
+EOF_ISOW
+
+tmpfs=vpp-off.conf:terminator=EOF_OFF
+vpp {
+	enabled false;
+	cpu {
+		main-core 0;
+		workers 2;
+	}
+}
+EOF_OFF
+
+# AC-1: workers land on isolated cores 2 and 3, so nothing is reported.
+cmd=foreground:seq=1:exec=ze doctor --json isolated-workers.conf:exit=1
+expect=exit:code=0
+expect=stdout:!contains=doctor-vpp-cpu-isolation
+
+# VPP disabled: the check is silent whatever the host holds.
+cmd=foreground:seq=2:exec=ze doctor --json vpp-off.conf:exit=0
+expect=exit:code=0
+expect=stdout:!contains=doctor-vpp-cpu-isolation

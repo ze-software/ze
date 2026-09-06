@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/cpulist"
 )
 
 func TestParseSettings(t *testing.T) {
@@ -718,3 +720,121 @@ func TestParseConfigSection(t *testing.T) {
 }
 
 // (dead helpers removed; tests use strings.Contains directly)
+
+// eightCoreHostWithIsolation is the host the CPU validation tests state: eight
+// online CPUs, of which 2, 3 and 4 were isolated at boot.
+func eightCoreHostWithIsolation() CPUInventory {
+	return CPUInventory{
+		Online:         []uint8{0, 1, 2, 3, 4, 5, 6, 7},
+		Isolated:       []uint8{2, 3, 4},
+		IsolationKnown: true,
+	}
+}
+
+// TestCPUValidateOverlap proves AC-3: a core given to a worker and to the main
+// thread is refused, because a busy-polling worker sharing the main thread's
+// CPU starves the thread that answers the CLI and the API.
+func TestCPUValidateOverlap(t *testing.T) {
+	cpu := CPUSettings{MainCore: new(uint8(3)), WorkerCores: []uint8{2, 3, 4}}
+	err := cpu.validateAgainst(eightCoreHostWithIsolation())
+	if err == nil {
+		t.Fatal("validate accepted main-core 3 inside worker-cores 2-4")
+	}
+	if !strings.Contains(err.Error(), "main-core") {
+		t.Errorf("error = %q, want it to name the overlap with main-core", err)
+	}
+}
+
+// TestCPUValidateInsufficientCores proves AC-2: a worker count larger than the
+// isolated CPUs left after main-core is refused at verify, rather than
+// producing a core list that names CPUs the operator did not reserve.
+func TestCPUValidateInsufficientCores(t *testing.T) {
+	inv := eightCoreHostWithIsolation()
+
+	t.Run("more workers than isolated cores", func(t *testing.T) {
+		cpu := CPUSettings{MainCore: new(uint8(0)), Workers: new(uint8(4))}
+		err := cpu.validateAgainst(inv)
+		if err == nil {
+			t.Fatal("validate accepted 4 workers on a host with 3 isolated CPUs")
+		}
+		if !strings.Contains(err.Error(), "isolated 2-4") {
+			t.Errorf("error = %q, want it to name the isolated set the operator has", err)
+		}
+	})
+
+	t.Run("main-core takes one of the isolated cores", func(t *testing.T) {
+		cpu := CPUSettings{MainCore: new(uint8(2)), Workers: new(uint8(3))}
+		if err := cpu.validateAgainst(inv); err == nil {
+			t.Fatal("validate accepted 3 workers when main-core holds one of the 3 isolated CPUs")
+		}
+	})
+
+	t.Run("the last valid count is accepted", func(t *testing.T) {
+		cpu := CPUSettings{MainCore: new(uint8(0)), Workers: new(uint8(3))}
+		if err := cpu.validateAgainst(inv); err != nil {
+			t.Fatalf("validate refused 3 workers on 3 isolated CPUs: %v", err)
+		}
+	})
+}
+
+// TestCPUValidateUnknownCore proves AC-4: a core the host does not hold online
+// is refused, whether the operator named it as main-core or in worker-cores.
+func TestCPUValidateUnknownCore(t *testing.T) {
+	inv := eightCoreHostWithIsolation()
+
+	t.Run("main-core off the host", func(t *testing.T) {
+		cpu := CPUSettings{MainCore: new(uint8(9))}
+		err := cpu.validateAgainst(inv)
+		if err == nil {
+			t.Fatal("validate accepted main-core 9 on an eight-CPU host")
+		}
+		if !strings.Contains(err.Error(), "online 0-7") {
+			t.Errorf("error = %q, want it to name the CPUs the host has", err)
+		}
+	})
+
+	t.Run("worker core off the host", func(t *testing.T) {
+		cpu := CPUSettings{MainCore: new(uint8(0)), WorkerCores: []uint8{2, 200}}
+		if err := cpu.validateAgainst(inv); err == nil {
+			t.Fatal("validate accepted worker core 200 on an eight-CPU host")
+		}
+	})
+
+	t.Run("the last core on the host is accepted", func(t *testing.T) {
+		cpu := CPUSettings{MainCore: new(uint8(7))}
+		if err := cpu.validateAgainst(inv); err != nil {
+			t.Fatalf("validate refused main-core 7 on an eight-CPU host: %v", err)
+		}
+	})
+
+	t.Run("a contiguous fallback that runs off the host is refused", func(t *testing.T) {
+		// No isolation configured, so placement is the block after main-core.
+		// Cores 8 and 9 do not exist, and the count must not be accepted only
+		// because the host has enough CPUs somewhere else.
+		noIsolation := CPUInventory{Online: []uint8{0, 1, 2, 3, 4, 5, 6, 7}, IsolationKnown: true}
+		cpu := CPUSettings{MainCore: new(uint8(6)), Workers: new(uint8(3))}
+		err := cpu.validateAgainst(noIsolation)
+		if err == nil {
+			t.Fatal("validate accepted workers on cores 7, 8 and 9 of an eight-CPU host")
+		}
+		if !strings.Contains(err.Error(), "core 8") {
+			t.Errorf("error = %q, want it to name the first core off the host", err)
+		}
+	})
+}
+
+// TestParseCPUWorkerCores proves the worker-cores leaf reaches CPUSettings as a
+// parsed, ascending core list rather than the operator's raw string.
+func TestParseCPUWorkerCores(t *testing.T) {
+	s, err := ParseSettings([]byte(`{"cpu":{"worker-cores":"7,2-3"}}`))
+	if err != nil {
+		t.Fatalf("ParseSettings: %v", err)
+	}
+	if got := cpulist.Format(s.CPU.WorkerCores); got != "2-3,7" {
+		t.Errorf("worker-cores = %q, want %q", got, "2-3,7")
+	}
+
+	if _, err := ParseSettings([]byte(`{"cpu":{"worker-cores":"3-1"}}`)); err == nil {
+		t.Error("ParseSettings accepted a core range that counts down")
+	}
+}

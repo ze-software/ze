@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/cpulist"
 )
 
 // TestGenerateStartupConfEmptyNetnsOmitsDirective verifies an empty vpp.lcp.netns
@@ -35,7 +37,7 @@ func TestGenerateStartupConfEmptyNetnsOmitsDirective(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := GenerateStartupConf(&buf, s); err != nil {
+	if err := GenerateStartupConf(&buf, s, testHostInventory()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	out := buf.String()
@@ -85,7 +87,7 @@ func TestGenerateStartupConf(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := GenerateStartupConf(&buf, s); err != nil {
+	if err := GenerateStartupConf(&buf, s, testHostInventory()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	out := buf.String()
@@ -261,7 +263,15 @@ func TestStartupConfBuffers(t *testing.T) {
 	}
 }
 
-func TestWorkerCoreList(t *testing.T) {
+// TestWorkerCoreListNoIsolation pins the placement Ze uses on a host that
+// isolated no CPU: the contiguous block after main-core, which is what Ze
+// emitted before it read the isolated set.
+//
+// VALIDATES: AC-6 -- a host with no isolation gets the behavior it had before.
+// PREVENTS: isolated sourcing silently changing the core list on the hosts that
+// never configured isolcpus, which is most of them.
+func TestWorkerCoreListNoIsolation(t *testing.T) {
+	inv := CPUInventory{Online: []uint8{0, 1, 2, 3, 4, 5, 6, 7}, IsolationKnown: true}
 	tests := []struct {
 		main  uint8
 		count uint8
@@ -273,10 +283,78 @@ func TestWorkerCoreList(t *testing.T) {
 		{0, 7, "1-7"},
 	}
 	for _, tt := range tests {
-		got := workerCoreList(tt.main, tt.count)
-		if got != tt.want {
-			t.Errorf("workerCoreList(%d, %d) = %q, want %q", tt.main, tt.count, got, tt.want)
+		cpu := CPUSettings{MainCore: new(tt.main), Workers: new(tt.count)}
+		cores, err := resolveWorkerCores(&cpu, inv)
+		if err != nil {
+			t.Fatalf("resolveWorkerCores(main %d, workers %d): %v", tt.main, tt.count, err)
 		}
+		if got := cpulist.Format(cores); got != tt.want {
+			t.Errorf("main %d workers %d = %q, want %q", tt.main, tt.count, got, tt.want)
+		}
+	}
+}
+
+// TestWorkerCoresFromIsolatedSet proves AC-1: with cores isolated at boot, the
+// corelist-workers line names those cores rather than the block after
+// main-core.
+//
+// VALIDATES: AC-1 -- worker cores are sourced from
+// /sys/devices/system/cpu/isolated, main-core excluded.
+// PREVENTS: a busy-polling VPP worker landing on a CPU the Linux scheduler
+// still owns while the operator reserved other CPUs for exactly this.
+func TestWorkerCoresFromIsolatedSet(t *testing.T) {
+	// isolated 2-4, so naive main-core+1 arithmetic would answer 1-2 and place
+	// one worker on core 1, which Linux still schedules.
+	inv := CPUInventory{
+		Online:         []uint8{0, 1, 2, 3, 4, 5, 6, 7},
+		Isolated:       []uint8{2, 3, 4},
+		IsolationKnown: true,
+	}
+
+	tests := []struct {
+		name string
+		cpu  CPUSettings
+		want string
+	}{
+		{
+			name: "main-core outside the isolated set",
+			cpu:  CPUSettings{MainCore: new(uint8(0)), Workers: new(uint8(2))},
+			want: "2-3",
+		},
+		{
+			name: "main-core inside the isolated set is excluded",
+			cpu:  CPUSettings{MainCore: new(uint8(2)), Workers: new(uint8(2))},
+			want: "3-4",
+		},
+		{
+			name: "the whole isolated set",
+			cpu:  CPUSettings{MainCore: new(uint8(0)), Workers: new(uint8(3))},
+			want: "2-4",
+		},
+		{
+			name: "an explicit list wins over the isolated set",
+			cpu:  CPUSettings{MainCore: new(uint8(0)), WorkerCores: []uint8{5, 6}},
+			want: "5-6",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cores, err := resolveWorkerCores(&tt.cpu, inv)
+			if err != nil {
+				t.Fatalf("resolveWorkerCores: %v", err)
+			}
+			if got := cpulist.Format(cores); got != tt.want {
+				t.Errorf("corelist = %q, want %q", got, tt.want)
+			}
+
+			s := defaultTestSettings()
+			s.CPU = tt.cpu
+			out := generateToStringOn(t, s, inv)
+			if !strings.Contains(out, "corelist-workers "+tt.want) {
+				t.Errorf("startup.conf missing corelist-workers %s:\n%s", tt.want, out)
+			}
+		})
 	}
 }
 
@@ -391,9 +469,25 @@ func defaultTestSettings() *VPPSettings {
 
 func generateToString(t *testing.T, s *VPPSettings) string {
 	t.Helper()
+	return generateToStringOn(t, s, testHostInventory())
+}
+
+// generateToStringOn renders startup.conf for a stated host, so a test that
+// cares about CPU placement declares the host instead of reading the machine
+// the test runs on.
+func generateToStringOn(t *testing.T, s *VPPSettings, inv CPUInventory) string {
+	t.Helper()
 	var buf bytes.Buffer
-	if err := GenerateStartupConf(&buf, s); err != nil {
+	if err := GenerateStartupConf(&buf, s, inv); err != nil {
 		t.Fatalf("GenerateStartupConf: %v", err)
 	}
 	return buf.String()
+}
+
+// testHostInventory is an eight-CPU host that isolated nothing. IsolationKnown
+// is true, so this is a host that answered "no CPU is isolated" rather than a
+// host that could not answer, and worker placement takes the contiguous block
+// after main-core.
+func testHostInventory() CPUInventory {
+	return CPUInventory{Online: []uint8{0, 1, 2, 3, 4, 5, 6, 7}, IsolationKnown: true}
 }
