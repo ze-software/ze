@@ -352,10 +352,11 @@ func TestARespawnedPluginStillGetsItsEngineWait(t *testing.T) {
 		return 0
 	})
 
-	// RespawnEnabled is what Server.restartPlugin's plugins carry: without it Respawn
-	// returns nil having done nothing (manager.go, the "Respawn not enabled" branch).
+	// Respawn asks no question about whether this plugin may be started again:
+	// the plugin's own declaration answers that, and the engine reads it before
+	// it calls here (rpc.FailurePolicy).
 	pm := NewProcessManager([]plugin.PluginConfig{{
-		Name: "test-stop-respawn-waits", Internal: true, Encoder: "json", RespawnEnabled: true,
+		Name: "test-stop-respawn-waits", Internal: true, Encoder: "json",
 	}})
 	require.NoError(t, pm.Start())
 	pm.Stop()
@@ -395,7 +396,7 @@ func TestRespawnJoinsTheProcessItReplaces(t *testing.T) {
 	})
 
 	pm := NewProcessManager([]plugin.PluginConfig{{
-		Name: "test-respawn-join", Internal: true, Encoder: "json", RespawnEnabled: true,
+		Name: "test-respawn-join", Internal: true, Encoder: "json",
 	}})
 	require.NoError(t, pm.Start())
 	t.Cleanup(pm.Stop)

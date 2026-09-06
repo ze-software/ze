@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -104,7 +103,7 @@ func TestRestartPluginReRunsTheStartupHandshake(t *testing.T) {
 	s, _ := newLifecycleStartupServer(t)
 	require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{
 		{Name: claimant, Internal: true, Encoder: plugin.EncodingJSON},
-		{Name: standDown, Internal: true, Encoder: plugin.EncodingJSON, RespawnEnabled: true},
+		{Name: standDown, Internal: true, Encoder: plugin.EncodingJSON},
 	}))
 
 	require.Equal(t, int64(1), probe.configures.Load(), "startup must configure the stand-down plugin once")
@@ -138,16 +137,21 @@ func TestRestartPluginReRunsTheStartupHandshake(t *testing.T) {
 		"the plugin registry row must be rebuilt for the replacement")
 }
 
-// TestRestartPluginRefusesWhenRespawnIsNotEnabled verifies that asking to
-// restart a plugin whose config enables no respawn reports the refusal, and
-// leaves the running plugin untouched.
+// TestRestartPluginRestartsAPluginThatDeclaredNothing verifies that a rollback
+// restart is carried out for a plugin that made no declaration about its own
+// failure.
 //
-// VALIDATES: AC-5 -- the restart path never reports a restart it did not make.
-// PREVENTS: ProcessManager.Respawn returning a bare nil for "respawn not
-// enabled", which the caller could not tell from a completed restart. The caller
-// asks after a rollback ack said the plugin is BROKEN, so "done" while the
-// broken process keeps running is the fail-open answer.
-func TestRestartPluginRefusesWhenRespawnIsNotEnabled(t *testing.T) {
+// VALIDATES: AC-11 -- the config-reload rollback restart succeeds.
+// PREVENTS: the state this spec found. ProcessManager.Respawn refused every
+// plugin whose PluginConfig.Respawn was false, and no producer ever set that
+// field, so the rollback path could not restart anything: an ack reporting a
+// BROKEN plugin was answered with "respawn not enabled for plugin" every time.
+//
+// A rollback restart is an ORDER, not a policy question. The orchestrator has
+// already been told the plugin is broken, and it is repairing a config
+// transaction rather than reacting to a failure, so it does not consult the
+// plugin's failure policy.
+func TestRestartPluginRestartsAPluginThatDeclaredNothing(t *testing.T) {
 	snap := registry.Snapshot()
 	registry.Reset()
 	t.Cleanup(func() { registry.Restore(snap) })
@@ -164,17 +168,21 @@ func TestRestartPluginRefusesWhenRespawnIsNotEnabled(t *testing.T) {
 		{Name: standDown, Internal: true, Encoder: plugin.EncodingJSON},
 	}))
 
+	s.dispatcher.Registry().Freeze()
+
 	pm := s.procManager.Load()
 	require.NotNil(t, pm)
 	before := pm.GetProcess(standDown)
 	require.NotNil(t, before)
 
-	err := s.restartPlugin(standDown)
-	require.Error(t, err)
-	assert.ErrorIs(t, err, process.ErrRespawnNotEnabled)
+	require.NoError(t, s.restartPlugin(standDown))
 
-	assert.Same(t, before, pm.GetProcess(standDown), "a refused restart must not replace the process")
-	assert.Equal(t, int64(1), probe.configures.Load(), "a refused restart must not re-configure the plugin")
-	assert.NotNil(t, s.dispatcher.Registry().Lookup(commandName),
-		"a refused restart must leave the running plugin's command registered")
+	after := pm.GetProcess(standDown)
+	require.NotNil(t, after)
+	assert.NotSame(t, before, after, "the rollback restart must replace the process")
+	assert.Equal(t, int64(2), probe.configures.Load(), "the replacement must be configured again")
+
+	cmd := s.dispatcher.Registry().Lookup(commandName)
+	require.NotNil(t, cmd, "the replacement's command must be resolvable")
+	assert.Same(t, after, cmd.Process, "the command must resolve to the replacement process")
 }

@@ -32,6 +32,20 @@ type Records = plugin.Records
 // Registration is the SDK name for the declare-registration input (Stage 1).
 type Registration = rpc.DeclareRegistrationInput
 
+// FailurePolicy is what a plugin asks ze to do when the plugin fails. A plugin
+// declares it in Registration.FailurePolicy, and omitting it means "carry on
+// without me".
+type FailurePolicy = rpc.FailurePolicy
+
+// The three answers a plugin can give about its own failure. FailureRestart is
+// also the plugin's consent to being started again: without it, a configuration
+// asking to respawn this plugin stops the daemon at startup.
+const (
+	FailureRestart = rpc.FailureRestart
+	FailureIgnore  = rpc.FailureIgnore
+	FailureFatal   = rpc.FailureFatal
+)
+
 // FamilyDecl declares an address family the plugin handles.
 type FamilyDecl = rpc.FamilyDecl
 
@@ -105,7 +119,7 @@ const (
 	OperationRemoveListener     = rpc.OperationRemoveListener
 	OperationAddStaticRoute     = rpc.OperationAddStaticRoute
 	OperationRemoveStaticRoute  = rpc.OperationRemoveStaticRoute
-	OperationSetDistance   = rpc.OperationSetDistance
+	OperationSetDistance        = rpc.OperationSetDistance
 	OperationSetSysctl          = rpc.OperationSetSysctl
 	OperationStartDHCP          = rpc.OperationStartDHCP
 	OperationStopDHCP           = rpc.OperationStopDHCP

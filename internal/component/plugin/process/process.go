@@ -28,8 +28,8 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/core/syncutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -430,6 +430,19 @@ func (p *Process) Bridge() *rpc.DirectBridge {
 // SetRunning sets the running state of the process.
 func (p *Process) SetRunning(running bool) {
 	p.running.Store(running)
+}
+
+// EngineDone closes when an in-process plugin's engine has returned, whether it
+// finished, panicked, or was stopped. It returns nil for a forked plugin, which
+// has no engine goroutine in this process: that one's exit closes the connection
+// instead, and the engine's read of it is what reports the exit.
+//
+// The two exits are one question for a caller that supervises a plugin, so a
+// select on this channel is what makes an in-process engine's end reach the same
+// path a fork's end reaches (Server.superviseProcess, ../server/failure_policy.go).
+// A nil channel blocks forever in a select, which is the right answer for a fork.
+func (p *Process) EngineDone() <-chan struct{} {
+	return p.engineDone
 }
 
 // Done closes when Stop cancels this process.

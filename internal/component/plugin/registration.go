@@ -10,7 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -87,6 +87,13 @@ type PluginRegistration struct {
 	// half, and rpc.DeclareRegistrationInput.SignalsSessionReady for what the
 	// plugin is claiming.
 	SignalsSessionReady bool
+
+	// FailurePolicy is what this plugin asked ze to do when it fails, declared
+	// in Stage 1. FailureUnspecified means the plugin declared nothing, and
+	// pluginFailurePolicy (server/failure_policy.go) is the one place that turns
+	// that silence into an outcome. See rpc.FailurePolicy for what each value
+	// asks for.
+	FailurePolicy rpc.FailurePolicy
 
 	// YANG schema declarations (Hub Architecture)
 	PluginSchema *PluginSchemaDecl // YANG schema declaration for this plugin
@@ -269,7 +276,7 @@ func (r *PluginRegistry) GetDecodeFamilies() []string {
 	for fam := range r.families {
 		families = append(families, fam)
 	}
-	sort.Strings(families)
+	slices.Sort(families)
 	return families
 }
 
@@ -304,7 +311,7 @@ func (r *PluginRegistry) DecodeFamiliesForPlugins(names []string) []string {
 			families = append(families, fam)
 		}
 	}
-	sort.Strings(families)
+	slices.Sort(families)
 
 	return families
 }

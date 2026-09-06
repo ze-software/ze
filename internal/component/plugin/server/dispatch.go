@@ -63,10 +63,18 @@ func (s *Server) handleSingleProcessCommandsRPC(proc *process.Process) {
 	// Bridge-mode plugins: no mux to read. Hold the WaitGroup entry until the
 	// server is shutting down so Server.Wait() blocks until actual termination.
 	// Plugin->engine RPCs still flow via DirectBridge independently of this.
+	//
+	// EngineDone is the third way out, and it is the one an in-process plugin
+	// takes when it ENDS on its own. Neither of the other two fires then: the
+	// server is still running, and nothing cancels the process context. Without
+	// it a dead in-process plugin kept its commands, its subscriptions and its
+	// installed routes registered for the life of the daemon, because
+	// cleanupProcess runs on the way out of this function.
 	if conn.HasBridge() {
 		select {
 		case <-s.ctx.Done():
 		case <-proc.Done():
+		case <-proc.EngineDone():
 		}
 		return
 	}

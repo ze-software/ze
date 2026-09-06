@@ -130,11 +130,7 @@ func runInternalBridge(conn net.Conn) int {
 	// aborts the startup barrier. startWhenReady says what that cost.
 	p.OnAllPluginsReady(func() error { return r.startWhenReady(ctx, p) })
 
-	reg := sdk.Registration{
-		Families:    familyDecls([]string{defaultFamily}),
-		WantsConfig: []string{configRoot},
-	}
-	runErr := p.Run(ctx, reg)
+	runErr := p.Run(ctx, bridgeRegistration())
 
 	// Shutdown: cancel the subprocess context, close each stdin (EOF), wait.
 	cancel()
@@ -228,5 +224,22 @@ func (r *bridgeRunner) onEvent(event string) error {
 func (r *bridgeRunner) stop() {
 	if fleet := r.scripts(); fleet != nil {
 		fleet.Stop()
+	}
+}
+
+// bridgeRegistration is the Stage-1 declaration the bridge makes about itself.
+//
+// The failure policy is the part an operator's configuration is checked against.
+// ExaBGP restarts a process that exits unless the block turns it off
+// (src/exabgp/configuration/process/__init__.py, 'respawn': True), and the
+// bridge is what ze runs those scripts under, so it declares that it may be
+// started again. A migrated ExaBGP configuration that wrote `respawn true` is
+// then asking for something ze can give, and its scripts come back after a
+// crash the way their author expected.
+func bridgeRegistration() sdk.Registration {
+	return sdk.Registration{
+		Families:      familyDecls([]string{defaultFamily}),
+		WantsConfig:   []string{configRoot},
+		FailurePolicy: sdk.FailureRestart,
 	}
 }

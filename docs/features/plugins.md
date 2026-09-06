@@ -99,6 +99,19 @@ Plugin infrastructure exposes per-plugin Prometheus metrics for operational visi
 | `ze_plugin_restarts_total{plugin}` | Counter | Cumulative restart count. |
 | `ze_plugin_events_delivered_total{plugin}` | Counter | Total events enqueued to plugin. |
 
-When a plugin is disabled (respawn limit exceeded), its metrics are deleted rather than showing a stale value.
+When a plugin is disabled (restart limit exceeded), its metrics are deleted rather than showing a stale value.
+
+## Plugin Failure Policy
+
+A plugin declares what its own failure means, in its Stage-1 registration:
+`restart`, `ignore` or `fatal`. Ze restarts it, carries on without it, or stops.
+A plugin that declares nothing is carried on without. The `respawn` leaf of a
+`plugin { external <name> }` block states what the operator expects, and a
+configuration asking to restart a plugin that declares it must not be restarted
+stops ze at startup rather than picking a side. `docs/guide/plugins.md` carries
+the table an operator needs.
+
+<!-- source: pkg/plugin/rpc/enums.go -- FailurePolicy -->
+<!-- source: internal/component/plugin/server/failure_policy.go -- (*Server).applyFailurePolicy -->
 
 <!-- source: internal/component/plugin/process/manager.go -- pluginMetrics -->

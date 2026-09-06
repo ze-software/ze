@@ -1,0 +1,33 @@
+# Test: a respawn the plugin declares it cannot meet stops ze at startup
+#
+# The configuration asks for `respawn true`. The plugin declares
+# failure-policy ignore, which says it must not be started again. Ze cannot
+# honor both, and the owner settled which way that goes: "if a plugin declare
+# that it can not restart then we can not start" (2026-09-06).
+#
+# The refusal has to name BOTH sides. An operator reading only "ze cannot start"
+# does not know whether to edit the configuration or change the plugin.
+#
+# VALIDATES: AC-7 -- the daemon does not start, and the message names the
+# plugin, the policy it declared and the leaf the configuration wrote.
+# PREVENTS: ze picking a side in silence. Honoring the leaf would restart a
+# plugin whose author forbade it; honoring the declaration would leave what the
+# operator wrote with no effect at all, which is the defect this spec was
+# written about.
+
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+plugin {
+	external failure-disagree {
+		run "ze-test fixture plugin/failure-policy-disagree"
+		encoder json
+		respawn true;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze start ze-bgp.conf:timeout=30s
+expect=exit:code=0
+expect=stderr:pattern=plugin .*failure-disagree.* declares failure-policy .*ignore
+expect=stderr:contains=its configuration block asks for respawn
+expect=stderr:contains=stopping ze because a plugin failed
+reject=stderr:contains=OK: the plugin process was started again

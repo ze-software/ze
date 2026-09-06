@@ -225,7 +225,7 @@ func TestProcessSyncState(t *testing.T) {
 func TestProcessManagerRespawnLimit(t *testing.T) {
 	// Internal plugin with unknown name exits immediately (simulates crash).
 	pm := NewProcessManager([]plugin.PluginConfig{
-		{Name: "crash", Internal: true, Encoder: "json", RespawnEnabled: true},
+		{Name: "crash", Internal: true, Encoder: "json"},
 	})
 
 	err := pm.Start()
@@ -254,7 +254,7 @@ func TestProcessManagerRespawnLimit(t *testing.T) {
 // PREVENTS: Plugin cycling forever by staying just under per-window limit.
 func TestProcessManagerCumulativeRespawnLimit(t *testing.T) {
 	pm := NewProcessManager([]plugin.PluginConfig{
-		{Name: "cycle", Internal: true, Encoder: "json", RespawnEnabled: true},
+		{Name: "cycle", Internal: true, Encoder: "json"},
 	})
 
 	err := pm.Start()
@@ -297,7 +297,7 @@ func TestProcessManagerCumulativeRespawnLimit(t *testing.T) {
 // PREVENTS: Panic from nil context in StartWithContext.
 func TestProcessManagerRespawnNotStarted(t *testing.T) {
 	pm := NewProcessManager([]plugin.PluginConfig{
-		{Name: "test", Run: "echo test", Encoder: "json", RespawnEnabled: true},
+		{Name: "test", Run: "echo test", Encoder: "json"},
 	})
 
 	// Don't call pm.Start() - ctx is nil
@@ -314,7 +314,7 @@ func TestProcessManagerRespawnNotStarted(t *testing.T) {
 // PREVENTS: Valid respawn attempts being rejected.
 func TestProcessManagerRespawnSuccess(t *testing.T) {
 	pm := NewProcessManager([]plugin.PluginConfig{
-		{Name: "run", Internal: true, Encoder: "json", RespawnEnabled: true},
+		{Name: "run", Internal: true, Encoder: "json"},
 	})
 
 	err := pm.Start()
@@ -728,23 +728,27 @@ func TestInternalPluginRunnerPanicRecovery(t *testing.T) {
 	assert.False(t, proc.Running(), "process should not be running after panic")
 }
 
-// VALIDATES: AC-17 -- plugin crash raises plugin-crash error on report bus,
-// and plugin-down warning when disabled.
+// VALIDATES: AC-10 -- an unexpected plugin exit raises the plugin-crash error on
+// the report bus, and the respawn limit raises the plugin-down warning.
 // PREVENTS: Silent plugin failures going unnoticed by operators.
+//
+// ReportCrash and Respawn are called in the order the engine calls them
+// (Server.applyFailurePolicy). They are separate because a plugin that asked not
+// to be started again still crashed, and the row is owed either way.
 func TestPluginCrashReportBus(t *testing.T) {
 	report.ResetForTest()
 	defer report.ResetForTest()
 
 	pm := NewProcessManager([]plugin.PluginConfig{
-		{Name: "crash", Internal: true, Encoder: "json", RespawnEnabled: true},
+		{Name: "crash", Internal: true, Encoder: "json"},
 	})
 
 	err := pm.Start()
 	require.NoError(t, err)
 	defer pm.Stop()
 
-	// First respawn: plugin-crash error should appear.
-	_, _ = pm.Respawn("crash")
+	// First crash: plugin-crash error should appear.
+	pm.ReportCrash("crash")
 
 	errs := report.Errors(0)
 	found := false
@@ -754,7 +758,7 @@ func TestPluginCrashReportBus(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatal("plugin-crash error not raised on Respawn")
+		t.Fatal("plugin-crash error not raised on ReportCrash")
 	}
 
 	// Exhaust respawn limit to trigger plugin-down warning.

@@ -1,0 +1,32 @@
+# Test: a plugin that declares restart and exits is started again
+#
+# The plugin is a REAL external process the daemon forks from its `run` line.
+# Its first generation completes the five-stage handshake and then returns,
+# which ends the process. Nothing else happens: no operator acts, no config is
+# reloaded, no signal is sent. The daemon has to notice the exit on its own,
+# read what the plugin declared, and start it again.
+#
+# The second generation is what proves it, because it can only exist if the
+# daemon started one. It says so and then asks the daemon to stop, which is what
+# ends this test.
+#
+# VALIDATES: AC-1 -- a plugin that declares failure-policy restart and exits is
+# running again, through the real fork-and-handshake path.
+# PREVENTS: the state this spec found. ProcessManager.Respawn had one caller, a
+# config-reload rollback, so nothing in the daemon watched a plugin process exit
+# and a crashed plugin stayed dead for the life of the daemon.
+
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+plugin {
+	external failure-restart {
+		run "ze-test fixture plugin/failure-policy-restart"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze start ze-bgp.conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=FIXTURE: failure-restart generation 1 is exiting
+expect=stderr:contains=plugin exited, starting it again
+expect=stderr:contains=OK: the plugin process was started again after it exited

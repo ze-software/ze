@@ -643,7 +643,9 @@ Resolved addresses are kept in zefs, so a box that reboots with its upstream DNS
 unreachable programs its domain-group sets from what it learned last time and
 resumes filtering without waiting for a query. The plugin runs as its own
 process: a panic while handling an answer costs one refresh cycle rather than
-the process, and a crash is respawned with the cache intact.
+the process, and a crash starts the plugin again with the cache intact: the
+plugin declares `failure-policy: restart`, and the cache is in the shared zefs
+store rather than in the process.
 
 ### Observability
 

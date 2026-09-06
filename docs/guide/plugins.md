@@ -66,6 +66,45 @@ plugin {
 | `internal` | `use` | Name of a built-in plugin to run in-process |
 | `external` | `run` | Command to start an external plugin process |
 | `external` | `encoder` | Wire encoding: `json` (default) or `text` |
+| `external` | `respawn` | What you expect when the process exits. Read the section below before you write it |
+| `external` | `timeout` | Startup stall timeout for this plugin |
+
+## When a Plugin Fails
+
+**The plugin decides, not the configuration.** Every plugin tells ze at startup
+what its own failure means, and ze does that.
+
+| The plugin declares | What ze does when it fails |
+|---------------------|----------------------------|
+| `restart` | starts the plugin again, up to 5 times in 60 seconds and 20 in the life of the daemon |
+| `ignore` | logs it and carries on without the plugin |
+| `fatal` | stops ze |
+| nothing | logs it and carries on, the same as `ignore` |
+
+`fatal` is open to any plugin, including one you wrote or one you downloaded.
+Running a plugin is accepting its terms. If you disagree with a plugin's policy,
+do not configure it, or change its code.
+
+The `respawn` leaf states what YOU expect. It can ask for less than the plugin
+permits and never for more:
+
+| You write | The plugin declares | Result |
+|-----------|---------------------|--------|
+| nothing | anything | the plugin's declaration decides |
+| `respawn false` | `restart` | the plugin is left stopped when it exits |
+| `respawn true` | `restart` | the plugin is started again, which it already was |
+| `respawn true` | `ignore`, `fatal`, or nothing | **ze does not start.** The error names the plugin and the policy it declared |
+
+The last row is deliberate. Honoring the leaf would restart a plugin whose
+author forbade it, and honoring the declaration would leave what you wrote with
+no effect. Ze picks neither in silence: remove the leaf, or run a plugin that
+declares `restart`.
+
+The leaf is spelled the way ExaBGP spells it, because an ExaBGP process block
+carries the same option and a migrated configuration keeps working.
+
+Past the restart bound the plugin is disabled, `show health` reports
+`plugin-down` for it, and ze carries on.
 
 ## Binding Plugins to Peers
 
@@ -528,7 +567,7 @@ for the names and their value shapes. Filters respond accept, reject, or modify
 A single plugin can offer multiple named filters. Config references them as
 `<plugin>:<filter>` (e.g., `rpki:validate`, `community:scrub`).
 
-| Category | Behaviour | Example |
+| Category | Behavior | Example |
 |----------|----------|---------|
 | Mandatory | Always on, cannot be overridden | `rfc:otc` |
 | Default | On by default, overridable per-peer | `rfc:no-self-as` |
@@ -1147,7 +1186,7 @@ Plugins can declare dependencies on other plugins. The engine starts plugins in 
 
 Dependencies are declared in the plugin's registration, not in config. The engine resolves them automatically. Two kinds:
 
-| Kind | Field | Behaviour if missing |
+| Kind | Field | Behavior if missing |
 |------|-------|----------------------|
 | Hard | `Dependencies` | Startup fails with `ErrMissingDependency`. |
 | Optional | `OptionalDependencies` | Silently skipped. Plugin owner handles runtime absence (typically a one-shot WARN + feature disabled). |
@@ -1158,7 +1197,7 @@ Dependencies are declared in the plugin's registration, not in config. The engin
 
 ## Exclusive Roles
 
-When two plugins both implement a behaviour but only one should run it, the plugin that takes over declares the role in its static registration (`Claims`), and the other stands down. The engine unions the claims of every plugin in the startup set and delivers the union on each plugin's Stage-2 configure callback; the standing-down plugin reads it with `sdk.Plugin.ClaimActive(role)` from its `OnConfigure` handler.
+When two plugins both implement a behavior but only one should run it, the plugin that takes over declares the role in its static registration (`Claims`), and the other stands down. The engine unions the claims of every plugin in the startup set and delivers the union on each plugin's Stage-2 configure callback; the standing-down plugin reads it with `sdk.Plugin.ClaimActive(role)` from its `OnConfigure` handler.
 
 Stage 2 is part of the sequential handshake, so the decision is recorded before any plugin sends Stage-5 ready and therefore before the engine starts peers. A handler reading it during a runtime event always sees the final answer.
 
@@ -1170,7 +1209,7 @@ Stage 2 is part of the sequential handshake, so the decision is recorded before 
 
 A claim says a role has an owner in this daemon. It cannot say the owner will act on a given peer, because Stage 2 runs before any session exists. Two things make the claim wrong for one peer, and the plugin that stood down can see neither: the claimant takes no delivery of that peer's events, because the peer's `attach process` blocks do not name it, or the claimant never reached Running at all.
 
-So the engine RETRACTS the claim, per event, for the peers it does not cover. Each peer-scoped event carries the claimed roles that no process being fed this event holds: `StructuredEvent.UnheldRoles` for a plugin on the direct bridge, and the `unheld-roles` member of the state event for a JSON one. A plugin that stood a role down MUST run its own default behaviour for an event that names it, because nothing else will. The list is absent whenever every claim holds, which is the common case and costs no bytes.
+So the engine RETRACTS the claim, per event, for the peers it does not cover. Each peer-scoped event carries the claimed roles that no process being fed this event holds: `StructuredEvent.UnheldRoles` for a plugin on the direct bridge, and the `unheld-roles` member of the state event for a JSON one. A plugin that stood a role down MUST run its own default behavior for an event that names it, because nothing else will. The list is absent whenever every claim holds, which is the common case and costs no bytes.
 
 `bgp-adj-rib-in` reads it at peer-up: it replays a peer that `bgp-rs` is not fed, and stands down for the peers `bgp-rs` drives. Without the retraction such a peer was served by nobody, because `bgp-rs` replays and forwards only peers it takes `state` delivery of.
 <!-- source: internal/component/plugin/server/startup_claims.go -- (*Server).UnheldRoles -->

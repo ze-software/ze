@@ -268,11 +268,14 @@ module ze-plugin-conf {
             leaf respawn {
                 type boolean;
                 description "Respawn on exit";
-                ze:help "This daemon does not act on this leaf. A plugin process that exits is not started again,
-                    whatever the value holds. Nothing reads this leaf into the configuration the process manager
-                    consults. The engine does hold a restart path, and only a configuration reload that a plugin
-                    refuses reaches it. A plugin that must survive a crash today needs a run command that restarts the
-                    program, such as a wrapper script.";
+                ze:help "States what you expect ze to do when this plugin's process exits. The plugin itself declares
+                    whether it may be started again, and this leaf is a request inside that declaration. With no leaf
+                    here the plugin's own declaration decides. With 'false' the plugin is left stopped even when it
+                    would have been started again. With 'true' against a plugin that declares it must not be
+                    restarted, ze refuses to start, and the error names the plugin and the policy it declared: ze
+                    honors neither side in silence. The spelling comes from ExaBGP, whose process block carries the
+                    same leaf. A restart is bounded at 5 in 60 seconds and 20 in the life of the daemon, after which
+                    the plugin is disabled and 'show health' reports plugin-down.";
             }
 
             leaf timeout {

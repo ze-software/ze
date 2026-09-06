@@ -131,6 +131,22 @@ filter, so reading it again picks up what that consumer has fetched since. It
 only adds: an entry held in both places is the same entry, because every store
 mutation persists before it returns.
 
+### A crash starts the plugin again
+
+<!-- source: internal/component/firewall/plugins/irr/irr.go -- runFirewallIRR, sdk.Registration.FailurePolicy -->
+<!-- source: internal/component/plugin/server/failure_policy.go -- (*Server).applyFailurePolicy -->
+
+The plugin declares `failure-policy: restart`, so a process that ends is started
+again. Without that declaration a crash was permanent for the life of the
+daemon, and the registry then held back every table naming an IRR set.
+
+The restart costs nothing the plugin has to rebuild by hand: the prefix cache
+lives in the shared zefs store, so the replacement opens the same file and
+programs its sets from what was already fetched. It is bounded at 5 restarts in
+60 seconds and 20 over the life of the daemon, which is what stops an answer
+that panics every time from cycling: past the bound the plugin is disabled and
+`show health` reports plugin-down.
+
 ### CIDR is encoded as an interval
 
 <!-- source: internal/component/firewall/model.go -- SetElement.IntervalEnd -->

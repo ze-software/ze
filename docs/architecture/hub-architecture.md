@@ -366,6 +366,19 @@ declare done
 - Hub stores YANG content for config validation
 <!-- source: internal/component/plugin/registration.go -- declare schema parsing -->
 
+**Failure policy (Stage 1):**
+
+The same message carries what the plugin asks ze to do when the plugin fails:
+`restart`, `ignore` or `fatal`. It is what makes a plugin phase able to STOP the
+daemon rather than carry on without a plugin. A plugin that declares `fatal` and
+fails a startup stage after declaring stops ze, and so does a `respawn true`
+leaf against a plugin that declares it must not be restarted. Every other
+startup failure leaves the daemon running without that plugin, as before.
+`docs/architecture/api/process-protocol.md` carries the three values and the
+bounds a restart runs under.
+<!-- source: internal/component/plugin/server/startup.go -- (*Server).runPluginPhase, engineStartupSink.onRegistration -->
+<!-- source: internal/component/plugin/server/failure_policy.go -- (*Server).stopDaemonOnStartupFailure -->
+
 **Schema debugging (CLI):**
 ```bash
 $ ze bgp schema show

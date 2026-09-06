@@ -55,6 +55,12 @@ an operator the answer cannot support before the command runs.
 The engine validates the three fields against a closed set and a bound at
 registration. One wrong entry refuses the whole list. See
 `docs/architecture/api/process-protocol.md` for the fields and their bounds.
+
+The same message carries `failure-policy`, which is what the plugin asks the
+engine to do when the plugin fails: `restart`, `ignore` or `fatal`. Omitting it
+is read as `ignore`, and a fourth spelling fails the whole registration. See
+`docs/architecture/api/process-protocol.md`, "Failure-Policy Declaration".
+<!-- source: pkg/plugin/rpc/enums.go -- FailurePolicy -->
 <!-- source: pkg/plugin/rpc/types.go -- PipeDecl, CommandDecl, DeclareRegistrationInput -->
 <!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes, validateShapeDecls, registerPluginShapes -->
 
@@ -1132,7 +1138,8 @@ Errors are returned as strings in `data` field:
 | `PENDING_REQUEST_LIMIT` | 100 | Max pending requests per process |
 | `DEFAULT_TIMEOUT` | 30s | Request timeout |
 | `COMPLETION_TIMEOUT` | 500ms | Tab completion timeout |
-| `RESPAWN_LIMIT` | 5 | Max respawns per 60s |
+| `RESPAWN_LIMIT` | 5 | Max restarts per 60s, after which the plugin is disabled |
+| `MAX_TOTAL_RESPAWNS` | 20 | Max restarts over the life of the daemon |
 <!-- source: internal/component/plugin/process/process.go -- Process backpressure -->
 
 When backpressure triggers:

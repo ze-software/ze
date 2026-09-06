@@ -430,6 +430,15 @@ times, and then stays stopped with an error line naming it.
 
 <!-- source: internal/plugins/exabgp/bridgerun/respawn.go -- respawnLimiter, respawnWindow, respawnMax -->
 
+That is the bridge restarting a SCRIPT. The bridge itself is a ze plugin, and it
+declares `failure-policy: restart` in its own Stage-1 registration, so a bridge
+process that dies is started again by the engine and its scripts come back with
+it. The two are separate mechanisms with the same intent, and both exist because
+ExaBGP respawns a process that exits.
+
+<!-- source: internal/plugins/exabgp/bridgeplugin/internal.go -- bridgeRegistration -->
+<!-- source: internal/component/plugin/server/failure_policy.go -- (*Server).applyFailurePolicy -->
+
 ## One script cannot stall another
 
 Each child has a queue of at most 1000 lines and one goroutine draining it into

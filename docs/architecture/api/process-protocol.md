@@ -307,6 +307,47 @@ a process the peer never tells cannot push into that session's initial update.
 <!-- source: internal/component/plugin/server/events.go -- (*Server).declaresSessionReady -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters -->
 
+**Failure-Policy Declaration (Stage 1):**
+
+A plugin CAN set `failure-policy` in its `declare-registration` to say what its
+own failure means. The engine applies it when the plugin's process ends, and
+when the plugin fails a startup stage after it has declared.
+
+| Value | On plugin failure | May the plugin be restarted? |
+|-------|-------------------|------------------------------|
+| `restart` | The engine starts the plugin again | Yes |
+| `ignore` | The engine logs and carries on without it | No |
+| `fatal` | The daemon stops | No |
+
+The declaration is VOLUNTARY. A plugin that omits the field is read as `ignore`,
+which is what the engine did before the field existed, so silence is never read
+as consent to a restart. A value that is none of the three fails the whole
+registration: the engine does not guess.
+
+One value answers two questions, because the engine starts a plugin again for
+exactly one reason. `restart` is also the plugin's statement that it MAY be
+started again, and the other two are its statement that it must not be.
+
+The `respawn` leaf of a `plugin { external <name> }` block is the operator's
+request inside that declaration. It can ask for less and never for more. With no
+leaf the declaration decides. With `respawn false` a plugin that would have been
+started again is left stopped. With `respawn true` against a plugin that
+declares it must not be restarted, the daemon stops at startup and the error
+names the plugin, the policy it declared and the leaf.
+
+A restart is bounded: `RespawnLimit` restarts in `RespawnWindow`, and
+`MaxTotalRespawns` over the life of the daemon. Past either bound the plugin is
+disabled, the `plugin-down` warning is raised, and the daemon carries on, which
+is the `ignore` outcome.
+
+`fatal` is open to any plugin, whether ze ships it or an operator wrote it
+(owner directive, 2026-09-06). Configuring a plugin is accepting its terms.
+
+<!-- source: pkg/plugin/rpc/enums.go -- FailurePolicy -->
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput.FailurePolicy -->
+<!-- source: internal/component/plugin/server/failure_policy.go -- pluginFailurePolicy, refuseRespawnDisagreement, (*Server).applyFailurePolicy -->
+<!-- source: internal/component/plugin/process/manager.go -- RespawnLimit, RespawnWindow, MaxTotalRespawns -->
+
 **Pipe Alias Declaration (Stage 1):**
 
 A plugin CAN include a `pipes` list in its `declare-registration` to name a CLI

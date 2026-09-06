@@ -27,7 +27,76 @@ const (
 	wireSent        = "sent"
 	wireReceived    = "received"
 	wireUnspecified = "unspecified"
+	wireRestart     = "restart"
+	wireIgnore      = "ignore"
+	wireFatal       = "fatal"
 )
+
+// FailurePolicy is what a plugin asks ze to do when the plugin fails. The
+// plugin declares it in DeclareRegistrationInput, and the engine applies it
+// when the plugin's process ends or its startup handshake fails.
+// Wire form: "restart", "ignore", "fatal".
+//
+// One value answers two questions, because ze starts a plugin again for exactly
+// one reason, which is that the plugin failed. FailureRestart says what happens
+// on a failure AND states that the plugin may be started again. The other two
+// say it MUST NOT be, so a configuration that asks for a respawn disagrees with
+// them and ze refuses to start (Server.applyFailurePolicy,
+// internal/component/plugin/server/failure_policy.go).
+type FailurePolicy uint8
+
+const (
+	// FailureUnspecified is what a plugin that declared nothing carries. It is
+	// never an answer: pluginFailurePolicy is the one function that turns it
+	// into an outcome, and it reads it as FailureIgnore.
+	FailureUnspecified FailurePolicy = 0
+	FailureRestart     FailurePolicy = 1
+	FailureIgnore      FailurePolicy = 2
+	FailureFatal       FailurePolicy = 3
+)
+
+var failurePolicyStrings = [4]string{
+	FailureUnspecified: wireUnspecified,
+	FailureRestart:     wireRestart,
+	FailureIgnore:      wireIgnore,
+	FailureFatal:       wireFatal,
+}
+
+func (p FailurePolicy) String() string {
+	if p < FailurePolicy(len(failurePolicyStrings)) {
+		return failurePolicyStrings[p]
+	}
+	return wireUnspecified
+}
+
+func (p FailurePolicy) AppendTo(buf []byte) []byte { return append(buf, p.String()...) }
+
+// AllowsRestart reports whether the plugin permits ze to start it again after a
+// failure. Only a plugin that declared FailureRestart does. A plugin that
+// declared nothing does not, because ze must not read silence as consent.
+func (p FailurePolicy) AllowsRestart() bool { return p == FailureRestart }
+
+func (p FailurePolicy) MarshalText() ([]byte, error) {
+	if p == FailureUnspecified {
+		return nil, fmt.Errorf("rpc: unspecified FailurePolicy is invalid on the wire")
+	}
+	return []byte(p.String()), nil
+}
+
+func (p *FailurePolicy) UnmarshalText(data []byte) error {
+	switch string(data) {
+	case wireRestart:
+		*p = FailureRestart
+	case wireIgnore:
+		*p = FailureIgnore
+	case wireFatal:
+		*p = FailureFatal
+	default:
+		return fmt.Errorf("rpc: unknown failure policy %q: write %q, %q or %q",
+			string(data), wireRestart, wireIgnore, wireFatal)
+	}
+	return nil
+}
 
 // MessageDirection is the typed wire direction of a BGP message from the
 // reactor's perspective. Wire form: "sent", "received".

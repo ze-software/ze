@@ -390,6 +390,24 @@ func ExtractPluginsFromTree(tree *Tree) ([]plugin.PluginConfig, error) {
 			if v, ok := proc.Get("encoder"); ok {
 				pc.Encoder = v
 			}
+			if v, ok := proc.Get("respawn"); ok {
+				// A value the daemon cannot read is refused rather than taken as
+				// false: the operator wrote the leaf to say something, and
+				// starting as though they had not is the silent wrong answer.
+				//
+				// An absent leaf is left as RespawnUnstated, which is not the
+				// same as false: silence leaves the decision to the plugin's own
+				// declaration, and false takes a restart away from a plugin
+				// willing to have one (plugin.RespawnRequest).
+				respawn, err := ParseBoolStrict(v)
+				if err != nil {
+					return nil, fmt.Errorf("plugin %q: invalid respawn %q: %w", name, v, err)
+				}
+				pc.Respawn = plugin.RespawnDeclined
+				if respawn {
+					pc.Respawn = plugin.RespawnAsked
+				}
+			}
 			if v, ok := proc.Get("timeout"); ok {
 				d, err := time.ParseDuration(v)
 				if err != nil {

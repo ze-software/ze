@@ -98,10 +98,8 @@ func TestPluginRestartMetric(t *testing.T) {
 	reg := metrics.NewPrometheusRegistry()
 
 	configs := []plugin.PluginConfig{{
-		Name:           "cycle",
-		Internal:       true,
-		Respawn:        true,
-		RespawnEnabled: true,
+		Name:     "cycle",
+		Internal: true,
 	}}
 	pm := NewProcessManager(configs)
 	pm.SetMetricsRegistry(reg)
@@ -185,11 +183,9 @@ func TestPluginMetricsDeletedOnDisable(t *testing.T) {
 	reg := metrics.NewPrometheusRegistry()
 
 	configs := []plugin.PluginConfig{{
-		Name:           "crash-metrics",
-		Internal:       true,
-		Run:            "crash",
-		Respawn:        true,
-		RespawnEnabled: true,
+		Name:     "crash-metrics",
+		Internal: true,
+		Run:      "crash",
 	}}
 	pm := NewProcessManager(configs)
 	pm.SetMetricsRegistry(reg)

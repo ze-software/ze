@@ -191,11 +191,18 @@ plugin {
     # Third-party plugins
     external acme {
         run "/opt/acme/monitor-plugin";
-        respawn true;           # Restart if crashes
+        respawn true;           # Restart if it exits, if the plugin permits it
         timeout 60;             # Startup timeout
     }
 }
 ```
+
+A plugin declares in its Stage-1 registration what its own failure means:
+`restart`, `ignore` or `fatal`. That declaration decides what ze does. The
+`respawn` leaf states what the operator expects, and it can only ask for less
+than the declaration permits: `respawn false` leaves a plugin stopped that would
+have been started again, and `respawn true` against a plugin that declares it
+must not be restarted stops ze at startup with an error naming both sides.
 
 ### Section 3: Plugin Configuration
 
@@ -263,7 +270,7 @@ Any executable that speaks the plugin protocol:
 plugin {
     external my-plugin {
         run "/path/to/plugin";
-        respawn true;
+        respawn true;   # Only if the plugin declares failure-policy restart
     }
 }
 

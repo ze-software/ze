@@ -1,0 +1,30 @@
+# Test: a plugin that declares fatal and exits stops ze
+#
+# The plugin is a REAL external process. It completes the handshake, says it is
+# leaving, and returns. Nothing asks the daemon to stop, so the daemon stopping
+# is the whole assertion: it read what the plugin declared and acted on it.
+#
+# `fatal` is open to any plugin, ze-shipped or operator-written (owner
+# directive, 2026-09-06): configuring a plugin is accepting its terms.
+#
+# VALIDATES: AC-3 -- a fatal plugin's exit stops the daemon, and the log names
+# the plugin and the reason.
+# PREVENTS: fatal being implemented as a log line. The daemon runs until
+# something ends the wait in waitLoop (cmd/ze/hub/main.go), so a policy that only
+# logs leaves the router up without the plugin its operator was told it could not
+# run without.
+
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+plugin {
+	external failure-fatal {
+		run "ze-test fixture plugin/failure-policy-fatal"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze start ze-bgp.conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=FIXTURE: failure-fatal is exiting
+expect=stderr:contains=stopping ze because a plugin failed
+expect=stderr:contains=the plugin declares that its failure stops ze

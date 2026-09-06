@@ -342,6 +342,10 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 			phaseErr = preferDiagnosedError(phaseErr, err)
 			logger().Error("plugin startup failed", "plugin", proc.Name(), "stage", proc.Stage(), "error", err)
 			s.rollbackStartupProcess(proc)
+			// A phase that fails leaves the daemon running without those
+			// plugins, which is right for a plugin that said nothing about its
+			// own failure and wrong for one that did (failure_policy.go).
+			s.stopDaemonOnStartupFailure(proc, err)
 		}
 
 		logger().Debug("tier handshake complete", "tier", tierIdx)
@@ -363,11 +367,9 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 		if proc.Stage() < plugin.StageRunning {
 			continue
 		}
-		s.wg.Add(1)
-		go func(p *process.Process) {
-			defer s.wg.Done()
-			s.handleSingleProcessCommandsRPC(p)
-		}(proc)
+		s.wg.Go(func() {
+			s.superviseProcess(proc)
+		})
 	}
 
 	return phaseErr
@@ -527,6 +529,14 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 	if err := validateHelpDecls(input.Commands); err != nil {
 		logger().Error("plugin help text refused", "plugin", proc.Config().Name, "error", err)
 		return fmt.Errorf("invalid help text: %s: %w", proc.Config().Name, err)
+	}
+
+	// The plugin has now said what its own failure means, and the configuration
+	// said what the operator expects. This is the first moment both are known,
+	// so it is where they are checked against each other.
+	if err := refuseRespawnDisagreement(proc.Config().Name, proc.Config().Respawn, input.FailurePolicy); err != nil {
+		logger().Error("plugin respawn refused", "plugin", proc.Config().Name, "error", err)
+		return err
 	}
 
 	// Convert RPC input to engine registration type.
@@ -861,6 +871,7 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		WantsValidateOpen:   input.WantsValidateOpen,
 		Claims:              input.Claims,
 		SignalsSessionReady: input.SignalsSessionReady,
+		FailurePolicy:       input.FailurePolicy,
 		Done:                true,
 	}
 

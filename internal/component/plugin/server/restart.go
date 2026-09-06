@@ -1,7 +1,8 @@
 // Design: docs/architecture/api/process-protocol.md — the 5-stage handshake a restart re-runs
 // Overview: startup.go — runPluginPhase, the same handshake under a tier barrier
 // Related: ../process/manager.go — ProcessManager.Respawn, which spawns the replacement process
-// Related: reload_tx.go — restartPlugin, the one caller a broken-plugin rollback reaches
+// Related: reload_tx.go — restartPlugin, which a broken-plugin rollback reaches
+// Related: failure_policy.go — superviseProcess, which decides what a plugin's exit means
 
 package server
 
@@ -101,7 +102,20 @@ func (s *Server) restartHandshake(proc *process.Process) error {
 	}
 
 	s.wg.Go(func() {
-		s.handleSingleProcessCommandsRPC(proc)
+		s.superviseProcess(proc)
 	})
+
+	// The replacement joins after signalStartupComplete has run, so the one
+	// delivery sendPostStartupToAll makes is long past. Without this line its
+	// OnAllPluginsReady handler never runs, which is the handler where a plugin
+	// takes an exclusive role over from the plugin that holds it (bgp-rs
+	// claimReplayOwnership, bgp/plugins/rs/server_handlers.go). A restarted
+	// plugin would come back registered, configured and subscribed, and still
+	// not do the one piece of work that needs every other plugin present.
+	//
+	// It is the same delivery a config reload makes for a plugin it starts
+	// mid-life (autoLoadForNewConfigPaths, startup_autoload.go), for the same
+	// reason and by the same call.
+	s.sendPostStartupToNames([]string{proc.Name()})
 	return nil
 }

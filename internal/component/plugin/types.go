@@ -376,17 +376,42 @@ type HubConfig struct {
 	Clients []HubClientConfig // Hub-level client blocks (outbound)
 }
 
+// RespawnRequest is what a plugin block's `respawn` leaf asks for. The leaf is
+// ExaBGP's spelling, kept because an ExaBGP process block carries it and ze
+// accepts the migrated configuration (internal/exabgp/migration/migrate.go).
+//
+// It has three states rather than two because "the operator wrote nothing" and
+// "the operator wrote false" are different answers. Silence leaves the decision
+// to the plugin, which declares its own failure policy in Stage 1. A written
+// value is an instruction ze either honors or refuses to start with: the
+// plugin's declaration is the constraint, and this leaf is a request inside it
+// (rpc.FailurePolicy).
+type RespawnRequest uint8
+
+const (
+	// RespawnUnstated is a block with no `respawn` leaf, which is every internal
+	// plugin and every external block that did not write one.
+	RespawnUnstated RespawnRequest = 0
+	// RespawnAsked is `respawn true`. It agrees with a plugin that declares
+	// rpc.FailureRestart, and it stops the daemon against a plugin that does
+	// not, because ze cannot honor it.
+	RespawnAsked RespawnRequest = 1
+	// RespawnDeclined is `respawn false`. It asks for less than any declaration
+	// permits, so it never disagrees: a plugin that would have been started
+	// again is left stopped instead.
+	RespawnDeclined RespawnRequest = 2
+)
+
 // PluginConfig holds plugin configuration.
 type PluginConfig struct {
-	Name           string        // Plugin identifier
-	Run            string        // Command to execute (empty for internal plugins)
-	Encoder        string        // "json" or "text"
-	Respawn        bool          // ExaBGP compat (prefer RespawnEnabled)
-	RespawnEnabled bool          // Respawn with limit enforcement (5/60s)
-	WorkDir        string        // Working directory for plugin execution
-	ReceiveUpdate  bool          // Forward received UPDATEs to plugin stdin
-	StageTimeout   time.Duration // Startup stall timeout: how long a stage may go with no plugin progress (0 = use default 5s)
-	Internal       bool          // If true, run in-process via goroutine (ze.X plugins)
+	Name          string         // Plugin identifier
+	Run           string         // Command to execute (empty for internal plugins)
+	Encoder       string         // "json" or "text"
+	Respawn       RespawnRequest // What the block's `respawn` leaf asked for
+	WorkDir       string         // Working directory for plugin execution
+	ReceiveUpdate bool           // Forward received UPDATEs to plugin stdin
+	StageTimeout  time.Duration  // Startup stall timeout: how long a stage may go with no plugin progress (0 = use default 5s)
+	Internal      bool           // If true, run in-process via goroutine (ze.X plugins)
 }
 
 // Format constants for process output formatting.

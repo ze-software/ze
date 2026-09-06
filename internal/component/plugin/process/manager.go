@@ -51,12 +51,6 @@ var (
 	ErrRespawnLimitExceeded = errors.New("respawn limit exceeded")
 	ErrProcessDisabled      = errors.New("process disabled due to respawn limit")
 	ErrProcessNotFound      = errors.New("process not found")
-	// ErrRespawnNotEnabled reports that the plugin config enables no respawn, so
-	// nothing was restarted. It is an error rather than a silent nil because the
-	// caller asks for a restart of a plugin it already knows is broken. To answer
-	// "done" while the broken process keeps running is the fail-open direction a
-	// guard must never take (ai/rules/evidence.md).
-	ErrRespawnNotEnabled = errors.New("respawn not enabled for plugin")
 )
 
 // pluginMetrics holds Prometheus metrics for plugin health.
@@ -420,6 +414,19 @@ const reportSourcePlugin = "plugin"
 const reportCodePluginCrash = "plugin-crash"
 const reportCodePluginDown = "plugin-down"
 
+// ReportCrash records that a named plugin's process ended when nothing asked it
+// to. The engine calls it for EVERY unexpected exit, before it decides what to
+// do about one (Server.applyFailurePolicy,
+// internal/component/plugin/server/failure_policy.go).
+//
+// It is separate from Respawn because a crash and a restart are different
+// events. A plugin that asked not to be started again still crashed, and an
+// operator reading `ze doctor` needs that row whether or not ze acted on it.
+func (pm *ProcessManager) ReportCrash(name string) {
+	report.RaiseError(reportSourcePlugin, reportCodePluginCrash, name,
+		"plugin process exited unexpectedly: "+name, nil)
+}
+
 // Respawn restarts a process, enforcing respawn limits. It returns the NEW
 // process on success, and a nil process with a non-nil error on every other
 // path.
@@ -431,7 +438,11 @@ const reportCodePluginDown = "plugin-down"
 // (Server.restartPlugin, internal/component/plugin/server/reload_tx.go), and it
 // cannot run one on a process this method keeps to itself.
 //
-// Returns ErrRespawnNotEnabled if the plugin config enables no respawn.
+// It asks NO question about whether this plugin may be restarted. The plugin's
+// own declaration answers that, and the caller has already read it
+// (rpc.FailurePolicy). The config-reload rollback path calls this for a plugin
+// it has been told is broken, which is an order rather than a policy decision.
+//
 // Returns ErrRespawnLimitExceeded if limit exceeded within window.
 // Returns ErrProcessDisabled if process was previously disabled.
 // Returns ErrProcessNotFound if process name not in configuration.
@@ -460,15 +471,6 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 	}
 	if cfg == nil {
 		return nil, ErrProcessNotFound
-	}
-
-	// Validated: this is a real crash of a known, enabled plugin (AC-17).
-	report.RaiseError(reportSourcePlugin, reportCodePluginCrash, name,
-		"plugin process exited unexpectedly: "+name, nil)
-
-	// Check respawn enabled
-	if !cfg.RespawnEnabled && !cfg.Respawn {
-		return nil, ErrRespawnNotEnabled
 	}
 
 	now := time.Now()

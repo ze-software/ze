@@ -5,7 +5,30 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/exabgp/bridge"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
+
+// TestExabgpBridgeDeclaresItCanRestart: the bridge tells ze it may be started
+// again after a failure.
+//
+// VALIDATES: AC-12 -- the ExaBGP bridge declares restart, so a migrated ExaBGP
+// configuration that wrote `respawn true` is asking for something ze can give,
+// and its scripts come back after a crash.
+//
+// PREVENTS: the owner's rule refusing the very configurations it exists to
+// support. A bridge that declared nothing would be a plugin that "can not
+// restart", so `respawn true` against it would stop the daemon at startup --
+// and respawn is on by default in ExaBGP, which is where those configurations
+// come from (exabgpRespawn, internal/exabgp/migration/migrate.go).
+func TestExabgpBridgeDeclaresItCanRestart(t *testing.T) {
+	reg := bridgeRegistration()
+	if reg.FailurePolicy != sdk.FailureRestart {
+		t.Fatalf("failure policy = %q, want %q", reg.FailurePolicy, sdk.FailureRestart)
+	}
+	if !reg.FailurePolicy.AllowsRestart() {
+		t.Fatal("the bridge must permit ze to start it again")
+	}
+}
 
 // VALIDATES: the internal exabgp-bridge parses every `process` block an ExaBGP
 // config declares, and refuses one it cannot run.

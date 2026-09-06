@@ -319,6 +319,17 @@ type DeclareRegistrationInput struct {
 	// agree on the spelling. Same shape as EventTypes/SendTypes.
 	Claims []string `json:"claims,omitempty"`
 
+	// FailurePolicy is what this plugin asks ze to do when the plugin fails:
+	// start it again, carry on without it, or stop the daemon. The declaration
+	// is VOLUNTARY, and a plugin that omits it is read as "carry on without
+	// me", which is what ze did before a plugin could declare anything.
+	//
+	// It is also the plugin's statement of whether it may be started again at
+	// all, so a configuration whose `respawn` leaf asks for a restart the
+	// declaration refuses stops the daemon at startup rather than silently
+	// picking a side.
+	FailurePolicy FailurePolicy `json:"failure-policy,omitempty"`
+
 	// SignalsSessionReady declares that this plugin puts routes into a peer's
 	// INITIAL routing update and dispatches `plugin session ready` once they
 	// are out. A peer that attaches the plugin with `send [ update ]` or

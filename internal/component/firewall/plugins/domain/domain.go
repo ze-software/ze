@@ -192,6 +192,11 @@ func runFirewallDomain(conn net.Conn) int {
 		},
 		Enrichers:   []sdk.EnricherDecl{{Command: enrichCommand, Key: enrichKey}},
 		WantsConfig: []string{configRoot},
+		// The resolved addresses survive a restart in the zefs store, so a
+		// crashed process comes back and programs its sets again from the cache.
+		// Without the restart the registry holds back every table naming a
+		// domain-group set for the life of the daemon.
+		FailurePolicy: sdk.FailureRestart,
 	}); err != nil {
 		logger().Error("firewall-domain plugin failed", "error", err)
 		return 1

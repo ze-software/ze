@@ -145,6 +145,11 @@ func runFirewallIRR(conn net.Conn) int {
 			{Name: "clear firewall irr as-set", Description: "Remove the cached IRR prefix-list for an AS-SET", Args: []string{"<as-set>"}},
 		},
 		WantsConfig: []string{configRoot},
+		// The cache this plugin serves the firewall from survives a restart in
+		// the zefs store, so a crashed process comes back and programs its sets
+		// again from what it had. Without the restart the registry holds back
+		// every table naming an IRR set for the life of the daemon.
+		FailurePolicy: sdk.FailureRestart,
 	}); err != nil {
 		logger().Error("firewall-irr plugin failed", "error", err)
 		return 1
