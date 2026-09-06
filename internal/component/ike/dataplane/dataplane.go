@@ -69,7 +69,33 @@ const (
 	// Section 4.4.1. A bypass policy carries no template, so it needs no mode, no
 	// tunnel endpoints and no reqid.
 	SPActionBypass SPAction = 1
+	// SPActionDiscard drops matching traffic. It is the third SPD disposition of
+	// RFC 4301 Section 4.4.1, beside PROTECT and BYPASS, and it is what lets an
+	// administrator write an entry that stops traffic at the IPsec boundary.
+	//
+	// RFC 4301 Section 7.4: "All implementations MUST support DISCARDing of
+	// fragments using the normal SPD packet classification mechanisms."
+	//
+	// It carries no template, for the same reason a bypass carries none: the traffic
+	// reaches no transform. So it needs no mode, no tunnel endpoints and no reqid,
+	// and a backend projects it as its own drop disposition rather than as an allow.
+	// A backend with no drop disposition MUST refuse the install (ai/rules/protocol.md):
+	// a discard silently downgraded to a bypass passes exactly the traffic the
+	// operator asked to stop, which is the failure this action exists to prevent.
+	SPActionDiscard SPAction = 2
 )
+
+// isTemplateFree reports whether an action installs a policy with NO IPsec template.
+//
+// BYPASS and DISCARD both do. Neither hands traffic to a transform, so neither names
+// a mode, a tunnel endpoint pair or a reqid, and every check that validates a
+// template must be skipped for both. Asking the ACTION rather than testing one
+// constant keeps the two dispositions from drifting apart: a check written as
+// `Action == SPActionBypass` reads a discard as a protect policy and then demands
+// tunnel endpoints it must not carry.
+func (a SPAction) isTemplateFree() bool {
+	return a == SPActionBypass || a == SPActionDiscard
+}
 
 // Security Policy priorities.
 //

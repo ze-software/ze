@@ -1,0 +1,115 @@
+{
+  "rfc": "rfc4301",
+  "records": [
+    {
+      "rid": "RFC4301-4.4.1-4",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector",
+      "unit-sha": "59f5213807d30a44",
+      "claim-sha": "ecb457dae8e496b8",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyDirection",
+      "producer-sha": "f5e7bc6a44c54f3c",
+      "break": "body of spdPolicyDirection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.1-4",
+      "polarity": "negative",
+      "unit": "internal/component/ike/ipsec/rfc4301_spd_discard_test.go::TestSPDPolicyOrderInsideBypassBandRefused",
+      "unit-sha": "4899ed59aebbc6f3",
+      "claim-sha": "e36d3498ae9ecf0a",
+      "route": "revert",
+      "producer": "internal/component/ike/ipsec/spd_policy.go::validate",
+      "producer-sha": "e37c9a9c013588f4",
+      "break": "body of validate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-7.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/dataplane/rfc4301_discard_linux_test.go::TestBypassPolicyIsNotBlocked",
+      "unit-sha": "5c91517f7ba77f36",
+      "claim-sha": "556cfdba92b50b13",
+      "route": "revert",
+      "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyAction",
+      "producer-sha": "1f63b72cffff670c",
+      "break": "body of xfrmPolicyAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-7.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/dataplane/rfc4301_discard_linux_test.go::TestDiscardPolicyReachesTheKernelAsBlock",
+      "unit-sha": "f6cc2559701b878b",
+      "claim-sha": "9592d750c9b462a7",
+      "route": "revert",
+      "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyAction",
+      "producer-sha": "1f63b72cffff670c",
+      "break": "body of xfrmPolicyAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-7.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/dataplane/rfc4301_discard_linux_test.go::TestPolicyReadbackReportsDiscard",
+      "unit-sha": "b7f1cfdec9fc9190",
+      "claim-sha": "db30674c7b5901c1",
+      "route": "revert",
+      "producer": "internal/component/ike/dataplane/xfrm_linux.go::policyInfoFromKernel",
+      "producer-sha": "b7fe9a9d72287645",
+      "break": "body of policyInfoFromKernel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-7.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/dataplane/rfc4301_discard_vpp_test.go::TestVPPSPDActionCarriesEveryDisposition",
+      "unit-sha": "67d885840a71ce34",
+      "claim-sha": "7e64b11380eb06a8",
+      "route": "revert",
+      "producer": "internal/component/ike/dataplane/vpp_policy.go::vppSPDAction",
+      "producer-sha": "895262879d278616",
+      "break": "body of vppSPDAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-7.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestBypassPolicyReachesTheBackendAsBypass",
+      "unit-sha": "7452e1d2d7b9bf7f",
+      "claim-sha": "676f7aaf3265b13f",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyDirection",
+      "producer-sha": "f5e7bc6a44c54f3c",
+      "break": "body of spdPolicyDirection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-7.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestDiscardPolicyReachesTheBackend",
+      "unit-sha": "a4ed8830b59f53e7",
+      "claim-sha": "85da92f71334b575",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyDirection",
+      "producer-sha": "f5e7bc6a44c54f3c",
+      "break": "body of spdPolicyDirection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-7.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/ipsec/rfc4301_spd_discard_test.go::TestSPDPolicyBypassIsNotADiscard",
+      "unit-sha": "5523295b22454af7",
+      "claim-sha": "48a6ff76aeb91bf5",
+      "route": "revert",
+      "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
+      "producer-sha": "72a79b187f3dbec0",
+      "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-7.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/ipsec/rfc4301_spd_discard_test.go::TestSPDPolicyCarriesTheDiscardDisposition",
+      "unit-sha": "a9a11be6cefa5234",
+      "claim-sha": "55a4639bb8a0c218",
+      "route": "revert",
+      "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
+      "producer-sha": "72a79b187f3dbec0",
+      "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

@@ -179,6 +179,13 @@ func validateIPsecSections(sections []sdk.ConfigSection) error {
 	if err := cfg.ValidatePolicyOrder(); err != nil {
 		return err
 	}
+	// The operator's own SPD entries take the same reserved-band rule as a peer's
+	// rank, plus the selector rules no negotiation can enforce for them: nothing
+	// narrows an operator entry, so config verify is the only gate it passes
+	// (spd_policy.go, ValidateSPDPolicies).
+	if err := cfg.ValidateSPDPolicies(); err != nil {
+		return err
+	}
 	// ai/rules/protocol.md: a traffic selector the dataplane cannot program
 	// byte for byte is refused HERE, at ze config verify and ze config commit, never
 	// approximated at negotiation time. The peer's own proposal never reaches this

@@ -522,6 +522,12 @@ func vppSPDAction(a SPAction) (ipsec_types.IpsecSpdAction, error) {
 		return ipsec_types.IPSEC_API_SPD_ACTION_PROTECT, nil
 	case SPActionBypass:
 		return ipsec_types.IPSEC_API_SPD_ACTION_BYPASS, nil
+	case SPActionDiscard:
+		// RFC 4301 Section 7.4: "All implementations MUST support DISCARDing of
+		// fragments using the normal SPD packet classification mechanisms." VPP
+		// carries the disposition itself, so the entry drops matching traffic in
+		// the forwarding plane rather than being refused here.
+		return ipsec_types.IPSEC_API_SPD_ACTION_DISCARD, nil
 	}
 	return 0, fmt.Errorf("%w: vpp: policy action %d is not an SPD disposition this backend can express", ErrNotSupported, a)
 }

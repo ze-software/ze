@@ -374,8 +374,23 @@ func runEngine(conn net.Conn) int {
 	// The backend closes here too, and AFTER the removal: CloseBackend clears the
 	// active backend, so a removal ordered after it would have no dataplane to talk to
 	// and would silently release nothing.
+	// The operator's SPD entries the engine currently holds installed. It is read and
+	// written only from the configuration-apply path and the deferred release below,
+	// both of which run on runEngine's own goroutine, so it needs no lock.
+	//
+	// It is tracked rather than re-derived from the live configuration because the
+	// removal half needs the PREVIOUS selectors: the kernel identifies a policy by its
+	// selector alone, so an entry whose prefix was edited can only be removed with the
+	// prefix it was installed under (installSPDPolicies, spd_policy.go).
+	installedSPD := map[string]ipsec.SPDPolicy{}
+
 	defer func() {
 		removeIKEBypass(dataplane.Get(), log)
+		// The operator's entries are node-wide in exactly the way the bypass is, so
+		// they are released on the same every-exit path and for the same reason: a
+		// DISCARD that outlives the process keeps dropping traffic for a daemon that
+		// is no longer running (removeSPDPolicies, spd_policy.go).
+		removeSPDPolicies(dataplane.Get(), installedSPD, log)
 		if err := dataplane.CloseBackend(); err != nil {
 			log.Warn("ike: dataplane close error", "error", err)
 		}
@@ -452,6 +467,16 @@ func runEngine(conn net.Conn) int {
 		// initiation that arrives during the reconcile is judged against the config
 		// being applied rather than the one being replaced.
 		setCookieThreshold(cfg.CookieThreshold)
+
+		// RFC 4301 Section 4.4.1 gives the SPD three dispositions, and the operator
+		// writes the two that no negotiation produces. They are reconciled BEFORE the
+		// peers for the reason the cookie threshold is published first: an entry that
+		// discards traffic must be in force before the tunnels that traffic could
+		// otherwise take are built. They also outrank a peer's entries by default, so
+		// installing them second would leave a window in which the lower-ranked entry
+		// is the only match (installSPDPolicies, spd_policy.go).
+		installSPDPolicies(dataplane.Get(), installedSPD, cfg.Policies, log)
+		installedSPD = cfg.Policies
 
 		if cfg.Interface != "" {
 			ifIP, ifErr := resolveInterfaceAddr(cfg.Interface)

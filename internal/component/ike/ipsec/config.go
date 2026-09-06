@@ -113,6 +113,16 @@ func ParseIPsecConfig(tree *config.Tree) (*IPsecConfig, error) {
 		cfg.CookieThreshold = uint32(n)
 	}
 
+	// RFC 4301 Section 7.4 needs a management interface for the DISCARD disposition,
+	// and Section 4.4.1 needs one for BYPASS. Parsed before the peers because an
+	// operator entry outranks a peer entry by default, so a reader meets the
+	// higher-precedence half of the database first (spd_policy.go).
+	policies, err := parseSPDPolicies(ipsecRoot)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Policies = policies
+
 	for _, entry := range ipsecRoot.GetListOrdered("esp-group") {
 		g, err := parseESPGroup(entry.Key, entry.Value)
 		if err != nil {

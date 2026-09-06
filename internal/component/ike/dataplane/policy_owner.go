@@ -89,7 +89,7 @@ type policyOwners struct {
 // peer would then be allowed to take that live selector over. Answered under the same
 // lock as the write, so it cannot disagree with it.
 func (o *policyOwners) claim(p SPParams) (created bool, err error) {
-	if p.Action == SPActionBypass {
+	if p.Action.isTemplateFree() {
 		return false, nil
 	}
 	key := policyKey(p)
@@ -115,7 +115,7 @@ func (o *policyOwners) claim(p SPParams) (created bool, err error) {
 // removing the policy of the other direction, so a peer whose install was refused
 // would otherwise take the owning peer's live policy down on its way out.
 func (o *policyOwners) release(p SPParams) error {
-	if p.Action == SPActionBypass {
+	if p.Action.isTemplateFree() {
 		return nil
 	}
 	key := policyKey(p)
@@ -148,7 +148,7 @@ func (o *policyOwners) release(p SPParams) error {
 // del is not called at all for a selector a DIFFERENT owner holds: a refused delete must
 // not reach the kernel.
 func (o *policyOwners) deleteThenRelease(p SPParams, del func() error) error {
-	if p.Action == SPActionBypass {
+	if p.Action.isTemplateFree() {
 		return del()
 	}
 	key := policyKey(p)

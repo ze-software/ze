@@ -56,7 +56,17 @@ type PortSelector struct {
 }
 
 // AnyPort returns the selector that matches every port.
+// portAnyKeyword is the word an operator writes for "every port", in the peer
+// traffic-selector list and in the operator SPD policy list alike. Declared once so
+// the two surfaces cannot drift onto different spellings of one concept.
+const portAnyKeyword = "any"
+
 func AnyPort() PortSelector { return PortSelector{Form: PortAny} }
+
+// IsAny reports whether this selector constrains nothing, which is the ANY of RFC
+// 4301 Section 4.4.1.1. OPAQUE is NOT any: it says the field could not be read, and
+// reading it as "every port" would widen a rule to traffic nobody named.
+func (p PortSelector) IsAny() bool { return p.Form == PortAny }
 
 // Wire returns the start and end port octet pair RFC 7296 Section 3.13.1 requires for
 // this form. It is the single producer of that encoding, so the three MUSTs of Section
@@ -100,7 +110,7 @@ func (p PortSelector) String() string {
 	case PortOpaque:
 		return "opaque"
 	default:
-		return "any"
+		return portAnyKeyword
 	}
 }
 
@@ -219,7 +229,7 @@ func parseTrafficSelector(peerName, number string, t *config.Tree) (TrafficSelec
 
 func parsePortSelector(peerName, number, side, v string) (PortSelector, error) {
 	switch v {
-	case "", "any":
+	case "", portAnyKeyword:
 		return PortSelector{Form: PortAny}, nil
 	case "opaque":
 		return PortSelector{Form: PortOpaque}, nil

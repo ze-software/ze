@@ -324,17 +324,27 @@ func (b *xfrmBackend) RemovePolicyParams(p SPParams) error {
 // tunnelEndpoints rejects an absent pair, so a 0.0.0.0 template never reaches the
 // kernel. Such a template matched no state and the tunnel forwarded nothing.
 func xfrmPolicyFromParams(p SPParams) (*netlink.XfrmPolicy, error) {
-	// A BYPASS carries no template at all, so it is built before every check below.
-	// Those checks all validate the template: the mode the template names, and the
-	// tunnel endpoints the kernel resolves the template to a state through. A policy
-	// with no template resolves to no state by design, so applying them here would
-	// reject a correct bypass for lacking fields it must not carry.
+	// A BYPASS and a DISCARD carry no template at all, so both are built before every
+	// check below. Those checks all validate the template: the mode the template
+	// names, and the tunnel endpoints the kernel resolves the template to a state
+	// through. A policy with no template resolves to no state by design, so applying
+	// them here would reject a correct bypass for lacking fields it must not carry.
 	//
 	// XFRM_POLICY_ALLOW plus an empty Tmpls IS the SPD "BYPASS" disposition of RFC
 	// 4301 Section 4.4.1. netlink omits the XFRMA_TMPL attribute entirely when Tmpls
 	// is empty (vendor xfrm_policy_linux.go, xfrmPolicyAddOrUpdate), which is what
 	// makes it a bypass rather than a protect policy with an empty template list.
-	if p.Action == SPActionBypass {
+	//
+	// XFRM_POLICY_BLOCK is the DISCARD disposition of the same section. The kernel
+	// drops a packet whose highest-precedence match carries it
+	// (net/xfrm/xfrm_policy.c, xfrm_policy_check returns 0 for XFRM_POLICY_BLOCK),
+	// which is what RFC 4301 Section 7.4 calls "DISCARDing ... using the normal SPD
+	// packet classification mechanisms".
+	if p.Action.isTemplateFree() {
+		kernelAction, err := xfrmPolicyAction(p.Action)
+		if err != nil {
+			return nil, err
+		}
 		srcPort, err := xfrmSelectorPort("source", p.SrcPort)
 		if err != nil {
 			return nil, err
@@ -352,7 +362,7 @@ func xfrmPolicyFromParams(p SPParams) (*netlink.XfrmPolicy, error) {
 			DstPort:  dstPort,
 			Ifindex:  p.IfIndex,
 			Priority: p.Priority,
-			Action:   netlink.XFRM_POLICY_ALLOW,
+			Action:   kernelAction,
 			Ifid:     int(p.IfID),
 		}, nil
 	}
@@ -393,6 +403,33 @@ func xfrmPolicyFromParams(p SPParams) (*netlink.XfrmPolicy, error) {
 		}},
 		Ifid: int(p.IfID),
 	}, nil
+}
+
+// xfrmPolicyAction maps a template-free Ze disposition to the kernel policy action.
+// It never defaults, because the two kernel actions differ in the direction their
+// mistake fails: XFRM_POLICY_ALLOW over a discard passes the traffic the operator
+// asked to stop, and XFRM_POLICY_BLOCK over a bypass black-holes traffic that was
+// meant to cross the boundary in the clear.
+//
+// PROTECT never reaches here. It carries a template, so xfrmPolicyFromParams builds
+// it on the other side of the isTemplateFree branch, and passing it in is a caller
+// mistake this reports rather than guesses at.
+func xfrmPolicyAction(a SPAction) (netlink.PolicyAction, error) {
+	switch a {
+	case SPActionBypass:
+		return netlink.XFRM_POLICY_ALLOW, nil
+	case SPActionDiscard:
+		// RFC 4301 Section 4.4.1: "DISCARD -- to discard the traffic, i.e., not to
+		// let the traffic traverse the IPsec boundary".
+		return netlink.XFRM_POLICY_BLOCK, nil
+	case SPActionProtect:
+		return 0, fmt.Errorf(
+			"%w: xfrm: a protect policy carries a template, so it is not built through the template-free path",
+			ErrNotSupported)
+	}
+	return 0, fmt.Errorf(
+		"%w: xfrm: policy action %d is not a template-free SPD disposition this backend can express",
+		ErrNotSupported, a)
 }
 
 // xfrmSelectorPort converts a PortMatch to the port number netlink writes into the XFRM
@@ -543,8 +580,18 @@ func (b *xfrmBackend) policyInfoFromKernel(p *netlink.XfrmPolicy) PolicyInfo {
 		IfID:       uint32(p.Ifid),
 	}
 	// An ALLOW policy with no template is the SPD BYPASS disposition of RFC 4301
-	// Section 4.4.1. A template present means the policy protects.
-	if p.Action == netlink.XFRM_POLICY_ALLOW && len(p.Tmpls) == 0 {
+	// Section 4.4.1, and a BLOCK policy is the DISCARD disposition of the same
+	// section. A template present under ALLOW means the policy protects, which is
+	// the zero value info already carries.
+	//
+	// BLOCK is read on its own action rather than on the empty template list. The
+	// kernel accepts a template beside a BLOCK policy and ignores it, so a discard
+	// installed by another daemon can carry one, and reading such a policy back as a
+	// protect entry would report the opposite of what the kernel is doing.
+	switch {
+	case p.Action == netlink.XFRM_POLICY_BLOCK:
+		info.Action = SPActionDiscard
+	case p.Action == netlink.XFRM_POLICY_ALLOW && len(p.Tmpls) == 0:
 		info.Action = SPActionBypass
 	}
 	if len(p.Tmpls) > 0 {

@@ -73,6 +73,201 @@ module ze-ipsec-conf {
                      that many half-open handshakes before challenging.";
             }
 
+            list policy {
+                key "name";
+                description "Operator-authored Security Policy Database entry.";
+                ze:help
+                    "An entry of the Security Policy Database that Ze installs directly,
+                     rather than one a Child SA negotiation produces.
+
+                     RFC 4301 Section 4.4.1 gives the database three dispositions:
+                     'PROTECT, BYPASS, or DISCARD'. A peer under site-to-site produces
+                     the PROTECT entries, because those name a transform and a peer to
+                     negotiate it with. The other two name neither, so they are written
+                     here: BYPASS lets traffic cross the IPsec boundary in the clear,
+                     and DISCARD stops it at the boundary.
+
+                     Section 7.4 makes the discard disposition an obligation: 'All
+                     implementations MUST support DISCARDing of fragments using the
+                     normal SPD packet classification mechanisms.' This list is the
+                     management interface that Section 4.4.1 requires for it.
+
+                     Ze installs every entry when the configuration is applied and
+                     removes it when the entry leaves the configuration. An entry needs
+                     no peer, no key and no negotiation, so it is in force whether or
+                     not any tunnel is up.";
+
+                leaf name {
+                    type string {
+                        length "1..64";
+                        pattern '[a-zA-Z0-9][a-zA-Z0-9_.-]*';
+                    }
+                    description "Entry name, unique across the Security Policy Database.";
+                    ze:help "The name identifies the entry in the configuration and in the output of
+                        `show vpn ipsec dataplane`. It does not reach the kernel, which identifies a
+                        policy by its selector alone, so two entries whose selector, direction and
+                        order all agree describe one kernel policy and commit refuses the pair.";
+                }
+
+                leaf action {
+                    type enumeration {
+                        enum bypass {
+                            description "Let matching traffic cross the boundary unprotected.";
+                        }
+                        enum discard {
+                            description "Drop matching traffic at the boundary.";
+                        }
+                    }
+                    mandatory true;
+                    description "What the entry does with the traffic its selector matches.";
+                    ze:help
+                        "RFC 4301 Section 4.4.1 defines bypass as 'to allow the packet to pass
+                         without IPsec protection' and discard as 'to discard the traffic, i.e.,
+                         not to let the traffic traverse the IPsec boundary'.
+
+                         There is no protect here on purpose. A protect entry names an ESP
+                         transform, a mode and a peer to negotiate keys with, and those live
+                         under site-to-site peer. Offering the word in both places would put one
+                         concept in two grammars.
+
+                         The leaf is mandatory rather than defaulted. A defaulted disposition is
+                         the one field of this entry whose wrong value is silent: a bypass
+                         written where a discard was meant passes exactly the traffic the
+                         operator wrote the entry to stop.";
+                }
+
+                leaf order {
+                    type uint32 {
+                        range "101..2147483647";
+                    }
+                    default 1000;
+                    description "Rank of this entry, lowest searched first.";
+                    ze:help
+                        "Where this entry sits in the operator's ordering of the Security
+                         Policy Database. A LOWER value is searched FIRST, in Ze and in the
+                         Linux kernel, and it carries the same meaning as policy-priority
+                         under a site-to-site peer.
+
+                         RFC 4301 Section 4.4.1: the management interface 'MUST support
+                         (total) ordering of these entries, as seen via this interface'.
+
+                         The default of 1000 sits between the IKE control-plane bypass at 100
+                         and a peer's default rank of 2000, so an entry written with no order
+                         outranks the tunnels and carves its hole out of them. Raise it above
+                         2000 to let a tunnel win instead.
+
+                         The range starts above 100 for the reason policy-priority states: an
+                         entry at or above the IKE bypass captures the IKE exchange that
+                         builds and rekeys every tunnel on the node.";
+                }
+
+                leaf direction {
+                    type enumeration {
+                        enum out {
+                            description "Traffic leaving for the unprotected side.";
+                        }
+                        enum in {
+                            description "Traffic arriving from the unprotected side.";
+                        }
+                        enum both {
+                            description "Both directions, as a mirrored pair of entries.";
+                        }
+                    }
+                    default both;
+                    description "Which side of the boundary the entry acts on.";
+                    ze:help
+                        "RFC 4301 Section 4.4.1 splits the database by direction: SPD-O holds
+                         the outbound bypass and discard entries and SPD-I holds the inbound
+                         ones. A policy is one-way, so a Ze entry is one-way too.
+
+                         both installs the mirrored pair: the outbound entry keeps local and
+                         remote as written, and the inbound entry swaps them, because the local
+                         side of a flow is the DESTINATION of an inbound packet. It is the
+                         default because a one-way discard leaves the return traffic crossing
+                         the boundary, which almost never expresses what the operator meant.";
+                }
+
+                leaf protocol {
+                    type uint8;
+                    default 0;
+                    description "IP protocol number the selector matches, 0 for every protocol.";
+                    ze:help
+                        "The next-layer protocol of RFC 4301 Section 4.4.1.1, such as 6 for TCP
+                         and 17 for UDP. Zero is that section's ANY, which matches every
+                         protocol.
+
+                         A local-port or remote-port other than any needs this leaf to name a
+                         protocol that carries ports. Commit refuses the pair otherwise,
+                         because a port selector under protocol 0 would match on a field the
+                         classifier cannot read.";
+                }
+
+                container local {
+                    description "The local side of the selector.";
+                    ze:help "Local is Ze's own side of the IPsec boundary. It is the source of an
+                        outbound packet and the destination of an inbound one, which is the swap
+                        direction both performs.";
+
+                    leaf prefix {
+                        type zt:ip-prefix;
+                        mandatory true;
+                        description "Local traffic the entry matches.";
+                        ze:help "The value is a CIDR prefix and Ze installs it as the local selector of
+                            the policy. Use 0.0.0.0/0 or ::/0 for every address. The two prefixes of
+                            one entry MUST share an address family, and commit refuses a mixed pair
+                            because a kernel selector carries one family.";
+                    }
+
+                    leaf port {
+                        type union {
+                            type uint16 { range "1..65535"; }
+                            type enumeration {
+                                enum any {
+                                    description "Every port.";
+                                }
+                            }
+                        }
+                        default any;
+                        description "Local port of the selector.";
+                        ze:help "One exact port, or any for every port. RFC 4301 Section 4.4.1.1 defines
+                            the selector as a list of ranges; the kernel selector Ze programs carries a
+                            port and a mask, which expresses every port or one exact port and no
+                            range between them. A range is refused rather than widened to any,
+                            because widening would bypass or discard traffic the operator did not
+                            name.";
+                    }
+                }
+
+                container remote {
+                    description "The remote side of the selector.";
+                    ze:help "Remote is the far side of the IPsec boundary. It is the destination of an
+                        outbound packet and the source of an inbound one.";
+
+                    leaf prefix {
+                        type zt:ip-prefix;
+                        mandatory true;
+                        description "Remote traffic the entry matches.";
+                        ze:help "It follows the rules the local prefix states, including the shared
+                            address family.";
+                    }
+
+                    leaf port {
+                        type union {
+                            type uint16 { range "1..65535"; }
+                            type enumeration {
+                                enum any {
+                                    description "Every port.";
+                                }
+                            }
+                        }
+                        default any;
+                        description "Remote port of the selector.";
+                        ze:help "It follows the rule the local port states: one exact port or any, and a
+                            value other than any needs the protocol leaf.";
+                    }
+                }
+            }
+
             list esp-group {
                 key "name";
                 description "ESP (Encapsulating Security Payload) group.";

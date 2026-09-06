@@ -607,6 +607,75 @@ renegotiate. Ze refuses such a value at commit.
 <!-- source: internal/component/ike/ipsec/validate.go -- ValidatePolicyOrder -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- PriorityIKEBypass, PriorityChildSA -->
 
+## Security Policy Database entries
+
+RFC 4301 Section 4.4.1 gives the Security Policy Database three dispositions:
+"PROTECT, BYPASS, or DISCARD". A site-to-site peer produces the PROTECT
+entries, because a protect entry names an ESP transform and a peer to negotiate
+keys with. The other two name neither, so no negotiation can produce them and
+they are written directly:
+
+```
+set vpn ipsec policy drop-guest action discard
+set vpn ipsec policy drop-guest local prefix 10.0.0.0/24
+set vpn ipsec policy drop-guest remote prefix 192.168.99.0/24
+set vpn ipsec policy drop-guest order 800
+```
+
+Section 7.4 makes the discard disposition an obligation: "All implementations
+MUST support DISCARDing of fragments using the normal SPD packet classification
+mechanisms." The list above is the management interface Section 4.4.1 requires
+for it.
+
+| Leaf | Values | Default | Meaning |
+|---|---|---|---|
+| `action` | `bypass`, `discard` | none, required | What the entry does with matching traffic |
+| `order` | 101 to 2147483647 | 1000 | Rank, lowest searched first |
+| `direction` | `out`, `in`, `both` | `both` | Which half of the database the entry joins |
+| `protocol` | 0 to 255 | 0 (any) | Next-layer protocol selector |
+| `local prefix` | CIDR | none, required | Ze's own side of the boundary |
+| `local port` | 1 to 65535, or `any` | `any` | Local port selector |
+| `remote prefix` | CIDR | none, required | The far side of the boundary |
+| `remote port` | 1 to 65535, or `any` | `any` | Remote port selector |
+
+`both` installs a mirrored pair, one entry in each direction: the outbound entry
+keeps local and remote as written, and the inbound entry swaps them, because the
+local side of a flow is the destination of an inbound packet.
+
+The default order of 1000 sits between the IKE control-plane bypass at 100 and a
+peer's default rank of 2000, so an entry written with no order outranks the
+tunnels and carves its hole out of them. Raise it above 2000 to let a tunnel
+win instead. An order at or below 100 is refused at commit, for the reason
+`policy-priority` states above.
+
+Four rules are refused at commit rather than approximated at install time,
+because a widened selector fails in both directions: a widened bypass passes
+protected traffic in the clear, and a widened discard black-holes traffic the
+operator meant to carry.
+
+- Both prefixes are required, and they must share an address family. One kernel
+  policy selector carries one family.
+- A port other than `any` needs `protocol` to name a transport that has ports:
+  6 (TCP), 17 (UDP) or 132 (SCTP).
+- A port range is not accepted. The kernel selector carries a port and a mask,
+  which expresses every port or one exact port and nothing between them.
+- `action` has no default. A bypass written where a discard was meant passes
+  exactly the traffic the entry exists to stop.
+
+On Linux a discard entry is an XFRM policy with action `block` and a bypass is
+`allow` with no template. On VPP they are `IPSEC_API_SPD_ACTION_DISCARD` and
+`IPSEC_API_SPD_ACTION_BYPASS`. `show vpn ipsec dataplane` reports the
+disposition of every installed policy, including one another daemon installed.
+
+Ze installs these entries when the configuration is applied and removes them
+when the entry leaves the configuration or the engine stops. They need no peer,
+no key and no negotiation, so they are in force whether or not any tunnel is up.
+
+<!-- source: internal/component/ike/ipsec/spd_policy.go -- SPDPolicy, parseSPDPolicy, ValidateSPDPolicies -->
+<!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, installSPDPolicies -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmPolicyAction -->
+<!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppSPDAction -->
+
 ## Both ESP wire forms
 
 RFC 7296 Section 2.23 requires a device that supports NAT traversal to receive

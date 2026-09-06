@@ -149,6 +149,42 @@ inherits the clear chain.
 <!-- source: internal/component/ike/crypto/keys.go -- DeriveChildSAKeys, ChildSAKeys.Clear -->
 <!-- source: internal/component/ike/engine/child.go -- ChildSA.Clear -->
 
+## SPD dispositions
+
+RFC 4301 Section 4.4.1 gives the Security Policy Database three dispositions,
+and `SPAction` carries all three. `SPActionProtect` is 0 on purpose, so a caller
+who forgets the field gets a policy that protects rather than one that passes
+traffic in the clear.
+
+| Disposition | Producer | Linux XFRM | VPP |
+|---|---|---|---|
+| PROTECT | `childPolicyParams`, from a negotiated Child SA | `allow` with a template | `IPSEC_API_SPD_ACTION_PROTECT` |
+| BYPASS | `ikeBypassPolicies`, and the operator `vpn ipsec policy` list | `allow` with no template | `IPSEC_API_SPD_ACTION_BYPASS` |
+| DISCARD | the operator `vpn ipsec policy` list | `block` | `IPSEC_API_SPD_ACTION_DISCARD` |
+
+BYPASS and DISCARD are TEMPLATE-FREE: neither hands traffic to a transform, so
+neither names a mode, a tunnel endpoint pair or a reqid, and both are built
+before every template check in `xfrmPolicyFromParams`. `SPAction.isTemplateFree`
+is what asks the question, rather than each site testing one constant: a check
+written as `Action == SPActionBypass` reads a discard as a protect policy and
+then demands tunnel endpoints it must not carry.
+
+`xfrmPolicyAction` and `vppSPDAction` never default. The two kernel actions are
+opposites, so a default is a coin toss between passing and dropping the
+operator's traffic, and a backend that cannot express a disposition refuses the
+install rather than substituting another.
+
+The readback reads DISCARD from the kernel action rather than from an empty
+template list. The kernel accepts a template beside a `block` policy and ignores
+it, so a discard another daemon installed with one would otherwise be reported
+as a protect entry: the operator would be told their traffic is encrypted while
+it is being dropped.
+
+<!-- source: internal/component/ike/dataplane/dataplane.go -- SPAction, isTemplateFree -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmPolicyAction, xfrmPolicyFromParams, policyInfoFromKernel -->
+<!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppSPDAction -->
+<!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, installSPDPolicies -->
+
 ## Policy ownership
 
 Two peers whose selectors overlap would otherwise take each other's kernel
@@ -161,6 +197,11 @@ claim compares an empty string against an empty string, so the two-peer takeover
 the guard exists to refuse is admitted in silence. The test that covered it
 compared two empties, because its own fixture never set the field. Drive a guard
 from the entry point that PRODUCES its input, never from the guard's own helper.
+
+Ownership applies to PROTECT entries alone. `policyOwners` exempts every
+template-free policy, because ownership exists to stop one PEER's selector
+taking another peer's live tunnel over, and a bypass or a discard belongs to the
+node rather than to a peer.
 
 <!-- source: internal/component/ike/dataplane/policy_owner.go -- policyOwners.claim, policyOwners.release, PolicyOwnedError -->
 <!-- source: internal/component/ike/engine/child.go -- childPolicyParams, firstSharingSelector, samePolicySelector -->

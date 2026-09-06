@@ -2,14 +2,75 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | `plan/spec-ipsec-lifetime-volume.md` (owns the Section 4.4.2.1 byte-count SAD lifetime); `plan/pre-release/spec-rfcgate-6-supported-extraction-signoff.md` (owns the `rfc4301` extraction sign-off and the ledger scope set) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-08-30 |
+| Updated | 2026-09-06 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Session progress, 2026-09-06
+
+Phase 2's DISCARD half landed. Phases 5 and 6 were found ALREADY LANDED by an
+earlier session and are not re-implemented here. Five blocks stay open and each
+is its own package (R-6).
+
+| Phase | Block | State |
+|---|---|---|
+| 2a | Section 7.4 DISCARD disposition | LANDED. `RFC4301-7.4-1`, 10 tagged units, 10 discrimination records |
+| 2b | Section 7.4 stateful fragment checking | OPEN, blocked on an owner decision. `RFC4301-7.4-2` carries the gap |
+| 3 | Section 6 ICMP processing | NOT STARTED |
+| 4 | Section 4.4.1.1 ICMP type/code selectors | NOT STARTED. `RFC4301-4.4.1.1-1` still carries its `{gap}` |
+| 5 | Section 4.4.3.1 PAD matching | LANDED BEFORE THIS SESSION (`rfc4301_pad_subtree_test.go`) |
+| 6 | Section 4.4.1 SPD ordering | LANDED BEFORE THIS SESSION (`rfc4301_spd_order_test.go`) |
+| 7 | Section 8 DF bit and PMTU | NOT STARTED |
+| 8 | Section 5.1.2.1 outer-header DSCP | NOT STARTED |
+| 9 | ledger closure | BLOCKED on both Depends specs, see below |
+
+**What phase 2a landed.** `dataplane.SPActionDiscard`, projected to
+`XFRM_POLICY_BLOCK` on Linux and `IPSEC_API_SPD_ACTION_DISCARD` on VPP, with
+`xfrmPolicyAction` and `vppSPDAction` refusing a disposition they cannot express
+rather than substituting one. `SPAction.isTemplateFree` replaces three
+`== SPActionBypass` tests that would each have read a discard as a protect
+entry. The readback reports a kernel `block` policy as DISCARD on its own action
+rather than on an empty template list. The operator surface is a new
+`vpn ipsec policy <name>` list carrying action, order, direction, protocol and a
+local/remote prefix and port pair, reconciled into the dataplane by
+`installSPDPolicies` and released on every engine exit.
+
+**Why phase 2b is an owner question rather than an implementation.** Read on
+2026-09-06: `XfrmSelector`
+(`vendor/github.com/vishvananda/netlink/nl/xfrm_linux.go:189`) carries Daddr,
+Saddr, Dport, DportMask, Sport, SportMask, Family, PrefixlenD, PrefixlenS,
+Proto, Ifindex and User. There is NO fragment field. So the stateful fragment
+check of Section 7.4 cannot be an XFRM policy, and A-3's premise holds for a
+reason A-3 did not state. Three layers could discharge it and the choice is a
+design decision, not a preference: kernel reassembly ahead of the policy check,
+a netfilter rule Ze installs, or refusing a port-scoped BYPASS the check does
+not cover. The third breaks `ikeBypassPolicies`, which is itself port-scoped on
+UDP 500 and 4500, so it is not free. The question to the owner is which of the
+three, not whether.
+
+**Assumptions settled this session.**
+
+| ID | Verdict | Evidence |
+|----|---------|----------|
+| A-1 | CONFIRMED then CLEARED | `SPAction` held two members; it now holds three |
+| A-2 | CONFIRMED | a case-insensitive `fragment` search over `internal/component/ike/` returns EAP-TLS fragmentation, two IKE notify constants and one ESP header comment. No IP fragment state |
+| A-6 | CONFIRMED | `IPSEC_API_SPD_ACTION_DISCARD` exists (`vendor/go.fd.io/govpp/binapi/ipsec_types/ipsec_types.ba.go:242`). VPP expresses DISCARD, so no refusal test is reachable for it |
+| A-7 | UNVALIDATED | the interop suite was not run this session (owner deferred heavy testing). Every `./internal/component/ike/...` package test passes |
+
+**The seam against the two Depends specs.** `plan/spec-ipsec-lifetime-volume.md`
+owns `lifetimeState.softBytes`, `ESPGroup` volume fields and the `life-bytes` /
+`life-packets` leaves; nothing here touches `rekey.go` or the esp-group. Its
+status is `design`, so Section 4.4.2.1 stays unmet and AC-12 cannot be reached.
+`plan/pre-release/spec-rfcgate-6-supported-extraction-signoff.md` owns
+`rfc/extraction/rfc4301.json` and `supportClaimingScope`; nothing here writes
+either, and that spec's own 2026-09-05 note records that whether `rfc4301`
+re-enters the support-claiming set is an owner call no session may settle by
+re-derivation. AC-12 is therefore blocked on both, not on this phase.
 
 ## Task
 

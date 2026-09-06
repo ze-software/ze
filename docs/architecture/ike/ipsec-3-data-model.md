@@ -7,6 +7,7 @@ against the PKI store and the interface list.
 <!-- source: internal/component/ike/ipsec/types.go -- IPsecConfig, SiteToSitePeer, IKEGroup, ESPGroup, Changed -->
 <!-- source: internal/component/ike/ipsec/config.go -- ParseIPsecConfig, parseSiteToSitePeer, parseIKEGroup, parseESPGroup -->
 <!-- source: internal/component/ike/ipsec/validate.go -- ValidatePKIRefs, ValidateGroupRefs, ValidateInterfaceRef -->
+<!-- source: internal/component/ike/ipsec/spd_policy.go -- SPDPolicy, parseSPDPolicy, ValidateSPDPolicies -->
 <!-- source: internal/component/ike/ipsec/yang/ze-ipsec-conf.yang -- vpn ipsec schema -->
 
 ## Decisions

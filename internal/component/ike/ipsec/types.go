@@ -626,6 +626,13 @@ type IPsecConfig struct {
 	IKEGroups    map[string]IKEGroup
 	Peers        map[string]SiteToSitePeer
 	RemoteAccess *RemoteAccessConfig
+
+	// Policies are the operator-authored Security Policy Database entries: the
+	// BYPASS and DISCARD dispositions of RFC 4301 Section 4.4.1 that no Child SA
+	// negotiation produces. Peers above produce the PROTECT entries. An EMPTY map is
+	// what every configuration written before the list existed carries, and it
+	// installs nothing (spd_policy.go).
+	Policies map[string]SPDPolicy
 }
 
 // Changed returns the peer names whose configuration differs between

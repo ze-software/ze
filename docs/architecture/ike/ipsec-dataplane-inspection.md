@@ -18,7 +18,14 @@ engine-belief siblings are documented in
 | Health signal | `internal/component/ike/engine/health_drift.go` |
 
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- ListSAs, saInfoFromState, ListPolicies, policyInfoFromKernel -->
+`PolicyInfo.Action` reports all three dispositions of RFC 4301 Section 4.4.1.
+A kernel `block` policy is read back as DISCARD on its own action rather than
+on an empty template list, because the kernel accepts and ignores a template
+beside a block policy: reading such a policy as a protect entry would tell the
+operator their traffic is encrypted while it is being dropped.
+
 <!-- source: internal/component/ike/dataplane/dataplane.go -- SAInfo, PolicyInfo -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- policyInfoFromKernel -->
 
 ## Decision: a failed read is an error, never an empty table
 

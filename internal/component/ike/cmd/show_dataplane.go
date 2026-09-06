@@ -408,11 +408,23 @@ func policyDirName(dir dataplane.SADir) string {
 	}
 }
 
+// policyActionName renders an SPD disposition of RFC 4301 Section 4.4.1 as the word
+// an operator configures it with.
+//
+// It NEVER defaults to a disposition. The predecessor returned "protect" for
+// everything that was not a bypass, so the discard entries of Section 7.4 printed as
+// their own opposite: an operator reading `show` saw traffic being protected where
+// the kernel was dropping it (ai/rules/principles.md).
 func policyActionName(a dataplane.SPAction) string {
-	if a == dataplane.SPActionBypass {
+	switch a {
+	case dataplane.SPActionProtect:
+		return "protect"
+	case dataplane.SPActionBypass:
 		return "bypass"
+	case dataplane.SPActionDiscard:
+		return "discard"
 	}
-	return "protect"
+	return unknownValue
 }
 
 // policyOwnerName renders the owner join's miss as a word rather than a blank.
