@@ -46,6 +46,7 @@ See `ai/rules/config.md` for the YANG vs env-only decision framework.
 | `ze.group` | string | (user's primary group) | YANG | Group to drop to after port binding |
 | `ze.pid.file` | string | (unset) | YANG | PID file path written at hub startup, removed at clean shutdown |
 | `ze.pprof` | string | (unset) | YANG | pprof HTTP server address (e.g. `:6060`); empty disables |
+| `ze.hide-version` | bool | false | YANG | Hide the `X-Ze-Version` banner on every HTTP response |
 | `ze.ready.file` | string | (unset) | ENV | Test infrastructure: signal file written when hub is ready |
 | `ze.config.dir` | string | (unset) | ENV | Override default config directory; when unset the directory is derived from the binary location |
 <!-- source: internal/component/config/environment.go -- env var registrations -->

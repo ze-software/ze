@@ -82,7 +82,10 @@ curl -k -u admin:password https://localhost:8443/show/bgp/?format=json
 ### Security Headers
 
 Every response carries `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'`, and HSTS (`max-age=63072000; includeSubDomains`). An authenticated response adds `Cache-Control: no-store` and `X-Ze-Version`.
+
+`X-Ze-Version` carries the release, the git commit, the Go version and the OS, which tells a client the exact build it speaks to. Write `environment { hide-version true; }` to keep it off every response of the web interface and the looking glass together. The default is false, so the banner stays until you hide it, and no other header changes. Ze sends no `Server` header at all.
 <!-- source: internal/component/web/auth.go -- setSecurityHeaders, addSecurityHeaders -->
+<!-- source: internal/core/version/version.go -- HTTPHeaderHidden -->
 
 `script-src 'self'` refuses an inline script and refuses `Function()`. No page therefore carries an inline event handler, and no htmx attribute uses a bracketed trigger filter, because htmx compiles such a filter into source and calls `Function()` on it. A test refuses both in any `.templ` source.
 <!-- source: internal/component/web/markup_contract_test.go -- TestNoTriggerFilterNeedsEval, TestSelfReplacingControlsCarryAStableID -->

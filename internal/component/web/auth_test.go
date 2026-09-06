@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // testUsers returns a slice of UserConfig with a known bcrypt hash for "testpass".
@@ -461,4 +462,73 @@ func TestInvalidateSessionIsTokenScoped(t *testing.T) {
 
 	// A session for a user the store has never heard of is a no-op, not a panic.
 	store.invalidateSession(&webSession{Username: "nonexistent", Token: "deadbeef"})
+}
+
+// authenticatedHeaders drives one authenticated request through the web
+// authentication middleware and answers the response headers it carried.
+func authenticatedHeaders(t *testing.T) http.Header {
+	t.Helper()
+
+	store := NewSessionStore(nil)
+	session, err := store.createSession("alice", authz.AuthResult{})
+	require.NoError(t, err)
+
+	handler := authMiddleware(store, &authz.LocalAuthenticator{Users: testUsers(t)}, noopRenderer, okHandler())
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
+	req.AddCookie(&http.Cookie{Name: "ze-session", Value: session.Token})
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, "authenticated request must succeed")
+
+	return rec.Header()
+}
+
+// TestWebVersionHeaderSuppressed verifies that `hide-version true` keeps the
+// build banner off an authenticated web response, and that every other security
+// header still reaches the browser.
+//
+// VALIDATES: AC-1 (web omits X-Ze-Version when hidden), AC-4 (the other
+// security headers survive suppression), AC-5 (no Server banner replaces it).
+// PREVENTS: a hardened box still publishing its exact build, and a guard that
+// takes the other headers down with the version.
+func TestWebVersionHeaderSuppressed(t *testing.T) {
+	t.Setenv("ze.hide-version", "true")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	headers := authenticatedHeaders(t)
+
+	assert.Empty(t, headers.Get("X-Ze-Version"), "X-Ze-Version must be absent when hide-version is true")
+	assert.Empty(t, headers.Get("Server"), "Ze must send no Server banner")
+
+	survivors := map[string]string{
+		"X-Frame-Options":           "DENY",
+		"X-Content-Type-Options":    "nosniff",
+		"Content-Security-Policy":   "default-src 'self'; script-src 'self'; style-src 'self'",
+		"Strict-Transport-Security": "max-age=63072000; includeSubDomains",
+		"Cache-Control":             "no-store",
+	}
+	for name, want := range survivors {
+		assert.Equal(t, want, headers.Get(name), "header %s must survive version suppression", name)
+	}
+}
+
+// TestVersionHeaderPresentByDefault verifies that a box which says nothing
+// about hide-version keeps today's behavior: the banner is on the response.
+//
+// VALIDATES: AC-3 (default web response carries X-Ze-Version unchanged),
+// AC-5 (no Server banner).
+// PREVENTS: the opt-in hardening becoming the default and breaking a client
+// that reads the version header.
+func TestVersionHeaderPresentByDefault(t *testing.T) {
+	t.Setenv("ze.hide-version", "")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	headers := authenticatedHeaders(t)
+
+	assert.Contains(t, headers.Get("X-Ze-Version"), "ze/", "X-Ze-Version must carry the banner by default")
+	assert.Empty(t, headers.Get("Server"), "Ze must send no Server banner")
 }

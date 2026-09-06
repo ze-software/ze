@@ -1,0 +1,20 @@
+# Test: the X-Ze-Version banner obeys the hide-version leaf on both HTTP servers
+# VALIDATES: spec-mgmt-version-header-suppress AC-1 (the web server omits the
+# banner when hidden), AC-2 (the looking glass omits it), AC-3 (a config that
+# writes nothing keeps it), AC-4 (the other security headers survive), AC-5 (no
+# Server banner replaces it). One daemon serves both HTTP surfaces, and the two
+# runs share one configuration text apart from the hide-version leaf.
+# PREVENTS: one server honoring the toggle while the other still publishes the
+# exact build, a guard that takes the other security headers down with the
+# version, and the opt-in hardening becoming the default.
+# The web server needs blob storage and a user, so the fixture runs `ze init`
+# and writes a system block before it starts either daemon.
+
+option=timeout:value=120s
+
+cmd=foreground:seq=1:exec=ze-test fixture plugin/version-header-suppress:timeout=120s
+expect=exit:code=0
+expect=stderr:contains=OK: both servers send the version banner by default
+expect=stderr:contains=OK: hide-version takes the banner off both servers
+expect=stderr:contains=OK: the other security headers survive suppression
+expect=stderr:contains=OK: neither server sends a Server banner

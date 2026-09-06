@@ -15,6 +15,7 @@ environment {
         announce-delay 5s;
     }
     pprof ":6060";
+    hide-version true;
     log {
         level INFO;
         bgp.routes debug;
@@ -54,6 +55,7 @@ pre-existing OS env var).
 | `bgp` | `openwait` | `ze.bgp.openwait` | 120 | Seconds to wait for peer OPEN (1-3600) |
 | `bgp` | `announce-delay` | `ze.bgp.announce.delay` | 0s | Duration to delay first UPDATE after reactor Ready |
 | `pprof` | (top-level leaf) | `ze.pprof` | "" | pprof HTTP server address, e.g. `:6060` |
+| `hide-version` | (top-level leaf) | `ze.hide-version` | false | Keeps `X-Ze-Version` off the web and looking-glass responses |
 | `chaos` | `seed` | `ze.bgp.chaos.seed` | 0 | PRNG seed (0 = disabled) |
 | `chaos` | `rate` | `ze.bgp.chaos.rate` | "0.1" | Fault probability (0.0-1.0) |
 | `reactor` | `speed`, `cache-ttl`, `cache-max`, `update-groups`, `forward-queue-size`, `forward-batch-limit`, `forward-pool-max-bytes`, `forward-pool-headroom`, `forward-teardown-grace`, `read-buffer-size`, `write-buffer-size` | `ze.bgp.reactor.*` / `ze.fwd.*` / `ze.buf.*` | per-leaf | Reactor tuning |

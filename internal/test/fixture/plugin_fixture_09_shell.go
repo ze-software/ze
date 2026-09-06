@@ -82,7 +82,7 @@ func waitForLog09(ctx context.Context, path, needle string) (string, error) {
 	})
 	if !ready {
 		content, _ = os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
-		return string(content), fmt.Errorf("looking glass never announced a listener")
+		return string(content), fmt.Errorf("%q never appeared in %s", needle, path)
 	}
 	return string(content), nil
 }

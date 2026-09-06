@@ -164,11 +164,19 @@ X-Frame-Options: DENY
 X-Content-Type-Options: nosniff
 Strict-Transport-Security: max-age=63072000; includeSubDomains
 Cache-Control: no-store
+X-Ze-Version: ze/26.04.05 (ac8f5391; go1.26; linux/amd64)
 ```
 
 No `unsafe-eval`. All scripts are external files. No inline `<script>` blocks.
 
+`X-Ze-Version` is the one header an operator can turn off. `environment {
+hide-version true; }` sets `ze.hide-version`, and both HTTP servers read it
+through `version.HTTPHeaderHidden` before they write the banner. Every other
+header above is unchanged by it, and Ze sends no `Server` header.
+
 <!-- source: internal/component/web/auth.go -- addSecurityHeaders -->
+<!-- source: internal/component/lg/server.go -- securityHeaders -->
+<!-- source: internal/core/version/version.go -- HTTPHeaderHidden -->
 
 ## Starting the Web Server
 

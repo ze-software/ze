@@ -166,6 +166,7 @@ The looking glass is designed for public IXP deployment. It is read-only, and op
 
 - Strict input validation on all query parameters (character allowlists, length limits).
 - `Content-Security-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` headers.
+- `X-Ze-Version` names the exact build. Write `environment { hide-version true; }` to keep it off the looking glass and the web interface together.
 - SSE connection limit (100 concurrent clients).
 - All HTML output rendered through templ, which escapes every interpolated value. The two SVG graph builders stay in Go and escape their labels with `template.HTMLEscapeString`.
 - The `Content-Security-Policy` is `default-src 'self'`, so no page carries an inline script or an inline event handler. A test refuses one in any `.templ` source of the package.

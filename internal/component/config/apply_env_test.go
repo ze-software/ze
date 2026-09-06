@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/version"
 )
 
 // resetEnvCache clears the env registry cache before a test run and re-clears
@@ -241,4 +242,50 @@ func splitSectionDot(s string) (parent, child string, ok bool) {
 		}
 	}
 	return "", "", false
+}
+
+// TestApplyEnvConfigHideVersion verifies `environment { hide-version true; }`
+// (a top-level leaf under environment) lands as env var `ze.hide-version`, and
+// that the predicate both HTTP servers consult then answers true.
+//
+// VALIDATES: spec-mgmt-version-header-suppress, the config-tree to
+// server-settings boundary: one leaf, one env key, one predicate.
+// PREVENTS: the leaf becoming a no-op because the plumbing row names a key
+// nothing reads, which no header test would catch.
+func TestApplyEnvConfigHideVersion(t *testing.T) {
+	// ApplyEnvConfig writes through to the OS environment, so the key is pinned
+	// here and restored by t.Setenv: neither this test's result nor any later
+	// test in this binary then depends on the order they run in.
+	t.Setenv(version.EnvKeyHideVersion, "")
+	resetEnvCache(t)
+
+	ApplyEnvConfig(map[string]map[string]string{
+		"": {"hide-version": "true"},
+	})
+
+	if got := env.Get(version.EnvKeyHideVersion); got != "true" {
+		t.Errorf("%s = %q, want true", version.EnvKeyHideVersion, got)
+	}
+	if !version.HTTPHeaderHidden() {
+		t.Error("HTTPHeaderHidden() = false, want true after the leaf is plumbed")
+	}
+}
+
+// TestApplyEnvConfigHideVersionAbsent verifies that a configuration which writes
+// no hide-version leaf leaves the banner on, which is the documented default.
+//
+// VALIDATES: spec-mgmt-version-header-suppress AC-3 at the config boundary.
+// PREVENTS: the opt-in hardening turning itself on for an operator who never
+// asked for it.
+func TestApplyEnvConfigHideVersionAbsent(t *testing.T) {
+	t.Setenv(version.EnvKeyHideVersion, "")
+	resetEnvCache(t)
+
+	ApplyEnvConfig(map[string]map[string]string{
+		"": {"pprof": ":6060"},
+	})
+
+	if version.HTTPHeaderHidden() {
+		t.Error("HTTPHeaderHidden() = true, want false when no leaf is written")
+	}
 }

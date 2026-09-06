@@ -647,13 +647,19 @@ func writeJSONError(w http.ResponseWriter, status int, message string) {
 }
 
 // securityHeaders wraps a handler to set standard security headers on all responses.
+//
+// The version banner is the one header an operator can turn off. `environment
+// { hide-version true; }` keeps the build fingerprint off the wire here and on
+// the web interface together, and it changes no other header.
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'")
 		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("X-Ze-Version", version.HTTPHeader())
+		if !version.HTTPHeaderHidden() {
+			w.Header().Set("X-Ze-Version", version.HTTPHeader())
+		}
 		next.ServeHTTP(w, r)
 	})
 }

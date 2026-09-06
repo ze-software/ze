@@ -4,6 +4,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 func TestShort(t *testing.T) {
@@ -88,5 +90,38 @@ func TestIsValidRelease(t *testing.T) {
 	}
 	if IsValidRelease("126.05.26") {
 		t.Error("9-char should be invalid")
+	}
+}
+
+// TestHTTPHeaderHidden checks the toggle every HTTP surface consults before it
+// writes X-Ze-Version. The default answer is false, so an operator who says
+// nothing keeps the banner.
+//
+// VALIDATES: the ze.hide-version key is registered in this package and reads
+// as a boolean; the default preserves today's behavior.
+// PREVENTS: a key typo that leaves the toggle unreachable, and a default that
+// hides the banner nobody asked to hide.
+func TestHTTPHeaderHidden(t *testing.T) {
+	cases := []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		{name: "unset keeps the banner", value: "", want: false},
+		{name: "false keeps the banner", value: "false", want: false},
+		{name: "true hides the banner", value: "true", want: true},
+		{name: "enabled hides the banner", value: "enabled", want: true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Setenv(EnvKeyHideVersion, c.value)
+			env.ResetCache()
+			t.Cleanup(env.ResetCache)
+
+			if got := HTTPHeaderHidden(); got != c.want {
+				t.Errorf("HTTPHeaderHidden() with %q = %v, want %v", c.value, got, c.want)
+			}
+		})
 	}
 }

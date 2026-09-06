@@ -1,0 +1,13 @@
+# Valid hide-version config: the management-hardening leaf under environment.
+# spec-mgmt-version-header-suppress: the leaf an operator writes to keep the
+# X-Ze-Version build banner off the web interface and the looking glass.
+# PREVENTS: the YANG leaf being rejected by the parser, which would make every
+# configuration that hardens the box fail to load.
+stdin=config:terminator=EOF_CONF
+environment {
+    hide-version true
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

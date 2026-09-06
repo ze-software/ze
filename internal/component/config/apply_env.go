@@ -6,6 +6,7 @@ package config
 import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/version"
 )
 
 // applyEnvLogger is the subsystem logger for YANG->env plumbing diagnostics.
@@ -53,6 +54,10 @@ var envPlumbingTable = []envPlumbing{
 	{section: "cli.format", option: "default", envKey: "ze.cli.format"},
 	{section: "cli", option: "transcript", envKey: "ze.cli.transcript"},
 	{section: "", option: "pprof", envKey: "ze.pprof"},
+	// The key is registered by internal/core/version, which reads it, rather
+	// than by environment.go: env.Set ends the process on an unregistered key,
+	// so naming the constant here is what guarantees the registration is linked.
+	{section: "", option: "hide-version", envKey: version.EnvKeyHideVersion},
 }
 
 // ApplyEnvConfig plumbs surviving `environment/` YANG leaves into Ze env vars.

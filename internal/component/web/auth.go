@@ -485,15 +485,23 @@ func isSameOriginPath(raw string) bool {
 }
 
 // addSecurityHeaders sets standard security headers on authenticated responses.
+//
+// The version banner is the one header an operator can turn off. `environment
+// { hide-version true; }` keeps the build fingerprint off the wire here and on
+// the looking glass together, and it changes no other header.
 func addSecurityHeaders(w http.ResponseWriter) {
 	setSecurityHeaders(w)
 	w.Header().Set("Cache-Control", "no-store")
+	if version.HTTPHeaderHidden() {
+		return
+	}
 	w.Header().Set("X-Ze-Version", version.HTTPHeader())
 }
 
 // setSecurityHeaders sets the four headers every response owes the browser,
 // authenticated or not. securityHeaders applies them to the whole mux and
-// addSecurityHeaders adds the two that belong to an authenticated page.
+// addSecurityHeaders adds the ones that belong to an authenticated page:
+// Cache-Control always, and the version banner unless the operator hid it.
 func setSecurityHeaders(w http.ResponseWriter) {
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("X-Content-Type-Options", "nosniff")

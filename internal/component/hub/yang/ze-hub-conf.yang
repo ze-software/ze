@@ -120,6 +120,20 @@ module ze-hub-conf {
                 starts no pprof server while the leaf is absent, and the --pprof flag wins over it.";
         }
 
+        // Management hardening: the X-Ze-Version banner both HTTP servers send.
+        // Consumed by version.HTTPHeaderHidden via env var `ze.hide-version`.
+        leaf hide-version {
+            type boolean;
+            default false;
+            description "Hide the X-Ze-Version banner on every HTTP response (ze.hide-version)";
+            ze:help "The web interface and the looking glass both stamp X-Ze-Version on a
+                response. The banner gives the release, the git commit, the Go version and the
+                OS, which tells a client the exact build it speaks to. With true, neither
+                server sends the header, and no other header changes. The default false keeps
+                the banner, so a tool that reads it continues to operate. Ze reads the leaf at
+                startup, so a new value applies at the next daemon start.";
+        }
+
         container chaos {
             description "Chaos fault injection settings";
             ze:help "Ze wraps the clock, the dialer and the listener factory with a fault injector while

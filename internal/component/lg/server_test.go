@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // mockDispatch returns a dispatcher that returns fixed JSON for known commands.
@@ -693,5 +694,67 @@ func TestLGServer_BindFailureClosesPartialListeners(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "bind") || !strings.Contains(err.Error(), squattedAddr) {
 		t.Errorf("error must name the failing address; got: %v", err)
+	}
+}
+
+// TestLGVersionHeaderSuppressed verifies that `hide-version true` keeps the
+// build banner off a looking-glass response, and that the other security
+// headers the middleware owns still reach the client.
+//
+// VALIDATES: AC-2 (the looking glass omits X-Ze-Version when hidden), AC-4
+// (the other security headers survive suppression), AC-5 (no Server banner).
+// PREVENTS: one server honoring the toggle while the other still publishes the
+// build, which is the whole leak the toggle exists to close.
+func TestLGVersionHeaderSuppressed(t *testing.T) {
+	t.Setenv("ze.hide-version", "true")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	srv, base, client := startTestServer(t)
+	defer func() { _ = srv.Shutdown(context.Background()) }()
+
+	resp := doGet(t, client, base+"/api/looking-glass/status")
+	resp.Body.Close() //nolint:errcheck // test cleanup
+
+	if got := resp.Header.Get("X-Ze-Version"); got != "" {
+		t.Errorf("X-Ze-Version = %q, want absent when hide-version is true", got)
+	}
+	if got := resp.Header.Get("Server"); got != "" {
+		t.Errorf("Server = %q, want no Server banner", got)
+	}
+
+	survivors := map[string]string{
+		"X-Content-Type-Options": "nosniff",
+		"X-Frame-Options":        "DENY",
+		"Referrer-Policy":        "no-referrer",
+	}
+	for name, want := range survivors {
+		if got := resp.Header.Get(name); got != want {
+			t.Errorf("%s = %q, want %q", name, got, want)
+		}
+	}
+	if resp.Header.Get("Content-Security-Policy") == "" {
+		t.Error("missing Content-Security-Policy header")
+	}
+}
+
+// TestLGVersionHeaderPresentByDefault verifies that a looking glass with no
+// hide-version setting keeps today's behavior and sends the banner.
+//
+// VALIDATES: AC-3 (default response carries X-Ze-Version unchanged).
+// PREVENTS: the opt-in hardening becoming the default on the public surface.
+func TestLGVersionHeaderPresentByDefault(t *testing.T) {
+	t.Setenv("ze.hide-version", "")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	srv, base, client := startTestServer(t)
+	defer func() { _ = srv.Shutdown(context.Background()) }()
+
+	resp := doGet(t, client, base+"/api/looking-glass/status")
+	resp.Body.Close() //nolint:errcheck // test cleanup
+
+	if got := resp.Header.Get("X-Ze-Version"); !strings.Contains(got, "ze/") {
+		t.Errorf("X-Ze-Version = %q, want the ze/ banner by default", got)
 	}
 }
