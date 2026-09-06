@@ -97,7 +97,7 @@ func TestExaBGPServerCaseParserPreservesWireBytes(t *testing.T) {
 	if err := os.WriteFile(path, []byte(fixture), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	frames, asn, err := readExaBGPCase(path)
+	frames, asn, _, err := readExaBGPCase(path)
 	if err != nil || asn != 65000 || len(frames[1]) != 1 ||
 		hex.EncodeToString(frames[1][0]) != "ffffffffffffffffffffffffffffffff00170200000000" {
 		t.Fatalf("parsed case = ASN %d frames %x, error %v", asn, frames[1], err)

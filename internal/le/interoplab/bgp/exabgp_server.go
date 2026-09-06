@@ -34,9 +34,18 @@ func runExaBGPServer(args []string, output io.Writer) error {
 	if flags.NArg() != 1 || *port < 0 {
 		return errors.New("exabgp-server wants [--port N] CASE.ci")
 	}
-	expected, asn, err := readExaBGPCase(flags.Arg(0))
+	expected, asn, stated, err := readExaBGPCase(flags.Arg(0))
 	if err != nil {
 		return err
+	}
+	if !stated {
+		configured, found, asErr := peerASFromExaBGPConfig(os.Getenv("EXABGP_TEST_CONFIG"))
+		if asErr != nil {
+			return asErr
+		}
+		if found {
+			asn = configured
+		}
 	}
 	connections := 1
 	if value, conversionErr := strconv.Atoi(os.Getenv("exabgp_tcp_connections")); conversionErr == nil && value > 0 {
@@ -75,14 +84,22 @@ func runExaBGPServer(args []string, output io.Writer) error {
 	return err
 }
 
-func readExaBGPCase(path string) (map[int][][]byte, uint32, error) {
+// readExaBGPCase reads a `.ci` fixture: the frames each connection owes, the AS
+// this mock presents, and whether the fixture STATED that AS or took the default.
+//
+// The caller needs the third answer because the default is a guess. Upstream's
+// own runner never opened a session at all, so no fixture states an AS unless
+// its author had a reason to, and 65000 is right for none of them until the
+// config happens to name it.
+func readExaBGPCase(path string) (map[int][][]byte, uint32, bool, error) {
 	file, err := os.Open(path) //nolint:gosec // the case file is the .ci fixture this helper is pointed at by the tracked lab runner
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
 	}
 	defer func() { _ = file.Close() }()
 	result := make(map[int][][]byte)
 	asn := uint32(65000)
+	stated := false
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -92,9 +109,10 @@ func readExaBGPCase(path string) (map[int][][]byte, uint32, error) {
 		if value, ok := strings.CutPrefix(line, "option=asn:"); ok {
 			parsed, err := strconv.ParseUint(value, 10, 32)
 			if err != nil {
-				return nil, 0, err
+				return nil, 0, false, err
 			}
 			asn = uint32(parsed)
+			stated = true
 			continue
 		}
 		parts := strings.Split(line, ":")
@@ -103,15 +121,15 @@ func readExaBGPCase(path string) (map[int][][]byte, uint32, error) {
 		}
 		connection, err := exabgpCaseConnection(parts[0])
 		if err != nil {
-			return nil, 0, fmt.Errorf("invalid raw connection in %q: %w", line, err)
+			return nil, 0, false, fmt.Errorf("invalid raw connection in %q: %w", line, err)
 		}
 		wire, err := hex.DecodeString(strings.Join(parts[2:], ""))
 		if err != nil {
-			return nil, 0, fmt.Errorf("decode raw directive: %w", err)
+			return nil, 0, false, fmt.Errorf("decode raw directive: %w", err)
 		}
 		result[connection] = append(result[connection], wire)
 	}
-	return result, asn, scanner.Err()
+	return result, asn, stated, scanner.Err()
 }
 
 // exabgpCaseConnection reads the connection a `.ci` expectation belongs to.
@@ -208,7 +226,7 @@ func serveExaBGPConnection(connection net.Conn, asn uint32, expected [][]byte, r
 		recorder.record(actual)
 		found := -1
 		for index, wanted := range remaining {
-			if bytes.Equal(actual, wanted) {
+			if bgpFrameEqual(actual, wanted) {
 				found = index
 				break
 			}
@@ -320,4 +338,48 @@ func rewriteAS4Capability(openBody []byte, asn uint32) {
 		}
 		index = parameterEnd
 	}
+}
+
+// peerASFromExaBGPConfig reads the AS this mock must present, out of the ExaBGP
+// config the case under test runs.
+//
+// ze reads `peer-as` as the AS it REQUIRES the far end to open with, and RFC
+// 4271 Section 6.2 makes any other AS a Bad Peer AS. The mock is that far end,
+// so opening with a fixed 65000 made ze refuse every session whose config named
+// a different AS. It went unnoticed while ze accepted an OPEN from any AS at
+// all; the moment the check existed, 31 of the 42 encoding cases went red on a
+// NOTIFICATION rather than on a frame.
+//
+// The value is read from the ExaBGP config rather than added to 42 `.ci` files,
+// because the config is where it is already stated and a second copy would be a
+// second thing to keep true (ai/rules/principles.md). An explicit
+// `option=asn:` in the case still wins: a case that states its own AS is stating
+// it for a reason.
+//
+// It answers found=false rather than an error for a config it cannot read, so a
+// case run without EXABGP_TEST_CONFIG keeps the old default instead of failing
+// on an environment variable.
+func peerASFromExaBGPConfig(path string) (uint32, bool, error) {
+	if path == "" {
+		return 0, false, nil
+	}
+	file, err := os.Open(path) //nolint:gosec // the path is the fixture config the tracked runner points this helper at
+	if err != nil {
+		return 0, false, nil
+	}
+	defer func() { _ = file.Close() }()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		fields := strings.Fields(strings.TrimSpace(scanner.Text()))
+		if len(fields) < 2 || fields[0] != "peer-as" {
+			continue
+		}
+		parsed, parseErr := strconv.ParseUint(strings.TrimSuffix(fields[1], ";"), 10, 32)
+		if parseErr != nil {
+			return 0, false, fmt.Errorf("peer-as in %s: %w", path, parseErr)
+		}
+		return uint32(parsed), true, nil
+	}
+	return 0, false, scanner.Err()
 }
