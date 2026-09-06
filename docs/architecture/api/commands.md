@@ -127,7 +127,12 @@ so the fallback never shadows the daemon. Because `cmdutil.RunCommand` rejects c
 absent from the CLI binary's tree before reaching the daemon path, it makes an exception
 for paths that have a registered fallback, routing them through so the fallback is
 reachable. Output is identical to the daemon RPC (both read the same detection library
-/ crash files), so online and offline results match.
+/ crash files), so online and offline results match. `show crashes` holds that
+identity to one call on each side: both build their rows from
+`crashlog.CrashListFields` and their readiness block from `crashes.Readiness`, so
+the answer cannot vary with the health of the box being diagnosed.
+<!-- source: internal/core/crashlog/list.go -- CrashListFields, the one row builder -->
+<!-- source: internal/plugins/crashes/readiness.go -- Readiness, the one readiness answer -->
 <!-- source: internal/component/command/registry/registry.go -- RegisterOfflineFallback, LookupOfflineFallback -->
 <!-- source: cmd/ze/internal/cmdutil/cmdutil.go -- RunCommand offline-fallback routing -->
 <!-- source: internal/component/cli/client/main.go -- runOfflineFallback (invoked on daemon-unreachable) -->
@@ -789,14 +794,45 @@ request bgp rib attach-community <peer> <family> <hex>  # Attach community to st
 request bgp rib delete-with-community <peer> <family> <hex>  # Delete routes carrying community in family
 ```
 
-### Group Commands (Batching)
+### Named Commits (Batching)
+
+A named commit holds withdrawals and flushes them to every peer the selector
+matches. There is no `group start` or `group end`: this page published that pair
+until 2026-09-05 and no handler ever answered either spelling.
 
 ```
-group start [attributes ...]     # Start batch with shared attributes
-send bgp <selector> update text ...
-send bgp <selector> update text ...
-group end                         # End batch, send all
+request commit start <name>                      # Open a named commit
+request commit withdraw <name> route <prefix>    # Queue one withdrawal
+request commit show <name>                       # What the commit holds
+request commit end <name>                        # Flush it
+request commit eor <name>                        # Flush it, then End-of-RIB
+request commit rollback <name>                   # Discard the queue
 ```
+
+A named commit cannot carry an ANNOUNCEMENT. `(*Transaction).QueueAnnounce` has
+no non-test caller, so nothing queues one, and `send bgp <selector> update ...`
+announces immediately whether a commit is open or not
+(`plan/journal/unwired-feature.md`, 2026-09-05).
+
+`end` and `eor` answer what each peer took:
+
+| Key | What it states |
+|-----|----------------|
+| `routes-queued`, `withdrawals-queued` | What the commit HELD, offered to each matched peer |
+| `routes-announced`, `routes-withdrawn`, `updates-sent`, `eor-sent` | What LEFT, summed over the peer rows |
+| `eor-requested` | The operator asked for an End-of-RIB, which is a different fact from one being sent |
+| `peers` | One row per matched peer, keyed by address, carrying `name`, `state`, that peer's four counters, and `reasons` |
+
+A `reasons` entry appears exactly when that peer took less than the commit
+offered it, and the vocabulary is closed: `not-established`, `announce-refused`,
+`routes-dropped`, `withdraw-refused`, `send-failed`, `eor-refused`. Any such peer
+makes the command answer `error`, and the error sentence names each one, because
+an error answer's payload is dropped in transit and the sentence is all a plugin
+receives. This rail drops the work for a peer with no established session rather
+than queueing it, so undelivered means dropped and `done` would be untrue.
+<!-- source: internal/component/bgp/plugins/cmd/commit/commit.go -- handleNamedCommitEnd, peerRows, shortfallSentence -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- SendRoutes, commitToPeer -->
+<!-- source: internal/component/bgp/types/types.go -- TransactionResult, PeerCommitResult -->
 <!-- source: internal/component/bgp/transaction/commit_manager.go -- CommitManager -->
 
 ---
