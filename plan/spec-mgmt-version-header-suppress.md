@@ -290,14 +290,17 @@ All refs re-verified against current code:
   `internal/component/ike/ipsec/spd_policy.go` declaring a second package name in
   that directory. None of them is this spec's code. Both tests were run in a
   window where the tree did build, and both passed.
-- **The functional test's RED half was observed at the UNIT level, not through
-  the daemon.** With both guards removed, `TestWebVersionHeaderSuppressed` failed
-  with `Should be empty, but was ze/dev (go1.27.0; linux/amd64)` and
-  `TestLGVersionHeaderSuppressed` failed beside it, while the two default-behavior
-  tests stayed green, which is the discrimination the pair is for. The same walk
-  through `version-header-suppress.ci` needs a rebuilt `ze`, and every attempt hit
-  the untracked `spd_policy.go` above. That one observation is OWED and is the
-  next action on this spec.
+- **The functional test's RED half is observed, through the daemon.** With both
+  guards removed and `ze` rebuilt, `version-header-suppress.ci` failed on the
+  assertion the feature exists for: `ZE-OBSERVER-FAIL: the hardened web server
+  sent X-Ze-Version: "ze/26.09.06 (3522fc9db485+; go1.27.0; linux/amd64)", want no
+  banner`. The `+` on that commit id is the rebuilt binary carrying the mutation,
+  so the run is not a cached verdict. The default half stayed green in the same
+  run (`OK: both servers send the version banner by default`), so the test
+  discriminates on the guard alone rather than on the daemon starting. Restoring
+  both guards returned it to PASS in 15.1s. The unit pair shows the same break:
+  `TestWebVersionHeaderSuppressed` fails with `Should be empty, but was ze/dev
+  (go1.27.0; linux/amd64)` and `TestLGVersionHeaderSuppressed` beside it.
 
 ## Implementation Summary
 ### What Was Implemented
