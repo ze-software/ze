@@ -778,6 +778,39 @@ func TestDomainGroupConfigureRegistersSet(t *testing.T) {
 	assert.True(t, found, "the group's set must reach the backend")
 }
 
+// TestDomainGroupConfigureStartsNoRefreshWorker proves configure makes no
+// engine call.
+//
+// VALIDATES: the SDK's startup contract. A resolve is an engine call, and
+// OnConfigure runs while the engine is waiting for its response
+// (Plugin.OnStarted, pkg/plugin/sdk/sdk_callbacks.go), so a worker started here
+// resolves a never-cached name at once and the startup coordinator reads that
+// request where it expects this plugin's `ready`.
+// PREVENTS: the daemon refusing to start with "plugin firewall-domain failed
+// during startup at stage Ready: stage 5: expected ready, got
+// ze-plugin-engine:resolve-dns", which is what
+// test/firewall/firewall-cli-domain-group-show.ci met on its first run.
+func TestDomainGroupConfigureStartsNoRefreshWorker(t *testing.T) {
+	useRecordingBackend(t)
+	cfg := oneGroupConfig()
+	plug, stub := newTestPlugin(t, cfg, nil)
+	t.Cleanup(plug.stop)
+
+	require.NoError(t, plug.configure(cfg))
+
+	plug.mu.RLock()
+	started := plug.workerStarted
+	plug.mu.RUnlock()
+	assert.False(t, started, "configure must leave the refresh worker unstarted")
+
+	// The cache is cold, so reset leaves every unit due now. A worker started
+	// by configure would have resolved within this settle, and the read of
+	// stub.calls below would race with its append, which the race detector
+	// reports as the same defect.
+	time.Sleep(100 * time.Millisecond)
+	assert.Empty(t, stub.calls, "configure must ask for no name")
+}
+
 // TestDomainGroupConfigureProgramsBeforeResolving proves the cache is read and
 // the tables programmed before any name is asked for.
 //
@@ -812,8 +845,8 @@ func TestDomainGroupConfigureProgramsBeforeResolving(t *testing.T) {
 	}
 	require.NoError(t, plug.configure(cfg))
 
-	// stop() before reading the calls: the worker starts at configure and this
-	// asserts what had already been programmed by the time configure returned.
+	// configure starts no worker, so nothing can resolve behind this read: what
+	// the backend holds is what configure itself programmed, from the cache.
 	applied := backend.applied()
 	plug.stop()
 

@@ -12,9 +12,9 @@
 | Status | in-progress |
 | Scope | config |
 | Depends | `plan/spec-firewall-remote-group.md` |
-| Phase | - |
+| Phase | 8/9 |
 | Handoff | - |
-| Updated | 2026-09-05 |
+| Updated | 2026-09-06 |
 
 <!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later Opus 5 session reviews that commit and closes. `-` closes in the same session. -->
 
@@ -512,6 +512,75 @@ two could run the stub as `cmd=background:exec=ze-test dns --port 53`.
 
 Wiring rows 4 and 5 remain without operator-path proof, and the show enrichment
 is still proven at the enricher rather than over the real SSH `ze cli` path.
+
+## Progress, 2026-09-06, second entry: the fixtures, and the two defects they found
+
+The decision above was taken: SSH through `ze cli`, no `plugin { external ... }`
+block. All three fixtures are written and **all three `.ci` files now run green,
+each observed RED first**.
+
+| File | Suite | Red observed by breaking |
+|------|-------|--------------------------|
+| `test/plugin/firewall-domain-group-update.ci` | plugin | `changeLog.append` returning before it writes: the five file assertions fail, the two stdout ones still pass |
+| `test/plugin/firewall-domain-group-clear.ci` | plugin | the `applyTables` call in `clearDomainGroup`: the addresses stay in the kernel and the fixture says so |
+| `test/firewall/firewall-cli-domain-group-show.ci` | firewall | `enrichShow` answering `nothingToAdd`: the source-name pattern fails, the two needles above it still pass |
+
+The fixtures are `domainGroupUpdate`, `domainGroupClear` and `domainGroupShow`
+(`internal/test/fixture/netfilter_fixture_domain_group.go`), registered in
+`internal/test/fixture/register_domain_group.go`. Each waits for the daemon,
+serves the DNS stub in process on port 53, provisions client credentials with
+`ze init`, and drives `ze cli --user operator -c "<command> | json"` over SSH on
+the port the runner leases as `$PORT2`.
+
+Three shape changes to the `.ci` files the decision forced:
+
+- **The term naming the group is declared in the boot config**, not committed
+  mid-test. A daemon START reads its config through `OnConfigure` alone and runs
+  no verify (`configure`, `domain.go` says so in its own comment), so the AC-6
+  refusal belongs to a commit and not to a boot. What a boot does is hold the
+  table back until the first update. This also removes a step no route supports:
+  `ze cli -c` runs ONE command and the config editor is a TUI.
+- **`ze.log.firewall` is set to `error`.** `dropTablesMissingAProvidedSet` logs
+  `set=domain_v4_web` at WARN whenever the table is held back, and the daemon's
+  stderr lands in the buffer the assertions read. That line would satisfy the
+  set-name needle on its own in the show and update files, and would fail the
+  absence assertion in the clear file.
+- **All three serialize on `option=exclusive:group=dns-stub-port-53`**, not on a
+  group of their own. Port 53 is node-wide and the two `ze-test dns` scenarios
+  contend for it too; a record carries ONE exclusive group, so it has to be the
+  one that covers both the port and the nftables set names.
+
+Two defects blocked the runs and are FIXED here.
+
+**The daemon refused to start.** `configure` started the refresh worker, a name
+with no cached answer is due immediately, and the worker's first act is a
+resolve, which is an engine call. `OnConfigure` runs while the engine is waiting
+for its response, so the startup coordinator read that request where it expected
+the plugin's `ready`: `plugin firewall-domain failed during startup at stage
+Ready: stage 5: expected ready, got ze-plugin-engine:resolve-dns`. The worker now
+starts from `OnStarted`, which is the callback `pkg/plugin/sdk/sdk_callbacks.go`
+names as the safe place for an engine call. `TestDomainGroupConfigureStartsNoRefreshWorker`
+is the guard, and it goes red with both assertions and a data race when the call
+is put back in `configure`.
+
+**`expect=file:` looked in the wrong directory.** `validateFileChecks`
+(`internal/test/runner/runner_validate.go`) took `filepath.Dir(rec.CIFile)` as
+its base unless `rec.TmpfsTempDir` was set, and that field is set only when a
+`.ci` declares a `tmpfs=` block. The update file declares a `stdin=` config block
+and no tmpfs file, so its five change-log assertions read `test/plugin/` in the
+checkout while the daemon wrote the log into its own work directory. The base is
+now `rec.WorkDir`, which is the same repair `ZE_READY_FILE`'s arming took on
+2026-09-03. The update file is the only `.ci` in the tree using `expect=file:`
+without `tmpfs=`, so nothing else changes.  Journal row:
+`plan/journal/guard-added-to-one-half-of-a-pair.md`.
+
+Wiring rows 4 and 5 now have operator-path proof.
+
+**How the runs were made, and what is still unrun.** Each `.ci` was run alone,
+outside the gate, under `unshare -Urn --map-root-user` with `ip link set lo up`,
+against a `ze` and a `ze-test` built into `bin/`. The whole suites
+(`./le functional plugin`, `./le functional firewall`) and
+`./le verify worktree` have NOT been run in this session.
 
 ## Files to Modify
 

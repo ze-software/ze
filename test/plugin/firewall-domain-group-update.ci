@@ -2,35 +2,55 @@
 #       programs the addresses into the group's nftables set, and records the
 #       move from the old addresses to the new ones in the change log.
 # Spec: plan/spec-firewall-domain-group.md -- Wiring Test row 4, user story 1
-# VALIDATES: the operator path. The command reaches the forwarded plugin command
-#            handler (updateDomainGroup, internal/component/firewall/plugins/
-#            domain/command.go), which resolves through the plugin-to-hub
-#            resolve RPC, writes the answer into the cache, re-applies the
-#            tables, and appends one change record per name and family.
+# VALIDATES: the operator path. The command is typed at `ze cli` over SSH and
+#            reaches the forwarded plugin command handler (updateDomainGroup,
+#            internal/component/firewall/plugins/domain/command.go), which
+#            resolves through the plugin-to-hub resolve RPC, writes the answer
+#            into the cache, re-applies the tables, and appends one change
+#            record per name and family.
 # PREVENTS: an update that reports a count while the kernel set stays empty, and
 #           a change log that records a resolution without saying what it
 #           replaced.
 #
-# NEVER EXECUTED. Written on 2026-09-06 and not run once. The command that runs
-# it is `./le functional plugin`; on a host without CAP_NET_ADMIN it is skipped
-# by the option below, and the runner that does execute it is
-# `./le qemu netns-test suites plugin`.
+# RUN GREEN on 2026-09-06, and observed RED first: with changeLog.append
+# (internal/component/firewall/plugins/domain/changelog.go) returning before it
+# writes, the five file assertions below fail and the two stdout ones still pass,
+# which is what says the change log is what they read. The command that runs it
+# is `./le functional plugin`; on a host without CAP_NET_ADMIN and
+# CAP_NET_BIND_SERVICE it is skipped by the option below, and the runner that
+# executes it in the gate is `./le qemu netns-test suites plugin`.
 #
-# THE GO FIXTURE IS NOT WRITTEN EITHER. `ze-test fixture
-# plugin/firewall-domain-group-update` does not exist yet: it is named under
-# "Files to Create" in the spec and it is still owed. Until it exists this file
-# fails at command 2 for that reason and for no other. What the fixture MUST do,
-# in this order, is what the assertions below are written against:
-#   1. Serve DNS on 127.0.0.1:53 (the address `system name-server` names below),
-#      answering web.example.test with A 203.0.113.10 and AAAA 2001:db8::10.
-#   2. Dispatch `update firewall domain-group web` and print the answer.
-#   3. Change the stub's answer for web.example.test to A 203.0.113.11.
-#   4. Dispatch `update firewall domain-group web` again and print the answer.
-#   5. Print the kernel read-back of the set: `nft list set inet ze_fw
-#      domain_v4_web`.
-# It MUST NOT print a read-back between steps 2 and 4: this file asserts on the
-# FINAL contents of the set, and an intermediate dump would put the replaced
-# address into the same buffer (see the file-level note below).
+# The fixture is domainGroupUpdate
+# (internal/test/fixture/netfilter_fixture_domain_group.go). It drives the
+# daemon over the real SSH `ze cli` path rather than over a plugin channel,
+# which is what Wiring row 4 asks for: a `plugin { external ... }` block would
+# hand it a channel to dispatch on and would change what the daemon under test
+# is running. In order it:
+#   1. Waits for the daemon, waits for the SSH port, and provisions client
+#      credentials with `ze init`.
+#   2. Serves DNS on 127.0.0.1:53 (the address `system name-server` names
+#      below) from the stub's default zone, which answers web.example.test with
+#      A 203.0.113.10 and AAAA 2001:db8::10 at TTL 0.
+#   3. Runs `update firewall domain-group web | json` and prints the answer.
+#   4. Reads the kernel back until the set holds 203.0.113.10, and prints
+#      NOTHING while doing it.
+#   5. Changes the stub's A answer for web.example.test to 203.0.113.11.
+#   6. Runs `update firewall domain-group web | json` again and prints the
+#      answer.
+#   7. Prints the kernel read-back of the set, once, at the end.
+# Step 4 is silent on purpose: this file asserts on the FINAL contents of the
+# set, and an intermediate dump would put the replaced address into the same
+# buffer (see the file-level note below). It is not decoration either -- without
+# it the change asserted here would have nothing proven to replace.
+#
+# The term matching the group is declared in the config below, not committed
+# later. A daemon START reads its config through OnConfigure alone and runs no
+# verify (configure, internal/component/firewall/plugins/domain/domain.go), so
+# the refusal AC-6 describes belongs to a commit and not to a boot. What a boot
+# does instead is log the same message and hold the table back
+# (warnUncachedGroups, and dropTablesMissingAProvidedSet in
+# internal/component/firewall/registry.go), which is exactly the cold start this
+# test's first update ends.
 #
 # ONE SCENARIO PER FILE. An expect=stdout: assertion is FILE-level: the runner
 # checks it against the concatenated output of every command in the file
@@ -39,15 +59,25 @@
 # test/plugin/firewall-domain-group-clear.ci, which is the file that may say an
 # address is absent.
 #
-# This test programs nftables, so it needs CAP_NET_ADMIN, not merely Linux.
-option=needs-linux:caps=net-admin
-# Serialize against every other firewall-domain-group test. The nftables ruleset
-# is NODE-WIDE and the set names are derived from the group name
-# (domain_v4_<name>, setNames in sets.go), so two daemons programming a group
-# called `web` collide. The persisted cache is shared for the same reason
-# test/plugin/firewall-irr-update.ci gives: DefaultConfigDir
-# (internal/core/paths/paths.go) resolves to one directory per run.
-option=exclusive:group=firewall-domain-group-nft
+# This test programs nftables and binds port 53, so it needs CAP_NET_ADMIN and
+# CAP_NET_BIND_SERVICE, not merely Linux.
+option=needs-linux:caps=net-admin,net-bind
+# Serialize against every other test that binds port 53, the two `ze-test dns`
+# scenarios included. The port is NODE-WIDE and the address is fixed by the
+# type of the `system name-server` leaf, so two stubs cannot coexist. One group
+# covers the nftables contention too: the ruleset is node-wide and the set names
+# are derived from the group name (domain_v4_<name>, setNames in sets.go), and
+# every test that would collide on those is in this group already. A test
+# carries ONE exclusive group (Record.ExclusiveGroup, record_parse.go), so this
+# has to be the one that covers both.
+option=exclusive:group=dns-stub-port-53
+# error, not the default. dropTablesMissingAProvidedSet
+# (internal/component/firewall/registry.go) logs `set=domain_v4_web` at WARN
+# every time this table is held back, and it is held back at boot until the
+# first update resolves the group. The daemon's stderr lands in the same buffer
+# the assertions below read (runner_exec.go, teeDaemonStderr), so that line
+# would satisfy the set-name assertion on its own and leave it proving nothing.
+option=env:var=ze.log.firewall:value=error
 # ze.config.dir is what puts the change log where expect=file can read it.
 # changeLogPath() (changelog.go) joins DefaultConfigDir() with
 # firewall-domain-group.dns.jsonl, and DefaultConfigDir honours this override
@@ -67,32 +97,56 @@ system {
 		# runs in is shared, and the file is not what the resolver reads here.
 		resolv-conf-path "";
 	}
+	# The account the fixture logs in as. The hash is of "testpass", and it is
+	# the same credential test/firewall/firewall-cli-show.ci uses.
+	authentication {
+		user operator {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO";
+		}
+	}
 }
 
 firewall {
 	backend nft;
-	# The group is declared, and NO term names it yet. A commit naming a group
-	# Ze has never resolved is refused (OnConfigVerify, AC-6), so the rule that
-	# matches the group is committed by the fixture AFTER the first update,
-	# which is the order user story 1 describes.
 	domain-group web {
 		domain-names [ web.example.test ];
 		ttl-floor 60;
 	}
-	table ze_fw {
+	table fw_dgu {
 		family inet;
 		chain input {
 			type filter;
 			hook input;
 			priority 0;
 			policy accept;
+			# The rule that matches the group. Until the first update resolves
+			# it, this whole table is held back rather than programmed, which is
+			# what the fixture's silent read-back in step 4 waits for the end of.
+			term allow-web {
+				from { source-domain-group web; }
+				then { accept; }
+			}
+		}
+	}
+}
+
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			# $PORT2 is the second of the two ports the runner leases to this
+			# test (TestPortSpan, internal/test/runner/ports.go). A fixed port
+			# would collide with a sibling in this suite, which shares one
+			# network namespace.
+			port $PORT2;
 		}
 	}
 }
 EOF_CONF
 
 cmd=background:seq=1:exec=ze -:stdin=ze-fw
-cmd=foreground:seq=2:exec=ze-test fixture plugin/firewall-domain-group-update:timeout=25s
+cmd=foreground:seq=2:exec=ze-test fixture plugin/firewall-domain-group-update $PORT2:timeout=25s
 expect=exit:code=0
 
 # The addresses reach the kernel. The set is read back from nftables, not from

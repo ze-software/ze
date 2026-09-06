@@ -88,6 +88,43 @@ One worker drives the whole schedule. It sleeps until the earliest-due unit and
 wakes for that one, so N names and two families cost one goroutine and one timer
 rather than 2N of each.
 
+The worker starts from `OnStarted` and never from `OnConfigure`. Its first act is
+a resolve, a resolve is an engine call, and `OnConfigure` runs while the engine is
+waiting for its response. A name with no cached answer is due immediately, so a
+worker started at config time asks for it at once, and the startup coordinator
+reads that request where it expects the plugin's `ready`: the daemon then refuses
+to start with `stage 5: expected ready, got ze-plugin-engine:resolve-dns`.
+`OnStarted` is the callback the SDK names as the safe place for an engine call.
+Config time still arms the schedule, and a nudge that arrives before the worker
+exists is not lost, because the reset leaves every unit due and the worker reads
+the schedule as its first act.
+<!-- source: internal/component/firewall/plugins/domain/domain.go -- runFirewallDomain, configure, startRefreshWorker -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- Plugin.OnStarted -->
+
+## What the functional tests drive
+
+Three `.ci` files exercise the operator path, and all three drive the daemon over
+SSH through `ze cli` rather than over a plugin channel. A `plugin { external ... }`
+block would hand the fixture a channel to dispatch on and would change what the
+daemon under test is running, and the two wiring rows these files answer ask for
+the real path.
+
+| File | Suite | What it proves |
+|------|-------|----------------|
+| `test/plugin/firewall-domain-group-update.ci` | `./le functional plugin` | Two updates around a changed DNS answer: the kernel set holds the new address and not the replaced one, and the change log names both |
+| `test/plugin/firewall-domain-group-clear.ci` | `./le functional plugin` | The set leaves the kernel with the cache, read back from nftables after the clear |
+| `test/firewall/firewall-cli-domain-group-show.ci` | `./le functional firewall` | The DNS name is rendered beside the address it supplied, in the same element object |
+
+Each declares its term against the group in its own config rather than committing
+one mid-test. A daemon start runs no verify, so the table is simply held back
+until the first update resolves the group, which is the cold start these files
+walk through.
+
+All three serialize on `option=exclusive:group=dns-stub-port-53`. Their fixture
+serves the `ze-test dns` stub in process on port 53, which `system name-server`
+reaches because that leaf is an address and carries no port.
+<!-- source: internal/test/fixture/netfilter_fixture_domain_group.go -- domainGroupUpdate, domainGroupClear, domainGroupShow -->
+
 ## Two stores, because they are two shapes
 
 | What | Where | Why |

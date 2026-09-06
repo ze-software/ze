@@ -168,6 +168,16 @@ func runFirewallDomain(conn net.Conn) int {
 
 	p.OnEnrichShow(plug.enrichShow)
 
+	// The refresh worker starts here and not in configure. Its first act is a
+	// resolve, which is an engine call, and OnStarted is where the SDK says an
+	// engine call is safe: the five-stage handshake has completed, so the
+	// startup coordinator is no longer reading the connection for this plugin's
+	// `ready` (Plugin.OnStarted, pkg/plugin/sdk/sdk_callbacks.go).
+	p.OnStarted(func(context.Context) error {
+		plug.startRefreshWorker()
+		return nil
+	})
+
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	defer plug.stop()
@@ -188,9 +198,10 @@ func runFirewallDomain(conn net.Conn) int {
 }
 
 // newDomainPlugin builds the plugin over a resolve function. The caller MUST
-// call stop when done, and the refresh worker is started by the first
-// configure rather than here, so a plugin that never receives a config never
-// starts one.
+// call stop when done, and MUST start the refresh worker from OnStarted rather
+// than here: the worker resolves as its first act, and a resolve is an engine
+// call the five-stage handshake has not finished making room for
+// (startRefreshWorker).
 func newDomainPlugin(p *sdk.Plugin, resolve resolveFunc) *domainPlugin {
 	return &domainPlugin{
 		plugin:    p,
@@ -286,7 +297,16 @@ func (plug *domainPlugin) configure(cfg *domainConfig) error {
 		logger().Warn("firewall-domain: apply failed", "error", err)
 	}
 
-	plug.startRefreshWorker()
+	// The schedule is armed here and the worker is NOT started here. A name
+	// with no cached answer is due immediately, so a worker started at this
+	// point resolves at once, and resolving is an engine call: OnConfigure runs
+	// while the engine is waiting for its response, and the startup coordinator
+	// reads that request where it expects the plugin's `ready` (Plugin.OnStarted,
+	// pkg/plugin/sdk/sdk_callbacks.go). The daemon then refuses to start with
+	// "stage 5: expected ready, got ze-plugin-engine:resolve-dns". The worker is
+	// started from OnStarted instead (runFirewallDomain), and a nudge arriving
+	// before it exists is not lost: reset leaves every unit due, and the worker
+	// reads the schedule as its first act.
 	plug.rearmSchedule(cfg)
 
 	logger().Debug("configured", "groups", len(cfg.groups), "references", len(cfg.refs))
@@ -340,6 +360,13 @@ func (plug *domainPlugin) applyTables() error {
 
 // startRefreshWorker starts the single refresh goroutine, once. The worker
 // runs until stop closes stopCh, and stop then waits for done.
+//
+// The caller MUST NOT call it before this plugin's five-stage startup has
+// completed. The worker's first act is a resolve, which is an engine call, and
+// an engine call made while the startup coordinator is waiting for the plugin's
+// `ready` is read as that message. OnStarted is the callback the SDK names as
+// the safe place for an engine call, so that is where the process form starts
+// it.
 func (plug *domainPlugin) startRefreshWorker() {
 	plug.mu.Lock()
 	started := plug.workerStarted

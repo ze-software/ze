@@ -14,26 +14,45 @@
 #           client at all. This file is the only assertion made from outside the
 #           daemon.
 #
-# NEVER EXECUTED. Written on 2026-09-06 and not run once. The command that runs
-# it is `./le functional firewall`; on a host without CAP_NET_ADMIN it is
-# skipped by the option below, and the runner that does execute it is
+# RUN GREEN on 2026-09-06, and observed RED first: with enrichShow
+# (internal/component/firewall/plugins/domain/enrich.go) answering nothingToAdd,
+# the pattern at the end of this file fails and the two needles above it still
+# pass, which is what says the pattern is the assertion that reads the
+# enrichment. The command that runs it is `./le functional firewall`; on a host
+# without CAP_NET_ADMIN and CAP_NET_BIND_SERVICE it is skipped by the option
+# below, and the runner that executes it in the gate is
 # `./le qemu netns-test suites firewall`.
 #
-# THE GO FIXTURE IS NOT WRITTEN EITHER. `ze-test fixture
-# firewall/firewall-cli-domain-group-show` does not exist yet: it is named under
-# "Files to Create" in the spec and it is still owed. Until it exists this file
-# fails at command 2 for that reason and for no other. What the fixture MUST do,
-# in this order, is what the assertions below are written against:
-#   1. Serve DNS on 127.0.0.1:53, answering web.example.test with A
-#      203.0.113.10.
-#   2. Provision client credentials with `ze init` into a sandbox config dir,
-#      the way test/firewall/firewall-cli-show.ci's fixture does.
-#   3. Dispatch `update firewall domain-group web`, so the group has data.
-#   4. Commit, over `ze cli`, a term in table fw_dg matching
-#      source-domain-group web. It is committed HERE and not in the config
-#      below because a commit naming a never-resolved group is refused
-#      (OnConfigVerify), which is the order user story 1 already describes.
-#   5. Run `show firewall ruleset fw_dg` over `ze cli` and print the answer.
+# The fixture is domainGroupShow
+# (internal/test/fixture/netfilter_fixture_domain_group.go). In order it:
+#   1. Waits for the daemon, waits for the SSH port, and provisions client
+#      credentials with `ze init` into a sandbox config dir, the way
+#      test/firewall/firewall-cli-show.ci's fixture does.
+#   2. Serves DNS on 127.0.0.1:53 from the stub's default zone, which answers
+#      web.example.test with A 203.0.113.10.
+#   3. Runs `update firewall domain-group web | json`, so the group has data.
+#      Its answer is not printed: it carries counts, and this file reads one
+#      command's answer.
+#   4. Reads the kernel back until the group's set holds the address, and prints
+#      NOTHING while doing it. handleShowFirewallRuleset renders
+#      firewall.LastApplied(), which is the daemon's own merged snapshot, so a
+#      set that never reached nftables would render all the same. This read is
+#      what makes the assertions below evidence about a live filter.
+#   5. Runs `show firewall ruleset fw_dg | json` over `ze cli` and prints the
+#      answer. The pipe is explicit because the assertions read quoted JSON
+#      keys, and the daemon's default render format is whatever its
+#      configuration says.
+#
+# The term matching the group is declared in the config below, not committed by
+# the fixture. A daemon START reads its config through OnConfigure alone and
+# runs no verify (configure, internal/component/firewall/plugins/domain/
+# domain.go), so the refusal AC-6 describes belongs to a commit and not to a
+# boot. What a boot does instead is hold the table back
+# (dropTablesMissingAProvidedSet, internal/component/firewall/registry.go) until
+# the update in step 3 resolves the group, which is the cold start this test
+# walks through. `ze cli -c` runs ONE command and the config editor is a TUI, so
+# committing a term mid-test would mean driving that editor over a pty; the
+# config below reaches the same state with the product doing the same thing.
 #
 # ONE SCENARIO PER FILE. An expect=stdout: assertion is FILE-level: the runner
 # checks it against the concatenated output of every command in the file
@@ -41,14 +60,31 @@
 # asserts an absence, so the whole file reads one command's answer.
 #
 # Auth setup mirrors test/firewall/firewall-cli-show.ci: the daemon config
-# declares a super-admin user and an SSH server, and the fixture drives `ze cli`
-# against it. The SSH port is fixed because the per-test netns isolates it.
+# declares a user and an SSH server, and the fixture drives `ze cli` against it.
 #
-# This test programs nftables, so it needs CAP_NET_ADMIN, not merely Linux.
-option=needs-linux:caps=net-admin
-# Serialize against every other firewall-domain-group test: the nftables ruleset
-# is NODE-WIDE and the set names come from the group name (setNames, sets.go).
-option=exclusive:group=firewall-domain-group-nft
+# This test programs nftables and binds port 53, so it needs CAP_NET_ADMIN and
+# CAP_NET_BIND_SERVICE, not merely Linux.
+option=needs-linux:caps=net-admin,net-bind
+# Serialize against every other test that binds port 53. The port is NODE-WIDE
+# and the address is fixed by the type of the `system name-server` leaf. One
+# group covers the nftables contention too: the ruleset is node-wide and the set
+# names come from the group name (setNames, sets.go). A test carries ONE
+# exclusive group (Record.ExclusiveGroup, record_parse.go), so this has to be
+# the one that covers both.
+option=exclusive:group=dns-stub-port-53
+# error, not the default and not the info level firewall-cli-show.ci uses.
+# dropTablesMissingAProvidedSet (internal/component/firewall/registry.go) logs
+# `set=domain_v4_web` at WARN every time this table is held back, and it is held
+# back at boot until the update in step 3 resolves the group. The daemon's
+# stderr lands in the same buffer the assertions below read (runner_exec.go,
+# teeDaemonStderr), so that line would satisfy the set-name assertion on its own
+# and leave it proving nothing about what the show handler rendered.
+option=env:var=ze.log.firewall:value=error
+# Each test gets its own persisted address cache. DefaultConfigDir
+# (internal/core/paths/paths.go) otherwise resolves to the directory the binary
+# sits in, which every test in the run shares, and a `web` group left cached by
+# a sibling would let this daemon program the set at boot rather than at step 3.
+option=env:var=ze.config.dir:value=.
 option=timeout:value=30s
 
 stdin=ze-fw:terminator=EOF_CONF
@@ -81,10 +117,16 @@ firewall {
 			priority 0;
 			policy accept;
 			# A drop-policy chain would lock out the `ze cli` -> SSH connection
-			# this test is driven over, so the policy is accept and the term the
-			# enrichment is read from is committed by the fixture.
+			# this test is driven over, so the policy is accept.
 			term allow-loopback {
 				from { input-interface lo; }
+				then { accept; }
+			}
+			# The rule the enrichment is read from. It is what makes the plugin
+			# register a set at all (buildTables, sets.go), and until the group
+			# resolves it is what holds this whole table back.
+			term allow-web {
+				from { source-domain-group web; }
 				then { accept; }
 			}
 		}
@@ -96,18 +138,20 @@ environment {
 		enabled true;
 		server main {
 			ip 127.0.0.1;
-			port 2222;
+			# $PORT2 is the second of the two ports the runner leases to this
+			# test (TestPortSpan, internal/test/runner/ports.go), passed to the
+			# fixture as its one argument.
+			port $PORT2;
 		}
 	}
 }
 EOF_CONF
 
 cmd=background:seq=1:exec=ze -:stdin=ze-fw
-cmd=foreground:seq=2:exec=ze-test fixture firewall/firewall-cli-domain-group-show:timeout=25s
+cmd=foreground:seq=2:exec=ze-test fixture firewall/firewall-cli-domain-group-show $PORT2:timeout=25s
 expect=exit:code=0
 
-# The set and its address are in the answer at all. Read back from the applied
-# kernel state by the show handler, so an in-memory copy fails here.
+# The set and its address are in the answer at all.
 expect=stdout:contains=domain_v4_web
 expect=stdout:contains=203.0.113.10
 
