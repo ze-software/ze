@@ -102,6 +102,14 @@ The `script=` line the command prints is the only authoritative path. Its name
 carries a random suffix, so no guess reaches another agent's script. Copy it;
 never construct it from the session id.
 
+The `message=` line carries a random suffix for the same reason, so a script and
+its message are one artifact. A second `create` under the same tag therefore
+allocates a second message and cannot write over the first one's. Until
+2026-09-05 it could, and the first script then made its commit under the second
+one's subject with nothing printed to say so
+(`plan/journal/pointer-shared-across-the-names-it-indexes.md`).
+<!-- source: internal/le/commit/script.go -- nextTag, allocateMessage, allocateScript -->
+
 ## What the generated script contains
 
 `renderBlock` (`internal/le/commit/script.go`) is the only native source that

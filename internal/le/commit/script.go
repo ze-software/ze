@@ -197,29 +197,78 @@ func validateTag(requested string) error {
 	return nil
 }
 
+// nextTag chooses the tag a prepared commit is named by and allocates the
+// message file that commit will be made from. It answers both.
+//
+// Every message path carries a random suffix, for the reason the SCRIPT path
+// already carries one: a second prepared commit MUST NOT be able to write over
+// the first one's message while the first script is still runnable. Keyed on
+// session and tag alone, it could, and the failure was silent -- both calls
+// report exit zero and a plausible file list, and the first script then commits
+// the second's subject. That reached main as a one-character subject, and
+// `plan/journal/pointer-shared-across-the-names-it-indexes.md` records four
+// occurrences of it. The trigger is ordinary rather than careless: an author who
+// loses the printed `script=` line re-runs this command to recover it.
+//
+// One prepared commit, one script, one message, and no name a later call can
+// take.
 func nextTag(root, session, requested string) (string, string, error) {
 	if requested != "" {
 		if err := validateTag(requested); err != nil {
 			return "", "", err
 		}
-		return requested, filepath.ToSlash(filepath.Join("tmp", "commit-msg-"+session+"-"+requested+".txt")), nil
+		relative, err := allocateMessage(root, session, requested)
+		return requested, relative, err
 	}
+	// An auto tag is a per-session letter, and a letter is taken once this
+	// session has allocated any message under it. The suffix is what keeps the
+	// paths apart, so the letter only has to keep tmp/ readable.
 	for code := byte('a'); code <= byte('z'); code++ {
 		tag := string(code)
-		relative := filepath.ToSlash(filepath.Join("tmp", "commit-msg-"+session+"-"+tag+".txt"))
-		file, err := os.OpenFile(filepath.Join(root, filepath.FromSlash(relative)), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
-		if errors.Is(err, os.ErrExist) {
-			continue
-		}
+		used, err := filepath.Glob(filepath.Join(root, "tmp", "commit-msg-"+session+"-"+tag+"-*.txt"))
 		if err != nil {
 			return "", "", err
 		}
-		if err := file.Close(); err != nil {
+		if len(used) > 0 {
+			continue
+		}
+		relative, err := allocateMessage(root, session, tag)
+		if err != nil {
 			return "", "", err
 		}
 		return tag, relative, nil
 	}
 	return "", "", errors.New("no free message tag; clear old tmp/commit-msg-* files")
+}
+
+// allocateMessage creates an empty message file under a suffix no other prepared
+// commit holds, and answers its path relative to the checkout root.
+//
+// O_EXCL is the allocation: the file exists from this moment, so a later call
+// that draws the same suffix takes the next one instead. Create removes it again
+// when it fails or when it was a dry run, so an unused reservation never holds a
+// name.
+func allocateMessage(root, session, tag string) (string, error) {
+	for range 64 {
+		var nonce [3]byte
+		if _, err := rand.Read(nonce[:]); err != nil {
+			return "", err
+		}
+		relative := filepath.ToSlash(filepath.Join("tmp",
+			"commit-msg-"+session+"-"+tag+"-"+hex.EncodeToString(nonce[:])+".txt"))
+		file, err := os.OpenFile(filepath.Join(root, filepath.FromSlash(relative)), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
+		if errors.Is(err, os.ErrExist) {
+			continue
+		}
+		if err != nil {
+			return "", err
+		}
+		if err := file.Close(); err != nil {
+			return "", err
+		}
+		return relative, nil
+	}
+	return "", errors.New("cannot allocate an unused commit message path")
 }
 
 func allocateScript(root, session, tag string) (string, error) {

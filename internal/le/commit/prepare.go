@@ -148,14 +148,17 @@ func Create(root string, options *Options) (Prepared, error) {
 	if err != nil {
 		return result, err
 	}
-	reserved := options.Tag == ""
+	// nextTag allocates the message file for EVERY tag, named or automatic, so
+	// every path it hands back is this call's reservation and this call owns
+	// cleaning it. An empty one left behind holds a name for nothing.
 	keepReservation := false
 	defer func() {
-		if reserved && !keepReservation {
-			info, statErr := os.Stat(filepath.Join(root, filepath.FromSlash(messagePath)))
-			if statErr == nil && info.Size() == 0 {
-				_ = os.Remove(filepath.Join(root, filepath.FromSlash(messagePath)))
-			}
+		if keepReservation {
+			return
+		}
+		info, statErr := os.Stat(filepath.Join(root, filepath.FromSlash(messagePath)))
+		if statErr == nil && info.Size() == 0 {
+			_ = os.Remove(filepath.Join(root, filepath.FromSlash(messagePath)))
 		}
 	}()
 
