@@ -559,3 +559,83 @@ Five other scenarios fail in the same run (`child-rekey-narrowing`,
 `delete-while-window-held`, `initiator-rekey-answer-narrows`,
 `ipsec-bgp-redistribute-frr`, `peer-reload-narrowing`). They are NOT attributed
 to this spec and were not examined; whether they predate it is unmeasured.
+
+## Progress, 2026-09-06, second session: the eight failures are diagnosed and six are green
+
+**The daemon was right and the CHECKER was wrong.** Every value the three NAT
+scenarios assert was already true. The failing run's own error message carries
+`behind-nat true`, `nat-detected true` and `peer-behind-nat true` on the SA row,
+so the NAT box translates, all four NAT_DETECTION comparisons mismatch, and the
+substitution runs. What could not happen was the ASSERTION matching.
+
+The producer is `assertZeSAField` and `assertZeSelectors`
+(`internal/le/interoplab/ipsec/helpers.go`), which read the TEXT rendering of
+`show vpn ipsec sa` with `(?m)^<field>\s+<value>\s*$`. That answer is a table.
+`applyTableStyled` (`internal/component/command/pipe.go`) orders its columns by
+field name, and a nested `child-sa` key starts a line only while `child-sa` holds
+the first column. `nat-detected` is a header cell and `true` is a row cell, so the
+NAT verdict could never match at all.
+
+**The fix is at the observation.** `zeIKESAs` asks
+`show vpn ipsec sa | json` and decodes the SA records, so each assertion reads the
+field the command produced rather than a cell the renderer placed. Both
+assertions now hold over ONE record, which is stronger than the regex was: a
+`ts-local` from one Child SA and a `ts-remote` from another described a tunnel
+that does not exist. The rule is on `docs/architecture/testing/interop.md` and the
+row is in `plan/journal/green-that-could-not-have-been-red.md`.
+
+**Verdicts after the fix, one scenario per run.**
+
+| Scenario | Before | After | Attribution |
+|----------|--------|-------|-------------|
+| `real-nat-transport-ze-initiator` | FAIL | PASS | the checker, never the daemon |
+| `real-nat-transport-ze-responder` | FAIL | PASS | the checker, never the daemon |
+| `real-nat-tunnel-control` | FAIL | PASS | the checker, never the daemon |
+| `child-rekey-narrowing` | FAIL | PASS | this spec, through the checker: `behind-nat` sorts ahead of `child-sa` and moved every nested key off the line start |
+| `peer-reload-narrowing` | FAIL | PASS | the same |
+| `initiator-rekey-answer-narrows` | FAIL | PASS | the same |
+| `delete-while-window-held` | FAIL | FAIL | PRE-EXISTING, measured |
+| `ipsec-bgp-redistribute-frr` | FAIL | FAIL | PRE-EXISTING, measured |
+
+The two pre-existing failures are `wait for strongswan log "received DELETE for
+ESP CHILD_SA" timed out` and `wait for FRR route 10.200.0.0/24 timed out`. They
+fail identically against a tree carrying this spec's seven engine and CLI files
+reverted to `2e5da6d394^`, so this spec did not cause them. Neither scenario
+configures transport mode or a `nat.conf`, and `substituteResponderSelectors`
+and `substituteInitiatorSelectors` return their input unless
+`transportSelectorsInPlay` and `sa.NATDetected` are both true
+(`internal/component/ike/engine/ts_nat_substitute.go`), so no code this spec added
+runs in either. `2e5da6d394..HEAD` carries another spec over
+`internal/component/ike/` (RFC 4301 SPD discard, `xfrm_linux.go`,
+`engine/register.go`), which is where a reader should look next.
+
+**AC-9, the recorded RED, is now taken.** The same three scenarios were run
+against a tree holding this spec's engine and CLI files reverted, the Ze image
+rebuilt from it, and the fixed checker in place:
+
+```
+real-nat-transport-ze-initiator  FAIL: wait for strongSwan SA ze timed out before the peer became ready
+real-nat-transport-ze-responder  FAIL: wait for strongSwan SA ze timed out before the peer became ready
+real-nat-tunnel-control          FAIL: show vpn ipsec sa reports no IKE SA with nat-detected, behind-nat, peer-behind-nat all true
+```
+
+Without the substitution the transport-mode Child SA never establishes across the
+real NAT, on either role, which is the failure this spec exists to remove. The
+control fails on the verdict fields alone, which is what it is for: its selectors
+are inner addresses no translation moves.
+
+**Where the runs were made, and why it matters.** The main working tree cannot
+build `le` today: `internal/component/bgp/reactor/peer.go` names an undefined
+`staticWireSet` from another session's live edit. Each run therefore used a tree
+extracted from HEAD with only this change applied. HEAD does not compile either,
+because `2e5da6d394` carried an unrelated `cfg.CRLPEM = ca.CRLPEM()` hunk into
+`fsm.go` whose producers are still another session's uncommitted work; that hunk
+was removed in the scratch copy alone and the row is in
+`plan/journal/concurrent-session-corruption.md`.
+
+**Still open.** AC-11 and AC-12 (the QEMU runner), the `.ci` test, and OQ-1 are
+untouched by this session. AC-10's byte-counter half is met: each of the three
+checkers ends in `verifyESPDirectionsToward` over `natESPDirections`, and
+`assertESPAdvanced` (`internal/le/interoplab/ipsec/helpers.go`) refuses unless the
+XFRM byte counter of a surviving SPI GREW across the ping, in all four simplex
+directions, `swanDecryptsNAT` and `zeDecryptsNAT` among them.

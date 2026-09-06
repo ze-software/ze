@@ -632,18 +632,65 @@ func shellQuote(value string) string {
 	return tb.Byte('\'').String()
 }
 
+// assertZeSelectors refuses unless ONE Child SA of `show vpn ipsec sa` carries both
+// selectors. The pair is asserted on one Child SA rather than anywhere in the answer,
+// because a local half from one SA and a remote half from another describe a tunnel
+// that does not exist.
 func (l *scenarioLab) assertZeSelectors(ctx context.Context, local, remote string) error {
-	output, err := l.zeCLI(ctx, "show vpn ipsec sa")
+	records, answer, err := l.zeIKESAs(ctx)
 	if err != nil {
 		return err
 	}
-	for field, value := range map[string]string{"ts-local": local, "ts-remote": remote} {
-		pattern := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(field) + `\s+` + regexp.QuoteMeta(value) + `\s*$`)
-		if !pattern.MatchString(output) {
-			return fmt.Errorf("show vpn ipsec sa does not report %s %s; output: %s", field, value, output)
+	for _, record := range records {
+		child, ok := record["child-sa"].(map[string]any)
+		if !ok {
+			continue
+		}
+		if child["ts-local"] != local {
+			continue
+		}
+		if child["ts-remote"] == remote {
+			return nil
 		}
 	}
-	return nil
+	return fmt.Errorf("show vpn ipsec sa reports no child sa with ts-local %s and ts-remote %s; answer: %s",
+		local, remote, answer)
+}
+
+// zeIKESAs returns the IKE SAs `show vpn ipsec sa` reports, and the answer they were
+// decoded from.
+//
+// It reads the command's STRUCTURED answer, which is the only shape a checker can
+// assert on. The text rendering is a table whose column order follows the field names
+// (ApplyPipes, internal/component/command/pipe.go), so a line-anchored `<field> <value>`
+// regex over it matches by accident: adding one field re-sorts the columns and moves
+// every nested Child SA key off the line start. That is what it did on 2026-09-06, when
+// `behind-nat` took first place from `child-sa` and turned three green scenarios red
+// with no daemon behavior changed.
+//
+// `| json` unwraps the single-key `peers` envelope into the list of SA records
+// (unwrapSingleKeyArray, pipe.go), so the answer decodes as a list. A shape that does
+// not decode is an error naming the answer, never an empty list: a checker that read
+// zero SAs out of an unparsed answer would pass every "no SA reports X" assertion.
+func (l *scenarioLab) zeIKESAs(ctx context.Context) ([]map[string]any, string, error) {
+	answer, err := l.zeCLI(ctx, "show vpn ipsec sa | json")
+	if err != nil {
+		return nil, answer, err
+	}
+	records, err := decodeIKESAs(answer)
+	return records, answer, err
+}
+
+// decodeIKESAs decodes the answer of `show vpn ipsec sa | json` into its SA records.
+//
+// It is separate from the query so a test can drive it with an answer the lab really
+// produced, including the TEXT rendering the checkers read until 2026-09-06.
+func decodeIKESAs(answer string) ([]map[string]any, error) {
+	var records []map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(answer)), &records); err != nil {
+		return nil, fmt.Errorf("show vpn ipsec sa | json is not a list of IKE SAs: %w; answer: %s", err, answer)
+	}
+	return records, nil
 }
 
 func (l *scenarioLab) reloadZe(ctx context.Context, source string) error {
@@ -880,20 +927,9 @@ var (
 // natESPDirections follows one round trip across the translated path.
 var natESPDirections = []espDirection{zeEncryptsNAT, swanDecryptsNAT, swanEncryptsNAT, zeDecryptsNAT}
 
-// assertZeSAField refuses unless `show vpn ipsec sa` reports one IKE SA field with one
-// value. It is the operator-visible half of a NAT verdict: an SA that established with
-// the wrong verdict recorded would still pass every reachability assertion.
-func (l *scenarioLab) assertZeSAField(ctx context.Context, field, value string) error {
-	output, err := l.zeCLI(ctx, "show vpn ipsec sa")
-	if err != nil {
-		return err
-	}
-	pattern := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(field) + `\s+` + regexp.QuoteMeta(value) + `\s*$`)
-	if !pattern.MatchString(output) {
-		return fmt.Errorf("show vpn ipsec sa does not report %s %s; output: %s", field, value, output)
-	}
-	return nil
-}
+// natVerdictFields are the three NAT facts `show vpn ipsec sa` reports, and every one of
+// them is asserted on ONE IKE SA.
+var natVerdictFields = []string{"nat-detected", "behind-nat", "peer-behind-nat"}
 
 // assertNATVerdict refuses unless Ze recorded a NAT on the path AND recorded which side
 // each translation is on.
@@ -902,17 +938,41 @@ func (l *scenarioLab) assertZeSAField(ctx context.Context, field, value string) 
 // client is behind a NAT and the TSr address when the server is. A scenario that asserted
 // only nat-detected would pass while the two side fields stayed false, and the
 // substitution would be a no-op with a green bar over it.
+//
+// It is the operator-visible half of the verdict: an SA that established with the wrong
+// verdict recorded would still pass every reachability assertion.
 func (l *scenarioLab) assertNATVerdict(ctx context.Context) error {
-	for field, value := range map[string]string{
-		"nat-detected":    "true",
-		"behind-nat":      "true",
-		"peer-behind-nat": "true",
-	} {
-		if err := l.assertZeSAField(ctx, field, value); err != nil {
-			return err
+	records, answer, err := l.zeIKESAs(ctx)
+	if err != nil {
+		return err
+	}
+	for _, record := range records {
+		if saFlagsTrue(record, natVerdictFields) {
+			return nil
 		}
 	}
-	return nil
+	return fmt.Errorf("show vpn ipsec sa reports no IKE SA with %s all true; answer: %s",
+		strings.Join(natVerdictFields, ", "), answer)
+}
+
+// saFlagsTrue reports whether one IKE SA record carries every named field as the boolean
+// true.
+//
+// A field the answer does not carry is NOT true. `show vpn ipsec sa` declares all three
+// NAT fields on every record (saToMap, internal/component/ike/cmd/show_ipsec.go), so an
+// absent one is a changed contract rather than a false verdict, and the caller's error
+// carries the whole answer for the reader to see which it was.
+func saFlagsTrue(record map[string]any, fields []string) bool {
+	for _, field := range fields {
+		value, ok := record[field].(bool)
+		if !ok {
+			return false
+		}
+		if !value {
+			return false
+		}
+	}
+	return true
 }
 
 // natInnerAddress installs one inner address on a peer's loopback and the host route that

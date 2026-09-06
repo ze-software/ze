@@ -905,3 +905,100 @@ func TestEveryStrongSwanPeerMountsTheSharedLabDropIn(t *testing.T) {
 		}
 	}
 }
+
+// TestIKESAAnswerDecodesJSONAndRefusesTheTable holds the checkers to the STRUCTURED
+// answer of `show vpn ipsec sa`. It drives decodeIKESAs with both answers the lab really
+// produced on 2026-09-06: the `| json` list, and the text table the assertions read until
+// that day.
+//
+// The table arm is the one that matters. It must produce an ERROR rather than an empty
+// list, because a checker that read zero SAs out of an unparsed answer would pass every
+// "no SA reports X" assertion it makes.
+func TestIKESAAnswerDecodesJSONAndRefusesTheTable(t *testing.T) {
+	const jsonAnswer = `[
+  {
+    "behind-nat": true,
+    "child-sa": {
+      "esp-encryption": "aes256gcm",
+      "ts-local": "10.10.0.1/32",
+      "ts-remote": "10.20.0.1/32"
+    },
+    "nat-detected": true,
+    "peer-behind-nat": true,
+    "peer-name": "swan",
+    "state": "established"
+  }
+]`
+
+	records, err := decodeIKESAs(jsonAnswer)
+	if err != nil {
+		t.Fatalf("the json answer did not decode: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("the json answer decoded to %d IKE SAs, want 1", len(records))
+	}
+	child, ok := records[0]["child-sa"].(map[string]any)
+	if !ok {
+		t.Fatalf("the decoded SA carries no child-sa map: %v", records[0])
+	}
+	if child["ts-local"] != "10.10.0.1/32" {
+		t.Errorf("child-sa ts-local decoded as %v, want 10.10.0.1/32", child["ts-local"])
+	}
+
+	// The first two lines of the text rendering, as the failing run of 2026-09-06
+	// printed them. behind-nat holds the first column, which is what moved every nested
+	// child-sa key off the line start.
+	const tableAnswer = "behind-nat  child-sa        created-at            peer-name\n" +
+		"false       bytes-in        0             2026-09-06T19:35:38Z  swan\n" +
+		"            ts-local        10.2.0.0/24\n"
+
+	tableRecords, tableErr := decodeIKESAs(tableAnswer)
+	if tableErr == nil {
+		t.Fatalf("the text table decoded as IKE SAs: %v", tableRecords)
+	}
+	if tableRecords != nil {
+		t.Errorf("the refused answer still yielded %d records", len(tableRecords))
+	}
+	if !strings.Contains(tableErr.Error(), "10.2.0.0/24") {
+		t.Errorf("the refusal does not carry the answer it refused: %v", tableErr)
+	}
+}
+
+// TestNATVerdictNeedsEveryFieldTrueOnOneSA pins what assertNATVerdict asks of one IKE SA
+// record. RFC 7296 Section 2.23.1 is written per side, so a run where nat-detected alone
+// is true carries no verdict about which end is translated, and a field the answer does
+// not carry is a changed contract rather than a false verdict.
+func TestNATVerdictNeedsEveryFieldTrueOnOneSA(t *testing.T) {
+	for _, testCase := range []struct {
+		name   string
+		record map[string]any
+		want   bool
+	}{
+		{
+			name:   "every field true",
+			record: map[string]any{"nat-detected": true, "behind-nat": true, "peer-behind-nat": true},
+			want:   true,
+		},
+		{
+			name:   "one side false",
+			record: map[string]any{"nat-detected": true, "behind-nat": true, "peer-behind-nat": false},
+			want:   false,
+		},
+		{
+			name:   "one field absent",
+			record: map[string]any{"nat-detected": true, "behind-nat": true},
+			want:   false,
+		},
+		{
+			name:   "the field is the string a table cell holds",
+			record: map[string]any{"nat-detected": "true", "behind-nat": "true", "peer-behind-nat": "true"},
+			want:   false,
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			if got := saFlagsTrue(testCase.record, natVerdictFields); got != testCase.want {
+				t.Errorf("saFlagsTrue = %t, want %t for %v", got, testCase.want, testCase.record)
+			}
+		})
+	}
+}
