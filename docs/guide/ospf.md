@@ -56,6 +56,33 @@ and `ze_ospf_ptmp_host_routes{interface,af}` metrics track NBMA/PtMP operation.
 <!-- source: internal/plugins/ospf/lsdb/origination.go -- routerLinks PtMP host route -->
 <!-- source: internal/plugins/ospf/origination_v6.go -- v6RouterLSABody, v6InterfacePrefixes /128 host route -->
 
+## Interface cost
+
+The cost an interface advertises in its Router-LSA link is the `cost` leaf when the interface sets one. An interface that sets none is priced by the auto-cost convention: `reference-bandwidth` divided by the speed of the link, both in Mbit/s. Under the default reference bandwidth of 100000 a 10 Gbit/s link costs 10, a 1 Gbit/s link costs 100 and a 100 Mbit/s link costs 1000, so a faster path wins with no per-interface configuration. Raise `reference-bandwidth` to spread the costs of a fast network further apart; lower it to compress them.
+
+```
+ospf {
+    router-id 10.0.0.1
+    reference-bandwidth 400000
+    interfaces {
+        interface eth0 {
+            area 0.0.0.0
+        }
+        interface eth1 {
+            area 0.0.0.0
+            cost 5
+        }
+    }
+}
+```
+
+The quotient is clamped to the range a Router-LSA link metric carries, 1 to 65535: RFC 2328 Appendix C.3 states that the interface output cost "must always be greater than 0", and the wire field is two octets wide. A link at or above the reference bandwidth therefore costs 1, and a link slow enough to exceed 65535 is capped there.
+
+The speed comes from the kernel, and which devices answer is the kernel's decision: a loopback, a dummy and a tunnel report none, a bridge and any link with no carrier report a negative speed, and a veth reports 10000 because its driver declares 10 Gbit/s. An interface with no reported speed costs 1, which is what Ze advertised for every unconfigured interface before auto-cost existed. Set `cost` on it to price it deliberately. The speed is read again on each origination pass rather than cached, so a link that renegotiates re-prices itself on the next pass; changing `reference-bandwidth` restarts the interfaces it re-prices and leaves an explicitly-costed interface alone. The same cost is what `show ospf interface` reports, what an LDP-IGP sync hold-down raises to `65535`, and what the RFC 3630 TE metric falls back to when `te-metric` is unset.
+<!-- source: internal/plugins/ospf/interface_cost.go -- interfaceCost, interfaceLinkSpeedMbps -->
+<!-- source: internal/plugins/ospf/types/metric.go -- DefaultMetric -->
+<!-- source: internal/plugins/ospf/instance.go -- interfaceRuntimeConfigLocked, lsdbTopology, interfaceGlobalParamsChanged -->
+
 ## Multiple address families (RFC 5838)
 
 The OSPFv3 (IPv6) family carries several address families over one link, each as a separate

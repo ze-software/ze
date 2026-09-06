@@ -817,7 +817,7 @@ func (e *engine) reconcile(newCfg ospfConfig) reconcileResult {
 			if !want.Passive && want.NetworkType != networkLoopback {
 				res.opened = append(res.opened, name)
 			}
-		case !interfaceParamsEqual(have, want) || interfaceGlobalParamsChanged(oldCfg, newCfg, want.AreaID):
+		case !interfaceParamsEqual(have, want) || interfaceGlobalParamsChanged(oldCfg, newCfg, want):
 			if !have.Passive && have.NetworkType != networkLoopback && (want.Passive || want.NetworkType == networkLoopback) && e.transport != nil {
 				e.transport.DisableInterface(name)
 			}
@@ -925,10 +925,6 @@ func (e *engine) interfaceRuntimeConfigLocked(ic interfaceConfig) ospfiface.Conf
 			break
 		}
 	}
-	cost := ic.Cost
-	if !ic.HasCost {
-		cost = 1
-	}
 	return ospfiface.Config{
 		Name:               ic.Name,
 		RouterID:           e.cfg.RouterID,
@@ -937,7 +933,7 @@ func (e *engine) interfaceRuntimeConfigLocked(ic interfaceConfig) ospfiface.Conf
 		NetworkType:        string(ic.NetworkType),
 		NetworkMask:        interfaceNetworkMask(ic.Name),
 		InterfaceAddress:   interfaceIPv4Address(ic.Name),
-		Cost:               cost,
+		Cost:               interfaceCost(ic, e.cfg.ReferenceBandwidth),
 		HelloInterval:      ic.HelloInterval,
 		DeadInterval:       ic.DeadInterval,
 		Priority:           ic.Priority,
@@ -1202,8 +1198,19 @@ func interfaceParamsEqual(a, b interfaceConfig) bool {
 		a.LDPSyncHoldDown == b.LDPSyncHoldDown
 }
 
-func interfaceGlobalParamsChanged(oldCfg, newCfg ospfConfig, areaID types.AreaID) bool {
-	return oldCfg.RouterID != newCfg.RouterID || areaTypeFor(oldCfg, areaID) != areaTypeFor(newCfg, areaID)
+// interfaceGlobalParamsChanged reports whether a config change outside an interface's own
+// block changes what that interface advertises, so reconcile restarts it. The Router ID and
+// the area type are stamped into every packet it originates. The reference bandwidth is the
+// auto-cost numerator, so it re-prices an interface that configures no cost of its own; an
+// interface with an explicit `cost` keeps that cost and is left alone rather than bounced.
+func interfaceGlobalParamsChanged(oldCfg, newCfg ospfConfig, ic interfaceConfig) bool {
+	if oldCfg.RouterID != newCfg.RouterID {
+		return true
+	}
+	if areaTypeFor(oldCfg, ic.AreaID) != areaTypeFor(newCfg, ic.AreaID) {
+		return true
+	}
+	return !ic.HasCost && oldCfg.ReferenceBandwidth != newCfg.ReferenceBandwidth
 }
 
 func areaTypeFor(cfg ospfConfig, areaID types.AreaID) areaType {
@@ -1297,10 +1304,6 @@ func (e *engine) lsdbTopology() []ospflsdb.InterfaceInfo {
 			dr = ifc.DR()
 			bdr = ifc.BDR()
 		}
-		cost := ic.Cost
-		if !ic.HasCost {
-			cost = 1
-		}
 		floodNeighbors := e.neighbors.FloodNeighbors(ic.Name)
 		neighbors := make([]ospflsdb.NeighborInfo, 0, len(floodNeighbors))
 		for _, n := range floodNeighbors {
@@ -1329,7 +1332,7 @@ func (e *engine) lsdbTopology() []ospflsdb.InterfaceInfo {
 			Address:            interfaceIPv4Address(ic.Name),
 			NetworkMask:        interfaceNetworkMask(ic.Name),
 			InterfaceID:        e.grInterfaceID(ic.Name),
-			Cost:               cost,
+			Cost:               interfaceCost(ic, cfg.ReferenceBandwidth),
 			RouterID:           cfg.RouterID,
 			Options:            ospfOptionsForAreaType(areaKind),
 			DR:                 dr,

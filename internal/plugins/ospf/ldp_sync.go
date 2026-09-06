@@ -530,13 +530,9 @@ func (e *engine) updateLDPSyncMachines() {
 		if !ic.LDPSyncEnabled {
 			continue
 		}
-		cost := ic.Cost
-		if !ic.HasCost {
-			cost = 1
-		}
 		desired[ic.Name] = ldpSyncConfig{
 			HoldDown:    time.Duration(ic.LDPSyncHoldDown) * time.Second,
-			Cost:        cost,
+			Cost:        interfaceCost(ic, e.cfg.ReferenceBandwidth),
 			NetworkType: string(ic.NetworkType),
 		}
 	}

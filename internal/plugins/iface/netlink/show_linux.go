@@ -177,16 +177,19 @@ func macvlanModeName(mode netlink.MacvlanMode) string {
 }
 
 // LinkSpeedDuplex reads the link speed (Mbit/s) and duplex from sysfs, the
-// ethtool-backed values the kernel exposes without an ioctl. Both files are
-// absent or unreadable for virtual devices and report a negative speed /
-// "unknown" duplex for a down link; in every such case this returns the zero
-// value (0, "").
+// ethtool-backed values the kernel exposes without an ioctl. Which devices
+// answer is the kernel's decision, not a property of being virtual: a loopback
+// and a dummy have no readable `speed` file at all, a bridge reports -1, and a
+// veth reports 10000 because its driver declares 10 Gbit/s full duplex. A down
+// link reports a negative speed and an "unknown" duplex. In every case that is
+// not a positive speed this returns the zero value (0, "").
 //
 // This is deliberately NOT called from linkToInfo: that would put two sysfs
 // reads per interface on every ListInterfaces call (the 1Hz rate-tracker tick,
-// every show/web/health caller), even when nothing consumes the values. Only
-// the flow-export counter snapshot needs ifSpeed/ifDirection, so only it calls
-// this -- and only when flow-export is configured.
+// every show/web/health caller), even when nothing consumes the values. Each
+// consumer calls it for itself instead: the flow-export counter snapshot needs
+// ifSpeed/ifDirection, and OSPF auto-cost divides the reference bandwidth by
+// this speed to price an interface that configures no cost.
 func (b *netlinkBackend) LinkSpeedDuplex(name string) (int, string) {
 	speedRaw := ""
 	if data, err := os.ReadFile("/sys/class/net/" + name + "/speed"); err == nil { //nolint:gosec // fixed /sys/class/net base plus a kernel interface name; read-only sysfs

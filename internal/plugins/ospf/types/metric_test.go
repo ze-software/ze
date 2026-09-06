@@ -53,24 +53,39 @@ func TestMetricString(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-8 - default cost uses reference bandwidth divided by interface bandwidth, floored at 1.
-// PREVENTS: high-speed interfaces deriving an invalid zero metric.
+// VALIDATES: AC-8 - default cost uses reference bandwidth divided by link speed, clamped
+// into the Router-LSA metric range.
+// PREVENTS: a high-speed interface deriving an invalid zero metric, and a slow interface
+// under a large reference bandwidth deriving a cost the two-octet wire field cannot carry.
 func TestDefaultMetric(t *testing.T) {
-	fast, err := DefaultMetric(DefaultReferenceBandwidth, 1000000000)
-	if err != nil {
-		t.Fatalf("DefaultMetric fast returned error: %v", err)
+	// Both operands are Mbit/s. The reference bandwidth is the ze-ospf-conf.yang default.
+	const referenceMbps = 100000
+	cases := []struct {
+		name          string
+		linkSpeedMbps uint64
+		want          Metric
+	}{
+		{name: "100G reaches the floor", linkSpeedMbps: 100000, want: Metric(MetricMin)},
+		{name: "400G stays at the floor", linkSpeedMbps: 400000, want: Metric(MetricMin)},
+		{name: "10G", linkSpeedMbps: 10000, want: 10},
+		{name: "1G", linkSpeedMbps: 1000, want: 100},
+		{name: "100M", linkSpeedMbps: 100, want: 1000},
+		{name: "10M", linkSpeedMbps: 10, want: 10000},
+		{name: "1M reaches the ceiling", linkSpeedMbps: 1, want: Metric(MetricMax)},
 	}
-	if fast != Metric(1) {
-		t.Fatalf("fast DefaultMetric = %d, want 1", fast)
+	for _, tc := range cases {
+		got, err := DefaultMetric(referenceMbps, tc.linkSpeedMbps)
+		if err != nil {
+			t.Fatalf("%s: DefaultMetric(%d, %d) returned error: %v", tc.name, referenceMbps, tc.linkSpeedMbps, err)
+		}
+		if got != tc.want {
+			t.Errorf("%s: DefaultMetric(%d, %d) = %d, want %d", tc.name, referenceMbps, tc.linkSpeedMbps, got, tc.want)
+		}
 	}
-	ten, err := DefaultMetric(DefaultReferenceBandwidth, 10000000)
-	if err != nil {
-		t.Fatalf("DefaultMetric 10M returned error: %v", err)
+	if _, err := DefaultMetric(referenceMbps, 0); err == nil {
+		t.Fatalf("DefaultMetric with an unknown link speed succeeded, want an error")
 	}
-	if ten != Metric(10) {
-		t.Fatalf("10M DefaultMetric = %d, want 10", ten)
-	}
-	if _, err := DefaultMetric(DefaultReferenceBandwidth, 0); err == nil {
-		t.Fatalf("DefaultMetric with zero bandwidth succeeded")
+	if _, err := DefaultMetric(0, 1000); err == nil {
+		t.Fatalf("DefaultMetric with a zero reference bandwidth succeeded, want an error")
 	}
 }

@@ -105,7 +105,7 @@ func (e *engine) teOriginateType1(router types.RouterID) []opaqueOrigination {
 		if !up {
 			continue
 		}
-		link, ok := buildIntraTELink(router, ic, info)
+		link, ok := buildIntraTELink(router, ic, info, cfg.ReferenceBandwidth)
 		if !ok {
 			continue // R-4: refuse a Link TLV without a usable Link Type + Link ID.
 		}
@@ -183,7 +183,7 @@ func (e *engine) teOriginateType6(router types.RouterID) []opaqueOrigination {
 		if ic.TE == nil || ic.TE.InterAS == nil {
 			continue
 		}
-		link := buildInterASTELink(ic, topo[name])
+		link := buildInterASTELink(ic, topo[name], cfg.ReferenceBandwidth)
 		inst := o.instanceFor(name, true)
 		scope := ic.TE.InterAS.Scope
 		// A Type-11 (AS-wide) inter-AS LSA uses the backbone as its sequence-key area
@@ -249,7 +249,7 @@ func sortedAreaIDs(m map[types.AreaID]bool) []types.AreaID {
 // ok is false when the mandatory Link Type / Link ID cannot be filled (no Full neighbor on
 // a point-to-point link, or no known DR on a multi-access link), so origination refuses to
 // emit a malformed Link TLV (R-4).
-func buildIntraTELink(self types.RouterID, ic interfaceConfig, info ospflsdb.InterfaceInfo) (packet.TELink, bool) {
+func buildIntraTELink(self types.RouterID, ic interfaceConfig, info ospflsdb.InterfaceInfo, referenceBandwidthMbps uint32) (packet.TELink, bool) {
 	if info.State == ospflsdb.InterfaceStateDown {
 		return packet.TELink{}, false
 	}
@@ -279,14 +279,14 @@ func buildIntraTELink(self types.RouterID, ic interfaceConfig, info ospflsdb.Int
 	if info.Address != ([4]byte{}) {
 		link.LocalIPs = [][4]byte{info.Address}
 	}
-	applyTELinkAttributes(&link, ic)
+	applyTELinkAttributes(&link, ic, referenceBandwidthMbps)
 	return link, true
 }
 
 // buildInterASTELink builds an RFC 5392 inter-AS Link TLV: point-to-point Link Type, NO
 // Link ID (sec 3.2.1 prohibited), the Remote AS Number + Remote ASBR ID(s), and the local
 // interface address when known. The normal TE attributes are carried too (sec 4).
-func buildInterASTELink(ic interfaceConfig, info ospflsdb.InterfaceInfo) packet.TELink {
+func buildInterASTELink(ic interfaceConfig, info ospflsdb.InterfaceInfo, referenceBandwidthMbps uint32) packet.TELink {
 	ia := ic.TE.InterAS
 	link := packet.TELink{HasLinkType: true, LinkType: packet.TELinkTypePointToPoint}
 	link.HasRemoteAS = ia.HasRemoteAS
@@ -298,22 +298,23 @@ func buildInterASTELink(ic interfaceConfig, info ospflsdb.InterfaceInfo) packet.
 	if info.Address != ([4]byte{}) {
 		link.LocalIPs = [][4]byte{info.Address}
 	}
-	applyTELinkAttributes(&link, ic)
+	applyTELinkAttributes(&link, ic, referenceBandwidthMbps)
 	return link
 }
 
 // applyTELinkAttributes fills the RFC 3630 sec 2.5 link attributes from config. The TE
 // metric defaults to the standard OSPF interface cost when unset (RFC 3630 sec 2.5.5, AC-19)
-// but an explicit te-metric is used verbatim and does not change the cost. The Maximum
-// Reservable Bandwidth defaults to the Maximum Bandwidth (sec 2.5.7), and the eight
-// Unreserved values initialize to the Maximum Reservable (sec 2.5.8).
-func applyTELinkAttributes(link *packet.TELink, ic interfaceConfig) {
+// -- the same cost the Router-LSA advertises for this link, auto-cost included -- but an
+// explicit te-metric is used verbatim and does not change the cost. The Maximum Reservable
+// Bandwidth defaults to the Maximum Bandwidth (sec 2.5.7), and the eight Unreserved values
+// initialize to the Maximum Reservable (sec 2.5.8).
+func applyTELinkAttributes(link *packet.TELink, ic interfaceConfig, referenceBandwidthMbps uint32) {
 	te := ic.TE
 	link.HasTEMetric = true
 	if te.HasMetric {
 		link.TEMetric = te.Metric
 	} else {
-		link.TEMetric = uint32(interfaceCost(ic))
+		link.TEMetric = uint32(interfaceCost(ic, referenceBandwidthMbps))
 	}
 	if te.HasMaxBandwidth {
 		link.HasMaxBandwidth = true
@@ -419,15 +420,6 @@ func drInterfaceAddress(self types.RouterID, info ospflsdb.InterfaceInfo) ([4]by
 		}
 	}
 	return [4]byte{}, false
-}
-
-// interfaceCost returns the effective OSPF output cost (default 1 when unset), the value the
-// TE metric falls back to (RFC 3630 sec 2.5.5).
-func interfaceCost(ic interfaceConfig) uint16 {
-	if ic.HasCost {
-		return ic.Cost
-	}
-	return 1
 }
 
 // lessAreaID orders two Area IDs by their 4-octet big-endian value.

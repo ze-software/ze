@@ -22,6 +22,20 @@ lifecycle callbacks, transport enrolment and config validation.
   <!-- source: internal/plugins/ospf/dispatcher.go -- dispatcher -->
 - **The Go parser enforces the IPv4 range as well as YANG.** Unit tests and SDK
   paths call the resolver directly, outside native YANG validation.
+- **One function answers what an interface costs, and every consumer calls it.**
+  The Router-LSA topology, the `show ospf interface` runtime config, the
+  LDP-sync restore value and the RFC 3630 TE metric fallback each need the same
+  number, and each of them held its own copy of the "cost, or 1 when unset"
+  rule before auto-cost existed. Auto-cost has two more cases (an unknown link
+  speed and an unset reference bandwidth), so four copies would have been four
+  chances to price a link differently from the LSA that advertises it.
+  <!-- source: internal/plugins/ospf/interface_cost.go -- interfaceCost -->
+- **The link speed is read on each origination pass, not cached.** A link
+  renegotiates while OSPF runs, and a cached speed needs an invalidation path
+  from the iface component into the plugin that nothing else in the plugin
+  needs. Re-reading costs two sysfs reads per interface, beside the netlink
+  address dumps `lsdbTopology` already performs on the same pass.
+  <!-- source: internal/plugins/ospf/interface_cost.go -- interfaceLinkSpeedMbps -->
 
 ## Constraints on callers
 
@@ -50,3 +64,14 @@ lifecycle callbacks, transport enrolment and config validation.
 - A slow `HandleLinkUp` races `DisableInterface`. Recheck `enabled` under the
   transport lock before publishing the socket, or the interface stays joined
   after removal.
+- A `reference-bandwidth` change re-prices an interface that configures no
+  `cost`, so `interfaceGlobalParamsChanged` must restart it the way a Router ID
+  or area-type change does. It takes the whole `interfaceConfig` rather than the
+  Area ID alone for that reason: an interface with an explicit `cost` keeps its
+  cost and must NOT be bounced.
+  <!-- source: internal/plugins/ospf/instance.go -- interfaceGlobalParamsChanged -->
+- No synthetic device reports a link speed. A veth, a dummy and a bond each
+  expose no `speed` file in sysfs, so a test that wants a speed replaces
+  `interfaceLinkSpeedMbps` and a test that forgets to silently exercises the
+  unknown-speed branch instead.
+  <!-- source: internal/plugins/ospf/interface_cost_test.go -- stubLinkSpeed -->

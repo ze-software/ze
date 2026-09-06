@@ -13,8 +13,6 @@ const (
 	MetricMin uint32 = 1
 	// MetricMax is the highest valid 16-bit OSPF interface output cost.
 	MetricMax uint32 = 65535
-	// DefaultReferenceBandwidth is the common 100 Mbps reference bandwidth in bits per second.
-	DefaultReferenceBandwidth uint64 = 100000000
 )
 
 // Metric is the 16-bit OSPF interface output cost.
@@ -40,15 +38,22 @@ func MetricFromBytes(b []byte) (Metric, error) {
 	return Metric(uint32(b[0])<<8 | uint32(b[1])), nil
 }
 
-// DefaultMetric derives the default cost as referenceBandwidth/interfaceBandwidth, floored at 1.
-func DefaultMetric(referenceBandwidth, interfaceBandwidth uint64) (Metric, error) {
-	if referenceBandwidth == 0 || interfaceBandwidth == 0 {
+// DefaultMetric derives an interface output cost from the auto-cost convention: the
+// reference bandwidth divided by the speed of the link, both in Mbit/s. The division
+// truncates towards zero, so a link at or above the reference bandwidth reaches the
+// floor. The quotient is clamped into the range a Router-LSA link metric can carry:
+// MetricMin at the bottom, because RFC 2328 Appendix C.3 states the interface output
+// cost "must always be greater than 0", and MetricMax at the top, because the wire
+// field is two octets wide.
+//
+// A zero operand has no quotient and returns ErrOutOfRange. The kernel reports no speed
+// for a virtual device or a down link, so that case is normal rather than exceptional,
+// and the caller decides what an interface of unknown speed costs.
+func DefaultMetric(referenceBandwidthMbps, linkSpeedMbps uint64) (Metric, error) {
+	if referenceBandwidthMbps == 0 || linkSpeedMbps == 0 {
 		return 0, ErrOutOfRange
 	}
-	cost := max(referenceBandwidth/interfaceBandwidth, uint64(MetricMin))
-	if cost > uint64(MetricMax) {
-		return 0, ErrOutOfRange
-	}
+	cost := min(max(referenceBandwidthMbps/linkSpeedMbps, uint64(MetricMin)), uint64(MetricMax))
 	return Metric(cost), nil
 }
 

@@ -517,11 +517,15 @@ highest loopback IPv4 address first, then the highest interface IPv4 address.";
             units Mbps;
             description "Auto-cost reference bandwidth in Mbps.";
             ze:help "The unit is Mbps, the range is 1 to 4294967, and the default is 100000.
-The auto-cost convention divides this bandwidth by the speed of a link to derive the cost of
-that link. RFC 2328 Appendix C.3 states that the interface output cost 'must always be
-greater than 0' and defines no automatic derivation from a link speed. Ze reads the speed of
-no link: an interface takes the cost of `interfaces/interface/cost`, and an absent cost leaf
-takes 1. This leaf changes no advertised metric.";
+Ze divides this bandwidth by the speed of a link to derive the cost of that link, so under
+the default a 10 Gbit/s link costs 10 and a 1 Gbit/s link costs 100. An interface that sets
+`interfaces/interface/cost` keeps that cost and is not derived. The quotient is clamped to
+the range a Router-LSA link metric carries, 1 to 65535, because RFC 2328 Appendix C.3 states
+that the interface output cost 'must always be greater than 0' and the wire field is two
+octets wide. A link whose speed the kernel does not report costs 1, which covers a loopback,
+a dummy, a tunnel and a link with no carrier; a veth reports 10000 and is derived like a real
+NIC. The speed is read again on each origination pass, so a link that renegotiates re-prices
+itself.";
         }
 
         leaf maximum-paths {
