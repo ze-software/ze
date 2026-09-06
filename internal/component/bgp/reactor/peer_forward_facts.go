@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/network"
 )
@@ -246,6 +247,74 @@ func secondaryPrependAS(s *PeerSettings) uint32 {
 		return 0
 	}
 	return s.GlobalLocalAS
+}
+
+// localASPrepend is the AS numbers ONE egress rail prepends toward ONE peer,
+// outermost first: the per-peer local AS, then the globally configured AS
+// number behind it when RFC 7705 Section 3.3 owes both.
+//
+// It exists so the two rails cannot disagree. The forward rails read
+// secondaryPrependAS once per settings change and cache the answer on the facts
+// snapshot (facts.secondaryAS). The announce rail cannot: its queue branch runs
+// for a peer whose session is not established (shouldQueue, peer.go), and that
+// is exactly when p.fwdFacts holds nil, because clearEncodingContexts stores nil
+// on teardown and only setEncodingContexts puts one back. So the announce rail
+// asks the same FUNCTION rather than reading the cached value, and this type is
+// what carries the pair through its builders without either rail spelling the
+// rule a second time.
+//
+// The zero value is not a valid prepend. Every construction goes through
+// localASPrependFor or localASOnly.
+type localASPrepend struct {
+	// primary is the AS number the peer expects adjacent to itself: the per-peer
+	// local-as override where one is configured, otherwise the router's own AS.
+	primary uint32
+	// secondary is the globally configured AS number, sitting BEHIND primary, or
+	// zero when one AS number is prepended.
+	secondary uint32
+}
+
+// localASPrependFor answers what this peer's settings owe on an egress prepend.
+func localASPrependFor(s *PeerSettings) localASPrepend {
+	return localASPrepend{primary: s.LocalAS, secondary: secondaryPrependAS(s)}
+}
+
+// localASOnly is the single-AS prepend, for a caller that has an AS number and
+// no peer settings behind it.
+func localASOnly(asn uint32) localASPrepend {
+	return localASPrepend{primary: asn}
+}
+
+// owed reports whether there is an AS number to prepend at all. A zero primary
+// is the "no local AS known" case the announce rail already refused to prepend
+// on, and it stays refused.
+func (p localASPrepend) owed() bool {
+	return p.primary != 0
+}
+
+// asns appends this prepend's AS numbers to dst, OUTERMOST first, and returns
+// the extended slice. dst is normally a stack array, so the announce path stays
+// allocation-free.
+//
+// Outermost first is this rail's order: every builder in reactor_api_batch.go
+// writes asns[0] closest to the peer. The forward rail's wireu.ASPathIntent
+// carries the reverse, innermost first, because it prepends one at a time.
+func (p localASPrepend) asns(dst []uint32) []uint32 {
+	dst = append(dst, p.primary)
+	if p.secondary == 0 {
+		return dst
+	}
+	return append(dst, p.secondary)
+}
+
+// prependTo inserts this prepend's AS numbers in front of path, leaving the
+// outermost one first. It prepends the innermost first because ASPath.Prepend
+// pushes onto the front.
+func (p localASPrepend) prependTo(path *attribute.ASPath) {
+	if p.secondary != 0 {
+		path.Prepend(p.secondary)
+	}
+	path.Prepend(p.primary)
 }
 
 // precomputeNextHop fixes the next-hop wire form this peer will send, from

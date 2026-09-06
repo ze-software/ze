@@ -112,7 +112,7 @@ func buildPreserveBatchRail(t *testing.T, c preserveCase) []byte {
 
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: 65000}}}
 	update, _ := adapter.buildBatchAnnounceUpdate(make([]byte, message.MaxMsgLen), make([]byte, message.MaxMsgLen),
-		batch, netip.MustParseAddr(c.nextHop), c.isIBGP, false /*rsClient*/, true /*asn4*/, false /*addPath*/, 65000, false /*propagatePrefixSID*/)
+		batch, netip.MustParseAddr(c.nextHop), c.isIBGP, false /*rsClient*/, true /*asn4*/, false /*addPath*/, localASOnly(65000), false /*propagatePrefixSID*/)
 	require.NotNil(t, update)
 	return update.PathAttributes
 }
@@ -147,7 +147,7 @@ func buildPreserveQueuedRail(t *testing.T, c preserveCase) []byte {
 	}
 
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: 65000}}}
-	asPath := adapter.buildBatchASPathAttr(userASPath, 0, c.isIBGP, false /*rsClient*/, 65000)
+	asPath := adapter.buildBatchASPathAttr(userASPath, 0, c.isIBGP, false /*rsClient*/, localASOnly(65000))
 	route := rib.NewRouteWithASPath(wn, netip.MustParseAddr(c.nextHop), attrs, asPath)
 
 	update := buildRIBRouteUpdate(make([]byte, message.MaxMsgLen), route, 65000, c.isIBGP, true /*asn4*/, false /*addPath*/)

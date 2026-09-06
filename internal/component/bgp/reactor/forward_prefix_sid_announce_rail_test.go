@@ -74,7 +74,7 @@ func TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain(t *testing.T) {
 				Wire:    attribute.NewAttributesWire(packed, bgpctx.APIContextID),
 			},
 			netip.MustParseAddr("10.0.0.1"),
-			isIBGP, false /*rsClient*/, true /*asn4*/, false /*addPath*/, 65000, propagatePrefixSID)
+			isIBGP, false /*rsClient*/, true /*asn4*/, false /*addPath*/, localASOnly(65000), propagatePrefixSID)
 		require.NoError(t, buildErr)
 		require.NotNil(t, update)
 		return update.PathAttributes

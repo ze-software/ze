@@ -84,7 +84,7 @@ func buildAnnounce(t *testing.T, batch bgptypes.NLRIBatch, isIBGP, asn4 bool) *m
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: mappableAS}}}
 	attrBuf := make([]byte, message.MaxMsgLen)
 	nlriBuf := make([]byte, message.MaxMsgLen)
-	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("10.0.0.1"), isIBGP, false, asn4, false, mappableAS, false /*propagatePrefixSID*/)
+	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("10.0.0.1"), isIBGP, false, asn4, false, localASOnly(mappableAS), false /*propagatePrefixSID*/)
 	require.NotNil(t, update)
 	return update
 }
@@ -102,12 +102,12 @@ func buildAnnounce(t *testing.T, batch bgptypes.NLRIBatch, isIBGP, asn4 bool) *m
 // so the composition itself is not asserted only here.
 func testWriteASPath(buf []byte, isIBGP, asn4 bool, localAS uint32) int {
 	var scratch [2]uint32
-	return writeASPathAttr(buf, 0, announceASPathASNs(scratch[:0], isIBGP, localAS, 0 /*originAS*/), asn4)
+	return writeASPathAttr(buf, 0, announceASPathASNs(scratch[:0], isIBGP, localASOnly(localAS), 0 /*originAS*/), asn4)
 }
 
 func testWriteAnnounceAS4Path(buf []byte, isIBGP, asn4 bool, localAS, originAS uint32) int {
 	var scratch [2]uint32
-	as4 := as4PathForASNs(asn4, announceASPathASNs(scratch[:0], isIBGP, localAS, originAS))
+	as4 := as4PathForASNs(asn4, announceASPathASNs(scratch[:0], isIBGP, localASOnly(localAS), originAS))
 	if as4 == nil {
 		return 0
 	}
@@ -275,7 +275,7 @@ func TestAnnounceAS4Path_IPv6_OldPeer(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: mappableAS}}}
 	attrBuf := make([]byte, message.MaxMsgLen)
 	nlriBuf := make([]byte, message.MaxMsgLen)
-	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("2001:db8::1"), false, false, false, false, mappableAS, false /*propagatePrefixSID*/)
+	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("2001:db8::1"), false, false, false, false, localASOnly(mappableAS), false /*propagatePrefixSID*/)
 
 	_, as4v, ok := findPathAttr(update.PathAttributes, byte(attribute.AttrAS4Path))
 	require.True(t, ok, "AS4_PATH present for IPv6 too")
@@ -422,7 +422,7 @@ func TestAsPathHasNonMappableAS_SkipsConfed(t *testing.T) {
 func TestAnnounceASPathASNs_Shape(t *testing.T) {
 	shape := func(isIBGP bool, localAS, originAS uint32) []uint32 {
 		var s [2]uint32
-		return announceASPathASNs(s[:0], isIBGP, localAS, originAS)
+		return announceASPathASNs(s[:0], isIBGP, localASOnly(localAS), originAS)
 	}
 	assert.Equal(t, []uint32{112}, shape(true, 65000, 112))         // iBGP origin-as
 	assert.Equal(t, []uint32{65000, 112}, shape(false, 65000, 112)) // eBGP origin-as

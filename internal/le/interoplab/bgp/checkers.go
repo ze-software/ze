@@ -44,8 +44,19 @@ var scenarioOperations = map[string][]operation{
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opBIRDSession, argument: birdZeProtocol},
 		{kind: opFRRRoute, argument: as112DirectDelegationPrefix},
+		// The row that makes `local-options [ replace-as ]` in this scenario's
+		// ze.conf load-bearing. RFC 7705 Section 3.3: toward a peer carrying that
+		// option the speaker "MUST NOT append the globally configured ASN from the
+		// AS_PATH attribute". FRR peers with the local-as 112 and must never see
+		// 65001 behind it. Until the announce rail learned the two-ASN form
+		// (localASPrepend, peer_forward_facts.go) it prepended 112 alone whatever
+		// the configuration said, so deleting replace-as changed nothing here and
+		// every assertion below held anyway. opFRRNoAS requires the ROUTE first,
+		// so the absence cannot pass because FRR never received it.
+		{kind: opFRRNoAS, argument: as112DirectDelegationPrefix, absent: []string{zeGlobalASN}},
 		{kind: opBIRDRoute, argument: as112DirectDelegationPrefix},
 		{kind: opFRRRoute, argument: as112DNAMERedirectionPrefix},
+		{kind: opFRRNoAS, argument: as112DNAMERedirectionPrefix, absent: []string{zeGlobalASN}},
 		{kind: opBIRDRoute, argument: as112DNAMERedirectionPrefix},
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opBIRDSession, argument: birdZeProtocol},

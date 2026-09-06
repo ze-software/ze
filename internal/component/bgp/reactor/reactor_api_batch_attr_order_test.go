@@ -222,7 +222,7 @@ func buildBatchRail(t *testing.T, c orderCase) []byte {
 	attrBuf := make([]byte, message.MaxMsgLen)
 	nlriBuf := make([]byte, message.MaxMsgLen)
 	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
-		netip.MustParseAddr(c.nextHop), c.isIBGP, false /*rsClient*/, c.asn4, false /*addPath*/, c.localAS, false /*propagatePrefixSID*/)
+		netip.MustParseAddr(c.nextHop), c.isIBGP, false /*rsClient*/, c.asn4, false /*addPath*/, localASOnly(c.localAS), false /*propagatePrefixSID*/)
 	require.NotNil(t, update)
 	return update.PathAttributes
 }
@@ -243,7 +243,7 @@ func buildQueuedRail(t *testing.T, c orderCase) []byte {
 	require.NoError(t, err)
 
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: c.localAS}}}
-	asPath := adapter.buildBatchASPath(nil, 0, c.isIBGP, false /*rsClient*/, c.localAS)
+	asPath := adapter.buildBatchASPath(nil, 0, c.isIBGP, false /*rsClient*/, localASOnly(c.localAS))
 	route := rib.NewRouteWithASPath(wn, netip.MustParseAddr(c.nextHop), attrs, asPath)
 
 	attrBuf := make([]byte, message.MaxMsgLen)
@@ -435,7 +435,7 @@ func TestBatchBuild_EmitsNoUnwrittenBufferBytes(t *testing.T) {
 
 			adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: c.localAS}}}
 			update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
-				netip.MustParseAddr(c.nextHop), c.isIBGP, false, c.asn4, false, c.localAS, false /*propagatePrefixSID*/)
+				netip.MustParseAddr(c.nextHop), c.isIBGP, false, c.asn4, false, localASOnly(c.localAS), false /*propagatePrefixSID*/)
 			require.NotNil(t, update)
 
 			// attrCodes requires the block to walk exactly to its end: a gap of

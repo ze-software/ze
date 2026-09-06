@@ -205,7 +205,11 @@ const (
 // The AS112 blocks the as112 scenarios carry, and the host route inside each
 // one that must not reach a peer.
 const (
-	as112DirectDelegationPrefix    = "192.175.48.0/24"
+	as112DirectDelegationPrefix = "192.175.48.0/24"
+	// zeGlobalASN is the AS number ze runs under in every scenario ze.conf, and
+	// the one RFC 7705 Section 3.3 calls "the globally configured ASN". A
+	// local-as scenario asserts its ABSENCE, so it is named rather than spelled.
+	zeGlobalASN                    = "65001"
 	as112DirectDelegationHostRoute = "192.175.48.1/32"
 	as112DNAMERedirectionPrefix    = "192.31.196.0/24"
 	as112DNAMERedirectionHostRoute = "192.31.196.1/32"
