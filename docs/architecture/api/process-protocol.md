@@ -614,6 +614,7 @@ Includes filter name so the plugin can dispatch to the correct handler.
 | `route-remove` | `RouteRemoveInput` | `RouteRemoveOutput` | Withdraw a batch of routes from the engine Loc-RIB (forked route-installing plugin) |
 | `inject-wire-route` | `InjectWireRouteInput` | - | Inject a raw BGP UPDATE body into the RIB |
 | `batch-validate` | `BatchValidateInput` | `BatchValidateResult` | Apply a batch of RPKI validation decisions |
+| `resolve-dns` | `ResolveDNSInput` | `ResolveDNSOutput` | Resolve a name through the engine's single DNS resolver, so a plugin never builds a second one |
 | `dispatch-command` | `DispatchCommandInput` | `DispatchCommandOutput` | Inter-plugin command |
 | `dispatch-command-args` | `DispatchCommandArgsInput` | `DispatchCommandOutput` | Exact inter-plugin command with pre-tokenized args |
 | `emit-event` | `EmitEventInput` | `EmitEventOutput` | Push event to subscribers |

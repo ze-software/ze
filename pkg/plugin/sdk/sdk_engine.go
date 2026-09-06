@@ -199,6 +199,32 @@ func (p *Plugin) BatchValidate(ctx context.Context, decisions []rpc.ValidationDe
 	return &out, nil
 }
 
+// ResolveDNS asks the engine to resolve name for the given DNS RR type and
+// returns the records, the TTL in seconds, and the answer's response code
+// spelling (NOERROR, NXDOMAIN, SERVFAIL, REFUSED).
+//
+// A plugin uses this instead of its own resolver so the daemon keeps ONE DNS
+// cache: a second resolver would double the query load against the upstream
+// server and give the two copies different views of the same TTL. There is no
+// typed bridge fast path, matching route-install: this is a control-plane call
+// on a TTL schedule, not a per-packet one.
+//
+// The status is what separates a name that does not exist from a server that
+// could not answer. Both come back with no records, so a caller that programs
+// state from the answer MUST branch on the status rather than on len(records).
+func (p *Plugin) ResolveDNS(ctx context.Context, name string, qtype uint16) (records []string, ttl uint32, status string, err error) {
+	input := &rpc.ResolveDNSInput{Name: name, Type: qtype}
+	result, err := p.callEngineWithResult(ctx, rpc.MethodResolveDNS, input)
+	if err != nil {
+		return nil, 0, "", err
+	}
+	var out rpc.ResolveDNSOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return nil, 0, "", fmt.Errorf("unmarshal resolve-dns result: %w", err)
+	}
+	return out.Records, out.TTL, out.Status, nil
+}
+
 // DispatchCommand dispatches a command through the engine's command dispatcher
 // and returns the whole answer as one value: the status the answer opens with
 // and the document its records carry. This enables inter-plugin communication:

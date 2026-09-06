@@ -26,6 +26,7 @@ import (
 	_ "github.com/ze-software/ze/internal/component/config/system/yang"
 	_ "github.com/ze-software/ze/internal/component/debug/yang"
 	_ "github.com/ze-software/ze/internal/component/doctor/yang"
+	_ "github.com/ze-software/ze/internal/component/firewall/plugins/domain/yang"
 	_ "github.com/ze-software/ze/internal/component/firewall/plugins/irr/yang"
 	_ "github.com/ze-software/ze/internal/component/firewall/yang"
 	_ "github.com/ze-software/ze/internal/component/hub/yang"
@@ -68,6 +69,7 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/update-cmd/yang"
 
 	// Plugin packages — plugin + schema registration.
+	_ "github.com/ze-software/ze/internal/component/firewall/plugins/domain"
 	_ "github.com/ze-software/ze/internal/component/firewall/plugins/irr"
 	_ "github.com/ze-software/ze/internal/component/iface"
 	_ "github.com/ze-software/ze/internal/component/iface/cli"
@@ -110,6 +112,7 @@ import (
 	_ "github.com/ze-software/ze/internal/component/config/schema/cli"
 	_ "github.com/ze-software/ze/internal/component/doctor/cmd"
 	_ "github.com/ze-software/ze/internal/component/firewall"
+	_ "github.com/ze-software/ze/internal/component/firewall/plugins/domain"
 	_ "github.com/ze-software/ze/internal/component/firewall/plugins/irr"
 	_ "github.com/ze-software/ze/internal/component/iface/cmd"
 	_ "github.com/ze-software/ze/internal/component/ping/cmd"

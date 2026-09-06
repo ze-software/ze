@@ -119,6 +119,30 @@ ze start config.conf
 
 ---
 
+### The hub owns the shared singletons
+
+<!-- source: cmd/ze/hub/main_system.go -- newResolvers, registerPluginDNSResolver -->
+
+Some resources must exist exactly once in the daemon, and the hub is where they
+are built. The DNS resolver is the worked example: `newResolvers` constructs one
+`resolve.Resolvers` at startup, and the hub then publishes it to each consumer
+that needs it.
+
+`resolvecmd.SetResolvers` publishes it to the show commands.
+`registerPluginDNSResolver` publishes it to the plugin RPC layer, so a plugin
+asking for a name is answered from the same resolver and the same cache that
+`show dns cache` reports. The two calls sit together on purpose: separating
+them is how a second cache appears, and a plugin building its own resolver
+would double the query load upstream and give the two copies different views of
+the same TTL.
+
+The publication goes through a handler slot in `pkg/plugin/rpc` rather than a
+field on the plugin server, because that package's component boundary admits
+`aaa` and `audit` and nothing else. The hub is the one place authorized to
+carry both sides.
+
+---
+
 ## Design Principles
 
 ### 1. Single Entry Point

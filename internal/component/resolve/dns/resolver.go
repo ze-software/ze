@@ -39,6 +39,100 @@ const (
 	dnssecStrict     = "strict"
 )
 
+// Status is what the answer says about the NAME, separated from what the
+// transport says about the query. A caller that acts on an answer needs both:
+// an error means Ze never learned anything, while a Status means Ze learned
+// something and this is what it learned.
+//
+// Ze collapses the RFC 1035 Section 4.1.1 RCODE space to the four outcomes a
+// caller acts on differently, because every remaining code is a server-side
+// failure a retry can clear and they take one branch. The numeric RCODE stays
+// in the resolver: a caller comparing against mdns.RcodeNameError would be
+// reading the wire format of a dependency this package exists to hide.
+//
+// StatusUnspecified is the zero value and is never a real answer. It is what a
+// return carrying an error holds, so a caller that reads the Status without
+// checking the error gets a value no branch accepts rather than a plausible
+// one (ai/rules/principles.md).
+type Status uint8
+
+const (
+	// StatusUnspecified means no answer was obtained. The error says why.
+	StatusUnspecified Status = iota
+	// StatusSuccess is NOERROR: the answer is authoritative for the name, and
+	// an EMPTY record list means the name holds no record of this type.
+	StatusSuccess
+	// StatusNameError is NXDOMAIN: the name does not exist. Authoritative.
+	StatusNameError
+	// StatusServerFailure is SERVFAIL, which a broken DNSSEC chain also
+	// produces upstream. Transient: it says nothing about the name.
+	StatusServerFailure
+	// StatusRefused is REFUSED and every other non-success RCODE. Transient.
+	StatusRefused
+)
+
+// Authoritative reports whether the status describes the NAME rather than the
+// server. A caller may act on the record list only when this is true: on a
+// transient status the list is empty because the server did not answer, not
+// because the name holds nothing.
+func (s Status) Authoritative() bool {
+	return s == StatusSuccess || s == StatusNameError
+}
+
+// String names the status for a log line or an operator-facing field. It is
+// never compared against: callers branch on the constants.
+func (s Status) String() string {
+	switch s {
+	case StatusSuccess:
+		return "NOERROR"
+	case StatusNameError:
+		return "NXDOMAIN"
+	case StatusServerFailure:
+		return "SERVFAIL"
+	case StatusRefused:
+		return "REFUSED"
+	case StatusUnspecified:
+		return "unspecified"
+	}
+	return "unspecified"
+}
+
+// ParseStatus reads back a spelling String produced. It is the return path for
+// a status that crossed a process boundary, so the vocabulary is declared once
+// here rather than a second time in the transport (ai/rules/principles.md).
+//
+// An unrecognized spelling answers StatusUnspecified, which no branch treats as
+// an answer, rather than the nearest plausible value.
+func ParseStatus(s string) Status {
+	switch s {
+	case "NOERROR":
+		return StatusSuccess
+	case "NXDOMAIN":
+		return StatusNameError
+	case "SERVFAIL":
+		return StatusServerFailure
+	case "REFUSED":
+		return StatusRefused
+	}
+	return StatusUnspecified
+}
+
+// statusFromRcode maps an RFC 1035 Section 4.1.1 RCODE onto the outcome a
+// caller branches on. Anything past REFUSED is a server-side condition that
+// says nothing about the name, so it takes the REFUSED branch: keep what you
+// had and try again.
+func statusFromRcode(rcode int) Status {
+	switch rcode {
+	case mdns.RcodeSuccess:
+		return StatusSuccess
+	case mdns.RcodeNameError:
+		return StatusNameError
+	case mdns.RcodeServerFailure:
+		return StatusServerFailure
+	}
+	return StatusRefused
+}
+
 // Resolver provides DNS query services to Ze components.
 // Safe for concurrent use. Caller MUST call Close when done.
 type Resolver struct {
@@ -183,7 +277,7 @@ func (r *Resolver) Resolve(name string, qtype uint16) ([]string, error) {
 		return records, nil
 	}
 
-	records, ttl, err := r.query(name, qtype)
+	records, ttl, _, err := r.query(name, qtype)
 	if err != nil {
 		return nil, err
 	}
@@ -196,23 +290,34 @@ func (r *Resolver) Resolve(name string, qtype uint16) ([]string, error) {
 	return records, nil
 }
 
-// ResolveWithTTL queries DNS and returns records plus the TTL in seconds.
+// ResolveWithTTL queries DNS and returns records, the TTL in seconds, and what
+// the answer said about the name.
 // On cache hit, returns the remaining TTL. On cache miss, returns the response TTL.
-func (r *Resolver) ResolveWithTTL(name string, qtype uint16) ([]string, uint32, error) {
+//
+// The Status separates a name that does not exist from a server that could not
+// answer, which the record list alone cannot: both arrive as an empty list. A
+// caller that programs state from the answer MUST read it, because emptying
+// that state on a SERVFAIL enforces a server outage rather than a fact about
+// the name. On an error the Status is StatusUnspecified: nothing was learned.
+//
+// A cache hit is always StatusSuccess. Only a successful answer carrying
+// records is cached (put is called for no other outcome), so a hit is by
+// construction a name that resolved.
+func (r *Resolver) ResolveWithTTL(name string, qtype uint16) ([]string, uint32, Status, error) {
 	if records, ttl, ok := r.cache.getWithTTL(name, qtype); ok {
-		return records, ttl, nil
+		return records, ttl, StatusSuccess, nil
 	}
 
-	records, ttl, err := r.query(name, qtype)
+	records, ttl, status, err := r.query(name, qtype)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, StatusUnspecified, err
 	}
 
 	if len(records) > 0 {
 		r.cache.put(name, qtype, records, ttl)
 	}
 
-	return records, ttl, nil
+	return records, ttl, status, nil
 }
 
 // ResolveTXT queries for TXT records.
@@ -242,10 +347,13 @@ func (r *Resolver) ResolvePTR(address string) ([]string, error) {
 }
 
 // query sends a DNS query and extracts answer records.
-// Returns records, minimum TTL from answers, and any error.
-func (r *Resolver) query(name string, qtype uint16) ([]string, uint32, error) {
+// Returns records, minimum TTL from answers, what the answer said about the
+// name, and any error. Every error return carries StatusUnspecified: an error
+// means the exchange produced no answer, so there is nothing for a status to
+// describe.
+func (r *Resolver) query(name string, qtype uint16) ([]string, uint32, Status, error) {
 	if r.server == "" {
-		return nil, 0, fmt.Errorf("dns query %s %s: no DNS server configured", name, mdns.TypeToString[qtype])
+		return nil, 0, StatusUnspecified, fmt.Errorf("dns query %s %s: no DNS server configured", name, mdns.TypeToString[qtype])
 	}
 
 	fqdn := mdns.Fqdn(name)
@@ -262,11 +370,11 @@ func (r *Resolver) query(name string, qtype uint16) ([]string, uint32, error) {
 
 	resp, _, err := r.client.Exchange(m, r.server)
 	if err != nil {
-		return nil, 0, fmt.Errorf("dns query %s %s: %w", name, mdns.TypeToString[qtype], err)
+		return nil, 0, StatusUnspecified, fmt.Errorf("dns query %s %s: %w", name, mdns.TypeToString[qtype], err)
 	}
 
 	if resp == nil {
-		return nil, 0, fmt.Errorf("dns query %s %s: nil response", name, mdns.TypeToString[qtype])
+		return nil, 0, StatusUnspecified, fmt.Errorf("dns query %s %s: nil response", name, mdns.TypeToString[qtype])
 	}
 
 	if resp.Truncated {
@@ -276,22 +384,32 @@ func (r *Resolver) query(name string, qtype uint16) ([]string, uint32, error) {
 	// DNSSEC policy: reject (strict) or log (permissive) a broken chain before
 	// the generic rcode handling below turns a SERVFAIL into an empty result.
 	if warn, reject := dnssecDecision(resp.Rcode, resp.AuthenticatedData, r.dnssec); reject != nil {
-		return nil, 0, fmt.Errorf("dns query %s %s: %w", name, mdns.TypeToString[qtype], reject)
+		return nil, 0, StatusUnspecified, fmt.Errorf("dns query %s %s: %w", name, mdns.TypeToString[qtype], reject)
 	} else if warn != "" {
 		r.logger.Warn(warn, "name", name, "type", mdns.TypeToString[qtype])
 	}
 
-	// NXDOMAIN and other non-error response codes return empty results, not errors.
+	status := statusFromRcode(resp.Rcode)
+
+	// NXDOMAIN and other non-error response codes return empty results, not
+	// errors. The status is what tells them apart: a caller acting on the
+	// answer reads it, and one that only wants records ignores it, which is
+	// how Resolve keeps its own signature.
 	if resp.Rcode != mdns.RcodeSuccess {
-		return nil, 0, nil
+		return nil, 0, status, nil
 	}
 
-	return extractRecords(resp)
+	records, ttl := extractRecords(resp)
+	return records, ttl, status, nil
 }
 
 // extractRecords pulls string values and minimum TTL from DNS answer records.
 // Returns TTL=0 when answers have TTL=0 (caller should not cache per RFC 1035).
-func extractRecords(resp *mdns.Msg) ([]string, uint32, error) {
+//
+// It cannot fail: a record type it does not recognize is skipped rather than
+// refused, because a server is free to answer with more than was asked for.
+// So it returns no error, and a caller has no failure branch to write.
+func extractRecords(resp *mdns.Msg) ([]string, uint32) {
 	var records []string
 	var minTTL uint32
 	hasAnswers := false
@@ -330,5 +448,5 @@ func extractRecords(resp *mdns.Msg) ([]string, uint32, error) {
 		minTTL = 300
 	}
 
-	return records, minTTL, nil
+	return records, minTTL
 }

@@ -822,6 +822,42 @@ func GetBatchValidator() BatchValidateHandler {
 	return fn
 }
 
+// DNSResolveHandler answers a plugin's name lookup from the engine's single
+// DNS resolver. records and ttl are what the answer carried; status is the
+// response code in the resolver's own spelling (NOERROR, NXDOMAIN, SERVFAIL,
+// REFUSED), which the plugin parses back through the package that declares it.
+//
+// An error means the exchange produced no answer at all. status then carries
+// no meaning, and a caller MUST check the error before reading it.
+type DNSResolveHandler func(name string, qtype uint16) (records []string, ttl uint32, status string, err error)
+
+// globalDNSResolver holds the process-wide DNSResolveHandler the hub registers
+// at startup. The engine-side handler reads this to answer resolve-dns from
+// any plugin, which keeps a resolver reference out of the plugin server: that
+// package's component boundary admits aaa and audit alone.
+var globalDNSResolver atomic.Value
+
+// RegisterDNSResolver stores the DNS resolve handler. The hub calls it once at
+// startup, beside the call that publishes the same resolver to the show
+// commands, so both surfaces answer from one cache. Thread-safe via
+// atomic.Value.
+func RegisterDNSResolver(fn DNSResolveHandler) {
+	globalDNSResolver.Store(fn)
+}
+
+// GetDNSResolver returns the registered DNS resolve handler, or nil. A nil
+// return is refused by the caller rather than answered with an empty result: a
+// plugin cannot tell "no resolver was wired" from "the name holds no address"
+// unless the two take different paths.
+func GetDNSResolver() DNSResolveHandler {
+	v := globalDNSResolver.Load()
+	if v == nil {
+		return nil
+	}
+	fn, _ := v.(DNSResolveHandler)
+	return fn
+}
+
 // SetBatchValidate registers the engine-side typed batch-validate handler.
 func (b *DirectBridge) SetBatchValidate(fn BatchValidateHandler) {
 	b.batchValidate = fn

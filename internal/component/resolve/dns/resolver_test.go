@@ -595,3 +595,143 @@ func TestResolveMultipleRecords(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"1.1.1.1", "2.2.2.2", "3.3.3.3"}, records)
 }
+
+// TestResolveWithTTLSurfacesRcode proves a caller can tell a name that does not
+// exist from a server that could not answer. It drives one resolver against a
+// server that answers each name with a different RCODE, and asserts the Status
+// each one produces.
+//
+// VALIDATES: the domain-group refresh classification -- NXDOMAIN empties a
+// firewall set, SERVFAIL and REFUSED keep the last-good addresses.
+// PREVENTS: the pre-2026-09 behavior, where query discarded resp.Rcode and
+// returned (nil, 0, nil) for every non-success code, so a refused server and a
+// deleted name were the same signal.
+func TestResolveWithTTLSurfacesRcode(t *testing.T) {
+	handler := mdns.HandlerFunc(func(w mdns.ResponseWriter, r *mdns.Msg) {
+		m := new(mdns.Msg)
+		m.SetReply(r)
+		switch r.Question[0].Name {
+		case "good.invalid.":
+			m.Answer = append(m.Answer, &mdns.A{
+				Hdr: mdns.RR_Header{Name: r.Question[0].Name, Rrtype: mdns.TypeA, Class: mdns.ClassINET, Ttl: 120},
+				A:   net.ParseIP("192.0.2.1"),
+			})
+		case "gone.invalid.":
+			m.Rcode = mdns.RcodeNameError
+		case "broken.invalid.":
+			m.Rcode = mdns.RcodeServerFailure
+		case "refused.invalid.":
+			m.Rcode = mdns.RcodeRefused
+		case "empty.invalid.":
+			// NOERROR with no answer: the name exists and holds no A record.
+		}
+		_ = w.WriteMsg(m)
+	})
+
+	addr, cleanup := testDNSServer(t, handler)
+	defer cleanup()
+
+	r := NewResolver(ResolverConfig{Server: addr, Timeout: 5, CacheSize: 100, CacheTTL: 3600})
+	defer r.Close()
+
+	cases := []struct {
+		name          string
+		query         string
+		status        Status
+		authoritative bool
+		records       int
+	}{
+		{name: "success", query: "good.invalid", status: StatusSuccess, authoritative: true, records: 1},
+		{name: "nxdomain", query: "gone.invalid", status: StatusNameError, authoritative: true, records: 0},
+		{name: "servfail", query: "broken.invalid", status: StatusServerFailure, authoritative: false, records: 0},
+		{name: "refused", query: "refused.invalid", status: StatusRefused, authoritative: false, records: 0},
+		{name: "noerror-empty", query: "empty.invalid", status: StatusSuccess, authoritative: true, records: 0},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			records, _, status, err := r.ResolveWithTTL(tc.query, mdns.TypeA)
+			require.NoError(t, err, "a non-success rcode is an answer, not a transport error")
+			assert.Equal(t, tc.status, status, "status for %s", tc.query)
+			assert.Equal(t, tc.authoritative, status.Authoritative(), "authoritative for %s", tc.query)
+			assert.Len(t, records, tc.records, "record count for %s", tc.query)
+		})
+	}
+}
+
+// TestResolveWithTTLErrorCarriesNoStatus proves a transport failure returns
+// StatusUnspecified rather than a status a caller could act on. A caller that
+// read the status without checking the error would otherwise see a plausible
+// value invented at the point of failure.
+func TestResolveWithTTLErrorCarriesNoStatus(t *testing.T) {
+	r := NewResolver(ResolverConfig{Server: "192.0.2.1:53", Timeout: 1, CacheSize: 10, CacheTTL: 60})
+	defer r.Close()
+
+	records, ttl, status, err := r.ResolveWithTTL("example.com", mdns.TypeA)
+	require.Error(t, err, "an unreachable server is a transport error")
+	assert.Equal(t, StatusUnspecified, status, "an error carries no answer to describe")
+	assert.False(t, status.Authoritative(), "StatusUnspecified must never be authoritative")
+	assert.Empty(t, records)
+	assert.Zero(t, ttl)
+}
+
+// TestResolveWithTTLCacheHitIsSuccess proves a cache hit reports StatusSuccess.
+// Only a successful answer carrying records is cached, so a hit is by
+// construction a name that resolved; reporting StatusUnspecified there would
+// make every cached answer unusable to a caller that branches on the status.
+func TestResolveWithTTLCacheHitIsSuccess(t *testing.T) {
+	addr, cleanup := testDNSServer(t, testHandler())
+	defer cleanup()
+
+	r := NewResolver(ResolverConfig{Server: addr, Timeout: 5, CacheSize: 100, CacheTTL: 3600})
+	defer r.Close()
+
+	_, _, first, err := r.ResolveWithTTL("example.com", mdns.TypeA)
+	require.NoError(t, err)
+	require.Equal(t, StatusSuccess, first)
+
+	records, ttl, status, err := r.ResolveWithTTL("example.com", mdns.TypeA)
+	require.NoError(t, err)
+	assert.Equal(t, StatusSuccess, status, "a cache hit answers for a name that resolved")
+	assert.NotEmpty(t, records)
+	assert.Positive(t, ttl, "a cache hit reports the remaining TTL")
+}
+
+// TestQueryExistingCallersUnaffected proves the rcode change did not alter what
+// Resolve, ResolveA, ResolveAAAA and ResolveTXT return. Each keeps its
+// signature and its behavior: a non-success rcode is still an empty result with
+// no error, which is what every existing caller was written against.
+func TestQueryExistingCallersUnaffected(t *testing.T) {
+	handler := mdns.HandlerFunc(func(w mdns.ResponseWriter, r *mdns.Msg) {
+		m := new(mdns.Msg)
+		m.SetReply(r)
+		if r.Question[0].Name == "refused.invalid." {
+			m.Rcode = mdns.RcodeRefused
+			_ = w.WriteMsg(m)
+			return
+		}
+		testHandler().ServeDNS(w, r)
+	})
+
+	addr, cleanup := testDNSServer(t, handler)
+	defer cleanup()
+
+	r := NewResolver(ResolverConfig{Server: addr, Timeout: 5, CacheSize: 100, CacheTTL: 3600})
+	defer r.Close()
+
+	v4, err := r.ResolveA("example.com")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"93.184.216.34"}, v4)
+
+	v6, err := r.ResolveAAAA("example.com")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"2606:2800:220:1:248:1893:25c8:1946"}, v6)
+
+	txt, err := r.ResolveTXT("example.com")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"v=spf1 -all"}, txt)
+
+	refused, err := r.ResolveA("refused.invalid")
+	require.NoError(t, err, "a non-success rcode stays a non-error for the record-only callers")
+	assert.Empty(t, refused)
+}

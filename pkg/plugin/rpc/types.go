@@ -290,6 +290,7 @@ const (
 	MethodRouteRemove         = "ze-plugin-engine:route-remove"
 	MethodInjectWireRoute     = "ze-plugin-engine:inject-wire-route"
 	MethodBatchValidate       = "ze-plugin-engine:batch-validate"
+	MethodResolveDNS          = "ze-plugin-engine:resolve-dns"
 )
 
 // DeclareRegistrationInput is the input for ze-plugin-engine:declare-registration (Stage 1).
@@ -908,6 +909,30 @@ type BatchValidateInput struct {
 	Decisions []ValidationDecision `json:"decisions"`
 }
 
+// ResolveDNSInput is the input for ze-plugin-engine:resolve-dns. A plugin that
+// needs a name resolved asks the engine rather than building a resolver of its
+// own, so one DNS cache serves the whole daemon and `show dns cache` reports
+// every query Ze made. Type is the DNS RR type code (RFC 1035 Section 3.2.2:
+// A is 1, AAAA is 28).
+type ResolveDNSInput struct {
+	Name string `json:"name"`
+	Type uint16 `json:"type"`
+}
+
+// ResolveDNSOutput carries what the engine's resolver learned. Status is the
+// answer's response code in the spelling the resolver publishes (NOERROR,
+// NXDOMAIN, SERVFAIL, REFUSED); the engine owns that vocabulary and this
+// package transports it without a second declaration of the set.
+//
+// Status is what separates a name that does not exist from a server that could
+// not answer: both arrive with no records, and a caller that programs firewall
+// state from the answer must not empty it on a server outage.
+type ResolveDNSOutput struct {
+	Records []string `json:"records,omitempty"`
+	TTL     uint32   `json:"ttl"`
+	Status  string   `json:"status"`
+}
+
 // DispatchCommandInput is the input for ze-plugin-engine:dispatch-command.
 // Plugins use this to invoke commands through the engine's command dispatcher,
 // enabling inter-plugin communication via the standard routing mechanism.
@@ -1081,7 +1106,7 @@ const (
 	OperationRemoveListener     ConfigOperationType = "remove-listener"
 	OperationAddStaticRoute     ConfigOperationType = "add-static-route"
 	OperationRemoveStaticRoute  ConfigOperationType = "remove-static-route"
-	OperationSetDistance   ConfigOperationType = "set-distance"
+	OperationSetDistance        ConfigOperationType = "set-distance"
 	OperationSetSysctl          ConfigOperationType = "set-sysctl"
 	OperationStartDHCP          ConfigOperationType = "start-dhcp"
 	OperationStopDHCP           ConfigOperationType = "stop-dhcp"

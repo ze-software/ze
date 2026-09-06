@@ -695,6 +695,13 @@ inside `ze-plugin-engine:dispatch-command`. These paths are not plugin RPC
 methods or response verbs.
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.DispatchCommand -->
 
+The plugin RPC methods themselves are tabulated in
+`docs/architecture/api/process-protocol.md`. Some of them are engine SERVICES
+rather than routing: `ze-plugin-engine:resolve-dns` answers a name lookup from
+the daemon's single DNS resolver, so a plugin that needs one never builds a
+second resolver and a second cache.
+<!-- source: pkg/plugin/rpc/types.go -- MethodResolveDNS, ResolveDNSInput, ResolveDNSOutput -->
+
 ### Plugin Namespace
 
 Plugin lifecycle operations:

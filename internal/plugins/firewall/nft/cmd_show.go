@@ -8,11 +8,18 @@ import (
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/show"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// keyName is the response payload key carrying a table, chain or group name.
+// keyName is the response payload key carrying a table, chain, set or group name.
 const keyName = "name"
+
+// showFirewallRulesetCommand is the enricher registry key for this handler's
+// output. A plugin that wants to add to it declares an enricher naming this
+// exact string (EnricherDecl.Command), so the two spellings are one contract
+// and TestShowRulesetEnricherCommandIsStable pins it.
+const showFirewallRulesetCommand = "show firewall ruleset"
 
 func init() {
 	pluginserver.RegisterRPCs(
@@ -115,13 +122,49 @@ func handleShowFirewallRuleset(_ *pluginserver.CommandContext, args []string) (*
 		})
 	}
 
+	// The sets are part of the ruleset an operator asked to read, and until
+	// 2026-09 this payload carried none: the chains named a set and the
+	// addresses in it were nowhere. They are also what an enricher has to
+	// attach to, so a plugin that knows where an address came from has
+	// somewhere to put the name.
+	setRows := make([]map[string]any, 0, len(target.Sets))
+	for i := range target.Sets {
+		set := &target.Sets[i]
+		elementRows := make([]map[string]any, 0, len(set.Elements))
+		for j := range set.Elements {
+			element := &set.Elements[j]
+			row := map[string]any{"value": element.Value}
+			if element.IntervalEnd {
+				row["interval-end"] = true
+			}
+			if element.Timeout > 0 {
+				row["timeout-seconds"] = element.Timeout
+			}
+			elementRows = append(elementRows, row)
+		}
+		setRows = append(setRows, map[string]any{
+			keyName:    set.Name,
+			"type":     int(set.Type),
+			"elements": elementRows,
+		})
+	}
+
+	data := map[string]any{
+		"table":  wanted,
+		"family": target.Family.String(),
+		"chains": chainRows,
+		"sets":   setRows,
+	}
+
+	// A registered enricher may now add what only its owner knows: the
+	// firewall-domain plugin attaches the DNS name that supplied each address.
+	// An owner with nothing to add returns nothing and the payload is
+	// unchanged, so a node running neither plugin renders exactly as before.
+	show.Enrich(showFirewallRulesetCommand, data)
+
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: plugin.Map{
-			"table":  wanted,
-			"family": target.Family.String(),
-			"chains": chainRows,
-		},
+		Data:   plugin.Map(data),
 	}, nil
 }
 

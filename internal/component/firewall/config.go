@@ -192,7 +192,7 @@ func parseChain(name string, m map[string]any) (Chain, error) {
 			return Chain{}, fmt.Errorf("term %q: %w", entry.Key, err)
 		}
 		chain.Terms = append(chain.Terms, term)
-		if v6 := expandIRRTermV6(term); v6 != nil {
+		if v6 := expandProvidedTermV6(term); v6 != nil {
 			chain.Terms = append(chain.Terms, *v6)
 		}
 	}
@@ -256,6 +256,13 @@ func parseFromBlock(m map[string]any) ([]Match, error) {
 	}
 	if v, ok := m["destination-as-set"].(string); ok {
 		matches = append(matches, irrSetMatch(v, true, false))
+	}
+
+	if v, ok := m["source-domain-group"].(string); ok {
+		matches = append(matches, domainSetMatch(v, true))
+	}
+	if v, ok := m["destination-domain-group"].(string); ok {
+		matches = append(matches, domainSetMatch(v, false))
 	}
 
 	if v, ok := m["source-port"].(string); ok {
@@ -569,26 +576,86 @@ func irrSetMatch(v string, isASSet, isSource bool) MatchInSet {
 const irrV4Prefix = "irr_v4_"
 const irrV6Prefix = "irr_v6_"
 
-func expandIRRTermV6(term Term) *Term {
+const domainV4Prefix = "domain_v4_"
+const domainV6Prefix = "domain_v6_"
+
+// DomainGroupSetNames returns the two nftables set names a domain group
+// produces.
+//
+// It is exported because the firewall-domain plugin BUILDS those sets and this
+// parser MATCHES them, in two different packages. One declaration is what keeps
+// them from drifting: a divergence would leave every rule naming a set no owner
+// supplies, so dropTablesMissingAProvidedSet would hold back each table
+// carrying one while the commit still reported success.
+func DomainGroupSetNames(groupName string) (v4, v6 string) {
+	var tb textbuf.Buffer
+	v4 = tb.Str(domainV4Prefix).Str(groupName).String()
+	tb.Reset()
+	v6 = tb.Str(domainV6Prefix).Str(groupName).String()
+	return v4, v6
+}
+
+// domainSetMatch builds a MatchInSet for a DNS-resolved address set.
+//
+// The set is registered by the firewall-domain plugin and merged at ApplyAll,
+// so it is absent from this table's own Sets. ProvidedType carries the element
+// type that owner will supply, which is what lets verify-time validation check
+// the field against it rather than report an unknown set (validate.go,
+// validateMatch). Without it a rule could not name a set another owner
+// supplies at all.
+//
+// The set name comes from DomainGroupSetNames, which the plugin also calls, so
+// the two sides cannot spell it differently.
+func domainSetMatch(v string, isSource bool) MatchInSet {
+	v4Name, _ := DomainGroupSetNames(v)
+	field := SetFieldSourceAddr
+	if !isSource {
+		field = SetFieldDestAddr
+	}
+	return MatchInSet{SetName: v4Name, MatchField: field, ProvidedType: SetTypeIPv4}
+}
+
+// providedV6Twin names the IPv4 and IPv6 set prefixes of each owner that
+// supplies both families for one config leaf. A term written against the IPv4
+// leaf gets an IPv6 twin built from the same value, because the operator wrote
+// one rule and means both families.
+//
+// Two entries rather than one because the two owners are two plugins. They sit
+// together here, in the parser that produces both matches, rather than in a
+// registry a plugin writes to: this is the same file that already enumerates
+// source-asn, source-as-set and source-domain-group, so a third owner edits it
+// once in the place it already had to edit.
+var providedV6Twin = [...]struct{ v4, v6 string }{
+	{irrV4Prefix, irrV6Prefix},
+	{domainV4Prefix, domainV6Prefix},
+}
+
+// expandProvidedTermV6 returns the IPv6 twin of a term matching against a set
+// another owner supplies, or nil when the term has no such match.
+//
+// ProvidedType gates the expansion, not the name alone: an operator can write
+// `source-address "@irr_v4_x"` by hand, and that names a set their own table
+// must declare. Expanding it would invent a reference to an ipv6 set nobody
+// declares, which validateMatch would then have to accept on this term's
+// say-so.
+func expandProvidedTermV6(term Term) *Term {
 	var v6Matches []Match
-	hasIRR := false
+	hasProvided := false
 	for _, m := range term.Matches {
 		mis, ok := m.(MatchInSet)
-		// ProvidedType gates the expansion, not the name alone: an operator
-		// can write `source-address "@irr_v4_x"` by hand, and that names a set
-		// their own table must declare. Expanding it would invent a reference
-		// to an ipv6 set nobody declares, which validateMatch would then have
-		// to accept on this term's say-so.
-		if ok && mis.ProvidedType == SetTypeIPv4 && len(mis.SetName) > len(irrV4Prefix) && mis.SetName[:len(irrV4Prefix)] == irrV4Prefix {
-			hasIRR = true
-			var tb textbuf.Buffer
-			v6Name := tb.Str(irrV6Prefix).Str(mis.SetName[len(irrV4Prefix):]).String()
-			v6Matches = append(v6Matches, MatchInSet{SetName: v6Name, MatchField: mis.MatchField, ProvidedType: SetTypeIPv6})
-		} else {
+		if !ok || mis.ProvidedType != SetTypeIPv4 {
 			v6Matches = append(v6Matches, m)
+			continue
 		}
+		v6Name, twinned := v6TwinName(mis.SetName)
+		if !twinned {
+			v6Matches = append(v6Matches, m)
+			continue
+		}
+		hasProvided = true
+		v6Matches = append(v6Matches, MatchInSet{SetName: v6Name, MatchField: mis.MatchField, ProvidedType: SetTypeIPv6})
 	}
-	if !hasIRR {
+	if !hasProvided {
 		return nil
 	}
 	var tb textbuf.Buffer
@@ -597,6 +664,20 @@ func expandIRRTermV6(term Term) *Term {
 		Matches: v6Matches,
 		Actions: term.Actions,
 	}
+}
+
+// v6TwinName rewrites a provided IPv4 set name to its IPv6 sibling. The second
+// return separates "this name has no twin" from "the twin is the empty
+// string", which a caller reading the name alone cannot tell apart.
+func v6TwinName(setName string) (string, bool) {
+	for _, pair := range providedV6Twin {
+		if len(setName) <= len(pair.v4) || setName[:len(pair.v4)] != pair.v4 {
+			continue
+		}
+		var tb textbuf.Buffer
+		return tb.Str(pair.v6).Str(setName[len(pair.v4):]).String(), true
+	}
+	return "", false
 }
 
 func parseAddressMatch(v string, isSource bool) (Match, error) {

@@ -1,0 +1,96 @@
+module ze-firewall-domain-group {
+    namespace "urn:ze:firewall-domain-group";
+    prefix fwdg;
+
+    import ze-extensions { prefix ze; }
+    import ze-firewall-conf { prefix fw; }
+
+    description "DNS-sourced address groups for the firewall.
+                 A domain group holds one or more DNS names. Ze resolves each name,
+                 puts the addresses it answers with into an nftables set, and resolves
+                 the name again when its own answer expires. Augments the firewall
+                 from-block with source-domain-group and destination-domain-group
+                 leaves, and adds a domain-group list under firewall.";
+
+    revision 2026-09-05 {
+        description "Initial revision";
+    }
+
+    augment "/fw:firewall" {
+        list domain-group {
+            key "name";
+            description "Address group whose members are what its DNS names resolve to.";
+            ze:help "Ze resolves each name in the group and puts the addresses into an
+                     nftables set a rule can match with source-domain-group or
+                     destination-domain-group. Each name is resolved again when its own
+                     answer expires, and the set is reprogrammed only when the addresses
+                     changed. A commit naming a group Ze has never resolved is refused:
+                     run 'update firewall domain-group <name>' first. A permit rule keyed
+                     on a DNS name trusts whoever controls that name.";
+
+            leaf name {
+                type string {
+                    length "1..64";
+                    pattern '[a-zA-Z0-9_-]+';
+                }
+                description "Group name, used as the nftables set name a rule matches.";
+                ze:help "Ze builds two nftables sets from this name, domain_v4_<name> and
+                         domain_v6_<name>, and a rule reaches them through
+                         source-domain-group or destination-domain-group. The name is
+                         yours to choose and Ze does not resolve it.";
+            }
+
+            leaf-list domain-names {
+                type string {
+                    length "1..253";
+                    pattern '[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.?';
+                }
+                description "DNS names whose addresses are the members of this group.";
+                ze:help "Ze asks for the A and the AAAA record of each name and puts every
+                         address it gets into the group. Each name and each family keeps
+                         its own schedule, so a name with a short TTL does not pull the
+                         others with it. Ze accepts at most 64 addresses from one name and
+                         one family, and logs a warning when it drops the rest.";
+            }
+
+            leaf ttl-floor {
+                type uint32 {
+                    range "1..86400";
+                }
+                default "60";
+                units "seconds";
+                description "Shortest interval Ze waits before it resolves a name again.";
+                ze:help "A name answering with a very short TTL would otherwise drive a
+                         query and a set rewrite every few seconds. Ze waits this long at
+                         least, whatever the answer says. A TTL of 0 means 'do not cache'
+                         and Ze also waits the floor for it, rather than treating it as
+                         already expired.";
+            }
+        }
+    }
+
+    augment "/fw:firewall/fw:table/fw:chain/fw:term/fw:from" {
+        leaf source-domain-group {
+            type string {
+                length "1..64";
+                pattern '[a-zA-Z0-9_-]+';
+            }
+            description "Match the source address against the addresses of this domain group.";
+            ze:help "Names a domain-group defined under firewall. The match needs the
+                     group's names to have resolved at least once, so a commit is refused
+                     when they have not: run 'update firewall domain-group <name>' first.";
+        }
+
+        leaf destination-domain-group {
+            type string {
+                length "1..64";
+                pattern '[a-zA-Z0-9_-]+';
+            }
+            description "Match the destination address against the addresses of this domain group.";
+            ze:help "The cache rule is the one source-domain-group states. The match needs
+                     the group's names to have resolved at least once, so a commit is
+                     refused when they have not: run 'update firewall domain-group <name>'
+                     first.";
+        }
+    }
+}

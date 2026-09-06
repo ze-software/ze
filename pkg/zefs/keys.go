@@ -35,6 +35,7 @@ var (
 	KeyDebugProfile          = MustRegister(KeyEntry{Pattern: "debug/profile/{name}", Description: "Named debug profile (JSON)"})
 	KeyIRRCache              = MustRegister(KeyEntry{Pattern: "meta/bgp/irr-cache", Description: "IRR-resolved prefix cache (JSON, all ASNs; legacy, migrated to meta/irr/{name})"})
 	KeyIRRPrefixCache        = MustRegister(KeyEntry{Pattern: "meta/irr/{name}", Description: "IRR-resolved prefix cache, per ASN/AS-SET (JSON)"})
+	KeyFirewallDomainGroup   = MustRegister(KeyEntry{Pattern: "meta/firewall/domain-group/{group}/{name}/{family}", Description: "Firewall domain-group last-good addresses, per DNS name and family (JSON)"})
 
 	// Persisted runtime state (see ai/rules/architecture.md). These live in
 	// the shared store instead of loose files so appliance state is managed.

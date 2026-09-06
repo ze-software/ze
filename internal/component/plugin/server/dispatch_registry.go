@@ -164,6 +164,12 @@ var engineOps = []engineOp{
 		},
 	},
 	{
+		method: rpc.MethodResolveDNS,
+		handle: (*Server).opResolveDNS,
+		// No typed slot: a TTL-scheduled control-plane lookup, not a per-packet
+		// call, and its only caller runs forked. Same reasoning as route-install.
+	},
+	{
 		method: rpc.MethodBatchValidate,
 		handle: (*Server).opBatchValidate,
 		typedWire: func(_ *Server, _ *process.Process, b *rpc.DirectBridge) {

@@ -58,7 +58,7 @@ func buildSets(name string, v4, v6 []netip.Prefix) []firewall.Set {
 // buildTermSets returns the sets a table TERM needs for one entry, which is
 // both families or neither.
 //
-// The parser cannot see the prefix data. expandIRRTermV6
+// The parser cannot see the prefix data. expandProvidedTermV6
 // (internal/component/firewall/config.go) emits an IPv6 twin for every IRR
 // term, whatever the entry announces. An ASN or AS-SET announcing only IPv4 is
 // ordinary, and buildSets answers with one set for it. The twin would then name

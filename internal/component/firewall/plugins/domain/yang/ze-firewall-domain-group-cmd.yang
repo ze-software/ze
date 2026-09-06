@@ -1,0 +1,81 @@
+module ze-firewall-domain-group-cmd {
+    namespace "urn:ze:firewall-domain-group:cmd";
+    prefix fwdgcmd;
+    import ze-extensions { prefix ze; }
+    description "show, update and clear firewall domain-group command tree.
+                 Owned by the firewall-domain plugin so that removing the plugin
+                 directory removes these command nodes together with the handlers
+                 and the config schema. See ai/rules/plugins.md.";
+    revision 2026-09-05 { description "Initial revision."; }
+
+    container show {
+        config false;
+        description "Read-only commands to inspect system, protocol, and network state.";
+
+        container firewall {
+            config false;
+            // Repeat the canonical description owned by ze-firewall-cmd.yang
+            // verbatim so the command-tree merge does not warn on a mismatch.
+            description "Firewall rules and groups (nftables).";
+
+            container domain-group {
+                config false;
+                ze:command "ze-show:firewall-domain-group-status";
+                description "Show what each configured domain group's DNS names resolve to.";
+                ze:help "Lists each group with its names, the addresses Ze is enforcing for
+                         them, when each name last resolved, and what the last answer said.
+                         Read this before a commit to confirm a group has data.";
+                leaf name { type string; description "Group name; omit to list every group"; }
+            }
+        }
+    }
+
+    container update {
+        config false;
+
+        container firewall {
+            config false;
+            description "Firewall operational updates.";
+            ze:help "These refresh data the firewall uses and do not edit a rule. A rule an operator
+                     wrote stays as written.";
+
+            container domain-group {
+                config false;
+                ze:command "ze-update:firewall-domain-group";
+                description "Resolve a domain group's DNS names now and program its set.";
+                ze:help "Asks for each name in the group at once rather than waiting for
+                         its TTL. A name that fails to resolve keeps the addresses Ze
+                         already had for it, and only a name that answers NXDOMAIN empties
+                         its own contribution.";
+                leaf name { type string; mandatory true; description "Domain group name"; }
+            }
+        }
+    }
+
+    container clear {
+        config false;
+
+        container firewall {
+            config false;
+            // Repeat the canonical description owned by ze-firewall-cmd.yang
+            // verbatim so the command-tree merge does not warn on a mismatch.
+            description "Firewall rules and groups (nftables).";
+            // Repeat the text ze-firewall-irr-cmd.yang carries on this same node
+            // verbatim so the command-tree merge does not warn on a mismatch.
+            ze:help "Clearing removes cached firewall state Ze installed and leaves the configured
+                     rules alone, so the next refresh reinstalls them. A rule added outside Ze is
+                     untouched.";
+
+            container domain-group {
+                config false;
+                ze:command "ze-clear:firewall-domain-group";
+                description "Remove the addresses Ze cached for a domain group.";
+                ze:help "Drops the group's addresses from memory and from the persisted
+                         cache, then re-applies the firewall tables. Config that still
+                         names the group fails to verify until it is resolved again with
+                         'update firewall domain-group <name>'.";
+                leaf name { type string; mandatory true; description "Domain group name"; }
+            }
+        }
+    }
+}

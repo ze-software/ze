@@ -116,7 +116,7 @@ func TestBuildSetsEmptyBoth(t *testing.T) {
 }
 
 // VALIDATES: AC-1, AC-2 -- an entry announcing ONE family still declares BOTH
-// sets, because expandIRRTermV6 (internal/component/firewall/config.go) emits
+// sets, because expandProvidedTermV6 (internal/component/firewall/config.go) emits
 // the IPv6 twin of every IRR term whatever the entry announces. The family with
 // no prefixes is declared with no elements, so its term matches nothing.
 // PREVENTS: the whole table being held back for an IPv4-only ASN or AS-SET,

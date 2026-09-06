@@ -215,7 +215,7 @@ func TestConfigureAcceptsIRRTableTerm(t *testing.T) {
 // firewall-irr owner builds for an IPv4-only entry: both set names, the IPv6
 // one empty (buildTermSets,
 // internal/component/firewall/plugins/irr/sets.go).
-// PREVENTS: the common case losing the whole table. expandIRRTermV6
+// PREVENTS: the common case losing the whole table. expandProvidedTermV6
 // (config.go) emits the IPv6 twin for every IRR term, because the parser
 // cannot see the prefix data. A v4-only entry therefore left the twin naming
 // an undeclared set. dropTablesMissingAProvidedSet (registry.go) then removed

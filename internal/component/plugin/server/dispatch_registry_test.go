@@ -42,11 +42,13 @@ func TestPluginRPCRegistryCoversAllPaths(t *testing.T) {
 		rpc.MethodRouteRemove,
 		rpc.MethodInjectWireRoute,
 		rpc.MethodBatchValidate,
+		rpc.MethodResolveDNS,
 	}
 
 	// The subset that also carries a typed DirectBridge fast-path slot. The
-	// remainder (subscribe/unsubscribe, route-install/route-remove) intentionally
-	// have no typed slot, exactly as before the unification.
+	// remainder (subscribe/unsubscribe, route-install/route-remove, resolve-dns)
+	// intentionally have no typed slot: each is a control-plane call whose
+	// callers run forked, so the JSON path is the path they take.
 	wantTyped := map[string]bool{
 		rpc.MethodUpdateRoute:         true, // typed *selector.Selector variant
 		rpc.MethodDispatchCommand:     true,

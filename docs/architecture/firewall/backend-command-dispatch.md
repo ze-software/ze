@@ -30,6 +30,27 @@ The warning-code check was INLINED in the moved firewall health check rather tha
 exported as `checkWarningCodes()`. Two hardcoded strings do not justify a new
 cross-package dependency.
 
+## The ruleset handler answers with its sets, and lets an owner add to them
+
+<!-- source: internal/plugins/firewall/nft/cmd_show.go -- handleShowFirewallRuleset -->
+
+`handleShowFirewallRuleset` returned `table`, `family` and `chains` and no set
+elements at all, so an operator reading a ruleset saw the chains that named a
+set and nothing about what was in it. It now returns `sets` beside them.
+
+It then calls `show.Enrich("show firewall ruleset", data)` before returning. A
+registered enricher adds what only its owner knows: `firewall-domain` attaches
+the DNS name that supplied each address, which is why the addresses had to be
+in the payload first. An owner with nothing to add returns nothing, so a node
+running neither plugin renders exactly as before.
+
+The alternative was a provenance field on the shared `firewall.SetElement`,
+carried unused by copp, policy-routes, flowspec, vrrp and firewall-irr. That is
+the per-feature edit to a shared field list `ai/rules/principles.md` refuses,
+and it is the same argument this page already makes for health checks: the
+knowledge belongs to the owner, and the central package aggregates without
+knowing which owners exist.
+
 ## Consequences
 
 `cmd/show/` no longer imports `firewall`: one fewer cross-component edge. VPP

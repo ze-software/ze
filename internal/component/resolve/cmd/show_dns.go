@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/resolve/dns"
 )
 
 const (
@@ -165,10 +166,11 @@ func handleDNSLookup(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 	start := time.Now()
 	var records []string
 	var ttl uint32
+	var status dns.Status
 	var lookupErr error
 
 	if resolvers != nil && resolvers.DNS != nil {
-		records, ttl, lookupErr = resolvers.DNS.ResolveWithTTL(name, qtypeNum)
+		records, ttl, status, lookupErr = resolvers.DNS.ResolveWithTTL(name, qtypeNum)
 	} else {
 		records, lookupErr = dnsLookupStdlib(name, qtype)
 	}
@@ -191,6 +193,14 @@ func handleDNSLookup(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 		} else {
 			result["error"] = lookupErr.Error()
 		}
+	}
+
+	// The Ze resolver answers a non-success RCODE with no error, so without the
+	// status this line reads exactly like a name that resolved to nothing. The
+	// stdlib path above reaches the same field through net.DNSError, which is
+	// the only signal it carries.
+	if lookupErr == nil && status != dns.StatusUnspecified && status != dns.StatusSuccess {
+		result["status"] = status.String()
 	}
 
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(result)}, nil
