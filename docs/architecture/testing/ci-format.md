@@ -983,10 +983,11 @@ expect=file:glob=<rel-pattern>:not-contains=<text>
 ```
 
 Validates files after the test process or peer sequence has completed. Paths and
-glob patterns are relative to the tmpfs directory when the test uses `tmpfs=`,
-otherwise relative to the `.ci` file directory. For glob `contains`, at least one
-matched file must contain the text. For glob `not-contains`, no matched file may
-contain it.
+glob patterns are relative to the test's own work directory, which is where every
+child ran and where a daemon writes its artifacts. A test that declares `tmpfs=`
+files gets them in that same directory, so the two spellings name one place. For
+glob `contains`, at least one matched file must contain the text. For glob
+`not-contains`, no matched file may contain it.
 
 Use file expectations for post-run artifacts such as generated configs, pointer
 files, and logs. Do not write shell just to inspect files.

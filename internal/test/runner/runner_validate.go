@@ -408,9 +408,22 @@ func (r *Runner) validateFileChecks(rec *Record) error {
 	if len(rec.FileChecks) == 0 {
 		return nil
 	}
-	baseDir := filepath.Dir(rec.CIFile)
-	if rec.TmpfsTempDir != "" {
-		baseDir = rec.TmpfsTempDir
+	// WorkDir, which is where the child actually ran (childWorkingDirectory) and
+	// which EVERY record has. It was TmpfsTempDir until 2026-09-06, and that
+	// field is set only when the .ci declares tmpfs files, so a file check in a
+	// record that declares a `stdin=` config block and no tmpfs file resolved
+	// against the .ci's own directory in the checkout: it read
+	// test/<suite>/<name> and reported the daemon's artifact missing, because
+	// the daemon had written it into its own directory.
+	//
+	// This is the second half of the pair ZE_READY_FILE's arming repaired on
+	// 2026-09-03 (runner_exec.go, zeReadyFileEnabled), and the same shard
+	// records it: plan/journal/guard-added-to-one-half-of-a-pair.md. The two
+	// fields name the same directory whenever both are set, so this changes
+	// nothing for a record that declares files.
+	baseDir := rec.WorkDir
+	if baseDir == "" {
+		baseDir = filepath.Dir(rec.CIFile)
 	}
 	for _, check := range rec.FileChecks {
 		if err := validateOneFileCheck(baseDir, check); err != nil {

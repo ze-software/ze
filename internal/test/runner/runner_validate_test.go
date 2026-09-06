@@ -261,3 +261,34 @@ func TestHTTPCheckWithoutHeadersSetsNone(t *testing.T) {
 	assert.Equal(t, []string{"application/json"}, seen.header.Values("Content-Type"))
 	assert.Empty(t, seen.header.Values("MCP-Protocol-Version"))
 }
+
+// TestFileCheckResolvesAgainstTheWorkDirectory pins where an expect=file: check
+// looks.
+//
+// VALIDATES: validateFileChecks reads the directory the child ran in, which is
+// the only place a daemon writes.
+// PREVENTS: the base falling back to the .ci file's own directory for a record
+// that declares no tmpfs block, which is what
+// test/plugin/firewall-domain-group-update.ci met: the daemon wrote its change
+// log into its work directory and the check read test/plugin/ in the checkout.
+// It is the second half of the pair ZE_READY_FILE's arming repaired on
+// 2026-09-03 (plan/journal/guard-added-to-one-half-of-a-pair.md).
+func TestFileCheckResolvesAgainstTheWorkDirectory(t *testing.T) {
+	workDir := t.TempDir()
+	ciDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(workDir, "artifact.jsonl"), []byte(`{"old":[],"new":["203.0.113.10"]}`), 0o600))
+
+	rec := newRecord("file-check-base")
+	rec.CIFile = filepath.Join(ciDir, "file-check-base.ci")
+	rec.WorkDir = workDir
+	rec.FileChecks = []fileCheck{{Path: "artifact.jsonl", Contains: `[],"new"`}}
+
+	require.NoError(t, (&Runner{}).validateFileChecks(rec),
+		"the check must read the work directory, where the child wrote the file")
+
+	// The discriminating half. Nothing wrote the file into the .ci directory, so
+	// a base taken from there cannot find it.
+	rec.WorkDir = ""
+	require.Error(t, (&Runner{}).validateFileChecks(rec),
+		"with no work directory the base falls back to the .ci directory, which holds no such file")
+}
