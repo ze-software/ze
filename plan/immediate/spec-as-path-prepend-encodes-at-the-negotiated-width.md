@@ -201,7 +201,7 @@ AS4_PATH as RFC 6793 Section 4.2.2 requires.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `as-path-prepend-two-octet-peer` | `test/interop/scenarios/` | FRR | An `as-path-prepend` policy toward a peer that did not send the four-octet AS capability keeps the session established and produces a path FRR decodes | written, never executed -- `./le integration scenario as-path-prepend-two-octet-peer` |
+| `as-path-prepend-two-octet-peer` | `test/interop/scenarios/` | FRR | An `as-path-prepend` policy toward a peer that did not send the four-octet AS capability keeps the session established and produces a path FRR decodes | written, never executed. Attempted 2026-09-06 and killed by the kernel for low memory during the image build; see below. The command is `INTEROP_SCENARIO=as-path-prepend-two-octet-peer ./le integration interop` -- `./le integration scenario ...` is NOT an action and fails immediately |
 
 ## Files to Modify
 - `internal/component/bgp/reactor/filter_delta.go` - `ExtractASPathPrependOps` takes the wire attributes and the width, encodes at that width, and records the AS4_PATH operation when RFC 6793 Section 4.2.2 requires one
@@ -380,7 +380,38 @@ explaining why a mappable local AS needs no AS4_PATH edit.
 
 ## Progress, 2026-09-06
 
-The spec landed in `9140ccc610`. The implementation is in flight and
-incomplete: the extractor signature changed and three call sites do not
-compile, at `filter_ordered.go:227`, `filter_ordered.go:372` and
-`policy_dryrun.go:240`.
+The spec landed in `9140ccc610`. **The implementation landed in `90f39325c9`,
+with `76a1253077` correcting a false claim this spec itself carried** — an
+interop scenario recorded as "written but never run" had never been written.
+An earlier note here said three call sites did not compile; that was true for a
+window and is no longer.
+
+The defect is real on a real wire. `writeRawUpdateBody`
+(`internal/component/bgp/reactor/session_write.go`) copies the body verbatim
+behind a BGP header, and two sites replace that body with the filter override,
+so on the `exportFilterForBody` rail a prepend toward a two-octet peer put a
+malformed AS_PATH on the socket — RFC 4271 Section 6.3 UPDATE Message Error.
+The import chain corrupts the local store instead, and the forwarded rail
+blackholes: it parses the spliced payload, fails, warns and skips that
+destination. Three blast radii from one encoder.
+
+Nine subtests were observed RED against the unfixed encoder, including
+`attribute: malformed AS_PATH` from the parser itself on the import and export
+width cases — the defect stated as a parser verdict rather than as an assertion.
+
+**The interop scenario remains unexecuted, and the attempt is recorded rather
+than the intention.** Run on 2026-09-06 as
+`INTEROP_SCENARIO=as-path-prepend-two-octet-peer ./le integration interop`; the
+kernel killed it for low memory during the image build, which compiles ze inside
+Docker. The host was not short of CPU — `docker info` reported 32 CPUs and
+31.34GiB — so the deciding measurement is available memory, and the run's own
+log says nothing about it, because an OOM kill and a hang are indistinguishable
+from the output. Recorded in
+`plan/journal/gate-verdict-depends-on-the-machine.md`.
+
+What that row also establishes, and what the next attempt should use: the line
+is between one daemon and a compile-plus-fleet, not between functional and
+interop. Three sibling tests that could not run as a whole suite the same
+afternoon all passed as named cases under job admission. No such scoping exists
+for an interop scenario, so this one needs a machine with headroom rather than a
+better invocation.
