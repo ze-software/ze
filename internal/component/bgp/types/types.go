@@ -36,14 +36,70 @@ const (
 	SAFINameMUP       = "mup" // Mobile User Plane (SAFI 85)
 )
 
-// TransactionResult holds the result of a commit or rollback operation.
+// Reasons a peer took less of a named commit than the commit queued. The set is
+// closed, and each token names an outcome the reactor OBSERVED rather than a
+// cause it inferred. An operator reads these, so they are a published surface
+// and a new one is added here rather than written at a call site.
+const (
+	// CommitReasonNotEstablished says the peer holds no encoding context, so
+	// the session is not established and nothing can be encoded for it.
+	CommitReasonNotEstablished = "not-established"
+
+	// CommitReasonAnnounceRefused says the commit service stopped part way
+	// through the announcements. The UPDATEs that left before it stopped are
+	// still counted on the row.
+	CommitReasonAnnounceRefused = "announce-refused"
+
+	// CommitReasonRoutesDropped says the commit service succeeded and carried
+	// fewer routes than were queued, which a negotiated per-prefix paths limit
+	// does.
+	CommitReasonRoutesDropped = "routes-dropped"
+
+	// CommitReasonWithdrawRefused says a family's NLRIs, or the
+	// MP_UNREACH_NLRI wrapping them, did not fit the build buffer. That family
+	// was withdrawn from no peer.
+	CommitReasonWithdrawRefused = "withdraw-refused"
+
+	// CommitReasonSendFailed says the peer did not accept a withdrawal UPDATE.
+	CommitReasonSendFailed = "send-failed"
+
+	// CommitReasonEORRefused says the peer did not accept an End-of-RIB marker.
+	CommitReasonEORRefused = "eor-refused"
+)
+
+// PeerCommitResult states what ONE peer took from a named commit.
+//
+// Every count is what that peer's own sends returned, never what the commit
+// queued, so a peer that took nothing carries zeros. Reasons and the shortfall
+// agree in both directions: it is non-empty exactly when this peer took less
+// than the commit offered it.
+type PeerCommitResult struct {
+	Name            string   // Configured peer name, empty when the peer has none.
+	Address         string   // Peer address, the key a multi-peer answer indexes rows by.
+	State           string   // Session state while the commit ran.
+	RoutesAnnounced int      // Routes carried by the UPDATEs this peer accepted.
+	RoutesWithdrawn int      // Withdrawals carried by the UPDATEs this peer accepted.
+	UpdatesSent     int      // UPDATE messages this peer accepted, End-of-RIB markers included.
+	EORSent         int      // End-of-RIB markers that left for this peer.
+	Reasons         []string // Why this peer took less than the commit queued.
+}
+
+// TransactionResult holds what a named commit carried.
+//
+// The queued counts say what the commit HELD and were offered to each matched
+// peer. Every other count is the sum of the per-peer rows, so nothing here is
+// assigned from a queue length: a caller cannot mistake work that was offered
+// for work that left (ai/rules/principles.md).
 type TransactionResult struct {
-	RoutesAnnounced int      // Routes announced (on commit)
-	RoutesWithdrawn int      // Routes withdrawn (on commit)
-	RoutesDiscarded int      // Routes discarded (on rollback)
-	UpdatesSent     int      // Number of UPDATE messages sent
-	Families        []string // Address families with EOR sent
-	TransactionID   string   // Transaction label
+	RoutesQueued      int                // Routes the commit held, offered to each matched peer.
+	WithdrawalsQueued int                // Withdrawals the commit held, offered to each matched peer.
+	RoutesAnnounced   int                // Sum of Peers[].RoutesAnnounced.
+	RoutesWithdrawn   int                // Sum of Peers[].RoutesWithdrawn.
+	UpdatesSent       int                // Sum of Peers[].UpdatesSent.
+	EORSent           int                // Sum of Peers[].EORSent.
+	EORRequested      bool               // The operator asked for an End-of-RIB.
+	Families          []string           // Address families the commit touched.
+	Peers             []PeerCommitResult // One row per matched peer, in the order the selector matched them.
 }
 
 // LargeCommunity is an alias for attribute.LargeCommunity (RFC 8092).

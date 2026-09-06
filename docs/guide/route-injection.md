@@ -222,13 +222,28 @@ Routes are sent to peers matching the selector:
 
 ## Commit Workflow
 
-For atomic multi-route updates:
+A named commit collects WITHDRAWALS and sends them together:
 
 ```bash
 ze cli -c "request commit start my-batch"
-ze cli -c "send bgp * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24"
-ze cli -c "send bgp * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.1.0/24"
-ze cli -c "request commit end my-batch"    # All routes sent together
+ze cli -c "request commit withdraw my-batch route 10.0.0.0/24"
+ze cli -c "request commit withdraw my-batch route 10.0.1.0/24"
+ze cli -c "request commit end my-batch"    # Both withdrawals sent together
+```
+
+A named commit cannot collect an ANNOUNCEMENT. Nothing queues one:
+`(*Transaction).QueueAnnounce` has no non-test caller, so a `send bgp ... update
+text ... add` between `commit start` and `commit end` announces immediately and
+does not join the commit. This page showed that workflow until 2026-09-05
+(`plan/journal/unwired-feature.md`).
+
+`end` and `eor` answer one row per matched peer, under `peers`, stating what
+that peer took. A peer that took less than the commit queued carries a `reasons`
+entry saying why, and makes the command answer `error` naming it, because this
+rail drops the work for a peer whose session is not established:
+
+```bash
+ze cli -c "request commit end my-batch | table"
 ```
 <!-- source: internal/component/bgp/plugins/cmd/commit/ -- commit command RPCs; internal/component/bgp/transaction/ -- commit manager -->
 

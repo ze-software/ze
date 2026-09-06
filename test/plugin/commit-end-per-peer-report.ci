@@ -1,0 +1,113 @@
+# Test: request commit end reports what each matched peer took
+# VALIDATES: two matched peers, one established and one that never connects, produce a
+#            per-peer answer; the command fails naming the peer that took nothing, and
+#            the established peer still receives the withdrawal UPDATE
+# PREVENTS: the answer reporting every queued withdrawal as delivered for every matched
+#           peer, whatever happened -- the count used to be assigned before the peer loop
+
+# ze-peer expectations
+#
+# seq=1 is the End-of-RIB ze sends when peer1 finishes its initial sync. The
+# fixture waits on it before it opens the commit, so the withdrawal below is
+# always the next UPDATE on this session.
+#
+# seq=2 is the withdrawal of 10.55.0.0/24 the commit carried:
+#   FF*16              marker
+#   001B               length 27
+#   02                 UPDATE
+#   0004               withdrawn routes length 4
+#   180A3700           prefix 10.55.0.0/24
+#   0000               total path attribute length 0
+# The wire is what this change must NOT alter, so it is asserted byte for byte
+# while the report changes around it.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A37000000
+EOF_PEER
+
+# ze bgp configuration
+#
+# peer2 points at 127.0.0.2. ze-peer binds 127.0.0.1, so nothing accepts there
+# and peer2 never establishes. The plugin is attached to BOTH peers, so the
+# commit's `*` selector matches both and the answer owes a row for each.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external commit-report-test {
+		run "ze-test fixture plugin/commit-end-per-peer-report"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process commit-report-test {
+			send [ update ]
+		}
+	}
+
+	peer peer2 {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.5
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process commit-report-test {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0

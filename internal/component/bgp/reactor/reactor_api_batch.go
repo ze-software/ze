@@ -1049,11 +1049,19 @@ func logWithdrawTooLarge(batch bgptypes.NLRIBatch, bufLen int, stage string) {
 }
 
 // SendRoutes sends routes directly to matching peers using CommitService.
-// This bypasses OutgoingRIB transaction and is used for named commits.
+// It is used for named commits, and it builds and sends inside this call: the
+// engine holds no Adj-RIB-Out to queue into.
 //
 // sender is who commits: an attached process, or the operator. It is gated on
 // `send [ update ]`: a named commit announces routes, withdraws
 // them and can close with an End-of-RIB marker, and all three are UPDATEs.
+//
+// Every count in the result is DERIVED from the loop below: one row per matched
+// peer holding what that peer's own sends returned, and the totals summed from
+// the rows. Nothing is assigned from a queue length, because three outcomes in
+// this loop -- a peer that is not established, a commit that stops part way, and
+// a family the build buffer refuses -- each leave a peer short of the queue
+// while the queue length says otherwise (ai/rules/principles.md).
 func (a *reactorAPIAdapter) SendRoutes(sel *selector.Selector, routes []*rib.Route, withdrawals []nlri.NLRI, sendEOR bool, sender plugin.Sender) (bgptypes.TransactionResult, error) {
 	a.r.mu.RLock()
 	peers, permErr := a.getMatchingPeersSel(sel, announceOrigin(sender))
@@ -1064,8 +1072,6 @@ func (a *reactorAPIAdapter) SendRoutes(sel *selector.Selector, routes []*rib.Rou
 	if len(peers) == 0 {
 		return bgptypes.TransactionResult{}, errors.New("no peers match selector")
 	}
-
-	var totalResult bgptypes.TransactionResult
 
 	// Collect families for EOR (from both routes and withdrawals)
 	seen := make(map[family.Family]bool)
@@ -1080,45 +1086,20 @@ func (a *reactorAPIAdapter) SendRoutes(sel *selector.Selector, routes []*rib.Rou
 		families = append(families, f)
 	}
 
-	// Track stats once (not per-peer)
-	totalResult.RoutesAnnounced = len(routes)
-	totalResult.RoutesWithdrawn = len(withdrawals)
+	result := bgptypes.TransactionResult{
+		RoutesQueued:      len(routes),
+		WithdrawalsQueued: len(withdrawals),
+		EORRequested:      sendEOR,
+		Peers:             make([]bgptypes.PeerCommitResult, 0, len(peers)),
+	}
 
 	for _, peer := range peers {
-		// Get encoding context for CommitService
-		ctx := peer.sendContext()
-		if ctx == nil {
-			continue // Peer not established
-		}
-
-		// Use CommitService with two-level grouping for announcements
-		cs := rib.NewCommitService(peer, ctx, true)
-
-		// Send announcements
-		if len(routes) > 0 {
-			stats, err := cs.Commit(routes, rib.CommitOptions{SendEOR: false})
-			if err != nil {
-				continue
-			}
-			totalResult.UpdatesSent += stats.UpdatesSent
-		}
-
-		// Send withdrawals
-		if len(withdrawals) > 0 {
-			updatesSent := a.sendWithdrawals(peer, withdrawals)
-			totalResult.UpdatesSent += updatesSent
-		}
-
-		// Send EOR for each family if requested
-		if sendEOR {
-			for _, f := range families {
-				eor := message.BuildEOR(f)
-				if err := peer.SendUpdate(eor); err == nil {
-					peer.incrEORSent()
-					totalResult.UpdatesSent++
-				}
-			}
-		}
+		row := a.commitToPeer(peer, routes, withdrawals, families, sendEOR)
+		result.RoutesAnnounced += row.RoutesAnnounced
+		result.RoutesWithdrawn += row.RoutesWithdrawn
+		result.UpdatesSent += row.UpdatesSent
+		result.EORSent += row.EORSent
+		result.Peers = append(result.Peers, row)
 	}
 
 	// Build family strings for result
@@ -1126,17 +1107,114 @@ func (a *reactorAPIAdapter) SendRoutes(sel *selector.Selector, routes []*rib.Rou
 	for i, f := range families {
 		familyStrs[i] = f.String()
 	}
-	totalResult.Families = familyStrs
+	result.Families = familyStrs
 
-	return totalResult, nil
+	return result, nil
+}
+
+// commitToPeer runs one matched peer's half of a named commit and states what
+// that peer took.
+//
+// The refusals it meets are unchanged and still fail closed: no partial UPDATE
+// reaches the wire, and a refused family is withdrawn from nobody. What changes
+// is that each refusal now leaves a reason on the row instead of a bare
+// `continue`, so the operator who caused it reads it in the answer rather than
+// in a log they were not watching.
+//
+// A row carries a reason if and only if this peer took less than the commit
+// offered it. TestSendRoutesReasonsAndShortfallAgree holds both directions.
+func (a *reactorAPIAdapter) commitToPeer(peer *Peer, routes []*rib.Route, withdrawals []nlri.NLRI, families []family.Family, sendEOR bool) bgptypes.PeerCommitResult {
+	settings := peer.Settings()
+	row := bgptypes.PeerCommitResult{
+		Name:    settings.Name,
+		Address: peer.addrString,
+		State:   peer.State().String(),
+	}
+
+	// The encoding context is stored at Established and nowhere else
+	// (setEncodingContexts, peer.go), so a nil one IS the not-established case.
+	ctx := peer.sendContext()
+	if ctx == nil {
+		row.Reasons = append(row.Reasons, bgptypes.CommitReasonNotEstablished)
+		return row
+	}
+
+	if len(routes) > 0 {
+		// Two-level grouping, one UPDATE per attribute-and-AS_PATH group.
+		cs := rib.NewCommitService(peer, ctx, true)
+
+		// Commit returns its stats BESIDE the error, and those stats are
+		// partial: a refusal in the third group leaves two groups already on
+		// the wire. Counting them is the whole point -- discarding the error
+		// used to discard the UPDATEs that did leave along with it.
+		stats, err := cs.Commit(routes, rib.CommitOptions{SendEOR: false})
+		row.UpdatesSent += stats.UpdatesSent
+		row.RoutesAnnounced += stats.RoutesAnnounced
+		switch {
+		case err != nil:
+			row.Reasons = append(row.Reasons, bgptypes.CommitReasonAnnounceRefused)
+		case stats.RoutesAnnounced < len(routes):
+			// enforcePathsLimit (rib/commit.go) drops routes over a negotiated
+			// per-prefix limit and reports no error for it, so a successful
+			// commit can still carry fewer routes than were queued.
+			row.Reasons = append(row.Reasons, bgptypes.CommitReasonRoutesDropped)
+		}
+	}
+
+	if len(withdrawals) > 0 {
+		outcome := a.sendWithdrawals(peer, withdrawals)
+		row.UpdatesSent += outcome.updatesSent
+		row.RoutesWithdrawn += outcome.withdrawn
+		if outcome.refused > 0 {
+			row.Reasons = append(row.Reasons, bgptypes.CommitReasonWithdrawRefused)
+		}
+		if outcome.failed > 0 {
+			row.Reasons = append(row.Reasons, bgptypes.CommitReasonSendFailed)
+		}
+	}
+
+	if sendEOR {
+		for _, f := range families {
+			eor := message.BuildEOR(f)
+			if err := peer.SendUpdate(eor); err != nil {
+				continue
+			}
+			peer.incrEORSent()
+			row.UpdatesSent++
+			row.EORSent++
+		}
+		if row.EORSent < len(families) {
+			row.Reasons = append(row.Reasons, bgptypes.CommitReasonEORRefused)
+		}
+	}
+
+	return row
+}
+
+// withdrawOutcome is what the withdrawal half of a named commit produced for ONE
+// peer. Every field counts what the peer accepted, so a family the build buffer
+// refused and an UPDATE the peer rejected both leave `withdrawn` short of the
+// list the caller passed in.
+type withdrawOutcome struct {
+	updatesSent int // UPDATE messages the peer accepted.
+	withdrawn   int // NLRIs carried by those UPDATEs.
+	refused     int // Families whose NLRIs or MP_UNREACH_NLRI did not fit the build buffer.
+	failed      int // Families whose UPDATE the peer did not accept.
 }
 
 // sendWithdrawals sends withdrawal UPDATE messages for the given NLRIs.
 // Groups by family for efficient packing.
 // RFC 7911: Uses WriteNLRI for ADD-PATH aware encoding.
-func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI) int {
+//
+// A family is all-or-nothing: its NLRIs travel in one UPDATE, so a family that
+// is refused or that the peer rejects contributes nothing to `withdrawn`. The
+// two counters are kept apart because the operator's next action differs --
+// `refused` says to send fewer prefixes per commit, `failed` says the session
+// is not carrying messages.
+func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI) withdrawOutcome {
+	var outcome withdrawOutcome
 	if len(withdrawals) == 0 {
-		return 0
+		return outcome
 	}
 
 	// Group withdrawals by family
@@ -1146,7 +1224,6 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 		byFamily[f] = append(byFamily[f], n)
 	}
 
-	updatesSent := 0
 	ipv4Unicast := family.IPv4Unicast
 
 	for fam, nlris := range byFamily {
@@ -1160,11 +1237,15 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 		nlriHandle := getBuildBuf()
 		off := writeBatchNLRI(nlriHandle.Buf, nlris, addPath)
 		if off < 0 {
+			// Logged AND counted. The Warn line is not something an operator
+			// can act on mid-command, so the refusal also reaches the answer
+			// through outcome.refused (commitToPeer).
 			routesLogger().Warn("withdraw rejected: NLRIs do not fit the build buffer",
 				"family", fam, "nlri-count", len(nlris), "buffer-bytes", len(nlriHandle.Buf),
 				"stage", "send-routes",
 				"action", "routes not withdrawn from this peer; send fewer prefixes per commit")
 			putBuildBuf(nlriHandle)
+			outcome.refused++
 			continue
 		}
 		nlriBytes := nlriHandle.Buf[:off]
@@ -1192,6 +1273,7 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 					"action", "routes not withdrawn from this peer; send fewer prefixes per commit")
 				putBuildBuf(attrHandle)
 				putBuildBuf(nlriHandle)
+				outcome.refused++
 				continue
 			}
 			attrLen := attribute.WriteAttrTo(mpUnreach, attrHandle.Buf, 0)
@@ -1199,21 +1281,29 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 				PathAttributes: attrHandle.Buf[:attrLen],
 			}
 			// Send then return attr buffer (nlri already copied into attrBuf by WriteAttrTo)
-			if err := peer.SendUpdate(update); err == nil {
-				updatesSent++
-			}
+			outcome.record(peer.SendUpdate(update), len(nlris))
 			putBuildBuf(attrHandle)
 			putBuildBuf(nlriHandle)
 			continue
 		}
 
-		if err := peer.SendUpdate(update); err == nil {
-			updatesSent++
-		}
+		outcome.record(peer.SendUpdate(update), len(nlris))
 		putBuildBuf(nlriHandle)
 	}
 
-	return updatesSent
+	return outcome
+}
+
+// record folds one family's send into the outcome. sendErr is what
+// (*Peer).SendUpdate answered, and nlriCount is how many NLRIs that one UPDATE
+// carried. A send that failed carried none of them.
+func (o *withdrawOutcome) record(sendErr error, nlriCount int) {
+	if sendErr != nil {
+		o.failed++
+		return
+	}
+	o.updatesSent++
+	o.withdrawn += nlriCount
 }
 
 // sendStaleReadvertise handles one destination peer on a stale (LLGR) announce

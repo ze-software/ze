@@ -51,6 +51,7 @@ func init() {
 	Register("plugin/cli-run-command-peer", observe04(runCommandPeer04))
 	Register("plugin/cli-run-command", observe04(runCommand04))
 	Register("plugin/cli-summary-show", observe04(summaryShow04))
+	Register("plugin/commit-end-per-peer-report", observe04(commitEndPerPeerReport04))
 	Register("plugin/community-attributes-json", communityAttributes04)
 }
 

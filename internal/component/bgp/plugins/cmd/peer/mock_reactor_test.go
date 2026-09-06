@@ -175,13 +175,31 @@ func (m *mockReactor) RIBInRoutes(_ string) []rib.RouteJSON { return nil }
 func (m *mockReactor) RIBStats() bgptypes.RIBStatsInfo      { return bgptypes.RIBStatsInfo{} }
 func (m *mockReactor) ClearRIBIn() int                      { return 0 }
 
-func (m *mockReactor) SendRoutes(_ *selector.Selector, routes []*rib.Route, withdrawals []nlri.NLRI, _ bool, _ plugin.Sender) (bgptypes.TransactionResult, error) {
-	return bgptypes.TransactionResult{
+func (m *mockReactor) SendRoutes(_ *selector.Selector, routes []*rib.Route, withdrawals []nlri.NLRI, sendEOR bool, _ plugin.Sender) (bgptypes.TransactionResult, error) {
+	// One established peer that took everything the commit queued. The counts
+	// are stated on the ROW and the totals summed from it, which is the shape
+	// the real SendRoutes answers: a total assigned from a queue length is the
+	// defect this mock used to reproduce.
+	row := bgptypes.PeerCommitResult{
+		Address:         mockCommitPeerAddress,
+		State:           "established",
 		RoutesAnnounced: len(routes),
 		RoutesWithdrawn: len(withdrawals),
 		UpdatesSent:     1,
+	}
+	return bgptypes.TransactionResult{
+		RoutesQueued:      len(routes),
+		WithdrawalsQueued: len(withdrawals),
+		RoutesAnnounced:   row.RoutesAnnounced,
+		RoutesWithdrawn:   row.RoutesWithdrawn,
+		UpdatesSent:       row.UpdatesSent,
+		EORRequested:      sendEOR,
+		Peers:             []bgptypes.PeerCommitResult{row},
 	}, nil
 }
+
+// mockCommitPeerAddress is the one peer every mock commit answers for.
+const mockCommitPeerAddress = "10.0.0.2"
 
 // Cache operations (tracked).
 func (m *mockReactor) RetainUpdate(id uint64) error {

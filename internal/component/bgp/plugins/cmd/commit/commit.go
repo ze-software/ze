@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/transaction"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
@@ -18,10 +19,37 @@ import (
 )
 
 // Keys of the response payload every commit handler returns.
+//
+// The peer identity and counter spellings are the ones every other multi-peer
+// answer publishes (internal/component/bgp/plugins/cmd/peer/fields.go), so an
+// operator who learned them at `show bgp peer list` reads this answer already.
 const (
 	jsonKeyCommit  = "commit"
 	jsonKeyMessage = "message"
 	jsonKeyPeer    = "peer"
+	jsonKeyPeers   = "peers"
+	jsonKeyName    = "name"
+	jsonKeyState   = "state"
+	jsonKeyAction  = "action"
+
+	// What the commit HELD. Named apart from the delivered counts because a
+	// count of offered work read as delivered work is the defect this answer
+	// exists to remove.
+	jsonKeyRoutesQueued  = "routes-queued"
+	jsonKeyWithdrawalsQd = "withdrawals-queued"
+
+	// What LEFT, per peer and summed over the peers.
+	jsonKeyRoutesAnn   = "routes-announced"
+	jsonKeyRoutesWdr   = "routes-withdrawn"
+	jsonKeyUpdatesSent = "updates-sent"
+	jsonKeyEORSent     = "eor-sent"
+
+	// What the operator ASKED for, which is a different fact from what left.
+	jsonKeyEORRequested = "eor-requested"
+
+	jsonKeyFamilies        = "families"
+	jsonKeyReasons         = "reasons"
+	jsonKeyRoutesDiscarded = "routes-discarded"
 )
 
 var (
@@ -29,6 +57,12 @@ var (
 	errMissingWithdrawArguments = errors.New("missing withdraw arguments")
 	errExpectedRouteKeyword     = errors.New("expected 'route' keyword")
 	errMissingPrefix            = errors.New("missing prefix")
+
+	// errCommitNotCarriedInFull is the Go error beside the error status a
+	// shortfall answers with. The operator-facing detail is the response's own
+	// sentence, which names each peer; this exists so a Go caller can tell a
+	// shortfall from a command that could not run at all.
+	errCommitNotCarriedInFull = errors.New("commit not carried in full by every matched peer")
 )
 
 // Sentinel errors for commit handlers.
@@ -288,19 +322,91 @@ func handleNamedCommitEnd(ctx *pluginserver.CommandContext, name string, sendEOR
 		action = actionEOR
 	}
 
+	data := plugin.Map{
+		jsonKeyCommit:        name,
+		jsonKeyAction:        action,
+		jsonKeyPeer:          tx.PeerSelector(),
+		jsonKeyRoutesQueued:  result.RoutesQueued,
+		jsonKeyWithdrawalsQd: result.WithdrawalsQueued,
+		jsonKeyRoutesAnn:     result.RoutesAnnounced,
+		jsonKeyRoutesWdr:     result.RoutesWithdrawn,
+		jsonKeyUpdatesSent:   result.UpdatesSent,
+		jsonKeyEORSent:       result.EORSent,
+		jsonKeyEORRequested:  result.EORRequested,
+		jsonKeyFamilies:      result.Families,
+		jsonKeyPeers:         peerRows(result.Peers),
+	}
+
+	// A peer that took less than the commit queued makes this an error, because
+	// this rail drops the work rather than queueing it for establishment
+	// (SendRoutes, reactor_api_batch.go). A `done` envelope over dropped work
+	// tells a script nothing, which is the defect this answer exists to remove.
+	short := shortfallSentence(name, action, result.Peers)
+	if short == "" {
+		return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil
+	}
+
+	// The sentence repeats what the rows already say, on purpose: every
+	// transport that carries an error answer drops Data with it
+	// (responseToDispatchOutput in internal/component/plugin/server/dispatch.go,
+	// answerValue in pkg/plugin/sdk/sdk_engine.go), so the sentence is the only
+	// part a plugin or a remote operator receives.
 	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: plugin.Map{
-			jsonKeyCommit:      name,
-			"action":           action,
-			jsonKeyPeer:        tx.PeerSelector(),
-			"routes_announced": result.RoutesAnnounced,
-			"routes_withdrawn": result.RoutesWithdrawn,
-			"updates_sent":     result.UpdatesSent,
-			"families":         result.Families,
-			"eor_sent":         sendEOR,
-		},
-	}, nil
+		Status: plugin.StatusError,
+		Error:  short,
+		Data:   data,
+	}, errCommitNotCarriedInFull
+}
+
+// peerRows renders the reactor's per-peer rows as the answer's `peers` payload:
+// a map keyed by peer address, which is the shape every multi-peer answer here
+// already uses (handleBgpPeerList, internal/component/bgp/plugins/cmd/peer).
+// `| table` renders it as one row per peer with no other support needed.
+func peerRows(peers []bgptypes.PeerCommitResult) map[string]any {
+	rows := make(map[string]any, len(peers))
+	for i := range peers {
+		p := &peers[i]
+		row := map[string]any{
+			jsonKeyState:       p.State,
+			jsonKeyRoutesAnn:   p.RoutesAnnounced,
+			jsonKeyRoutesWdr:   p.RoutesWithdrawn,
+			jsonKeyUpdatesSent: p.UpdatesSent,
+			jsonKeyEORSent:     p.EORSent,
+		}
+		if p.Name != "" {
+			row[jsonKeyName] = p.Name
+		}
+		if len(p.Reasons) > 0 {
+			row[jsonKeyReasons] = p.Reasons
+		}
+		rows[p.Address] = row
+	}
+	return rows
+}
+
+// shortfallSentence names every peer that took less than the commit queued, with
+// the reason each one carries. It answers the empty string when every peer took
+// everything, which is what makes the command answer `done`.
+func shortfallSentence(name, action string, peers []bgptypes.PeerCommitResult) string {
+	var tb textbuf.Buffer
+	tb.Str("commit ").Str(action).Byte(' ').Str(name).Str(" not carried in full by: ")
+
+	written := 0
+	for i := range peers {
+		p := &peers[i]
+		if len(p.Reasons) == 0 {
+			continue
+		}
+		if written > 0 {
+			tb.Str(", ")
+		}
+		tb.Str(p.Address).Str(" (").Str(textbuf.Join(p.Reasons, " ")).Byte(')')
+		written++
+	}
+	if written == 0 {
+		return ""
+	}
+	return tb.String()
 }
 
 // handleNamedCommitRollback discards all queued routes in the commit.
@@ -320,9 +426,9 @@ func handleNamedCommitRollback(ctx *pluginserver.CommandContext, name string) (*
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			jsonKeyCommit:      name,
-			"routes_discarded": discarded,
-			jsonKeyMessage:     "commit rolled back",
+			jsonKeyCommit:          name,
+			jsonKeyRoutesDiscarded: discarded,
+			jsonKeyMessage:         "commit rolled back",
 		},
 	}, nil
 }

@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | cli |
 | Depends | - |
-| Phase | DESIGN |
+| Phase | 5/5 |
 | Handoff | - |
-| Updated | 2026-09-05 |
+| Updated | 2026-09-06 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -136,10 +136,10 @@ one are unchanged.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `(*Transaction).QueueAnnounce` has no non-test caller, so a named commit carries withdrawals only and the announced count is 0 on every shipped path today | `gopls references` on the `QueueAnnounce` declaration in `internal/component/bgp/transaction/commit_manager.go`, which answers nine sites, all in `commit_manager_test.go` | The announced half is reachable too, and the functional test must drive it as well as the withdrawal half | The same query at implementation time, plus the functional test which drives the withdrawal half | unvalidated |
-| A-2 | A `plugin.Response` can carry `Data` beside `Status` error | `quiesceAll` (`internal/component/plugin/server/quiesce.go`) does exactly this, and `Response` (`internal/component/plugin/types.go`) declares both fields | The refusal detail must live entirely in the error sentence | `TestCommitEndAnswersErrorAndKeepsThePeerRows` reads both fields off the returned response | unvalidated |
-| A-3 | A peer matched by the selector but not established has a nil send context | `sendContext` reads `p.sendCtx`, which `setEncodingContexts` fills at Established (`internal/component/bgp/reactor/peer.go`) | The not-established row cannot be distinguished from a refusal, and the state field needs another source | `TestSendRoutesNamesTheNotEstablishedPeer` builds a peer with no send context | unvalidated |
-| A-4 | No shipped reader outside `handleNamedCommitEnd` consumes `TransactionResult.RoutesAnnounced` | `grep RoutesAnnounced` over the tree: one non-test caller in `internal/component/bgp/plugins/cmd/commit/commit.go`, four mock reactors in plugin tests, and the unrelated `rib.CommitServiceStats` field of the same name | A rename breaks a reader nobody enumerated | The same grep at implementation time, and the compiler | unvalidated |
+| A-1 | `(*Transaction).QueueAnnounce` has no non-test caller, so a named commit carries withdrawals only and the announced count is 0 on every shipped path today | `gopls references` on the `QueueAnnounce` declaration in `internal/component/bgp/transaction/commit_manager.go`, which answers nine sites, all in `commit_manager_test.go` | The announced half is reachable too, and the functional test must drive it as well as the withdrawal half | The same query at implementation time, plus the functional test which drives the withdrawal half | confirmed 2026-09-05: `grep -rn QueueAnnounce` answers nine sites for `(*Transaction).QueueAnnounce`, all in `commit_manager_test.go`. The `peer.QueueAnnounce` and `rib.OutgoingRIB.QueueAnnounce` hits are different symbols |
+| A-2 | A `plugin.Response` can carry `Data` beside `Status` error | `quiesceAll` (`internal/component/plugin/server/quiesce.go`) does exactly this, and `Response` (`internal/component/plugin/types.go`) declares both fields | The refusal detail must live entirely in the error sentence | `TestCommitEndAnswersErrorAndKeepsThePeerRows` reads both fields off the returned response | confirmed 2026-09-05: `quiesceAll` writes `Status: StatusError` beside `Data: plugin.Map{...}` at `internal/component/plugin/server/quiesce.go:91-98` |
+| A-3 | A peer matched by the selector but not established has a nil send context | `sendContext` reads `p.sendCtx`, which `setEncodingContexts` fills at Established (`internal/component/bgp/reactor/peer.go`) | The not-established row cannot be distinguished from a refusal, and the state field needs another source | `TestSendRoutesNamesTheNotEstablishedPeer` builds a peer with no send context | confirmed 2026-09-05: `(*Peer).sendContext` (`peer.go:936`) reads `p.sendCtx.Load()`, and `setEncodingContexts` (`peer.go:950`) is the only writer |
+| A-4 | No shipped reader outside `handleNamedCommitEnd` consumes `TransactionResult.RoutesAnnounced` | `grep RoutesAnnounced` over the tree: one non-test caller in `internal/component/bgp/plugins/cmd/commit/commit.go`, four mock reactors in plugin tests, and the unrelated `rib.CommitServiceStats` field of the same name | A rename breaks a reader nobody enumerated | The same grep at implementation time, and the compiler | confirmed 2026-09-05: `commit.go:297-298` is the only non-test reader. Two further fields on the type, `RoutesDiscarded` and `TransactionID`, have NO writer and NO reader anywhere and are removed with the rename |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -349,10 +349,52 @@ the UPDATEs this path emits and are unaffected.
 | Rename the four snake_case keys in the same change | Leave them and add kebab-case siblings | `ai/rules/cli.md` requires kebab-case, Ze is unreleased so a spelling is replaced rather than aliased, and two spellings of one count is the disagreement this whole spec exists to remove |
 | Report the drop for a non-established peer; do not queue for it | Queue the routes as `AnnounceNLRIBatch` does | Queueing changes what the daemon sends after a session establishes, which is a behavior change well outside a reporting fix. The asymmetry is named in Known Limitations so the next reader meets it |
 
+### Resolved at implementation (2026-09-05)
+
+The design left the field spellings and the refusal vocabulary open. Both are
+settled here, because a reason string an operator reads is a published surface.
+
+| Answer key | Type | What it states |
+|-----------|------|----------------|
+| `routes-queued` | int | Routes the commit held, offered to EACH matched peer |
+| `withdrawals-queued` | int | Withdrawals the commit held, offered to EACH matched peer |
+| `routes-announced` | int | Sum of the per-peer rows |
+| `routes-withdrawn` | int | Sum of the per-peer rows |
+| `updates-sent` | int | Sum of the per-peer rows, End-of-RIB markers included |
+| `eor-sent` | int | End-of-RIB markers that LEFT, summed over the rows |
+| `eor-requested` | bool | The operator asked for an End-of-RIB |
+| `families` | list | Address families the commit touched |
+| `peers` | map keyed by address | One row per matched peer |
+
+The rows are a map keyed by the peer address, which is the shape
+`handleBgpPeerList` (`internal/component/bgp/plugins/cmd/peer/peer.go`) already
+answers under the same `peers` key, so `| table` renders one row per peer with
+no new renderer support. Each row carries `name`, `state`, `routes-announced`,
+`routes-withdrawn`, `updates-sent`, `eor-sent` and `reasons`.
+
+The refusal vocabulary is closed, and every token names an OBSERVED outcome
+rather than a cause nobody read. A row carries a reason if and only if that peer
+took less than the commit queued, which is the invariant
+`TestSendRoutesReasonsAndShortfallAgree` asserts.
+
+| Reason | Observed at |
+|--------|-------------|
+| `not-established` | `(*Peer).sendContext` answered nil, so the peer holds no encoding context |
+| `announce-refused` | `(*CommitService).Commit` returned an error; the partial stats beside it are still counted |
+| `routes-dropped` | `Commit` succeeded and announced fewer routes than were queued, which is `enforcePathsLimit` |
+| `withdraw-refused` | A family's NLRIs or its MP_UNREACH_NLRI did not fit the build buffer |
+| `send-failed` | `(*Peer).SendUpdate` returned an error for a withdrawal UPDATE |
+| `eor-refused` | `(*Peer).SendUpdate` returned an error for an End-of-RIB marker |
+
+`TransactionResult.RoutesDiscarded` and `TransactionResult.TransactionID` are
+deleted with the rename. Neither has a writer or a reader anywhere in the tree,
+so both are counts nobody produced sitting on the type this spec exists to make
+honest (`ai/rules/principles.md`).
+
 ## Known Limitations
 - The announce half of a named commit has no producer: `(*Transaction).QueueAnnounce` is called by nothing outside its own tests, so `request commit end` can carry withdrawals and cannot carry announcements. This spec makes the announced count honest by construction, so it stays correct when a producer is wired. The find is recorded in `plan/journal/unwired-feature.md` (2026-09-05).
 - `SendRoutes` drops the work for a peer that is not established, where `AnnounceNLRIBatch` queues it for establishment. This spec reports the drop and does not change it.
-- `answerValue` (`pkg/plugin/sdk/sdk_engine.go`) discards the collapsed document when a command answers with an error status. This spec works around it by stating the refusal in the sentence. The find is recorded in `plan/journal/error-path-discards-data-already-received.md` (2026-09-05).
+- An error answer loses its payload at TWO boundaries, and the design named only the second. The FIRST producer is `responseToDispatchOutput` (`internal/component/plugin/server/dispatch.go`): it copies `resp.Status`, then `if resp.Error != "" { output.Error = resp.Error; return output }`, and the `json.Marshal(resp.Data)` below that return is never reached. So `DispatchCommandOutput.Data` is nil for EVERY command that answers with an error, on every dispatch path, and the payload is already gone before the SDK sees the answer. `answerValue` (`pkg/plugin/sdk/sdk_engine.go`) then discards the collapsed document a second time, and `dispatchCommandResult` does the same for the in-process bridge. The shape matters more than the count: a value is deleted at a layer no caller suspects, so the surface above reports an ABSENCE that is really a DELETION, and a reader of the payload cannot tell "the command had nothing to say" from "the command said it and a middle layer dropped it". That is why this spec states every refused peer and its reason in the error SENTENCE: the sentence is the only field that survives all three. The peer rows on the `plugin.Response` are what the handler test asserts, because the handler is above the first deletion. The find is recorded in `plan/journal/error-path-discards-data-already-received.md` (2026-09-05), whose row named `answerValue` alone and is now understated by one layer.
 
 ## RFC Documentation (Scope: protocol)
 Not applicable. No RFC requirement is implemented, changed or newly proven by

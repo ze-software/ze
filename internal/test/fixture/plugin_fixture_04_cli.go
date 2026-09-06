@@ -544,3 +544,63 @@ func readPTYUntil04(file *os.File, initial []byte, timeout time.Duration, eofOK 
 		}
 	}
 }
+
+// commitEndPerPeerReport04 drives `request commit end` over two matched peers,
+// one established against ze-peer and one pointing at an address nothing listens
+// on, and reads what the command answers.
+//
+// The answer is the point. The wire behavior is unchanged and the .ci asserts it
+// separately: the established peer still receives the withdrawal UPDATE. What
+// this driver holds is that the command no longer reports the queue length as
+// delivered work for a peer that took none of it.
+//
+// The refusal is read from the SENTENCE rather than the payload, because every
+// transport drops Data on an error answer (responseToDispatchOutput in
+// internal/component/plugin/server/dispatch.go, then answerValue in
+// pkg/plugin/sdk/sdk_engine.go). That is why the handler names each refused peer
+// in the sentence as well as in the rows.
+func commitEndPerPeerReport04(ctx context.Context, p *sdk.Plugin) error {
+	// Wait on the End-of-RIB rather than on a duration: it says peer1 finished
+	// its initial sync, so the withdrawal below is the next UPDATE on the wire
+	// and the .ci can assert its sequence.
+	if err := waitPeerEOR04(ctx, p); err != nil {
+		return err
+	}
+
+	if _, err := requireDone04(ctx, p, "request commit start peer-report"); err != nil {
+		return err
+	}
+	queued, err := requireDone04(ctx, p, "request commit withdraw peer-report route 10.55.0.0/24")
+	if err != nil {
+		return err
+	}
+	if number04(queued["withdrawals"]) != 1 {
+		return fmt.Errorf("commit holds %v withdrawals, want 1", queued["withdrawals"])
+	}
+
+	status, value, err := command04(ctx, p, "request commit end peer-report")
+	if err != nil {
+		return err
+	}
+	if status != statusError {
+		return fmt.Errorf("commit end answered %s, want %s: one matched peer never established", status, statusError)
+	}
+	sentence, _ := value.(string)
+	if !strings.Contains(sentence, commitReportDownPeer04) {
+		return fmt.Errorf("commit end did not name the peer that took nothing: %q", sentence)
+	}
+	if !strings.Contains(sentence, "not-established") {
+		return fmt.Errorf("commit end did not state why the peer took nothing: %q", sentence)
+	}
+	if strings.Contains(sentence, peerAddress04) {
+		return fmt.Errorf("commit end named the peer that took the withdrawal: %q", sentence)
+	}
+
+	fmt.Fprintf(os.Stderr, "OK: commit end reported the shortfall: %s\n", sentence)
+	return nil
+}
+
+// commitReportDownPeer04 is the second configured peer of
+// test/plugin/commit-end-per-peer-report.ci. Nothing listens on it, so it is
+// matched by the selector and never establishes.
+const commitReportDownPeer04 = "127.0.0.2"

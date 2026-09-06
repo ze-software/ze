@@ -12,6 +12,6 @@ module ze-bgp-cmd-commit-api {
 
     rpc commit {
         description "Named commit operations (list, start, end, eor, rollback, show, withdraw).";
-        ze:help "Write the action before the name. 'commit end <name>' flushes the queued routes without an End-of-RIB marker, and 'commit eor <name>' flushes with one. 'commit rollback <name>' discards the queue instead. The older form 'commit <name> <action>' still runs, and the answer then carries a deprecated key.";
+        ze:help "Write the action before the name. 'commit end <name>' flushes the queued routes without an End-of-RIB marker, and 'commit eor <name>' flushes with one. 'commit rollback <name>' discards the queue instead. The older form 'commit <name> <action>' still runs, and the answer then carries a deprecated key. End and eor answer one row per matched peer under 'peers', stating what that peer took, and a peer that took less than the queue carries the reason under 'reasons'. The command fails when any matched peer took less, and the error names each one: this rail sends to an established session and drops the work for a peer that has none, so undelivered means dropped.";
     }
 }

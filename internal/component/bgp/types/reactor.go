@@ -103,6 +103,13 @@ type BGPReactor interface {
 	// --- Commit (1 method) ---
 
 	// SendRoutes sends routes directly to matching peers using CommitService.
+	//
+	// The result states what EACH peer took, one row per matched peer, and
+	// every delivered count on it is the sum of those rows. The error return
+	// reports a failure to run the command at all -- no sender, no permission,
+	// no peer matched. A peer that took less than the commit queued is NOT an
+	// error here: it is a row carrying a Reasons entry, and the caller decides
+	// what a shortfall means for its own answer.
 	SendRoutes(sel *selector.Selector, routes []*rib.Route, withdrawals []nlri.NLRI, sendEOR bool, sender plugin.Sender) (TransactionResult, error)
 
 	// --- UPDATE cache (5 methods) ---
