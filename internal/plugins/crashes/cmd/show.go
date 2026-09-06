@@ -5,6 +5,7 @@ package cmd
 import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/crashlog"
+	"github.com/ze-software/ze/internal/plugins/crashes"
 )
 
 func handleShowCrashes(args []string) (*plugin.Response, error) {
@@ -26,36 +27,22 @@ func handleShowCrashes(args []string) (*plugin.Response, error) {
 	}, nil
 }
 
+// showCrashList answers the stored artifacts of both kinds, plus the readiness
+// block. Readiness travels with the listing rather than under a second noun: an
+// operator who sees no kernel report needs to know whether that means no fault
+// happened or that nothing was ever going to be captured.
 func showCrashList() (*plugin.Response, error) {
-	summaries := crashlog.ListCrashes()
-	if len(summaries) == 0 {
-		return &plugin.Response{
-			Status: plugin.StatusDone,
-			Data: plugin.Map{
-				"crashes": []any{},
-				"count":   0,
-				"dir":     crashlog.CrashDir(),
-				"message": "no crashes recorded",
-			},
-		}, nil
+	entries := crashlog.CrashListFields()
+	data := plugin.Map{
+		"crashes":   entries,
+		"count":     len(entries),
+		"dir":       crashlog.CrashDir(),
+		"readiness": crashes.Readiness("").Fields(),
 	}
-
-	entries := make([]map[string]any, 0, len(summaries))
-	for _, s := range summaries {
-		entries = append(entries, map[string]any{
-			"name": s.Name,
-			"size": s.Size,
-		})
+	if len(entries) == 0 {
+		data["message"] = "no crashes recorded"
 	}
-
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: plugin.Map{
-			"crashes": entries,
-			"count":   len(entries),
-			"dir":     crashlog.CrashDir(),
-		},
-	}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil
 }
 
 func showCrashContent(name string) (*plugin.Response, error) {

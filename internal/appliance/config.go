@@ -13,6 +13,8 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/cpulist"
+	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -60,6 +62,17 @@ type ImageConfig struct {
 	// kernel cmdline (default_hugepagesz/hugepagesz/hugepages). nil = no
 	// reservation, and the built image's /cmdline.txt is unchanged.
 	Hugepages *Hugepages `json:"hugepages,omitempty"`
+	// IsolatedCPUs, when set, keeps the Linux scheduler off the named CPUs on
+	// the target via the isolcpus kernel cmdline argument. It is a CPU list in
+	// the kernel's own syntax ("2-4", "2,4,6"), and VPP draws its worker cores
+	// from the set it produces. Empty = no isolation, and the built image's
+	// /cmdline.txt is unchanged.
+	IsolatedCPUs string `json:"isolated-cpus,omitempty"`
+	// CrashDump, when set, reserves a memory region on the target at boot so
+	// the kernel can write its own panic record into it (reserve_mem plus
+	// ramoops.mem_name on the kernel cmdline). nil = no reservation, and the
+	// built image's /cmdline.txt is unchanged.
+	CrashDump *CrashDump `json:"crash-dump,omitempty"`
 	// Memory is the target's total RAM as a byte-size string (e.g. "8gb").
 	// Optional; when set it bounds the hugepage reservation (which may not
 	// exceed 50% of it) and drives the QEMU `-m` size for `ze appliance run`.
@@ -74,6 +87,36 @@ type ImageConfig struct {
 type Hugepages struct {
 	Size     string `json:"size"`      // total reservation, e.g. "1gb"
 	PageSize string `json:"page-size"` // "2mb" or "1gb"
+}
+
+// CrashDump describes a boot-time kernel crash reservation as a total size.
+// Reserve is a byte-size string ("16mb"), rendered onto the kernel command line
+// as a named region that ramoops is bound to. The region name is
+// crashlog.ReserveRegionName, which the daemon reads back to answer whether the
+// running kernel is armed.
+type CrashDump struct {
+	Reserve string `json:"reserve"` // reserved region, e.g. "16mb"
+}
+
+// reserveMegabytes parses Reserve and bounds it to the range every crash-capture
+// surface enforces. The kernel takes the region from RAM on every boot, so a
+// value outside the range is refused at the build rather than paid for at run
+// time.
+func (c CrashDump) reserveMegabytes() (uint16, error) {
+	b, err := parseByteSize(c.Reserve)
+	if err != nil {
+		return 0, fmt.Errorf("image.crash-dump.reserve %w", err)
+	}
+	const bytesPerMegabyte = 1 << 20
+	if b%bytesPerMegabyte != 0 {
+		return 0, fmt.Errorf("image.crash-dump.reserve %q: must be a whole number of megabytes", c.Reserve)
+	}
+	megabytes := b / bytesPerMegabyte
+	if megabytes < int64(crashlog.ReserveMegabytesMin) || megabytes > int64(crashlog.ReserveMegabytesMax) {
+		return 0, fmt.Errorf("image.crash-dump.reserve %q: must be %dmb to %dmb",
+			c.Reserve, crashlog.ReserveMegabytesMin, crashlog.ReserveMegabytesMax)
+	}
+	return uint16(megabytes), nil //nolint:gosec // bounded by the range check above
 }
 
 type QEMUConfig struct {
@@ -285,6 +328,48 @@ func (c *applianceConfig) Validate() error {
 	}
 	if err := c.validateImageMemory(); err != nil {
 		return err
+	}
+	if err := c.validateIsolatedCPUs(); err != nil {
+		return err
+	}
+	if err := c.validateCrashDump(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validateCrashDump bounds image.crash-dump. The reservation is taken from RAM
+// on every boot of the built image, so a value the kernel would refuse, or one
+// large enough to matter to a small target, is caught at the build rather than
+// on the appliance that has no shell to diagnose it with.
+func (c *applianceConfig) validateCrashDump() error {
+	if c.Image.CrashDump == nil {
+		return nil
+	}
+	_, err := c.Image.CrashDump.reserveMegabytes()
+	return err
+}
+
+// validateIsolatedCPUs bounds image.isolated-cpus. The list is parsed with the
+// grammar the kernel and VPP both use, so a value this accepts is a value
+// isolcpus accepts and VPP can draw worker cores from.
+//
+// CPU 0 MUST NOT be isolated. Linux places the boot CPU, most of its timer work
+// and the default IRQ affinity there, and a target that isolates it has no CPU
+// left to run its own control plane on.
+func (c *applianceConfig) validateIsolatedCPUs() error {
+	if c.Image.IsolatedCPUs == "" {
+		return nil
+	}
+	ids, err := cpulist.Parse(c.Image.IsolatedCPUs)
+	if err != nil {
+		return fmt.Errorf("image.isolated-cpus %q: %w", c.Image.IsolatedCPUs, err)
+	}
+	if len(ids) == 0 {
+		return fmt.Errorf("image.isolated-cpus %q: %w", c.Image.IsolatedCPUs, cpulist.ErrEmpty)
+	}
+	if ids[0] == 0 {
+		return fmt.Errorf("image.isolated-cpus %q: CPU 0 runs the Linux control plane and must not be isolated", c.Image.IsolatedCPUs)
 	}
 	return nil
 }

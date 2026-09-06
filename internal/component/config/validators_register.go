@@ -33,4 +33,5 @@ func RegisterValidators(reg *yang.ValidatorRegistry) {
 	// The interface unit `vrf` leaf has no reader, so the refusal below is what
 	// stops the config from promising isolation ze never applies.
 	reg.Register("unimplemented-vrf", unimplementedVRFValidator())
+	reg.Register("crash-memory-image", crashMemoryImageValidator())
 }

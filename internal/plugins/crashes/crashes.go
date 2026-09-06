@@ -29,25 +29,20 @@ func RunShow(args []string) int {
 	}
 }
 
+// showList answers the same shape the daemon answers, built from the same two
+// calls. The fallback runs when the daemon has died, which is exactly when an
+// operator reads a crash report, so a different shape here would mean the answer
+// changes with the health of the box.
 func showList() int {
-	summaries := crashlog.ListCrashes()
-	if len(summaries) == 0 {
-		os.Stdout.WriteString("no crashes recorded (dir: " + crashlog.CrashDir() + ")\n") //nolint:errcheck // CLI output
-		return 0
-	}
-
-	entries := make([]map[string]any, 0, len(summaries))
-	for _, s := range summaries {
-		entries = append(entries, map[string]any{
-			"name": s.Name,
-			"size": s.Size,
-		})
-	}
-
+	entries := crashlog.CrashListFields()
 	out := map[string]any{
-		"crashes": entries,
-		"count":   len(entries),
-		"dir":     crashlog.CrashDir(),
+		componentName: entries,
+		"count":       len(entries),
+		"dir":         crashlog.CrashDir(),
+		"readiness":   Readiness("").Fields(),
+	}
+	if len(entries) == 0 {
+		out["message"] = "no crashes recorded"
 	}
 
 	enc := json.NewEncoder(os.Stdout)

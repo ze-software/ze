@@ -12,6 +12,7 @@ import (
 	"net/netip"
 	"net/url"
 	"regexp"
+	"runtime"
 	"slices"
 	"sort"
 	"strconv"
@@ -22,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -740,6 +742,42 @@ func unimplementedVRFValidator() yang.CustomValidator {
 			return errors.New("vrf is not implemented: ze creates no VRF device and enslaves no interface, " +
 				"so traffic on this unit uses the main routing table and the isolation this leaf names is not in force; " +
 				"remove the leaf")
+		},
+	}
+}
+
+// crashMemoryImageValidator refuses `system crash-dump memory-image enabled
+// true` on a build that cannot stage a capture kernel.
+//
+// A full memory image is written by a second kernel that kexec starts after the
+// fault, and gokrazy's reboot path kexecs on amd64 only. On any other
+// architecture the leaf would commit, appear in `show configuration`, and
+// capture nothing: the operator would believe the box is covered until the day
+// it panics. The refusal names the architecture so the reason is on the screen
+// rather than in a manual.
+//
+// The architecture is the one this binary was BUILT for, which is the target's
+// own architecture on the appliance and the build host's when a config is
+// validated before an image is made.
+// crashCaptureArch is the architecture the memory-image refusal is judged
+// against. It is a variable rather than a direct runtime.GOARCH read so the
+// refusal branch is reachable from a test: a compiled test sees exactly one
+// architecture, and the branch that matters is the one this machine is not.
+var crashCaptureArch = runtime.GOARCH
+
+func crashMemoryImageValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(_ string, value any) error {
+			enabled, read := configvalue.Bool(value)
+			if !read {
+				return errors.New("memory-image enabled must be true or false")
+			}
+			if !enabled || crashCaptureArch == "amd64" {
+				return nil
+			}
+			var tb textbuf.Buffer
+			return errors.New(tb.Str("memory-image needs a kexec-staged capture kernel, which ze does not stage on ").
+				Str(crashCaptureArch).Str("; only amd64 stages one, so set memory-image enabled false and rely on the backtrace this architecture does capture").String())
 		},
 	}
 }

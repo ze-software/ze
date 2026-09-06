@@ -1,0 +1,85 @@
+# Test: ze appliance init validates image.crash-dump and bounds the reservation.
+# VALIDATES: AC-10 of spec-crash-capture and the bounds crashlog declares --
+#            applianceConfig.validateCrashDump refuses a reservation outside
+#            4mb..256mb and one that is not a whole number of megabytes, at
+#            init and at build through the same Validate.
+# PREVENTS: an out-of-range reservation reaching the kernel command line of a
+#           built image. The kernel takes the region from RAM on every boot, and
+#           the appliance ships no shell, so the build is the only place to
+#           catch it.
+option=env:var=ze_appliance_ssh_password:value=secret
+
+# A valid reservation of 16mb, the documented default.
+tmpfs=good.json:terminator=EOF_GOOD
+{
+  "identity": {"name": "ignored", "hostname": "cd"},
+  "credentials": {"username": "admin", "admin-enabled": true},
+  "ssh": {"host": "0.0.0.0", "port": "22"},
+  "web": {"enabled": true, "host": "0.0.0.0", "port": "8080"},
+  "tls": {"cert-name": "cd", "validity-years": 10},
+  "managed": false,
+  "device": {"address": "192.0.2.10", "update-port": 443},
+  "image": {"arch": "amd64", "size-bytes": 2147483648, "crash-dump": {"reserve": "16mb"}},
+  "qemu": {"ssh-port": 2222, "web-port": 28080, "gokrazy-port": 18080}
+}
+EOF_GOOD
+
+# Below the 4mb floor.
+tmpfs=toosmall.json:terminator=EOF_SMALL
+{
+  "identity": {"name": "ignored", "hostname": "cd"},
+  "credentials": {"username": "admin", "admin-enabled": true},
+  "ssh": {"host": "0.0.0.0", "port": "22"},
+  "web": {"enabled": true, "host": "0.0.0.0", "port": "8080"},
+  "tls": {"cert-name": "cd", "validity-years": 10},
+  "managed": false,
+  "device": {"address": "192.0.2.10", "update-port": 443},
+  "image": {"arch": "amd64", "size-bytes": 2147483648, "crash-dump": {"reserve": "3mb"}},
+  "qemu": {"ssh-port": 2222, "web-port": 28080, "gokrazy-port": 18080}
+}
+EOF_SMALL
+
+# Above the 256mb ceiling.
+tmpfs=toobig.json:terminator=EOF_BIG
+{
+  "identity": {"name": "ignored", "hostname": "cd"},
+  "credentials": {"username": "admin", "admin-enabled": true},
+  "ssh": {"host": "0.0.0.0", "port": "22"},
+  "web": {"enabled": true, "host": "0.0.0.0", "port": "8080"},
+  "tls": {"cert-name": "cd", "validity-years": 10},
+  "managed": false,
+  "device": {"address": "192.0.2.10", "update-port": 443},
+  "image": {"arch": "amd64", "size-bytes": 2147483648, "crash-dump": {"reserve": "512mb"}},
+  "qemu": {"ssh-port": 2222, "web-port": 28080, "gokrazy-port": 18080}
+}
+EOF_BIG
+
+# A size that is not a whole number of megabytes.
+tmpfs=fractional.json:terminator=EOF_FRAC
+{
+  "identity": {"name": "ignored", "hostname": "cd"},
+  "credentials": {"username": "admin", "admin-enabled": true},
+  "ssh": {"host": "0.0.0.0", "port": "22"},
+  "web": {"enabled": true, "host": "0.0.0.0", "port": "8080"},
+  "tls": {"cert-name": "cd", "validity-years": 10},
+  "managed": false,
+  "device": {"address": "192.0.2.10", "update-port": 443},
+  "image": {"arch": "amd64", "size-bytes": 2147483648, "crash-dump": {"reserve": "1536kb"}},
+  "qemu": {"ssh-port": 2222, "web-port": 28080, "gokrazy-port": 18080}
+}
+EOF_FRAC
+
+cmd=foreground:seq=1:exec=ze appliance --dir appliances init --config good.json goodcd:exit=0
+expect=exit:code=0
+
+cmd=foreground:seq=2:exec=ze appliance --dir appliances init --config toosmall.json smallcd:exit=1
+expect=exit:code=1
+expect=stderr:contains=4mb to 256mb
+
+cmd=foreground:seq=3:exec=ze appliance --dir appliances init --config toobig.json bigcd:exit=1
+expect=exit:code=1
+expect=stderr:contains=4mb to 256mb
+
+cmd=foreground:seq=4:exec=ze appliance --dir appliances init --config fractional.json fraccd:exit=1
+expect=exit:code=1
+expect=stderr:contains=whole number of megabytes

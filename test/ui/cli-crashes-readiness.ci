@@ -1,0 +1,25 @@
+# Test: show crashes reports configured and armed as separate fields.
+# VALIDATES: AC-1, AC-2 and AC-14 of spec-crash-capture -- the readiness block
+#            travels with the listing, its keys are lower kebab-case, and the
+#            two states are answered from different sources: configured is the
+#            committed leaf, armed is what the RUNNING kernel booted with.
+# PREVENTS: the failure this feature exists to remove. A commit looks like it
+#           took effect, and a memory reservation is a boot argument, so a box
+#           an operator believes is covered captures nothing until it reboots.
+#           A single "enabled" field would report exactly that box as ready.
+option=env:var=ze.crash.dir:value=crashdir
+
+tmpfs=crashdir/.keep:terminator=EOF_KEEP
+placeholder so the runner creates the crash directory
+EOF_KEEP
+
+# The test host booted without a crash reservation, so armed is false whatever
+# the config says. That is the state this assertion pins.
+cmd=foreground:seq=1:exec=ze show crashes
+expect=exit:code=0
+expect=stdout:contains="readiness"
+expect=stdout:contains="armed": false
+expect=stdout:contains="configured": false
+expect=stdout:contains="directory-writable": true
+expect=stdout:contains="pstore-available"
+expect=stdout:contains="memory-image"

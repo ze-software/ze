@@ -1,0 +1,30 @@
+# Test: the system crash-dump subtree parses and round-trips.
+# VALIDATES: AC-1 of spec-crash-capture -- `set system crash-dump enabled true`
+#            and the reserve leaves parse, validate, and come back out of
+#            `show configuration` with the values the operator wrote.
+# PREVENTS: a container that validates and then vanishes from the rendered
+#           config, which is what an operator checks after a commit and the only
+#           evidence they have that the setting took.
+stdin=config:terminator=EOF_CONF
+system {
+    host crashbox
+    crash-dump {
+        enabled true
+        reserve 32
+        memory-image {
+            enabled false
+            reserve 512
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+
+cmd=foreground:seq=2:exec=ze config show -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=crash-dump
+expect=stdout:contains=reserve 32
+expect=stdout:contains=memory-image
+expect=stdout:contains=reserve 512

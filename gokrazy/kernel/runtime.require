@@ -87,3 +87,11 @@ CONFIG_MPLS_IPTUNNEL
 CONFIG_NET_MPLS_GSO
 CONFIG_NF_CONNTRACK
 CONFIG_NF_CT_NETLINK
+
+# Kernel crash capture. Both are tristate, so a `=y` request in runtime.config
+# can answer =m, and a modular pstore on the appliance is as absent as no pstore
+# at all: gokrazy loads modules from the kernel package but the region is bound
+# at early boot, before any module could be loaded. Same enumeration hole as
+# CONFIG_INET_ESP, one subsystem over.
+CONFIG_PSTORE
+CONFIG_PSTORE_RAM

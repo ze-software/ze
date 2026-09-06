@@ -272,6 +272,79 @@ module ze-system-conf {
             }
         }
 
+        // Kernel crash capture (Linux appliance). A reservation is a boot
+        // argument, so a commit records the intent and the next boot arms it.
+        // `show crashes` reports the two states separately.
+        // The reserve bounds mirror crashlog.ReserveMegabytesMin/Max and
+        // crashlog.MemoryImageMegabytesMin/Max, which the appliance build and
+        // the readiness answer enforce from Go.
+        container crash-dump {
+            description "Kernel crash capture, kept across a reboot and listed by show crashes.";
+            ze:help "A Go panic is already captured. This container covers the kernel
+                     panic, which leaves no process behind to write a report. The
+                     kernel writes its own record into a reserved memory region, and
+                     Ze reads it on the next boot. The reservation is a kernel boot
+                     argument, so it is armed by the next boot of an image built with
+                     image.crash-dump, not by the commit.";
+
+            leaf enabled {
+                type boolean;
+                default "false";
+                description "Store the kernel panic record as a crash report at the next boot.";
+                ze:help "Ze reads the record the kernel left, writes it into the crash
+                         directory as a kernel-kind report, and clears the region so
+                         the next fault has room. Run 'show crashes' to read whether
+                         the running kernel is armed as well as configured.";
+            }
+
+            leaf reserve {
+                type uint16 {
+                    range "4..256";
+                }
+                units megabytes;
+                default "16";
+                description "Memory the kernel reserves to write its panic record into.";
+                ze:help "The region is taken from RAM on every boot, so it is sized for
+                         a backtrace rather than for a memory image. The range is 4 to
+                         256 megabytes and the default of 16 holds a full backtrace.
+                         The appliance build renders the size onto the kernel command
+                         line, so a change takes effect at the next image build.";
+            }
+
+            container memory-image {
+                description "Full memory image capture, for a fault a backtrace does not explain.";
+                ze:help "A backtrace names the faulting subsystem, which is what a bug
+                         report needs. A memory image is sized to RAM and costs the
+                         write time while the router is down, so it is off by default
+                         and reported as unarmed until the target has room for it.";
+
+                leaf enabled {
+                    type boolean;
+                    default "false";
+                    ze:validate "crash-memory-image";
+                    description "Capture a full memory image as well as the panic backtrace.";
+                    ze:help "Refused on a build that cannot stage a capture kernel,
+                             which today means anything other than amd64. Reported as
+                             configured but not armed when the crash directory has
+                             less free space than the image needs, with the shortfall
+                             in bytes.";
+                }
+
+                leaf reserve {
+                    type uint16 {
+                        range "64..1024";
+                    }
+                    units megabytes;
+                    default "256";
+                    description "Memory reserved for the capture kernel that writes the image.";
+                    ze:help "The capture kernel runs after the fault and needs its own
+                             memory, separate from the region holding the backtrace.
+                             The range is 64 to 1024 megabytes. It is a floor on the
+                             space estimate: the image itself is sized to RAM.";
+                }
+            }
+        }
+
         // Serial console devices for out-of-band management
         container console {
             description "Serial console configuration for headless CPE devices.";

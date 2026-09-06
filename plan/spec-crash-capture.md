@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | config |
 | Depends | - |
-| Phase | - |
+| Phase | 1/8 |
 | Handoff | - |
-| Updated | 2026-09-02 |
+| Updated | 2026-09-05 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -166,11 +166,11 @@ Four entries, which do not share a trigger:
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The userspace crash path needs no change; only the kernel side is missing | `docs/architecture/diagnostics/crash-capture.md`; `internal/core/crashlog/*`; `show crashes` in `docs/guide/command-reference.md` | Scope is wrong and the spec duplicates shipped behavior | Owner confirmed at the RESEARCH gate, 2026-09-02 | confirmed |
-| A-2 | A ramoops region can be reserved by SIZE, with no per-machine physical address | `internal/appliance/kernel.version` pins 7.2. Size-based named reservation (`reserve_mem`, bound by `ramoops.mem_name`) has been in the kernel since 6.12, so the address problem that made ramoops awkward on x86 does not apply at this version. It mirrors the hugepage precedent in `internal/appliance/kernelargs.go`, which also reserves by size | Phase 1 would need a per-machine address and the design falls back to the EFI-variable backend (see Key Design Decisions) | QEMU lab asserting the named region is reserved and ramoops binds to it; the version floor is asserted by the kernel requirement check | unvalidated |
+| A-2 | A ramoops region can be reserved by SIZE, with no per-machine physical address | `internal/appliance/kernel.version` pins 7.2. Size-based named reservation (`reserve_mem`, bound by `ramoops.mem_name`) has been in the kernel since 6.12, so the address problem that made ramoops awkward on x86 does not apply at this version. It mirrors the hugepage precedent in `internal/appliance/kernelargs.go`, which also reserves by size | Phase 1 would need a per-machine address and the design falls back to the EFI-variable backend (see Key Design Decisions) | QEMU lab asserting the named region is reserved and ramoops binds to it; the version floor is asserted by the kernel requirement check | unvalidated -- the version floor half IS asserted (`TestPinnedKernelMeetsReserveMemFloor`, `TestReserveMemKernelFloorRefusesOlderKernels`); the ramoops-binds half needs the QEMU lab, which is not written |
 | A-3 | The reserved region survives a warm reboot on the target firmware | pstore's ramoops backend depends on RAM contents persisting across a warm reset, which firmware may defeat by training or zeroing memory | Phase 1 captures nothing on real hardware while passing in QEMU | QEMU lab first, then one run on the N100 reference machine before the feature is documented as supported | unvalidated |
-| A-4 | Adding pstore symbols is the whole Phase 1 kernel-config delta | `gokrazy/kernel/kernel.config` carries no pstore symbol in its 107 lines | The floor row is incomplete and the feature is silently dead, exactly the `CONFIG_INET_ESP` failure | Build the kernel with the symbols added and assert the floor check passes against the built config | unvalidated |
+| A-4 | Adding pstore symbols is the whole Phase 1 kernel-config delta | `gokrazy/kernel/kernel.config` carries no pstore symbol in its 107 lines | The floor row is incomplete and the feature is silently dead, exactly the `CONFIG_INET_ESP` failure | Build the kernel with the symbols added and assert the floor check passes against the built config | unvalidated -- the floor rows exist and are asserted (`TestRuntimeKernelRequirementsIncludePstore`), but no runtime kernel has been built with them |
 | A-5 | `/perm` is writable early enough in boot for the harvest to run | `docs/guide/appliance.md`: `/perm` is ext4 and the only writable store; the crash directory probe already prefers `/perm/ze/crash` | The harvest silently drops records, or writes to `/tmp` and loses them on the next reboot | QEMU lab asserting the artifact is present after the reboot, in the probed directory | unvalidated |
-| A-6 | Phase 2 is amd64-only | `plan/spec-kernel-lockdown-hardening.md` C-2: gokrazy `reboot.go` never kexecs on `!amd64` | arm64 appliances accept a config that silently captures nothing | Assert the memory-image leaf is refused with a reason on a non-amd64 build | unvalidated |
+| A-6 | Phase 2 is amd64-only | `plan/spec-kernel-lockdown-hardening.md` C-2: gokrazy `reboot.go` never kexecs on `!amd64` | arm64 appliances accept a config that silently captures nothing | Assert the memory-image leaf is refused with a reason on a non-amd64 build | confirmed -- `TestMemoryImageRefusedOnNonAmd64` refuses arm64 and riscv64 and names the architecture; `TestReadinessRefusesMemoryImageOnUnsupportedArch` proves readiness never reports armed there |
 | A-7 | Operators accept a full memory image sized to RAM when they opt into Phase 2 | Owner statement during design: full dumps accepted, gated on available space | Phase 2 should filter by default rather than capture everything | Owner confirmation before Phase 2 starts | unvalidated |
 
 ### Risks

@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -42,6 +43,60 @@ var runtimeKernelRequirements = []string{
 	"CONFIG_INET_ESP",
 	"CONFIG_INET6_ESP",
 	"CONFIG_XFRM_STATISTICS",
+	"CONFIG_PSTORE",
+	"CONFIG_PSTORE_RAM",
+}
+
+// reserveMemMinKernelMajor and reserveMemMinKernelMinor are the kernel that
+// introduced size-named memory reservation (the reserve_mem early parameter,
+// bound to ramoops by ramoops.mem_name). Below it, a ramoops region on x86 needs
+// a per-machine PHYSICAL ADDRESS, which no appliance config can carry, so the
+// reservation this repository writes would silently reserve nothing.
+//
+// The pstore symbols above are the other half of the same guarantee. Without
+// them the kernel accepts the reservation on its command line, takes the RAM,
+// and exposes no /sys/fs/pstore for the record to be read back from: the exact
+// silent-failure shape the CONFIG_INET_ESP comment above records.
+const (
+	reserveMemMinKernelMajor = 6
+	reserveMemMinKernelMinor = 12
+)
+
+// enforceReserveMemKernelFloor refuses a runtime kernel older than the release
+// that made a named, size-only reservation possible.
+func enforceReserveMemKernelFloor(version string) error {
+	major, minor, err := parseKernelMajorMinor(version)
+	if err != nil {
+		return err
+	}
+	if major > reserveMemMinKernelMajor {
+		return nil
+	}
+	if major == reserveMemMinKernelMajor && minor >= reserveMemMinKernelMinor {
+		return nil
+	}
+	return fmt.Errorf("runtime kernel %s is below %d.%d, which introduced the reserve_mem named memory reservation crash capture needs; bump internal/appliance/kernel.version or remove image.crash-dump",
+		version, reserveMemMinKernelMajor, reserveMemMinKernelMinor)
+}
+
+// parseKernelMajorMinor reads the leading major.minor of a kernel version
+// string. A version with no minor part is refused rather than read as minor 0,
+// because "7" and "7.0" would then compare the same and one of them is a typo.
+func parseKernelMajorMinor(version string) (major, minor int, err error) {
+	head, rest, found := strings.Cut(strings.TrimSpace(version), ".")
+	if !found {
+		return 0, 0, fmt.Errorf("kernel version %q: expected major.minor", version)
+	}
+	minorText, _, _ := strings.Cut(rest, ".")
+	major, err = strconv.Atoi(head)
+	if err != nil {
+		return 0, 0, fmt.Errorf("kernel version %q: major is not a number", version)
+	}
+	minor, err = strconv.Atoi(minorText)
+	if err != nil {
+		return 0, 0, fmt.Errorf("kernel version %q: minor is not a number", version)
+	}
+	return major, minor, nil
 }
 
 func enforceKernelRequirements(profile kernelProfileResolution, configPath string, floor []string) error {

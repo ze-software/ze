@@ -1,0 +1,95 @@
+# Test: an out-of-range crash reservation is refused, with the bound named.
+# VALIDATES: the YANG ranges on `system crash-dump reserve` (4..256) and
+#            `system crash-dump memory-image reserve` (64..1024). The kernel
+#            takes the region from RAM on every boot, so a typo costs memory on
+#            a router nobody restarts.
+# PREVENTS: `reserve 4096` on an 8 GiB appliance, which the operator would read
+#           back from `show configuration` as accepted and discover only when
+#           the box came up short of memory.
+stdin=toosmall:terminator=EOF_SMALL
+system {
+    crash-dump {
+        enabled true
+        reserve 3
+    }
+}
+EOF_SMALL
+
+stdin=toobig:terminator=EOF_BIG
+system {
+    crash-dump {
+        enabled true
+        reserve 257
+    }
+}
+EOF_BIG
+
+stdin=imagetoosmall:terminator=EOF_IMGSMALL
+system {
+    crash-dump {
+        enabled true
+        memory-image {
+            reserve 63
+        }
+    }
+}
+EOF_IMGSMALL
+
+stdin=imagetoobig:terminator=EOF_IMGBIG
+system {
+    crash-dump {
+        enabled true
+        memory-image {
+            reserve 1025
+        }
+    }
+}
+EOF_IMGBIG
+
+stdin=lowedge:terminator=EOF_LOW
+system {
+    crash-dump {
+        enabled true
+        reserve 4
+        memory-image {
+            reserve 64
+        }
+    }
+}
+EOF_LOW
+
+stdin=highedge:terminator=EOF_HIGH
+system {
+    crash-dump {
+        enabled true
+        reserve 256
+        memory-image {
+            reserve 1024
+        }
+    }
+}
+EOF_HIGH
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=toosmall
+expect=exit:code=1
+expect=stdout:contains=4..256
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=toobig
+expect=exit:code=1
+expect=stdout:contains=4..256
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=imagetoosmall
+expect=exit:code=1
+expect=stdout:contains=64..1024
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=imagetoobig
+expect=exit:code=1
+expect=stdout:contains=64..1024
+
+# Both edges of both ranges are accepted, so the refusals above are the bound
+# and not an off-by-one that rejects every value.
+cmd=foreground:seq=5:exec=ze config validate -:stdin=lowedge
+expect=exit:code=0
+
+cmd=foreground:seq=6:exec=ze config validate -:stdin=highedge
+expect=exit:code=0

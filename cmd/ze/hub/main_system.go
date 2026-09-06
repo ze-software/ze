@@ -35,6 +35,8 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/plugins/crashes"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -155,6 +157,20 @@ func applyHostTuningFromMap(tree map[string]any) {
 	}
 	for _, te := range result.Errors {
 		slogutil.Logger("host").Warn("tuning failed (reload)", "op", te.Operation, "subject", te.Subject, "error", te.Err)
+	}
+}
+
+// harvestKernelCrashes moves any record the previous boot's kernel left into the
+// crash directory, then reports readiness.
+//
+// It runs at daemon start and only there. The record is written by the kernel
+// during the fault and read here on the next healthy boot, so there is nothing
+// to re-run on a config reload: the reservation itself is a boot argument, and a
+// commit cannot change what the running kernel already reserved.
+func harvestKernelCrashes(configPath string) {
+	readiness := crashes.HarvestAtBoot(configPath)
+	if !readiness.DirectoryWritable {
+		slogutil.Logger("crashes").Warn("no crash directory is writable; a crash report would be lost")
 	}
 }
 
@@ -590,4 +606,31 @@ func parseDuration(s string) (time.Duration, bool) {
 		}
 		return time.Duration(n) * time.Second, true
 	}
+}
+
+// registerPluginDNSResolver publishes the hub's single DNS resolver to the
+// plugin RPC layer, so a plugin asking for a name is answered from the same
+// resolver and the same cache that `show dns cache` reports.
+//
+// It sits beside resolvecmd.SetResolvers on purpose: both publish ONE instance
+// to a different consumer, and separating them is how two caches appear. A
+// plugin building its own resolver would double the query load upstream and
+// give the two copies different views of the same TTL, which is the whole
+// argument for the resolve-dns RPC.
+//
+// A nil resolver registers nothing, so the plugin server refuses the call with
+// "no DNS resolver registered" rather than answering with an empty record list
+// that a firewall plugin would read as "this name holds no address".
+func registerPluginDNSResolver(resolvers *resolve.Resolvers) {
+	if resolvers == nil || resolvers.DNS == nil {
+		return
+	}
+	dnsResolver := resolvers.DNS
+	rpc.RegisterDNSResolver(func(name string, qtype uint16) ([]string, uint32, string, error) {
+		records, ttl, status, err := dnsResolver.ResolveWithTTL(name, qtype)
+		if err != nil {
+			return nil, 0, "", err
+		}
+		return records, ttl, status.String(), nil
+	})
 }

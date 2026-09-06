@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/system"
 	hostinv "github.com/ze-software/ze/internal/component/host"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/cliio"
@@ -443,32 +444,39 @@ func collectConfig(opts *collectOptions) (any, error) {
 	}, nil
 }
 
-// collectCrashes gathers crash log files.
+// collectCrashes gathers crash reports of both kinds, plus the readiness block.
+//
+// Readiness travels with the reports because a bundle with no kernel report is
+// ambiguous on its own: it means either that the box never faulted, or that the
+// reservation was never armed and no fault could ever have been recorded. The
+// engineer reading the archive cannot tell those apart from the file list.
 func collectCrashes(opts *collectOptions) (any, error) {
-	_ = opts
 	crashlog.Init()
-	summaries := crashlog.ListCrashes()
-	if len(summaries) == 0 {
-		return map[string]any{
-			keyCount: 0,
-			"dir":    crashlog.CrashDir(),
-		}, nil
+
+	reports := crashlog.CrashListFields()
+	for _, entry := range reports {
+		name, ok := entry[keyName].(string)
+		if !ok {
+			continue
+		}
+		entry["content"] = crashlog.ReadCrash(name)
 	}
 
-	crashes := make([]map[string]any, 0, len(summaries))
-	for _, s := range summaries {
-		entry := map[string]any{
-			keyName:   s.Name,
-			"size":    s.Size,
-			"content": crashlog.ReadCrash(s.Name),
-		}
-		crashes = append(crashes, entry)
-	}
-	return map[string]any{
-		keyCount:  len(crashes),
+	payload := map[string]any{
+		keyCount:  len(reports),
 		"dir":     crashlog.CrashDir(),
-		"crashes": crashes,
-	}, nil
+		"crashes": reports,
+	}
+
+	intent, err := system.LoadCrashDumpIntent(opts.ConfigPath)
+	if err != nil {
+		readiness := crashlog.CrashReadiness(crashlog.Intent{}).Fields()
+		readiness[keyReason] = err.Error()
+		payload["readiness"] = readiness
+		return payload, nil //nolint:nilerr // a module error is non-fatal: the reason travels in the payload so the archive still carries the reports
+	}
+	payload["readiness"] = crashlog.CrashReadiness(intent).Fields()
+	return payload, nil
 }
 
 // collectDisk gathers filesystem usage information.

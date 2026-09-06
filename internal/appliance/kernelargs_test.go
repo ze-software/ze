@@ -66,6 +66,88 @@ func TestKernelArgsHugepages(t *testing.T) {
 	})
 }
 
+// TestKernelArgsIsolatedCPUs verifies the CPU isolation tokens.
+//
+// VALIDATES: the boot half of spec-vpp-isolated-cpus -- Ze requests the
+// isolation it later consumes, so a worker core list drawn from
+// /sys/devices/system/cpu/isolated has something to draw from.
+// PREVENTS: an appliance that configures VPP worker pinning while its own boot
+// cmdline leaves every CPU to the Linux scheduler.
+func TestKernelArgsIsolatedCPUs(t *testing.T) {
+	t.Run("unconfigured returns nil", func(t *testing.T) {
+		got, err := isolatedCPUKernelArgs(ImageConfig{})
+		if err != nil || got != nil {
+			t.Errorf("expected (nil, nil), got (%v, %v)", got, err)
+		}
+	})
+
+	t.Run("a range becomes three tokens", func(t *testing.T) {
+		got, err := isolatedCPUKernelArgs(ImageConfig{IsolatedCPUs: "2-4"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		want := []string{"isolcpus=2-4", "nohz_full=2-4", "rcu_nocbs=2-4"}
+		if len(got) != len(want) {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Errorf("arg[%d] = %q, want %q", i, got[i], want[i])
+			}
+		}
+	})
+
+	t.Run("an unordered list is rendered canonically", func(t *testing.T) {
+		got, err := isolatedCPUKernelArgs(ImageConfig{IsolatedCPUs: "6,3,4,5"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got[0] != "isolcpus=3-6" {
+			t.Errorf("arg[0] = %q, want %q", got[0], "isolcpus=3-6")
+		}
+	})
+
+	t.Run("a malformed list errors", func(t *testing.T) {
+		if _, err := isolatedCPUKernelArgs(ImageConfig{IsolatedCPUs: "4-2"}); err == nil {
+			t.Error("expected an error for a range that counts down")
+		}
+	})
+}
+
+// TestValidateIsolatedCPUs verifies the appliance config refuses an isolation
+// request the target could not survive.
+//
+// VALIDATES: R-2 -- the Linux control plane keeps a CPU of its own.
+// PREVENTS: an image that boots with every CPU handed to VPP and no CPU left to
+// run ze, sshd or the kernel's own housekeeping.
+func TestValidateIsolatedCPUs(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		value   string
+		wantErr bool
+	}{
+		{"unset", "", false},
+		{"a range above CPU 0", "1-3", false},
+		{"single CPU", "3", false},
+		{"CPU 0 is refused", "0-3", true},
+		{"CPU 0 alone is refused", "0", true},
+		{"malformed", "1-", true},
+		{"duplicate", "2,2", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := DefaultConfig("lab")
+			cfg.Image.IsolatedCPUs = tc.value
+			err := cfg.validateIsolatedCPUs()
+			if tc.wantErr && err == nil {
+				t.Fatalf("validateIsolatedCPUs(%q) accepted the value", tc.value)
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("validateIsolatedCPUs(%q): %v", tc.value, err)
+			}
+		})
+	}
+}
+
 // writeGokrazyFixture lays out a minimal checked-in gokrazy tree
 // (<root>/gokrazy/ze/{config.json,builddir/...}) and chdirs the test into root,
 // which is what resolveBuildParentDir resolves "gokrazy" against.

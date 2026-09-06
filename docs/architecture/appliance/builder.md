@@ -11,6 +11,22 @@ It replaced a retired workflow that exposed credentials on the command line.
 <!-- source: internal/appliance/cmd_assemble.go -- ZeFS assembly with config layering -->
 <!-- source: internal/appliance/cmd_build.go -- full image build -->
 <!-- source: internal/appliance/manifest.go -- build manifest and image checksums -->
+<!-- source: internal/appliance/kernelargs.go -- the one kernel-cmdline assembly seam -->
+
+## Kernel command line
+
+`image.hugepages`, `image.isolated-cpus` and `image.crash-dump` are the three
+appliance-config fields that reach the built image's `/cmdline.txt`. Each is a
+pure function of the config in `kernelargs.go`, and each answers nil when its
+field is unset, which leaves the cmdline unchanged. `resolveBuildParentDir`
+concatenates them at the one seam and hands the result to `instance.Prepare`.
+
+`image.crash-dump.reserve` renders two tokens, and both are required:
+`reserve_mem=<N>M:4096:zecrash` carves a named region and
+`ramoops.mem_name=zecrash` binds the kernel's pstore backend to it. The region
+name is `crashlog.ReserveRegionName`, which the daemon reads back off
+`/proc/cmdline` to answer whether the running kernel is armed.
+`docs/guide/appliance.md` carries the operator half.
 
 ## Secrets at rest
 

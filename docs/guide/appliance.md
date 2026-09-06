@@ -247,6 +247,53 @@ Ze's environment is set in `gokrazy/ze/config.json` under `PackageConfig`:
 | `ze.log.backend` | `kmsg,stderr` | Logs go to kmsg and gokrazy ring buffers |
 | `ze.gokrazy.enabled` | `true` | Enables appliance auto-init fallback and the `/gokrazy/` management proxy |
 
+### Kernel crash capture
+
+An appliance that suffers a kernel panic reboots and tells you nothing. Root is
+read-only SquashFS, the image holds no busybox and no shell, and the kernel that
+faulted is gone. Crash capture asks the kernel to write its own panic message and
+backtrace into a reserved memory region before it goes down, so the evidence
+survives the warm reboot.
+
+Two halves, and both are needed:
+
+| Half | Where | What it does |
+|------|-------|--------------|
+| The reservation | `image.crash-dump.reserve` in the appliance config | Renders `reserve_mem=<N>M:4096:zecrash` and `ramoops.mem_name=zecrash` onto the built image's kernel command line |
+| The intent | `system crash-dump enabled true` in the Ze config | Tells the running daemon to harvest the record at boot and store it as a crash report |
+
+```json
+"image": {"arch": "amd64", "size-bytes": 2147483648, "crash-dump": {"reserve": "16mb"}}
+```
+
+The reservation is a boot argument, so it takes effect at the next boot of an
+image built with it, never at a config commit. `show crashes` reports the two
+states separately as `configured` and `armed`, and `ze doctor` raises
+`doctor-crash-capture-unarmed` while they disagree.
+
+The reserve is 4mb to 256mb and is taken from RAM on every boot, so it is sized
+for a backtrace: 16mb is the default and holds a full one. The build refuses a
+value outside that range, and refuses a size that is not a whole number of
+megabytes, because the appliance has no shell to diagnose a silently ineffective
+reservation with.
+
+The region is named rather than addressed. Size-named reservation has been in the
+kernel since 6.12 and `internal/appliance/kernel.version` pins a kernel above
+that floor, so no per-machine physical address is needed. The runtime kernel
+carries `CONFIG_PSTORE` and `CONFIG_PSTORE_RAM`, and the build fails if either
+stops resolving to `=y`: without them the kernel would accept the reservation,
+take the RAM, and expose nothing to read the record back from.
+
+Harvested records land in the crash directory, which on an appliance is
+`/perm/ze/crash`. Gokrazy's A/B updates replace the root partition and leave
+`/perm`, so a record survives the update that follows a crash. Records share the
+`ze.crash.keep` retention count with Go panic reports, so a panic loop cannot
+fill `/perm`.
+<!-- source: internal/appliance/kernelargs.go -- crashDumpKernelArgs, the cmdline tokens -->
+<!-- source: internal/appliance/kernelreq.go -- the pstore floor and the reserve_mem kernel floor -->
+<!-- source: internal/core/crashlog/kernel_linux.go -- the pstore reader the harvest reads through -->
+<!-- source: gokrazy/kernel/runtime.require -- CONFIG_PSTORE, CONFIG_PSTORE_RAM -->
+
 ## Updating
 
 Gokrazy supports atomic A/B partition updates over the network:

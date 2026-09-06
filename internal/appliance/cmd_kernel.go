@@ -394,6 +394,12 @@ func resolveInstallerKernel(version, arch, profile, builder string, td kernelTar
 }
 
 func resolveRuntimeKernel(version, arch, profile, builder string, td kernelTargetDesc, resolved kernelProfileResolution, variant string) (string, error) {
+	// The version floor is checked before the cache, so a kernel.version bump
+	// below the reserve_mem floor fails the build rather than being served from
+	// a tree built when the floor still held.
+	if err := enforceReserveMemKernelFloor(version); err != nil {
+		return "", err
+	}
 	cachedDir := kernelTreeCachePath(version, variant)
 	cachedKernel := filepath.Join(cachedDir, td.artifact)
 

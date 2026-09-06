@@ -51,6 +51,9 @@ type SystemConfig struct {
 	// Connection tracking (from system { conntrack {} }).
 	Conntrack ConntrackConfig
 
+	// Kernel crash capture (from system { crash-dump {} }).
+	CrashDump CrashDumpConfig
+
 	// Config archive pruning (from system { commit-revisions N }).
 	CommitRevisions uint16
 }
@@ -236,6 +239,7 @@ func ExtractSystemConfig(tree *config.Tree) SystemConfig {
 	}
 
 	sc.Tuning = extractTuning(sys)
+	sc.CrashDump = extractCrashDump(sys)
 	sc.ConsoleDevices = extractConsole(sys)
 	sc.Conntrack = extractConntrack(sys)
 

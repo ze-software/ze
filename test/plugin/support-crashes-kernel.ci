@@ -1,0 +1,33 @@
+# Test: the support archive carries the kernel artifact and the readiness block.
+# VALIDATES: AC-8 of spec-crash-capture -- `ze support --module crashes` emits
+#            each report with its kind and full content, plus the readiness
+#            block, through the existing `crashes` module. No new module name.
+# PREVENTS: a bundle that is ambiguous about a box with no kernel report. An
+#           engineer reading the archive cannot tell "never faulted" from "was
+#           never armed" out of a file list, and readiness is the field that
+#           answers it.
+option=env:var=ze.crash.dir:value=crashdir
+
+tmpfs=crashdir/crash-20260905-110000-dmesg-ramoops-0-kernel.log:terminator=EOF_KERNEL
+=== Ze Crash Report ===
+Time: 2026-09-05T11:00:00Z
+
+=== Kernel Crash ===
+Kind: kernel
+Record: dmesg-ramoops-0
+
+Kernel panic - not syncing: Fatal exception in interrupt
+EOF_KERNEL
+
+# The archive is written into the per-test working dir (--output .), which the
+# runner allocates fresh and cleans up.
+tmpfs=.support-out-keep:terminator=EOF_KEEP
+placeholder so the runner allocates an isolated working dir
+EOF_KEEP
+
+cmd=foreground:seq=1:exec=ze support --module crashes --json --output .
+expect=exit:code=0
+expect=stdout:contains="crashes"
+expect=stdout:contains="kind": "kernel"
+expect=stdout:contains="readiness"
+expect=stdout:contains=Kernel panic - not syncing

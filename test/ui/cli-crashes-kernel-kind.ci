@@ -1,0 +1,42 @@
+# Test: show crashes lists a kernel artifact beside a Go panic report, each with
+#       its kind.
+# VALIDATES: AC-4 and AC-5 of spec-crash-capture -- one listing carries both
+#            artifact kinds, every row says which kind it is, and
+#            `show crashes name <artifact>` prints the kernel text in full.
+# PREVENTS: a kernel panic report being invisible in the noun an operator
+#           already knows, or arriving with no field that tells it apart from a
+#           Go panic. The kind is derived from the artifact name, so a change to
+#           that naming breaks this test rather than shipping silently.
+option=env:var=ze.crash.dir:value=crashdir
+
+tmpfs=crashdir/crash-20260905-100000.log:terminator=EOF_PANIC
+=== Ze Crash Report ===
+Time: 2026-09-05T10:00:00Z
+
+=== Panic ===
+runtime error: index out of range
+EOF_PANIC
+
+tmpfs=crashdir/crash-20260905-110000-dmesg-ramoops-0-kernel.log:terminator=EOF_KERNEL
+=== Ze Crash Report ===
+Time: 2026-09-05T11:00:00Z
+
+=== Kernel Crash ===
+Kind: kernel
+Record: dmesg-ramoops-0
+
+Kernel panic - not syncing: Fatal exception in interrupt
+Call Trace:
+ ze_probe_fault+0x21/0x40
+EOF_KERNEL
+
+cmd=foreground:seq=1:exec=ze show crashes
+expect=exit:code=0
+expect=stdout:contains="kind": "kernel"
+expect=stdout:contains="kind": "panic"
+expect=stdout:contains=crash-20260905-110000-dmesg-ramoops-0-kernel.log
+
+cmd=foreground:seq=2:exec=ze show crashes name crash-20260905-110000-dmesg-ramoops-0-kernel.log
+expect=exit:code=0
+expect=stdout:contains=Kernel panic - not syncing
+expect=stdout:contains=ze_probe_fault
