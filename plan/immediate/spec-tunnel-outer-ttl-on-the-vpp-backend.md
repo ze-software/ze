@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | deferred |
 | Scope | plugin |
 | Depends | - |
 | Phase | - |
@@ -59,6 +59,22 @@ enum-like value work and leaves 255 refused, which splits one leaf across two
 behaviors, and `ai/rules/simplicity.md` is the rule that decides whether the
 split earns its place. The parity decision belongs to the owner, because it sets
 whether Ze owes VPP feature parity per leaf or publishes per-backend support.
+
+**Owner decision, 2026-09-06: "The VPP API is what it is."** Parity is not
+pursued. `GreTunnelV2` and `IpipTunnel` carry no hop limit, only
+`tunnel_types.Tunnel` does, and no gre or ipip message takes it, so parity needs
+a VPP API change and a binapi regeneration that Ze does not control.
+
+The operator-facing half is already closed. `d4a3b84f21` annotates the three
+`ttl` leaves `ze:backend "netlink"`, so a commit that names a `ttl` on a
+vpp-backed tunnel is refused rather than silently dropped, which is what
+`ValidateBackendFeatures` (`internal/component/config/backend_gate.go`) exists
+for. An operator now meets a message instead of a silent no-op.
+
+That leaves this spec holding only the parity the owner declined, so it is
+parked at `deferred`. It also no longer passes the `plan/immediate/` test, since
+no operator meets it as a bug; relocating it is the owner's re-reading to make
+(`plan/README.md`), so it stays here until then.
 
 ## Required Reading
 

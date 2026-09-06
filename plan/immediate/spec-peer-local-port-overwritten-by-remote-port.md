@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | config |
 | Depends | - |
-| Phase | - |
+| Phase | 1/2 |
 | Handoff | - |
 | Updated | 2026-09-06 |
 
@@ -49,6 +49,25 @@ design has to say what the local port means when it is set alone, because
 peer with a local port dials it. Whichever way it lands, the `description` and
 the `ze:help` on both leaves are brought back into agreement in the same work
 (`ai/rules/documentation.md`).
+
+## Progress (2026-09-06, session paused)
+
+An implementation agent ran against this spec and was STOPPED mid-work when the
+session hit its budget. What follows is the state of the tree at that moment.
+
+**The evidence for "compiles" or "does not compile" below is the editor's
+compiler diagnostics observed as the agents were stopped, not a build this
+session ran to completion.** Re-check before you trust it.
+
+**State: mid-work, and the change reaches further than the spec assumed.** The
+agent was updating two existing tests that used `Port` with listen semantics,
+which means splitting the field changes what existing readers mean by it. That
+is the risk the Task section flagged.
+
+**Next step:** enumerate every reader of the merged field before finishing the
+split. A second agent was working
+`plan/immediate/spec-peer-leaves-the-peer-parser-never-reads.md` in the same
+parser, so check whose hunks are whose before committing.
 
 ## Required Reading
 

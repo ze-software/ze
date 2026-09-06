@@ -83,6 +83,24 @@ stays open.
 `plan/immediate/spec-ddos-direction-allowlist-deferred-flowspec-withdraw.md`
 already carries it.
 
+## Progress (2026-09-06, session paused)
+
+An implementation agent ran against this spec and was STOPPED mid-work when the
+session hit its budget. What follows is the state of the tree at that moment.
+
+**The evidence for "compiles" or "does not compile" below is the editor's
+compiler diagnostics observed as the agents were stopped, not a build this
+session ran to completion.** Re-check before you trust it.
+
+**State: DOES NOT COMPILE.** `incidentStore` is undefined in
+`internal/plugins/ddos/observe/register.go`, and `sweep_test.go` references a
+`startStaleSweep` that does not exist yet. That is a TDD red in progress rather
+than damage: the agent was writing the failing test first, as the brief asked.
+
+**Next step:** finish the port of `startStaleSweep` from
+`internal/plugins/anomaly/observe/register.go`, then the detect and flowspec
+halves, which the agent had not reached.
+
 ## Required Reading
 
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress.

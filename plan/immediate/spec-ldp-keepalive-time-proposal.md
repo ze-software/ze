@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
@@ -56,6 +56,24 @@ the leaf would leave an operator with a fixed 60-second keepalive and a fixed
 than a schema cleanup. The design must also state what happens to a session that
 is already up when the leaf changes, because the negotiated value is a property
 of the Initialization exchange and cannot be renegotiated without a new session.
+
+## Progress (2026-09-06, session paused)
+
+An implementation agent ran against this spec and was STOPPED mid-work when the
+session hit its budget. What follows is the state of the tree at that moment.
+
+**The evidence for "compiles" or "does not compile" below is the editor's
+compiler diagnostics observed as the agents were stopped, not a build this
+session ran to completion.** Re-check before you trust it.
+
+**State: code reported done, spec text pending.** The agent's last action was
+filling in this spec's design sections. The package type-checks.
+
+**Next step:** complete the spec sections, run the tests with a red-then-green
+proof, commit. Contained in one plugin with no cross-package reach.
+
+**Uncommitted files:** several under `internal/plugins/ldp/`, including test
+files.
 
 ## Required Reading
 

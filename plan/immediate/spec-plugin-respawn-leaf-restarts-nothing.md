@@ -54,6 +54,27 @@ That decision belongs to the design, not to this skeleton. Whichever is picked,
 the two `docs/architecture/system-architecture.md` blocks are wrong today and
 change in the same work.
 
+## Progress (2026-09-06, session paused)
+
+An implementation agent ran against this spec and was STOPPED mid-work when the
+session hit its budget. What follows is the state of the tree at that moment.
+
+**The evidence for "compiles" or "does not compile" below is the editor's
+compiler diagnostics observed as the agents were stopped, not a build this
+session ran to completion.** Re-check before you trust it.
+
+**State: DOES NOT COMPILE, and I recommend discarding rather than resuming.**
+`RespawnEnabled` was removed from `plugin.PluginConfig` while five test files
+still reference it (`manager_test.go`, `manager_metrics_test.go`,
+`process_test.go`, `restart_test.go`, and `manager.go` itself). The agent was
+moving on to the loader unit tests.
+
+**Next step:** discard the uncommitted plugin work and restart. An agent
+inheriting a tree it did not break spends its budget on archaeology. The Task
+section is unaffected and still correct.
+
+**Uncommitted files:** eleven under `internal/component/plugin/`.
+
 ## Required Reading
 
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress.

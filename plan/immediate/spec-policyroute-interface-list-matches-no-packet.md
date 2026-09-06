@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | plugin |
 | Depends | - |
 | Phase | - |
@@ -51,6 +51,24 @@ ordering and to the `order` leaf the policy already carries, because one policy
 would then produce several rules where it produces one today. The leaf's own
 `ze:help` states the current defect and tells the operator to write one policy
 per interface, which is the manual form of exactly that fix.
+
+## Progress (2026-09-06, session paused)
+
+An implementation agent ran against this spec and was STOPPED mid-work when the
+session hit its budget. What follows is the state of the tree at that moment.
+
+**The evidence for "compiles" or "does not compile" below is the editor's
+compiler diagnostics observed as the agents were stopped, not a build this
+session ran to completion.** Re-check before you trust it.
+
+**State: least progress of the batch.** The agent spent its time blocked on the
+shared checkout not compiling (other sessions' in-flight edits) and was moving to
+a throwaway worktree when it stopped. The package type-checks, so little or
+nothing was changed here.
+
+**Next step:** start it fresh. Before inventing a shape, read how the firewall
+lowering represents alternatives: the fix may be one nft rule per interface
+rather than one rule with many matches.
 
 ## Required Reading
 

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | plugin |
 | Depends | - |
-| Phase | - |
+| Phase | 1/2 |
 | Handoff | - |
 | Updated | 2026-09-06 |
 
@@ -53,6 +53,27 @@ first is the answer the sibling plugin argues for, since two services in one
 daemon disagreeing about a leaf-list is a defect on its own. The design owes one
 answer that covers both plugins, and if it narrows the schema it also owes the
 migration for an operator who wrote two entries and committed them.
+
+## Progress (2026-09-06, session paused)
+
+An implementation agent ran against this spec and was STOPPED mid-work when the
+session hit its budget. What follows is the state of the tree at that moment.
+
+**The evidence for "compiles" or "does not compile" below is the editor's
+compiler diagnostics observed as the agents were stopped, not a build this
+session ran to completion.** Re-check before you trust it.
+
+**State: furthest along of the batch.** The agent had reached its last step, the
+discrimination proof (revert the fix, watch the test go red, restore). The
+package type-checks.
+
+**Next step:** finish the discrimination proof, then commit. The design question
+the spec raises is already answered by the tree: `internal/plugins/tftpserver/register.go`
+loops over every entry of its leaf-list, so imageserver binding index 0 is the
+side that is wrong.
+
+**Uncommitted files:** `internal/plugins/imageserver/register.go`,
+`internal/plugins/imageserver/yang/ze-image-server-conf.yang`.
 
 ## Required Reading
 

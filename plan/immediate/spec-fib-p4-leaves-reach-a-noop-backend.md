@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | deferred |
 | Scope | plugin |
 | Depends | - |
 | Phase | - |
@@ -52,6 +52,15 @@ dependencies to a daemon that carries few, so the dependency decision is the
 first thing the design owes an answer on. If the P4 backend is genuinely wanted,
 the refusal is the placeholder and this spec stays open, which is the shape
 `plan/spec-vrf.md` records for `vrf`.
+
+**Owner decision, 2026-09-06: "We do not care about p4 at the moment."** Parked
+at `deferred`. The three leaves stay declared and unread until the P4 backend is
+wanted, and nothing here is implemented in the meantime.
+
+The leaves' `ze:help` already states that the backend programs no switch, so an
+operator who reads the help is not misled while this waits. Whether they should
+also be refused at commit, the way `unimplemented-vrf` refuses a leaf whose
+feature is absent, is the open question this spec carries.
 
 ## Required Reading
 

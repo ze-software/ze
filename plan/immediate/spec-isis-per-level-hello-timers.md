@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 1/4 |
 | Handoff | - |
 | Updated | 2026-09-06 |
 
@@ -60,6 +60,28 @@ also read ISO/IEC 10589 clause 10.9 before choosing, because the committed
 `ze:help` cites it for a per-level hello timer and this spec did not verify that
 citation: the standard text is not in the repository, and `iso/short/iso10589.md`
 is a summary rather than the source.
+
+## Progress (2026-09-06, session paused)
+
+An implementation agent ran against this spec and was STOPPED mid-work when the
+session hit its budget. What follows is the state of the tree at that moment.
+
+**The evidence for "compiles" or "does not compile" below is the editor's
+compiler diagnostics observed as the agents were stopped, not a build this
+session ran to completion.** Re-check before you trust it.
+
+**State: parser side done, engine side in progress.** The agent was working the
+resolver, `buildCircuit` and the per-level tickers when it stopped. The package
+type-checks; the only diagnostic is an unused method (`clamp`, `circuit.go`),
+which is a leftover of work in flight.
+
+**Next step:** finish the engine side, then a test that drives the LEVEL-nested
+form. Note the existing interop scenarios under `test/interop/scenarios/isis-*`
+set the circuit-wide `hello-interval` directly under `interface`, so they
+exercise the path that already works and prove nothing about the override.
+
+**Uncommitted files:** `internal/plugins/isis/circuit/` (circuit, hello, runtime
+and their tests) and `internal/plugins/isis/circuits.go`.
 
 ## Required Reading
 

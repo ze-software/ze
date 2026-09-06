@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 1/3 |
 | Handoff | - |
 | Updated | 2026-09-06 |
 
@@ -56,6 +56,25 @@ share no code and no direction. This one is Ze as the monitored router, emitting
 to a collector through the sender session. That one is Ze as the collector,
 deciding what to do with routes it receives. Neither change touches the other's
 files.
+
+## Progress (2026-09-06, session paused)
+
+An implementation agent ran against this spec and was STOPPED mid-work when the
+session hit its budget. What follows is the state of the tree at that moment.
+
+**The evidence for "compiles" or "does not compile" below is the editor's
+compiler diagnostics observed as the agents were stopped, not a build this
+session ran to completion.** Re-check before you trust it.
+
+**State: DOES NOT COMPILE, and the breakage is wide.** A `peerDedup` type change
+is part-applied across `bmp.go`, `bmp_events.go`, `sender_config.go` and three
+test files, with `map[uint64]struct{}` and `*peerDedup` mixed. The agent's last
+action was wiring the timer into `applySenderConfig`.
+
+**Next step:** decide whether the `peerDedup` change belongs to this spec at all.
+If it does not, discard it and keep only the statistics timer. This spec is
+wire-visible BMP behavior and owes an interop scenario;
+`test/interop/scenarios/bmp-frr/` exists and sets `statistics-timeout 0`.
 
 ## Required Reading
 

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 1/3 |
 | Handoff | - |
 | Updated | 2026-09-06 |
 
@@ -53,6 +53,25 @@ promise at once. Auto-cost is a feature an operator expects from an OSPF
 implementation, so a refusal is the placeholder rather than the answer, and this
 spec then stays open. `plan/spec-vrf.md` records that arrangement for the `vrf`
 leaf.
+
+## Progress (2026-09-06, session paused)
+
+An implementation agent ran against this spec and was STOPPED mid-work when the
+session hit its budget. What follows is the state of the tree at that moment.
+
+**The evidence for "compiles" or "does not compile" below is the editor's
+compiler diagnostics observed as the agents were stopped, not a build this
+session ran to completion.** Re-check before you trust it.
+
+**State: DOES NOT COMPILE.** `interfaceCost` is redeclared, in both
+`interface_cost.go` and `te_originate.go`, and `interface_cost_test.go` calls it
+with a signature that no longer matches. A second agent was working
+`plan/immediate/spec-ospf-accept-lifetime-receive-window.md` in the same package
+at the same time, so some of the mess may be theirs.
+
+**Next step:** the uncommitted OSPF work needs untangling before either spec can
+proceed, or discarding and restarting one spec at a time. Two agents in one
+package was my error, not theirs.
 
 ## Required Reading
 

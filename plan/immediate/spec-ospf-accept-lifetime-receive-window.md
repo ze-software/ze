@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
@@ -58,6 +58,25 @@ OSPF work is the same three steps: carry the bounds into `resolvedKey`, filter i
 decision is the one the design owes an answer for, because `selectSendKey`
 already documents a deliberate choice to keep signing with an expired key rather
 than send unauthenticated, and the receive side needs a stated rule of its own.
+
+## Progress (2026-09-06, session paused)
+
+An implementation agent ran against this spec and was STOPPED mid-work when the
+session hit its budget. What follows is the state of the tree at that moment.
+
+**The evidence for "compiles" or "does not compile" below is the editor's
+compiler diagnostics observed as the agents were stopped, not a build this
+session ran to completion.** Re-check before you trust it.
+
+**State: late stage, but the package DOES NOT COMPILE.** The agent had reached
+the `.ci` config-surface coverage and the interop scenario, which is near the
+end. The build breakage is in the interface-cost files, which belong to the
+sibling spec `plan/immediate/spec-ospf-auto-cost-reference-bandwidth.md` that ran
+concurrently in this package.
+
+**Next step:** separate the two agents' changes, then finish. The port target
+named in the Task section still stands: `keyChain.acceptKeys`
+(`internal/plugins/isis/auth_keystore.go`) is the working shape.
 
 ## Required Reading
 
