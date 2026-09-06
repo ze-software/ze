@@ -1,7 +1,7 @@
 # Test: a daemon whose `system name-server` names the stub resolves the stub's
 #       zone through `show dns lookup`, for A, for AAAA, for a name that holds
 #       one family only, and for a name that does not exist.
-# Spec: plan/spec-ze-test-dns-stub.md -- Wiring Test rows 1 and 3, user story 1
+# Spec: spec-ze-test-dns-stub -- Wiring Test rows 1 and 3, user story 1 (closed 2026-09-06)
 # VALIDATES: AC-8. The stub is the separate `ze-test dns --port 53` process
 #            started below, so this file is the subcommand's consumer: the query
 #            leaves the daemon's own resolver (Resolver.query,

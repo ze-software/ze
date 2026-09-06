@@ -1,6 +1,6 @@
 # Test: a name's address changes while the daemon runs, and the next lookup
 #       reports the new one with no cache-clearing command in between.
-# Spec: plan/spec-ze-test-dns-stub.md -- Wiring Test row 2, user story 2
+# Spec: spec-ze-test-dns-stub -- Wiring Test row 2, user story 2 (closed 2026-09-06)
 # VALIDATES: AC-6 and AC-7. The stub runs INSIDE the fixture process, which is
 #            what a `cmd=background` process with no control channel cannot do:
 #            dnsStubAnswerChange (internal/test/fixture/plugin_fixture_dns_stub.go)

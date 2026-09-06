@@ -325,16 +325,37 @@ No code in a spec, so the surface is a table. Every operation is on one type.
 |-----------|-------|--------|
 | Start | listen address, host and port; port 0 asks the OS to choose | Binds UDP, serves the default zone, returns the running server or an error |
 | Addr | none | The bound address, so a caller can print it or hand it to a daemon |
-| Set | name, record type, one answer record | Replaces what the stub answers for that name and type. In effect for the next query |
+| Set | name, record type, one answer record | Replaces what the stub answers for that name and type. In effect for the next query. A name the zone does not carry is added and answers NOERROR, so a fixture can serve a name the package never declared |
 | Close | none | Stops serving and releases the port |
+| Wait | none | Blocks until the server stops and reports why. ADDED at implementation: the process form has no step after Start and needs something to block on, and Close is what makes it return. A fixture calls Close instead |
 
 ### The answer record
 
+CORRECTED at closure to match the code. The design above put `Rcode` on the
+per-type answer, and the implementation moved it to the NAME. A response code is
+a property of the name, not of the record type: a server that cannot answer
+cannot answer for either family, so a SERVFAIL name would have had to declare
+that fact twice, once per family, with nothing stopping the two from
+disagreeing. Splitting the two also states RFC 2308 Section 2.2 in the type
+system, because a name that exists holds one code and a type it does not carry
+simply has no entry. The default zone table below already carried one Rcode
+column per NAME, so the spec disagreed with itself before the code was written.
+Producers: `Name` and `Answer` (`internal/test/mock/dns/zone.go`), `answerFor`
+(`internal/test/mock/dns/server.go`).
+
+The zone entry, one per name:
+
 | Field | Type | Description |
 |-------|------|-------------|
-| Addresses | list of textual IP addresses | The records the reply carries when Rcode is NOERROR. Empty is legal and means NODATA |
+| Rcode | one of NOERROR, SERVFAIL, REFUSED | The response code every query for this name is answered with. NXDOMAIN never appears here: a name absent from the zone answers it and needs no entry |
+| Answers | record type to answer record | The records this name carries for each type. A type absent from it answers NODATA |
+
+The answer record, one per name and record type:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Addresses | list of IP addresses | The records the reply carries when the name's Rcode is NOERROR. Empty is legal and means NODATA |
 | TTL | seconds, unsigned 32-bit | The TTL every record in this answer carries. 0 tells the resolver not to cache it |
-| Rcode | one of NOERROR, NXDOMAIN, SERVFAIL, REFUSED | The response code the reply carries |
 
 ### The default zone
 
@@ -568,3 +589,235 @@ produces, and each is quoted above its handling code:
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/test/mock/dns/` (`dns.go`, `server.go`, `zone.go`, `doc.go`): the
+  stub. `Run` is the `ze-test dns` subcommand, `Start`/`Addr`/`Set`/`Close`/`Wait`
+  are the in-process form, `defaultZone` is the six-name zone and `handle` is the
+  answer path.
+- `internal/test/cli/register.go`: `registerRoot("dns", dnsmock.Run, ...)`.
+- `internal/test/runner/caps.go`: the `net-bind` token, `capNetBindService`, and
+  the `capsRequired` row that binds them.
+- `internal/test/fixture/plugin_fixture_dns_stub.go`: `dnsStubLookup` and
+  `dnsStubAnswerChange`, registered in the existing plugin driver table
+  (`internal/test/fixture/plugin_fixture_06.go`).
+- `test/plugin/dns-stub-lookup.ci` and `test/plugin/dns-stub-answer-change.ci`.
+- `ai/PACKAGE-MAP.md`: the generated row for the new package
+  (`./le discovery-index check` reports it up to date at closure).
+
+### Bugs Found/Fixed
+- `ze-test <mock> --help` printed nothing at all. `crashlog.Init`
+  (`internal/core/crashlog/crashlog.go`) replaces `os.Stderr` with a pipe and
+  `flushCrashlog` (`cmd/ze/dispatch.go`, called from `main`, `cmd/ze/main.go`)
+  is its only drain, so `flag.ExitOnError` exits past the flush and discards the
+  usage. Fixed for `dns` only, with `flag.ContinueOnError` and a `Run` that
+  returns a code; `TestHelpPrintsTheZone` covers it. Measured the same for `irr`
+  and `rpki` and NOT fixed there. Class row:
+  `plan/journal/output-lost-to-an-exit-past-the-flush.md`.
+
+### Documentation Updates
+- `docs/functional-tests.md` carries a `### ze-test dns` section (zone table,
+  the NODATA paragraph, the TTL paragraph, the two forms, the port-53 reason,
+  three `<!-- source: -->` anchors) and a `caps=` token table naming `net-bind`.
+  **The text is written and NOT committed.** Another session holds an
+  uncommitted ExaBGP hunk in the same file (`exaBGPPythonPackage`, still absent
+  from HEAD at closure), and staging the file would carry that session's work.
+  Recorded as debt: `plan/journal/documentation-stranded-by-a-siblings-hunk.md`.
+- `ai/PACKAGE-MAP.md` is generated; regenerated rather than hand-edited.
+
+### Deviations from Plan
+- The response code moved from the per-type answer record to the NAME. The
+  design table in "The answer record" has been CORRECTED above rather than left
+  disagreeing with `Name` and `Answer` (`internal/test/mock/dns/zone.go`). The
+  spec's own default-zone table already carried one Rcode per name, so the
+  design contradicted itself before any code was written.
+- `Wait` was added to the server's operations. The process form has nothing to
+  block on after `Start`, and `Close` is what makes `Wait` return. Recorded in
+  the operations table above.
+- `TestSetAddsANameTheZoneDoesNotCarry` and `TestEveryZoneNameResolves` were
+  added beyond the TDD plan; `TestRunRefusesAPortOutsideTheRange` is the plan's
+  `--port` boundary row as a named test.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The design put the response code on the answer record, one per name AND type | A response code is a property of the name: a server that cannot answer cannot answer for either family, and a SERVFAIL name would have declared the fact twice with nothing keeping the two consistent | Writing `defaultZone`: `broken.example.test` needed a SERVFAIL entry for A and another for AAAA, both carrying no addresses | Spec's "The answer record" section corrected at closure to the shape the code took |
+| escalation | `ze-test dns --help` printed nothing, and so does every other `ze-test` mock's `--help` | `flag.ExitOnError` calls `os.Exit` from inside the flag package, past the only drain of the pipe `crashlog.Init` put over stderr | AC-10 could not be demonstrated: the built binary exited 0 and wrote 0 bytes | Fixed for `dns`; class row written for the rest at `plan/journal/output-lost-to-an-exit-past-the-flush.md`, which names the source repair as a decision about `crashlog` rather than an edit |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| One deterministic DNS server in `ze-test`, in the `ze-test irr` shape | Done | `Run`, `internal/test/mock/dns/dns.go` | `registerRoot("dns", ...)`, `internal/test/cli/register.go` |
+| Reachable as a background process a `.ci` starts | Done | `test/plugin/dns-stub-lookup.ci`, line `cmd=background:seq=1:exec=ze-test dns --port 53` | |
+| Reachable as an in-process server a fixture reprograms while the test runs | Done | `dnsStubAnswerChange`, `internal/test/fixture/plugin_fixture_dns_stub.go` | Holds the `*Server` and calls `Set` between two dispatches |
+| A name that exists in one family answers NODATA for the other | Done | `handle` and `answerFor`, `internal/test/mock/dns/server.go` | `carries` is false for an absent type, so no record is appended and the code stays NOERROR |
+| Unblock the three firewall domain-group `.ci` files | Changed | not attempted | Those files run the daemon with no external-plugin block and launch their fixture as a separate process, so it has no channel to dispatch on. That is a design decision inside `plan/spec-firewall-domain-group.md`, which owns them |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestStartBindsChosenAndEphemeralPort`, `TestRunReportsListenFailure` | `Start` returns once `NotifyStartedFunc` fires; `Run` writes `ze-test dns: listening on port %d` |
+| AC-2 | Done | `TestAnswerCarriesTheDeclaredTTL`, `TestZoneAnswersEveryRcode` | |
+| AC-3 | Done | `TestNameWithoutThatTypeAnswersNoData`, and `expect=stdout:contains=v4only.example.test type AAAA -> records none status NOERROR` in `test/plugin/dns-stub-lookup.ci` | `handle` appends records only when `rcode == RcodeSuccess && carries` |
+| AC-4 | Done | `TestZoneAnswersEveryRcode` (`absent.example.test`); `answerFor` returns `RcodeNameError` for an unheld key | |
+| AC-5 | Done | `TestZoneAnswersEveryRcode` rows for `broken` and `refused` | `statusFromRcode` (`internal/component/resolve/dns/resolver.go`) maps both to a status `Status.Authoritative` rejects, which is the branch `resolveAndRecord` (`internal/component/firewall/plugins/domain/domain.go`) uses to keep the last good answer |
+| AC-6 | Done | `TestSetChangesTheNextAnswer`, `test/plugin/dns-stub-answer-change.ci` | `Set` takes the write lock and replaces the whole `Answer`, so a reader never observes it half applied |
+| AC-7 | Done | `test/plugin/dns-stub-answer-change.ci`, both `expect=` lines | `cache.put` (`internal/component/resolve/dns/cache.go`) returns before storing a zero TTL |
+| AC-8 | Done | `test/plugin/dns-stub-lookup.ci`, five `expect=stdout:contains=` lines | |
+| AC-9 | Done | `TestCapsNetBindGateBothPolarities` | Both polarities driven through the `hasCaps` seam; `SkipReason` becomes `StateSkip` in `runTest` (`internal/test/runner/runner_exec.go`) and in the worker of `internal/test/runner/parallel.go` |
+| AC-10 | Done | `TestHelpPrintsTheZone`, `TestUsageListsEveryZoneName` | `zoneUsage` is derived from the zone table, so a name added without a usage line cannot exist |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestZoneAnswersEveryRcode` | Done | `internal/test/mock/dns/zone_test.go` | |
+| `TestNameWithoutThatTypeAnswersNoData` | Done | `internal/test/mock/dns/zone_test.go` | |
+| `TestAnswerCarriesTheDeclaredTTL` | Done | `internal/test/mock/dns/server_test.go` | |
+| `TestSetChangesTheNextAnswer` | Done | `internal/test/mock/dns/server_test.go` | |
+| `TestStartBindsChosenAndEphemeralPort` | Done | `internal/test/mock/dns/server_test.go` | |
+| `TestRunReportsListenFailure` | Done | `internal/test/mock/dns/dns_test.go` | |
+| `TestUsageListsEveryZoneName` | Done | `internal/test/mock/dns/dns_test.go` | |
+| `TestMalformedQueryIsAnsweredNotDropped` | Done | `internal/test/mock/dns/server_test.go` | |
+| `TestCapsNetBindGateBothPolarities` | Changed | `internal/test/runner/caps_option_test.go` | The plan named `caps_test.go`; the package's existing gate tests live in `caps_option_test.go` and the new one joined them |
+| `--port` boundary row (-1, 65536) | Changed | `TestRunRefusesAPortOutsideTheRange`, `internal/test/mock/dns/dns_test.go` | The plan carried it as a table row rather than a named test |
+| `TestHelpPrintsTheZone` | Changed | `internal/test/mock/dns/dns_test.go` | Added: `zoneUsage` being right does not prove `--help` reaches a reader, which is the defect the crashlog flush produced |
+| `TestSetAddsANameTheZoneDoesNotCarry`, `TestEveryZoneNameResolves` | Changed | `internal/test/mock/dns/server_test.go`, `zone_test.go` | Added beyond the plan |
+| `dns-stub-lookup`, `dns-stub-answer-change` | Done | `test/plugin/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/test/mock/dns/dns.go`, `server.go`, `zone.go`, `doc.go` | Done | |
+| `internal/test/mock/dns/dns_test.go`, `server_test.go`, `zone_test.go` | Done | |
+| `internal/test/fixture/plugin_fixture_dns_stub.go` | Done | |
+| `internal/test/fixture/plugin_fixture_06.go` | Done | Two driver-table rows |
+| `internal/test/cli/register.go` | Done | One `registerRoot` line |
+| `internal/test/runner/caps.go` | Done | One const, one `capsRequired` row, the token documentation block |
+| `test/plugin/dns-stub-lookup.ci`, `dns-stub-answer-change.ci` | Done | |
+| `docs/functional-tests.md` | Partial | Written, not committed. See Documentation Updates and Work Not Done |
+| `ai/PACKAGE-MAP.md` | Changed | Not in the plan; generated, and the generator's check refuses a stale one |
+
+### Audit Summary
+- **Total items:** 39
+- **Done:** 31
+- **Partial:** 1 (`docs/functional-tests.md`, blocked by another session's hunk)
+- **Skipped:** 0
+- **Changed:** 7 (recorded in Deviations and in the tables above)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A test can point a real daemon at a DNS server whose answers it chose, and read them back through an operator command | functional | `test/plugin/dns-stub-lookup.ci`: five `expect=stdout:contains=` lines over `show dns lookup` for A, AAAA, the NODATA family and an absent name. Red observed with NODATA turned into NXDOMAIN: the AAAA line read `status=NXDOMAIN` |
+| A test can change one answer while the daemon runs and see the change with no cache-clearing command | functional | `test/plugin/dns-stub-answer-change.ci`: `before the change -> records 203.0.113.10` then `after the change -> records 203.0.113.11`. Red observed with `Set` made a no-op: the second line read `203.0.113.10` |
+| A name that holds one family answers the other NODATA, so a caller does not read it as deleted | functional + unit | `TestNameWithoutThatTypeAnswersNoData` queries a real UDP server and asserts NOERROR with zero records; the producer is `handle` (`internal/test/mock/dns/server.go`), which appends a record only when `rcode == RcodeSuccess && carries`. The consequence is at `resolveAndRecord` (`internal/component/firewall/plugins/domain/domain.go`): a non-authoritative status keeps the last good addresses, and a NOERROR with no records contributes none |
+| The capability gate names the capability the test actually needs | unit, both polarities | `TestCapsNetBindGateBothPolarities` asserts `capsRequired["net-bind"]` holds `capNetBindService` and not `capNetAdmin`, that the probe is asked about `net-bind`, that the skip reason names it, and that the test RUNS when the probe answers yes. The bit number was read from the kernel's `include/linux/capability.h`, where `CAP_NET_BIND_SERVICE` is 10 |
+| An author can pick a zone name without reading the source | unit | `TestUsageListsEveryZoneName` derives its expectations from `defaultZone()`, so a name added without a usage line fails; `TestHelpPrintsTheZone` proves the text reaches a reader through `Run` rather than only through `zoneUsage` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| The `### ze-test dns` section and the `caps=` token table in `docs/functional-tests.md` are written and uncommitted | Another session holds an uncommitted ExaBGP hunk in the same file; staging the file would carry that session's work, which `ai/rules/git-safety.md` forbids | No spec: the text exists in the working tree and lands with the next commit that legitimately carries this file. The risk that it does not is recorded at `plan/journal/documentation-stranded-by-a-siblings-hunk.md` |
+| The three firewall domain-group `.ci` files still have no fixture | They run the daemon with no external-plugin block and launch their fixture as a separate process, so it holds no channel to dispatch on. Giving them one is a design decision about those files | `plan/spec-firewall-domain-group.md` |
+| `flag.ExitOnError` still discards the usage of `irr`, `cymru`, `rpki`, `peeringdb`, `radius-mock`, `rtr-mock` and `tacacs-mock` | The source repair is a decision about `crashlog` owning an exit path, which touches the shipped daemon's crash capture and is out of scope for a `ze-test` mock | Journal class `plan/journal/output-lost-to-an-exit-past-the-flush.md`, which carries the measurement and the two candidate repairs |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/ze-test-dns-stub-zeclose-dnsstub-7742.md` (14 code files, verdict=clean) |
+| `./le spec session review check` | `review_gate: OK (14 code files, clean, hashes match tmp/review/ze-test-dns-stub-zeclose-dnsstub-7742.md)`. The command also NOTEs that it could not determine the running model, so the review-model boundary is unchecked by the tool; the phase boundary holds regardless, because this closure did not author the diff |
+| Rounds | 2. Round 1 found three ISSUEs, all in the record rather than in the product: a design table the code had rejected, two spec citations commit B would dangle, and an unrecorded documentation debt. Round 2 re-read each fix against its producer and found nothing further |
+| Reviewer lenses used | wiring, functional-test coverage, documentation drift, removed-behaviour, logic correctness, guard audit, style pass over `docs/contributing/ze-go-style.md`, simplicity, security, RFC (1035 Section 4.1.1 and 2308 Section 2.2) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The spec's "The answer record" table declares `Rcode` per name AND type; the code declares it per NAME. A design the code rejected, left standing as if it were current | `plan/spec-ze-test-dns-stub.md`, "The answer record" | Table corrected and split into a zone entry and an answer record, with the reason and the producers named |
+| 2 | ISSUE | Commit B deletes the spec, and both `.ci` files carried `# Spec: plan/spec-ze-test-dns-stub.md`, which `./le doc check links` resolves | `test/plugin/dns-stub-lookup.ci`, `test/plugin/dns-stub-answer-change.ci` | Restated as the bare stem `spec-ze-test-dns-stub`, the form `test/ui/doctor-config-claims.ci` already uses |
+| 3 | ISSUE | `docs/functional-tests.md` cannot be committed, and nothing durable would have recorded that the text exists but never landed | `docs/functional-tests.md` | Journal class `plan/journal/documentation-stranded-by-a-siblings-hunk.md` plus the Work Not Done row above |
+| 4 | NOTE | A fixture forked by a credential-dropped `ze` inherits its uid without `cap_net_bind_service`, which only the `ze` and `ze-stripped` copies are given (`prepareNetnsBinaries`, `internal/le/qemu/netns_linux.go`), so `dnsStubAnswerChange`'s bind on 53 would fail EACCES under the per-test netns launch mode. Unreached today because `vmSuites` gives `plugin` `Namespace: guestRoot` | `internal/test/fixture/plugin_fixture_dns_stub.go` | The constraint written onto `dnsStubAddress`, which is where the next author reads why the port is 53 |
+| 5 | NOTE | `answerFor`'s third return value cannot change the reply: an `Answer` present with zero addresses produces the same message as an absent entry, so `&& carries` in `handle` is a condition with no outcome | `internal/test/mock/dns/server.go`, `answerFor` and `handle` | Left as written. The flag is what states RFC 2308 Section 2.2 at the branch, and removing it would trade a named distinction for one dimension of return type in test-only code |
+| 6 | NOTE | `reply.Authoritative` is set for SERVFAIL and REFUSED as well as for NOERROR and NXDOMAIN | `internal/test/mock/dns/server.go`, `handle` | Left as written. Ze's resolver reads the rcode (`statusFromRcode`) and the AD bit (`dnssecDecision`), never AA |
+| 7 | NOTE | `maxAddressesPerAnswer` copies `maxAddressesPerName` (`internal/component/firewall/plugins/domain/sets.go`) with a comment naming the source and no check comparing them | `internal/test/mock/dns/zone.go` | Left as written. Both read 64 at closure, and a stub bound that drifts from the product's cap changes what a test may declare, never what the product does |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/test/mock/dns/dns.go` | Yes | `ls -l` 3034 bytes |
+| `internal/test/mock/dns/server.go` | Yes | `ls -l` 7846 bytes |
+| `internal/test/mock/dns/zone.go` | Yes | `ls -l` 7254 bytes |
+| `internal/test/mock/dns/doc.go` | Yes | `ls -l` 92 bytes |
+| `internal/test/mock/dns/dns_test.go` | Yes | `ls -l` 4125 bytes |
+| `internal/test/mock/dns/server_test.go` | Yes | `ls -l` 7108 bytes |
+| `internal/test/mock/dns/zone_test.go` | Yes | `ls -l` 3655 bytes |
+| `internal/test/fixture/plugin_fixture_dns_stub.go` | Yes | `ls -l` 7582 bytes |
+| `internal/test/runner/caps_option_test.go` | Yes | `ls -l` 9196 bytes |
+| `test/plugin/dns-stub-lookup.ci` | Yes | `ls -l` 3665 bytes |
+| `test/plugin/dns-stub-answer-change.ci` | Yes | `ls -l` 2140 bytes |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | The stub binds, reports the bound port, and a failed bind is an error | `go test -count=1 -v ./internal/test/mock/dns/...`: `--- PASS: TestStartBindsChosenAndEphemeralPort`, `--- PASS: TestRunReportsListenFailure` |
+| AC-2 | Records and TTL are what the zone declares | `--- PASS: TestAnswerCarriesTheDeclaredTTL`, `--- PASS: TestZoneAnswersEveryRcode` |
+| AC-3 | NODATA, never NXDOMAIN, for a type a held name does not carry | `--- PASS: TestNameWithoutThatTypeAnswersNoData`; producer read at `handle` (`internal/test/mock/dns/server.go`): the record loop is guarded by `rcode == mdns.RcodeSuccess && carries`, and `reply.Rcode` is already the name's own code |
+| AC-4 | An absent name answers NXDOMAIN | `--- PASS: TestZoneAnswersEveryRcode`; `answerFor` returns `mdns.RcodeNameError` when the key is not held |
+| AC-5 | SERVFAIL and REFUSED names answer their code with no records | `--- PASS: TestZoneAnswersEveryRcode`; `Status.Authoritative` (`internal/component/resolve/dns/resolver.go`) is true only for `StatusSuccess` and `StatusNameError`, so both take the non-authoritative branch of `resolveAndRecord` |
+| AC-6 | `Set` is in effect for the next query and touches nothing else | `--- PASS: TestSetChangesTheNextAnswer`, `--- PASS: TestSetAddsANameTheZoneDoesNotCarry` |
+| AC-7 | A zero TTL keeps the answer out of the resolver cache | `cache.put` (`internal/component/resolve/dns/cache.go`) returns before storing when the TTL is zero; `test/plugin/dns-stub-answer-change.ci` asserts `203.0.113.11` after `Set` with no cache command |
+| AC-8 | `show dns lookup` renders the stub's answers for both families and the NXDOMAIN status | `test/plugin/dns-stub-lookup.ci` five `expect=` lines; `handleDNSLookup` (`internal/component/resolve/cmd/show_dns.go`) writes `status` only when the status is neither Unspecified nor Success, which is what makes the ABSENT field prove NODATA |
+| AC-9 | The `net-bind` gate skips without the capability and runs with it | `go test -count=1 -run 'TestCapsNetBind\|TestNeedsLinux\|TestBPFToken' ./internal/test/runner/`: 7 PASS, `ok 0.023s` |
+| AC-10 | `--help` lists every zone name with type, addresses, TTL and rcode | `--- PASS: TestHelpPrintsTheZone`, `--- PASS: TestUsageListsEveryZoneName` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `.ci` line `cmd=background:exec=ze-test dns --port 53` -> `dns.Run` | `test/plugin/dns-stub-lookup.ci` | Yes. Read the file: line `cmd=background:seq=1:exec=ze-test dns --port 53`, and `registerRoot("dns", dnsmock.Run, ...)` in `internal/test/cli/register.go` |
+| A compiled fixture starting the server in-process -> `dns.Start`, `Server.Set` | `test/plugin/dns-stub-answer-change.ci` | Yes. `dnsStubAnswerChange` calls `dnsmock.Start(dnsStubAddress)` then `server.Set("web.example.test", mdns.TypeA, ...)`; registered as `plugin/dns-stub-answer-change` in `internal/test/fixture/plugin_fixture_06.go` and named by the `.ci` `plugin { external ... }` block |
+| `show dns lookup <name> type A` against a daemon whose `system name-server` names the stub -> `Resolver.ResolveWithTTL` | `test/plugin/dns-stub-lookup.ci` | Yes. The `.ci` sets `name-server 127.0.0.1`; `newResolvers` (`cmd/ze/hub/main_system.go`) reads `NameServers[0]` into `cfg.Server`, and `NewResolver` joins port 53 onto a value with none |
+| `option=needs-linux:caps=net-bind` -> `capsRequired` | both `.ci` files, `TestCapsNetBindGateBothPolarities` | Yes. Both files carry the option; an unknown token is rejected at parse time on every host (`TestNeedsLinuxRejectsUnknownCaps`) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | The credential drop in `runOrchestrated` (`internal/test/runner/runner_exec.go`) is guarded by `binName == binNameZe`, and the `plugin` suite runs `Namespace: guestRoot` (`vmSuites`, `internal/le/qemu/alltests.go`), where nothing is dropped at all. The narrower reading is now written onto `dnsStubAddress`: under the per-test netns mode a fixture WOULD lose the capability, because `prepareNetnsBinaries` (`internal/le/qemu/netns_linux.go`) setcaps only `ze` and `ze-stripped` |
+| A-2 | confirmed | `cache.put` (`internal/component/resolve/dns/cache.go`) returns before storing a zero TTL, and `Resolver.query` returns TTL 0 for every non-success rcode, so no negative answer is cached either |
+| A-3 | confirmed | `NewResolver` builds its client with `Net: "udp"` (`internal/component/resolve/dns/resolver.go`) and `Resolver.query` logs `truncated DNS response` rather than retrying |
+| A-4 | confirmed | The leaf is `type zt:ip-address`; both `.ci` files bind 53 and gate on `caps=net-bind`, and `WriteResolvConf` (`internal/component/config/system/resolv_linux.go`) writes nothing for the empty path the files set, so no host file is touched |
+| A-5 | confirmed | `CAP_NET_BIND_SERVICE` is 10 in the kernel's `include/linux/capability.h`; `capNetBindService` carries that number in `internal/test/runner/caps.go`; `TestCapsNetBindGateBothPolarities` asserts the mapping and refuses `capNetAdmin` in the same set |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Row 10, test infrastructure: `docs/functional-tests.md` needs a `### ze-test dns` section and the `net-bind` token | The text is written; the zone table matches `defaultZone()`, the NODATA paragraph matches `handle`, and the three anchors name `dns.go`, `zone.go` and `server.go` | Written, NOT COMMITTED. See Work Not Done |
+| Row 16, changed files under existing doc anchors | `docs/functional-tests.md` anchors `internal/test/runner/record_parse.go` and `internal/test/cli/cmd_exabgp.go`; the `caps=` table adds an anchor at `internal/test/runner/caps.go -- capsRequired`. `git grep -n "source: internal/test/mock" docs/` returns nothing before this change | Yes |
+| Rows 1-9 and 11-15, No | `ze-test` is a host developer binary: `git grep -n "ze-test dns" docs/` outside `docs/functional-tests.md` returns nothing, and no daemon surface, RPC, YANG leaf, plugin, wire format or RFC support row changed | Yes |
+| Doctor check for a runtime dependency | The listen port belongs to a test process. `git grep -n "ze-test" internal/component/doctor/` returns nothing, and no daemon dependency was added | Yes |
+| `ai/PACKAGE-MAP.md` freshness | `./le discovery-index check`: `checked 763 packages, ai/PACKAGE-MAP.md up to date` | Yes |
+
+## Core Insight
+
+A stub's job is to be believed, so the shape of its zone is a correctness
+question rather than a convenience one. Putting the response code on the name
+and the addresses on the type is not tidier: it is the only shape in which
+RFC 2308 Section 2.2 cannot be violated by a zone entry, because a name that
+exists has exactly one code, and a type it does not hold has no entry to
+contradict it. The alternative shape would have let a zone declare
+`v4only.example.test` NOERROR for A and NXDOMAIN for AAAA, and the test reading
+that would have concluded the firewall was right to empty its set.
+
+The same reasoning picks the default TTL. Zero is not "unset": it is what stops
+the daemon answering a second lookup from its own cache, and a stub that quietly
+substituted a comfortable TTL would make every answer-change test pass on the
+address it was meant to prove had moved.

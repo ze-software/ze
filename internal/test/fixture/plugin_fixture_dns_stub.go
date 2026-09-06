@@ -22,6 +22,17 @@ import (
 // port, so a daemon pointed at a stub reaches it there or nowhere. Both `.ci`
 // files therefore declare option=needs-linux:caps=net-bind and serialize on
 // option=exclusive:group=dns-stub-port-53.
+//
+// Both scenarios need a suite that runs in the guest's own network namespace.
+// dnsStubAnswerChange binds this address INSIDE the fixture, and a fixture is
+// forked by ze: under the per-test netns launch mode ze is dropped to an
+// ordinary uid (runOrchestrated, internal/test/runner/runner_exec.go) and only
+// the ze and ze-stripped copies are given cap_net_bind_service
+// (prepareNetnsBinaries, internal/le/qemu/netns_linux.go), so the fixture would
+// inherit the uid without the capability and the bind would fail EACCES. The
+// `plugin` suite declares Namespace: guestRoot (vmSuites,
+// internal/le/qemu/alltests.go), which is what keeps that out of reach. A
+// scenario moved to a per-test-namespace suite needs the port seam instead.
 const dnsStubAddress = "127.0.0.1:53"
 
 // dnsStubLookupAttempts bounds the wait for the first answer. The stub is
