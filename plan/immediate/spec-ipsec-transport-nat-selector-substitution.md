@@ -524,5 +524,38 @@ claiming a provenance the code did not have.
 
 ## Progress, 2026-09-06
 
-Committed in `2e5da6d39`. Three interop scenarios are written and were never
-run. The QEMU runner that two of them need does not exist.
+Committed in `2e5da6d39`. The QEMU runner that two of the scenarios need does
+not exist.
+
+**The three interop scenarios RAN for the first time on 2026-09-06, and all
+three FAILED.** They had been unrunnable because the lab's container image
+compiled `ze` inside itself and the build was killed by the kernel for memory;
+`5837fd3247` made the image copy a prebuilt binary, taking the build from
+impossible here to 54.7 seconds. Command:
+`INTEROP_SCENARIO=real-nat-tunnel-control ./le integration interop-ipsec`, which
+runs the whole suite — 21 passed, 8 failed.
+
+The symptom is specific and it is the assertion these scenarios exist to make:
+
+```
+show vpn ipsec sa does not report nat-detected true
+show vpn ipsec sa does not report peer-behind-nat true
+```
+
+`real-nat-transport-ze-initiator`, `real-nat-transport-ze-responder` and
+`real-nat-tunnel-control` all fail this way. **The columns are present** in the
+answer — `behind-nat`, `nat-detected` and `peer-behind-nat` all appear in the
+header — so the fields this spec added exist and reach the operator surface;
+what does not happen is the values becoming true.
+
+Not diagnosed, and deliberately so: whether the NAT container fails to rewrite
+the addresses, or `NATDetected` genuinely never sets under that topology, is two
+different defects with two different fixes, and picking one from the failure text
+is the mistake `plan/journal/` records repeatedly. The next step is one
+measurement — read the payload the container actually rewrites, then the four
+NAT_DETECTION comparisons — and it decides which.
+
+Five other scenarios fail in the same run (`child-rekey-narrowing`,
+`delete-while-window-held`, `initiator-rekey-answer-narrows`,
+`ipsec-bgp-redistribute-frr`, `peer-reload-narrowing`). They are NOT attributed
+to this spec and were not examined; whether they predate it is unmeasured.
