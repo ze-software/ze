@@ -7,7 +7,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/interoplab"
@@ -21,6 +20,27 @@ const defaultFRRImage = "quay.io/frrouting/frr:10.3.1"
 // it writes is another implementation's reading of ze's bytes rather than ze's
 // own.
 const defaultPMACCTImage = "pmacct/pmbmpd:latest"
+
+// LabBinaries declares the two personalities this lab stages into its Docker
+// build context, which is what test/interop/Dockerfile.ze copies in.
+//
+// TWO of them, and that is what separates this lab from the other four: 14
+// scenario ze.conf files run `ze-test interop-bgp process ...` from inside the
+// container, so an image carrying the daemon alone answers those scenarios with
+// "ze-test: not found".
+//
+// The bases differ because the personalities do. ze_core selects the daemon
+// dispatch table that registers the `start` root command, ze_distro selects the
+// distribution plugin mode, and ze_test selects the functional-test
+// personality. The feature gates are added to each by the producer, from
+// feature-gates.txt, so neither binary can carry a smaller feature set than the
+// shipped daemon.
+func LabBinaries() []interoplab.LabBinary {
+	return []interoplab.LabBinary{
+		{Name: "ze", Base: featuretags.DaemonBase, Output: "test/interop/ze-linux"},
+		{Name: "ze-test", Base: "ze_test", Output: "test/interop/ze-test-linux"},
+	}
+}
 
 // Options selects one exact scenario and controls image reuse. Empty fields use
 // the documented environment and process-id defaults.
@@ -41,6 +61,16 @@ func Run(ctx context.Context, options Options) interoplab.SuiteReport {
 
 // RunAt executes the native ze-interop-test adapter at root.
 func RunAt(ctx context.Context, root string, options Options) interoplab.SuiteReport {
+	suite, err := suiteFor(root, options)
+	if err != nil {
+		return setupFailure(err)
+	}
+	return suite.Run(ctx)
+}
+
+// suiteFor builds the complete suite without starting anything, so a test can
+// assert what this lab declares rather than what a Docker run happens to do.
+func suiteFor(root string, options Options) (interoplab.Suite, error) {
 	environment := interoplab.ReadEnvironment(interoplab.EnvironmentOptions{
 		SelectorVariable: "INTEROP_SCENARIO",
 		SuffixVariable:   "ZE_INTEROP_SUFFIX",
@@ -61,21 +91,17 @@ func RunAt(ctx context.Context, root string, options Options) interoplab.SuiteRe
 	sources, err := interoplab.Discover(
 		filepath.Join(producer, "scenarios"), options.Scenario, checkers())
 	if err != nil {
-		return setupFailure(err)
+		return interoplab.Suite{}, err
 	}
 	plans, err := scenarioPlans(root, producer, options.Suffix, sources)
 	if err != nil {
-		return setupFailure(err)
+		return interoplab.Suite{}, err
 	}
-	tags, err := featuretags.DaemonTags(root)
-	if err != nil {
-		return setupFailure(err)
-	}
-
-	suite := interoplab.Suite{
-		Docker: interoplab.NewDocker(),
+	return interoplab.Suite{
+		Docker:    interoplab.NewDocker(),
+		Preflight: interoplab.StageBinaries(root, options.NoBuild, LabBinaries()...),
 		Images: []interoplab.ImageBuild{
-			{Name: "ze", Tag: "ze-interop", Dockerfile: filepath.Join(producer, "Dockerfile.ze"), Context: root, BuildArgs: []string{"ZE_FEATURES=" + strings.Join(tags, " ")}, Required: true},
+			{Name: "ze", Tag: "ze-interop", Dockerfile: filepath.Join(producer, "Dockerfile.ze"), Context: root, Required: true},
 			{Name: peerBIRD, Tag: "bird-interop", Dockerfile: filepath.Join(producer, "Dockerfile.bird"), Context: producer, Required: true},
 			{Name: peerGoBGP, Tag: "gobgp-interop", Dockerfile: filepath.Join(producer, "Dockerfile.gobgp"), Context: producer},
 			{Name: peerKeepalived, Tag: "keepalived-interop", Dockerfile: filepath.Join(producer, "Dockerfile.keepalived"), Context: producer, Required: true},
@@ -85,8 +111,7 @@ func RunAt(ctx context.Context, root string, options Options) interoplab.SuiteRe
 		},
 		Scenarios: plans,
 		NoBuild:   options.NoBuild,
-	}
-	return suite.Run(ctx)
+	}, nil
 }
 
 func setupFailure(err error) interoplab.SuiteReport {

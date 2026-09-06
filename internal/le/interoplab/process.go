@@ -20,6 +20,14 @@ const timeoutExitCode = 124
 type processCommand struct {
 	Arguments []string
 	Timeout   time.Duration
+	// Directory is the working directory the command runs in. Empty inherits
+	// this process's, which is what every Docker command wants.
+	Directory string
+	// Environment is the COMPLETE environment the command runs under, not an
+	// addition to this process's. Empty inherits this process's. A lab
+	// cross-compile names one (zebuild.go), because the toolchain it must run
+	// under is derived from the checkout rather than from the machine.
+	Environment []string
 }
 
 type processResult struct {
@@ -45,8 +53,12 @@ func (systemProcessRunner) Run(ctx context.Context, command processCommand) (pro
 	runCtx, cancel := context.WithTimeout(ctx, command.Timeout)
 	defer cancel()
 
-	//nolint:gosec // Every argv comes from the closed Docker grammar in docker.go.
+	//nolint:gosec // Every argv comes from the closed Docker grammar in docker.go or the fixed Go build in zebuild.go.
 	cmd := exec.CommandContext(runCtx, command.Arguments[0], command.Arguments[1:]...)
+	cmd.Dir = command.Directory
+	// A nil Env inherits this process's, which is what os/exec already does, so
+	// an empty declaration needs no branch here.
+	cmd.Env = command.Environment
 	var stdout textbuf.Buffer
 	var stderr textbuf.Buffer
 	cmd.Stdout = &stdout

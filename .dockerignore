@@ -18,6 +18,15 @@ gokrazy/
 ai/
 test/
 !test/perf/configs/
+# Every interop lab cross-compiles its ze on the host and copies it into the
+# image, so each staged binary has to survive the test/ exclusion above. The
+# paths are the Output values the labs declare through interoplab.LabBinary, and
+# TestDockerIgnoreAdmitsEveryStagedLabBinary derives this list from those
+# declarations rather than from a second hand-written record.
+!test/interop/ze-linux
+!test/interop/ze-test-linux
 !test/interop-ipsec/ze-linux
+!test/interop-l2tp/ze-linux
+!test/interop-pppoe/ze-linux
 !test/interop-radius/ze-linux
 *.md

@@ -94,8 +94,14 @@ func RunAt(ctx context.Context, root string, options Options) interoplab.SuiteRe
 
 	docker := interoplab.NewDocker()
 	suite := interoplab.Suite{
-		Docker:    docker,
-		Preflight: preflight(options.Suffix),
+		Docker: docker,
+		// The kernel probe runs FIRST: a machine with no pppox module cannot
+		// run this lab, and refusing it before the cross-compile costs that
+		// machine nothing.
+		Preflight: interoplab.Preflights(
+			preflight(options.Suffix),
+			interoplab.StageBinaries(root, options.NoBuild, LabBinaries()...),
+		),
 		Images:    imageBuilds(root),
 		Scenarios: plans,
 		NoBuild:   options.NoBuild,
@@ -124,12 +130,24 @@ func ScenarioNames() []string {
 	return names
 }
 
+// LabBinaries declares the one binary this lab stages into its Docker build
+// context, which is what test/interop-pppoe/Dockerfile.ze copies in.
+//
+// The base is ze_core alone. This lab runs the daemon and asserts nothing from
+// inside the container, so it needs neither the ze_distro plugin mode nor the
+// ze_test personality. The producer adds every gate feature-gates.txt declares.
+func LabBinaries() []interoplab.LabBinary {
+	return []interoplab.LabBinary{
+		{Name: "ze", Base: "ze_core", Output: "test/interop-pppoe/ze-linux"},
+	}
+}
+
 // imageBuilds declares the three images this suite builds. None of them sets a
 // Timeout, so each takes the machine build budget that BUILD_TIMEOUT names
 // (`interoplab.Docker`). That field lengthens a bound for an image slower than
-// the machine budget, and none of these three is: the accel and client images
-// are one `apk add` on alpine, and Dockerfile.ze copies the whole tree and
-// compiles ze, which is the build the machine budget was measured on.
+// the machine budget, and none of these three needs it: all three are one
+// `apk add` on alpine plus a COPY, because the ze binary is cross-compiled on
+// the host before the build rather than compiled inside the image.
 func imageBuilds(root string) []interoplab.ImageBuild {
 	directory := filepath.Join(root, suitePath)
 	return []interoplab.ImageBuild{

@@ -1,26 +1,22 @@
-# Multi-stage build for Ze BGP daemon.
-# Produces a minimal Alpine image with just the ze binary.
-
-FROM golang:1.27-alpine AS builder
-
-RUN apk add --no-cache git
-
-WORKDIR /src
-COPY . .
-
-# ze and ze-test are both cmd/ze selected by build tag. The daemon personality
-# uses ze_core and the test personality uses ze_test; an untagged build has
-# neither registration set.
+# Ze image for the general BGP interop lab.
 #
-# The personality tag alone is NOT enough: every compile-out-able feature is off
-# unless its tag is passed, and BGP itself is one of them (feature-gates.txt,
-# ze_bgp). A `-tags ze_core` image rejects the `bgp` config root as an unknown
-# top-level keyword, so both interop and perf would test a daemon with no BGP.
-# The native interop runner derives the feature set from feature-gates.txt and
-# passes it as one build argument. The image build never parses the manifest.
-ARG ZE_FEATURES
-RUN CGO_ENABLED=0 go build -mod=vendor -tags "ze_core ze_distro $ZE_FEATURES" -o /ze ./cmd/ze && \
-    CGO_ENABLED=0 go build -mod=vendor -tags "ze_test $ZE_FEATURES" -o /ze-test ./cmd/ze
+# It expects two pre-built linux binaries, at test/interop/ze-linux and
+# test/interop/ze-test-linux, which `./le integration interop` cross-compiles
+# before it builds this image (internal/le/interoplab/zebuild.go, StageBinaries,
+# declared by internal/le/interoplab/bgp/run.go, LabBinaries). A bare
+# `docker build -f test/interop/Dockerfile.ze .` on a clean checkout fails at
+# the COPY until that action has run.
+#
+# The binaries are built rather than compiled here on purpose. A Go compiler and
+# linker inside this image was killed by the kernel three times on an idle
+# 31 GiB workstation on 2026-09-06, and took 40m39s on a small VM on 2026-09-04.
+#
+# ze and ze-test are both cmd/ze selected by build tag: the daemon personality
+# takes ze_core ze_distro and the test personality takes ze_test. Both also
+# carry every gate feature-gates.txt declares, because a personality tag alone
+# leaves every compile-out-able feature off and BGP itself is one of them
+# (ze_bgp). The producer reads that manifest through internal/le/featuretags, so
+# this file names no feature and cannot drift from the shipped binary.
 
 FROM alpine:3.21
 
@@ -31,9 +27,8 @@ FROM alpine:3.21
 # (internal/plugins/firewall/nft/readback_linux.go).
 RUN apk add --no-cache tini nftables
 
-COPY --from=builder /ze /usr/local/bin/ze
-COPY --from=builder /ze-test /usr/local/bin/ze-test
-
+COPY test/interop/ze-linux /usr/local/bin/ze
+COPY test/interop/ze-test-linux /usr/local/bin/ze-test
 
 # tini ensures proper signal handling (SIGTERM → ze process).
 ENTRYPOINT ["tini", "--", "ze"]

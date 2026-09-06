@@ -14,7 +14,9 @@ route redistribution from a live PPP session.
 
 ```
 test/interop-l2tp/
-  Dockerfile.ze        Ze LNS image (Alpine + ze + iproute2 + kmod + ppp)
+  Dockerfile.ze        Ze LNS image (Alpine + iproute2 + kmod + ppp; copies the
+                       ze-linux the suite preflight cross-compiles)
+  ze-linux             the staged daemon, git-ignored and rewritten each run
   Dockerfile.lac       LAC image (Alpine + xl2tpd + ppp + iproute2)
   daemons              FRR daemons config (zebra + bgpd)
   vtysh.conf           FRR vtysh config

@@ -12,15 +12,14 @@ import (
 	"fmt"
 	"net/netip"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/test/sessionpath"
@@ -96,6 +95,22 @@ func (r Report) Text() string {
 	return out.String()
 }
 
+// LabBinaries declares the one binary this lab stages into its Docker build
+// context, which is what test/interop-ipsec/Dockerfile.ze copies in.
+//
+// The base is featuretags.DaemonBase, which is the same pair the deleted local
+// copy of this producer prepended by hand. What that copy did NOT have is the
+// manifest read's refusal: it parsed feature-gates.txt itself and returned the
+// base alone for a manifest declaring no gate, where featuretags.DaemonTags
+// answers ErrNoGateTags. A silent base-only answer builds a daemon with every
+// feature compiled out, which then dies on "unknown top-level keyword" for the
+// protocol the scenario was about to prove.
+func LabBinaries() []interoplab.LabBinary {
+	return []interoplab.LabBinary{
+		{Name: "ze", Base: featuretags.DaemonBase, Output: "test/interop-ipsec/ze-linux"},
+	}
+}
+
 // Run resolves the checkout and invokes the native gate.
 func Run() (any, int) {
 	root, err := lepath.Root()
@@ -163,13 +178,8 @@ func runAt(ctx context.Context, root string, environment interoplab.Environment,
 	}
 
 	suite := interoplab.Suite{
-		Docker: docker,
-		Preflight: func(buildContext context.Context, _ *interoplab.Docker) error {
-			if environment.NoBuild {
-				return nil
-			}
-			return buildZe(buildContext, root)
-		},
+		Docker:    docker,
+		Preflight: interoplab.StageBinaries(root, environment.NoBuild, LabBinaries()...),
 		Images:    images,
 		Scenarios: plans,
 		NoBuild:   environment.NoBuild,
@@ -316,49 +326,6 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 		Command:     []string{"start", "/etc/ze/ze.conf"},
 	})
 	return interoplab.PreparedScenario{Peers: peers, Cleanup: cleanup}, nil
-}
-
-func buildZe(ctx context.Context, root string) error {
-	tags, err := featureTags(filepath.Join(root, "feature-gates.txt"))
-	if err != nil {
-		return err
-	}
-	output := filepath.Join(root, "test", "interop-ipsec", "ze-linux")
-	buildContext, cancel := context.WithTimeout(ctx, 5*time.Minute)
-	defer cancel()
-	command := exec.CommandContext(buildContext, "go", "build", "-tags", strings.Join(tags, ","), "-o", output, "./cmd/ze") // #nosec G204 -- the fixed Go build consumes only checked-in feature tags and writes the fixed lab binary.
-	command.Dir = root
-	command.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS=linux")
-	combined, err := command.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("cross-compile ze: %w: %s", err, strings.TrimSpace(string(combined)))
-	}
-	return nil
-}
-
-func featureTags(path string) ([]string, error) {
-	content, err := readFileUnder(filepath.Dir(path), filepath.Base(path))
-	if err != nil {
-		return nil, fmt.Errorf("open feature gates: %w", err)
-	}
-	set := make(map[string]struct{})
-	scanner := bufio.NewScanner(bytes.NewReader(content))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		set[strings.Fields(line)[0]] = struct{}{}
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("read feature gates: %w", err)
-	}
-	features := make([]string, 0, len(set))
-	for feature := range set {
-		features = append(features, feature)
-	}
-	sort.Strings(features)
-	return append([]string{"ze_core", "ze_distro"}, features...), nil
 }
 
 func zeEnvironment(directory string) ([]interoplab.EnvironmentVariable, error) {

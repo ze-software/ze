@@ -474,8 +474,10 @@ RED. `./le rfc check` refuses a tagged unit that is new against git HEAD and car
 The green comes BEFORE the break, not after it: a unit already failing proves nothing
 about a break, and there is no post-restore run on any route. A unit or `.ci` break is a
 Go overlay, so no file on disk is touched and there is nothing to restore. An interop
-break edits the working tree, because the lab compiles ze inside Docker from the
-repository as the build context, and that one is put back and re-read byte for byte.
+break edits the working tree, and that one is put back and re-read byte for byte.
+The lab used to compile ze inside Docker, where an overlay could not reach it; it
+now cross-compiles on the host, so the working-tree route is a decision rather
+than a necessity (`internal/le/rfc/discriminate_observe.go`, requireRedInTree).
 
 `discriminate-record` refuses to write a red it did not observe, and refuses a red that
 does not NAME the tagged unit: a build error and a failing sibling test each turn a run

@@ -607,12 +607,18 @@ break.
 
 The break travels in a Go overlay, so no file on disk is modified and a
 concurrent session in the same checkout sees nothing. The interop carrier is the
-one exception, and it is a fact about that lab rather than a choice: the image
-build compiles ze INSIDE Docker from the repository as its build context
-(`internal/le/interoplab/docker.go`), where a host-side overlay is a file the
-container never sees. There the break goes into the working tree and is put back
-byte for byte, which is what `docs/contributing/testing.md` has always said to
-do by hand.
+one exception: there the break goes into the working tree and is put back byte
+for byte, which is what `docs/contributing/testing.md` has always said to do by
+hand.
+
+That exception used to be forced. The lab image compiled ze INSIDE Docker from
+the repository as its build context, where a host-side overlay is a file the
+container never sees. Since 2026-09-06 the lab cross-compiles both binaries on
+the host and the image copies them in
+(`internal/le/interoplab/zebuild.go`, `StageBinaries`), and that build inherits
+the environment, so an overlay WOULD reach it. The working-tree route is now a
+DECISION rather than a necessity: how a conformance gate applies a break is its
+own change with its own evidence.
 
 ## The escape, and the precondition behind each reason
 

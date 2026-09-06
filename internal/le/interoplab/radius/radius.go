@@ -17,20 +17,16 @@ package radius
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/netip"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/featuretags"
-	"github.com/ze-software/ze/internal/le/gotoolchain"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
@@ -199,12 +195,7 @@ func suiteFor(root string, environment interoplab.Environment, docker *interopla
 		Docker: docker,
 		// The only preflight this lab owns is the ze cross-compile. It probes
 		// no kernel module, because nothing on the admin login path needs one.
-		Preflight: func(buildContext context.Context, _ *interoplab.Docker) error {
-			if environment.NoBuild {
-				return nil
-			}
-			return buildZe(buildContext, root)
-		},
+		Preflight: interoplab.StageBinaries(root, environment.NoBuild, LabBinaries()...),
 		Images: []interoplab.ImageBuild{
 			{Name: zePeer, Tag: zeImage, Dockerfile: filepath.Join(root, labDirectory, "Dockerfile.ze"), Context: root, Required: true},
 			{Name: serverPeer, Tag: serverImage, Pull: true, Required: true},
@@ -286,39 +277,16 @@ func zePeerConfig(source interoplab.ScenarioSource, container string) interoplab
 	}
 }
 
-// buildZe cross-compiles the daemon this lab runs. The tags come from
-// feature-gates.txt through featuretags.DaemonBuildTags, so the lab daemon
-// carries the same features as every other build of this tree and a scenario
-// cannot fail on a feature that was compiled out.
+// LabBinaries declares the one binary this lab stages into its Docker build
+// context, which is what test/interop-radius/Dockerfile.ze copies in.
 //
-// The environment comes from gotoolchain rather than from os.Environ, because
-// that is what puts GOCACHE inside the checkout and pins GOTOOLCHAIN to the
-// one go.mod names. An ambient environment resolves GOCACHE to the machine's
-// default, which nothing in this repository manages: `./le scratch cache-clean`
-// does not clear it, the full-disk discipline does not measure it, and another
-// tool trimming it mid-build fails this cross-compile with a wave of
-// "no such file or directory" against Go's own standard library
-// (plan/journal/full-disk-false-red.md). Measured here on 2026-09-04, twice.
-func buildZe(ctx context.Context, root string) error {
-	tags, err := featuretags.DaemonBuildTags(root, "ze_core ze_distro")
-	if err != nil {
-		return err
+// The base is featuretags.DaemonBase, so the lab daemon carries the same
+// personality and the same features as every other build of this tree and a
+// scenario cannot fail on a feature that was compiled out.
+func LabBinaries() []interoplab.LabBinary {
+	return []interoplab.LabBinary{
+		{Name: "ze", Base: featuretags.DaemonBase, Output: filepath.Join(labDirectory, "ze-linux")},
 	}
-	toolchain, err := gotoolchain.New(root)
-	if err != nil {
-		return err
-	}
-	output := filepath.Join(root, labDirectory, "ze-linux")
-	buildContext, cancel := context.WithTimeout(ctx, 5*time.Minute)
-	defer cancel()
-	command := exec.CommandContext(buildContext, "go", "build", "-tags", tags, "-o", output, "./cmd/ze") // #nosec G204 -- the fixed Go build consumes only checked-in feature tags and writes the fixed lab binary.
-	command.Dir = root
-	command.Env = toolchain.Environment(gotoolchain.EnvOptions{GOOS: "linux"})
-	combined, err := command.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("cross-compile ze: %w: %s", err, strings.TrimSpace(string(combined)))
-	}
-	return nil
 }
 
 // checker adapts a scenario body to the protocol-neutral Checker signature.

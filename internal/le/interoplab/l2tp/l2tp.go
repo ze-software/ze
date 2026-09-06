@@ -98,14 +98,19 @@ func runAt(ctx context.Context, root, selector string, docker *interoplab.Docker
 		return interoplab.SuiteReport{SetupError: err.Error(), Code: 1}
 	}
 
+	stage := interoplab.StageBinaries(root, environment.NoBuild, LabBinaries()...)
 	suite := interoplab.Suite{
 		Docker:    docker,
+		Preflight: stage,
 		Images:    imageBuilds(root, plans, environment.Image),
 		Scenarios: plans,
 		NoBuild:   environment.NoBuild,
 	}
+	// The kernel probe runs FIRST where it runs at all: a machine with no
+	// PPPoL2TP module cannot run this lab, and refusing it before the
+	// cross-compile costs that machine nothing.
 	if standardFlow {
-		suite.Preflight = preflight(environment.Suffix)
+		suite.Preflight = interoplab.Preflights(preflight(environment.Suffix), stage)
 	}
 	return suite.Run(ctx)
 }
@@ -284,6 +289,18 @@ func radiusPeer(suffix string) interoplab.PeerConfig {
 			Timeout:  20 * time.Second,
 			Interval: 500 * time.Millisecond,
 		},
+	}
+}
+
+// LabBinaries declares the one binary this lab stages into its Docker build
+// context, which is what test/interop-l2tp/Dockerfile.ze copies in.
+//
+// The base is ze_core alone. This lab runs the daemon and asserts nothing from
+// inside the container, so it needs neither the ze_distro plugin mode nor the
+// ze_test personality. The producer adds every gate feature-gates.txt declares.
+func LabBinaries() []interoplab.LabBinary {
+	return []interoplab.LabBinary{
+		{Name: "ze", Base: "ze_core", Output: "test/interop-l2tp/ze-linux"},
 	}
 }
 

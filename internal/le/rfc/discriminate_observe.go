@@ -555,14 +555,20 @@ func producerLineSpan(tree, rel, symbol string) (lineRange, bool) {
 	return lineRange{}, false
 }
 
-// requireRedInTree is requireRed for the one carrier an overlay cannot reach.
+// requireRedInTree is requireRed for the one carrier whose break travels in the
+// working tree rather than in a Go overlay.
 //
-// The BGP interop lab compiles ze INSIDE Docker, from the repository as the
-// build context: internal/le/interoplab/docker.go builds the image with
-// `-f Dockerfile.ze <context>`. A host-side overlay is a file that container
-// never sees and a GOFLAGS value it never reads, so the only place a break can
-// go is the working tree, which is what the house method in
-// docs/contributing/testing.md has always said to do by hand.
+// Until 2026-09-06 the lab had no other route: the BGP interop image compiled ze
+// INSIDE Docker from the repository as its build context, and a host-side
+// overlay is a file that container never sees. That is no longer the reason. The
+// lab now cross-compiles both binaries on the host and the image copies them in
+// (internal/le/interoplab/zebuild.go, StageBinaries), and that build inherits
+// this process's environment, so a GOFLAGS overlay WOULD reach it.
+//
+// The working-tree route is kept by decision. Changing how a conformance gate
+// applies a break is its own change with its own evidence, and this route is
+// what the house method in docs/contributing/testing.md has always said to do by
+// hand.
 //
 // The producer is put back on every path and the restore is CONFIRMED byte for
 // byte. Several sessions share this checkout, so a producer left broken is not

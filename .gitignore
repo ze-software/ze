@@ -85,9 +85,14 @@ AGENTS.md
 
 test/perf/results/
 bin/ze-perf-linux
-# Cross-compiled ze binary staged into the IPsec interop Docker build context by
-# `buildZe` in `internal/le/interoplab/ipsec`; regenerated each run.
+# Cross-compiled lab binaries staged into an interop Docker build context by
+# `StageBinaries` in `internal/le/interoplab/zebuild.go`, which every one of the
+# five labs calls; regenerated on each run that is not NO_BUILD.
+test/interop/ze-linux
+test/interop/ze-test-linux
 test/interop-ipsec/ze-linux
+test/interop-l2tp/ze-linux
+test/interop-pppoe/ze-linux
 test/interop-radius/ze-linux
 
 # Runtime / scratch artifacts that leak into the working tree from running ze

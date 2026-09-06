@@ -30,17 +30,27 @@ const (
 // dockerBuildTimeoutVariable names the machine's build budget in whole seconds.
 const dockerBuildTimeoutVariable = "BUILD_TIMEOUT"
 
+// serverArchitectureFormat is the Go template that asks the daemon, rather than
+// the client, which architecture it runs. `docker version` reports both, and
+// only the server's decides what an image built without --platform is for.
+const serverArchitectureFormat = "{{.Server.Arch}}"
+
 // dockerBuildTimeoutDefault bounds one docker build on a machine that declares
 // nothing. The bound exists to stop a wedged Docker daemon, not to budget a
 // build, so it is deliberately generous: a build that finishes returns at once,
 // and the only cost of a large bound is a slower report of a daemon that hung.
 //
 // The number covers the slowest build measured, and the spread is the point.
-// test/interop/Dockerfile.ze copies the whole tree and compiles ze twice with no
-// cache mount. On 2026-09-04 the same image took 40m39s on a colima VM of 2 CPUs
-// and 2 GB whose host disk was full and whose guest was thrashing, and 2m48s on
-// the same VM once the disk was repaired. The 10 minutes this constant held
-// until then killed the first of those, which the machine completed by hand.
+// It was measured when every lab image compiled ze inside the container: on
+// 2026-09-04 test/interop/Dockerfile.ze took 40m39s on a colima VM of 2 CPUs and
+// 2 GB whose host disk was full and whose guest was thrashing, and 2m48s on the
+// same VM once the disk was repaired. The 10 minutes this constant held until
+// then killed the first of those, which the machine completed by hand.
+//
+// No lab image compiles anything now: the binaries are cross-compiled on the
+// host and copied in (zebuild.go, StageBinaries), which took the same image to
+// 54.7s on a 32-core workstation on 2026-09-06. The bound is unchanged, because
+// a pull of a third-party peer image on a bad link is still the slow case.
 //
 // So the bound cannot be the thing that decides a verdict: it has to survive the
 // bad day, and no constant is right for every machine. BUILD_TIMEOUT overrides
@@ -211,6 +221,65 @@ func machineBuildTimeout(lookup func(string) (string, bool)) time.Duration {
 func (d *Docker) Probe(ctx context.Context) error {
 	_, err := d.command(ctx, dockerInfoTimeout, dockerExecutable, "info")
 	return err
+}
+
+// ServerArchitecture answers the GOARCH the Docker daemon builds images FOR.
+//
+// The DAEMON is asked rather than the host assumed, and that is a fact about
+// Build rather than a convention: Build passes no --platform, so the image
+// takes the daemon's own platform. The two agree on every machine used so far
+// and differ under a remote context or DOCKER_DEFAULT_PLATFORM, where a
+// host-derived GOARCH stages a binary the container cannot exec and the only
+// symptom is `exec format error`, which names nothing about its cause.
+//
+// An answer this method cannot read is an ERROR naming what it asked and what
+// it got. It never falls back to the host architecture, because a guess here is
+// the failure this method exists to remove.
+func (d *Docker) ServerArchitecture(ctx context.Context) (string, error) {
+	result, err := d.command(ctx, dockerCommandTimeout, dockerExecutable, "version", "--format", serverArchitectureFormat)
+	if err != nil {
+		return "", err
+	}
+	architecture := strings.TrimSpace(result.Stdout)
+	if !architectureToken(architecture) {
+		var tb textbuf.Buffer
+		return "", errors.New(tb.Str("`docker version --format ").Str(serverArchitectureFormat).
+			Str("` answered ").Quoted(architecture).
+			Str(", which is not an architecture name; a GOARCH is never guessed from the host").String())
+	}
+	return architecture, nil
+}
+
+// architectureTokenMax bounds the answer this client accepts. The longest
+// GOARCH Go names is `loong64`, at seven characters, so sixteen leaves room for
+// a spelling nobody has written yet and still refuses a paragraph.
+const architectureTokenMax = 16
+
+// architectureToken reports whether an answer has the SHAPE of an architecture
+// name: one to architectureTokenMax lowercase letters and digits.
+//
+// The shape is judged here and the SPELLING is judged by the toolchain. Go's
+// own architecture list is the authority on which names exist, and a copy of it
+// here would go stale the first time Go adds one, so an answer with the right
+// shape is handed to the cross-compile, which refuses an unknown GOARCH loudly
+// and before any image is built. What this guard removes is an answer that is
+// not a token at all: an empty string, a diagnostic sentence, or anything
+// carrying a character an environment variable should never receive.
+func architectureToken(value string) bool {
+	if value == "" || len(value) > architectureTokenMax {
+		return false
+	}
+	for index := range len(value) {
+		character := value[index]
+		if character >= 'a' && character <= 'z' {
+			continue
+		}
+		if character >= '0' && character <= '9' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // Build builds one image and returns the image ID printed by docker build -q.

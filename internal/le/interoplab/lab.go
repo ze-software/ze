@@ -41,6 +41,27 @@ type ScenarioPlan struct {
 // PreflightCheck proves host capabilities before image builds consume time.
 type PreflightCheck func(context.Context, *Docker) error
 
+// Preflights answers one check that runs each check in order and stops at the
+// first failure.
+//
+// The order is what a lab declares, and it is a cost decision: a lab that
+// probes the kernel and also stages a binary puts the probe first, so a machine
+// that cannot run the lab at all refuses before a cross-compile spends time on
+// it. A nil check is skipped rather than called.
+func Preflights(checks ...PreflightCheck) PreflightCheck {
+	return func(ctx context.Context, docker *Docker) error {
+		for _, check := range checks {
+			if check == nil {
+				continue
+			}
+			if err := check(ctx, docker); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
+
 // Suite builds shared images, then runs each scenario and keeps every verdict.
 type Suite struct {
 	Docker    *Docker

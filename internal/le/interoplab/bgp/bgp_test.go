@@ -15,9 +15,86 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
+
+// VALIDATES: `./le integration interop` wires the shared staging producer, and no longer hands the image its feature tags.
+// PREVENTS: an image build that compiles ze inside the container, which the kernel killed three times on an idle 31 GiB host (2026-09-06).
+func TestBGPSuiteDeclaresAPreflightBuild(t *testing.T) {
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("resolve the checkout root: %v", err)
+	}
+	suite, err := suiteFor(root, Options{NoBuild: true})
+	if err != nil {
+		t.Fatalf("build the BGP suite: %v", err)
+	}
+
+	if suite.Preflight == nil {
+		t.Fatal("the BGP suite declares no Preflight, so nothing stages the binaries the image copies in")
+	}
+	for _, image := range suite.Images {
+		if image.Name != "ze" {
+			continue
+		}
+		if len(image.BuildArgs) != 0 {
+			t.Errorf("the ze image still takes build arguments %v; the feature tags belong to the host build now", image.BuildArgs)
+		}
+		if image.Dockerfile != filepath.Join(root, "test", "interop", "Dockerfile.ze") {
+			t.Errorf("the ze image builds %q", image.Dockerfile)
+		}
+		return
+	}
+	t.Fatal("the BGP suite declares no ze image")
+}
+
+// VALIDATES: the bgp lab stages BOTH personalities, the daemon and the test binary, at the paths its Dockerfile copies.
+// PREVENTS: an image with no ze-test, which is what 14 scenario ze.conf files run `ze-test interop-bgp process ...` with.
+func TestBGPPreflightDeclaresBothPersonalities(t *testing.T) {
+	declared := LabBinaries()
+	if len(declared) != 2 {
+		t.Fatalf("the bgp lab declares %d binaries, want the daemon and the test personality: %+v", len(declared), declared)
+	}
+
+	want := map[string]struct{ base, output string }{
+		"ze":      {base: featuretags.DaemonBase, output: "test/interop/ze-linux"},
+		"ze-test": {base: "ze_test", output: "test/interop/ze-test-linux"},
+	}
+	for _, binary := range declared {
+		expected, named := want[binary.Name]
+		if !named {
+			t.Errorf("the bgp lab declares an unexpected binary %q", binary.Name)
+			continue
+		}
+		if binary.Base != expected.base {
+			t.Errorf("%s is built on base %q, want %q", binary.Name, binary.Base, expected.base)
+		}
+		if binary.Output != expected.output {
+			t.Errorf("%s is staged at %q, want %q", binary.Name, binary.Output, expected.output)
+		}
+		delete(want, binary.Name)
+	}
+	for name := range want {
+		t.Errorf("the bgp lab declares no %s binary", name)
+	}
+
+	// The Dockerfile is the consumer of those paths, so it has to copy each one.
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("resolve the checkout root: %v", err)
+	}
+	body, err := os.ReadFile(filepath.Join(root, "test", "interop", "Dockerfile.ze"))
+	if err != nil {
+		t.Fatalf("read the ze Dockerfile: %v", err)
+	}
+	for _, binary := range declared {
+		if !strings.Contains(string(body), binary.Output) {
+			t.Errorf("test/interop/Dockerfile.ze copies no %s", binary.Output)
+		}
+	}
+}
 
 // TestCheckerPopulationMatchesProducer validates that every scenario directory
 // has a typed checker, so adding one can never silently shrink the gate.
