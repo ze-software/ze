@@ -415,3 +415,27 @@ interop. Three sibling tests that could not run as a whole suite the same
 afternoon all passed as named cases under job admission. No such scoping exists
 for an interop scenario, so this one needs a machine with headroom rather than a
 better invocation.
+
+**Update, later on 2026-09-06: the build is no longer the barrier, and the
+remaining one is smaller and more specific.** `5837fd3247` made the interop
+images copy a prebuilt `ze` rather than compile inside themselves, taking the
+build from three kernel OOM kills to 54.7 seconds. The IPsec lab, which shares
+that producer, then ran its full 29-scenario suite twice.
+
+This scenario still cannot run. Two further attempts were killed for memory, so
+the cost has moved from the COMPILE to the container FLEET: the bgp lab brings
+up FRR, GoBGP and BIRD beside Ze, where the IPsec lab runs a smaller set. That
+is a different problem from the one the journal rows describe and it is not
+solved by the image change.
+
+One attempt also produced a two-line answer, `Failed: interop`, with no scenario
+name, no assertion and no reason. That was almost certainly the same kill: an
+action the kernel terminates cannot report why, and this one does not
+distinguish that from any other failure. A reader who sees it will not know a
+retry is pointless. Worth fixing wherever `./le integration` reports a failure,
+and worth knowing before anyone reads that line as a verdict about the scenario.
+
+The scenario's verdict therefore remains UNKNOWN. One earlier run did reach a
+verdict and failed on `advertised-as=65001 configured-as=65004`, which was
+attributed to the test injector's then-uncommitted ASN handling; that work has
+since landed, and whether the attribution was right is unmeasured.
