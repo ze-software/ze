@@ -42,12 +42,13 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 			bp.mu.Lock()
 			delete(bp.openCache, se.PeerAddress)
 			delete(bp.dedupState, se.PeerAddress)
+			delete(bp.dedupCount, se.PeerAddress)
 			delete(bp.peerUps, se.PeerAddress)
 			bp.mu.Unlock()
 		}
 	}
 
-	// ONE snapshot of the sender set and the two config leaves that decide what
+	// ONE snapshot of the sender set and the three config leaves that decide what
 	// this event produces, taken together under a single read lock.
 	//
 	// Together, not one atomic each: an event must be processed under one
@@ -58,10 +59,16 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 	// them into the lock the sender set already needs also makes the config
 	// snapshot coherent with the sessions it will be written to, and costs
 	// nothing: it is the same critical section.
+	//
+	// statistics-timeout joins them because it decides what is MEASURED rather
+	// than what is emitted: the duplicate detector that feeds RFC 7854 Section
+	// 4.8 Stat Type 13 has to run for a received UPDATE the policy does not
+	// stream (handleSenderUpdate).
 	bp.mu.RLock()
 	senders := bp.senders
 	mirroring := bp.routeMirroring
 	policy := bp.routeMonitorPolicy
+	statistics := bp.statisticsInterval > 0
 	bp.mu.RUnlock()
 
 	if len(senders) == 0 {
@@ -76,19 +83,7 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 			bp.handleSenderMirror(se, senders)
 		}
 	case rpc.EventKindUpdate:
-		// Filter by route-monitoring-policy:
-		// "pre-policy" = received only, "post-policy" = sent only, "all" = both.
-		if policy == "" {
-			policy = policyAll
-		}
-		switch {
-		case policy == policyAll:
-			bp.handleSenderUpdate(se, senders)
-		case policy == policyPrePolicy && se.Direction == rpc.DirectionReceived:
-			bp.handleSenderUpdate(se, senders)
-		case policy == policyPostPolicy && se.Direction == rpc.DirectionSent:
-			bp.handleSenderUpdate(se, senders)
-		}
+		bp.handleSenderUpdate(se, senders, policyStreams(policy, se.Direction), statistics)
 		if mirroring {
 			bp.handleSenderMirror(se, senders)
 		}
@@ -270,6 +265,7 @@ func (bp *BMPPlugin) bounceMonitoredPeers(senders []*senderSession) {
 	for address, st := range bp.peerUps {
 		states = append(states, st)
 		delete(bp.dedupState, address)
+		delete(bp.dedupCount, address)
 	}
 	bp.mu.Unlock()
 
@@ -351,40 +347,54 @@ func (bp *BMPPlugin) handleSenderMirror(se *rpc.StructuredEvent, senders []*send
 	}
 }
 
-// handleSenderUpdate sends Route Monitoring to all collectors.
-// Handles both received (pre-policy, Adj-RIB-In) and sent (post-policy,
-// Adj-RIB-Out per RFC 8671) updates. The O flag in the Per-Peer Header
-// distinguishes the two directions.
-// Per-NLRI dedup: suppresses Route Monitoring when the UPDATE body hash
-// is unchanged for a given peer (AC-7). Different attributes pass (AC-8).
-func (bp *BMPPlugin) handleSenderUpdate(se *rpc.StructuredEvent, senders []*senderSession) {
+// policyStreams reports whether route-monitoring-policy streams direction as
+// Route Monitoring: "pre-policy" carries the received direction (Adj-RIB-In),
+// "post-policy" the sent direction (Adj-RIB-Out, RFC 8671), "all" carries both.
+//
+// An empty policy is the YANG default, which is "all". parseSenderConfig fills
+// it, so an empty string here means no configuration has been installed yet.
+func policyStreams(policy string, direction rpc.MessageDirection) bool {
+	switch policy {
+	case "", policyAll:
+		return true
+	case policyPrePolicy:
+		return direction == rpc.DirectionReceived
+	case policyPostPolicy:
+		return direction == rpc.DirectionSent
+	}
+	return false
+}
+
+// handleSenderUpdate accounts for one UPDATE event and, when the
+// route-monitoring policy streams its direction, sends Route Monitoring to
+// every collector. The O flag in the per-peer header distinguishes the two
+// directions.
+//
+// stream says the policy carries this direction. statistics says a periodic
+// Statistics Report is configured, and it is what makes the duplicate detector
+// run over a RECEIVED UPDATE the policy does not stream: the count it produces
+// is RFC 7854 Section 4.8 Stat Type 13, and a counter that stopped being
+// measured under `post-policy` would report a zero ze never measured
+// (ai/rules/principles.md).
+//
+// Dedup: a body this peer already sent in this direction produces no Route
+// Monitoring (AC-7). A body with different attributes passes (AC-8).
+func (bp *BMPPlugin) handleSenderUpdate(se *rpc.StructuredEvent, senders []*senderSession, stream, statistics bool) {
+	received := se.Direction == rpc.DirectionReceived
+	measure := statistics && received
+	if !stream && !measure {
+		return
+	}
+
 	rawBytes, msgType := rawUpdateBytes(se)
 	if rawBytes == nil {
 		return
 	}
-
-	if bp.dedupState != nil {
-		if bp.dedupHasher == nil {
-			bp.dedupHasher = fnv.New64a()
-		}
-		bp.dedupHasher.Reset()
-		bp.dedupHasher.Write(rawBytes)
-		sum := bp.dedupHasher.Sum64()
-
-		bp.mu.Lock()
-		peerMap, ok := bp.dedupState[se.PeerAddress]
-		if !ok {
-			peerMap = make(map[uint64]struct{})
-			bp.dedupState[se.PeerAddress] = peerMap
-		}
-		if _, dup := peerMap[sum]; dup {
-			bp.mu.Unlock()
-			return
-		}
-		if len(peerMap) < maxDedupPerPeer {
-			peerMap[sum] = struct{}{}
-		}
-		bp.mu.Unlock()
+	if bp.duplicateUpdate(se.PeerAddress, received, rawBytes) {
+		return
+	}
+	if !stream {
+		return
 	}
 
 	peer := peerHeaderFromEvent(se)
@@ -393,6 +403,53 @@ func (bp *BMPPlugin) handleSenderUpdate(se *rpc.StructuredEvent, senders []*send
 			logger().Debug("bmp: sender route monitoring failed", "collector", ss.name, "error", err)
 		}
 	}
+}
+
+// duplicateUpdate reports whether this peer already carried this UPDATE body in
+// this direction, and records the body when it did not. A duplicate in the
+// RECEIVED direction also increments the peer's RFC 7854 Section 4.8 Stat Type
+// 13 counter, "Number of duplicate update messages received".
+//
+// The two directions occupy one hash set per peer, separated by dedupSentSalt,
+// and that set is capped at maxDedupPerPeer entries. Past the cap a repeated
+// body is neither suppressed nor counted, so the counter is a floor rather than
+// an exact total on a peer churning more than 100k distinct bodies.
+//
+// Caller MUST NOT hold bp.mu. The hasher is reused without a lock because only
+// the plugin's one event-delivery goroutine reaches this function (BMPPlugin,
+// dedupHasher).
+func (bp *BMPPlugin) duplicateUpdate(address string, received bool, rawBytes []byte) bool {
+	if bp.dedupState == nil {
+		return false
+	}
+	if bp.dedupHasher == nil {
+		bp.dedupHasher = fnv.New64a()
+	}
+	bp.dedupHasher.Reset()
+	bp.dedupHasher.Write(rawBytes) //nolint:errcheck // hash.Hash.Write never returns an error, which its own documentation states
+	key := dedupKey(bp.dedupHasher.Sum64(), received)
+
+	bp.mu.Lock()
+	defer bp.mu.Unlock()
+
+	seen, ok := bp.dedupState[address]
+	if !ok {
+		seen = make(map[uint64]struct{})
+		bp.dedupState[address] = seen
+	}
+	if _, duplicate := seen[key]; duplicate {
+		if received {
+			if bp.dedupCount == nil {
+				bp.dedupCount = make(map[string]uint32)
+			}
+			bp.dedupCount[address]++
+		}
+		return true
+	}
+	if len(seen) < maxDedupPerPeer {
+		seen[key] = struct{}{}
+	}
+	return false
 }
 
 // peerHeaderFromEvent builds a BMP PeerHeader from a StructuredEvent.

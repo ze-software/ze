@@ -1,3 +1,11 @@
+// RFC: rfc/short/rfc7854.md
+// Related: internal/component/bgp/plugins/bmp/msg.go -- the encoder whose bytes
+// the collector modes below read back
+//
+// The BMP fixtures of the test/plugin suite: the driver plugins that watch a
+// running ze, and the collector that accepts ze's sender connection and decodes
+// one message type per mode.
+
 package fixture
 
 import (
@@ -15,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -388,6 +397,11 @@ func bmpCollector04(mode string) Driver {
 		defer conn.Close() //nolint:errcheck // fixture teardown
 		_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
 		valid := false
+		// Statistics Reports counted so far. RFC 7854 Section 4.8 asks for
+		// "configuration control ... of the timer", so the mode is satisfied by
+		// a STREAM of reports rather than by one: a router that emitted a single
+		// report on a configuration change would pass a one-report collector.
+		statistics := 0
 		for {
 			header := make([]byte, 6)
 			if _, err := io.ReadFull(conn, header); err != nil {
@@ -421,6 +435,13 @@ func bmpCollector04(mode string) Driver {
 			case "peer-up":
 				if header[5] == 3 {
 					valid = validatePeerUp04(payload)
+				}
+			case "statistics":
+				// BMP message type 1 is the Statistics Report (RFC 7854
+				// Section 4.1).
+				if header[5] == 1 && validateStatistics04(payload) {
+					statistics++
+					valid = statistics == 2
 				}
 			}
 			if valid {
@@ -468,6 +489,70 @@ func validateMonitoring04(payload []byte, locrib bool) bool {
 		fmt.Fprintln(os.Stderr, "BMP-COLLECTOR: valid-locrib-route-monitoring")
 	} else {
 		fmt.Fprintln(os.Stderr, "BMP-COLLECTOR: valid-route-monitoring-pdu")
+	}
+	return true
+}
+
+// statisticsRefusal04 prints one reason the Statistics Report was refused, in
+// the sentinel shape the .ci rejects on.
+func statisticsRefusal04(why string) bool {
+	var out textbuf.Buffer
+	out.Str("BMP-COLLECTOR: invalid-pdu: ").Str(why).Byte('\n').StdErr() //nolint:errcheck // fixture diagnostics
+	return false
+}
+
+// validateStatistics04 reads one BMP Statistics Report the way a collector
+// does, and reports whether it carries the counter ze measures.
+//
+// RFC 7854 Section 4.8 defines the body: the per-peer header, "a 4-byte field
+// that indicates the number of counters in the stats message where each counter
+// is encoded as a TLV", and each TLV as Stat Type (2), Stat Len (2), Stat Data.
+// Stat Type 13 is "(32-bit Counter) Number of duplicate update messages
+// received", so its Stat Len is 4.
+//
+// Two refusals beyond a malformed body: a report carrying no statistic at all,
+// which Section 4.8 forbids ("if an SR message is transmitted, at least one
+// statistic MUST be carried in it"), and a per-peer header carrying the O flag,
+// which RFC 8671 Section 6.2 forbids on this message type.
+func validateStatistics04(payload []byte) bool {
+	const peerHeader = 42
+	if len(payload) < peerHeader+4 {
+		return statisticsRefusal04("statistics payload too short")
+	}
+	// Per-peer header byte 1 is the flags byte; 0x10 is the RFC 8671 O flag.
+	if payload[1]&0x10 != 0 {
+		return statisticsRefusal04("statistics per-peer header carries the O flag")
+	}
+	count := binary.BigEndian.Uint32(payload[peerHeader : peerHeader+4])
+	if count == 0 {
+		return statisticsRefusal04("statistics report carries no statistic")
+	}
+
+	off := peerHeader + 4
+	duplicates := false
+	for range count {
+		if len(payload) < off+4 {
+			return statisticsRefusal04("statistics TLV header truncated")
+		}
+		kind := binary.BigEndian.Uint16(payload[off:])
+		length := int(binary.BigEndian.Uint16(payload[off+2:]))
+		off += 4
+		if len(payload) < off+length {
+			return statisticsRefusal04("statistics TLV value truncated")
+		}
+		if kind == 13 {
+			if length != 4 {
+				return statisticsRefusal04("stat type 13 is not a 4-byte counter")
+			}
+			duplicates = true
+			var out textbuf.Buffer
+			out.Str("BMP-COLLECTOR: valid-statistics-report: duplicate-updates=").
+				Uint32(binary.BigEndian.Uint32(payload[off:])).Byte('\n').StdErr() //nolint:errcheck // fixture diagnostics
+		}
+		off += length
+	}
+	if !duplicates {
+		return statisticsRefusal04("statistics report carries no stat type 13")
 	}
 	return true
 }

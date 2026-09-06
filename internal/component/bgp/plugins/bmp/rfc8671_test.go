@@ -345,12 +345,13 @@ func TestRFC8671OFlagClearOnAdjRIBInMessages(t *testing.T) {
 // Adj-RIB-Out per-peer header, writeStatisticsReport puts the O flag on the wire
 // as zero.
 //
-// It carries no RFC requirement tag, and it is not evidence that ze conforms to
-// RFC 8671 Section 6.2. Nothing in production calls writeStatisticsReport, so ze
-// transmits no Statistics Report and the obligation is never exercised.
-// RFC8671-6.2-1 is a {gap} in rfc/short/rfc8671.md and the missing piece is the
-// timer behind the statistics-timeout leaf (Thomas, 2026-08-31: an emission path
-// added later that produced a non-zero O flag would leave this test green).
+// It carries no RFC requirement tag, and on its own it never was evidence that
+// ze conforms to RFC 8671 Section 6.2: a green encoder test says nothing about a
+// requirement no production path exercises (Thomas, 2026-08-31). The path exists
+// now, and the conformance assertion is
+// TestRFC8671StatisticsReportOnTheWireClearsTheOFlag (statistics_test.go), which
+// reads the flag off a report the `statistics-timeout` emission path produced.
+// This one stays as the encoder's own unit test.
 func TestRFC8671StatisticsReportClearsTheOFlag(t *testing.T) {
 	server, client := net.Pipe()
 	defer closeLog(server, "server")
@@ -536,6 +537,12 @@ func liveCollectorSession(t *testing.T, bp *BMPPlugin, engine *reloadEngine, con
 	bp.senders = []*senderSession{ss}
 	bp.mu.Unlock()
 	t.Cleanup(func() {
+		// BMPPlugin's own contract: "Caller MUST close stopCh and call
+		// stopListeners when done." Not every goroutine on bp.sessions belongs
+		// to a collector session -- the statistics ticker a reload starts is one
+		// -- so waiting on that group without closing stopCh first waits for a
+		// goroutine nothing has told to stop.
+		close(bp.stopCh)
 		bp.stopSenders()
 		bp.sessions.Wait()
 	})
@@ -600,6 +607,7 @@ func pipeSenderForReload(t *testing.T, bp *BMPPlugin, conn net.Conn) *senderSess
 	ss := &senderSession{name: "live", conn: conn, stopCh: make(chan struct{})}
 	bp.senders = []*senderSession{ss}
 	t.Cleanup(func() {
+		close(bp.stopCh)
 		bp.stopSenders()
 		bp.sessions.Wait()
 	})

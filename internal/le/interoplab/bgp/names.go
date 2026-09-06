@@ -160,6 +160,29 @@ const (
 	// OPEN cache was empty, which RFC 9069 Section 1.1 makes a normal state.
 	pmacctUnknownPeerAS = `"peer_asn": 0`
 	pmacctUnknownBGPID  = `"bgp_id": "0.0.0.0"`
+
+	// One RFC 7854 Section 4.8 Statistics Report, as pmacct printed it on
+	// 2026-09-06 after decoding ze's bytes. One needle rather than four,
+	// because the fields have to be read off ONE message: `is_post` and `is_in`
+	// appear on every Route Monitoring line as well, so a needle of their own
+	// would pass against a run that sent no Statistics Report at all.
+	//
+	// It carries four readings. `bmp_msg_type` is the message type pmacct
+	// parsed. `peer_ip` and `peer_asn` are the monitored FRR peer the report
+	// describes, so a report attributed to nobody fails. `is_post: 0, is_in: 1`
+	// is pmacct's reading of the per-peer header flags, which is what RFC 8671
+	// Section 6.2 binds: "Statistics report messages ... MUST have the O flag
+	// set to zero", and pmacct prints `is_post: 1, is_out: 1` for a header that
+	// carries it. `counter_type` and `counter_type_str` are the stat type,
+	// named by pmacct's own table rather than by anything ze sent.
+	pmacctStatisticsReport = `"bmp_msg_type": "stats", "peer_ip": "172.30.0.3", "peer_asn": 65045, ` +
+		`"peer_type": 0, "is_post": 0, "is_in": 1, "counter_type": 13, ` +
+		`"counter_type_str": "Number of duplicate update messages received"`
+
+	// Reports are PERIODIC or they are not reports on a timer: a router that
+	// emitted one on connection would satisfy the needle above. The count runs
+	// inside the collector because the assertion surface is a file there.
+	pmacctStatisticsPeriodic = `test $(grep -c '"bmp_msg_type": "stats"' ` + pmacctMsgLogPath + `) -ge 2 && echo periodic`
 )
 
 // Prefixes the inject peer announces to the daemon under test. The first
@@ -314,6 +337,7 @@ const (
 	scenarioWireEditAPIOriginBIRD            = "bgp-wire-edit-api-origin-bird"
 	scenarioLocRIBPMACCT                     = "bmp-locrib-pmacct"
 	scenarioLocRIBReceiverFRR                = "bmp-locrib-receiver-frr"
+	scenarioStatisticsPMACCT                 = "bmp-statistics-pmacct"
 )
 
 // The looking-glass demo topology. Six /24 links carry two routers each, at

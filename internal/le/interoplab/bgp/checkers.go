@@ -432,6 +432,14 @@ var scenarioOperations = map[string][]operation{
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: "10.44.0.0/24"},
 	},
+	// RFC 7854 Section 4.8 Statistics Report, SENDER side, read by a collector
+	// that is not ze. The BGP session with FRR is what gives the report a peer
+	// to describe: ze writes one report per established peer, so a run whose
+	// session never came up produces no Statistics Report at all.
+	scenarioStatisticsPMACCT: {
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opFRRRoute, argument: "10.45.0.0/24"},
+	},
 	// RFC 9069 Loc-RIB monitoring, SENDER side, read by a collector that is not
 	// ze. pmacct decodes the per-peer header, the Peer Up Information TLVs and
 	// the Peer Down reason itself, so every needle below is pmacct's reading of
@@ -515,7 +523,13 @@ var scenarioOperations = map[string][]operation{
 	"isis-redist-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowISISNeighbor}, contains: []string{"Up"}, timeout: 60 * time.Second},
 	},
+	"ospf-accept-lifetime-frr": {
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{zeLabAddress}, timeout: 90 * time.Second},
+	},
 	"ospf-auth-frr": {
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
+	},
+	"ospf-auto-cost-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 	},
 	"ospf-bfd-frr": {

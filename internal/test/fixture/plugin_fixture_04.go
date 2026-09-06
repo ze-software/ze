@@ -34,6 +34,11 @@ func init() {
 	Register("plugin/bmp-sender-route-mirroring-collector", bmpCollector04("mirroring"))
 	Register("plugin/bmp-sender-route-monitoring", observe04(markerObserver04(false, 60, 250*time.Millisecond)))
 	Register("plugin/bmp-sender-route-monitoring-collector", bmpCollector04("monitoring"))
+	// Longer than the others: the collector waits for TWO Statistics Reports at
+	// the one-second interval the .ci configures, so the marker it writes is a
+	// second or more behind the first message ze sends.
+	Register("plugin/bmp-sender-statistics", observe04(markerObserver04(false, 100, 250*time.Millisecond)))
+	Register("plugin/bmp-sender-statistics-collector", bmpCollector04("statistics"))
 	Register("plugin/bmp-sessions-show", bmpSessions04)
 	Register("plugin/capture-interface-show", observe04(captureInterface04))
 	Register("plugin/clear-dns-cache", observe04(clearDNS04))

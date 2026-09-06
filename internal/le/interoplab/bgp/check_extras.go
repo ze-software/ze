@@ -114,6 +114,16 @@ var scenarioExtras = map[string][]operation{
 	"bmp-frr": {
 		{kind: opWaitContains, peer: peerBMP, command: []string{cmdCat, "/tmp/bmp-status.json"}, contains: []string{"initiation", "peer-up", "route-monitoring"}, timeout: 30 * time.Second},
 	},
+	// RFC 7854 Section 4.8, read back by a collector that is not ze. Every
+	// needle below is pmacct's reading of ze's bytes: the message type it
+	// parsed, the peer it attributed the report to, the per-peer flags, and
+	// the stat type named out of pmacct's own table.
+	scenarioStatisticsPMACCT: {
+		{kind: opWaitContains, peer: peerPMACCT, command: []string{cmdCat, pmacctMsgLogPath},
+			contains: []string{pmacctStatisticsReport}, timeout: 60 * time.Second},
+		{kind: opWaitContains, peer: peerPMACCT, command: []string{"sh", "-c", pmacctStatisticsPeriodic},
+			contains: []string{"periodic"}, timeout: 60 * time.Second},
+	},
 	"isis-auth-frr": {
 		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowISISNeighbor}, contains: []string{"Up"}, delay: 5 * time.Second},
 	},
@@ -178,6 +188,28 @@ var scenarioExtras = map[string][]operation{
 	"ospf-multiaf-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6DatabaseRouter}, contains: []string{zeLabAddress}, timeout: 60 * time.Second},
 		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6Neighbor}, contains: []string{ospfStateFull}, delay: 5 * time.Second},
+	},
+	// The interop proof for the OSPF accept-lifetime receive window. FRR signs
+	// correctly with the shared key, so nothing is wrong on the wire; Ze's copy of
+	// that key is outside its accept-lifetime, so Ze refuses every packet and the
+	// adjacency stays below Full. The 45-second delay is longer than the 40-second
+	// dead interval, so an adjacency that was going to form has had the time. Ze's
+	// own Hellos keep reaching FRR throughout, which is what the zeLabAddress proof
+	// anchor asserts: absence of "Full" means refused, not silent.
+	"ospf-accept-lifetime-frr": {
+		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{zeLabAddress}, delay: 45 * time.Second},
+		{kind: opRequireAbsent, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, absent: []string{ospfStateFull}, proof: []string{zeLabAddress}},
+		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf interface"), contains: []string{"\"neighbor-count\": 0"}},
+	},
+	// The interop proof for OSPF auto-cost: FRR reads the metric Ze derived out of
+	// Ze's Router-LSA. Ze sets no `cost` on eth0 and a reference-bandwidth of
+	// 470000 Mbit/s; eth0 is a Docker veth, whose driver declares 10 Gbit/s, so the
+	// kernel reports 10000 and the derived cost is 47. Ze advertised 1 for every
+	// interface with no `cost` before auto-cost existed, so the peer's view of 47 is
+	// what discriminates the feature from its absence.
+	"ospf-auto-cost-frr": {
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFDatabaseRouter}, contains: []string{zeLabAddress, "Metric: 47"}, timeout: 60 * time.Second},
+		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf interface"), contains: []string{"\"cost\": 47"}},
 	},
 	"ospf-p2p-frr": {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ip ospf interface"}, contains: []string{"POINTOPOINT"}},

@@ -290,20 +290,66 @@ type BMPPlugin struct {
 	peerUps map[string]*peerUpState
 
 	// dedupState tracks per-peer UPDATE body hashes for Route Monitoring dedup.
-	// Key: peer address. Value: set of FNV-64 hashes of RawBytes.
+	// Key: peer address. Value: set of dedupKey values, which carry the FNV-64
+	// hash of RawBytes and the direction it traveled in.
 	// Cleared per-peer on peer-down. Protected by mu.
 	// Capped at maxDedupPerPeer entries per peer to bound memory.
 	dedupState map[string]map[uint64]struct{}
 
+	// dedupCount counts, per peer, the UPDATE bodies that arrived twice in the
+	// RECEIVED direction: RFC 7854 Section 4.8 Stat Type 13, "Number of
+	// duplicate update messages received". Keyed and cleared exactly like
+	// dedupState, and read by sendStatisticsReports. Protected by mu.
+	//
+	// A uint32 because Section 4.8 defines that stat type as a "32-bit Counter:
+	// A non-negative integer that monotonically increases until it reaches a
+	// maximum value, when it wraps around and starts increasing again from 0."
+	// Go wraps an unsigned integer that way already.
+	dedupCount map[string]uint32
+
 	// dedupHasher is pre-allocated FNV-64a hasher, reused via Reset().
-	// Safe without locking because it is touched only from handleSenderUpdate,
+	// Safe without locking because it is touched only from duplicateUpdate,
 	// and structured events reach a plugin on ONE delivery goroutine
 	// (internal/component/plugin/process/delivery.go startDeliveryLocked starts
 	// a single deliveryLoop per process). Nothing else may use it.
 	dedupHasher hash.Hash64
 
+	// statisticsInterval is the `statistics-timeout` leaf as a duration. Zero
+	// means the operator asked for no periodic Statistics Report, which RFC 7854
+	// Section 4.8 permits: "SR messages are optional." Protected by mu.
+	statisticsInterval time.Duration
+
+	// statisticsStop stops the ticker goroutine that statisticsInterval started,
+	// and is nil when no ticker runs. A reload that moves the interval closes
+	// this channel and starts a ticker of its own, so exactly one ticker is
+	// live per configuration. Protected by mu.
+	statisticsStop chan struct{}
+
 	// stopCh signals all background goroutines to stop.
 	stopCh chan struct{}
+}
+
+// dedupSentSalt separates the two directions inside one peer's hash set.
+//
+// The two directions are two streams: a body ze received from a peer and later
+// advertised back to it is not a repeat of itself, so one shared hash space
+// would suppress the Route Monitoring that carries the second one AND count it
+// as a duplicate ze received, which RFC 7854 Section 4.8 Stat Type 13 says it
+// is not. XORing the sent direction's hashes with a constant gives each
+// direction its own space in the same map, at the same 2^-64 collision risk the
+// dedup already accepts inside one direction.
+//
+// One map rather than two, so a peer's whole dedup state is one entry: one
+// lookup, one memory cap, and one `delete` on peer down.
+const dedupSentSalt uint64 = 0x9e3779b97f4a7c15
+
+// dedupKey is the value one UPDATE body occupies in a peer's hash set: its
+// FNV-64 hash in the received direction, and that hash salted in the sent one.
+func dedupKey(sum uint64, received bool) uint64 {
+	if received {
+		return sum
+	}
+	return sum ^ dedupSentSalt
 }
 
 // runBMPPlugin is the in-process entry point for the bgp-bmp plugin.
@@ -319,6 +365,7 @@ func runBMPPlugin(conn net.Conn) int {
 		openCache:   make(map[string]*openPair),
 		peerUps:     make(map[string]*peerUpState),
 		dedupState:  make(map[string]map[uint64]struct{}),
+		dedupCount:  make(map[string]uint32),
 		dedupHasher: fnv.New64a(),
 		stopCh:      make(chan struct{}),
 	}

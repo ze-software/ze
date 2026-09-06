@@ -1,0 +1,16 @@
+{
+  "rfc": "rfc8671",
+  "records": [
+    {
+      "rid": "RFC8671-6.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/bmp/statistics_test.go::TestRFC8671StatisticsReportOnTheWireClearsTheOFlag",
+      "unit-sha": "053c577254141c8c",
+      "claim-sha": "80e36b804daddd9a",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/sender.go::writeStatisticsReport",
+      "producer-sha": "0257d06cf8c65ebb",
+      "break": "body of writeStatisticsReport replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

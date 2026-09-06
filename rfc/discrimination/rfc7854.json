@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc7854",
+  "records": [
+    {
+      "rid": "RFC7854-x-15",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/bmp/statistics_test.go::TestRFC7854StatisticsTimeoutSendsPeriodicReports",
+      "unit-sha": "0d4c374fa8cd9e4e",
+      "claim-sha": "8369ff5ac7b040d1",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/statistics.go::sendStatisticsReports",
+      "producer-sha": "52c4ef2f8888eade",
+      "break": "body of sendStatisticsReports replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7854-x-15",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/bmp/statistics_test.go::TestRFC7854StatisticsTimeoutZeroSendsNoReport",
+      "unit-sha": "4e9fed48e3537c6a",
+      "claim-sha": "3d77d9afb0c00207",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/statistics.go::setStatisticsTimeout",
+      "producer-sha": "9a432f2f4e351a71",
+      "break": "body of setStatisticsTimeout replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

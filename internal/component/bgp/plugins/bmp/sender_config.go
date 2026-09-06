@@ -20,6 +20,7 @@ import (
 	"net/netip"
 	"slices"
 	"strconv"
+	"time"
 )
 
 // statisticsTimeoutOff is the YANG default of the statistics-timeout leaf: no
@@ -187,11 +188,9 @@ func identityChanged(previous, current *senderConfig) bool {
 // defaults, so a leaf the operator deleted compares equal to the same leaf
 // written at its default.
 //
-// statistics-timeout is carried although nothing reads it yet: the leaf is
-// declared sender behavior, the periodic Statistics Report timer it configures
-// is not implemented (plan/journal/unwired-feature.md, 2026-08-31), and a timer
-// added later would otherwise change what a session carries with no bounce
-// behind it.
+// statistics-timeout is one of them because it decides whether the session
+// carries a periodic RFC 7854 Section 4.8 Statistics Report, and at what
+// interval (setStatisticsTimeout).
 func behaviorOf(cfg *senderConfig) senderBehavior {
 	return senderBehavior{
 		policy:     cfg.RouteMonitoringPolicy,
@@ -270,6 +269,14 @@ func (bp *BMPPlugin) applySenderConfig(previous, current *senderConfig) {
 	bp.setLocalIdentity(current.identity)
 
 	bp.setSenderPolicy(current.RouteMonitoringPolicy, current.RouteMirroring == yangTrue)
+
+	// The leaf is seconds (`units "seconds"` in ze-bmp-conf.yang) and zero is
+	// its default, which asks for no periodic report. parseUint16 falls back to
+	// zero for a value the config tree could not deliver as a number, so a
+	// configuration ze cannot read sends no report rather than one at an
+	// interval nobody asked for.
+	bp.setStatisticsTimeout(time.Duration(parseUint16(current.StatisticsTimeout, 0)) * time.Second)
+
 	kept := bp.syncSenders(current)
 
 	if behaviorChanged {
