@@ -16,6 +16,7 @@ the-affected-population-is-not-the-edited-population ## The Affected Population 
 mutation-testing ## Proving a Test Discriminates
   a-cached-verdict-can-hide-an-exec-reached-mutation
   verify-the-mutation-applied-before-trusting-the-run
+  an-applied-discrimination-cut-is-marked-so-it-cannot-reach-a-commit
 rfc-tagged-tests-blocking ## RFC-Tagged Tests
   never-edit-an-rfc-tagged-test-to-match-the-code
   pin-every-requirement-with-a-positive-and-a-negative

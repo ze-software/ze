@@ -1,0 +1,7 @@
+---
+kind: directive
+level: MUST
+stage:
+---
+**An APPLIED discrimination cut MUST carry `// MUTATION-APPLIED` and MUST NOT reach a commit; a discrimination NOTE recording which break would redden a test MUST carry `// MUTATION:` and belongs at HEAD.** The two are opposite states wearing one word today. A note is prose above a test naming the break that proves it, which is what a tagged test owes (`ai/rules/interop-and-goal-validation.md`). An applied cut is an edit to PRODUCT code that makes the product wrong on purpose, for the seconds between breaking it and observing the red. Seven notes sit at HEAD in `_test.go` files and are right to be there; an applied cut that reaches HEAD ships the defect the test was written to catch, with the test green over it.
+**A session that STOPS an agent mid-proof MUST search the tree for an applied cut before it commits anything.** The window between applying a break and observing the red is where an interruption does its damage, and the agent that held the intent is gone. On 2026-09-06 a session stopped ten agents at once; one had applied `names = names[:1]` and `targets = targets[:1]` to `internal/plugins/imageserver/register.go` and had not yet watched the test fail. Committed as it stood, the product would have shipped the exact defect its own spec existed to fix, wrapped in passing tests. The resuming agent found it by reading the file, and no gate would have. A search for the marker MUST cover `_test.go` files too: the first search after that stop excluded them and reported the tree clean.
