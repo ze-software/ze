@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/ze-software/ze/internal/plugins/isis/adjacency"
 	"github.com/ze-software/ze/internal/plugins/isis/packet"
 )
 
@@ -31,7 +32,7 @@ func dualStackLAN(t *testing.T, s Sender) *Circuit {
 func TestISISIIHTLV232LinkLocal(t *testing.T) {
 	s := &fakeSender{mtu: 1500}
 	c := dualStackLAN(t, s)
-	if err := c.SendHello(); err != nil {
+	if err := c.SendHello(adjacency.Level1); err != nil {
 		t.Fatal(err)
 	}
 	p := decodeSent(t, s)
@@ -78,7 +79,7 @@ func TestISISIIHTLV232LinkLocal(t *testing.T) {
 func TestISISIIHNoTLV232WhenIPv4Only(t *testing.T) {
 	s := &fakeSender{mtu: 1500}
 	c := lanCircuit(t, s) // IPv6 not advertised
-	if err := c.SendHello(); err != nil {
+	if err := c.SendHello(adjacency.Level1); err != nil {
 		t.Fatal(err)
 	}
 	p := decodeSent(t, s)
@@ -106,7 +107,7 @@ func TestISISIIHTLV232OmittedNoLinkLocal(t *testing.T) {
 	s := &fakeSender{mtu: 1500}
 	c := lanCircuit(t, s)
 	c.advertiseIPv6 = true // NLPID 0x8E, but no link-local address set
-	if err := c.SendHello(); err != nil {
+	if err := c.SendHello(adjacency.Level1); err != nil {
 		t.Fatal(err)
 	}
 	p := decodeSent(t, s)
@@ -136,7 +137,7 @@ func TestISISIIHTLV232RejectsNonLinkLocal(t *testing.T) {
 			c := lanCircuit(t, s)
 			c.advertiseIPv6 = true
 			c.ipv6LinkLocal = netip.MustParseAddr(addr)
-			if err := c.SendHello(); err != nil {
+			if err := c.SendHello(adjacency.Level1); err != nil {
 				t.Fatal(err)
 			}
 			p := decodeSent(t, s)

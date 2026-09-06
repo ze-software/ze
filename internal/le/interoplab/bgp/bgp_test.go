@@ -1671,3 +1671,46 @@ func writeFixture(t *testing.T, path, content string) {
 }
 
 var _ interoplab.CheckerLab = (*recordingLab)(nil)
+
+// TestISISPerLevelHelloNeighborTable pins the reading of FRR's `show isis
+// neighbor` table the isis-per-level-hello-frr checker depends on: the level in
+// the third column, the state in the fourth, and the holding time in the fifth.
+// A misread column would turn the scenario's holding-time bounds into an
+// assertion about the wrong field, which passes for the wrong reason.
+func TestISISPerLevelHelloNeighborTable(t *testing.T) {
+	const table = "Area ZE:\n" +
+		"  System Id           Interface   L  State        Holdtime SNPA\n" +
+		" frr-isis-perlevel   eth0        1  Up           8        2020.2020.2020\n" +
+		" frr-isis-perlevel   eth0        2  Up           117      2020.2020.2020\n"
+
+	rows := parseISISNeighbors(table)
+	if len(rows) != 2 {
+		t.Fatalf("parseISISNeighbors read %d rows, want 2: %+v", len(rows), rows)
+	}
+	level1, ok := upAtLevel(rows, 1)
+	if !ok || level1.holdtime != 8 {
+		t.Errorf("Level-1 row = %+v (found %v), want holdtime 8", level1, ok)
+	}
+	level2, ok := upAtLevel(rows, 2)
+	if !ok || level2.holdtime != 117 {
+		t.Errorf("Level-2 row = %+v (found %v), want holdtime 117", level2, ok)
+	}
+	if !isisBothLevelsUp(table) {
+		t.Error("a table with an Up adjacency at each level was read as incomplete")
+	}
+
+	// The header line carries no level number where the parse looks, so it is
+	// dropped rather than read as a row.
+	if rows := parseISISNeighbors("  System Id           Interface   L  State        Holdtime SNPA\n"); len(rows) != 0 {
+		t.Errorf("the header line parsed as %d adjacency rows", len(rows))
+	}
+	// One level Up is not both: the checker would otherwise read a holding time
+	// for a level that never formed.
+	if isisBothLevelsUp(" frr-isis-perlevel   eth0        1  Up           8        2020.2020.2020\n") {
+		t.Error("a Level-1-only table passed as both levels Up")
+	}
+	// A Down row is not an Up row, whatever holding time it prints.
+	if isisBothLevelsUp(" frr-isis-perlevel   eth0        1  Up    8   x\n frr-isis-perlevel   eth0        2  Init  9   x\n") {
+		t.Error("an Init Level-2 adjacency passed as Up")
+	}
+}

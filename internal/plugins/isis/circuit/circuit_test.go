@@ -94,16 +94,16 @@ func clockCircuit(t *testing.T, clk *fakeClock) (*Circuit, *recordSink) {
 	t.Helper()
 	area, _ := types.AreaIDFromBytes([]byte{0x49, 0x00, 0x01})
 	c := New(Config{
-		Name:          "eth0",
-		IfIndex:       3,
-		SystemID:      types.SystemID{0, 0, 0, 0, 0, 1},
-		SNPA:          adjacency.SNPA{0x02, 0, 0, 0, 0, 1},
-		Areas:         []types.AreaID{area},
-		IPv4:          netip.MustParseAddr("192.0.2.1"),
-		Kind:          adjacency.KindBroadcast,
-		Levels:        []adjacency.Level{adjacency.Level1},
-		HelloInterval: 10,
-		HoldMult:      3,
+		Name:     "eth0",
+		IfIndex:  3,
+		SystemID: types.SystemID{0, 0, 0, 0, 0, 1},
+		SNPA:     adjacency.SNPA{0x02, 0, 0, 0, 0, 1},
+		Areas:    []types.AreaID{area},
+		IPv4:     netip.MustParseAddr("192.0.2.1"),
+		Kind:     adjacency.KindBroadcast,
+		Levels:   []adjacency.Level{adjacency.Level1},
+		Level1:   LevelTimers{HelloInterval: 10, HoldMult: 3},
+		Level2:   LevelTimers{HelloInterval: 10, HoldMult: 3},
 	}, &fakeSender{mtu: 1500}, clk.now)
 	sink := &recordSink{}
 	c.SetEventSink(sink)

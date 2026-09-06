@@ -654,7 +654,13 @@ func circuitParamsEqual(a, b InterfaceConfig) bool {
 		a.Metric == b.Metric &&
 		a.HelloInterval == b.HelloInterval &&
 		a.HoldMult == b.HoldMult &&
-		a.Priority == b.Priority
+		a.Priority == b.Priority &&
+		// The per-level containers are compared whole: their hello-interval and
+		// hold-multiplier are resolved into the circuit's Hello timers at build
+		// time (levelHelloTimers, circuits.go), and their metric, priority and
+		// auth-key-chain select what the circuit advertises and signs at one level.
+		a.Level1 == b.Level1 &&
+		a.Level2 == b.Level2
 }
 
 // shutdown stops all circuit goroutines, the receive loop, and the transport,

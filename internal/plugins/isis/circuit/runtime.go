@@ -14,8 +14,10 @@
 package circuit
 
 import (
+	"fmt"
 	"net/netip"
 	"slices"
+	"time"
 
 	"github.com/ze-software/ze/internal/plugins/isis/adjacency"
 	"github.com/ze-software/ze/internal/plugins/isis/packet"
@@ -228,13 +230,67 @@ func (c *Circuit) fireEvents(tr adjacency.Transition, snap adjacency.NeighborSna
 	}
 }
 
-// SendHello builds and sends the periodic Hello(s) for this circuit. On a LAN it
-// sends one IIH per configured level (different PDU types) to that level's
+// HelloSchedule is one periodic Hello sender the engine runs for this circuit:
+// the level whose IIH it sends and the period it sends at.
+type HelloSchedule struct {
+	// Level is the routing level the sender passes to SendHello.
+	Level adjacency.Level
+	// Period is the Hello send period for that level.
+	Period time.Duration
+}
+
+// HelloSchedules returns the periodic Hello senders this circuit needs, and it
+// never returns an empty slice (New gives a circuit with no configured level
+// Level-1).
+//
+// A broadcast circuit gets one schedule for each level it forms: the Level-1 and
+// the Level-2 LAN IIH are separate PDUs to separate multicast groups, so each
+// level runs its own Hello timer at its own period. A point-to-point circuit
+// gets exactly one, because its single IIH is level-agnostic on the wire (RFC
+// 5303 sec 3), and it runs at the period of the circuit's PREFERRED level
+// (p2pPreferredLevel: Level-1 whenever the circuit forms Level-1). The same
+// level supplies the holding time that IIH advertises, so the holding time
+// matches the period the IIH really goes out at. That is deliberately NOT the
+// negotiated adjacency level, which selects the signing chain instead
+// (sendP2PHello) and can differ once a neighbor is heard.
+func (c *Circuit) HelloSchedules() []HelloSchedule {
+	if c.kind == adjacency.KindP2P {
+		level := c.p2pPreferredLevel()
+		return []HelloSchedule{{Level: level, Period: c.helloPeriod(level)}}
+	}
+	out := make([]HelloSchedule, 0, len(c.levels))
+	for _, level := range c.levels {
+		out = append(out, HelloSchedule{Level: level, Period: c.helloPeriod(level)})
+	}
+	return out
+}
+
+// helloPeriod is the Hello send period at level, and it is never zero.
+// ze-isis-conf.yang bounds hello-interval to 1..65535 seconds and the engine
+// applies the schema default before it builds a Config, so a zero arrives only
+// from a Go caller that resolved no timer for the level. time.NewTicker panics
+// on a non-positive period, so the floor is applied here rather than left to the
+// engine that starts the ticker.
+func (c *Circuit) helloPeriod(level adjacency.Level) time.Duration {
+	return max(time.Duration(c.timers(level).HelloInterval)*time.Second, time.Second)
+}
+
+// SendHello builds and sends one periodic Hello for this circuit at level. On a
+// LAN it sends that level's IIH (the level selects the PDU type) to that level's
 // multicast group, carrying the heard-SNPA list in TLV 6. On a P2P link it sends
-// one IIH to both multicast groups carrying TLV 240 with our three-way state.
-// The full IIH is built (origination TLVs + TLV 8 padding to the MTU) BEFORE any
-// authentication; the transport frames the final bytes without padding.
-func (c *Circuit) SendHello() error {
+// the single IIH to both multicast groups carrying TLV 240 with our three-way
+// state; level then only names the schedule that fired, and a P2P circuit runs
+// exactly one (HelloSchedules). The full IIH is built (origination TLVs + TLV 8
+// padding to the MTU) BEFORE any authentication; the transport frames the final
+// bytes without padding.
+//
+// A level the circuit does not form is an error rather than a silent no-op: the
+// caller reached a schedule this circuit never published, and sending that IIH
+// would put a level on the wire the operator did not configure.
+func (c *Circuit) SendHello(level adjacency.Level) error {
+	if !c.formsLevel(level) {
+		return fmt.Errorf("isis: circuit %s forms no %s adjacency, so it sends no %s hello", c.name, level, level)
+	}
 	ifMTU, ok := c.sender.InterfaceMTU(c.name)
 	if !ok {
 		ifMTU = 0 // no MTU known: send unpadded (still valid)
@@ -250,7 +306,7 @@ func (c *Circuit) SendHello() error {
 	if c.kind == adjacency.KindP2P {
 		return c.sendP2PHello(mtu)
 	}
-	return c.sendLANHellos(mtu)
+	return c.sendLANHello(level, mtu)
 }
 
 // padMTU converts the interface (L2 frame-payload) MTU into the maximum IS-IS PDU
@@ -265,24 +321,19 @@ func padMTU(ifMTU int) int {
 	return ifMTU - transport.LLCHeaderLen
 }
 
-// sendLANHellos sends one padded LAN IIH per configured level.
-func (c *Circuit) sendLANHellos(mtu int) error {
-	snpas := c.heardSNPAs()
-	for _, level := range c.levels {
-		pdu := c.buildLANHello(level, snpas, mtu)
-		pdu = padHello(pdu, mtu)
-		// Sign AFTER padding, BEFORE framing (RFC 5304 sec 2 signs padded Hellos;
-		// spec-isis-10). Unsigned when no IIH chain is configured.
-		pdu = c.signHello(level, pdu)
-		tl := transport.Level1
-		if level == adjacency.Level2 {
-			tl = transport.Level2
-		}
-		if err := c.sender.SendPDU(c.name, tl, pdu); err != nil {
-			return err
-		}
+// sendLANHello sends one padded LAN IIH for level to that level's multicast
+// group. Each level has its own Hello timer, so one call sends one PDU.
+func (c *Circuit) sendLANHello(level adjacency.Level, mtu int) error {
+	pdu := c.buildLANHello(level, c.heardSNPAs(), mtu)
+	pdu = padHello(pdu, mtu)
+	// Sign AFTER padding, BEFORE framing (RFC 5304 sec 2 signs padded Hellos;
+	// spec-isis-10). Unsigned when no IIH chain is configured.
+	pdu = c.signHello(level, pdu)
+	tl := transport.Level1
+	if level == adjacency.Level2 {
+		tl = transport.Level2
 	}
-	return nil
+	return c.sender.SendPDU(c.name, tl, pdu)
 }
 
 // sendP2PHello sends one padded P2P IIH to both level groups. Our three-way

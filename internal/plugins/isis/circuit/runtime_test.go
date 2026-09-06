@@ -59,7 +59,7 @@ func TestISISHelloSignedOverPaddedPDU(t *testing.T) {
 	cs := &captureSigner{}
 	c.SetSigner(cs.sign)
 
-	if err := c.SendHello(); err != nil {
+	if err := c.SendHello(adjacency.Level1); err != nil {
 		t.Fatal(err)
 	}
 	if cs.pdu == nil {
@@ -148,7 +148,7 @@ func TestISISP2PHelloSignedAtNegotiatedLevel(t *testing.T) {
 			t.Fatalf("expected an L2 adjacency, lookup ok=%v adj=%+v", ok, got)
 		}
 
-		if err := c.SendHello(); err != nil {
+		if err := c.SendHello(adjacency.Level1); err != nil {
 			t.Fatal(err)
 		}
 		if len(sg.levels) != 1 {
@@ -170,7 +170,7 @@ func TestISISP2PHelloSignedAtNegotiatedLevel(t *testing.T) {
 			t.Fatalf("L1L2 P2P Hello -> state %v, want up", tr.State)
 		}
 
-		if err := c.SendHello(); err != nil {
+		if err := c.SendHello(adjacency.Level1); err != nil {
 			t.Fatal(err)
 		}
 		if len(sg.levels) != 1 || sg.levels[0] != adjacency.Level1 {
@@ -185,7 +185,7 @@ func TestISISP2PHelloSignedAtNegotiatedLevel(t *testing.T) {
 
 		// No adjacency yet: fall back to the circuit's preferred P2P level (L1 for
 		// an L1L2 circuit). This must NOT panic and must pick a deterministic level.
-		if err := c.SendHello(); err != nil {
+		if err := c.SendHello(adjacency.Level1); err != nil {
 			t.Fatal(err)
 		}
 		if len(sg.levels) != 1 || sg.levels[0] != adjacency.Level1 {
@@ -199,7 +199,7 @@ func TestISISP2PHelloSignedAtNegotiatedLevel(t *testing.T) {
 		sg := &recordSigner{}
 		c.SetSigner(sg.sign)
 
-		if err := c.SendHello(); err != nil {
+		if err := c.SendHello(adjacency.Level2); err != nil {
 			t.Fatal(err)
 		}
 		if len(sg.levels) != 1 || sg.levels[0] != adjacency.Level2 {

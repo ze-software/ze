@@ -58,20 +58,36 @@ func (e *engine) launchCircuitGoroutine(ic InterfaceConfig) {
 	e.circuitStop[name] = stop
 	e.circuitsMu.Unlock()
 
-	helloEvery := time.Duration(ic.HelloInterval) * time.Second
-	if helloEvery <= 0 {
-		helloEvery = time.Duration(DefaultHelloInterval) * time.Second
+	// One Hello timer for each schedule the circuit publishes: a broadcast circuit
+	// runs one for each level it forms, so a per-level `hello-interval` sends the
+	// Level-1 and the Level-2 IIH at periods of their own, and a point-to-point
+	// circuit runs one because its IIH serves both levels (circuit.HelloSchedules).
+	schedules := c.HelloSchedules()
+	sendHello := func(level adjacency.Level, when string) {
+		if err := c.SendHello(level); err != nil {
+			e.log.Debug("isis: "+when, "interface", name, "level", level.String(), "err", err)
+		}
 	}
 
 	e.wg.Go(func() {
-		hello := time.NewTicker(helloEvery)
+		// A circuit forms at most two levels, so two tickers cover every schedule
+		// set. The second channel stays nil for a one-schedule circuit, and a nil
+		// channel never fires in a select.
+		first := time.NewTicker(schedules[0].Period)
+		defer first.Stop()
+		var secondC <-chan time.Time
+		if len(schedules) > 1 {
+			second := time.NewTicker(schedules[1].Period)
+			defer second.Stop()
+			secondC = second.C
+		}
 		sweep := time.NewTicker(sweepInterval)
-		defer hello.Stop()
 		defer sweep.Stop()
-		// Send an initial Hello immediately so an adjacency can form before the
-		// first tick (ISO/IEC 10589 section 8.2: Hellos are sent on circuit up).
-		if err := c.SendHello(); err != nil {
-			e.log.Debug("isis: initial hello send", "interface", name, "err", err)
+		// Send an initial Hello at every level immediately so an adjacency can form
+		// before the first tick (ISO/IEC 10589 section 8.2: Hellos are sent on
+		// circuit up).
+		for _, s := range schedules {
+			sendHello(s.Level, "initial hello send")
 		}
 		for {
 			select {
@@ -82,10 +98,10 @@ func (e *engine) launchCircuitGoroutine(ic InterfaceConfig) {
 				// so the worker does not keep sending Hellos and sweeping an empty
 				// table on a gone circuit.
 				return
-			case <-hello.C:
-				if err := c.SendHello(); err != nil {
-					e.log.Debug("isis: hello send", "interface", name, "err", err)
-				}
+			case <-first.C:
+				sendHello(schedules[0].Level, "hello send")
+			case <-secondC:
+				sendHello(schedules[1].Level, "hello send")
 			case <-sweep.C:
 				c.Sweep()
 				e.publishAdjMetrics()
@@ -125,8 +141,8 @@ func (e *engine) buildCircuit(ic InterfaceConfig) *circuit.Circuit {
 		IPv6LinkLocal:  interfaceIPv6LinkLocal(ic),
 		Kind:           kind,
 		Levels:         circuitLevels(ic.Level),
-		HelloInterval:  ic.HelloInterval,
-		HoldMult:       ic.HoldMult,
+		Level1:         levelHelloTimers(ic, adjacency.Level1),
+		Level2:         levelHelloTimers(ic, adjacency.Level2),
 		Priority:       ic.Priority,
 		LocalCircuitID: localCircuitID(ifindex),
 	}
@@ -301,6 +317,39 @@ func circuitLevels(l Level) []adjacency.Level {
 	default:
 		return []adjacency.Level{adjacency.Level1, adjacency.Level2}
 	}
+}
+
+// levelHelloTimers resolves the Hello timers a circuit runs at a level: the
+// per-level `hello-interval` / `hold-multiplier` override when the operator set
+// one, else the circuit-wide leaf, else the YANG default. It is the only place
+// the override is read, so the circuit-wide value and the per-level value are
+// merged once (it mirrors levelMetric and disPriority, which resolve the metric
+// and the DIS priority the same way).
+//
+// A zero override means "not set": ze-isis-conf.yang bounds both leaves away
+// from zero (hello-interval 1..65535, hold-multiplier 1..255), so no committed
+// config can ask for one.
+func levelHelloTimers(ic InterfaceConfig, level adjacency.Level) circuit.LevelTimers {
+	t := circuit.LevelTimers{HelloInterval: ic.HelloInterval, HoldMult: ic.HoldMult}
+	override := ic.Level1
+	if level == adjacency.Level2 {
+		override = ic.Level2
+	}
+	if override.HelloInterval > 0 {
+		t.HelloInterval = override.HelloInterval
+	}
+	if override.HoldMult > 0 {
+		t.HoldMult = override.HoldMult
+	}
+	// An InterfaceConfig from the parser carries the YANG defaults; one built in
+	// Go may carry none, and a zero period would panic the Hello ticker.
+	if t.HelloInterval == 0 {
+		t.HelloInterval = DefaultHelloInterval
+	}
+	if t.HoldMult == 0 {
+		t.HoldMult = DefaultHoldMultiplier
+	}
+	return t
 }
 
 // advertisesIPv6 reports whether the interface enables the IPv6 address family

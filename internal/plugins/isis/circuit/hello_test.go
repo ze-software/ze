@@ -62,17 +62,17 @@ func testArea(t *testing.T) types.AreaID {
 func lanCircuit(t *testing.T, s Sender) *Circuit {
 	t.Helper()
 	return New(Config{
-		Name:          "eth0",
-		IfIndex:       3,
-		SystemID:      types.SystemID{0, 0, 0, 0, 0, 1},
-		SNPA:          adjacency.SNPA{0x02, 0, 0, 0, 0, 1},
-		Areas:         []types.AreaID{testArea(t)},
-		IPv4:          netip.MustParseAddr("192.0.2.1"),
-		Kind:          adjacency.KindBroadcast,
-		Levels:        []adjacency.Level{adjacency.Level1},
-		HelloInterval: 10,
-		HoldMult:      3,
-		Priority:      64,
+		Name:     "eth0",
+		IfIndex:  3,
+		SystemID: types.SystemID{0, 0, 0, 0, 0, 1},
+		SNPA:     adjacency.SNPA{0x02, 0, 0, 0, 0, 1},
+		Areas:    []types.AreaID{testArea(t)},
+		IPv4:     netip.MustParseAddr("192.0.2.1"),
+		Kind:     adjacency.KindBroadcast,
+		Levels:   []adjacency.Level{adjacency.Level1},
+		Level1:   LevelTimers{HelloInterval: 10, HoldMult: 3},
+		Level2:   LevelTimers{HelloInterval: 10, HoldMult: 3},
+		Priority: 64,
 	}, s, nil)
 }
 
@@ -142,7 +142,7 @@ func TestISISIIHOriginationTLVs(t *testing.T) {
 	t.Run("LAN", func(t *testing.T) {
 		s := &fakeSender{mtu: 1500}
 		c := lanCircuit(t, s)
-		if err := c.SendHello(); err != nil {
+		if err := c.SendHello(adjacency.Level1); err != nil {
 			t.Fatal(err)
 		}
 		p := decodeSent(t, s)
@@ -165,7 +165,7 @@ func TestISISIIHOriginationTLVs(t *testing.T) {
 	t.Run("P2P", func(t *testing.T) {
 		s := &fakeSender{mtu: 1500}
 		c := p2pCircuit(t, s)
-		if err := c.SendHello(); err != nil {
+		if err := c.SendHello(adjacency.Level1); err != nil {
 			t.Fatal(err)
 		}
 		p := decodeSent(t, s)
@@ -243,7 +243,7 @@ func TestISISAreaAddressesTLVManyAreasNoPanic(t *testing.T) {
 	}
 	// The whole Hello path (which calls areaAddressesTLV via originationTLVs) must
 	// also stay panic-free with the oversized area set.
-	if err := c.SendHello(); err != nil {
+	if err := c.SendHello(adjacency.Level1); err != nil {
 		t.Fatalf("SendHello with many areas: %v", err)
 	}
 
@@ -266,7 +266,7 @@ func TestISISHelloPaddedToMTU(t *testing.T) {
 	const wantPDU = mtu - transport.LLCHeaderLen // LLC + PDU must fit the link MTU
 	s := &fakeSender{mtu: mtu}
 	c := lanCircuit(t, s)
-	if err := c.SendHello(); err != nil {
+	if err := c.SendHello(adjacency.Level1); err != nil {
 		t.Fatal(err)
 	}
 	last := s.sent[len(s.sent)-1]

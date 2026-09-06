@@ -187,7 +187,8 @@ module ze-isis-conf {
                     ze:help "Ze sends an IIH on this circuit at this period. The IIH carries a holding time of this
                         value multiplied by `hold-multiplier`, clamped into 1 to 65535 seconds. A neighbor drops the
                         adjacency when no IIH arrives inside the holding time it was told. A shorter interval detects
-                        a dead neighbor faster and costs more packets on the link.";
+                        a dead neighbor faster and costs more packets on the link. `level-1/hello-interval` and
+                        `level-2/hello-interval` replace it at one level.";
                 }
                 leaf hold-multiplier {
                     type uint8 { range "1..255"; }
@@ -196,7 +197,8 @@ module ze-isis-conf {
                     ze:help "Ze advertises `hello-interval` multiplied by this value as the holding time in each IIH,
                         clamped into 1 to 65535 seconds. The default of 3 lets two hellos be lost before a neighbor
                         drops the adjacency. The clamp means that no configuration can advertise a holding time of 0,
-                        which would time the adjacency out at once.";
+                        which would time the adjacency out at once. `level-1/hold-multiplier` and
+                        `level-2/hold-multiplier` replace it at one level.";
                 }
                 leaf priority {
                     type uint8 { range "0..127"; }
@@ -210,11 +212,10 @@ module ze-isis-conf {
 
                 container level-1 {
                     description "Level-1 per-interface overrides.";
-                    ze:help "The `metric`, `priority` and `auth-key-chain` leaves here replace the circuit-wide value
-                        for Level-1 only. One circuit can then carry a different cost or a different DIS preference at
-                        each level. `hello-interval` and `hold-multiplier` are stored and not acted on, so the
-                        circuit-wide timers govern both levels. A leaf that is not set keeps the circuit-wide value. A
-                        circuit that does not form Level-1 ignores the whole container.";
+                    ze:help "The leaves here replace the circuit-wide value for Level-1 only. One circuit can then
+                        carry a different cost, a different DIS preference, a different Hello period or a different
+                        holding time at each level. A leaf that is not set keeps the circuit-wide value. A circuit
+                        that does not form Level-1 ignores the whole container.";
                     leaf metric {
                         type uint32 { range "1..16777215"; }
                         description "L1 wide metric override.";
@@ -226,21 +227,19 @@ module ze-isis-conf {
                         type uint16 { range "1..65535"; }
                         units seconds;
                         description "L1 hello-interval override.";
-                        ze:help "The unit is seconds and the range is 1 to 65535. ISO/IEC 10589 section 10.9 keeps one
-                            hello timer for each level, so a Level-1 IIH can go out at a period of its own. This leaf is
-                            meant to set that period in place of the circuit-wide `hello-interval`. Ze stores the value
-                            and does not act on it: every IIH on the circuit goes out at the circuit-wide
-                            `hello-interval`, at both levels. An unset leaf keeps the circuit-wide value.";
+                        ze:help "Ze sends the Level-1 IIH at this period, in place of the circuit-wide
+                            `hello-interval`. A broadcast circuit runs one Hello timer for each level it forms,
+                            because the Level-1 and the Level-2 LAN IIH are separate PDUs sent to separate multicast
+                            groups. A point-to-point circuit sends one IIH that serves both levels, so it runs one
+                            Hello timer, and that timer takes this pair whenever the circuit forms Level-1. An unset
+                            leaf keeps the circuit-wide value.";
                     }
                     leaf hold-multiplier {
                         type uint8 { range "1..255"; }
                         description "L1 hold-multiplier override.";
-                        ze:help "The range is 1 to 255. ISO/IEC 10589 section 10.9 sets the holding time of a LAN IIH to
-                            the hello timer of the level multiplied by ISISHoldingMultiplier. This leaf is meant to
-                            replace the circuit-wide `hold-multiplier` for Level-1. Ze stores the value and does not act on
-                            it. The holding time of every IIH stays the circuit-wide `hello-interval` multiplied by the
-                            circuit-wide `hold-multiplier`, clamped into 1 to 65535 seconds. An unset leaf keeps the
-                            circuit-wide value.";
+                        ze:help "Ze multiplies the Level-1 hello interval by this value and advertises the product as
+                            the holding time in each Level-1 IIH, clamped into 1 to 65535 seconds. It replaces the
+                            circuit-wide `hold-multiplier` for Level-1. An unset leaf keeps the circuit-wide value.";
                     }
                     leaf priority {
                         type uint8 { range "0..127"; }
@@ -261,11 +260,10 @@ module ze-isis-conf {
                 }
                 container level-2 {
                     description "Level-2 per-interface overrides.";
-                    ze:help "The `metric`, `priority` and `auth-key-chain` leaves here replace the circuit-wide value
-                        for Level-2 only. One circuit can then carry a different cost or a different DIS preference at
-                        each level. `hello-interval` and `hold-multiplier` are stored and not acted on, so the
-                        circuit-wide timers govern both levels. A leaf that is not set keeps the circuit-wide value. A
-                        circuit that does not form Level-2 ignores the whole container.";
+                    ze:help "The leaves here replace the circuit-wide value for Level-2 only. One circuit can then
+                        carry a different cost, a different DIS preference, a different Hello period or a different
+                        holding time at each level. A leaf that is not set keeps the circuit-wide value. A circuit
+                        that does not form Level-2 ignores the whole container.";
                     leaf metric {
                         type uint32 { range "1..16777215"; }
                         description "L2 wide metric override.";
@@ -277,21 +275,19 @@ module ze-isis-conf {
                         type uint16 { range "1..65535"; }
                         units seconds;
                         description "L2 hello-interval override.";
-                        ze:help "The unit is seconds and the range is 1 to 65535. ISO/IEC 10589 section 10.9 keeps one
-                            hello timer for each level, so a Level-2 IIH can go out at a period of its own. This leaf is
-                            meant to set that period in place of the circuit-wide `hello-interval`. Ze stores the value
-                            and does not act on it: every IIH on the circuit goes out at the circuit-wide
-                            `hello-interval`, at both levels. An unset leaf keeps the circuit-wide value.";
+                        ze:help "Ze sends the Level-2 IIH at this period, in place of the circuit-wide
+                            `hello-interval`. A broadcast circuit runs one Hello timer for each level it forms,
+                            because the Level-1 and the Level-2 LAN IIH are separate PDUs sent to separate multicast
+                            groups. A point-to-point circuit sends one IIH that serves both levels, so it runs one
+                            Hello timer, and that timer takes this pair only on a circuit that forms Level-2 alone.
+                            An unset leaf keeps the circuit-wide value.";
                     }
                     leaf hold-multiplier {
                         type uint8 { range "1..255"; }
                         description "L2 hold-multiplier override.";
-                        ze:help "The range is 1 to 255. ISO/IEC 10589 section 10.9 sets the holding time of a LAN IIH to
-                            the hello timer of the level multiplied by ISISHoldingMultiplier. This leaf is meant to
-                            replace the circuit-wide `hold-multiplier` for Level-2. Ze stores the value and does not act on
-                            it. The holding time of every IIH stays the circuit-wide `hello-interval` multiplied by the
-                            circuit-wide `hold-multiplier`, clamped into 1 to 65535 seconds. An unset leaf keeps the
-                            circuit-wide value.";
+                        ze:help "Ze multiplies the Level-2 hello interval by this value and advertises the product as
+                            the holding time in each Level-2 IIH, clamped into 1 to 65535 seconds. It replaces the
+                            circuit-wide `hold-multiplier` for Level-2. An unset leaf keeps the circuit-wide value.";
                     }
                     leaf priority {
                         type uint8 { range "0..127"; }

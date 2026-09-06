@@ -52,6 +52,22 @@ type nopEventSink struct{}
 func (nopEventSink) SessionUp(adjacency.NeighborSnapshot)   {}
 func (nopEventSink) SessionDown(adjacency.NeighborSnapshot) {}
 
+// LevelTimers is the Hello cadence of one routing level: the IIH send period in
+// seconds and the multiplier that turns it into the advertised holding time
+// (ISO/IEC 10589 clause 8.2: hold time = hello interval * hold multiplier).
+//
+// The two levels carry their own pair because the Level-1 and the Level-2 LAN
+// IIH are separate PDUs sent to separate multicast groups, so a broadcast
+// circuit can run one Hello timer for each of them. The engine resolves each
+// pair from the per-level YANG overrides, falling back to the circuit-wide
+// leaves (levelHelloTimers, internal/plugins/isis/circuits.go).
+type LevelTimers struct {
+	// HelloInterval is the IIH send period in seconds at this level.
+	HelloInterval uint16
+	// HoldMult multiplies HelloInterval into the advertised holding time.
+	HoldMult uint8
+}
+
 // Config is the immutable per-circuit identity and parameters resolved from the
 // component config (isis-4) and the transport (own MAC / ifindex / MTU). It is
 // passed once to New; a config change rebuilds the circuit.
@@ -80,10 +96,13 @@ type Config struct {
 	Kind adjacency.CircuitKind
 	// Levels enumerates the routing levels this circuit forms adjacencies at.
 	Levels []adjacency.Level
-	// HelloInterval is the Hello send period in seconds.
-	HelloInterval uint16
-	// HoldMult is the advertised-hold-time multiplier (hold = interval * mult).
-	HoldMult uint8
+	// Level1 and Level2 are the Hello timers this circuit runs at each level. A
+	// broadcast circuit runs one Hello timer for each level it forms, so the two
+	// pairs can differ. A point-to-point circuit sends one level-agnostic IIH
+	// (RFC 5303 sec 3) and so runs one timer, on the pair of its preferred level
+	// (p2pPreferredLevel: Level-1 whenever the circuit forms Level-1).
+	Level1 LevelTimers
+	Level2 LevelTimers
 	// Priority is the DIS election priority advertised in a LAN IIH (0..127).
 	Priority uint8
 	// LocalCircuitID is the 1-octet local circuit ID for the P2P IIH / TLV 240.
@@ -106,9 +125,8 @@ type Circuit struct {
 	ipv6LinkLocal  netip.Addr
 	kind           adjacency.CircuitKind
 	levels         []adjacency.Level
-	helloInterval  uint16
-	holdMult       uint8
-	holdTime       uint16 // precomputed advertised hold time
+	timersL1       LevelTimers
+	timersL2       LevelTimers
 	priority       uint8
 	localCircuitID uint8
 	lanID          types.SourceID
@@ -155,9 +173,8 @@ func New(cfg Config, s Sender, now func() time.Time) *Circuit {
 		ipv6LinkLocal:  cfg.IPv6LinkLocal,
 		kind:           cfg.Kind,
 		levels:         cfg.Levels,
-		helloInterval:  cfg.HelloInterval,
-		holdMult:       cfg.HoldMult,
-		holdTime:       HoldTime(cfg.HelloInterval, cfg.HoldMult),
+		timersL1:       cfg.Level1,
+		timersL2:       cfg.Level2,
 		priority:       cfg.Priority,
 		localCircuitID: cfg.LocalCircuitID,
 		lanID:          cfg.LANID,
@@ -183,6 +200,24 @@ func New(cfg Config, s Sender, now func() time.Time) *Circuit {
 
 // Name returns the interface name.
 func (c *Circuit) Name() string { return c.name }
+
+// timers returns the Hello timers this circuit runs at level. Level-1 answers a
+// level the circuit does not know, which no caller reaches: HelloSchedules is
+// the only source of a level for the send path, and it lists formed levels only.
+func (c *Circuit) timers(level adjacency.Level) LevelTimers {
+	if level == adjacency.Level2 {
+		return c.timersL2
+	}
+	return c.timersL1
+}
+
+// holdTime returns the holding time this circuit advertises in an IIH at level
+// (ISO/IEC 10589 clause 8.2: the level's hello interval multiplied by its hold
+// multiplier, clamped into the 16-bit wire field by HoldTime).
+func (c *Circuit) holdTime(level adjacency.Level) uint16 {
+	t := c.timers(level)
+	return HoldTime(t.HelloInterval, t.HoldMult)
+}
 
 // IfIndex returns the kernel interface index (the RX dispatch key).
 func (c *Circuit) IfIndex() int { return c.ifIndex }

@@ -187,7 +187,7 @@ func (c *Circuit) buildLANHello(level adjacency.Level, snpas []adjacency.SNPA, p
 		PDUType:     pt,
 		CircuitType: c.circuitTypeField(),
 		SystemID:    c.systemID,
-		HoldingTime: types.HoldingTime(c.holdTime),
+		HoldingTime: types.HoldingTime(c.holdTime(level)),
 		Priority:    c.priority,
 		LANID:       c.lanID,
 		TLVs:        append(c.originationTLVs(), c.isNeighborsTLV(snpas)),
@@ -203,9 +203,12 @@ func (c *Circuit) buildLANHello(level adjacency.Level, snpas []adjacency.SNPA, p
 // three-way state toward the single P2P neighbor.
 func (c *Circuit) buildP2PHello(state packet.AdjThreeWayState, neighborID types.SystemID, haveNeighbor bool, padMTU int) []byte {
 	h := packet.P2PHello{
-		CircuitType:    c.circuitTypeField(),
-		SystemID:       c.systemID,
-		HoldingTime:    types.HoldingTime(c.holdTime),
+		CircuitType: c.circuitTypeField(),
+		SystemID:    c.systemID,
+		// The P2P IIH is level-agnostic on the wire (RFC 5303 sec 3), so it carries
+		// the holding time of the one level the circuit runs its Hello timer at
+		// (HelloSchedules), which is the period this IIH really goes out at.
+		HoldingTime:    types.HoldingTime(c.holdTime(c.p2pPreferredLevel())),
 		LocalCircuitID: c.localCircuitID,
 		TLVs:           append(c.originationTLVs(), c.threeWayTLV(state, neighborID, haveNeighbor)),
 	}

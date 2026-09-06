@@ -55,6 +55,7 @@ var specialCheckers = map[string]interoplab.Checker{
 	"bgp-holdtime-deadpeer-frr":             checkHoldtimeDeadPeer,
 	"isis-max-metric-frr":                   checkISISMaxLinkMetric,
 	"isis-p2p-frr":                          checkISISDynamicHostname,
+	"isis-per-level-hello-frr":              checkISISPerLevelHelloTimers,
 	"isis-purge-reorig-frr":                 checkISISOwnLSPPurge,
 	"no-family-peer-eor-frr":                checkNoFamilyEndOfRIB,
 	"ospf-lfa-frr":                          checkOSPFLFA,

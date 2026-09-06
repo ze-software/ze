@@ -54,6 +54,29 @@ The advertised hold time is the hello interval times the hold multiplier, clampe
 to the 16-bit range, so a zero multiplier can never advertise an
 instantly-expiring adjacency.
 
+## Decision: one hello timer per level, not per circuit
+
+The Level-1 and the Level-2 LAN IIH are separate PDUs sent to separate multicast
+groups, so a broadcast circuit runs one hello timer for each level it forms. The
+circuit publishes them as `HelloSchedules`, and the engine starts one ticker per
+schedule. `SendHello` takes the level that fired, and refuses a level the circuit
+does not form rather than sending an IIH the operator did not configure.
+
+A point-to-point circuit publishes exactly one schedule. Its single IIH is
+level-agnostic on the wire (RFC 5303 section 3), so two periods would have
+nothing to apply to. The schedule takes the circuit's preferred point-to-point
+level, which is Level-1 whenever the circuit forms Level-1, and the holding time
+that IIH advertises comes from the same level, so it matches the period the IIH
+really goes out at.
+
+Each level's period and multiplier are resolved once, by `levelHelloTimers`: the
+per-level `hello-interval` and `hold-multiplier` when the operator set one, else
+the circuit-wide leaf, else the YANG default. The circuit stores a
+`LevelTimers` pair per level and never sees the configuration again.
+
+<!-- source: internal/plugins/isis/circuit/runtime.go -- HelloSchedules, helloPeriod, SendHello -->
+<!-- source: internal/plugins/isis/circuits.go -- levelHelloTimers, the per-schedule tickers -->
+
 ## Decision: keying and the reap grace period
 
 The table keys per `(system ID, level)`: one adjacency per point-to-point
