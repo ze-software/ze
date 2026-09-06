@@ -487,9 +487,75 @@ question.
 
 Set both and the outbound result is `replace-as`.
 
-<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- secondaryPrependAS -->
+The table holds for every route this peer receives, whether Ze learned it from
+another neighbor or originated it itself. The two paths build the AS_PATH in
+different places and both read the same rule.
+
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- secondaryPrependAS, localASPrependFor -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- announceASPathASNs, buildBatchASPathAttr -->
 <!-- source: internal/component/bgp/reactor/config.go -- parsePeerSettings, local-options -->
 <!-- source: test/plugin/bgp-local-as-options.ci -- the AS_PATH each option puts on the wire -->
+
+## Internal AS Migration (RFC 7705 Section 4.2)
+
+The leaves above move an EXTERNAL session onto a legacy AS. `migration` does the
+same job for an INTERNAL one, and it works differently: it does not change the
+AS_PATH at all. It lets one iBGP session run under either of two AS numbers
+while a router is renumbered, so the sessions to that router do not all have to
+be reconfigured in one maintenance window.
+
+```
+bgp {
+    session {
+        asn { local 64500; }         // the ASN the router keeps
+    }
+    group route-reflector-clients {
+        session {
+            asn {
+                migration 64510      // the ASN being retired
+            }
+        }
+        peer already-renumbered {
+            session { asn { remote 64500; } }
+        }
+        peer still-on-the-legacy-asn {
+            session { asn { remote 64510; } }
+        }
+    }
+}
+```
+
+The leaf sits in the same container as `local` and `remote`, so a group states
+it once and every peer in the group inherits it. A peer that states its own
+`migration` replaces the group's value rather than adding to it.
+
+Three behaviors follow, and each is the RFC's:
+
+| Question | Answer |
+|----------|--------|
+| Which OPEN does Ze accept? | One whose My Autonomous System carries the local ASN or the `migration` ASN. Any other AS is refused with OPEN Message Error subcode 2, Bad Peer AS |
+| Which OPEN does Ze send? | The local ASN first. Ze opens with the `migration` ASN only after the peer answers Bad Peer AS, which is what stops two speakers that both run the mechanism from deadlocking on each other |
+| How is the session treated? | As native iBGP whichever ASN won: no eBGP AS_PATH prepend, the RFC 4456 reflection rules, and the RFC 7606 internal branch |
+
+`remote` must name the local ASN or the `migration` ASN. Ze refuses a config
+where it names a third AS, because RFC 7705 Section 4.2 describes an internal
+session and a third AS describes an external peer. Ze also refuses a `migration`
+equal to `local`, which reads as the mechanism being on while widening nothing.
+
+Remove the leaf when the migration ends. RFC 7705 Section 5 asks for exactly
+that: the mechanism is meant for days to months, not indefinitely.
+
+**Setting `migration` tightens one behavior for every peer, not just this one.**
+Ze now compares the AS a peer advertises against the AS it is configured for, on
+every session. A peer whose `remote` was mistyped used to establish anyway and
+now receives Bad Peer AS. That is what makes "accept either ASN" mean something,
+and it is a change an operator with a wrong `remote` will notice. A dynamic
+group states no `remote`, so its members are exempt until they configure
+`migration`, which supplies two ASNs to check against.
+
+<!-- source: internal/component/bgp/reactor/session_as_migration.go -- peerASAccepted, isIBGPWith, openLocalAS, setMigrationAS -->
+<!-- source: internal/component/bgp/reactor/session_open_as.go -- validateOpenPeerAS -->
+<!-- source: internal/component/bgp/reactor/config.go -- parsePeerSettings, migration -->
 
 ## Blackhole Honoring (RFC 7999)
 
@@ -999,6 +1065,53 @@ system {
 Tuning is idempotent: only changed parameters are written. Write failures are reported but do not block the config commit. On non-Linux platforms the tuning block is accepted but no operations are applied.
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- tuning config -->
 <!-- source: internal/component/host/tuning.go -- ApplyTuning engine -->
+
+## Kernel Crash Capture
+
+A Go panic is already captured and listed by `show crashes`. A kernel panic is
+the uncovered case: the running kernel is gone, the appliance root is read-only
+SquashFS, and there is no shell to run a post-mortem from. The operator gets a
+reboot and no evidence.
+
+This block asks the kernel to write its own panic message and backtrace into a
+reserved memory region that a warm reboot does not clear. Ze reads the record on
+the next healthy boot and stores it as an ordinary crash report.
+
+```
+system {
+    crash-dump {
+        enabled true;
+        reserve 16;
+        memory-image {
+            enabled false;
+            reserve 256;
+        }
+    }
+}
+```
+
+| Path | Description |
+|------|-------------|
+| `crash-dump/enabled` | Store the kernel panic record as a crash report at the next boot (default `false`) |
+| `crash-dump/reserve` | Memory the kernel reserves for the record, in megabytes, 4 to 256 (default 16) |
+| `crash-dump/memory-image/enabled` | Also capture a full memory image (default `false`, amd64 only) |
+| `crash-dump/memory-image/reserve` | Memory reserved for the capture kernel, in megabytes, 64 to 1024 (default 256) |
+
+**The commit records intent. The next boot arms it.** The reservation is a kernel
+boot argument, so this block on its own changes nothing about the running
+kernel. Build the appliance image with `image.crash-dump` set (see
+`docs/guide/appliance.md`) and reboot. Until then `show crashes` reports
+`configured: true` and `armed: false` with the reason, and `ze doctor` raises
+`doctor-crash-capture-unarmed`.
+
+`memory-image` is refused at commit on any architecture other than amd64,
+because the image is written by a kexec-staged capture kernel that Ze stages
+nowhere else. Where the architecture allows it, the readiness block reports it
+as unarmed with the shortfall in bytes until the crash directory has room for an
+image sized to the target's RAM.
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- crash-dump config -->
+<!-- source: internal/component/config/system/crashdump.go -- extraction and the intent it produces -->
+<!-- source: internal/component/config/validators.go -- crashMemoryImageValidator, the architecture refusal -->
 
 ## Process Bindings
 
@@ -2792,6 +2905,7 @@ Global settings outside BGP:
 
 ```
 environment {
+    hide-version true;     # keep X-Ze-Version off every HTTP response
     tcp {
         attempts 3;        # connection retry attempts
     }
@@ -2808,6 +2922,14 @@ environment {
 }
 ```
 
+The `hide-version` leaf keeps the `X-Ze-Version` response header off the web
+interface and the looking glass together. The header names the release, the git
+commit, the Go version and the OS, so it tells a client the exact build it
+speaks to. The default is `false`: the banner stays until you hide it, and a
+tool that reads it continues to operate. Ze reads the leaf at startup, so a new
+value applies at the next daemon start. No other header changes, and Ze sends no
+`Server` header at all.
+
 The `cli { format { default } }` leaf controls the output format when no explicit
 pipe operator is specified. The default is `text`. Override per-session with
 `set cli format <value>` in operational mode; explicit pipe operators always win.
@@ -2820,6 +2942,7 @@ timestamp, username, and remote host. Transcript writes are best-effort and
 never block CLI operation. Default is `disabled`.
 
 <!-- source: internal/component/config/environment.go -- environment block parsing; internal/core/slogutil/slogutil.go -- log level config -->
+<!-- source: internal/core/version/version.go -- HTTPHeaderHidden, the leaf both HTTP servers read -->
 <!-- source: internal/component/command/pipe.go -- configuredDefault -->
 <!-- source: internal/component/cli/transcript.go -- TranscriptWriter, TranscriptEnabled -->
 
