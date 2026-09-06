@@ -1269,6 +1269,7 @@ The bus sits alongside the other cross-cutting core registries:
 | `internal/core/clock/` | Injectable clock for test determinism |
 | `internal/core/report/` | Operator-visible warnings and errors |
 | `internal/core/slogutil/` | Structured logging helpers |
+| `internal/core/pcap/` | The pcap file format, synthetic IP and TCP framing, and TCP stream reassembly |
 
 Subsystem authors add new producers by calling the push API:
 

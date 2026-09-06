@@ -328,7 +328,12 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 		if direction == rpc.DirectionSent {
 			dir = 1
 		}
-		rc.Append(dir, rawBytes)
+		// peerInfo above already holds both ends of the session, read under
+		// the RLock this branch is inside, so the pcap export gets the
+		// addresses it frames each message between with no further locking.
+		// LocalAddress stays invalid for a message from an address no peer
+		// matches, and the export names that case rather than inventing a host.
+		rc.Append(dir, peerAddr, peerInfo.LocalAddress, msgType, rawBytes)
 	}
 
 	r.observersMu.RLock()

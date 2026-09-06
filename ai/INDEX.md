@@ -145,6 +145,7 @@ DHCP ranges, and `ai/digests/firewall.md` for the firewall global options.
 | Config parses correctly | `.ci` | `test/parse/` | `ze-test bgp parse` |
 | BGP wire encoding | `.ci` | `test/encode/` | `ze-test bgp encode` |
 | BGP wire decoding | `.ci` | `test/decode/` | `ze-test bgp decode` |
+| Reading a pcap back, and the capture ze writes | `.ci` | `test/ui/bgp-decode-pcap-*.ci` | `ze-test ui` |
 | Plugin behavior / API | `.ci` | `test/plugin/` | `ze-test bgp plugin` |
 | Config reload via SIGHUP | `.ci` | `test/reload/` | `ze-test bgp reload` |
 | CLI show/monitor output | `.ci` | `test/ui/` | `ze-test ui` |
@@ -484,6 +485,8 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 
 | Keywords | Docs |
 |----------|------|
+| pcap, packet capture, capture-raw, LINKTYPE_RAW, TCP reassembly, decode a capture, tcpdump, Wireshark | `docs/architecture/diagnostics/packet-capture.md` |
+| crash capture, kernel panic, pstore, ramoops, reserve_mem, kdump, crash-dump, show crashes, configured versus armed, harvest a crash record | `docs/architecture/diagnostics/crash-capture.md`, `docs/guide/appliance.md`, `docs/guide/configuration.md` |
 | buffer, iterator, parse, wire | `core-design.md`, `buffer-architecture.md`, `ai/rules/performance.md` |
 | encode, Pack, WriteTo, alloc | `ai/rules/performance.md`, `buffer-architecture.md` |
 | string building, textbuf, Sprintf, concatenation | `textbuf-string-building.md`, `ai/rules/performance.md` |

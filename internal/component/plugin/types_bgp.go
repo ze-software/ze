@@ -326,11 +326,20 @@ type BGPRawCaptureProvider interface {
 	BGPRawCaptureSnapshot(limit int) []BGPRawCaptureEntry
 }
 
-// BGPRawCaptureEntry is one raw captured BGP message.
+// BGPRawCaptureEntry is one raw captured message. Data holds the whole message,
+// its BGP header included, and OriginalLen says how long the message was on the
+// wire when the capture ring truncated it.
+//
+// PeerAddr and LocalAddr are the two ends of the session, which the BGP pcap
+// export frames each message between. Only the BGP tap fills them: the BFD tap
+// reuses this type for its own ring, and the BFD export never reads them.
 type BGPRawCaptureEntry struct {
-	Timestamp string `json:"timestamp"`
-	Direction string `json:"direction"`
-	Data      []byte `json:"data"`
+	Timestamp   string `json:"timestamp"`
+	Direction   string `json:"direction"`
+	PeerAddr    string `json:"peer-addr"`
+	LocalAddr   string `json:"local-addr"`
+	Data        []byte `json:"data"`
+	OriginalLen int    `json:"original-len"`
 }
 
 // ReactorPeerController manages BGP peer lifecycle: shutdown, teardown,

@@ -3,12 +3,12 @@
 package analyze
 
 import (
-	"encoding/binary"
-	"io"
+	"net/netip"
 	"os"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/pcap"
 	"github.com/ze-software/ze/internal/core/subdispatch"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/mrt"
@@ -18,7 +18,7 @@ var convertDispatcher = newConvertDispatcher()
 
 func newConvertDispatcher() *subdispatch.Dispatcher {
 	d := subdispatch.New("convert", "Convert MRT to other formats")
-	d.Register("pcap", runConvertPcap, subdispatch.SubMeta{Desc: "Convert BGP4MP to pcap (IPv4, Wireshark-compatible)"})
+	d.Register("pcap", runConvertPcap, subdispatch.SubMeta{Desc: "Convert BGP4MP to pcap (IPv4 and IPv6, Wireshark-compatible)"})
 	d.Register("json", runConvertJSON, subdispatch.SubMeta{Desc: "Dump MRT record headers as JSON"})
 	return d
 }
@@ -43,23 +43,28 @@ func runConvertPcap(args []string) int {
 	}
 	defer func() { _ = out.Close() }()
 
-	if err := writePcapGlobalHeader(out); err != nil {
+	if err := pcap.WriteFileHeader(out, convertSnapLen, pcap.LinkTypeRaw); err != nil {
 		os.Stderr.WriteString("convert pcap: write header: " + err.Error() + "\n") //nolint:errcheck // error output
 		return 1
 	}
 
-	var count, skippedV6 uint64
+	var count, unaddressed uint64
+	framer := pcap.NewFramer()
 	handler := &mrt.Handler{
 		OnMessage: func(h mrt.Header, usec uint32, m *mrt.MessageRecord) error {
 			if len(m.BGPMessage) == 0 {
 				return nil
 			}
-			if m.AFI == mrt.AFIIPv6 {
-				skippedV6++
+			// A BGP4MP record runs from the peer to the collector, so the peer
+			// is the source. Link type 101 takes the family from the version
+			// nibble, which is why an IPv6 record needs no second file.
+			flow, ok := convertFlow(m.PeerIP, m.LocalIP)
+			if !ok {
+				unaddressed++
 				return nil
 			}
 			ts := time.Unix(int64(h.Timestamp), int64(usec)*1000)
-			if err := writePcapBGPPacket(out, ts, m.PeerIP, m.LocalIP, m.BGPMessage); err != nil {
+			if err := framer.WriteMessage(out, ts, flow, m.BGPMessage, len(m.BGPMessage)); err != nil {
 				return err
 			}
 			count++
@@ -73,8 +78,8 @@ func runConvertPcap(args []string) int {
 	}
 
 	os.Stderr.WriteString("convert pcap: wrote " + textbuf.StringUint(count) + " packets\n") //nolint:errcheck // status
-	if skippedV6 > 0 {
-		os.Stderr.WriteString("convert pcap: skipped " + textbuf.StringUint(skippedV6) + " IPv6 records (LINKTYPE_IPV4)\n") //nolint:errcheck // status
+	if unaddressed > 0 {
+		os.Stderr.WriteString("convert pcap: skipped " + textbuf.StringUint(unaddressed) + " records with no usable peer or local address\n") //nolint:errcheck // status
 	}
 	return 0
 }
@@ -115,69 +120,37 @@ func runConvertJSON(args []string) int {
 	return 0
 }
 
-// pcap global header: magic, version 2.4, timezone 0, snaplen 65535, link type raw IPv4 (228).
-func writePcapGlobalHeader(f io.Writer) error {
-	var hdr [24]byte
-	binary.LittleEndian.PutUint32(hdr[0:], 0xa1b2c3d4) // magic
-	binary.LittleEndian.PutUint16(hdr[4:], 2)          // version major
-	binary.LittleEndian.PutUint16(hdr[6:], 4)          // version minor
-	binary.LittleEndian.PutUint32(hdr[8:], 0)          // timezone
-	binary.LittleEndian.PutUint32(hdr[12:], 0)         // sigfigs
-	binary.LittleEndian.PutUint32(hdr[16:], 65535)     // snaplen
-	binary.LittleEndian.PutUint32(hdr[20:], 228)       // LINKTYPE_IPV4 (raw IPv4)
-	_, err := f.Write(hdr[:])
-	return err
-}
+// convertSnapLen is the snapshot length the converted file declares. It covers
+// the largest message RFC 8654 allows, so no record exceeds it.
+const convertSnapLen = 65535
 
-// writePcapBGPPacket writes one pcap record: record header + IPv4 + TCP + BGP payload.
-func writePcapBGPPacket(f io.Writer, ts time.Time, srcIP, dstIP, bgpMsg []byte) error {
-	src4 := ipTo4(srcIP)
-	dst4 := ipTo4(dstIP)
-
-	tcpLen := 20 + len(bgpMsg)
-	ipLen := 20 + tcpLen
-	totalLen := 16 + ipLen // pcap record header + IP packet
-
-	buf := make([]byte, totalLen)
-
-	// Pcap record header (16 bytes).
-	binary.LittleEndian.PutUint32(buf[0:], uint32(ts.Unix()))            //nolint:gosec // timestamp fits uint32
-	binary.LittleEndian.PutUint32(buf[4:], uint32(ts.Nanosecond()/1000)) //nolint:gosec // microseconds
-	binary.LittleEndian.PutUint32(buf[8:], uint32(ipLen))                //nolint:gosec // bounded
-	binary.LittleEndian.PutUint32(buf[12:], uint32(ipLen))               //nolint:gosec // bounded
-
-	// IPv4 header (20 bytes, no options).
-	off := 16
-	buf[off] = 0x45 // version 4, IHL 5
-	buf[off+1] = 0
-	binary.BigEndian.PutUint16(buf[off+2:], uint16(ipLen)) //nolint:gosec // bounded
-	buf[off+8] = 64                                        // TTL
-	buf[off+9] = 6                                         // TCP
-	copy(buf[off+12:], src4[:])
-	copy(buf[off+16:], dst4[:])
-
-	// TCP header (20 bytes, no options).
-	off += 20
-	binary.BigEndian.PutUint16(buf[off:], 179)   // src port (BGP)
-	binary.BigEndian.PutUint16(buf[off+2:], 179) // dst port (BGP)
-	buf[off+12] = 0x50                           // data offset = 5 words
-	buf[off+13] = 0x18                           // PSH + ACK
-
-	// BGP payload.
-	off += 20
-	copy(buf[off:], bgpMsg)
-
-	_, err := f.Write(buf)
-	return err
-}
-
-func ipTo4(ip []byte) [4]byte {
-	var out [4]byte
-	switch len(ip) {
-	case 4:
-		copy(out[:], ip)
-	case 16:
-		copy(out[:], ip[12:16])
+// convertFlow turns an MRT record's two addresses into the direction its
+// message traveled. It reports false when either address is missing or is not
+// 4 or 16 octets, which is the only record the conversion now drops: an IPv6
+// record is converted like any other, because link type 101 carries both
+// families.
+func convertFlow(peerIP, localIP []byte) (pcap.Flow, bool) {
+	peer, ok := netip.AddrFromSlice(peerIP)
+	if !ok {
+		return pcap.Flow{}, false
 	}
-	return out
+	local, ok := netip.AddrFromSlice(localIP)
+	if !ok {
+		return pcap.Flow{}, false
+	}
+	peer, local = peer.Unmap(), local.Unmap()
+	if peer.Is4() != local.Is4() {
+		return pcap.Flow{}, false
+	}
+	return pcap.Flow{
+		SourceAddr: peer,
+		TargetAddr: local,
+		SourcePort: bgpPort,
+		TargetPort: bgpPort,
+	}, true
 }
+
+// bgpPort is the TCP port a BGP session uses (RFC 4271 Section 3). Both ends of
+// a converted flow carry it: an MRT record holds no port, so the conversion
+// fabricates the pair rather than inventing an ephemeral one.
+const bgpPort = 179

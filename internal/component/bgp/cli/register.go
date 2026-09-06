@@ -32,7 +32,7 @@ var bgpCommands = []string{bgpCmdDecode, bgpCmdEncode, bgpCmdPlugin}
 // bgpSubHints maps each command to its argument hint for display. Commands with
 // no arguments are omitted.
 var bgpSubHints = map[string]string{
-	bgpCmdDecode: "decode <hex>",
+	bgpCmdDecode: "decode <hex> | decode - | decode pcap <file>",
 	bgpCmdEncode: "encode <route>",
 }
 

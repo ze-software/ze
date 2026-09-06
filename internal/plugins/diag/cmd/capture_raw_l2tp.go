@@ -10,7 +10,12 @@ import (
 	"encoding/base64"
 
 	"github.com/ze-software/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/core/pcap"
 )
+
+// l2tpSnapLen is the L2TP ring's slot size, unchanged since before
+// internal/core/pcap took over the file format.
+const l2tpSnapLen = 1500
 
 func rawEntriesToJSON(entries []l2tp.RawCaptureEntry) []map[string]any {
 	rows := make([]map[string]any, 0, len(entries))
@@ -27,14 +32,18 @@ func rawEntriesToJSON(entries []l2tp.RawCaptureEntry) []map[string]any {
 	}
 	return rows
 }
+
+// exportL2TPPcap writes the L2TP raw capture as a pcap. An L2TP control packet
+// is a UDP payload, so its records carry the captured bytes with no framing
+// added, exactly as they did before internal/core/pcap took over the format.
 func exportL2TPPcap(entries []l2tp.RawCaptureEntry) ([]byte, error) {
 	var buf bytes.Buffer
-	if err := writePcapHeader(&buf, 1500, LinkTypeRaw); err != nil {
+	if err := pcap.WriteFileHeader(&buf, l2tpSnapLen, pcap.LinkTypeRaw); err != nil {
 		return nil, err
 	}
 	for i := len(entries) - 1; i >= 0; i-- {
 		e := &entries[i]
-		if err := writePcapPacket(&buf, e.Timestamp, e.Data); err != nil {
+		if err := pcap.WriteRecord(&buf, e.Timestamp, e.Data, len(e.Data)); err != nil {
 			return nil, err
 		}
 	}

@@ -1,0 +1,23 @@
+# Test: ze bgp decode reads a capture back and decodes every BGP message in it
+# VALIDATES: spec-bgp-pcap-decode AC-8 and AC-18 -- the round trip. The fixture
+# below is a capture ze wrote with internal/core/pcap, so this test proves the
+# writer and the reader agree at the process level.
+# Exercises: cmdDecode -> decodePcapInput -> pcap.Reassemble -> frameMessages -> decodeHexPacket
+# The session is the peer's OPEN, this host's OPEN, then a KEEPALIVE each way.
+
+tmpfs=session.pcap:encoding=base64:terminator=EOF_PCAP
+1MOyoQIABAAAAAAAAAAAAP//AABlAAAAwGFWaQAAAABFAAAARQAAAEUAAEUAAEAAQAa2r8AAAgHA
+AAICALMAswAAAAEAAAABUBj//ybaAAD/////////////////////AB0BBP3oAFoBAgMEAMFhVmkA
+AAAARQAAAEUAAABFAABFAABAAEAGtq/AAAICwAACAQCzALMAAAABAAAAHlAY//8mvQAA////////
+/////////////wAdAQT96ABaAQIDBADCYVZpAAAAADsAAAA7AAAARQAAOwAAQABABra5wAACAcAA
+AgIAswCzAAAAHgAAAB5QGP//JgEAAP////////////////////8AEwTDYVZpAAAAADsAAAA7AAAA
+RQAAOwAAQABABra5wAACAsAAAgEAswCzAAAAHgAAADFQGP//Je4AAP////////////////////8A
+EwQ=
+EOF_PCAP
+
+cmd=foreground:seq=1:exec=ze bgp decode pcap session.pcap
+expect=exit:code=0
+expect=stdout:contains=KEEPALIVE
+expect=stdout:contains=65000
+expect=stdout:contains=192.0.2.1:179
+expect=stdout:contains=192.0.2.2:179

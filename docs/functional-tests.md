@@ -300,7 +300,7 @@ and name, plus periodic progress while tests are still running.
 | Parse | `ze-test bgp parse` | `test/parse/*.ci` | Runs foreground config validation commands and checks exit code plus stdout/stderr expectations. |
 | Decode | `ze-test bgp decode` | `test/decode/*.{ci,test}` | Feeds BGP message bytes to decode commands and compares JSON output with volatile fields normalized. |
 | Reload | `ze-test bgp reload` | `test/reload/*.ci` | Starts Ze, rewrites config, sends SIGHUP, then checks post-reload behavior. |
-| UI | `ze-test ui` | `test/ui/*.ci` | Runs foreground CLI commands and checks terminal output and exit status. |
+| UI | `ze-test ui` | `test/ui/*.ci` | Runs foreground CLI commands and checks terminal output and exit status. The three `bgp-decode-pcap-*` tests carry their capture as a base64 `tmpfs=` block, because `test/decode/` cannot express them: its driver reads the flags off the `exec=` line and then builds its own `ze bgp decode <hex>` argv, so it never runs the command as written. No `.ci` covers the standard-input forms of `ze bgp decode`, and none can: this runner replaces the first `-` in argv with a file holding the stdin block and pipes nothing, so such a test would exercise the path form instead (`plan/journal/green-that-could-not-have-been-red.md`). Those two forms are proven by Go tests at the same entry point. |
 | Editor | `ze-test editor` | `test/editor/**/*.et` | Runs headless editor keystroke scripts through the CLI testing harness. |
 | Managed | `ze-test managed` | `test/managed/*.ci` | Exercises managed config, hub, auth, and fleet workflows through `.ci` process tests. |
 | L2TP | `ze-test l2tp` | `test/l2tp/*.ci` | Runs L2TP control-plane scenarios over loopback UDP with fake test plugins where needed. |

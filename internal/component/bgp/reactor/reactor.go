@@ -951,9 +951,12 @@ func (r *Reactor) BGPRawCaptureSnapshot(limit int) []plugin.BGPRawCaptureEntry {
 			dir = capDirOut
 		}
 		out[i] = plugin.BGPRawCaptureEntry{
-			Timestamp: e.Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
-			Direction: dir,
-			Data:      e.Data,
+			Timestamp:   e.Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
+			Direction:   dir,
+			PeerAddr:    e.PeerAddr.String(),
+			LocalAddr:   e.LocalAddr.String(),
+			Data:        e.Data,
+			OriginalLen: e.OriginalLen,
 		}
 	}
 	return out

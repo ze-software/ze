@@ -1,0 +1,15 @@
+# Test: a capture with no BGP in it reports what was examined and exits non-zero
+# VALIDATES: spec-bgp-pcap-decode AC-14 and R-4 -- an operator reads empty
+# output as "there is no BGP here", so silence is never a successful decode.
+# The fixture is a capture holding one TCP flow on port 443 and nothing else.
+# Exercises: cmdDecode -> decodePcapInput -> pcap.Report reported on failure
+
+tmpfs=web.pcap:encoding=base64:terminator=EOF_PCAP
+1MOyoQIABAAAAAAAAAAAAP//AABlAAAAwGFWaQAAAAA7AAAAOwAAAEUAADsAAEAAQAa2ucAAAgHA
+AAICAbucQAAAAAEAAAABUBj//zw+AABubyBiZ3AgaW4gdGhpcyBmaWxl
+EOF_PCAP
+
+cmd=foreground:seq=1:exec=ze bgp decode pcap web.pcap
+expect=exit:code=1
+expect=stderr:contains=no BGP message found
+expect=stderr:contains=1 records read

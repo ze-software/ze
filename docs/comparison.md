@@ -259,6 +259,8 @@ from something that needs one.
 | BMP (RFC 7854) | Yes | Yes | Yes | Yes | No | Yes | Yes | No | Partial | Yes | Yes |
 | MRT dump (RFC 6396) | Yes | Yes | Yes | Yes | Yes | Yes | No | No | Yes | Yes | Yes |
 | Session capture and replay | Yes | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear |
+| Writes a pcap of its BGP sessions | Yes | No | No | No | No | No | No | No | No | No | No |
+| Decodes a pcap of a BGP session | Yes | No | No | No | No | No | No | No | No | No | No |
 | Flow export (sFlow/NetFlow/IPFIX) | Yes | No | No | No | No | No | No | No | No | No | No |
 | Streaming route events | Yes | No | No | No | No | Yes | Yes | Yes | No | Yes | No |
 | JSON event protocol | Yes | No | No | No | No | No | No | Yes | No | No | No |
@@ -280,6 +282,18 @@ different capability.
 
 <!-- source: internal/component/bgp/reactor/capture_replay.go -- sessionCapture, teeCapture -->
 <!-- source: internal/test/cli/cmd_replay.go -- runReplay -->
+
+**Writes and decodes a pcap:** `show capture-raw dump bgp pcap` writes the
+recorded messages as a pcap Wireshark dissects as BGP, and `ze bgp decode pcap`
+reads one back, reassembling each TCP direction first. The reader takes a
+tcpdump capture too, so an operator decodes a colleague's file without ze
+having produced it. ExaBGP decodes hexadecimal from standard input, which
+`ze bgp decode -` now matches, but it reads no pcap. The other ten daemons are
+marked `No` because none documents a pcap writer or reader of its own; an
+operator captures with tcpdump and reads the file in Wireshark.
+
+<!-- source: internal/plugins/diag/cmd/pcap.go -- exportBGPPcap -->
+<!-- source: internal/component/bgp/cli/decode_pcap.go -- decodePcapInput -->
 
 <!-- source: internal/core/report/report.go -- cross-subsystem report bus -->
 <!-- source: internal/component/cmd/show/show.go -- handleShowWarnings, handleShowErrors -->

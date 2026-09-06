@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 )
 
@@ -61,7 +62,12 @@ func cmdDecode(args []string) int {
 		p := helpfmt.Page{
 			Command: "ze bgp decode",
 			Summary: "Decode BGP message from hexadecimal and output Ze-format JSON",
-			Usage:   []string{"ze bgp decode [options] <hex-payload>"},
+			Usage: []string{
+				"ze bgp decode [options] <hex-payload>",
+				"ze bgp decode [options] -                Read one hex message for each line of standard input",
+				"ze bgp decode [options] pcap <file>      Decode every BGP message in a capture",
+				"ze bgp decode [options] pcap -           Read the capture from standard input",
+			},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "--open", Desc: "Decode as OPEN message"},
@@ -80,6 +86,8 @@ func cmdDecode(args []string) int {
 				"ze bgp decode --plugin ze.hostname --open FFFF...     Decode with hostname plugin",
 				"ze bgp decode --nlri l2vpn/evpn 02...                 Decode NLRI with family",
 				"ze bgp decode --plugin flowspec --nlri ipv4/flow 07...  Decode NLRI via plugin",
+				"ze bgp decode pcap session.pcap                       Decode a tcpdump or ze capture",
+				"tcpdump -w - port 179 | ze bgp decode pcap -           Decode a capture from a pipe",
 			},
 		}
 		p.WriteErr()
@@ -95,8 +103,6 @@ func cmdDecode(args []string) int {
 		fs.Usage()
 		return 1
 	}
-
-	payload := fs.Arg(0)
 
 	// Determine message type from flags
 	var msgType string
@@ -119,7 +125,23 @@ func cmdDecode(args []string) int {
 		familyStr = *nlriFamily
 	}
 
-	output, err := decodeHexPacket(payload, msgType, familyStr, *outputJSON)
+	// Three input forms, and the keyword decides between them before any value
+	// is read (`ai/rules/cli.md`). A capture is named after `pcap`, hexadecimal
+	// lines arrive on standard input under the "-" token, and a bare word is
+	// the single hex payload this command has always taken.
+	if fs.Arg(0) == inputKeywordPcap {
+		return decodePcapInput(fs.Args()[1:], msgType, familyStr, *outputJSON)
+	}
+	if cliio.IsStdin(fs.Arg(0)) {
+		if fs.NArg() > 1 {
+			fmt.Fprintf(os.Stderr, "error: %q reads every message from standard input, so it takes no further argument, and %s given\n",
+				cliio.StdinToken, countWord(fs.NArg()-1))
+			return 1
+		}
+		return decodeHexStdin(msgType, familyStr, *outputJSON)
+	}
+
+	output, err := decodeHexPacket(fs.Arg(0), msgType, familyStr, *outputJSON)
 	if err != nil {
 		if *outputJSON {
 			// Return valid JSON error

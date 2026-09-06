@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/pcap"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -83,7 +84,7 @@ func HandleCaptureInterface(_ *pluginserver.CommandContext, args []string) (*plu
 func capturePcap(ctx context.Context, conn *packet.Conn, ca captureArgs) (*plugin.Response, error) {
 	var buf bytes.Buffer
 	snapLen := uint32(ca.snapLen)
-	if err := writePcapHeader(&buf, snapLen, linkTypeEthernet); err != nil {
+	if err := pcap.WriteFileHeader(&buf, snapLen, linkTypeEthernet); err != nil {
 		return nil, fmt.Errorf("capture: pcap header: %w", err)
 	}
 
@@ -117,7 +118,7 @@ func capturePcap(ctx context.Context, conn *packet.Conn, ca captureArgs) (*plugi
 		if n > ca.snapLen {
 			data = rb[:ca.snapLen]
 		}
-		if err := writePcapPacketWithOrigLen(&buf, ts, data, n); err != nil {
+		if err := pcap.WriteRecord(&buf, ts, data, n); err != nil {
 			break
 		}
 		captured++

@@ -3,9 +3,7 @@
 package cmd
 
 import (
-	"bytes"
 	"encoding/base64"
-	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -178,7 +176,7 @@ func captureRawDump(ctx *pluginserver.CommandContext, protocol, format string, l
 			case entries == nil:
 				result["bfd"] = "raw capture not enabled (use capture-raw start bfd)"
 			case format == fmtPcap:
-				pcapData, err := exportBGPPcap(entries)
+				pcapData, err := exportBFDPcap(entries)
 				if err != nil {
 					result["bfd-error"] = err.Error()
 				} else {
@@ -201,19 +199,4 @@ func captureRawDump(ctx *pluginserver.CommandContext, protocol, format string, l
 	}
 
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(result)}, nil
-}
-
-func exportBGPPcap(entries []plugin.BGPRawCaptureEntry) ([]byte, error) {
-	var buf bytes.Buffer
-	if err := writePcapHeader(&buf, 4096, LinkTypeRaw); err != nil {
-		return nil, err
-	}
-	for i := len(entries) - 1; i >= 0; i-- {
-		e := &entries[i]
-		ts, _ := time.Parse("2006-01-02T15:04:05Z07:00", e.Timestamp)
-		if err := writePcapPacket(&buf, ts, e.Data); err != nil {
-			return nil, err
-		}
-	}
-	return buf.Bytes(), nil
 }

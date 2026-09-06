@@ -8,12 +8,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/pcap"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -39,7 +39,7 @@ const (
 	captureFormatText = "text"
 	captureFormatKey  = "format"
 
-	linkTypeEthernet uint32 = 1
+	linkTypeEthernet uint32 = pcap.LinkTypeEthernet
 )
 
 var activeCaptures sync.Map
@@ -318,19 +318,4 @@ func truncateBytes(data []byte) []byte {
 		return data[:maxHexBytes]
 	}
 	return data
-}
-
-// writePcapPacketWithOrigLen writes one pcap packet record with separate
-// captured and original lengths, so Wireshark shows truncation correctly.
-func writePcapPacketWithOrigLen(w io.Writer, ts time.Time, data []byte, origLen int) error {
-	var hdr [16]byte
-	binary.LittleEndian.PutUint32(hdr[0:4], uint32(ts.Unix()))
-	binary.LittleEndian.PutUint32(hdr[4:8], uint32(ts.Nanosecond()/1000))
-	binary.LittleEndian.PutUint32(hdr[8:12], uint32(len(data)))
-	binary.LittleEndian.PutUint32(hdr[12:16], uint32(origLen))
-	if _, err := w.Write(hdr[:]); err != nil {
-		return err
-	}
-	_, err := w.Write(data)
-	return err
 }

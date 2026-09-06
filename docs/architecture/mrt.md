@@ -132,12 +132,21 @@ New subcommands:
 - `filter` -- select by prefix, peer, ASN, AS-path regex, community regex, timestamp, type
 - `inject` -- open BGP session to remote peer, send TABLE_DUMP_V2/BGP4MP UPDATEs
 - `replay` -- replay BGP4MP messages over BGP session preserving timing
-- `convert pcap` -- MRT BGP4MP to pcap (IPv4 only, IPv6 skipped)
+- `convert pcap` -- MRT BGP4MP to pcap, IPv4 and IPv6, under `LINKTYPE_RAW` (101)
 - `convert json` -- MRT record headers as JSON
 - `export bmp` -- send BGP4MP records as BMP Route Monitoring to a collector
 - `record bmp` -- accept incoming BMP connections, write as MRT BGP4MP
 - `show` -- human-readable record dump (like bgpdump)
 - `routes` -- extract prefix table as JSON (prefix, next-hop, AS path, communities)
+
+`convert pcap` frames each record through `internal/core/pcap`, the same writer
+the diagnostic captures use. Link type 101 takes the IP family from the version
+nibble, so an IPv6 record is converted like any other; it used to be counted and
+dropped, because link type 228 carries IPv4 alone. Only a record whose peer or
+local address is missing is now skipped, and the count is reported. The TCP
+ports are fabricated as 179 at both ends, because an MRT record holds none.
+<!-- source: internal/analyze/convert.go -- runConvertPcap, convertFlow -->
+<!-- source: internal/core/pcap/frame.go -- Framer.WriteMessage -->
 
 `show` and `routes` decode records through the shared parsers above, deriving the
 AS width from each record's type and using the RIB-entry MP_REACH decoder, so
