@@ -465,10 +465,180 @@ to which it has been previously advertised."
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
 
+## Implementation Summary
+
+### What Was Implemented
+- `internal/exabgp/bridge/bridge_batch.go`: `BatchReader` cuts one read into one batch and carries a partial line; `Net` cancels an announce a later withdrawal of the same route takes back and orders withdrawals before announces; `AnswerBatch` writes one answer per line in write order; `BatchSelectors` names each selector once.
+- `internal/exabgp/bridge/bridge_command.go`: `Translation.Commands` became `[]Command`, and every route command carries the `RouteKey` the translator holds where it writes the NLRI. A command that carries no route carries the zero key, which `RouteKey.Route` answers false for.
+- `internal/plugins/exabgp/bridgerun/script.go` and `internal/exabgp/bridge/bridge.go`: both runners read batches, hand each one to a dispatcher goroutine, and return to the pipe at once. One flush per selector, then one answer per line.
+- `internal/component/bgp/reactor/session.go`, `session_write.go`, `peer.go`: `Session.advertised`, set at the three points a message reaches the socket, read through `Peer.hasAdvertised`. `updateIsReachable` and `bodyIsReachable` leave it unset for an End-of-RIB and for a pure withdrawal.
+- `internal/component/bgp/reactor/reactor_api_batch.go`: `splitOnAdvertised` partitions the fan-out, `logWithdrawWithheld` names the peer, and `WithdrawNLRIBatch` answers `route.ErrWithdrawWithheld` naming every peer it wrote nothing to.
+- `internal/component/bgp/plugins/cmd/update/update_text.go` and `internal/component/bgp/plugins/cmd/announce/registry.go`: both read that error as a warning, so the command answers `done` and the reason reaches the operator.
+
+The work landed at `fa86db31ed`, which carries two other strands in the same
+files. Closure adds one test, one page repair, this record and the journal row.
+
+### Bugs Found/Fixed
+- The netting rule table in `docs/architecture/exabgp-bridge.md` stated a WIRE outcome that the reactor's connection-state guard decides, so it was true for `api-fast` batch 1 and false for every batch after a session's first announce. Fixed in closure, and recorded in `plan/journal/rule-stated-as-an-outcome-a-later-layer-decides.md`.
+- AC-7's second half, that the script still reads `done`, had product code on two rails and no test on either. `TestHandleUpdateTextWithheldWithdrawalIsDoneAndNamed` now drives it, and goes RED when the handler's `errors.Is(err, route.ErrWithdrawWithheld)` branch is disabled.
+
+### Documentation Updates
+- `docs/architecture/exabgp-bridge.md`: the batch section, the flush section, the ack section, and the closure repair above. Anchors `bridge_batch.go -- BatchReader, Net`, `bridge_command.go -- Command, RouteKey`, `bridge_batch.go -- AnswerBatch, BatchSelectors`, `script.go -- script.batch`.
+- `docs/architecture/update-building.md`: "A Withdrawal Names a Route This Connection Advertised", anchored on `session_write.go -- Session.advertised, noteAdvertised, updateIsReachable` and `reactor_api_batch.go -- withdrawBatchFromPeers, logWithdrawWithheld`.
+- `docs/architecture/api/commands.md`: the withheld-withdrawal answer, anchored on `update_text.go -- handleUpdateText` and `route.go -- ErrWithdrawWithheld`.
+- `docs/guide/route-injection.md`: the operator-facing form of both rules.
+- `./le doc check verify` FAILS, and on no surface this spec touches: the firewall-domain plugin table, `create bgp peer`, the `send bgp` verbs, `show bgp rib` filters, `show bgp reject-asn`, `show resolve rir` and seven OSPF help rows, all from other sessions' in-flight work.
+
+### Deviations from Plan
+- The advertised state lives on `Session`, not on `adjRIBOut`. A-5 broke; the Key Design Decisions table records it.
+- `Translation.Commands` changed type, which the spec did not name. The key had to travel with each command rather than with the line, because one line can be several commands and only some of them carry a route.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-5 put the advertised state on `adjRIBOut` | That table records API announces alone, so a peer holding config-declared or forwarded routes reads as unadvertised | at implementation, against R-2 | the state moved to `Session`, armed by any NLRI-carrying UPDATE |
+| approach | The page stated the netting rule as a wire outcome | The netting decides what dispatches; a second layer decides what reaches the wire | closure documentation review, reading the table against `Net` and `withdrawBatchFromPeers` | table rewritten at the dispatch level, journal row written |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A withdrawal cancels an announce of the same NLRI still queued from the same read | Done | `bridge_batch.go` `Net` | behavior 1 of the Task table |
+| A repeated announce of an unchanged route sends nothing | Done | `adj_rib_out.go` `unchanged` | behavior 2, already present |
+| The first update pass of a session carries no withdrawal | Done | `reactor_api_batch.go` `splitOnAdvertised`, `session_write.go` `noteAdvertised` | behavior 3 |
+| A batch's withdrawals are encoded before its announces | Done | `bridge_batch.go` `Net`, the three-pass order | behavior 4 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `ze-test exabgp api 14` PASS, 92.1s, 2026-09-06 | and RED under the reverted netting and guard |
+| AC-2 | Done | `TestBridgeBatchNetsWithdrawOverEarlierAnnounce` plus `TestWithdrawWithheldUntilSessionAdvertises` | the netting drops the announce, the guard withholds the withdrawal |
+| AC-3 | Done | `TestWithdrawSentAfterAnyNLRIAdvertised`, and `api-fast` batch 2 | |
+| AC-4 | Done | `TestBridgeBatchAnnounceDoesNotCancelWithdraw` | |
+| AC-5 | Done | `TestAnnounceTwiceSendsOneUpdate` | `adjRIBOut.suppressed` |
+| AC-6 | Done | `TestBridgeBatchWithdrawalsDispatchFirst` | |
+| AC-7 | Done | `TestWithdrawWithheldUntilSessionAdvertises` and `TestHandleUpdateTextWithheldWithdrawalIsDoneAndNamed` | the second was added at closure; the `done` half had no test |
+| AC-8 | Done | `TestWithdrawSentAfterAnyNLRIAdvertised` | |
+| AC-9 | Done | `TestBridgeBatchDispatchOrderAndAcks` | a comment line owes no answer, which is the rule the runners already kept |
+| AC-10 | Done | `TestBridgeBatchSecondReadIsSecondBatch` | |
+| AC-11 | Done | `TestBridgeBatchDispatchOrderAndAcks` | the runners set the per-line answer and keep going |
+| AC-12 | Done | `TestAdvertisedStateClearedOnTeardown` | the state is a Session field, so a new connection starts unset |
+| AC-13 | Done | `ze-test exabgp api 1 2 6 8 20 21 23 26 37 40`, all PASS | `api-ack-control`, `api-add-remove`, `api-announcement`, `api-attributes`, `api-ipv4`, `api-ipv6`, `api-multi-neighbor`, `api-mvpn`, `api-silence-ack`, `api-vpnv4` |
+| AC-14 | Done | `ze-test exabgp api --save`, `api-flow` writes 15 frames | against the 10 recorded on 2026-09-06 in `plan/journal/guard-demands-what-the-model-cannot-supply.md`. The case is still red, on the attribute-order permutation Known Limitations names |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The eleven `TestBridgeBatch*` and `TestApiFastBatchOneProducesOneAnnounce` | Done | `internal/exabgp/bridge/bridge_batch_test.go` | package PASS |
+| `TestWithdrawWithheldUntilSessionAdvertises`, `TestWithdrawSentAfterAnyNLRIAdvertised`, `TestEndOfRIBDoesNotArmTheWithdrawGuard`, `TestAdvertisedStateClearedOnTeardown` | Done | `internal/component/bgp/reactor/adj_rib_out_test.go` | all four PASS |
+| `TestHandleUpdateTextWithheldWithdrawalIsDoneAndNamed` | Done | `internal/component/bgp/plugins/cmd/update/update_text_withheld_test.go` | ADDED at closure for AC-7 |
+| `api-fast`, and the ten sibling cases | Done | `test/exabgp-compat/api/` | run by name |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/exabgp/bridge/bridge_batch.go`, `bridge_batch_test.go` | Done | created |
+| `internal/exabgp/bridge/bridge_command.go`, `bridge.go` | Done | |
+| `internal/plugins/exabgp/bridgerun/script.go` | Done | |
+| `internal/component/bgp/reactor/reactor_api_batch.go`, `adj_rib_out.go`, `adj_rib_out_test.go` | Done | |
+| `internal/component/bgp/reactor/session.go`, `session_write.go`, `peer.go` | Changed | the advertised state moved here from `adjRIBOut` |
+| `internal/component/bgp/route/route.go`, `cmd/update/update_text.go`, `cmd/announce/registry.go` | Changed | the answer the guard owes an operator |
+| The four pages | Done | one repaired at closure |
+
+### Audit Summary
+- **Total items:** 14 acceptance criteria, 4 task requirements, 16 tests, 13 files
+- **Done:** all 14 acceptance criteria, all 4 requirements, all 16 tests
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** 3 file rows, all in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A script written for ExaBGP puts ExaBGP's frames on the wire through ze | interop | `ze-test exabgp api 14` PASS on 2026-09-06. Discrimination walk in the same session: with `RouteKey.Route` answering false and `splitOnAdvertised` answering every peer writable, the case is RED on `unexpected message = ...4005040000006418010100; 4 expected frames remain`, the announce of 1.1.0.0/24 ExaBGP never sent. Both files restored and verified clean |
+| Netting removes no frame ExaBGP sends | functional | ten named sibling cases PASS (`api-ack-control`, `api-add-remove`, `api-announcement`, `api-attributes`, `api-ipv4`, `api-ipv6`, `api-multi-neighbor`, `api-mvpn`, `api-silence-ack`, `api-vpnv4`). `api-flow` writes 15 frames against the 10 recorded before this work, and fails on the attribute-order permutation of one withdrawal, which no netting can create or repair |
+| A withheld withdrawal is never a silent no-op | functional | `TestWithdrawWithheldUntilSessionAdvertises` asserts `route.ErrWithdrawWithheld` and the peer address on the answer, and the counter. `TestHandleUpdateTextWithheldWithdrawalIsDoneAndNamed` asserts `done` plus the warning naming the peer, and goes RED with the handler's branch disabled. The `api-fast` run logs `withdrawal withheld ... peer=127.0.0.1 rfc="RFC 4271 Section 4.3"` |
+| The ack contract is unchanged | functional | `api-ack-control` and `api-silence-ack` PASS, plus `TestBridgeBatchDispatchOrderAndAcks` and `TestBridgeBatchAckControlAppliesInWriteOrder` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| `api-flow` green | Out of scope by the Task section. It fails on an attribute-order permutation in a FlowSpec withdrawal, which netting can neither create nor repair | `plan/journal/guard-demands-what-the-model-cannot-supply.md` holds the announce half; the permutation is recorded in this spec's Known Limitations and in `plan/journal/bulk-rename-corruption.md` |
+| `api-reload` green | Out of scope by the Task section | `plan/journal/announced-state-never-replayed.md` |
+
 ## Review Gate
 
-<!-- Filled at implementation time by /ze-review, per plan/TEMPLATE.md. Loop
-     until 0 BLOCKER and 0 ISSUE. Never delete this section. -->
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-api-batch-reaches-the-wire-unnetted-zeclose-apibatch-1693391.md`, 19 files |
+| `./le spec session review check` | `review_gate: OK (clean, hashes match)` |
+| Rounds | 2 |
+| Reviewer lenses used | acceptance criteria against the producing function; wire and RFC citation; concurrency and goroutine lifecycle; bounds and input validation; documentation claims read against current source rather than against the diff; Go style |
 
-| Run | Date | BLOCKER | ISSUE | NIT | Notes |
-|-----|------|---------|-------|-----|-------|
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The netting rule table stated a wire outcome the reactor's guard decides, so it was true only for a session that has advertised nothing | `docs/architecture/exabgp-bridge.md`, "One write is one batch" | the rows now state what the batch DISPATCHES, and a paragraph above them names the guard and routes to `docs/architecture/update-building.md` |
+| 2 | ISSUE | AC-7's `done` half had product code on two rails and no test | `internal/component/bgp/plugins/cmd/update/update_text.go` `handleUpdateText` | `TestHandleUpdateTextWithheldWithdrawalIsDoneAndNamed`, shown RED with the `errors.Is` branch disabled |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/exabgp/bridge/bridge_batch.go` | Yes | 327 lines, `wc -l` |
+| `internal/exabgp/bridge/bridge_batch_test.go` | Yes | 338 lines, `wc -l` |
+| `internal/component/bgp/reactor/adj_rib_out.go` | Yes | 511 lines, `wc -l` |
+| `internal/component/bgp/reactor/adj_rib_out_test.go` | Yes | 394 lines, `wc -l` |
+| `internal/component/bgp/plugins/cmd/update/update_text_withheld_test.go` | Yes | created at closure |
+| `test/exabgp-compat/api/api-fast.ci` | Yes | listed by `ze-test exabgp api --list` as case 14 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | `api-fast` records ExaBGP's frames | `ze-test exabgp api 14`: `92.1s 1/1 PASS 14 api-fast` |
+| AC-7 | the answer names the withheld peer and the script reads `done` | `go test -run TestHandleUpdateTextWithheldWithdrawalIsDoneAndNamed ./internal/component/bgp/plugins/cmd/update/` exit 0, and exit 1 with the handler branch disabled |
+| AC-12 | a new connection withholds again | `go test -run TestAdvertisedStateClearedOnTeardown ./internal/component/bgp/reactor/` PASS |
+| AC-13 | the ten sibling cases keep their frames | `ze-test exabgp api 1 2 6 8 20 21 23 26 37 40`: all PASS |
+| AC-14 | `api-flow` loses no frame | 15 frames captured with `--save`, against 10 recorded before this work |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| a script writes four API lines in one write | `test/exabgp-compat/api/api-fast.ci` | Yes: its first flush writes four lines and the fixture lists one frame for them |
+| `send bgp <peer> update text ... del ...` to a peer sent no NLRI | `test/exabgp-compat/api/api-fast.ci` | Yes: the run log carries `withdrawal withheld ... peer=127.0.0.1 family=ipv4/unicast` |
+| a batch reaching two neighbors flushes both | `test/exabgp-compat/api/api-multi-neighbor.ci` | Yes: case 23 PASS |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestBridgeBatchNetsWithdrawOverEarlierAnnounce` and `TestBridgeBatchAnnounceDoesNotCancelWithdraw` |
+| A-2 | confirmed | `api-fast` PASS, and the two guard polarities |
+| A-3 | confirmed | `TestBridgeBatchKeyMatchesAcrossSpellings`; `routeIdentity` drops the verb |
+| A-4 | confirmed | `TestBridgeBatchCutsOneReadIntoOneBatch`, `TestBridgeBatchSecondReadIsSecondBatch` |
+| A-5 | broken | the state moved to `Session.advertised`; Mistake Log and Key Design Decisions carry it |
+| A-6 | confirmed | the five named cases PASS |
+| A-7 | confirmed | `TestBridgeBatchKeyMatchesAcrossSpellings` drives both spellings in both orders |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| The netting rules table | read against `bridge_batch.go` `Net` and `reactor_api_batch.go` `withdrawBatchFromPeers` | Repaired: it named a wire outcome a later layer decides |
+| "one flush per selector the batch reached and blocks until each forward pool drains" | `bridge.go` `dispatchBatch` waits on `pending.wait` for each flush; `script.go` `batch` dispatches each flush synchronously | Yes |
+| The withheld-withdrawal warning string | `update_text.go` writes `withdraw <family>: <err>`, `reactor_api_batch.go` writes `%w: <family>, peers <list>` | Yes, byte for byte with the page's example |
+| "Once the session has carried one UPDATE that makes any destination reachable, a configured route and a relayed one included" | `writeUpdateGated` serves the config rails and `writeRawUpdateBody` the forwarding rail; both call `noteAdvertised` | Yes |
+| Row 9, no RFC support level moves | `rfc/short/rfc4271.md` `## Meta` untouched; the guard proves no new MUST | Yes |
+
+## Core Insight
+
+Two cases that differ only in TIME cannot be separated by any rule over state.
+`api-fast` batch 1 and batch 2 both withdraw a route the peer never held, and
+only the second reaches the wire. The Adj-RIB-Out, the netting and "does the
+peer hold it" each answer both the same way and get one of them wrong. What
+separates them is that batch 1 precedes the session's first advertisement, so
+the rule lives on the connection, and the netting that made batch 1 possible
+lives one layer above it.
