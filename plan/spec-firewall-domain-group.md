@@ -9,12 +9,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | config |
 | Depends | `plan/spec-firewall-remote-group.md` |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-02 |
+| Updated | 2026-09-05 |
 
 <!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later Opus 5 session reviews that commit and closes. `-` closes in the same session. -->
 
@@ -461,6 +461,31 @@ the feature adds YANG config, a command surface and an internal plugin-to-hub
 RPC, and it introduces no wire protocol Ze speaks to a peer. DNS queries go
 through the existing `internal/component/resolve/dns` client, whose own RFC
 conformance is owned by `plan/spec-fixit-dns-rfc1035-conformance.md`.
+
+## Progress, 2026-09-06
+
+The implementation landed in `164f03607f`. The three `.ci` files this spec names
+now exist, written in `454e5da881`, and **none of them has ever been executed**:
+
+| File | Runs with |
+|------|-----------|
+| `test/plugin/firewall-domain-group-update.ci` | `./le functional plugin` |
+| `test/plugin/firewall-domain-group-clear.ci` | `./le functional plugin` |
+| `test/firewall/firewall-cli-domain-group-show.ci` | `./le functional firewall` |
+
+They cannot be executed yet, and the reason is a missing capability rather than
+a missing run. Each needs a Go fixture that does not exist, and a fixture cannot
+be written without a stub DNS server: a domain group resolves a name, and
+`ze-test` has no DNS command. Its IRR sibling gets `ze-test irr --port`; DNS
+gets nothing. Each `.ci` header therefore lists, in order, the steps its fixture
+must perform, including the two "MUST NOT print" constraints the file-level
+`expect=stdout:` rule imposes.
+
+So this spec owes, in order: a `ze-test` DNS stub, the three fixtures, then the
+runs. The stub is new capability and owes a spec of its own before code.
+
+Wiring rows 4 and 5 remain without operator-path proof, and the show enrichment
+is still proven at the enricher rather than over the real SSH `ze cli` path.
 
 ## Files to Modify
 
