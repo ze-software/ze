@@ -138,9 +138,10 @@ func (r *Reactor) buildDynamicPeerSettings(dg *DynamicGroupConfig, remoteAddr ne
 	ps.Address = remoteAddr
 	// The peer map is keyed on (address, port) and a dynamic peer's remote port
 	// is the ephemeral source port of the connection it arrived on, which names
-	// no configuration. The canonical port keys every dynamic peer; the
-	// template's own Port is what the group LISTENS on (peerListenPort,
-	// reactor_peers.go).
+	// no configuration. The canonical port keys every dynamic peer. The
+	// template's LocalPort is inherited untouched: it is what the group LISTENS
+	// on (peerListenPort, reactor_peers.go), so the member reports the same
+	// socket the group accepted it on.
 	ps.Port = DefaultBGPPort
 	ps.PeerAS = 0                     // RFC 4271 Section 4.2: learned from the peer's OPEN
 	ps.Connection = ConnectionPassive // `ip dynamic` requires `connect false`

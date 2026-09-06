@@ -193,7 +193,7 @@ func (a *reactorAPIAdapter) peerSettingsFromOperationConfig(op *rpc.ConfigOperat
 		}
 		peerTree = m
 	}
-	explicitPort := operationPeerPortExplicit(peerTree)
+	explicitPort := operationPeerRemotePortExplicit(peerTree)
 
 	settings, err := parsePeerFromTree(peerName, peerTree, localAS, routerID)
 	if err != nil {
@@ -205,22 +205,25 @@ func (a *reactorAPIAdapter) peerSettingsFromOperationConfig(op *rpc.ConfigOperat
 	return settings, nil
 }
 
-func operationPeerPortExplicit(peer map[string]any) bool {
+// operationPeerRemotePortExplicit reports whether the operation's peer config
+// names the port Ze dials, which is the one value the daemon's port would
+// otherwise supply.
+//
+// connection > local > port is not that value. It names the port a listener of
+// this peer's own answers on (PeerSettings.LocalPort), so a config carrying it
+// alone has said nothing about the dial target. It was read here until
+// 2026-09-06, when one field carried both endpoints (peer_settings.go).
+func operationPeerRemotePortExplicit(peer map[string]any) bool {
 	conn, ok := peer["connection"].(map[string]any)
 	if !ok {
 		return false
 	}
-	if local, ok := conn["local"].(map[string]any); ok {
-		if _, exists := local["port"]; exists {
-			return true
-		}
+	remote, ok := conn["remote"].(map[string]any)
+	if !ok {
+		return false
 	}
-	if remote, ok := conn["remote"].(map[string]any); ok {
-		if _, exists := remote["port"]; exists {
-			return true
-		}
-	}
-	return false
+	_, exists := remote["port"]
+	return exists
 }
 
 func (a *reactorAPIAdapter) removePeerForOperation(settings *PeerSettings) error {

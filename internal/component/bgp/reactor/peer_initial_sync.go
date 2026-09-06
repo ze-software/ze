@@ -427,6 +427,25 @@ func (p *Peer) sendInitialRoutes() {
 		sendFn = session.SendUpdateHeld
 	}
 
+	// `behavior { manual-eor true }` withholds the AUTOMATIC marker, because
+	// something else decides when this peer's RIB is complete: an API client
+	// that originates every route wants the marker after its last announce, not
+	// after a sync that carried none of them.
+	//
+	// It withholds the SEND and nothing else. Returning here instead cost two
+	// things that have to happen whether or not a marker goes out, and both of
+	// them silently: the write hold below was never released, so writeMu stayed
+	// locked for the life of the session and every later writer blocked on it,
+	// keepalives included; and initialSyncEOROwed stayed true, so AnnounceEOR
+	// went on deferring to a producer that had already finished and suppressed
+	// the operator's own marker -- the one thing this leaf exists to let them
+	// send. api-manual-eor caught both: the peer sent nothing at all, ever.
+	sendEOR := !p.settings.ManualEOR
+	if !sendEOR {
+		routesLogger().Debug("end-of-rib withheld: behavior manual-eor is set",
+			"peer", addr, "phase", "initial-sync")
+	}
+
 	// Send EOR for ALL negotiated families per RFC 4724 Section 4.
 	// RFC 4724: "including the case when there is no update to send"
 	// Families() returns families in deterministic order (sorted by AFI, then SAFI).
@@ -440,8 +459,7 @@ func (p *Peer) sendInitialRoutes() {
 	// above and this call. Counting such an attempt would publish an end-of-RIB
 	// the peer never receives, exactly the barrier the compiled functional
 	// observers wait on.
-	families := nc.Families()
-	for _, fam := range families {
+	for _, fam := range sendEORFamilies(sendEOR, nc.Families()) {
 		// Claim BEFORE sending. A route server announcing EoR when its replay
 		// finishes reaches the same wire through AnnounceEOR, and RFC 4724
 		// Section 2 allows one End-of-RIB per family per session.
@@ -906,4 +924,20 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Famil
 		p.reactor.policyFilterFunc(nil), // nil payload -- synthetic update
 	)
 	return res.Action != PolicyReject
+}
+
+// sendEORFamilies answers the families the initial sync sends an End-of-RIB
+// for: every negotiated one, or none when `behavior { manual-eor true }` says
+// something else decides when this peer's RIB is complete.
+//
+// It answers a slice rather than the caller skipping the loop, because
+// everything AFTER that loop has to run either way: the write hold is released
+// there and initialSyncEOROwed is cleared there. Returning early instead
+// deadlocked the session's writeMu and suppressed the operator's own marker,
+// which is the one thing the leaf exists to allow.
+func sendEORFamilies(send bool, negotiated []family.Family) []family.Family {
+	if !send {
+		return nil
+	}
+	return negotiated
 }

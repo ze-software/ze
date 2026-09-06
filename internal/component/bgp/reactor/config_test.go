@@ -1,7 +1,9 @@
 package reactor
 
 import (
+	"net"
 	"net/netip"
+	"strconv"
 	"testing"
 	"time"
 
@@ -2409,4 +2411,198 @@ func TestParsePeerFromTree_DefaultOriginate(t *testing.T) {
 	assert.True(t, ps.DefaultOriginate["ipv6/unicast"])
 	assert.Equal(t, "only-if-route", ps.DefaultOriginateFilter["ipv4/unicast"])
 	assert.Empty(t, ps.DefaultOriginateFilter["ipv6/unicast"])
+}
+
+// TestParsePeerFromTreeSplitsLocalAndRemotePorts pins the two connection ports
+// to two fields, because they name two endpoints.
+//
+// VALIDATES: connection > local > port reaches PeerSettings.LocalPort and
+//
+//	connection > remote > port reaches PeerSettings.Port, whichever
+//	leaves the config carries.
+//
+// PREVENTS: the remote port overwriting the local one. Both leaves wrote Port
+//
+//	until 2026-09-06, remote last, so an operator who asked for a
+//	listener on 1790 and a peer that answers on 179 got 179 in both
+//	places and no message saying so.
+func TestParsePeerFromTreeSplitsLocalAndRemotePorts(t *testing.T) {
+	tests := []struct {
+		name           string
+		local          map[string]any
+		remote         map[string]any
+		wantLocalPort  uint16
+		wantRemotePort uint16
+	}{
+		{
+			name:           "both leaves keep their own value",
+			local:          map[string]any{"ip": "192.168.1.1", "port": "1790"},
+			remote:         map[string]any{"ip": "192.0.2.1", "port": "2790"},
+			wantLocalPort:  1790,
+			wantRemotePort: 2790,
+		},
+		{
+			name:           "local alone moves no dial target",
+			local:          map[string]any{"ip": "192.168.1.1", "port": "1790"},
+			remote:         map[string]any{"ip": "192.0.2.1"},
+			wantLocalPort:  1790,
+			wantRemotePort: DefaultBGPPort,
+		},
+		{
+			name:           "remote alone opens no listener",
+			local:          map[string]any{"ip": "192.168.1.1"},
+			remote:         map[string]any{"ip": "192.0.2.1", "port": "2790"},
+			wantLocalPort:  0,
+			wantRemotePort: 2790,
+		},
+		{
+			name:           "neither leaf",
+			local:          map[string]any{"ip": "192.168.1.1"},
+			remote:         map[string]any{"ip": "192.0.2.1"},
+			wantLocalPort:  0,
+			wantRemotePort: DefaultBGPPort,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := map[string]any{
+				"connection": map[string]any{"local": tt.local, "remote": tt.remote},
+				"session":    map[string]any{"asn": map[string]any{"remote": "65001"}},
+			}
+			ps, err := parsePeerFromTree("peer1", tree, 65000, 0x0a000001)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantLocalPort, ps.LocalPort, "connection > local > port")
+			assert.Equal(t, tt.wantRemotePort, ps.Port, "connection > remote > port")
+		})
+	}
+}
+
+// TestParsePeerFromTreeRefusesPortOutsideRange covers the bounds of both port
+// leaves.
+//
+// VALIDATES: parsePeerSettings refuses 0 and 65536 on either endpoint, and names
+//
+//	which endpoint the bad value came from.
+//
+// PREVENTS: a listener on port 0, which the kernel answers with a port of its
+//
+//	own choosing, and a dial to one. YANG's zt:port refuses the same
+//	range, so this is the second gate for a tree that reached the parser
+//	without passing the schema (an API operation, a test).
+func TestParsePeerFromTreeRefusesPortOutsideRange(t *testing.T) {
+	tests := []struct {
+		name    string
+		local   map[string]any
+		remote  map[string]any
+		wantErr string
+	}{
+		{
+			name:    "local port zero",
+			local:   map[string]any{"ip": "192.168.1.1", "port": "0"},
+			remote:  map[string]any{"ip": "192.0.2.1"},
+			wantErr: "local port must be 1-65535, got 0",
+		},
+		{
+			name:    "local port above the range",
+			local:   map[string]any{"ip": "192.168.1.1", "port": "65536"},
+			remote:  map[string]any{"ip": "192.0.2.1"},
+			wantErr: "local port must be 1-65535, got 65536",
+		},
+		{
+			name:    "remote port zero",
+			local:   map[string]any{"ip": "192.168.1.1"},
+			remote:  map[string]any{"ip": "192.0.2.1", "port": "0"},
+			wantErr: "remote port must be 1-65535, got 0",
+		},
+		{
+			name:    "remote port above the range",
+			local:   map[string]any{"ip": "192.168.1.1"},
+			remote:  map[string]any{"ip": "192.0.2.1", "port": "65536"},
+			wantErr: "remote port must be 1-65535, got 65536",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := map[string]any{
+				"connection": map[string]any{"local": tt.local, "remote": tt.remote},
+				"session":    map[string]any{"asn": map[string]any{"remote": "65001"}},
+			}
+			_, err := parsePeerFromTree("peer1", tree, 65000, 0x0a000001)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
+// TestPeerListenPortReadsTheOperatorsLocalPort walks the whole chain the
+// operator's leaf takes: config tree, parser, listen-port decision.
+//
+// VALIDATES: a config naming both connection ports listens on the LOCAL one and
+//
+//	dials the REMOTE one.
+//
+// PREVENTS: the defect this test was written for. With one merged field the
+//
+//	remote leaf was parsed second, so peerListenPort answered 2790 here
+//	and the operator's listener on 1790 never existed.
+func TestPeerListenPortReadsTheOperatorsLocalPort(t *testing.T) {
+	tree := map[string]any{
+		"connection": map[string]any{
+			"local":  map[string]any{"ip": "192.168.1.1", "port": "1790"},
+			"remote": map[string]any{"ip": "192.0.2.1", "port": "2790"},
+		},
+		"session": map[string]any{"asn": map[string]any{"remote": "65001"}},
+	}
+
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0x0a000001)
+	require.NoError(t, err)
+
+	r := &Reactor{config: &Config{}}
+	assert.Equal(t, 1790, r.peerListenPort(ps), "the listener answers on connection > local > port")
+	assert.Equal(t, uint16(2790), ps.Port, "the dial target stays connection > remote > port")
+}
+
+// TestPeerLocalPortOpensARealListener walks the leaf all the way to a bound
+// socket, which is the only place the operator can see it.
+//
+// VALIDATES: a config naming connection > local > port makes the reactor listen
+//
+//	on that port, and naming connection > remote > port opens no socket
+//	there.
+//
+// PREVENTS: the defect this spec was written for, at the surface an operator
+//
+//	reaches. The parser and peerListenPort each held half of it; only a
+//	started reactor shows that the kernel now holds the port the operator
+//	asked for. Both leaves wrote one field until 2026-09-06, so the
+//	socket answered on the port Ze DIALS.
+func TestPeerLocalPortOpensARealListener(t *testing.T) {
+	localPort := freePort(t)
+	remotePort := freePort(t)
+	require.NotEqual(t, localPort, remotePort, "the two endpoints need two numbers")
+
+	tree := map[string]any{
+		"connection": map[string]any{
+			"local":  map[string]any{"ip": "127.0.0.1", "port": strconv.Itoa(localPort)},
+			"remote": map[string]any{"ip": "127.0.0.2", "port": strconv.Itoa(remotePort), "connect": "false"},
+		},
+		"session": map[string]any{"asn": map[string]any{"remote": "65001"}},
+	}
+
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0x0a000001)
+	require.NoError(t, err)
+
+	r := New(&Config{Port: freePort(t), LocalAS: 65000, Standalone: true})
+	require.NoError(t, r.AddPeer(ps))
+	require.NoError(t, r.Start())
+	defer r.Stop()
+
+	var bound []string
+	for _, addr := range r.ListenAddrs() {
+		bound = append(bound, addr.String())
+	}
+	assert.Contains(t, bound, net.JoinHostPort("127.0.0.1", strconv.Itoa(localPort)),
+		"the listener answers on connection > local > port")
+	assert.NotContains(t, bound, net.JoinHostPort("127.0.0.1", strconv.Itoa(remotePort)),
+		"connection > remote > port opens no socket")
 }

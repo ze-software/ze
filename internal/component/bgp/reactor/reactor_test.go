@@ -2378,9 +2378,11 @@ func TestMD5PeersForListener(t *testing.T) {
 	s3 := NewPeerSettings(mustParseAddr("10.0.0.3"), 65000, 65003, 0x01010101)
 	require.NoError(t, r.AddPeer(s3))
 
-	// Peer 4: MD5 but on custom port 1179.
+	// Peer 4: MD5 but on a listener of its own at 1179. LocalPort is what moves
+	// a peer off the shared listener (peerListenPort, reactor_peers.go); Port is
+	// the remote endpoint Ze dials, and it carried both until 2026-09-06.
 	s4 := NewPeerSettings(mustParseAddr("10.0.0.4"), 65000, 65004, 0x01010101)
-	s4.Port = 1179
+	s4.LocalPort = 1179
 	s4.MD5Key = "key-four"
 	require.NoError(t, r.AddPeer(s4))
 
@@ -2435,9 +2437,11 @@ func TestListenTTLForListener(t *testing.T) {
 	s3 := NewPeerSettings(mustParseAddr("10.0.0.3"), 65000, 65003, 0x01010101)
 	require.NoError(t, r.AddPeer(s3))
 
-	// Peer 4: GTSM on custom port 1179.
+	// Peer 4: GTSM on custom listen port 1179. LocalPort is what opens a listener of
+	// this peer's own (peerListenPort, reactor_peers.go). Port is the remote endpoint ze
+	// dials and names no socket ze answers on, and it carried both until 2026-09-06.
 	s4 := NewPeerSettings(mustParseAddr("10.0.0.4"), 65000, 65004, 0x01010101)
-	s4.Port = 1179
+	s4.LocalPort = 1179
 	s4.OutTTL = 64
 	require.NoError(t, r.AddPeer(s4))
 

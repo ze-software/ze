@@ -1,4 +1,7 @@
 // Design: docs/architecture/core-design.md — peer add/remove/lookup
+// RFC: rfc/short/rfc4271.md — ManualStop seals a stopping reactor against a new peer
+// RFC: rfc/short/rfc7911.md — a removed peer's Path Identifiers are released
+// RFC: rfc/short/rfc8654.md — a peer's outgoing pool is sized for extended messages
 // Overview: reactor.go — BGP reactor event loop and peer management
 
 package reactor
@@ -13,8 +16,21 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
+
+// envKeyTestPort names the BGP port every peer of this daemon dials, for the
+// test infrastructure alone. It is not a YANG leaf and no operator sets it.
+const envKeyTestPort = "ze.test.bgp.port"
+
+var _ = env.MustRegister(env.EnvEntry{
+	Key:         envKeyTestPort,
+	Type:        "int",
+	Default:     "",
+	Description: "BGP listen port (test infrastructure)",
+	Private:     true,
+})
 
 // parsePeerAddrToKey converts a peer address string (bare IP or "ip:port") to a
 // netip.AddrPort map key. Bare IPs get DefaultBGPPort. Invalid strings return a
@@ -64,10 +80,15 @@ func (r *Reactor) findPeerKeyByAddr(addr netip.Addr) (netip.AddrPort, *Peer, boo
 }
 
 // peerListenPort returns the port to listen on for a peer.
-// Peers with custom ports get dedicated listeners; others share the global port.
+//
+// A peer naming connection > local > port gets a listener of its own on it; the
+// rest share the daemon's port. The value read here is LocalPort and never Port,
+// because Port is the REMOTE endpoint, the port Ze dials. Both leaves wrote Port
+// until 2026-09-06, so a config naming both listened on the port of the peer
+// rather than the port the operator asked for (peer_settings.go).
 func (r *Reactor) peerListenPort(s *PeerSettings) int {
-	if s.Port != 0 && s.Port != DefaultBGPPort {
-		return int(s.Port)
+	if s.LocalPort != 0 && s.LocalPort != DefaultBGPPort {
+		return int(s.LocalPort)
 	}
 	if r.config.Port != 0 {
 		return r.config.Port
@@ -404,24 +425,32 @@ func (r *Reactor) doRemovePeer(addr netip.Addr) (*plugin.PeerInfo, error) {
 	return removed, nil
 }
 
-// AddDynamicPeer adds a peer with the given configuration from the plugin API.
-// Used by "bgp peer <ip> add" command for runtime peer management.
-// LocalAS and RouterID default to reactor config if not specified.
+// AddDynamicPeer adds a peer to the running reactor from a config tree the
+// caller built, and starts it. `create bgp peer <address> asn <asn> ...` is the
+// command that reaches it (handleBgpPeerAdd,
+// internal/component/bgp/plugins/cmd/peer/create.go).
+//
+// The tree has the same shape as one peer's subtree in the configuration file,
+// so parsePeerFromTree reads both and a leaf added there is honored here. The
+// peer lives in the reactor alone: nothing is written to the configuration, and
+// RemovePeer mirrors that on the way out.
+//
+// The local AS and the router ID default to the reactor's own when the tree
+// states neither.
+//
+// The two leaves parsePeerFromTree REQUIRES are filled in here when the caller
+// left them out: the remote address is the one the caller named, and the local
+// address defaults to "auto". Both sit under `connection`, which is where the
+// parser reads them. They were written at the TOP of the tree until 2026-09-06,
+// where nothing reads them, so every call failed with "missing required
+// connection > remote > ip" (ai/rules/principles.md).
 func (r *Reactor) AddDynamicPeer(addr netip.Addr, tree map[string]any) error {
-	// Inject remote.ip from selector (parsePeerFromTree requires it).
-	if remote, ok := tree["remote"].(map[string]any); ok {
-		remote["ip"] = addr.String()
-	} else {
-		tree["remote"] = map[string]any{"ip": addr.String()}
-	}
+	conn := treeContainer(tree, "connection")
+	treeContainer(conn, "remote")["ip"] = addr.String()
 
-	// Inject local.ip = "auto" if not set (parsePeerFromTree requires it).
-	if local, ok := tree["local"].(map[string]any); ok {
-		if _, hasIP := local["ip"]; !hasIP {
-			local["ip"] = valAuto
-		}
-	} else {
-		tree["local"] = map[string]any{"ip": valAuto}
+	local := treeContainer(conn, "local")
+	if _, hasIP := local["ip"]; !hasIP {
+		local["ip"] = valAuto
 	}
 
 	name := addr.String()
@@ -430,5 +459,50 @@ func (r *Reactor) AddDynamicPeer(addr netip.Addr, tree map[string]any) error {
 		return fmt.Errorf("dynamic peer %s: %w", name, err)
 	}
 
+	// The test port override reaches a peer built HERE as well as one built by
+	// the config loader, which applies it in applyPortOverride
+	// (internal/component/bgp/config/peers.go). A peer is a peer whichever
+	// route created it, and a runtime-created one that dialed 179 while every
+	// configured peer dialed the harness port would reach no test server.
+	if port, override := PortOverrideFromEnv(); override {
+		settings.Port = port
+	}
+
 	return r.AddPeer(settings)
+}
+
+// PortOverrideFromEnv answers the BGP port every peer of this daemon dials,
+// when the test infrastructure named one, and false when it did not.
+//
+// It is runtime-only and it is not a YANG leaf: the harness starts its mock
+// speaker on an ephemeral port and tells the daemon which one through
+// `ze.test.bgp.port`. It lives here, beside AddPeer, so the config loader and
+// the runtime create path read ONE declaration of the key
+// (ai/rules/principles.md).
+func PortOverrideFromEnv() (uint16, bool) {
+	value := env.Get(envKeyTestPort)
+	if value == "" {
+		return 0, false
+	}
+	port, err := strconv.ParseUint(value, 10, 16)
+	if err != nil {
+		return 0, false
+	}
+	return uint16(port), true //nolint:gosec // ParseUint bounded the value to 16 bits above.
+}
+
+// treeContainer answers the child map at key, creating it when the tree holds
+// none.
+//
+// A value of another type at that key is REPLACED. The tree is built by the
+// caller for this one call and never read from a file, so anything but a
+// container there is a caller defect rather than operator data, and the parser
+// below reports the leaf it could not find.
+func treeContainer(tree map[string]any, key string) map[string]any {
+	if child, ok := tree[key].(map[string]any); ok {
+		return child
+	}
+	child := make(map[string]any)
+	tree[key] = child
+	return child
 }

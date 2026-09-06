@@ -30,10 +30,6 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
-// ze.test.bgp.port is a runtime-only env var for the test infrastructure.
-// It creates a global listener so the ze-test peer can connect to ze.
-const envKeyTCPPort = "ze.test.bgp.port"
-
 // initRedistribute parses redistribute import rules from the config tree and
 // installs the global evaluator. Called during reactor creation and on reload.
 //
@@ -57,14 +53,6 @@ func initRedistribute(tree *config.Tree) error {
 	redistribute.SetGlobal(redistribute.NewEvaluator(rules))
 	return nil
 }
-
-var _ = coreenv.MustRegister(coreenv.EnvEntry{
-	Key:         envKeyTCPPort,
-	Type:        "int",
-	Default:     "",
-	Description: "BGP listen port (test infrastructure)",
-	Private:     true,
-})
 
 // CreateReactorFromTree creates a Reactor directly from a parsed config tree.
 func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plugins []reactor.PluginConfig, store storage.Storage, standalone bool) (*reactor.Reactor, error) {
@@ -211,7 +199,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		// in-process sim, integration harness). See reactor.Config.
 		Standalone: standalone,
 	}
-	if port, ok := portOverrideFromEnv(); ok {
+	if port, ok := reactor.PortOverrideFromEnv(); ok {
 		reactorCfg.Port = int(port)
 	}
 

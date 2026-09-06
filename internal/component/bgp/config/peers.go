@@ -13,8 +13,6 @@ import (
 	"strconv"
 	"strings"
 
-	coreenv "github.com/ze-software/ze/internal/core/env"
-
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/redistribute"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
@@ -941,24 +939,14 @@ func filterChainContains(chain []filterapi.FilterRef, name string) bool {
 	return false
 }
 
-// portOverrideFromEnv returns the runtime-only BGP port override used by test
-// infrastructure.
-func portOverrideFromEnv() (uint16, bool) {
-	p := coreenv.Get(envKeyTCPPort)
-	if p == "" {
-		return 0, false
-	}
-	v, err := strconv.ParseUint(p, 10, 16)
-	if err != nil {
-		return 0, false
-	}
-	return uint16(v), true //nolint:gosec // Validated above
-}
-
 // applyPortOverride overrides peer remote port from ze.test.bgp.port env var.
 // This is a runtime-only mechanism for the test infrastructure (not YANG config).
+//
+// The key and its reader live in the reactor package, which the runtime create
+// path also reads them from (Reactor.AddDynamicPeer). One declaration, so a
+// peer built by either route dials the same port (ai/rules/principles.md).
 func applyPortOverride(peers []*reactor.PeerSettings) {
-	port, ok := portOverrideFromEnv()
+	port, ok := reactor.PortOverrideFromEnv()
 	if !ok {
 		return
 	}

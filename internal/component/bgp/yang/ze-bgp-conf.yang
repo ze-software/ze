@@ -413,12 +413,12 @@ module ze-bgp-conf {
                 }
                 leaf port {
                     type zt:port;
-                    description "Local bind port";
-                    ze:help "Ze writes the value to the BGP port of this peer, which is the port Ze dials and the
-                        port a dedicated listener answers on. The default is 179, and a peer at 179 shares the
+                    description "Local listen port";
+                    ze:help "Ze opens a listener of its own for this peer on the local address and this port, and
+                        answers an inbound connection there. The default is 179, and a peer at 179 shares the
                         global listener. The range is 1 to 65535, and Ze refuses a config outside it. Ze binds no
-                        local source port to the value. connection > remote > port writes the same port, and it
-                        replaces this value when both leaves are set.";
+                        local source port on an outbound connection, so the value applies to the listener alone.
+                        connection > remote > port is the port Ze dials, and the two are independent.";
                 }
                 leaf accept {
                     type boolean;
@@ -453,7 +453,8 @@ module ze-bgp-conf {
                     type zt:port;
                     description "Remote connection port";
                     ze:help "The default is 179. Ze dials the peer at this port. Set the leaf for a peer that
-                        listens on another port, and for a test peer on one host.";
+                        listens on another port, and for a test peer on one host. connection > local > port is
+                        the port Ze listens on, and the two are independent.";
                 }
                 leaf connect {
                     type boolean;

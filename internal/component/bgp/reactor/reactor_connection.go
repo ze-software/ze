@@ -131,8 +131,16 @@ func (r *Reactor) handleListenerConnection(conn net.Conn, listenerAddr netip.Add
 //   - exactly one object in the configuration claims that address and port, and
 //     it is a passive peer. listenerClaimants counts a dynamic group as a
 //     claimant too, because a group accepts on the same socket.
-//   - that peer speaks BGP on a port of its own, so its listener is not the
-//     shared one every default-port peer would land on.
+//   - the socket is not on the well-known BGP port. A peer that names no local
+//     address gets no listener here at all: its inbound arrives on the daemon's
+//     global socket, which attributes by remote IP (handleConnection). On port
+//     179 that global socket and this one can both be bound, the specific
+//     address wins, and a peer expecting the global one lands here.
+//
+// The test is the LISTEN port, not the peer's own Port. Port is the remote
+// endpoint, the port Ze dials, and it says nothing about which socket an inbound
+// connection arrived on. It was read here until 2026-09-06, when one field
+// carried both endpoints (peer_settings.go).
 //
 // handleDirectConnection reads no remote address at all. A second claimant on
 // the same socket would therefore be served under the first one's policy.
@@ -144,7 +152,7 @@ func (r *Reactor) listenerPeerKey(addr netip.Addr, port int) netip.AddrPort {
 	if count != 1 || only == nil {
 		return netip.AddrPort{}
 	}
-	if only.Port == 0 || only.Port == DefaultBGPPort {
+	if port == DefaultBGPPort {
 		return netip.AddrPort{}
 	}
 	return only.PeerKey()

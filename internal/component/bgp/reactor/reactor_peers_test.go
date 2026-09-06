@@ -38,25 +38,34 @@ func TestParsePeerAddrToKey(t *testing.T) {
 
 // TestPeerListenPort verifies the port fallback logic for peer listeners.
 //
-// VALIDATES: peerListenPort returns DefaultBGPPort when neither peer nor config set a port.
-// PREVENTS: Listener binding to port 0 (OS-assigned random port) instead of 179.
+// VALIDATES: peerListenPort answers from LocalPort, falls back to the daemon's
+//
+//	port, and returns DefaultBGPPort when neither is set. The remote port
+//	never reaches the listener: the last case pins that.
+//
+// PREVENTS: Listener binding to port 0 (OS-assigned random port) instead of 179,
+//
+//	and a listener answering on the port Ze dials rather than the port the
+//	operator asked to listen on.
 func TestPeerListenPort(t *testing.T) {
 	tests := []struct {
 		name       string
-		peerPort   uint16
+		localPort  uint16
+		remotePort uint16
 		configPort int
 		want       int
 	}{
-		{"custom peer port", 1179, 0, 1179},
-		{"config port, no peer port", 0, 10179, 10179},
-		{"config port, peer has default", DefaultBGPPort, 10179, 10179},
-		{"no port set anywhere", 0, 0, DefaultBGPPort},
-		{"peer has default, config zero", DefaultBGPPort, 0, DefaultBGPPort},
+		{"custom local port", 1179, 0, 0, 1179},
+		{"config port, no local port", 0, 0, 10179, 10179},
+		{"config port, local port is the default", DefaultBGPPort, 0, 10179, 10179},
+		{"no port set anywhere", 0, 0, 0, DefaultBGPPort},
+		{"local port is the default, config zero", DefaultBGPPort, 0, 0, DefaultBGPPort},
+		{"a remote port of its own moves no listener", 0, 1179, 0, DefaultBGPPort},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &Reactor{config: &Config{Port: tt.configPort}}
-			s := &PeerSettings{Port: tt.peerPort}
+			s := &PeerSettings{LocalPort: tt.localPort, Port: tt.remotePort}
 			assert.Equal(t, tt.want, r.peerListenPort(s))
 		})
 	}

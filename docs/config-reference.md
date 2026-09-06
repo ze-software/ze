@@ -116,7 +116,8 @@ Peers are keyed by name: `peer <name> { }` where the name must start with a lett
 | `timer { receive-hold-time; send-hold-time; keepalive; connect-retry; }` | Timer container | No |
 | `connection { remote { connect } }` | Initiate outbound TCP (`true`/`false`, default: `true`) | No |
 | `connection { local { accept } }` | Accept inbound TCP (`true`/`false`, default: `true`) | No |
-| `connection { remote { port } }`, `connection { local { port } }` | TCP port (default: 179) | No |
+| `connection { remote { port } }` | Port Ze dials to reach the peer (default: 179) | No |
+| `connection { local { port } }` | Port Ze listens on for this peer, on its own listener (default: 179) | No |
 | `connection { md5 { password; ip; } }` | TCP MD5 authentication (RFC 2385) | No |
 | `connection { ttl { max; set; min; } }` | TTL security / GTSM (RFC 5082) | No |
 | `capture { }` | Protocol event capture, off by default | No |

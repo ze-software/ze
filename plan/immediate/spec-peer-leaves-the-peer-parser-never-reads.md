@@ -69,6 +69,37 @@ name behavior nothing implements, and the design phase decides each. A phase
 that answers some and not all leaves this spec open, because the leaf it did not
 answer is still accepted at commit and still does nothing.
 
+## Progress (2026-09-06, partially landed inside another spec's commit)
+
+An implementation agent ran against this spec and was STOPPED when the session
+hit its budget. It left uncommitted hunks in files that
+`plan/immediate/spec-peer-local-port-overwritten-by-remote-port.md` also had to
+change, and the port split does not compile without those files. Rather than
+drop work the agent had finished, the port-split commit CARRIES the hunks below.
+This section is what a resuming agent inherits instead of a surprise.
+
+**What landed.** Two of this spec's ten leaves, plus one defect the agent walked
+into while reading the parser:
+
+| Landed | Where | Proof it carries |
+|--------|-------|------------------|
+| `behavior { manual-eor }` reaches the wire | `parsePeerSettings` writes `PeerSettings.ManualEOR` (`internal/component/bgp/reactor/config.go`); `sendInitialRoutes` withholds the automatic End-of-RIB through `sendEORFamilies` (`internal/component/bgp/reactor/peer_initial_sync.go`) | The `api-manual-eor` ExaBGP compatibility scenario (`internal/le/interoplab/bgp/exabgp_helpers.go`). NO reactor unit test exists for it |
+| `Reactor.AddDynamicPeer` reads the tree it is given | The remote and local addresses are written under `connection`, where `parsePeerFromTree` reads them; they were written at the top of the tree, so every call failed with "missing required connection > remote > ip" | `TestAddDynamicPeerReadsTheTreeItWasGiven` (`internal/component/bgp/reactor/reactor_peers_dynamic_test.go`) |
+| `ze.test.bgp.port` has one declaration | `envKeyTestPort` and `PortOverrideFromEnv` moved from `internal/component/bgp/config/loader_create.go` to `internal/component/bgp/reactor/reactor_peers.go`, so the config loader and the runtime create path read one key (`ai/rules/principles.md`) | Covered by the existing test harness, which sets the key |
+
+**What did NOT land.** Eight of the ten leaves this spec names are untouched and
+still accepted at commit while nothing reads them: `behavior/auto-flush`,
+`connection/link-local`, `attach/process/processes`,
+`attach/process/processes-match`, `attach/process/content/attribute`,
+`rib/adj/in`, `rib/adj/out`, `rib/out/group-updates` (the peer-level one),
+`rib/out/auto-commit-delay`, `rib/out/max-batch-size`. The design decision the
+Task section asks for -- build the behavior or refuse the leaf -- has been taken
+for none of them. The status stays `skeleton` for that reason.
+
+**Debt the landed work owes.** `PeerSettings.ManualEOR` has no reactor unit
+test. A resuming agent writes one, or records why the compatibility scenario is
+the right level for it.
+
 ## Required Reading
 
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress.

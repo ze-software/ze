@@ -439,7 +439,8 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `timer { }` | Timer container: `receive-hold-time` (seconds, 0 or 3-65535, default 90), `send-hold-time` (seconds, 0 or 480-65535, default 0, and a non-zero value must be greater than `receive-hold-time` per RFC 9687 Section 4.4), `connect-retry` (seconds, default 120) | No |
 | `remote { connect }` | Initiate outbound TCP connections: `true` or `false` (default: true) | No |
 | `local { accept }` | Accept inbound TCP connections: `true` or `false` (default: true) | No |
-| `port` | TCP port | No (default: 179) |
+| `remote { port }` | Port Ze dials to reach the peer | No (default: 179) |
+| `local { port }` | Port Ze listens on for this peer, on a listener of its own. Ze binds no source port on an outbound connection, so the value applies to the listener alone | No (default: 179) |
 | `md5-password` | TCP MD5 authentication | No |
 | `ttl-security` | Minimum TTL for incoming packets | No |
 | `outgoing-ttl` | TTL for outgoing packets | No |

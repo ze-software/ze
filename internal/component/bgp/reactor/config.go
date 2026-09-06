@@ -261,14 +261,18 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 		return nil, fmt.Errorf("peer %s: connect and accept cannot both be false", name)
 	}
 
-	// Per-peer listen port from connection > local > port or connection > remote > port.
+	// The two endpoints hold one port each, and they are DIFFERENT numbers.
+	// connection > local > port is the port a listener of this peer's own
+	// answers on (PeerSettings.LocalPort), and connection > remote > port is the
+	// port Ze dials (PeerSettings.Port). Both wrote Port until 2026-09-06, in
+	// this order, so a config setting both lost the local one.
 	if connMap != nil {
 		if connLocalMap, ok := mapMap(connMap, "local"); ok {
 			if v, ok := mapUint32(connLocalMap, "port"); ok {
 				if v < 1 || v > 65535 {
-					return nil, fmt.Errorf("peer %s: port must be 1-65535, got %d", name, v)
+					return nil, fmt.Errorf("peer %s: local port must be 1-65535, got %d", name, v)
 				}
-				ps.Port = uint16(v)
+				ps.LocalPort = uint16(v)
 			}
 		}
 		if connRemoteMap, ok := mapMap(connMap, "remote"); ok {
@@ -276,7 +280,6 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 				if v < 1 || v > 65535 {
 					return nil, fmt.Errorf("peer %s: remote port must be 1-65535, got %d", name, v)
 				}
-				// Use remote port for connection target if set.
 				ps.Port = uint16(v)
 			}
 		}
@@ -293,6 +296,16 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 	if behaviorMap != nil {
 		if v, ok := mapBool(behaviorMap, "rs-fast-path"); ok {
 			ps.RSFastPath = v
+		}
+	}
+
+	// Manual End-of-RIB from behavior > manual-eor. The leaf was declared in
+	// ze-bgp-conf.yang and read by nothing until 2026-09-06, so a config that
+	// said "do not send End-of-RIB" got one anyway, with no log line and no
+	// error (ai/rules/principles.md).
+	if behaviorMap != nil {
+		if v, ok := mapBool(behaviorMap, "manual-eor"); ok {
+			ps.ManualEOR = v
 		}
 	}
 

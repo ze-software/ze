@@ -235,8 +235,26 @@ type PeerSettings struct {
 	// When set, IPv6 unicast MP_REACH_NLRI includes 32-byte next-hop (global + link-local).
 	LinkLocal netip.Addr
 
-	// Port is the peer's BGP port (default 179).
+	// Port is the REMOTE port, the one Ze dials to reach this peer
+	// (connection > remote > port, default 179). Session.Connect joins it with
+	// Address (session_connection.go), and PeerKey uses it as the port half of
+	// the peer map key.
 	Port uint16
+
+	// LocalPort is the port Ze LISTENS on for this peer
+	// (connection > local > port). Zero means the peer shares the daemon's
+	// listener; any other value gives it a listener of its own on
+	// LocalAddress:LocalPort (peerListenPort, reactor_peers.go).
+	//
+	// It is a separate field from Port because the two name different endpoints.
+	// Until 2026-09-06 both leaves wrote Port, so the remote value silently
+	// replaced the local one and an operator's listen port never reached a
+	// socket.
+	//
+	// Ze binds no source port on an outbound connection. A peer that both
+	// listens on LocalPort and dials would otherwise have to bind a port already
+	// in LISTEN state, which the kernel refuses.
+	LocalPort uint16
 
 	// LocalAS is our effective AS number for this session.
 	// Equals the per-peer local-as override when set, otherwise the global local-as.
@@ -329,6 +347,18 @@ type PeerSettings struct {
 	// GroupUpdates indicates whether to group compatible routes in single UPDATE.
 	// Default: true (reduces UPDATE count from O(routes) to O(routes/capacity)).
 	GroupUpdates bool
+
+	// ManualEOR withholds the End-of-RIB this peer's initial sync would send, so
+	// that something else decides when the RIB is complete. An API client that
+	// originates every route wants the marker AFTER its last announce, not after
+	// a config-driven sync that carried none of them.
+	//
+	// RFC 4724 Section 2: "A BGP speaker MAY use the End-of-RIB marker for other
+	// purposes", and Section 4 requires it only of a speaker that advertised
+	// Graceful Restart. The leaf therefore withholds the AUTOMATIC marker and
+	// takes nothing away from a producer that sends one explicitly: AnnounceEOR
+	// still reaches the wire, which is how the operator gets it back.
+	ManualEOR bool
 
 	// IsDynamic marks this peer as created from a dynamic group template.
 	// Dynamic peers are created at connection time, not config time.
