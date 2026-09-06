@@ -86,16 +86,77 @@ announcements this daemon made through the announce registry. That is the
 announce direction. The owner asked for the receive direction, and no command or
 event addresses it today.
 
-**What closing it means.** The implementer faces one choice on requirement 1 and
-one on requirement 4. On the pause: give a peer an explicit administrative state
-the config carries to the reactor, or keep routing deactivate through removal and
-refuse the verb on a peer node the way `unimplementedVRFValidator`
-(`internal/component/config/validators.go`) refuses the `vrf` leaf. Neither is
-obviously right and the owner asked for the feature, so the refusal is a
-placeholder rather than an answer. On the bulk message: carry the contributing
-peer on each route so a peer-scoped purge is actionable, or keep the per-prefix
-list and accept its cost. The first is more work and is the only one that
-satisfies what the owner asked for.
+**Two peer lifecycles, both wanted.** The owner wants a peer to be creatable and
+deletable without going into the configuration, as well as through it. A
+CONFIGURED peer is created by `set bgp peer ...` and a commit. It lives in the
+file and in the reactor and it survives a restart. An EPHEMERAL peer is created
+at runtime, is never written to the file, and is gone on restart.
+`Reactor.AddDynamicPeer` (`internal/component/bgp/reactor/reactor_peers.go`) is
+the seam. Uncommitted work in this checkout already builds `create bgp peer` on
+it (`internal/component/bgp/plugins/cmd/peer/create.go`) together with a fix to
+that function, which was unreachable at HEAD. That work is what exists, and this
+spec does not replace it.
+
+**The reactor cannot tell the two kinds apart.** No peer carries an origin
+marker. `PeerSettings.IsDynamic`
+(`internal/component/bgp/reactor/peer_settings.go`) looks like one and is not:
+its only two setters are `ParseDynamicGroupTemplate`
+(`internal/component/bgp/reactor/config.go`) and `buildDynamicPeerSettings`
+(`internal/component/bgp/reactor/reactor_dynamic.go`), so it marks a peer built
+from a listen-range GROUP template. `AddDynamicPeer` sets no marker at all: it
+calls `parsePeerFromTree` and then `AddPeer`, so a runtime-created peer is
+indistinguishable from a configured one everywhere downstream. The name of the
+function says dynamic and the peer it builds is not. That marker is the first
+thing this spec owes, because every question below is decided by it.
+
+**What the missing marker already costs.** `reconcilePeersJournaled`
+(`internal/component/bgp/reactor/reactor_api.go`) keeps a peer the configuration
+does not name when `IsDynamic` is set, and removes any other peer the
+configuration does not name. An ephemeral peer is not `IsDynamic`, so it takes
+the removal branch. Both branches of `Server.reloadConfig`
+(`internal/component/plugin/server/reload.go`) call `ApplyConfigDiff`, which
+reaches that reconcile (`internal/component/bgp/reactor/reactor.go`). So an
+ephemeral peer does not survive the next commit of any kind, not only a restart.
+
+**`delete bgp peer` diverges the reactor from the file.** `handleBgpPeerRemove`
+(`internal/component/bgp/plugins/cmd/peer/peer.go`) resolves a selector and calls
+`Reactor.RemovePeer`, and it touches no configuration. On an ephemeral peer that
+is correct and complete. On a configured peer the peer returns at the next
+restart, and the transaction's tree still holds it, so the next commit's diff
+sees no change and does not re-add it. The spec must say what happens instead.
+Refusing the verb on a configured peer and routing it to deactivate are both
+candidates. The owner has not chosen and this spec must not choose for him.
+
+**Four words for two ideas.** `deactivate` and `activate` are config editor
+verbs, so they have nothing to act on for an ephemeral peer, which owns no config
+node. `pause` and `resume` are already served, and they mean something else
+entirely: `handleBgpPeerPause`
+(`internal/component/bgp/plugins/cmd/peer/peer.go`) reaches `Reactor.PausePeer`
+(`internal/component/bgp/reactor/reactor_connection.go`), which calls
+`peer.pauseReading()`. That is read-loop backpressure for a slow plugin. The
+session stays established, the TCP connection stays open, and no route is purged.
+So the operator meets four words today, and none of them names an administrative
+pause. The spec must relate the pairs rather than add a fifth word.
+
+**The missing Cease is a conformance gap, not a nicety.** RFC 4271 Section 8.2.2,
+Established State, ManualStop lists "sends the NOTIFICATION message with a Cease"
+first among the actions an operator-initiated stop takes. Ze omits it on every
+route that reaches `Peer.Stop`, which is every removal and every deactivation.
+That framing decides the priority: this is an unmet MUST on a path an operator
+reaches with one command, not a missing convenience. `plan/journal/comment-describes-superseded-behaviour.md`
+carries the row for the page that says otherwise.
+
+**What closing it means.** The implementer faces three choices, and must not
+settle any of them alone. On the pause: give a peer an explicit administrative
+state the config carries to the reactor, or keep routing deactivate through
+removal and refuse the verb on a peer node the way `unimplementedVRFValidator`
+(`internal/component/config/validators.go`) refuses the `vrf` leaf. The owner
+asked for the feature, so the refusal is a placeholder rather than an answer. On
+`delete bgp peer` against a configured peer: refuse it, or route it to
+deactivate. On the bulk message: carry the contributing peer on each route so a
+peer-scoped purge is actionable, or keep the per-prefix list and accept its cost.
+The first is more work and is the only one that satisfies what the owner asked
+for.
 
 ## Required Reading
 
@@ -145,8 +206,29 @@ satisfies what the owner asked for.
 - [ ] `internal/component/bgp/plugins/rs/server_handlers.go` - `handleStateDown` and `sendBatchedWithdrawals` put the withdrawals on the wire for the other clients
 - [ ] `internal/core/bgp/ribevents/ribevents.go` - `BestChangeBatch` and `BestChangeEntry` carry no peer identity and no purge action
 - [ ] `internal/component/bgp/plugins/cmd/announce/registry.go` - `Registry.withdrawAll` acts on announcements Ze made, not on routes Ze received
-- [ ] `internal/component/bgp/plugins/cmd/peer/peer.go` - `handleTeardown` sends a Cease with an operator subcode, and the run loop reconnects afterwards
+- [ ] `internal/component/bgp/plugins/cmd/peer/peer.go` - `handleTeardown` sends a Cease with an operator subcode and the run loop reconnects afterwards. `handleBgpPeerRemove` calls `Reactor.RemovePeer` and touches no configuration. `handleBgpPeerPause` and `handleBgpPeerResume` reach the read-loop flow control
+- [ ] `internal/component/bgp/reactor/reactor_connection.go` - `Reactor.PausePeer` calls `peer.pauseReading()`. The session and the TCP connection both survive, and no route is purged
+- [ ] `internal/component/bgp/reactor/reactor_peers.go` - `AddDynamicPeer` builds a peer from a caller-supplied tree and starts it through `AddPeer`, setting no origin marker
+- [ ] `internal/component/bgp/reactor/peer_settings.go` - `PeerSettings.IsDynamic` marks a peer built from a listen-range group template, not a runtime-created one
+- [ ] `internal/component/bgp/reactor/config.go` - `ParseDynamicGroupTemplate` is one of the two `IsDynamic` setters
+- [ ] `internal/component/bgp/reactor/reactor_dynamic.go` - `buildDynamicPeerSettings` is the other
+- [ ] `internal/component/bgp/reactor/reactor_api.go` - `reconcilePeersJournaled` keeps an `IsDynamic` peer the configuration does not name, and removes every other peer it does not name
+- [ ] `internal/component/plugin/server/reload.go` - both branches of `Server.reloadConfig` call `ApplyConfigDiff`, so every commit reaches that reconcile
+- [ ] `internal/component/bgp/plugins/cmd/peer/create.go` - uncommitted in this checkout. `handleBgpPeerAdd` answers `create bgp peer <address> asn <asn> ...` and calls `AddDynamicPeer`. This is the ephemeral create path as it exists today
 - [ ] `internal/component/bgp/yang/ze-bgp-conf.yang` - no per-peer administrative shutdown leaf exists
+- [ ] `internal/test/fixture/plugin_fixture_13_rest.go` - the fixture behind `test/plugin/rest-peer-set-delete-lifecycle.ci`. It asserts on `show bgp peer * detail` and queries no RIB
+
+**What the existing tests do NOT cover.** No test today asserts that a peer's
+routes leave the Adj-RIB-In and the RIB when the peer is removed or deactivated,
+and none counts the purge events a teardown emits. The two suites closest to the
+behavior stop short of it, so neither may be listed as coverage.
+`test/plugin/rest-peer-set-delete-lifecycle.ci` proves that a commit builds and
+tears down the peer object, through presence and absence in
+`show bgp peer * detail`. `test/plugin/api-peer-remove.ci` proves that
+`delete bgp peer` removes the peer from the peer list.
+`test/plugin/bgp-rs-ipv4-withdrawal.ci` drives an explicit protocol withdrawal
+for one prefix and never removes a peer. Every AC below that names a RIB or an
+event count therefore needs a test that does not exist yet.
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - Removing a peer from the configuration keeps meaning removal. The peer leaves every operational surface and its Path Identifiers are released.
@@ -154,18 +236,37 @@ satisfies what the owner asked for.
 - `publishBestChanges` keeps its per-family event shape and its JSON contract with external plugin processes.
 - `ze-bgp:withdraw-all` keeps acting on the announce registry.
 
+- `create bgp peer` keeps building a peer the configuration does not hold, and `delete bgp peer` keeps deleting an ephemeral peer outright.
+- Read-loop flow control keeps its own verbs and its own meaning, whatever the administrative pause is called.
+
 **Behavior to change:** (only what the user asked for)
 - A deactivated peer becomes a distinct administrative state rather than an absent peer.
 - An operator-initiated stop sends a Cease NOTIFICATION before it drops the connection.
 - A peer's route purge gets a bulk form that does not carry one entry per prefix.
+- A peer records its origin, so a runtime command can tell a configured peer from an ephemeral one.
+- `delete bgp peer` stops diverging the reactor from the file when the peer is a configured one.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `ze config deactivate <file> bgp peer <name>` followed by a commit, and the `activate` inverse.
-- Format at entry: an inactive marker on the peer's list entry in the config tree.
+
+Two lifecycles reach the same reactor, so there are two entry points and one
+shared tail. Stages 6 onward are common to both.
+
+- Configured: `set bgp peer ...`, `ze config deactivate <file> bgp peer <name>` and the `activate` inverse, each followed by a commit. Format at entry: an inactive marker on the peer's list entry in the config tree.
+- Ephemeral: `create bgp peer <address> asn <asn> ...` and `delete bgp peer <selector>`, applied at runtime. Format at entry: command tokens the dispatcher types from `ze-peer-cmd.yang`.
 
 ### Transformation Path
+
+The ephemeral path is two stages long. `handleBgpPeerAdd`
+(`internal/component/bgp/plugins/cmd/peer/create.go`) builds a tree from the
+command tokens and calls `AddDynamicPeer`
+(`internal/component/bgp/reactor/reactor_peers.go`), which parses it and calls
+`AddPeer`. `handleBgpPeerRemove` (`internal/component/bgp/plugins/cmd/peer/peer.go`)
+calls `Reactor.RemovePeer` and joins the configured path at stage 6.
+
+The configured path is:
+
 1. `runDeactivateLike` (`internal/component/config/cli/cmd_deactivate.go`) sets the marker and writes the file.
 2. `parseTreeWithYANG` (`internal/component/config/loader.go`) parses the file and calls `PruneInactive`. This is where the marker is lost today.
 3. `Server.reloadConfig` (`internal/component/plugin/server/reload.go`) diffs the running tree against the candidate tree.
@@ -243,6 +344,9 @@ satisfies what the owner asked for.
 
 <!-- Define BEFORE implementation. Each row is a testable assertion, stated as
      observable behavior, never as the mechanism used to reach it. -->
+Every route criterion below is stated over the RIBs and not over the peer list.
+A peer row appearing or disappearing in `show bgp peer` satisfies none of them.
+
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | An operator deactivates a configured peer and commits | The peer stays visible on the operational surfaces, reported in an administratively down state, with its configured address, ASN and name unchanged |
@@ -251,9 +355,16 @@ satisfies what the owner asked for.
 | AC-4 | An operator removes a configured peer that holds an established session, and commits | Ze sends a Cease NOTIFICATION before it closes the TCP connection, and the peer leaves the operational surfaces |
 | AC-5 | A peer holding a full table is deactivated or removed | The Adj-RIB-In holds no route from that peer afterwards, and the Loc-RIB holds no best path it contributed |
 | AC-6 | The same teardown, observed by another BGP peer that received those routes | The other peer receives a withdrawal for every prefix whose best path the departing peer contributed, and for no other prefix |
-| AC-7 | The same teardown, observed on the event bus | The number of bus messages does not grow with the number of routes the peer held. A consumer that installed those routes removes all of them |
+| AC-7 | A peer carrying many prefixes is deactivated or removed, and the event bus is counted | The purge produces one message rather than one per prefix, and the count does not grow with the number of prefixes the peer held |
 | AC-8 | A consumer receives the bulk purge message for a peer it holds no route from | It removes nothing and it reports no error |
 | AC-9 | A peer under Graceful Restart retention is deactivated | The retained routes follow the existing Graceful Restart rules, and no bulk purge is emitted for them |
+| AC-10 | An operator creates a configured peer and commits, and the peer sends routes | The session reaches Established, and every prefix it announced is readable in the Adj-RIB-In and in the RIB |
+| AC-11 | An operator creates an ephemeral peer with `create bgp peer`, and the peer sends routes | The session reaches Established, and every prefix it announced is readable in the Adj-RIB-In and in the RIB, on the same query an operator uses for a configured peer |
+| AC-12 | An ephemeral peer holding routes is deleted with `delete bgp peer` | The session drops, the Adj-RIB-In holds no route from it, the RIB holds no best path it contributed, and the withdrawals reach every downstream consumer |
+| AC-13 | An operator asks the daemon which peers it holds | Each peer reports whether it is configured or ephemeral, and the answer survives the peer going down and coming back |
+| AC-14 | An operator runs `delete bgp peer` against a CONFIGURED peer | Ze does not leave the reactor and the configuration disagreeing. The chosen answer is uniform, so the same command against the same kind of peer always does the same thing |
+| AC-15 | An ephemeral peer exists, and an operator commits a configuration change that does not name it | The ephemeral peer's fate is the one the spec states, and it is the same whether the commit reached the transaction path or the direct apply path |
+| AC-16 | An operator uses the administrative pause verb and the flow-control pause verb on one peer | Each does its own job, and neither is reachable by the other's name. The flow-control pause leaves the session established and purges no route |
 
 ## End-to-End User Stories
 
@@ -267,10 +378,19 @@ satisfies what the owner asked for.
 
 ## 🧪 TDD Test Plan
 
+**Every row in this plan is a test to WRITE.** None of them exists today, and the
+suites that look adjacent are listed under Current Behavior with what they
+actually assert. A row is satisfied only by a test that reads a RIB or counts
+events, so an assertion over `show bgp peer` output does not close one.
+
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestXxx` | `internal/.../xxx_test.go` | [description] | |
+| `TestPeerRecordsItsOrigin` | `internal/component/bgp/reactor/` | A peer built by `AddDynamicPeer` reports a different origin from one built by the config loader (AC-13) | to write |
+| `TestPurgeEmitsOneMessageForManyPrefixes` | `internal/component/bgp/plugins/rib/` | The purge of a peer holding many prefixes emits a count that does not grow with the prefix count (AC-7) | to write |
+| `TestBulkPurgeForAnUnknownPeerRemovesNothing` | `internal/component/bgp/plugins/rib/` | A consumer given the purge for a peer it holds no route from removes nothing and reports no error (AC-8) | to write |
+| `TestGracefulRestartRetentionSuppressesTheBulkPurge` | `internal/component/bgp/plugins/rib/` | A retained peer emits no bulk purge (AC-9) | to write |
+| `TestOperatorStopSendsCeaseBeforeClose` | `internal/component/bgp/reactor/` | The removal path writes a Cease NOTIFICATION before the connection closes (AC-3, AC-4) | to write |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -281,9 +401,23 @@ satisfies what the owner asked for.
 <!-- REQUIRED: a unit test proves the algorithm, a .ci proves the user can reach
      the feature. New RPCs/APIs are never covered by unit tests alone.
      Structure: ai/patterns/functional-test.md -->
+Each row drives one lifecycle in one direction and asserts on a RIB. The create
+rows prove the routes ARRIVE, the teardown rows prove they LEAVE, and the count
+row proves the bulk purge is bulk.
+
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-xxx` | `test/.../*.ci` | [what the user expects to happen] | |
+| `peer-configured-create-routes-reach-rib` | `test/plugin/` | An operator commits a peer, the peer announces prefixes, and the operator reads them back from the Adj-RIB-In and the RIB (AC-10) | to write |
+| `peer-ephemeral-create-routes-reach-rib` | `test/plugin/` | An operator runs `create bgp peer`, the peer announces prefixes, and the same queries answer for it as for a configured peer (AC-11) | to write |
+| `peer-configured-delete-purges-rib` | `test/plugin/` | An operator removes a committed peer, and the RIB afterwards holds none of its prefixes (AC-5) | to write |
+| `peer-deactivate-purges-rib` | `test/plugin/` | An operator deactivates a committed peer, and the RIB afterwards holds none of its prefixes while the peer stays visible as administratively down (AC-1, AC-5) | to write |
+| `peer-ephemeral-delete-purges-rib` | `test/plugin/` | An operator runs `delete bgp peer` on an ephemeral peer, and the RIB afterwards holds none of its prefixes (AC-12) | to write |
+| `peer-purge-emits-one-event` | `test/plugin/` | A peer carrying many prefixes is torn down, and the consumer counts the purge messages rather than the prefixes (AC-7) | to write |
+| `peer-activate-restores-the-session` | `test/plugin/` | An operator activates a deactivated peer, and the session and its routes return under the same identity (AC-2) | to write |
+| `peer-origin-reported` | `test/plugin/` | An operator asks which peers are configured and which are ephemeral, and gets the right answer for each (AC-13) | to write |
+| `peer-delete-on-a-configured-peer` | `test/plugin/` | An operator runs `delete bgp peer` on a configured peer and meets the answer the spec chose, with the reactor and the file still agreeing (AC-14) | to write |
+| `peer-ephemeral-survives-or-does-not-survive-a-commit` | `test/plugin/` | An ephemeral peer meets a commit that does not name it, and the outcome is the same on both apply paths (AC-15) | to write |
+| `peer-flow-control-pause-keeps-the-session` | `test/plugin/` | An operator uses the flow-control pause and the session stays established with its routes in place (AC-16) | to write |
 
 ### Interop Tests (Scope: protocol)
 <!-- REQUIRED when wire-visible behavior changes. See
@@ -292,15 +426,17 @@ satisfies what the owner asked for.
 
 This spec changes what reaches the wire twice. It adds a Cease NOTIFICATION to an
 operator-initiated stop, and it removes routes another daemon holds. Both are
-peer-observable, so this spec owes an interop scenario. A unit test over the
-purge cannot show that the other daemon dropped the prefixes, so the scenario is
-what proves AC-3, AC-4 and AC-6 against an implementation Ze did not write. The
-scenario directory is named and carries no numeric prefix
-(`ai/rules/interop-and-goal-validation.md`).
+peer-observable, so this spec owes an interop scenario. A functional test can
+read Ze's own RIB and cannot show that the neighbouring daemon dropped the
+prefixes, so the scenario is what proves AC-3, AC-4 and AC-6 against an
+implementation Ze did not write. The scenario directory is named and carries no
+numeric prefix (`ai/rules/interop-and-goal-validation.md`). Neither scenario
+exists today.
 
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `peer-deactivate-withdraws` | `test/interop/scenarios/` | [FRR/BIRD/GoBGP] | The deactivated peer receives a Cease NOTIFICATION, and a third daemon loses every route that peer contributed and no other | |
+| `peer-deactivate-withdraws` | `test/interop/scenarios/` | [FRR/BIRD/GoBGP] | The deactivated peer receives a Cease NOTIFICATION, and a third daemon loses every route that peer contributed and no other | to write |
+| `peer-ephemeral-delete-withdraws` | `test/interop/scenarios/` | [FRR/BIRD/GoBGP] | A peer created by `create bgp peer` and deleted by `delete bgp peer` produces the same Cease and the same withdrawals a configured peer produces | to write |
 
 ## Files to Modify
 <!-- MUST include feature code (internal/*, cmd/*), not only test files.
