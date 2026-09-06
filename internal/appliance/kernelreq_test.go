@@ -73,6 +73,23 @@ func TestEnforceUniversalFloor(t *testing.T) {
 	}
 }
 
+// completeRuntimeConfig renders a kernel config that satisfies the whole runtime
+// floor, plus the extra symbols a test's manifest asks for.
+//
+// It is DERIVED from runtimeKernelRequirements rather than typed out beside it.
+// A hand-written copy is a second declaration of the floor: it went stale the
+// first time a symbol was added, and the failure read as the new symbol being
+// wrong rather than as the fixture being incomplete.
+func completeRuntimeConfig(extra ...string) string {
+	symbols := append(append([]string(nil), extra...), runtimeKernelRequirements...)
+	var b strings.Builder
+	for _, symbol := range symbols {
+		b.WriteString(symbol)
+		b.WriteString("=y\n")
+	}
+	return b.String()
+}
+
 func TestRuntimeFloorEnforced(t *testing.T) {
 	// VALIDATES: AC-8 expects the runtime floor (CONFIG_MODULES + L2TP/PPP set) to be
 	// enforced for the runtime target, giving it the same verified guarantee as the installer.
@@ -84,18 +101,7 @@ func TestRuntimeFloorEnforced(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := filepath.Join(dir, "config")
-	full := strings.Join([]string{
-		"CONFIG_VETH=y",
-		"CONFIG_MODULES=y",
-		"CONFIG_PPP=y",
-		"CONFIG_PPPOE=y",
-		"CONFIG_L2TP=y",
-		"CONFIG_PPPOL2TP=y",
-		"CONFIG_L2TP_V3=y",
-		"CONFIG_INET_ESP=y",
-		"CONFIG_INET6_ESP=y",
-		"CONFIG_XFRM_STATISTICS=y",
-	}, "\n") + "\n"
+	full := completeRuntimeConfig("CONFIG_VETH")
 	if err := os.WriteFile(config, []byte(full), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -129,18 +135,7 @@ func TestRuntimeFloorRequiresESP(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := filepath.Join(dir, "config")
-	full := strings.Join([]string{
-		"CONFIG_VETH=y",
-		"CONFIG_MODULES=y",
-		"CONFIG_PPP=y",
-		"CONFIG_PPPOE=y",
-		"CONFIG_L2TP=y",
-		"CONFIG_PPPOL2TP=y",
-		"CONFIG_L2TP_V3=y",
-		"CONFIG_INET_ESP=y",
-		"CONFIG_INET6_ESP=y",
-		"CONFIG_XFRM_STATISTICS=y",
-	}, "\n") + "\n"
+	full := completeRuntimeConfig("CONFIG_VETH")
 	if err := os.WriteFile(config, []byte(full), 0o644); err != nil {
 		t.Fatal(err)
 	}

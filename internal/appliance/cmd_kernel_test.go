@@ -122,7 +122,7 @@ func writeRuntimeKernelRegistry(t *testing.T) {
 	files := map[string]string{
 		filepath.Join(dir, "kernel.config"):        "CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\n",
 		filepath.Join(dir, "kernel.require"):       "CONFIG_IP_PNP_DHCP\nCONFIG_EXT4_FS\nCONFIG_BLK_DEV_INITRD\nCONFIG_DEVTMPFS_MOUNT\n",
-		filepath.Join(dir, "runtime.config"):       "CONFIG_MODULES=y\nCONFIG_PPP=y\nCONFIG_PPPOE=y\nCONFIG_L2TP=y\nCONFIG_PPPOL2TP=y\nCONFIG_L2TP_V3=y\nCONFIG_VETH=y\nCONFIG_INET_ESP=y\nCONFIG_INET6_ESP=y\nCONFIG_XFRM_STATISTICS=y\n",
+		filepath.Join(dir, "runtime.config"):       completeRuntimeConfig("CONFIG_VETH"),
 		filepath.Join(dir, "runtime.require"):      "CONFIG_MODULES\nCONFIG_VETH\n",
 		filepath.Join(kernelBuilderDir, "main.go"): "package main\n",
 		filepath.Join(nativeDir, "driver.go"):      "package kernelbuilder\n",
@@ -134,11 +134,15 @@ func writeRuntimeKernelRegistry(t *testing.T) {
 	}
 }
 
-const fakeRuntimeConfig = "CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\n" +
-	"CONFIG_MODULES=y\nCONFIG_PPP=y\nCONFIG_PPPOE=y\nCONFIG_L2TP=y\nCONFIG_PPPOL2TP=y\nCONFIG_L2TP_V3=y\nCONFIG_VETH=y\n" +
-	// The IPsec dataplane floor (runtimeKernelRequirements, kernelreq.go). The real
-	// fragment sets these in gokrazy/kernel/runtime.config.
-	"CONFIG_INET_ESP=y\nCONFIG_INET6_ESP=y\nCONFIG_XFRM_STATISTICS=y\n"
+// fakeRuntimeConfig is the resolved config a stub runtime build writes out.
+//
+// It is DERIVED from the two floors in kernelreq.go plus the manifest symbol,
+// rather than typed out here. A copy went short the first time a floor gained a
+// row, and the red then read as the new symbol being wrong instead of as this
+// fixture being incomplete.
+func fakeRuntimeConfig() string {
+	return completeRuntimeConfig(append([]string{"CONFIG_VETH"}, universalKernelRequirements...)...)
+}
 
 func fakeRuntimeBuild(spec kernelBuildSpec) error {
 	if err := os.MkdirAll(filepath.Join(spec.outDir, "lib", "modules", "7.1.1-ze"), 0o755); err != nil {
@@ -150,7 +154,7 @@ func fakeRuntimeBuild(spec kernelBuildSpec) error {
 	if err := os.WriteFile(filepath.Join(spec.outDir, "lib", "modules", "7.1.1-ze", "modules.dep"), []byte(""), 0o644); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(spec.outDir, "config"), []byte(fakeRuntimeConfig), 0o644)
+	return os.WriteFile(filepath.Join(spec.outDir, "config"), []byte(fakeRuntimeConfig()), 0o644)
 }
 
 func TestRunDispatchesKernel(t *testing.T) {
