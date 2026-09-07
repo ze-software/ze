@@ -126,7 +126,7 @@ serves.
 |----------|--------|
 | What breaks if this is wrong? | A plugin that declares legitimately is refused, and its command renders with the wrong operators |
 | How is it reverted? | Single commit revert |
-| Who else touches this path? | `plan/spec-plugin-declares-answer-shape.md`, `plan/immediate/spec-cli-show-bgp-answer-shapes.md` |
+| Who else touches this path? | `plan/spec-plugin-declares-answer-shape.md`, `spec-cli-show-bgp-answer-shapes` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

@@ -243,15 +243,17 @@ A column is never hidden. Ordering decides where a key renders, never whether
 it renders. A field you do not see in the order the command declared is still
 in the table, after the declared ones.
 
-Sixteen commands under `show bgp` declare an order today, and some commands under
-`show config`, `show data`, `show env`, `show schema` and `show yang` declare one
-too. Each declaration is an operator judgment about what leads, so a command
+Commands under `show bgp` declare an order, and so do some commands under
+`show config`, `show data`, `show env`, `show schema` and `show yang`. Two
+channels write them: Go compiled into the daemon, and a plugin's startup
+message. Each declaration is an operator judgment about what leads, so a command
 takes one as somebody makes that judgment. `ze help command "<path>" --json`
-answers what one command declares.
+answers what one command declares, and it reads the two channels together.
 
 <!-- source: internal/component/command/column_order.go -- RegisterColumns, ColumnsForCommand -->
 <!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, bestColumnOrder -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerColumns -->
+<!-- source: internal/component/command/answer_shape.go -- RegisterPluginShapes -->
 
 ### Choosing the columns: `| display` and `| fill`
 

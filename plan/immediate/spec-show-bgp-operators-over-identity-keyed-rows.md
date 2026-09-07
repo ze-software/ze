@@ -111,7 +111,7 @@ that did not declare one. The spec must pick one and say why, for `resolve` and
 |----------|--------|
 | What breaks if this is wrong? | The JSON shape of four `show bgp` answers changes under every reader |
 | How is it reverted? | Single commit revert |
-| Who else touches this path? | `plan/immediate/spec-cli-show-bgp-answer-shapes.md`, `plan/spec-plugin-declares-answer-shape.md` |
+| Who else touches this path? | `spec-cli-show-bgp-answer-shapes`, `plan/spec-plugin-declares-answer-shape.md` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

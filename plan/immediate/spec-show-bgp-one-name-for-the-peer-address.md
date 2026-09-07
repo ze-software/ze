@@ -123,7 +123,7 @@ answer and renaming it is a wire-visible change to every reader of that command.
 |----------|--------|
 | What breaks if this is wrong? | a `show bgp` answer loses its address field for one reader |
 | How is it reverted? | single commit revert |
-| Who else touches this path? | `plan/immediate/spec-cli-show-bgp-answer-shapes.md`, `plan/spec-plugin-declares-answer-shape.md` |
+| Who else touches this path? | `spec-cli-show-bgp-answer-shapes`, `plan/spec-plugin-declares-answer-shape.md` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

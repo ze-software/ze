@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | cli |
-| Depends | `plan/immediate/spec-cli-show-bgp-answer-shapes.md` |
+| Depends | `spec-cli-show-bgp-answer-shapes` |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-09-05 |
@@ -55,7 +55,11 @@ command to the other.
 - [ ] `docs/architecture/cli/pipes.md` - how a displayed-field selection cuts a record
   → Decision: <to be filled>
   → Constraint: <to be filled>
-- [ ] `plan/immediate/spec-cli-show-bgp-answer-shapes.md` - the declaration channel this payload is read through
+- [ ] `docs/architecture/api/commands.md` - "Per-command declarations: what a
+      command says about itself", the declaration channel this payload is read
+      through. It replaces the closed `spec-cli-show-bgp-answer-shapes`, which
+      built the channel and named `show bgp rib best`'s columns
+      (`registerRibAnswerShapes`, `internal/component/bgp/plugins/cmd/rib/rib.go`)
   → Constraint: <to be filled>
 
 **Key insights:** (minimal context to resume after compaction)
