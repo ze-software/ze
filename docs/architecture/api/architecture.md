@@ -668,8 +668,8 @@ Reactor.AnnounceRoute(peerSelector, RouteSpec)
     │ getMatchingPeers(), build NLRI
     ▼
 Per Peer:
-    ├─ InTransaction? → Adj-RIB-Out.QueueAnnounce()
-    ├─ Established?   → SendUpdate() + MarkSent()
+    ├─ Named commit?  → Transaction.QueueAnnounce()
+    ├─ Established?   → SendUpdate()
     └─ Down?          → opQueue (send when up)
 ```
 
@@ -691,12 +691,13 @@ Reactor.AnnounceLabeledUnicast(peerSelector, LabeledUnicastRoute)
     │      - AS_PATH (empty for iBGP, LocalAS prepend for eBGP)
     ▼
 Per Peer:
-    ├─ InTransaction? → Adj-RIB-Out.QueueAnnounce(ribRoute)
+    ├─ Named commit?  → Transaction.QueueAnnounce(ribRoute)
     │                   Queued for commit
     │
     ├─ Established?   → buildLabeledUnicastParams() → BuildLabeledUnicast()
-    │                   SendUpdate() + MarkSent(ribRoute)
-    │                   Tracks for re-announcement on reconnect
+    │                   SendUpdate()
+    │                   The bgp-rib plugin records the sent route and
+    │                   replays it on reconnect
     │
     └─ Down?          → peer.QueueAnnounce(ribRoute)
                         Sent when session establishes
@@ -966,7 +967,7 @@ RollbackTransaction(peerSelector)      // Discard pending
 
 Transaction flow:
 1. `begin transaction batch1` - Mark peers in transaction mode
-2. Routes → `Adj-RIB-Out.QueueAnnounce()` (queued, not sent)
+2. Routes → `Transaction.QueueAnnounce()` (queued, not sent)
 3. `commit transaction` - Flush all queued, send EOR
 <!-- source: internal/component/bgp/transaction/commit_manager.go -- CommitManager, Transaction -->
 
@@ -1230,33 +1231,27 @@ type PendingRequests struct {
 
 See `process-protocol.md` for full protocol details.
 
-## Adj-RIB-Out (API Owned)
+## Adj-RIB-Out (Plugin Owned)
 
-> **Note:** Adj-RIB-Out is now owned by API programs, not the engine.
-> The engine has no route storage - it delegates to API.
+> **Note:** the engine holds no Adj-RIB-Out. It stores no route at all.
 
-API programs use `internal/component/bgp/rib/` as reference implementation:
+The Adj-RIB-Out that Ze itself keeps belongs to the `bgp-rib` plugin, which
+records what each peer was sent and replays it when the session comes back up.
+An API program that wants its own view builds it in its own process from the
+events the plugin publishes.
 
-```go
-// In API program
-type RIB struct {
-    mu     sync.RWMutex
-    routes map[string]map[string]*Route  // peer → routeKey → route
-}
+`internal/component/bgp/rib/` is not that store and is not a reference
+implementation of one. It carries `rib.Route`, a 96-byte transient value the
+named-commit path hands to `CommitService`, and nothing retains it. Its
+Adj-RIB-In and Adj-RIB-Out types were deleted once every symbol they declared
+was shown to have no non-test caller.
 
-type Route struct {
-    AttrHandle  pool.Handle  // Interned attributes
-    NLRIHandle  pool.Handle  // Interned NLRI
-    MsgID       uint64       // For send bgp <sel> cached <id>
-    SourceCtxID uint16       // Encoding context
-}
-```
+<!-- source: internal/component/bgp/plugins/rib/ribout_entry.go -- ribOutEntry, the per-peer sent-route record -->
+<!-- source: internal/component/bgp/rib/route.go -- Route, the transient the commit path builds -->
+<!-- source: internal/component/bgp/transaction/commit_manager.go -- Transaction, QueueAnnounce -->
 
-Key operations:
-- `Insert(peer, route)` - Store route from peer
-- `Remove(peer, prefix)` - Remove route
-- `GetPeerRoutes(peer)` - Get all routes from peer
-- `ClearPeer(peer)` - Remove all routes from peer
+See `docs/architecture/pool-architecture.md` for the per-route byte model and
+`docs/architecture/bgp/replay-cursor.md` for the replay.
 
 ## Route Reflection via API (Cache Pattern)
 
