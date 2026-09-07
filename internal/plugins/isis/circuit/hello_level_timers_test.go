@@ -134,9 +134,10 @@ func TestISISSendHelloRefusesUnformedLevel(t *testing.T) {
 }
 
 // TestISISP2PRunsOneHelloSchedule: a point-to-point circuit sends ONE IIH that
-// serves both levels (RFC 5303 section 3: the P2P IIH carries no level bit), so
-// it runs one Hello timer and the holding time it advertises is the one of the
-// level that timer runs at. Two periods would have nothing to apply to.
+// serves both levels (RFC 1195 sec 5.3.3 names the point-to-point IIH with no
+// level, beside a LAN IIH named once per level in 5.3.1 and 5.3.2), so it runs
+// one Hello timer and the holding time it advertises is the one of the level
+// that timer runs at. Two periods would have nothing to apply to.
 func TestISISP2PRunsOneHelloSchedule(t *testing.T) {
 	s := &fakeSender{mtu: 1500}
 	c := levelTimerCircuit(t, s, adjacency.KindP2P,

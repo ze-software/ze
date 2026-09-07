@@ -63,8 +63,9 @@ schedule. `SendHello` takes the level that fired, and refuses a level the circui
 does not form rather than sending an IIH the operator did not configure.
 
 A point-to-point circuit publishes exactly one schedule. Its single IIH is
-level-agnostic on the wire (RFC 5303 section 3), so two periods would have
-nothing to apply to. The schedule takes the circuit's preferred point-to-point
+level-agnostic on the wire, so two periods would have nothing to apply to. RFC
+1195 section 5.3 names the LAN IIH once per level (5.3.1, 5.3.2) and the
+point-to-point IIH once, with no level in its name (5.3.3). The schedule takes the circuit's preferred point-to-point
 level, which is Level-1 whenever the circuit forms Level-1, and the holding time
 that IIH advertises comes from the same level, so it matches the period the IIH
 really goes out at.

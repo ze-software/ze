@@ -93,8 +93,11 @@ field it zeroes, so the scratch is reusable across candidate keys.
 
 ## Trap: a point-to-point hello is level-agnostic on the wire
 
-RFC 5303 defines one PDU type with no level bit, so a receiver cannot tell from
-the bytes which level negotiated. The sender signs with the **negotiated
+There is one point-to-point IIH PDU type and it carries no level bit, so a
+receiver cannot tell from the bytes which level negotiated. RFC 1195 section 5.3
+names the LAN IIH once per level (5.3.1 "Level 1 LAN IS to IS Hello PDU", 5.3.2
+"Level 2 LAN IS to IS Hello PDU") and the point-to-point IIH once, with no level
+in its name (5.3.3 "Point-to-Point IS to IS Hello PDU"). The sender signs with the **negotiated
 adjacency level's** hello chain, and on a level-1-and-2 circuit the two chains
 can differ.
 

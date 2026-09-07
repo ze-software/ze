@@ -62,7 +62,9 @@ one timer for the single level-agnostic IIH it sends.
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc5303.md` - the point-to-point IIH and its three-way TLV
-  → Constraint: the P2P IIH is level-agnostic on the wire, so a point-to-point circuit has one IIH to time and one holding time to advertise
+  → Constraint: RFC 5303 defines TLV 240 and nothing about levels. `grep -n -i level rfc/full/rfc5303.txt` answers one line, the RFC 2119 boilerplate, so it is NOT authority for the level-agnostic point-to-point IIH and the closure moved every such citation off it
+- [ ] `rfc/full/rfc1195.txt` section 5.3 - the PDU list Ze cites for the level-agnostic point-to-point IIH
+  → Constraint: 5.3 names the LAN IIH once per level (5.3.1 "Level 1 LAN IS to IS Hello PDU", 5.3.2 "Level 2 LAN IS to IS Hello PDU") and the point-to-point IIH once with no level in its name (5.3.3 "Point-to-Point IS to IS Hello PDU"), so a point-to-point circuit has one IIH to time and one holding time to advertise
 - [ ] `iso/short/iso10589.md` - the hold time definition Ze implements
   → Constraint: hold time = hello interval * hold multiplier. The summary says nothing about a per-level timer, and the ISO text is not in the repository, so the committed `ze:help` citation of "clause 10.9" was NOT verifiable and was removed rather than repeated
 
@@ -138,7 +140,7 @@ one timer for the single level-agnostic IIH it sends.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | A broadcast circuit's two levels are separate PDUs to separate groups, so two periods are meaningful | `internal/plugins/isis/transport/multicast.go`, `packet/header.go` PDU types 15 and 16 | Two tickers would send the same PDU twice | `TestISISPerLevelHelloTimersReachTheWire` asserts the destination group per level | confirmed |
-| A-2 | A point-to-point IIH carries no level, so it can only be timed once | `rfc/short/rfc5303.md`, `sendP2PHello` sends to both groups | Two P2P tickers would double the IIH rate | `TestISISP2PRunsOneHelloSchedule` | confirmed |
+| A-2 | A point-to-point IIH carries no level, so it can only be timed once | `rfc/full/rfc1195.txt` section 5.3 (5.3.1/5.3.2 name a LAN IIH per level, 5.3.3 names one point-to-point IIH), `sendP2PHello` sends to both groups | Two P2P tickers would double the IIH rate | `TestISISP2PRunsOneHelloSchedule` | confirmed; its basis was corrected at closure from `rfc/short/rfc5303.md`, which says nothing about levels |
 | A-3 | FRR records the holding time of each level's IIH separately | FRR's `show isis neighbor` prints one row per level with a Holdtime column | The interop assertion would read one number for two levels | the red run read 28 twice and the green run read the two overrides apart | confirmed |
 | A-4 | No committed config can ask for a zero per-level timer, so a zero means "not set" | `ze-isis-conf.yang` bounds both leaves (1..65535, 1..255) | A legitimate zero would be read as unset | `TestISISLevelHelloTimersResolution` covers the unset, half-set and maximum cases | confirmed |
 
@@ -234,7 +236,7 @@ one timer for the single level-agnostic IIH it sends.
      the test FAILS when the behavior under test is reverted. -->
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `isis-per-level-hello-frr` | `test/interop/scenarios/` | FRR 10.3.1 | AC-9: FRR decodes the Holding Time of each level's LAN IIH and reads back 9 seconds at Level-1 and 120 at Level-2, from a circuit whose circuit-wide pair is 30. The Level-1 adjacency also survives a window longer than the 9 seconds it advertised, which only a 3-second Level-1 period sustains | pass; RED proven by reverting `levelHelloTimers` |
+| `isis-per-level-hello-frr` | `test/interop/scenarios/` | FRR 10.3.1 | AC-9: FRR decodes the Holding Time of each level's LAN IIH and reads back 9 seconds at Level-1 and 120 at Level-2, on a circuit whose circuit-wide pair of 10 and 3 advertises 30 at both levels. The Level-1 adjacency also survives a window longer than the 9 seconds it advertised, which only a 3-second Level-1 period sustains | pass; RED proven by reverting `levelHelloTimers` |
 
 ## Files to Modify
 <!-- MUST include feature code (internal/*, cmd/*), not only test files.
@@ -398,15 +400,25 @@ The behavior is ISO/IEC 10589, not an RFC Ze holds text for. `HoldTime`
 (`internal/plugins/isis/circuit/hello.go`) already carries the clause 8.2
 citation for hold time = interval * multiplier, and the per-level code repeats
 it where it derives a holding time. The one RFC citation this change adds is RFC
-5303 section 3 for the level-agnostic point-to-point IIH, above
+1195 section 5.3 for the level-agnostic point-to-point IIH, above
 `HelloSchedules` and `buildP2PHello`, which is why a point-to-point circuit runs
-one timer.
+one timer. That section names the LAN IIH once per level (5.3.1 "Level 1 LAN IS
+to IS Hello PDU", 5.3.2 "Level 2 LAN IS to IS Hello PDU") and the point-to-point
+IIH once, with no level in its name (5.3.3 "Point-to-Point IS to IS Hello PDU").
 
 The committed `ze:help` cited "ISO/IEC 10589 section 10.9" for a per-level hello
 timer. That citation was NOT verifiable: the standard text is not in the
 repository and `iso/short/iso10589.md` is a summary that says nothing about it.
 The rewritten help states the mechanism Ze implements and cites nothing it
 cannot show.
+
+The implementation wrote "RFC 5303 sec 3" for the level-agnostic point-to-point
+IIH, which is the same failure one paragraph up and the closure fixed it. RFC
+5303 defines TLV 240 and never mentions a level: `grep -n -i level
+rfc/full/rfc5303.txt` answers one line, the RFC 2119 boilerplate in the
+references. Four sites in this change and four that predate it were repointed at
+RFC 1195 section 5.3, and the class is recorded in
+`plan/journal/reference-checked-claim-unchecked.md`.
 
 ## Checklist
 
@@ -462,3 +474,202 @@ prove, then passing with the code restored.
 | `Circuit.timers` answers the Level-1 pair for every level | `TestISISPerLevelHelloSchedulesOnBroadcast`, `TestISISPerLevelHelloScheduleSingleLevel`, `TestISISPerLevelHoldingTimeInLANIIH`, `TestISISP2PL2OnlyTakesItsOwnTimers` | `HelloSchedules()[1] = {Level:l2 Period:3s}, want {Level:l2 Period:30s}`; `L2 IIH hold 9, want 60` |
 | `SendHello` drops the `formsLevel` guard | `TestISISSendHelloRefusesUnformedLevel` | `SendHello(Level2) on an L1-only circuit sent 1 PDUs, want 0` |
 | `levelHelloTimers` ignores the override, image rebuilt | `isis-per-level-hello-frr` | `FRR read a Level-1 holding time of 28s, over the 15s bound the level-1 override (3 * 3) puts it under`, with FRR's table showing Holdtime 28 at BOTH levels. With the fix restored the scenario passes |
+
+## Implementation Summary
+
+### What Was Implemented
+- `levelHelloTimers` (`internal/plugins/isis/circuits.go`) resolves one `circuit.LevelTimers` pair per level: the per-level `hello-interval` / `hold-multiplier` when set, else the circuit-wide leaf, else the YANG default. It mirrors `levelMetric` and `disPriority`, so all four per-level override kinds now resolve the same way.
+- `circuit.LevelTimers`, `Config.Level1` and `Config.Level2` (`circuit/circuit.go`) replace the single `Config.HelloInterval` / `HoldMult` pair and the precomputed `holdTime` field. `Circuit.timers(level)` and `Circuit.holdTime(level)` answer per level.
+- `HelloSchedules` and `helloPeriod` (`circuit/runtime.go`) publish one schedule per level a broadcast circuit forms and exactly one for a point-to-point circuit. `helloPeriod` floors the period at one second, so a Go-built `Config` with no timers cannot panic `time.NewTicker`.
+- `SendHello(level)` (`circuit/runtime.go`) takes the level whose timer fired and returns an error for a level the circuit does not form. `sendLANHellos` became `sendLANHello`, sending one PDU per call.
+- `launchCircuitGoroutine` (`circuits.go`) starts one ticker per schedule and sends the initial Hello at every level.
+- `circuitParamsEqual` (`internal/plugins/isis/server.go`) compares `Level1` and `Level2` whole, so a committed per-level edit reconciles as a change.
+- The six `ze:help` strings on the level containers and the four leaves (`yang/ze-isis-conf.yang`) describe the override the leaves now are.
+- `isis-per-level-hello-frr` and `checkISISPerLevelHelloTimers` (`internal/le/interoplab/bgp/check_isis.go`, registered in `check_special.go`) read both holding times back out of FRR 10.3.1.
+
+### Bugs Found/Fixed
+- Eight sites cited "RFC 5303 sec 3" for the level-agnostic point-to-point IIH. RFC 5303 defines TLV 240 and never mentions a level. Four sites were this change's, four predate it. All eight now cite RFC 1195 section 5.3. Recorded in `plan/journal/reference-checked-claim-unchecked.md`; no test covers a citation, so nothing was red.
+- `docs/functional-tests.md` enumerated "The seven FRR interop scenarios" for IS-IS. Nine exist: this spec added `isis-per-level-hello-frr`, and `isis-max-metric-frr` was already missing. The sentence now names nine and describes the two it omitted.
+- The reconcile gap (a parameter change stored and never applied to a running circuit) was found while wiring this and journalled in `plan/journal/unwired-feature.md` with commit `2adbf6a44`. It does not block this spec: see Known Limitations.
+
+### Documentation Updates
+- `docs/architecture/isis/isis-5-adjacency.md` gained "Decision: one hello timer per level, not per circuit", with `<!-- source: internal/plugins/isis/circuit/runtime.go -- HelloSchedules, helloPeriod, SendHello -->` and `<!-- source: internal/plugins/isis/circuits.go -- levelHelloTimers, the per-schedule tickers -->`. Its RFC 5303 sentence was repointed at RFC 1195 section 5.3 at closure.
+- `docs/architecture/isis/isis-10-auth.md`, "Trap: a point-to-point hello is level-agnostic on the wire": the false claim "RFC 5303 defines one PDU type with no level bit" was replaced with the RFC 1195 section 5.3 evidence. Pre-existing; fixed here because it is the same claim.
+- `docs/functional-tests.md`: the IS-IS interop paragraph now names nine scenarios and carries `<!-- source: internal/le/interoplab/bgp/check_isis.go -- checkISISMaxLinkMetric, checkISISPerLevelHelloTimers -->`.
+- `./le doc check verify`: see Pre-Commit Verification.
+- Verified as needing NO edit: `docs/guide/isis.md` (grep for `hello`/`hold` returns five hits, none a timer section), `docs/architecture/testing/interop.md` (grep for `isis` returns nothing, so it names no scenario), `docs/guide/configuration.md` (the changed strings are `ze:help`, and `internal/le/site/testdata/published-configuration.md` renders `description`, which did not change), `docs/architecture/isis/isis-4-component-config.md` (its one reconcile sentence says a metric-only diff "flaps no circuit", still true).
+
+### Deviations from Plan
+- The Task section offered two arms, build the timers or refuse the four leaves at commit. The build arm was taken, as the Key Design Decisions table records. No other deviation.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The change cited RFC 5303 section 3 in four new places for the claim that the point-to-point IIH carries no level | RFC 5303 defines TLV 240 and the word "level" appears once in it, in the RFC 2119 boilerplate. The fact lives in ISO/IEC 10589 clause 9.7, whose text the repository does not hold, and is verifiable in-repo from RFC 1195 section 5.3 | Closure opened `rfc/full/rfc5303.txt` to verify the one RFC citation the spec's RFC Documentation section says it adds | Fixed at all eight sites, four of them pre-existing. Journal row in `plan/journal/reference-checked-claim-unchecked.md` |
+| approach | The same spec had just DELETED an unverifiable "ISO/IEC 10589 section 10.9" from the YANG help, and then wrote an unverifiable RFC citation of its own | Removing one bad citation does not check the ones a change adds | The same read | The spec section that ANNOUNCES the citation a change adds is the cheapest place to check it, which is where closure caught this one |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The four per-level leaves change what Ze sends | Done | `levelHelloTimers` (`internal/plugins/isis/circuits.go`) | Was parsed into `LevelInterfaceConfig` with no reader |
+| A broadcast circuit runs one hello timer per level | Done | `HelloSchedules` (`circuit/runtime.go`), the two tickers in `launchCircuitGoroutine` (`circuits.go`) | |
+| A point-to-point circuit runs one timer for its single level-agnostic IIH | Done | `HelloSchedules`, `p2pPreferredLevel` (`circuit/runtime.go`) | |
+| Each IIH advertises the holding time of its own level | Done | `Circuit.holdTime` (`circuit/circuit.go`), `buildLANHello` / `buildP2PHello` (`circuit/hello.go`) | |
+| The `ze:help` stops saying the leaves are inert | Done | `yang/ze-isis-conf.yang` | `grep -c "stored and not acted on"` answers 0 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestISISLevelHelloTimersResolution/a_level-1_override_replaces_the_circuit-wide_pair_at_Level-1_only` | Starts from the config text |
+| AC-2 | Done | `TestISISPerLevelHelloSchedulesOnBroadcast`, `TestISISPerLevelHelloScheduleSingleLevel` | |
+| AC-3 | Done | `TestISISPerLevelHoldingTimeInLANIIH`, `TestISISPerLevelHelloTimersReachTheWire` | The wiring test also asserts the destination multicast group per level |
+| AC-4 | Done | `TestISISP2PRunsOneHelloSchedule`, `TestISISP2PL2OnlyTakesItsOwnTimers` | |
+| AC-5 | Done | `TestISISSendHelloRefusesUnformedLevel` | Asserts the error AND that nothing was sent |
+| AC-6 | Done | `TestISISLevelHelloTimersResolution` cases 1, 2, 5, 6 | Unset, circuit-wide, half-override and default-fallback |
+| AC-7 | Done | `TestISISHelloScheduleNeverZeroPeriod` | `helloPeriod` floors at one second |
+| AC-8 | Done | `TestISISLevelTimerChangeIsNotUnchanged` | `circuitParamsEqual` compares both containers whole |
+| AC-9 | Done | `isis-per-level-hello-frr`, assertions 2 and 3 | FRR 10.3.1 reads 9 at Level-1 and 120 at Level-2 |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestISISLevelHelloTimersResolution` | Done | `internal/plugins/isis/level_hello_timers_test.go` | 7 subtests, not the 5 the plan wrote |
+| `TestISISPerLevelHelloTimersReachTheWire` | Done | `internal/plugins/isis/level_hello_timers_test.go` | |
+| `TestISISLevelTimerChangeIsNotUnchanged` | Done | `internal/plugins/isis/level_hello_timers_test.go` | |
+| `TestISISPerLevelHelloSchedulesOnBroadcast` | Done | `internal/plugins/isis/circuit/hello_level_timers_test.go` | |
+| `TestISISPerLevelHelloScheduleSingleLevel` | Done | `internal/plugins/isis/circuit/hello_level_timers_test.go` | |
+| `TestISISPerLevelHoldingTimeInLANIIH` | Done | `internal/plugins/isis/circuit/hello_level_timers_test.go` | |
+| `TestISISSendHelloRefusesUnformedLevel` | Done | `internal/plugins/isis/circuit/hello_level_timers_test.go` | |
+| `TestISISP2PRunsOneHelloSchedule` | Done | `internal/plugins/isis/circuit/hello_level_timers_test.go` | |
+| `TestISISP2PL2OnlyTakesItsOwnTimers` | Done | `internal/plugins/isis/circuit/hello_level_timers_test.go` | |
+| `TestISISHelloScheduleNeverZeroPeriod` | Done | `internal/plugins/isis/circuit/hello_level_timers_test.go` | |
+| `TestISISPerLevelHelloNeighborTable` | Done | `internal/le/interoplab/bgp/bgp_test.go` | Covers `parseISISNeighbors` / `upAtLevel` |
+| `isis-per-level-hello-frr` | Done | `test/interop/scenarios/isis-per-level-hello-frr/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/plugins/isis/circuit/circuit.go` | Done | `LevelTimers`, `Config.Level1`/`.Level2`, `timers`, `holdTime` |
+| `internal/plugins/isis/circuit/runtime.go` | Done | `HelloSchedule`, `HelloSchedules`, `helloPeriod`, `SendHello(level)`, `sendLANHello` |
+| `internal/plugins/isis/circuit/hello.go` | Done | Both builders take the level's holding time |
+| `internal/plugins/isis/circuits.go` | Done | `levelHelloTimers`, the per-schedule tickers |
+| `internal/plugins/isis/server.go` | Done | `circuitParamsEqual` |
+| `internal/plugins/isis/yang/ze-isis-conf.yang` | Done | Six help strings |
+| `docs/architecture/isis/isis-5-adjacency.md` | Done | New decision section, plus the closure's citation repoint |
+| `docs/architecture/isis/isis-4-component-config.md` | Changed | Named UNAFFECTED in the plan and confirmed so at closure: no edit |
+| `internal/le/interoplab/bgp/check_isis.go`, `check_special.go` | Done | Checker and registration |
+| `internal/plugins/isis/circuit/hello_level_timers_test.go` | Done | Created |
+| `internal/plugins/isis/level_hello_timers_test.go` | Done | Created |
+| `test/interop/scenarios/isis-per-level-hello-frr/{ze,frr}.conf` | Done | Created |
+| `internal/plugins/isis/auth_wiring.go`, `circuit/runtime_test.go`, `docs/architecture/isis/isis-10-auth.md`, `docs/functional-tests.md` | Changed | Not in the plan. Closure repairs: the RFC 5303 mis-citation and the seven-scenario count |
+
+### Audit Summary
+- **Total items:** 38 (5 requirements, 9 ACs, 12 tests, 12 planned files)
+- **Done:** 36
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (`isis-4-component-config.md` confirmed unaffected; four unplanned files edited by the closure's repairs, recorded in Deviations and the Mistake Log)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A circuit runs a fast Level-1 hello and a slow Level-2 hello | interop | `isis-per-level-hello-frr` assertion 3: the Level-1 adjacency is still Up after a 20-second settle against the 9-second holding time it advertised, which only a 3-second Level-1 period sustains. The circuit-wide period is 10 seconds |
+| A circuit advertises a different holding time at each level | interop | `isis-per-level-hello-frr` assertion 2: FRR 10.3.1's `show isis neighbor` reports a Level-1 holdtime at or under 15 and a Level-2 holdtime at or over 60, from a circuit whose circuit-wide pair advertises 30 at both. The RED run read 28 at BOTH levels |
+| The four leaves stop being inert | data correctness | `TestISISPerLevelHelloTimersReachTheWire` decodes the IIH the engine sent and asserts holding time 9 at Level-1 and 60 at Level-2, plus the destination multicast group per level. RED against a `levelHelloTimers` that ignores the override: `l1 IIH holding time = 30, want 9` |
+| A committed per-level change is not read as unchanged | functional | `TestISISLevelTimerChangeIsNotUnchanged`, RED against a `circuitParamsEqual` without the two container comparisons |
+| The schema stops contradicting the code | data correctness | `grep -c "stored and not acted on" internal/plugins/isis/yang/ze-isis-conf.yang` answers 0 |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Nothing | Every AC has product code and a test, and every planned file landed | - |
+
+Two boundaries the spec DECLARED as out of scope stay out of scope and are not
+work this spec left undone. Both are in Known Limitations, both predate this
+change and cover the circuit-wide leaves identically, and neither is a
+regression this spec introduced: applying a parameter change to a RUNNING
+circuit (journalled at `plan/journal/unwired-feature.md`, 2026-09-06, because it
+is one decision about which parameters can be updated without flapping an
+adjacency), and making `show isis interface` report per level (one decision
+covering all four override kinds).
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/isis-per-level-hello-timers-d64e7b3f-bfdc-4614-8db4-f12043eb77cc.md`, 18 files, verdict=clean |
+| `./le spec session review check` | `review_gate: OK (0 code files, clean, hashes match ...)` |
+| Rounds | 2. Round 1 found the two ISSUEs below; round 2 over the fixes found nothing above NOTE |
+| Reviewer lenses used | wiring + removed-behavior audit; RFC conformance + citation verification against `rfc/full/`; documentation drift + Go style pass over every changed file |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | "RFC 5303 sec 3" cited for the level-agnostic point-to-point IIH. RFC 5303 defines TLV 240; `grep -n -i level rfc/full/rfc5303.txt` answers only the RFC 2119 boilerplate, so the document says nothing about levels. Four sites added by this change, four pre-existing | `circuit/circuit.go` `Config.Level1`, `circuit/runtime.go` `HelloSchedules` and `sendP2PHello`, `circuit/hello.go` `buildP2PHello`, `auth_wiring.go` `verifyFrame`, `circuit/runtime_test.go`, `circuit/hello_level_timers_test.go`, `docs/architecture/isis/isis-5-adjacency.md`, `docs/architecture/isis/isis-10-auth.md` | Repointed at RFC 1195 section 5.3, whose subsection list names the LAN IIH once per level (5.3.1, 5.3.2) and the point-to-point IIH once with no level in its name (5.3.3). Journal row in `plan/journal/reference-checked-claim-unchecked.md` |
+| 2 | ISSUE | `docs/functional-tests.md` enumerated "The seven FRR interop scenarios" and listed seven stems. Nine tracked scenarios exist under `test/interop/scenarios/isis-*`, and this change added the ninth | `docs/functional-tests.md`, the IS-IS interop paragraph | Rewritten to name nine, with a sentence each for `isis-max-metric-frr` and `isis-per-level-hello-frr`, and a source anchor on `check_isis.go` |
+
+NOTEs recorded and not fixed: `secondC` in `launchCircuitGoroutine` names a
+channel by its ordinal plus its Go type letter; `circuitParamsEqual` compares
+`Level2` on an L1-only circuit, where the container is ignored, which is
+conservative rather than wrong. `./le repository check` reports one unwired
+export in `internal/component/bgp/reactor/filter_delta.go`, an uncommitted file
+belonging to another session and outside this diff.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/plugins/isis/circuit/hello_level_timers_test.go` | Yes | `ls -la` reports 8312 bytes |
+| `internal/plugins/isis/level_hello_timers_test.go` | Yes | `ls -la` reports 10210 bytes |
+| `test/interop/scenarios/isis-per-level-hello-frr/ze.conf` | Yes | `ls -la` reports 1550 bytes |
+| `test/interop/scenarios/isis-per-level-hello-frr/frr.conf` | Yes | `ls -la` reports 632 bytes |
+| `test/isis/isis-config.ci` | Yes | `ls -la` reports 1893 bytes, unchanged by this spec |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-6 | The override replaces the circuit-wide value at its own level; unset falls back | `./le job run label isis-close command go test ./internal/plugins/isis/...` -> `ok github.com/ze-software/ze/internal/plugins/isis 69.647s`, which runs `TestISISLevelHelloTimersResolution`'s 7 subtests |
+| AC-2, AC-3, AC-4, AC-5, AC-7 | One schedule per level, per-level holding time, one P2P schedule, the refusal, the period floor | The same run -> `ok github.com/ze-software/ze/internal/plugins/isis/circuit 0.023s`, which runs the eight `hello_level_timers_test.go` tests |
+| AC-8 | Reconcile sees a per-level timer change | The same run; `TestISISLevelTimerChangeIsNotUnchanged` is in the `isis` package result above |
+| AC-9 | FRR reads one holding time per level | `checkISISPerLevelHelloTimers` (`internal/le/interoplab/bgp/check_isis.go`) is registered in `check_special.go` for `isis-per-level-hello-frr`; its table parser is covered by `TestISISPerLevelHelloNeighborTable`, run fresh: `--- PASS: TestISISPerLevelHelloNeighborTable (0.00s)` |
+| Deliverable 3 | The schema no longer says the leaves are inert | `grep -c "stored and not acted on" internal/plugins/isis/yang/ze-isis-conf.yang` answers `0` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `interfaces/interface/eth0/level-1/hello-interval` in the config text | `internal/plugins/isis/level_hello_timers_test.go` (`TestISISPerLevelHelloTimersReachTheWire`) | Yes. Read in full: it calls `parseISISConfig` on the config TEXT, `eng.openCircuits()`, `eng.buildCircuit`, then `c.HelloSchedules()` and `c.SendHello(level)`, and decodes the captured PDU with `packet.DecodePDU`, asserting the Holding Time field and the destination MAC from `transport.MulticastMACForLevel`. No stub stands in for the parser, the resolver or the encoder |
+| The same config in a running daemon on a LAN with FRR | `test/interop/scenarios/isis-per-level-hello-frr/ze.conf` + `checkISISPerLevelHelloTimers` | Yes. Read in full: `ze.conf` sets circuit-wide 10/3 with level-1 3/3 and level-2 30/4, and the checker parses FRR's `show isis neighbor` and bounds the Level-1 holdtime at 15 and the Level-2 holdtime at 60, either of which the circuit-wide 30 fails |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestISISPerLevelHelloTimersReachTheWire` asserts the destination MAC per level against `transport.MulticastMACForLevel`, so the two levels really are separate PDUs to separate groups |
+| A-2 | confirmed | `TestISISP2PRunsOneHelloSchedule` asserts a one-element slice on an L1L2 P2P circuit. Its BASIS was corrected at closure: `rfc/full/rfc1195.txt` section 5.3 rather than `rfc/short/rfc5303.md`, which says nothing about levels |
+| A-3 | confirmed | The RED run of `isis-per-level-hello-frr` read Holdtime 28 on both rows of FRR's table; the green run read the two overrides apart |
+| A-4 | confirmed | `TestISISLevelHelloTimersResolution` covers the unset, half-set and maximum cases, and `ze-isis-conf.yang` bounds both leaves away from zero (`range "1..65535"`, `range "1..255"`) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Row 12 Yes: `isis-5-adjacency.md` gains the per-level timer decision | The page's new section names `HelloSchedules`, `SendHello`, `p2pPreferredLevel` and `levelHelloTimers`, each read at its producing function | Yes |
+| Row 10 Yes: test infrastructure changed | `docs/architecture/testing/interop.md` names no scenario (`grep -n isis` answers nothing), so it needed no edit. `docs/functional-tests.md` DID need one and was wrong: fixed, see Findings fixed #2 | Yes, after repair |
+| Row 16 Yes: changed files under existing source anchors | `grep -rn "source: internal/plugins/isis" docs/` names `spf/`, `lsdb/`, `register.go`, `packet/`, `transport/`, `redistribute/` and `own_lsp_conflict.go`. None is a file this change touched, except `server.go` through the dispatcher anchor in `docs/architecture/isis/isis-4-component-config.md`, whose claim is the PDU dispatcher and circuit lifecycle and is unchanged | Yes |
+| Row 2 No: config syntax unchanged | `internal/le/site/testdata/published-configuration.md` and `published-yang-config-tree.json` render the YANG `description`, not `ze:help`. The four `description` strings are byte-identical before and after, so neither golden needed regeneration | Yes |
+| Row 6 No: no user guide page | `grep -n "hello\|hold" docs/guide/isis.md` returns five hits, all about key chains and the `show` column list. No timer section exists | Yes |
+| Row 9 No: no RFC row moves | No requirement id is added or re-levelled. The one citation the change adds is explanatory, and closure corrected it from RFC 5303 to RFC 1195 section 5.3 | Yes |
+| `./le doc check verify` | Run at closure; result recorded with the verification gate below | Yes |
+
+## Core Insight
+
+The advertised holding time must come from the period the IIH REALLY goes out
+at, not from the level whose identity the PDU otherwise carries. On a
+point-to-point circuit those two are different facts: the signing chain follows
+the NEGOTIATED adjacency level and can change once a neighbor is heard, while
+the holding time follows the SCHEDULE and is fixed at circuit build. Reading one
+off the other would have advertised a holding time no timer produced.

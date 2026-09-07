@@ -99,8 +99,10 @@ type Config struct {
 	// Level1 and Level2 are the Hello timers this circuit runs at each level. A
 	// broadcast circuit runs one Hello timer for each level it forms, so the two
 	// pairs can differ. A point-to-point circuit sends one level-agnostic IIH
-	// (RFC 5303 sec 3) and so runs one timer, on the pair of its preferred level
-	// (p2pPreferredLevel: Level-1 whenever the circuit forms Level-1).
+	// (RFC 1195 sec 5.3.3 names it with no level, beside a LAN IIH named once per
+	// level in 5.3.1 and 5.3.2) and so runs one timer, on the pair of its
+	// preferred level (p2pPreferredLevel: Level-1 whenever the circuit forms
+	// Level-1).
 	Level1 LevelTimers
 	Level2 LevelTimers
 	// Priority is the DIS election priority advertised in a LAN IIH (0..127).

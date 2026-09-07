@@ -6,9 +6,10 @@
 // L2-negotiated session with the L1 key; this asserts an L2-negotiated P2P
 // session signs with the L2 chain (and an L1-negotiated one with L1, and the
 // no-neighbor case with the circuit's preferred level).
-// PREVENTS: regression to signing every P2P Hello with Level1 (RFC 5303 sec 3:
-// the P2P IIH is level-agnostic on the wire, so the chain is chosen by the
-// negotiated level).
+// PREVENTS: regression to signing every P2P Hello with Level1. The P2P IIH is
+// level-agnostic on the wire (RFC 1195 sec 5.3 names the LAN IIH once per level,
+// 5.3.1 and 5.3.2, and the point-to-point IIH once with no level in its name,
+// 5.3.3), so the chain is chosen by the negotiated level.
 
 package circuit
 

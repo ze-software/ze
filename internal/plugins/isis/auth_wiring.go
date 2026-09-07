@@ -153,8 +153,12 @@ func (e *engine) verifyFrame(rf transport.RawFrame) bool {
 	var keys []packet.Key
 	switch {
 	case pt == packet.PDUTypeP2PHello:
-		// RFC 5303 sec 3: a P2P IIH is level-agnostic on the wire (one PDU type, no
-		// level bit), so the receiver cannot know the negotiated level from the
+		// A P2P IIH is level-agnostic on the wire: one PDU type, no level bit. RFC
+		// 1195 sec 5.3 names the LAN IIH once per level (5.3.1 "Level 1 LAN IS to
+		// IS Hello PDU", 5.3.2 "Level 2 LAN IS to IS Hello PDU") and the
+		// point-to-point IIH once, with no level in its name (5.3.3
+		// "Point-to-Point IS to IS Hello PDU"). So the receiver cannot know the
+		// negotiated level from the
 		// bytes. The sender (sendP2PHello) signs with the NEGOTIATED level's IIH
 		// chain, which on an L1L2 circuit may be L1 or L2 and the two chains may
 		// differ. Accept keys from BOTH per-interface IIH chains so a correctly

@@ -247,7 +247,9 @@ type HelloSchedule struct {
 // the Level-2 LAN IIH are separate PDUs to separate multicast groups, so each
 // level runs its own Hello timer at its own period. A point-to-point circuit
 // gets exactly one, because its single IIH is level-agnostic on the wire (RFC
-// 5303 sec 3), and it runs at the period of the circuit's PREFERRED level
+// 1195 sec 5.3 names the LAN IIH once per level, 5.3.1 and 5.3.2, and the
+// point-to-point IIH once with no level in its name, 5.3.3), and it runs at the
+// period of the circuit's PREFERRED level
 // (p2pPreferredLevel: Level-1 whenever the circuit forms Level-1). The same
 // level supplies the holding time that IIH advertises, so the holding time
 // matches the period the IIH really goes out at. That is deliberately NOT the
@@ -343,8 +345,10 @@ func (c *Circuit) sendP2PHello(mtu int) error {
 	state, neighborID, haveNeighbor, adjLevel := c.p2pThreeWayState()
 	pdu := c.buildP2PHello(state, neighborID, haveNeighbor, mtu)
 	pdu = padHello(pdu, mtu)
-	// Sign AFTER padding, BEFORE framing (spec-isis-10). RFC 5303 sec 3: a P2P IIH
-	// is level-agnostic on the wire (one PDU type, no level bit), so the IIH chain
+	// Sign AFTER padding, BEFORE framing (spec-isis-10). A P2P IIH is
+	// level-agnostic on the wire (one PDU type, no level bit: RFC 1195 sec 5.3
+	// names the LAN IIH once per level, 5.3.1 and 5.3.2, and the point-to-point
+	// IIH once, 5.3.3), so the IIH chain
 	// is selected by the NEGOTIATED adjacency level, not the circuit's first
 	// configured level. On an L1L2 circuit c.levels[0] is always Level1, which
 	// would sign an L2-negotiated P2P session with the L1 key when the two IIH

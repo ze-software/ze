@@ -205,7 +205,10 @@ func (c *Circuit) buildP2PHello(state packet.AdjThreeWayState, neighborID types.
 	h := packet.P2PHello{
 		CircuitType: c.circuitTypeField(),
 		SystemID:    c.systemID,
-		// The P2P IIH is level-agnostic on the wire (RFC 5303 sec 3), so it carries
+		// The P2P IIH is level-agnostic on the wire: RFC 1195 sec 5.3 lists the LAN
+		// IIH once per level (5.3.1 "Level 1 LAN IS to IS Hello PDU", 5.3.2 "Level 2
+		// LAN IS to IS Hello PDU") and the point-to-point IIH once, with no level in
+		// its name (5.3.3 "Point-to-Point IS to IS Hello PDU"). So this IIH carries
 		// the holding time of the one level the circuit runs its Hello timer at
 		// (HelloSchedules), which is the period this IIH really goes out at.
 		HoldingTime:    types.HoldingTime(c.holdTime(c.p2pPreferredLevel())),
