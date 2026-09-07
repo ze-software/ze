@@ -52,7 +52,14 @@ included, and mandatory definitions are offered a token before optional ones. A
 missing`, and an optional string can no longer starve a required argument of its
 value. One spare token becomes the peer selector when the command declares that
 it requires one, no selector arrived out of band, and exactly one token is spare,
-which is what makes `delete bgp peer 127.0.0.1` work.
+which is what makes `delete bgp peer 127.0.0.1` work, and
+`create bgp peer 127.0.0.1 asn 65001` with it: the keyword-value pairs are
+consumed first, so the address is the one token left over.
+
+A SECOND fault in the tail leaves more than one spare token, so the selector is
+never bound and the answer says the command "requires a selector" over a line
+that gave one. The row is in
+`plan/journal/earlier-guard-hides-the-better-error.md`.
 
 A value that sits BETWEEN two keywords reaches the leaf the model anchored to
 the first of them. A leaf declared on a grouping container carries that

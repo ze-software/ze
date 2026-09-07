@@ -29,8 +29,9 @@ module ze-iface-cmd {
     container create {
         config false;
         description "Create new resources.";
-        ze:help "Only the interface commands sit under this verb today. They create a dummy,
-veth or bridge interface, a VLAN unit, and an IP address.";
+        ze:help "The interface commands create a dummy, veth or bridge interface, a VLAN unit,
+and an IP address. 'create bgp peer' sits under this verb too, declared by the
+BGP peer command module.";
 
         container interface {
             config false;
