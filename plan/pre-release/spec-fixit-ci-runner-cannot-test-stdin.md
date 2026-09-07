@@ -29,20 +29,24 @@ AC-8 and AC-13.
 |----|----------|--------|
 | AC-6 | the vocabulary lists in `record_parse_vocabulary.go` gate all six switches in `record_parse.go`, and `unknownDirective` prints the slice the gate read. `tmpfs.Line` carries the file's own line number, which the refusal had never quoted | `0897c2b951` |
 | AC-7 | `checkMarkerKeys` (`record_parse_keys.go`) called from `parseCmdExec` and `parseCmdStop` against `cmdExecKeys` / `cmdStopKeys`, the same lists the parser bounds its values with | `0897c2b951` |
-| AC-8 | `Record.recordExecStep` (`runner_exec_trace.go`), called from the command loop, plus `Report.printStepTraces` and the `-v` wiring in `Runner.Run` | UNCOMMITTED, see below |
+| AC-8 | `Record.recordExecStep` (`runner_exec_trace.go`), called from the command loop, plus `Report.printStepTraces` and the `-v` wiring in `Runner.Run` | `5c9254bdd` |
 | AC-13 | `TestCIMustFailFixturesAllFail` (`must_fail_test.go`) over six fixtures in `internal/test/runner/testdata/mustfail/`, each naming its own failure text | `61de329f6` |
 | AC-9 | `test/ui/bgp-decode-pcap-stdin.ci` over the stdin arm of `decodePcapInput` (`internal/component/bgp/cli/decode_pcap.go`), reached through `routeStdinBlock` | fixture at HEAD in `a83f838dfa`; red observed and recorded 2026-09-07 |
 | AC-10 | `test/ui/bgp-decode-stdin-hex.ci` over `decodeHexStdin` (same file), reached the same way | fixture at HEAD in `a83f838dfa`; red observed and recorded 2026-09-07 |
 | AC-11 | `test/ui/config-history-stdin-refused.ci` over the `cliio.IsStdin` guard in `cmdHistory` (`internal/component/config/cli/cmd_history.go`), reached through `routeStdinBlock` | fixture at HEAD in `e1a00896d`; red observed and recorded 2026-09-07 |
 | AC-12 | `test/ui/config-fmt-write-stdout.ci` over the `cliio.IsStdin(configPath)` arm of `cmdFmt` (`internal/component/config/cli/cmd_fmt.go`), reached the same way | fixture at HEAD in `e1a00896d`; red observed and recorded 2026-09-07 |
 
-AC-8's code is finished and green and sits uncommitted, because its one call
-site is in `runner_exec.go`, which also holds the uncommitted AC-1..AC-5 hunks
-of the session that built them. Committing that file would carry another
-session's work under this one's subject. The AC-8 population is
-`runner_exec_trace.go`, `report.go`, `parallel.go`, `runner.go`, the
-`runner_exec.go` call, `report_test.go`, and the "Per-step trace output" section
-of `docs/architecture/testing/runner-architecture.md`.
+AC-1 through AC-5 and AC-8 landed together in `5c9254bdd`. They share
+`runner_exec.go`: AC-8's only call site sits in the command loop the AC-1..AC-5
+routing rewrote, so splitting them would have left `recordExecStep` uncalled and
+its test red. The commit also carries `runner_exec_util.go` (`routeStdinBlock`),
+`runner_exec_trace.go`, `stdin_route_test.go`, `report.go`, `report_test.go`,
+`runner.go`, `parallel.go`, and the docs sections in `ci-format.md` and
+`runner-architecture.md`.
+
+One guard was dropped before that commit: `TestRunReportNamesTheArgvItRan` had a
+`t.Skip` when `/bin/cat` is absent. Nothing else in the package guards `/bin/sh`,
+and a test that quietly stops running is the failure this spec exists to remove.
 
 Built 2026-09-07: the discrimination half of AC-9 and AC-10. Each fixture was
 run green, then run again against a `ze` rebuilt with its own producer cut, and
@@ -519,7 +523,7 @@ The user here is a `.ci` author, and the product is the runner.
 | `TestUnknownDirectiveNamesLineAndAccepted` | `internal/test/runner/record_parse_test.go` | AC-6: the directive, the FILE's line number, and the accepted set | green, `0897c2b951` |
 | `TestUnknownDirectiveTypeNamesAcceptedSet` | `internal/test/runner/record_parse_test.go` | AC-6 for all five type switches under the action word | green, `0897c2b951` |
 | `TestDirectiveVocabularyIsLive` | `internal/test/runner/record_parse_test.go` | one declaration: every listed word reaches an arm | green, `0897c2b951` |
-| `TestRunReportNamesTheArgvItRan` | `internal/test/runner/report_test.go` | AC-8 | green, uncommitted |
+| `TestRunReportNamesTheArgvItRan` | `internal/test/runner/report_test.go` | AC-8 | green, `5c9254bdd` |
 | `TestCIMustFailFixturesAllFail` | `internal/test/runner/must_fail_test.go` | AC-13, the D3 gate | green, `61de329f6`, red observed |
 | `TestConfigNameRuleUnchanged` | `internal/test/runner/runner_config_test.go` | AC-3 and AC-4 | |
 
