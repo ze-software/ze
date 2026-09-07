@@ -50,6 +50,9 @@ Optional metadata:
 | `EventTypes` | `[]string` | Event types this plugin produces. Registered at startup |
 | `SendTypes` | `[]string` | Send types this plugin enables, such as `enhanced-refresh` |
 | `Claims` | `[]string` | Exclusive runtime roles this plugin takes over from another plugin's default |
+| `ProgramsFIB` | `bool` | The plugin writes the routes the system RIB selects into a forwarding path. It IS the operator's data-plane choice, so a config that names one gets no writer added to it |
+| `DataPlane` | `string` | The data plane a `ProgramsFIB` plugin reaches, spelled the way `interface { backend }` names it: `netlink`, `vpp`. A data plane has one writer, and a duplicate aborts startup. Empty means the plugin reaches no data plane and is never resolved as a producer's writer |
+| `NeedsDataPlane` | `bool` | The plugin's routes reach forwarding only through a `ProgramsFIB` plugin, so the engine loads the writer for the configured data plane |
 | `PeerUpBarrier` | `bool` | The plugin registers the peer on the peer-up event, so End-of-RIB waits for it |
 | `SignalsSessionReady` | `bool` | The plugin's routes belong to a peer's initial routing update and it reports `plugin session ready` when they are out, so End-of-RIB waits for that report |
 | `YANG` | `string` | YANG schema content |
@@ -151,6 +154,17 @@ Stages 1 to 5 of the handshake run per phase. The engine loads plugins across up
 to five phases in series: config-path auto-load, explicit, family, event-type,
 send-type. A plugin's `OnStarted` therefore fires after its own handshake, and
 before the plugins of a later phase are loaded.
+
+The config-path phase also resolves the FIB writer. When a plugin it is about to
+load declares `NeedsDataPlane`, and no `ProgramsFIB` plugin is configured or
+running, the engine adds the plugin whose `DataPlane` matches the backend
+`interface { backend }` selects. So `static { route ... }` with no `fib { }`
+block loads `fib-kernel` on a Linux host and `fib-vpp` on a VPP deployment,
+while an explicit `fib { ... }` block wins because its own plugin is already in
+the set. A data plane no plugin programs adds nothing and logs a warning; the
+producer's own doctor check is what tells the operator.
+
+<!-- source: internal/component/plugin/server/startup_autoload.go -- appendDataPlaneWriter -->
 
 | Callback | What belongs in it |
 |----------|--------------------|

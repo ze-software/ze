@@ -200,6 +200,28 @@ func parseAndVerifyIfaceSections(sections []sdk.ConfigSection) (*ifaceConfig, er
 	return cfg, nil
 }
 
+// BackendNameFromTree returns the data-plane backend the config selects at
+// `interface { backend }`, or the build-time default when the config names
+// none. It reads the parsed config tree rather than a delivered config
+// section, so a caller that has to answer "which data plane is this daemon
+// for" BEFORE any plugin handshake -- the engine resolving which FIB plugin
+// writes a route producer's routes -- gets the same answer parseIfaceBackend
+// gives the iface plugin later.
+//
+// The tree is the canonical map[string]any config, so every leaf under it is
+// the string the operator wrote (internal/component/config/tree.go).
+func BackendNameFromTree(tree map[string]any) string {
+	ifaceMap, ok := tree[configRootInterface].(map[string]any)
+	if !ok {
+		return defaultBackendName
+	}
+	name, ok := ifaceMap["backend"].(string)
+	if !ok || name == "" {
+		return defaultBackendName
+	}
+	return name
+}
+
 func parseIfaceBackend(sections []sdk.ConfigSection) (string, error) {
 	backend := defaultBackendName
 	for _, s := range sections {

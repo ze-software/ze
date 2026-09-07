@@ -799,8 +799,15 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	serverConfig := &pluginserver.ServerConfig{
 		ConfigPath:      configPath,
 		ConfiguredPaths: configPaths,
-		Plugins:         explicitPlugins,
-		Hub:             hubConfig,
+		// The data plane the operator chose decides which FIB plugin the
+		// engine loads for a route producer that declares NeedsDataPlane, and
+		// the decision is taken before any plugin handshake runs, so it is read
+		// from the config rather than from the loaded iface backend. ToMap is
+		// the lowering the reload path already hands the same reader, so both
+		// answer from one shape.
+		DataPlane: iface.BackendNameFromTree(loadResult.Tree.ToMap()),
+		Plugins:   explicitPlugins,
+		Hub:       hubConfig,
 	}
 	apiServer, serverErr := pluginserver.NewServer(serverConfig, coordinator)
 	if serverErr != nil {

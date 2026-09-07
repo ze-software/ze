@@ -45,17 +45,33 @@ Redistribution is unchanged and does not pass through the Loc-RIB.
 `redistribute { import static }` receives the routes over the redistribute event
 bus, from `emitRouteChange`, which still emits for main-table forward routes only.
 
-**A main-table route needs a FIB plugin.** The system RIB selects the winner and a
-FIB plugin writes it, so a configuration with static routes in the main table and
-no `fib { kernel { } }` or `fib { vpp { } }` block would select a route nobody
-programs. The `static-fib-writer` doctor check refuses that configuration at error
-severity rather than letting the route go quietly uninstalled. The static plugin
-declares `rib` as a dependency, so the system RIB itself always runs.
+**A main-table route needs a FIB plugin, and the operator does not have to ask
+for one.** The system RIB selects the winner and a FIB plugin writes it. Static
+declares `Registration.NeedsDataPlane`, so when a config has static routes and no
+`fib { ... }` block the engine loads the plugin whose `Registration.DataPlane`
+matches the backend `interface { backend }` selects: `fib-kernel` for `netlink`,
+`fib-vpp` for `vpp`. An explicit `fib { ... }` block always wins, because the
+block is a config path and its own plugin is already in the startup set.
+
+No package holds a list of FIB plugins. The writer declares the data plane it
+programs and the registry answers, so adding one needs no edit to static and none
+to the engine. `fib-p4` declares that it programs the FIB and names no data
+plane, so `fib { p4 { } }` is still the operator's choice and the plugin is never
+the ANSWER to a producer that needs one: its P4Runtime client is not written, so
+it would answer with silence.
+
+What is left for the `static-fib-writer` doctor check to report is the state
+auto-loading cannot repair: no plugin programs the data plane the config selects.
+The routes then reach arbitration and stop there, so it stays an error.
+
+The static plugin declares `rib` as a dependency, so the system RIB itself always
+runs.
 
 <!-- source: internal/plugins/static/locrib.go -- staticPath, insertPathLocked, the main-table boundary -->
 <!-- source: internal/plugins/static/inject.go -- route apply, BFD integration, redistribute emit -->
 <!-- source: internal/plugins/static/events/events.go -- RouteChange event registration -->
 <!-- source: internal/plugins/static/doctor.go -- the FIB-writer and route-skipped checks -->
+<!-- source: internal/component/plugin/server/startup_autoload.go -- appendDataPlaneWriter, the writer resolution -->
 
 ## ECMP and BFD
 

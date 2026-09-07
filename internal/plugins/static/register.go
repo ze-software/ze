@@ -112,6 +112,14 @@ func init() {
 		// protocol's declared distance from the schema at start, so a config with
 		// no `rib { }` block gets the declared defaults rather than nothing.
 		Dependencies: []string{"routing-table", "rib"},
+		// A main-table static route is a Loc-RIB path, so the system RIB
+		// selects it and a FIB plugin writes it. With no writer the route
+		// reaches arbitration and stops there. The engine resolves the writer
+		// from the data plane `interface { backend }` selects, so a config with
+		// static routes and no `fib { ... }` block starts and programs them
+		// (owner decision, 2026-09-06). Naming fib-kernel here instead, the way
+		// OSPF and IS-IS do, would load the kernel writer on a VPP deployment.
+		NeedsDataPlane: true,
 		// OptionalDependencies orders static AFTER the iface component when an
 		// `interface` stanza is present, so the iface backend is loaded before
 		// static applies a route whose next-hop names an interface. Without it

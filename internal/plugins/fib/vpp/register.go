@@ -30,8 +30,15 @@ func init() {
 		Features:     "yang",
 		ConfigRoots:  []string{configRoot},
 		Dependencies: []string{"rib", "vpp"},
-		YANG:         fibvppyang.ZeFibVPPConfYANG,
-		RunEngine:    runFibVPPPlugin,
+		// This plugin is the writer for the vpp data plane, the name
+		// `interface { backend }` gives VPP. A route producer that declares
+		// NeedsDataPlane is answered with this plugin on a VPP deployment,
+		// which is why such a deployment needs no `fib { vpp { } }` block to
+		// have its static routes programmed.
+		ProgramsFIB: true,
+		DataPlane:   "vpp",
+		YANG:        fibvppyang.ZeFibVPPConfYANG,
+		RunEngine:   runFibVPPPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setFibVPPLogger(slogutil.Logger(loggerName))
 		},

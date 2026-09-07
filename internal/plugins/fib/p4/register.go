@@ -21,8 +21,16 @@ func init() {
 		Features:     "yang",
 		ConfigRoots:  []string{"fib/p4"},
 		Dependencies: []string{"rib"},
-		YANG:         fibp4yang.ZeFibP4ConfYANG,
-		RunEngine:    runFIBP4Plugin,
+		// ProgramsFIB with no DataPlane: `fib { p4 { } }` IS the operator's
+		// data-plane choice, so the engine adds no writer beside it, and this
+		// plugin is never the ANSWER to a route producer that needs one. The
+		// P4Runtime gRPC client is not written, so it holds the routes it
+		// would program and reaches no switch
+		// (plan/immediate/spec-fib-p4-leaves-reach-a-noop-backend.md), and
+		// auto-loading it would answer a producer's need with silence.
+		ProgramsFIB: true,
+		YANG:        fibp4yang.ZeFibP4ConfYANG,
+		RunEngine:   runFIBP4Plugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

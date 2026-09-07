@@ -214,7 +214,7 @@ var builtinCodes = []CodeMeta{
 	{
 		Code:        "doctor-static-no-fib-writer",
 		Title:       "Static routes in the main table have no FIB plugin to program them",
-		Description: "The config declares a static route in the main table, and no `fib { ... }` block. A main-table static route is arbitrated by the system RIB against every other protocol that offers the same prefix, and the FIB plugin programs the winner, so with no FIB plugin the route reaches the system RIB and stops there: nothing writes it to the kernel or to VPP. Add `fib { kernel { } }` for the Linux data plane, or `fib { vpp { } }` for VPP. A route in a NAMED table does not need this: static programs it directly.",
+		Description: "The config declares a static route in the main table, and no plugin programs the data plane it selects at `interface { backend }`. A main-table static route is arbitrated by the system RIB against every other protocol that offers the same prefix, and a FIB plugin programs the winner, so with no writer the route reaches the system RIB and stops there. You do NOT need a `fib { ... }` block for the common case: Ze loads the writer for the data plane your config selects, `fib-kernel` for netlink and `fib-vpp` for vpp. This fires when the selected data plane has no writer at all. Name a backend Ze programs, or add the `fib { ... }` block for the plugin you want. A route in a NAMED table does not need any of this: static programs it directly.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-static-no-fib-writer"},
 	},
 	{

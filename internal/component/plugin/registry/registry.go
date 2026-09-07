@@ -73,6 +73,40 @@ type Registration struct {
 	// session establishment.
 	Claims []string
 
+	// ProgramsFIB declares that this plugin writes the routes the system RIB
+	// selects into a forwarding path. It IS the operator's data-plane choice,
+	// so a config that names such a plugin has already chosen and the engine
+	// adds none of its own.
+	//
+	// It is separate from DataPlane because a FIB plugin can be the operator's
+	// choice and still reach nothing: fib-p4 declares this and no data plane.
+	ProgramsFIB bool
+
+	// DataPlane names the data plane a ProgramsFIB plugin reaches, spelled the
+	// way `interface { backend }` names it: "netlink" for the Linux kernel,
+	// "vpp" for VPP. It is a DECLARATION, so the engine can load the writer a
+	// route producer needs without any package holding a list of FIB plugins.
+	//
+	// A data plane has one writer: Register refuses a second plugin that
+	// claims the same name, so the answer to "which writer serves this
+	// deployment" is never a choice made at run time.
+	//
+	// A FIB plugin that reaches no data plane leaves this empty and is never
+	// RESOLVED as a producer's writer. fib-p4 is that case: its P4Runtime
+	// client is not written, so answering a producer's need with it would be
+	// answering with silence.
+	DataPlane string
+
+	// NeedsDataPlane declares that this plugin's routes reach the forwarding
+	// path only through a plugin that programs the data plane. The engine
+	// resolves the writer whose DataPlane matches the configured backend and
+	// loads it alongside this plugin.
+	//
+	// An explicit `fib { ... }` block always wins, because the block is a
+	// config path and its own plugin is already in the startup set before this
+	// resolution runs.
+	NeedsDataPlane bool
+
 	// PeerUpBarrier declares that this plugin does work on the peer-up event
 	// that a peer's initial-sync End-of-RIB must not overtake: it registers the
 	// peer as a live forward target, or captures a per-peer cut, so an UPDATE
@@ -264,6 +298,11 @@ var (
 	ErrEmptyName = errors.New("registry: plugin name is empty")
 	// ErrDuplicateName is returned when registering a plugin with a name already taken.
 	ErrDuplicateName = errors.New("registry: duplicate plugin name")
+
+	// ErrDuplicateDataPlane is returned when two plugins declare the same
+	// Registration.DataPlane, which would leave the writer for that data plane
+	// decided by map order.
+	ErrDuplicateDataPlane = errors.New("registry: duplicate data plane")
 	// ErrNilRunEngine is returned when RunEngine is nil.
 	ErrNilRunEngine = errors.New("registry: RunEngine is nil")
 	// ErrNilCLIHandler is returned when CLIHandler is nil.
@@ -414,6 +453,21 @@ func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registra
 		}
 		if existing, dup := filterTypes[ft]; dup {
 			return fmt.Errorf("registry: filter type %q already registered by %q", ft, existing)
+		}
+	}
+	// A data plane has one writer. Two plugins claiming the same name would
+	// make "which plugin programs netlink" a map-order answer, and the loser
+	// would be a FIB plugin the engine silently never loads.
+	if reg.DataPlane != "" {
+		if !reg.ProgramsFIB {
+			return fmt.Errorf("registry: plugin %q declares data plane %q but does not program the FIB",
+				reg.Name, reg.DataPlane)
+		}
+		for _, other := range plugins {
+			if other.DataPlane == reg.DataPlane {
+				return fmt.Errorf("%w: %q claimed by %q and %q",
+					ErrDuplicateDataPlane, reg.DataPlane, other.Name, reg.Name)
+			}
 		}
 	}
 	// An obligation is discharged BY a filter type, so a declaration with no
@@ -907,6 +961,47 @@ func PluginForEventType(eventType string) string {
 		}
 	}
 	return ""
+}
+
+// PluginForDataPlane returns the plugin that programs the named data plane,
+// and whether one is registered. An unknown data plane reports false rather
+// than an empty name, which a caller could otherwise start as a plugin.
+func PluginForDataPlane(dataPlane string) (string, bool) {
+	if dataPlane == "" {
+		return "", false
+	}
+
+	mu.RLock()
+	defer mu.RUnlock()
+
+	for _, reg := range plugins {
+		if reg.DataPlane == dataPlane {
+			return reg.Name, true
+		}
+	}
+	return "", false
+}
+
+// ProgramsFIB reports whether the named plugin declares that it writes the
+// system RIB's routes into a forwarding path, and is therefore the operator's
+// data-plane choice. An unregistered name programs nothing.
+func ProgramsFIB(name string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	reg, ok := plugins[name]
+	return ok && reg.ProgramsFIB
+}
+
+// NeedsDataPlane reports whether the named plugin declares that its routes
+// reach the forwarding path only through a data-plane writer. An unregistered
+// name needs nothing.
+func NeedsDataPlane(name string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	reg, ok := plugins[name]
+	return ok && reg.NeedsDataPlane
 }
 
 // PluginForSendType returns the plugin name that enables a given send type.

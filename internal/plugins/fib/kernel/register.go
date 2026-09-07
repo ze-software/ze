@@ -100,12 +100,18 @@ func init() {
 	_ = events.RegisterNamespace(fibevents.Namespace, fibevents.EventExternalChange)
 
 	reg := registry.Registration{
-		Name:                    "fib-kernel",
-		Description:             "FIB kernel: programs OS routes from system RIB via netlink/route socket",
-		Features:                "yang",
-		YANG:                    fibyang.ZeFibConfYANG,
-		ConfigRoots:             []string{configRoot},
-		Dependencies:            []string{"rib", "sysctl"},
+		Name:         "fib-kernel",
+		Description:  "FIB kernel: programs OS routes from system RIB via netlink/route socket",
+		Features:     "yang",
+		YANG:         fibyang.ZeFibConfYANG,
+		ConfigRoots:  []string{configRoot},
+		Dependencies: []string{"rib", "sysctl"},
+		// This plugin is the writer for the netlink data plane, the name
+		// `interface { backend }` gives the Linux kernel. A route producer
+		// that declares NeedsDataPlane is answered with this plugin when the
+		// operator wrote no `fib { ... }` block of their own.
+		ProgramsFIB:             true,
+		DataPlane:               "netlink",
 		InProcessConfigVerifier: verifyFIBConfig,
 		RunEngine:               runFIBKernelPlugin,
 		ConfigureEngineLogger: func(loggerName string) {

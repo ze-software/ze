@@ -10,6 +10,7 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/iface"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -118,6 +119,8 @@ func (s *Server) getConfigPathPlugins() []plugin.PluginConfig {
 		return nil
 	}
 
+	needed = s.appendDataPlaneWriter(needed, s.config.DataPlane)
+
 	// Resolve transitive dependencies.
 	resolved, err := registry.ResolveDependencies(needed)
 	if err != nil {
@@ -140,6 +143,66 @@ func (s *Server) getConfigPathPlugins() []plugin.PluginConfig {
 	}
 
 	return plugins
+}
+
+// appendDataPlaneWriter returns needed plus the plugin that programs the
+// configured data plane, when some plugin in needed declares that its routes
+// reach forwarding only through one (Registration.NeedsDataPlane) and no
+// data-plane writer is in the set already.
+//
+// A route producer names no FIB plugin, and no package holds a list of them:
+// the writer DECLARES the data plane it programs and the registry answers.
+// So `static { route ... }` with no `fib { ... }` block starts and programs
+// its routes, and a VPP deployment gets the VPP writer for the same config.
+//
+// An explicit `fib { ... }` block wins by arriving first: its plugin is a
+// config path, so it is already in needed and fibPluginChosen finds it.
+// An unresolvable data plane adds nothing, and the producer's own doctor check
+// is what tells the operator (checkFIBWriter in internal/plugins/static).
+func (s *Server) appendDataPlaneWriter(needed []string, dataPlane string) []string {
+	if !slices.ContainsFunc(needed, registry.NeedsDataPlane) {
+		return needed
+	}
+	if s.fibPluginChosen(needed) {
+		return needed
+	}
+	writer, ok := registry.PluginForDataPlane(dataPlane)
+	if !ok {
+		logger().Warn("no FIB plugin programs the configured data plane, routes will reach the system RIB and stop there",
+			"data-plane", dataPlane)
+		return needed
+	}
+	// No second "is it already loaded" check: writer declares a data plane, so
+	// it declares ProgramsFIB, so fibPluginChosen above has already answered for
+	// it.
+	logger().Info("auto-loading the FIB plugin for the configured data plane",
+		"plugin", writer, "data-plane", dataPlane)
+	return append(needed, writer)
+}
+
+// fibPluginChosen reports whether a plugin that programs the FIB is configured,
+// running, or in the candidate set. It asks each registration for its own
+// declaration rather than comparing against a list of FIB plugin names, so a
+// FIB plugin added later needs no edit here.
+//
+// It reads ProgramsFIB and not DataPlane, because the two answer different
+// questions. `fib { p4 { } }` reaches no data plane and is still the operator
+// choosing a FIB plugin, and adding the kernel writer beside it would program
+// a data plane they did not ask for.
+func (s *Server) fibPluginChosen(needed []string) bool {
+	pm := s.procManager.Load()
+	for _, reg := range registry.All() {
+		if !reg.ProgramsFIB {
+			continue
+		}
+		if slices.Contains(needed, reg.Name) {
+			return true
+		}
+		if s.isPluginLoaded(reg.Name) || s.hasConfiguredPlugin(reg.Name) || (pm != nil && pm.GetProcess(reg.Name) != nil) {
+			return true
+		}
+	}
+	return false
 }
 
 // autoLoadForNewConfigPaths starts plugins for newly added config sections.
@@ -188,6 +251,8 @@ func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string
 			}
 		}
 	}
+
+	needed = s.appendDataPlaneWriter(needed, iface.BackendNameFromTree(newTree))
 
 	if len(needed) == 0 {
 		return nil, nil

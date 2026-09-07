@@ -1,0 +1,29 @@
+# Test: `ze doctor` on a config with main-table static routes and no `fib { }`
+#       block reports nothing about a missing FIB writer.
+# VALIDATES: spec-connected-static-reach-the-locrib, owner decision 2026-09-06 --
+#            the FIB plugin is AUTO-LOADED when static is used, so a config an
+#            operator could commit before main-table routes moved to the Loc-RIB
+#            is not diagnosed as unroutable after it.
+# PREVENTS: the static-fib-writer check going back to refusing every static
+#           config that does not name a data-plane backend, which is what commit
+#           125979ea99 shipped and what this replaces.
+#
+# The sibling case, a data plane no plugin programs, is
+# TestFIBWriterCheckReportsADataPlaneNoPluginProgram
+# (internal/plugins/static/doctor_fib_writer_test.go): it needs an
+# `interface { backend ... }` name Ze does not implement, which the daemon
+# refuses to load, so it is not reachable from a config `ze doctor` accepts.
+
+tmpfs=static-no-fib.conf:terminator=EOF_CONF
+static {
+    table default {
+        route 10.0.0.0/8 {
+            next { hop 192.168.1.1 { } }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json static-no-fib.conf
+expect=stdout:contains=diagnostics
+reject=stdout:contains=doctor-static-no-fib-writer

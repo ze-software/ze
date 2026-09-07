@@ -17,6 +17,13 @@ type ServerConfig struct {
 	ConfiguredCustomEvents    []string              // Custom event types in peer receive config (for auto-load)
 	ConfiguredCustomSendTypes []string              // Custom send types in peer send config (for auto-load)
 	ConfiguredPaths           []string              // Top-level config sections present (for config-driven auto-load)
-	Hub                       *plugin.HubConfig     // TLS transport config (nil = no TLS listener)
-	MetricsRegistry           metrics.Registry      // Prometheus metrics registry (nil = metrics disabled)
+	// DataPlane is the backend `interface { backend }` selects ("netlink",
+	// "vpp"), read from the startup config tree. It answers which FIB plugin
+	// writes for a route producer that declares Registration.NeedsDataPlane.
+	// Empty means the tree named none and the build has no default, which is
+	// the non-Linux case: no writer is resolved and the producer's doctor check
+	// says so.
+	DataPlane       string
+	Hub             *plugin.HubConfig // TLS transport config (nil = no TLS listener)
+	MetricsRegistry metrics.Registry  // Prometheus metrics registry (nil = metrics disabled)
 }

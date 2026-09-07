@@ -7,6 +7,7 @@ package static
 
 import (
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/routingtable"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -27,9 +28,9 @@ const doctorCodeInterfaceNexthopNoBackend = "doctor-static-interface-nexthop-no-
 const doctorCodeRouteSkipped = "doctor-static-route-skipped"
 
 // doctorCodeNoFIBWriter is emitted when the config declares a main-table static
-// route and no `fib { ... }` block, so nothing programs the route the system RIB
-// selects. Registered in internal/core/diagnostic/codes.go so `ze explain` can
-// describe it.
+// route and NO FIB plugin can program it: the operator declared none and the
+// registry holds no writer for the data plane the config selects. Registered in
+// internal/core/diagnostic/codes.go so `ze explain` can describe it.
 const doctorCodeNoFIBWriter = "doctor-static-no-fib-writer"
 
 // staticDoctorChecks declares the static plugin's doctor readiness checks. The
@@ -108,19 +109,22 @@ func checkRouteSkipped(_ registry.DoctorCheckContext) []rpc.DoctorCheckDiagnosti
 	}}
 }
 
-// checkFIBWriter refuses a config that declares a main-table static route with no
-// FIB plugin to program it.
+// checkFIBWriter reports a config whose main-table static routes can reach no
+// data plane at all.
 //
-// A main-table static route is a Loc-RIB Path now: the system RIB arbitrates it
-// against every other protocol offering the prefix, and the FIB plugin writes the
-// winner to the data plane. With no `fib { ... }` block no plugin subscribes to
-// the system RIB, so the route reaches arbitration and stops there.
+// A main-table static route is a Loc-RIB Path: the system RIB arbitrates it
+// against every other protocol offering the prefix, and a FIB plugin writes the
+// winner. The operator does not have to ask for that plugin. The engine loads
+// the writer that declares the data plane `interface { backend }` selects, so a
+// config with static routes and no `fib { ... }` block starts and programs them
+// (owner decision, 2026-09-06; appendDataPlaneWriter in
+// internal/component/plugin/server/startup_autoload.go performs it).
 //
-// It is an ERROR, not a warning, and that is the same answer the MPLS
-// availability check gives for the same reason (docs/guide/mpls.md): a route the
-// operator declared and the daemon silently does not install is worse than a
-// daemon that will not start. A NAMED-table route needs no FIB plugin, so a
-// config whose static routes are all in named tables passes.
+// What is left to report is the state auto-loading cannot repair: no plugin
+// programs the selected data plane. The routes then reach arbitration and stop
+// there, which is why this stays an ERROR rather than a warning. It is silent
+// when the operator declared a `fib { ... }` backend of their own, because that
+// block loads its plugin whatever this check thinks of it.
 func checkFIBWriter(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
 	tree, ok := ctx.Tree.(*config.Tree)
 	if !ok || tree == nil {
@@ -129,17 +133,46 @@ func checkFIBWriter(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic
 	if !hasMainTableRoute(tree) {
 		return nil
 	}
-	if tree.GetContainer("fib") != nil {
+	if fibBackendConfigured(tree) {
 		return nil
 	}
+	dataPlane := iface.BackendNameFromTree(tree.ToMap())
+	if _, resolved := registry.PluginForDataPlane(dataPlane); resolved {
+		return nil
+	}
+	var tb textbuf.Buffer
+	tb.Str("a static route is declared in the main table, and no FIB plugin programs the ")
+	tb.Str(dataPlaneName(dataPlane)).Str(" data plane this config selects at `interface { backend }`; ")
+	tb.Str("the system RIB selects the route and nothing writes it, so it would never reach ")
+	tb.Str("the data plane. Name a backend Ze programs, or add the `fib { ... }` block for ")
+	tb.Str("the one you want")
 	return []rpc.DoctorCheckDiagnostic{{
 		Code:     doctorCodeNoFIBWriter,
 		Severity: "error",
-		Message: "a static route is declared in the main table but the config has no " +
-			"`fib { ... }` block; the system RIB selects the route and no plugin programs " +
-			"it, so it would never reach the data plane. Add `fib { kernel { } }` for the " +
-			"Linux data plane, or `fib { vpp { } }` for VPP",
+		Message:  tb.String(),
 	}}
+}
+
+// dataPlaneName gives the message a noun for a data plane the config never
+// named. An empty name is what a build with no default backend answers, and
+// "the (none) data plane" reads as a defect in Ze rather than in the config.
+func dataPlaneName(dataPlane string) string {
+	if dataPlane == "" {
+		return "unnamed"
+	}
+	return dataPlane
+}
+
+// fibBackendConfigured reports whether the config declares a backend under
+// `fib { ... }`. An EMPTY `fib { }` block declares no backend, so it selects no
+// plugin and leaves the choice to the engine, which is what makes this a
+// question about the containers under fib rather than about fib itself.
+func fibBackendConfigured(tree *config.Tree) bool {
+	fib := tree.GetContainer("fib")
+	if fib == nil {
+		return false
+	}
+	return len(fib.ContainerNames()) > 0
 }
 
 // hasMainTableRoute reports whether any static route is declared in the main
