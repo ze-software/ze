@@ -175,6 +175,18 @@ func verifyScopeDebtClearDriver(ctx context.Context, args []string) error {
 	}
 	fmt.Fprintln(os.Stdout, "unrunnable-row-named-and-left-open") //nolint:errcheck // progress output
 
+	// The cut grammar, through the real binary. `part` without `of` cannot say
+	// how many pieces the stages were dealt into, so it is refused before any
+	// row is read and before any gate starts.
+	out, code, err = rawCommand(ctx, repo, envRootedAt(repo), le, "commit", "debt-clear", "part", "1")
+	if err != nil {
+		return fmt.Errorf("debt-clear part 1: %w %s", err, out)
+	}
+	if code == 0 {
+		return fmt.Errorf("debt-clear accepted a cut that names no piece count: %s", out)
+	}
+	fmt.Fprintln(os.Stdout, "half-named-cut-refused") //nolint:errcheck // progress output
+
 	// The other half of the claim: nothing was RUN for that row. A native
 	// verification leaves both of these behind in the checkout it judged, so
 	// their absence is what says the command answered from the ledger alone.

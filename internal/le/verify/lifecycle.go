@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -50,11 +51,33 @@ var errGitTimeout = errors.New("verify stopped waiting")
 
 var runSequence atomic.Uint64
 
-// Options selects the commit and whether its detached worktree survives the
-// run. An empty Commit means HEAD.
+// Options selects the commit, whether its detached worktree survives the run,
+// and which piece of the stage population runs. An empty Commit means HEAD.
 type Options struct {
 	Commit string `json:"commit,omitempty"`
 	Keep   bool   `json:"keep"`
+	// Part and Parts cut the population into pieces dealt round robin, counted
+	// from one. Both zero is the uncut run, which is every stage.
+	Part  int `json:"part,omitempty"`
+	Parts int `json:"parts,omitempty"`
+}
+
+// part answers the piece of the stage population this run judges.
+//
+// Naming one number without the other is REFUSED rather than guessed at: "part
+// 3" alone cannot say how many pieces the stages were dealt into, and a guess
+// judges the wrong subset and reports the wrong thing proven
+// (staticcheckfeaturematrix.partFrom holds the same rule for the keyword form).
+func (o Options) part() (verifyengine.Part, error) {
+	if o.Part == 0 && o.Parts == 0 {
+		return verifyengine.Uncut(), nil
+	}
+	if o.Part == 0 || o.Parts == 0 {
+		return verifyengine.Part{}, fmt.Errorf(
+			"a cut run needs both numbers, got part %d of %d", o.Part, o.Parts)
+	}
+	part := verifyengine.Part{Index: o.Part, Of: o.Parts}
+	return part, part.Valid()
 }
 
 // CleanupFailure is one failed cleanup operation. Cleanup attempts continue so
@@ -135,6 +158,11 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 	report = Report{Action: actionName, Code: 1, Diagnostics: []string{}, Cleanup: []CleanupFailure{}}
 	var text textbuf.Buffer
 
+	// The population this run judges, named in every line it prints. A cut run
+	// that reported the whole mode's name would read as a verification of the
+	// tree in the one artifact an operator scrolls to.
+	population := verifyengine.Mode
+
 	// The verdict line is written by the FIRST defer registered, so it is the
 	// LAST one to run: every branch that can still move report.Code, the
 	// cleanup defer below included, has already run when it renders. A line
@@ -142,8 +170,18 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 	// of 2026-09-03 printed exit=2 and did not exit 2.
 	defer func() {
 		report.Diagnostics = append(report.Diagnostics, text.Reset().Str("verify-worktree: ").
-			Str(verifyengine.Mode).Str(" exit=").Int(int64(report.Code)).String())
+			Str(population).Str(" exit=").Int(int64(report.Code)).String())
 	}()
+
+	part, partErr := options.part()
+	if partErr != nil {
+		report.Code = 2
+		report.Failure = &verifyengine.Failure{Kind: "unknown-part", Message: partErr.Error()}
+		report.Diagnostics = append(report.Diagnostics,
+			text.Str("verify-worktree: ").Err(partErr).String())
+		return report
+	}
+	population = part.Name(verifyengine.Mode)
 
 	revision := strings.TrimSpace(options.Commit)
 	if revision == "" {
@@ -163,7 +201,7 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 	// three use the whole machine. A second worktree verification of this commit
 	// takes this one's verdict rather than materializing a second checkout of
 	// 22,439 files and judging it again.
-	ticket, err := admitWorktree(root, sha)
+	ticket, err := admitWorktree(root, sha, part)
 	if err != nil {
 		report.Failure = &verifyengine.Failure{Kind: failureAdmission, Message: err.Error()}
 		report.Diagnostics = append(report.Diagnostics,
@@ -287,9 +325,9 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 	report.Diagnostics = append(report.Diagnostics,
 		sharedCacheLink(path),
 		text.Reset().Str("verify-worktree: ").Str(shortSHA(sha)).Str(" -> ").Str(path).String(),
-		text.Reset().Str("verify-worktree: native ").Str(verifyengine.Mode).String(),
+		text.Reset().Str("verify-worktree: native ").Str(population).String(),
 	)
-	verification := verifyengine.Run(ctx, path, sha, actions, slot)
+	verification := verifyengine.RunPart(ctx, path, sha, verifyengine.Mode, part, actions, slot)
 	report.Verify = &verification
 	report.Code = verification.Code
 	if verification.Failure != nil {
@@ -330,19 +368,26 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 }
 
 // admitWorktree claims this lifecycle's slot in the shared job registry.
-func admitWorktree(root, sha string) (*job.Ticket, error) {
+func admitWorktree(root, sha string, part verifyengine.Part) (*job.Ticket, error) {
 	admission, err := job.NewIn(root)
 	if err != nil {
 		return nil, err
 	}
-	return admission.Admit(jobLabel, worktreeArgv(sha))
+	return admission.Admit(jobLabel, worktreeArgv(sha, part))
 }
 
 // worktreeArgv is what the registry fingerprints as this run's work. The commit
 // is part of it because two worktree verifications of two commits judge two
-// trees, so they MUST NOT share one verdict.
-func worktreeArgv(sha string) []string {
-	return []string{"le", "verify", actionName, "commit", sha}
+// trees, so they MUST NOT share one verdict, and the piece is part of it for
+// the same reason: two pieces of one commit run two stage sets, so a second
+// piece that attached to the first would record its own stages as proven
+// without starting one of them.
+func worktreeArgv(sha string, part verifyengine.Part) []string {
+	if !part.Cut() {
+		return []string{"le", "verify", actionName, "commit", sha}
+	}
+	return []string{"le", "verify", actionName, "commit", sha,
+		"part", strconv.Itoa(part.Index), "of", strconv.Itoa(part.Of)}
 }
 
 func resolveCommit(ctx context.Context, root, revision string, git gitRunner) (string, error) {

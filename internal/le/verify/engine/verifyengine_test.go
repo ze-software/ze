@@ -118,7 +118,7 @@ func TestRunCertificateRecordsSkippedSuitesAsPartialEvidence(t *testing.T) {
 	runner := func(_ context.Context, _ string, identity Identity) ActionResult {
 		return ActionResult{Identity: identity, Registered: true, Completed: true}
 	}
-	report := Run(context.Background(), root, "abc", runner, Slot{})
+	report := RunMode(context.Background(), root, "abc", Mode, runner, Slot{})
 	if report.Code != 0 || !report.Completed {
 		t.Fatalf("run report = %#v", report)
 	}
@@ -147,7 +147,7 @@ func TestAStageFailureIsStructuredLoggedAndDoesNotHideLaterStages(t *testing.T) 
 		return result
 	}
 
-	report := Run(context.Background(), root, "abc", runner, Slot{})
+	report := RunMode(context.Background(), root, "abc", Mode, runner, Slot{})
 	if report.Code != 1 || calls != len(fullStages()) {
 		t.Fatalf("code=%d calls=%d, want code 1 and %d calls", report.Code, calls, len(fullStages()))
 	}
@@ -189,7 +189,7 @@ func TestEmptyAndUnregisteredAnswersFailClosed(t *testing.T) {
 		}, kind: "identity-mismatch"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			report := Run(context.Background(), t.TempDir(), "abc", test.run, Slot{})
+			report := RunMode(context.Background(), t.TempDir(), "abc", Mode, test.run, Slot{})
 			if report.Code != 2 || report.Completed || len(report.Stages) != 1 {
 				t.Fatalf("report = %#v", report)
 			}
@@ -210,7 +210,7 @@ func TestInterruptionStopsBeforeTheNextStageAndRecordsStatus(t *testing.T) {
 		return ActionResult{Identity: identity, Registered: true, Completed: true}
 	}
 
-	report := Run(ctx, root, "abc", runner, Slot{})
+	report := RunMode(ctx, root, "abc", Mode, runner, Slot{})
 	if report.Code != Interrupted || report.Completed || calls != 1 {
 		t.Fatalf("report=%#v calls=%d", report, calls)
 	}

@@ -232,38 +232,46 @@ func beat(progress io.Writer, stage string, interval time.Duration) func() {
 	}
 }
 
-// Run executes every full verification stage in order at root and writes its
-// logs and status there. A red stage does not hide later reds; an interruption
-// stops before another stage starts.
-func Run(ctx context.Context, root, commit string, runner ActionRunner, slot Slot) Report {
-	return RunMode(ctx, root, commit, Mode, runner, slot)
+// RunMode executes the native stage population selected by mode, in order, at
+// root, and writes its logs and status there. A red stage does not hide later
+// reds; an interruption stops before another stage starts.
+func RunMode(ctx context.Context, root, commit, mode string, runner ActionRunner, slot Slot) Report {
+	return RunPart(ctx, root, commit, mode, Uncut(), runner, slot)
 }
 
-// RunMode executes the native stage population selected by mode.
-func RunMode(ctx context.Context, root, commit, mode string, runner ActionRunner, slot Slot) Report {
+// RunPart executes one piece of the mode's stage population (part.go). The
+// uncut part is every stage, so RunPart with Uncut is RunMode.
+func RunPart(ctx context.Context, root, commit, mode string, part Part, runner ActionRunner, slot Slot) Report {
 	leave, err := enterVerifyEnvironment()
 	if err != nil {
-		return Report{Mode: mode, Commit: commit, Code: 2, Failure: failure("environment", "", err.Error())}
+		return Report{Mode: part.Name(mode), Commit: commit, Code: 2, Failure: failure("environment", "", err.Error())}
 	}
 	defer leave()
-	return runMode(ctx, root, commit, mode, runner, slot, time.Now)
+	return runMode(ctx, root, commit, mode, part, runner, slot, time.Now)
 }
 
 func run(ctx context.Context, root, commit string, runner ActionRunner, now func() time.Time) Report {
-	return runMode(ctx, root, commit, Mode, runner, Slot{}, now)
+	return runMode(ctx, root, commit, Mode, Uncut(), runner, Slot{}, now)
 }
 
-func runMode(ctx context.Context, root, commit, mode string, runner ActionRunner, slot Slot, now func() time.Time) Report {
-	stages := StagesForMode(mode)
+func runMode(ctx context.Context, root, commit, mode string, part Part, runner ActionRunner, slot Slot, now func() time.Time) Report {
+	population := StagesForMode(mode)
+	// The report names the population it RAN. A cut run judged a subset, so it
+	// says so in every artifact it writes, the certificate included.
 	report := Report{
-		Mode:       mode,
+		Mode:       part.Name(mode),
 		Commit:     commit,
 		Code:       2,
 		StatusPath: StatusPath,
-		Stages:     make([]StageReport, 0, len(stages)),
+		Stages:     make([]StageReport, 0, len(population)),
 	}
-	if len(stages) == 0 {
+	if len(population) == 0 {
 		report.Failure = failure("unknown-mode", "", "no verify stages configured for mode "+mode)
+		return report
+	}
+	stages, err := part.deal(population)
+	if err != nil {
+		report.Failure = failure("unknown-part", "", err.Error())
 		return report
 	}
 	start := job.SnapshotTree(root)
@@ -283,7 +291,7 @@ func runMode(ctx context.Context, root, commit, mode string, runner ActionRunner
 	if err := os.MkdirAll(logParent, 0o750); err != nil {
 		return logFailure(err)
 	}
-	logDir, err := os.MkdirTemp(logParent, mode+"-")
+	logDir, err := os.MkdirTemp(logParent, report.Mode+"-")
 	if err != nil {
 		return logFailure(err)
 	}
@@ -306,7 +314,7 @@ func runMode(ctx context.Context, root, commit, mode string, runner ActionRunner
 
 	var combined textbuf.Buffer
 	combined.Str("Ze verify protocol run: ").Str(started.UTC().Format(time.RFC3339)).
-		Str("\nMode: ").Str(mode).Str("\nCommit: ").Str(commit).Str("\n\n")
+		Str("\nMode: ").Str(report.Mode).Str("\nCommit: ").Str(commit).Str("\n\n")
 	report.Code = 0
 	for index, current := range stages {
 		if err := ctx.Err(); err != nil {

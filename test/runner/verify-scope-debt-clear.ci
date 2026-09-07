@@ -3,7 +3,9 @@
 # The fixture drives the REAL `le commit debt-clear` against a scratch checkout
 # and judges the LEDGER it leaves behind. The row it holds is one no gate can
 # re-run, so nothing is run for it and it must stay open: a row is cleared by a
-# gate that passed, never by asking.
+# gate that passed, never by asking. It also drives the cut grammar,
+# `debt-clear part <n> of <m>`, in the one form that answers without running a
+# gate: `part` with no `of` names no piece count, so it is refused.
 #
 # Both halves of the gate-exit decision, green and red, are proved by
 # TestDebtClearingHonorsTheGateExit (internal/le/commit/commit_test.go), which
@@ -18,4 +20,5 @@ expect=exit:code=0
 expect=stdout:contains=debt-fixtures-ready
 expect=stdout:contains=native-debt-clear-runs-registered-gates
 expect=stdout:contains=unrunnable-row-named-and-left-open
+expect=stdout:contains=half-named-cut-refused
 expect=stdout:contains=debt-clear-started-no-gate

@@ -210,15 +210,23 @@ func CheckCertificate(root string, paths []string) Freshness {
 	if certificate.Skipped != "" {
 		return stale(fmt.Sprintf("STALE: last pass skipped suites (%s) at %s", certificate.Skipped, certificate.Timestamp))
 	}
+	mode := certificate.Mode
+	if mode == "" {
+		mode = Mode
+	}
+	// A certificate whose mode names no stage population was written by a run
+	// that judged a SUBSET of the stages, so it says nothing about the ones it
+	// never started (Part.Name). Reading it as a pass would credit every stage
+	// the piece skipped, which is the one thing a certificate exists to stop.
+	if len(StagesForMode(mode)) == 0 {
+		return stale(fmt.Sprintf("STALE: last PASS at %s ran the %s population, which is not a whole verification",
+			certificate.Timestamp, mode))
+	}
 	if len(paths) != 0 {
 		return checkScoped(root, certificate, paths)
 	}
 	if job.TreeHash(root) != certificate.TreeHash {
 		return stale(fmt.Sprintf("STALE: tree changed since last PASS at %s", certificate.Timestamp))
-	}
-	mode := certificate.Mode
-	if mode == "" {
-		mode = Mode
 	}
 	return Freshness{
 		Fresh:     true,

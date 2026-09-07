@@ -30,7 +30,7 @@ var commandVerbs = []struct {
 	{actionReviewCheck, false, "re-check a hash-pinned independent review immediately before staging"},
 	{"debt-list", false, "list every verification-debt row"},
 	{"debt-status", false, "summarize open and cleared verification debt"},
-	{"debt-clear", true, "run owed native gates against HEAD and clear rows only after exit zero"},
+	{"debt-clear", true, "run owed native gates against HEAD and clear rows only after exit zero; part <n> of <m> runs one piece and clears nothing until every piece has passed at one commit"},
 }
 
 // CommandRow is one closed verb exposed by `le commit`.
@@ -53,12 +53,17 @@ type debtStatus struct {
 	Total   int `json:"total"`
 }
 
-// debtClearResult records the fixed commit judged and the rows changed.
+// debtClearResult records the fixed commit judged and the rows changed. Part,
+// Of and Proven are empty for an uncut pass, which proves the whole population
+// in one run and has no progress to carry.
 type debtClearResult struct {
 	Commit      string   `json:"commit,omitempty"`
 	Open        int      `json:"open"`
 	Cleared     int      `json:"cleared"`
 	Remaining   int      `json:"remaining"`
+	Part        int      `json:"part,omitempty"`
+	Of          int      `json:"of,omitempty"`
+	Proven      []int    `json:"proven-parts,omitempty"`
 	Runnable    []string `json:"runnable,omitempty"`
 	Unrunnable  []string `json:"unrunnable,omitempty"`
 	Diagnostics []string `json:"diagnostics,omitempty"`
@@ -166,10 +171,17 @@ func Answer(args []string) (any, int) {
 		}
 		return status, 0
 	case "debt-clear":
-		if len(args) != 1 {
-			return commandError(fmt.Errorf("debt-clear takes no arguments, got %q", args[1]), 2)
+		values, err := parseKeywords(args[1:], map[string]keywordRule{
+			"part": {Value: true}, "of": {Value: true},
+		})
+		if err != nil {
+			return commandError(err, 2)
 		}
-		result, code := clearDebt(root)
+		part, err := debtPartFrom(values)
+		if err != nil {
+			return commandError(err, 2)
+		}
+		result, code := clearDebt(root, part)
 		return result, code
 	default:
 		return commandError(fmt.Errorf("commit has no verb %q", args[0]), 2)
@@ -274,9 +286,9 @@ func parseCreate(args []string) (Options, error) {
 }
 
 // clearDebt re-judges every open debt row against HEAD, through the native
-// verification the rows name.
-func clearDebt(root string) (debtClearResult, int) {
-	return clearDebtWith(root, verifydispatch.RunAction)
+// verification the rows name, running the piece of it the caller named.
+func clearDebt(root string, part debtPart) (debtClearResult, int) {
+	return clearDebtWith(root, part, verifydispatch.RunAction)
 }
 
 // clearDebtWith is clearDebt with the verification's action dispatcher named.
@@ -287,7 +299,7 @@ func clearDebt(root string) (debtClearResult, int) {
 // dispatcher each of those runs is the hour-long verification, so the decision
 // would be the one part of debt clearing no test ever reaches, in a function
 // whose whole job is to refuse to trust an unverified claim.
-func clearDebtWith(root string, runner verifyengine.ActionRunner) (debtClearResult, int) {
+func clearDebtWith(root string, part debtPart, runner verifyengine.ActionRunner) (debtClearResult, int) {
 	rows, err := openDebt(root)
 	if err != nil {
 		leaction.ReportError(err)
@@ -316,26 +328,56 @@ func clearDebtWith(root string, runner verifyengine.ActionRunner) (debtClearResu
 	slices.Sort(result.Runnable)
 	slices.Sort(result.Unrunnable)
 	passed := make(map[string]bool)
+	proven := false
 	if len(result.Runnable) != 0 {
-		report := verify.Run(context.Background(), root, verify.Options{Commit: "HEAD"}, runner)
+		report := verify.Run(context.Background(), root,
+			verify.Options{Commit: "HEAD", Part: part.Index, Parts: part.Of}, runner)
 		result.Commit = report.Commit
 		result.Diagnostics = report.Diagnostics
-		if report.Code != 0 {
+		if part.cut() {
+			result.Part, result.Of = part.Index, part.Of
+		}
+		switch {
+		case report.Code != 0:
 			result.Remaining = result.Open
 			if report.Verify == nil {
 				return result, 1
 			}
-		} else {
-			for _, gate := range result.Runnable {
-				passed[gate] = true
+		case !part.cut():
+			proven = true
+		default:
+			// The piece exited 0, so what it proved is recorded before anything
+			// else can end this process. The whole point of cutting the run is
+			// that a piece killed mid-flight costs that piece and not the run.
+			recorded, err := recordDebtPart(root, report.Commit, part)
+			if err != nil {
+				leaction.ReportError(err)
+				result.Remaining = result.Open
+				return result, 2
 			}
+			result.Proven = recorded
+			proven = debtPartsComplete(recorded, part.Of)
 		}
+	}
+	if proven {
+		for _, gate := range result.Runnable {
+			passed[gate] = true
+		}
+	}
+	if !proven {
+		result.Remaining = result.Open
+		return result, 0
 	}
 	cleared, err := clearDebtRows(root, passed)
 	if err != nil {
 		leaction.ReportError(err)
 		result.Remaining = result.Open
 		return result, 2
+	}
+	if part.cut() {
+		if err := forgetDebtParts(root); err != nil {
+			leaction.ReportError(err)
+		}
 	}
 	result.Cleared = cleared
 	result.Remaining = result.Open - cleared
@@ -404,6 +446,14 @@ func (r debtClearResult) Text() string {
 	}
 	for _, line := range r.Diagnostics {
 		text.Str(line).Byte('\n')
+	}
+	if r.Of != 0 {
+		text.Str("part ").Int(int64(r.Part)).Str(" of ").Int(int64(r.Of)).
+			Str(" over ").Str(r.Commit).Str("; proven so far:")
+		for _, piece := range r.Proven {
+			text.Byte(' ').Int(int64(piece))
+		}
+		text.Str(" of ").Int(int64(r.Of)).Byte('\n')
 	}
 	return text.Str("cleared ").Int(int64(r.Cleared)).Str(" row(s), ").
 		Int(int64(r.Remaining)).Str(" still open\n").String()
