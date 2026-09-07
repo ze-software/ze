@@ -85,7 +85,7 @@ tmpfs=<path>[:mode=<octal>]:terminator=<TERM>
 <content>
 <TERM>
 
-# 2. Stdin blocks (for process pipes)
+# 2. Stdin blocks (piped to the process named by cmd=...:stdin=<name>)
 stdin=<name>:terminator=<TERM>
 <content>
 <TERM>
@@ -175,9 +175,14 @@ expect=stdout:contains=<expected output>
 # Test: decode <family> produces correct JSON
 
 stdin=payload:hex=<full-bgp-message-hex>
-cmd=foreground:seq=1:exec=ze-test decode --family <afi/safi> -:stdin=payload
+cmd=foreground:seq=1:exec=ze bgp decode --json --family <afi/safi> -:stdin=payload
 expect=json:json=<expected-json>
 ```
+
+The block is PIPED, and the `-` reaches the command as written. Two forms take
+the block as a FILE instead: a `ze` daemon launch whose `-` IS the config
+argument, and a `ze-peer` line carrying no `-`. Both are in
+`docs/architecture/testing/ci-format.md`, "Where the block goes".
 
 ## Key Syntax Reference
 

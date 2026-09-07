@@ -1,0 +1,72 @@
+# Wiring proof for the stdin= route: a bare `-` gets the PIPE.
+#
+# VALIDATES: the runner pipes a named stdin block into a command whose `-` is the
+#   cliio stdin token, rather than writing the block to a file and substituting
+#   the path (routeStdinBlock, internal/test/runner/runner_exec_util.go).
+#   `ze-test peer` takes its expect script as a path argument and opens it
+#   through cliio, so `-` reads standard input there.
+# PREVENTS: the two shapes this branch had. The ze arm took the FIRST `-` in argv
+#   whatever it meant, and the ze-peer arm appended a temporary file whether or
+#   not the line carried a `-`, which left the `-` as argv[0] of the peer with
+#   nothing on standard input: LoadExpectFile then read an EMPTY expect set and
+#   the peer asserted nothing.
+#
+# Discrimination: the peer's own ASN comes from the piped block. A runner that
+#   stops piping hands the peer no options at all, so it opens with the default
+#   ASN, ze answers NOTIFICATION 2/2 Bad Peer AS and the session never
+#   establishes. The expectation below can then never be met, whatever it says.
+
+# ze-peer expectations, PIPED through the `-` on the cmd= line below.
+stdin=peer:terminator=EOF_PEER
+option=asn:value=1
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0001FE400504000000C8180A0000
+EOF_PEER
+
+# One iBGP peer originating a single route from its own configuration.
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				next-hop 10.0.1.254
+				local-preference 200
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT -:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s

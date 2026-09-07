@@ -829,3 +829,329 @@ Not applicable. No protocol-implementing code changes.
 ## Progress, 2026-09-06
 
 Committed in `c31e6a5cb3`. Its three design options await the owner.
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+- **The routing decision, once, before argv is touched.** `routeStdinBlock`
+  (`internal/test/runner/runner_exec_util.go`) answers `stdinRouteDaemonConfig`
+  only when `zeDaemonConfigArgIndex(args)` names an argument that IS `-`,
+  `stdinRoutePeerFile` only for a `ze-peer` line carrying no `-`, and
+  `stdinRoutePipe` for everything else. The command loop in `runner_exec.go`
+  carries that decision out in two arms and reads argv for a `-` nowhere else.
+  The blanket "first `-` in argv" scan is DELETED, not narrowed
+  (`ai/rules/no-layering.md`). AC-1 through AC-5.
+- **A refusal on every declared vocabulary.** Six switches in `record_parse.go`
+  gate on a list in `record_parse_vocabulary.go`, and `unknownDirective` prints
+  the same slice the gate read. A word listed with no arm behind it answers
+  `errDirectiveUnlisted` rather than falling through. `tmpfs.Line` carries each
+  directive's own line number in the FILE, which the refusal had never quoted.
+  AC-6.
+- **A refusal on the marker parsers.** `checkMarkerKeys`
+  (`record_parse_keys.go`), called from `parseCmdExec` and `parseCmdStop`
+  against `cmdExecKeys` and `cmdStopKeys`, the same lists every `markerValue`
+  call bounds its value with. `option=timeout:value=` is judged as a Go duration
+  at parse time, because both readers keep their own default when it fails.
+  AC-7.
+- **A record of what RAN.** `Record.recordExecStep` (`runner_exec_trace.go`)
+  writes the argv the runner built and where each `stdin=` block went;
+  `Report.printStepTraces` prints it for every selected test under `-v`, passing
+  ones included. `RunOptions.Verbose` was carried from the command line and read
+  by nothing until this change. AC-8.
+- **A stored forced red.** `internal/test/runner/testdata/mustfail/` holds six
+  `.ci`, each naming its expected failure on a `# must-fail:` line, and
+  `TestCIMustFailFixturesAllFail` compares that TEXT against the parse error or
+  `rec.Error`, not only the verdict. AC-13.
+- **Four `.ci` over reachable Group 2 behavior**, each with an observed red:
+  `test/ui/bgp-decode-pcap-stdin.ci`, `test/ui/bgp-decode-stdin-hex.ci`,
+  `test/ui/config-history-stdin-refused.ci`,
+  `test/ui/config-fmt-write-stdout.ci`. AC-9 through AC-12.
+- **`test/runner/stdin-pipes-into-a-dash.ci`**, the end-to-end proof of AC-5:
+  the peer takes its ASN from a block piped through the `-` on its `cmd=` line.
+- **Docs**: `docs/architecture/testing/ci-format.md` ("Where the block goes",
+  the `cmd=` key table, "An Unknown Directive or Key Is a Parse Error"),
+  `docs/architecture/testing/runner-architecture.md` (the step trace, the
+  must-fail suite), `docs/functional-tests.md` (the UI row),
+  `ai/patterns/functional-test.md` (the stdin example and the two file forms).
+  AC-16.
+
+### Bugs Found/Fixed
+
+- `test/plugin/forward-write-deadline.ci` wrote `:env=ZE_FWD_WRITE_DEADLINE=10s`
+  after `:timeout=15s`. The marker parser swallowed `env` into the timeout value,
+  which then parsed as nothing, so the test named after that variable never set
+  it and ran the default 30s deadline. One such line in 3,197. It now sets the
+  variable through `option=env:var=ze.fwd.write.deadline:value=10s`, and
+  `checkMarkerKeys` refuses the shape. Journal row in
+  `plan/journal/green-that-could-not-have-been-red.md`.
+- The refusal line number counted surviving directives, not file lines: comments,
+  blank lines and whole `stdin=`/`tmpfs=` blocks are consumed first, so a
+  refusal named line 2 for a line that was number 69. `tmpfs.Line` fixes it.
+- Found at closure and corrected in commit A: that `.ci` comment and the journal
+  row both said `ZE_FWD_WRITE_DEADLINE` "was never read by anything". False.
+  `env.normalize` (`internal/core/env/env.go`) folds dots and case, so that
+  spelling and the registered `ze.fwd.write.deadline` are one key. The spelling
+  was never the defect; the variable never reached `proc.Env` at all.
+
+### Documentation Updates
+
+- `docs/architecture/testing/ci-format.md` — the "Where the block goes" table,
+  anchored `<!-- source: internal/test/runner/runner_exec_util.go -- routeStdinBlock -->`;
+  the `cmd=` marker table and its refusal, anchored on `cmdExecKeys`,
+  `cmdStopKeys`, `parseCmdExec` and `checkMarkerKeys`; the unknown-directive
+  section, anchored on `record_parse_vocabulary.go` and `tmpfs.go -- Line`.
+  Landed in `5c9254bdd` and `0897c2b95`, with the code.
+- `docs/architecture/testing/runner-architecture.md` — the step trace, anchored
+  on `recordExecStep` and `printStepTraces` (`5c9254bdd`); the must-fail suite,
+  anchored on `TestCIMustFailFixturesAllFail` and `mustFailMarker` (`61de329f6`).
+- `docs/functional-tests.md` — the UI row now names both decode fixtures and
+  cites `routeStdinBlock`. At HEAD.
+- `ai/patterns/functional-test.md` — the stdin example uses `ze bgp decode`
+  rather than a `ze-test decode` form, and a paragraph names the two file routes
+  and points at `ci-format.md`. Carried by commit A.
+
+### Deviations from Plan
+
+- `TestDaemonConfigArgIndexRejectsEveryGroupTwoCommand` was not written as its
+  own function. Its assertion is inside `TestCIStdinPipesForNonDaemonZeCommand`
+  (`stdin_route_test.go`), 31 argv rows, which tests the ROUTE rather than the
+  index alone and so covers strictly more.
+- `TestConfigNameRuleUnchanged` was not written. AC-3 and AC-4 are "unchanged",
+  and `TestZeConfigFileName` and `TestZeConfigFileNameFirstBlockCanonical`
+  (`runner_config_test.go`) already assert the reuse rule, the two-daemon rule
+  and the canonical first name. Neither test nor `zeConfigFileName` changed, so
+  a second test would have been a copy of an untouched declaration.
+- `test/runner/stdin-pipes-into-a-dash.ci` is not in "Files to Create". It was
+  written to answer the `ze-peer` sub-question under Option D and is AC-5's only
+  end-to-end proof.
+- `TestRunReportNamesTheArgvItRan` lost a `t.Skip` guarding on `/bin/cat`.
+  Nothing else in the package guards `/bin/sh`, and a test that quietly stops
+  running is the failure this spec exists to remove.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | The Task section asserted that no `.ci` could exercise a `ze` command reading standard input | 83 `cmd=` lines in 67 files pipe today and always have. Only the `-` CONVENTION was broken | the owner read the section and said so | the section was corrected 2026-09-07 and every number in the spec re-derived over the right population |
+| approach | The `d1e6e2d200` precedent in `test/parse` was read as Option D already built for one runner | it narrowed only WHERE the `start` verb goes. Both arms of `runOneCommand` still substitute a path, and the pipe below is guarded by `!containsDash`, so the parse suite still cannot pipe | reading `runOneCommand` at the producer while writing the Design Options table | corrected in the spec before the option was chosen; the cost column changed with it |
+| escalation | A comment and a journal row this spec wrote both claimed `ZE_FWD_WRITE_DEADLINE` "was never read by anything" | `env.normalize` folds dots and case, so it names the registered key. A coherent story about a second defect was written beside the real one | closure review, reading `env.normalize` at the producer | both corrected in commit A. A claim about a second defect found beside the first is still a claim, and it owes the same producer read |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| separate the `-` that means a config file the runner materializes from the `-` that means the pipe | Done | `routeStdinBlock` (`internal/test/runner/runner_exec_util.go`) | the discriminator is `zeDaemonConfigArgIndex`, which already existed |
+| answer how a `.ci` that silently tests the wrong thing is DETECTED | Done | D1 `record_parse_vocabulary.go` + `checkMarkerKeys`; D2 `runner_exec_trace.go` + `printStepTraces`; D3 `must_fail_test.go` + `testdata/mustfail/` | D4 rejected on `ai/rules/principles.md`, recorded in Key Design Decisions |
+| `ze-peer` stops being a special case that cannot pipe | Done | the `binNameZePeer` arm of `routeStdinBlock` | the `.ci` selects by writing a `-` or not; 702 existing lines unchanged |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestCIStdinPipesForNonDaemonZeCommand` (`stdin_route_test.go`), 31 argv rows | `routeStdinBlock` returns `stdinRoutePipe, -1` |
+| AC-2 | Done | `TestCIStdinSubstitutesFileForDaemonLaunch`; the daemon arm of the command loop | `zeConfigFileName`, the `start` verb and the netns chown are byte-identical |
+| AC-3 | Done | `TestZeConfigFileName`, the reuse arm | `zeConfigFileName` untouched by this spec |
+| AC-4 | Done | `TestZeConfigFileName`, the second distinct block | as above |
+| AC-5 | Done | `TestCIStdinZePeerHonorsDeclaredMode`; `test/runner/stdin-pipes-into-a-dash.ci` | the peer's ASN comes from the piped block, so a runner that stops piping cannot establish |
+| AC-6 | Done | `TestUnknownDirectiveNamesLineAndAccepted`, `TestUnknownDirectiveTypeNamesAcceptedSet`, `TestDirectiveVocabularyIsLive` | six `slices.Contains` gates ahead of six switches |
+| AC-7 | Done | `TestCmdUnknownKeyRefused`, `TestCmdUnknownKeyNotSwallowedIntoExec`, `TestCmdKeysAreOneDeclaration` | |
+| AC-8 | Done | `TestRunReportNamesTheArgvItRan` (`report_test.go`) | `recordExecStep` called from the command loop; `printStepTraces` wired through `setOnVerbose` |
+| AC-9 | Done | `test/ui/bgp-decode-pcap-stdin.ci`, red recorded in Functional Tests | |
+| AC-10 | Done | `test/ui/bgp-decode-stdin-hex.ci`, red recorded | |
+| AC-11 | Done | `test/ui/config-history-stdin-refused.ci`, red recorded | the exit assertion passed under the cut; only the stderr text discriminated |
+| AC-12 | Done | `test/ui/config-fmt-write-stdout.ci`, two reds recorded | |
+| AC-13 | Done | `TestCIMustFailFixturesAllFail` over six fixtures | the gate compares the failure TEXT, not the verdict |
+| AC-14 | Done | the AC-14 section above | 269 reds, 269 traces, `piped]` in none |
+| AC-15 | Done | `./le functional decode`, `pass 39/39 100.0%` | |
+| AC-16 | Done | the four pages in Documentation Updates | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestCIStdinPipesForNonDaemonZeCommand` | Done | `internal/test/runner/stdin_route_test.go` | absorbed `TestDaemonConfigArgIndexRejectsEveryGroupTwoCommand` |
+| `TestCIStdinSubstitutesFileForDaemonLaunch` | Done | same file | |
+| `TestCIStdinZePeerHonorsDeclaredMode` | Done | same file | sits beside its siblings rather than in `peer_contract_test.go` |
+| `TestCIStdinPipesForEveryOtherBinary` | Done | same file | not in the plan; covers Group 4 |
+| `TestDaemonConfigArgIndexRejectsEveryGroupTwoCommand` | Changed | folded into `TestCIStdinPipesForNonDaemonZeCommand` | Deviations |
+| `TestCmdUnknownKeyRefused` | Done | `record_parse_cmd_test.go` | |
+| `TestCmdUnknownKeyNotSwallowedIntoExec` | Done | same file | |
+| `TestCmdKeysAreOneDeclaration` | Done | same file | |
+| `TestUnknownDirectiveNamesLineAndAccepted` | Done | `record_parse_test.go` | |
+| `TestUnknownDirectiveTypeNamesAcceptedSet` | Done | same file | |
+| `TestDirectiveVocabularyIsLive` | Done | same file | |
+| `TestRunReportNamesTheArgvItRan` | Done | `report_test.go` | |
+| `TestCIMustFailFixturesAllFail` | Done | `must_fail_test.go` | |
+| `TestConfigNameRuleUnchanged` | Changed | `TestZeConfigFileName` already asserts it and neither it nor `zeConfigFileName` changed | Deviations |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/test/runner/runner_exec.go` | Done | two arms driven by `routeStdinBlock`; the http steps moved onto `recordStep` |
+| `internal/test/runner/runner_exec_util.go` | Done | `stdinRoute`, `routeStdinBlock` |
+| `internal/test/runner/record_parse_cmd.go` | Done | `cmdExecKeys`, `cmdStopKeys`, the `checkMarkerKeys` calls |
+| `internal/test/runner/record_parse_keys.go` | Done | `checkMarkerKeys`, `markerKeyAt` |
+| `internal/test/runner/record.go` | Changed | no new field was needed; `StepTrace` already existed |
+| `internal/test/runner/report.go` | Done | `printStepTraces` |
+| `internal/test/runner/runner_output_assert.go` | Changed | `recordStep` unchanged; the http call sites moved onto it |
+| `internal/test/runner/record_parse_vocabulary.go` | Done | not in the plan; the one declaration the six gates read |
+| `internal/test/runner/runner_exec_trace.go` | Done | not in the plan; `recordExecStep` |
+| `internal/test/runner/must_fail_test.go` and `testdata/mustfail/` | Done | six fixtures |
+| `test/ui/*.ci`, four files | Done | |
+| `test/runner/stdin-pipes-into-a-dash.ci` | Done | not in the plan; Deviations |
+| `docs/architecture/testing/ci-format.md` | Done | |
+| `docs/architecture/testing/runner-architecture.md` | Done | |
+| `docs/functional-tests.md` | Done | at HEAD |
+| `ai/patterns/functional-test.md` | Done | commit A |
+| 914 `.ci` lines under `test/` | N-A | Options B and C only; Thomas chose D |
+
+### Audit Summary
+- **Total items:** 47 (16 AC, 14 tests, 17 files)
+- **Done:** 43
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 4, each in Deviations (three tests folded or already covered, one file needing no new field)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| a `.ci` can exercise a `ze` command whose `-` names standard input | functional | `test/ui/bgp-decode-stdin-hex.ci` passes and went RED with `decodeHexStdin` cut: `error: standard input carried no hexadecimal message`. `test/ui/bgp-decode-pcap-stdin.ci` passes and went RED with the stdin arm of `decodePcapInput` cut: `error: read -: pcap: read file header: EOF`. Both step traces read `piped]` |
+| a Group 2 NEGATIVE assertion is reachable | functional | `test/ui/config-history-stdin-refused.ci` passes and went RED with the `cliio.IsStdin` guard of `cmdHistory` cut. The exit assertion PASSED under that cut; the stderr text is the whole discriminator |
+| a stdin-only OUTPUT route is reachable | functional | `test/ui/config-fmt-write-stdout.ci` passes and went RED twice with the `cliio.IsStdin(configPath)` arm of `cmdFmt` cut: once on `stderr unexpectedly contains "Formatted"`, once on `stdout does not contain "router-id 5.6.7.8"` |
+| `ze-peer` can pipe | functional | `test/runner/stdin-pipes-into-a-dash.ci`: the peer's ASN comes from the piped block, so under the old routing ze answered NOTIFICATION 2/2 Bad Peer AS and the session never established. `./le functional runner` 10/10 with it included |
+| a silently-wrong `.ci` is DETECTED rather than relied on not to happen | functional + unit | `TestCIMustFailFixturesAllFail` over six stored forced reds, each compared by failure TEXT; red observed by pointing `exit-code-is-judged.ci` at `/bin/true`. `TestDirectiveVocabularyIsLive` proves every accepted word reaches an arm |
+| the daemon path is unchanged | functional | AC-14: `encode` fails identically under both routings, the 62 affected `.ci` files pass, and `piped]` appears in none of the 269 gating reds |
+| the second `.ci` driver is untouched | functional | AC-15: `./le functional decode` `pass 39/39 100.0%`, pass set unchanged |
+
+## Work Not Done
+
+Every item below is a DEFECT this spec walked into, not a separable feature, so
+each one is a journal row and none is a spec. `ai/rules/completion.md`, "A
+problem you FIND while working on something else gets a JOURNAL ROW, not a spec
+(owner directive, 2026-08-10)", governs, and it supersedes the Known Limitations
+sentence above that promised a spec for the first row.
+
+| What was not done | Why | The row that now owns it |
+|-------------------|-----|--------------------------|
+| `checkOutputAssertions` reads the whole file's accumulated stdout AND stderr, so the stream named in a directive selects nothing and the command it sits near selects nothing | a distinct mechanism with a distinct repair; folding it in costs this spec its single focus. Named as a Known Limitation from the day the spec was written | `plan/journal/green-that-could-not-have-been-red.md`, row of 2026-09-07 |
+| the `test/decode/` driver never executes its `exec=` line: `parseCIFile` lifts the flags off it and builds its own argv, so those files pass while their command text is decoration | a third mechanism of the same class at a different layer, and AC-15 requires this spec leave that driver untouched | `plan/journal/green-that-could-not-have-been-red.md`, row of 2026-09-07 |
+| `generateOpen` (`internal/test/peer/peer.go`) writes `p.config.ASN` into the two-octet My AS field alone, leaving the mirrored AS4 capability holding ze's ASN, so 224 of the gating run's 269 reds are one harness defect | instrument code, blocks no goal of this spec, and the repair changes what all 702 `ze-peer` lines send, so it owes its own gating run (`ai/rules/pre-release.md`) | `plan/journal/test-against-broken-path.md`, beside `plan/journal/guard-added-to-one-half-of-a-pair.md`; three rows now name one producer, which is what a deliberate journal pass needs |
+| `ze isis decode` and `ze ospf decode` read `os.Stdin` unconditionally, accept no `-` and take no path, so either one typed at a terminal blocks in the read | it changes a shipped command's argument grammar, which is not this spec's surface | `plan/journal/command-waits-for-input-it-was-not-given.md`, row of 2026-09-07 |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-ci-runner-cannot-test-stdin-zeclose-cistdin-644c18af.md`, 20 files, verdict=clean |
+| `./le spec session review check` | `OK (0 code files, clean, hashes match)`. Zero because the implementation is already committed and the checker counts uncommitted code; the review read `git diff a83f838dfa~1..HEAD` over those 20 paths |
+| Rounds | 2. Round 1 found the two rows below; round 2 read both fixes at the producer and found nothing further |
+| Reviewer lenses used | wiring and one-declaration; removed-behavior plus guard audit over the deleted substitution branch; discrimination (does each new assertion have an observed red, and does the must-fail gate compare the reason); a vocabulary-gate false-refusal sweep over the whole `.ci` corpus; the Go style pass over every changed Go file |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | AC-5's only end-to-end proof was UNTRACKED. The spec cites it three times (R-6 retired, A-4 confirmed, the `ze-peer` sub-question answered) while the file lived in one working tree and would die at the next clean | `test/runner/stdin-pipes-into-a-dash.ci` | named in commit A |
+| 2 | ISSUE | A false claim about product behavior, written by this spec in two places: `ZE_FWD_WRITE_DEADLINE` "was never read by anything". `env.normalize` (`internal/core/env/env.go`) folds dots and case, so it names the registered `ze.fwd.write.deadline` that `initFwdWriteDeadline` (`internal/component/bgp/reactor/forward_pool.go`) reads. The variable never reached `proc.Env` at all, which is the real and sufficient defect | the `test/plugin/forward-write-deadline.ci` comment, and the 2026-09-07 row in `plan/journal/green-that-could-not-have-been-red.md` | both sentences corrected in commit A |
+
+Automated pre-checks. `./le repository check` reports 2 ISSUEs, both on another
+session's uncommitted files (`ExtractRemovePrivateASOps` in
+`internal/component/bgp/reactor/filter_delta.go`, `SuiteRun` in
+`internal/le/functional/report.go`), neither in this spec's paths.
+`./le commit audit base a83f838dfa~1` reports 12 WEAKENED findings and none is
+under `internal/test/runner/`: every one is in `internal/core/eap/`,
+`internal/component/bgp/reactor/`, `internal/component/plugin/all/` or
+`internal/le/functional/`, all another session's work in this shared checkout.
+
+Scoped unit run, `go test ./internal/test/runner/` under `./le job run`: one red,
+`TestCIAcceptOnlyLint`, on five unannotated accept-only `.ci` another session
+committed (`test/parse/environment-hide-version.ci`,
+`test/plugin/redistribute-late-consumer.ci`, `test/ui/command-help-both-texts.ci`,
+`test/ui/command-help-explanation-box.ci`, `test/ui/config-help-both-texts.ci`)
+and on 40 `test/exabgp-compat/api/*.ci` that fail `option:file missing path=`, an
+old dialect this change did not touch. It was 41 before this spec and is 40
+after. Left red and reported (`ai/rules/pre-release.md`).
+
+Heavy suites were deferred by owner instruction for this closure: no QEMU, no
+`./le verify worktree`, no functional suite re-run. AC-14 and AC-15 rest on the
+runs already recorded in the Functional Tests table.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/test/runner/runner_exec_trace.go` | Yes | `-rw-rw-r-- 2024 Sep 7 17:11` |
+| `internal/test/runner/record_parse_vocabulary.go` | Yes | `-rw-rw-r-- 4537 Sep 7 17:15` |
+| `internal/test/runner/must_fail_test.go` | Yes | `-rw-rw-r-- 4968 Sep 7 17:21` |
+| `internal/test/runner/testdata/mustfail/` | Yes | six `.ci`: `bad-timeout`, `exit-code-is-judged`, `stdin-reaches-the-child`, `unknown-cmd-key`, `unknown-directive`, `unknown-expect-type` |
+| `internal/test/runner/stdin_route_test.go` | Yes | `-rw-rw-r-- 6888 Sep 7 13:22` |
+| `test/ui/bgp-decode-pcap-stdin.ci` | Yes | `-rw-rw-r-- 1233 Sep 5 22:25` |
+| `test/ui/bgp-decode-stdin-hex.ci` | Yes | `-rw-rw-r-- 642 Sep 5 22:25` |
+| `test/ui/config-history-stdin-refused.ci` | Yes | `-rw-rw-r-- 1416 Sep 7 13:47` |
+| `test/ui/config-fmt-write-stdout.ci` | Yes | `-rw-rw-r-- 2424 Sep 7 17:59` |
+| `test/runner/stdin-pipes-into-a-dash.ci` | Yes | `-rw-rw-r-- 2144 Sep 7 13:42`, untracked until commit A |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2 | the daemon `-` takes the file and every other `-` pipes | read `routeStdinBlock` at the producer: `idx := zeDaemonConfigArgIndex(args)`, then `if idx >= 0 && args[idx] == "-"` returns `stdinRouteDaemonConfig, idx`, and every other path returns `stdinRoutePipe, -1` |
+| AC-5 | a `ze-peer` line selects by writing a `-` | the `binNameZePeer` arm: `slices.Contains(args, "-")` returns `stdinRoutePipe`, otherwise `stdinRoutePeerFile` |
+| AC-6 | the lists GATE, they do not sit beside | `grep -n "slices.Contains(record" internal/test/runner/record_parse.go` returns six hits, each ahead of its switch, and the six default arms return `errDirectiveUnlisted` |
+| AC-7 | `cmdExecKeys` is one declaration | `checkMarkerKeys(directive, line, cmdExecKeys)` in `parseCmdExec`, and every `markerValue(line, marker*, cmdExecKeys)` call bounded by the same slice |
+| AC-8 | the report states what ran | `rec.recordExecStep(binPath, args, cmd.Stdin, stdinContent != nil)` in the command loop; `pr.setOnVerbose(...)` in `Runner.Run`; `if r.verbose && !r.quiet && r.onVerbose != nil` in `parallelRunner.Run` |
+| AC-11 | the refusal exists and the exit code does not discriminate | `cmdHistory` prints `history needs on-disk revision history` and returns `exitError`; the `NewEditorWithStorage` failure path below it returns `exitError` too, which is why the fixture's exit assertion passed under the cut |
+| AC-12 | the stdout arm exists | the `cliio.IsStdin(configPath)` arm of `cmdFmt` writes `formatted` unconditionally and returns; the in-place arm below it writes only `if hasChanges` and prints `Formatted: %s` |
+| AC-13 | the gate compares the REASON | `got := rec.Error.Error() + " " + rec.FailureType`, then `require.Contains(t, got, want)`; `mustFailExpectation` calls `t.Fatalf` when a fixture carries no `# must-fail:` line |
+| AC-16 | the pages state which form pipes | `docs/architecture/testing/ci-format.md` "Where the block goes", four rows, anchored on `routeStdinBlock` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| a `.ci` naming a block on a Group 2 `ze` command | `test/ui/bgp-decode-stdin-hex.ci` | Yes, read the file: `cmd=foreground:seq=1:exec=ze bgp decode -:stdin=payloads`, asserting `65000` and `KEEPALIVE` off the piped hex |
+| a `.ci` naming a block on `ze -` | `test/runner/stdin-pipes-into-a-dash.ci`, seq=2 | Yes: `exec=ze -:stdin=ze-bgp:timeout=15s`, the daemon arm |
+| a `.ci` naming a block on `ze-peer` | `test/runner/stdin-pipes-into-a-dash.ci`, seq=1 | Yes: `exec=ze-peer --port $PORT -:stdin=peer`, and the peer's `option=asn:value=1` is inside the piped block |
+| a `cmd=` line carrying an unread key | `internal/test/runner/testdata/mustfail/unknown-cmd-key.ci` | Yes, read the file: `# must-fail: cmd=foreground: unknown key "env"` |
+| a run whose argv the runner rewrote | any `-v` run | Yes: `recordExecStep` into `printStepTraces`, both read |
+| a must-fail fixture that starts passing | `internal/test/runner/testdata/mustfail/exit-code-is-judged.ci` | Yes: `/bin/false` against `expect=exit:code=0`, red observed by pointing it at `/bin/true` |
+| `ze bgp decode pcap -` from a real `.ci` | `test/ui/bgp-decode-pcap-stdin.ci` | Yes, read the file and `decodePcapInput` |
+| `ze bgp decode -` from a real `.ci` | `test/ui/bgp-decode-stdin-hex.ci` | Yes, read the file and `decodeHexStdin` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestCIStdinPipesForNonDaemonZeCommand`, 31 argv rows including `--no-color` in front |
+| A-2 | confirmed | all 62 affected files pass under the change, across eleven suites |
+| A-3 | confirmed | every file naming `dest=ze-bgp.conf` or `rollback/ze-bgp` is a daemon test |
+| A-4 | confirmed | `test/runner/stdin-pipes-into-a-dash.ci` against the pre-change runner: `ze-peer exited without binding: "no test data available to test against"` |
+| A-5 | confirmed | `checkKeys` and `checkOutputAssertions` are at HEAD and this change touches neither |
+| A-6 | confirmed | `./le functional decode` `pass 39/39 100.0%`; `DecodingRunner` and `ParsingRunner` never call `runTest` |
+| A-7 | confirmed at closure | `LoadCrashDumpIntent` (`internal/component/config/system/crashdump.go`) has exactly two non-test callers, `internal/plugins/crashes/readiness.go` and `internal/component/support/support.go`, neither a verb taking a typed `-`. Every caller of `LoadConfig` (`internal/appliance/config.go`) passes `ConfigPath(dir, name)`, a derived path. Both rows describe reachable `cliio` stdin arms with no typed `-` in front of them |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `ci-format.md` "Where the block goes", four rows | read `routeStdinBlock`: the `ze -` row, the two `ze-peer` rows and the catch-all each match an arm | Yes |
+| `ci-format.md` says `ze-peer ... -` is PIPED because `LoadExpectFile` opens through `cliio` | `internal/test/peer/expect.go`, `cliio.OpenReader(path) // "-" reads stdin` | Yes |
+| `ci-format.md` says the `cmd=` key table is the whole vocabulary | `cmdExecKeys` holds six markers and `TestCmdKeysAreOneDeclaration` pins the count | Yes |
+| `runner-architecture.md` says the step trace prints under `-v` for passing tests | `parallelRunner.Run` calls `onVerbose` outside the failure branch | Yes |
+| `runner-architecture.md` says the must-fail gate compares the named text | `runMustFailFixture` compares `rec.Error.Error() + " " + rec.FailureType` against the `# must-fail:` line | Yes |
+| `docs/functional-tests.md` UI row cites `routeStdinBlock` | at HEAD | Yes |
+| `ai/patterns/functional-test.md` names the two file routes | commit A carries the edit; it points at `ci-format.md` "Where the block goes" | Yes |
+| Doctor checks | no new file path, socket, port, module, binary or certificate: the substituted config file already existed and its lifecycle is unchanged | N-A |
+| RFC status | no RFC-tagged unit changed, and no `rfc/discrimination/` record names a `.ci` this spec touched | N-A |
+
+## Core Insight
+
+The runner held the discriminator this defect needed the whole time.
+`zeDaemonConfigArgIndex` already answered "is this `-` the daemon's config", and
+the substitution branch asked it AFTERWARDS, only to decide where to put the
+`start` verb. The fix was to move one question one line earlier.
+
+That is the shape of the class rather than a detail of this instance. Every one
+of the five silent answers sits at a PARSER or a REWRITER, never at an
+assertion. The assertions in this runner are honest. What was dishonest is the
+path from the author's text to the process, and a harness that cannot honor a
+declaration owes a refusal there rather than a best-effort guess.
