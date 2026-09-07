@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 3/8 |
+| Phase | 6/8 |
 | Handoff | - |
 | Updated | 2026-09-07 |
 
@@ -22,12 +22,36 @@ only for the argument `zeDaemonConfigArgIndex` names, `stdinRoutePeerFile` only
 for a `ze-peer` line that wrote no `-`, and `stdinRoutePipe` for everything else.
 A verb's own `-` therefore pipes.
 
-What is NOT built: AC-6, AC-7, AC-8 and AC-13 have no product code. The four
-fixtures AC-9 through AC-12 name are at HEAD in `test/ui/`, but no recorded red
-for `bgp-decode-pcap-stdin.ci` or `bgp-decode-stdin-hex.ci` exists on disk, so
-the discrimination half of AC-9 and AC-10 is unproven. AC-14 and AC-15 need a
-whole functional suite run, which the owner deferred until the machine is free
-of the concurrent exabgp session.
+Built 2026-09-07, phases 4 and 6 plus the trace half of phase 1: AC-6, AC-7,
+AC-8 and AC-13.
+
+| AC | Producer | Commit |
+|----|----------|--------|
+| AC-6 | the vocabulary lists in `record_parse_vocabulary.go` gate all six switches in `record_parse.go`, and `unknownDirective` prints the slice the gate read. `tmpfs.Line` carries the file's own line number, which the refusal had never quoted | `0897c2b951` |
+| AC-7 | `checkMarkerKeys` (`record_parse_keys.go`) called from `parseCmdExec` and `parseCmdStop` against `cmdExecKeys` / `cmdStopKeys`, the same lists the parser bounds its values with | `0897c2b951` |
+| AC-8 | `Record.recordExecStep` (`runner_exec_trace.go`), called from the command loop, plus `Report.printStepTraces` and the `-v` wiring in `Runner.Run` | UNCOMMITTED, see below |
+| AC-13 | `TestCIMustFailFixturesAllFail` (`must_fail_test.go`) over six fixtures in `internal/test/runner/testdata/mustfail/`, each naming its own failure text | `61de329f6` |
+| AC-9 | `test/ui/bgp-decode-pcap-stdin.ci` over the stdin arm of `decodePcapInput` (`internal/component/bgp/cli/decode_pcap.go`), reached through `routeStdinBlock` | fixture at HEAD in `a83f838dfa`; red observed and recorded 2026-09-07 |
+| AC-10 | `test/ui/bgp-decode-stdin-hex.ci` over `decodeHexStdin` (same file), reached the same way | fixture at HEAD in `a83f838dfa`; red observed and recorded 2026-09-07 |
+
+AC-8's code is finished and green and sits uncommitted, because its one call
+site is in `runner_exec.go`, which also holds the uncommitted AC-1..AC-5 hunks
+of the session that built them. Committing that file would carry another
+session's work under this one's subject. The AC-8 population is
+`runner_exec_trace.go`, `report.go`, `parallel.go`, `runner.go`, the
+`runner_exec.go` call, `report_test.go`, and the "Per-step trace output" section
+of `docs/architecture/testing/runner-architecture.md`.
+
+Built 2026-09-07: the discrimination half of AC-9 and AC-10. Each fixture was
+run green, then run again against a `ze` rebuilt with its own producer cut, and
+each went RED with the text the Functional Tests table records. Both breaks were
+restored and both fixtures re-run green.
+
+What is NOT built: AC-11 and AC-12, whose fixtures
+(`test/ui/config-history-stdin-refused.ci`, `test/ui/config-fmt-write-stdout.ci`)
+are uncommitted and carry no observed red. AC-14 and AC-15 need a whole
+functional suite run, which the owner deferred until the machine is free of the
+concurrent exabgp session.
 
 **Bucket: `plan/pre-release/`.** No operator meets this: the `ze` binary reads
 standard input correctly, and the defect is in the instrument that judges it. It
@@ -363,7 +387,7 @@ did not understand rather than refusing it.
 | 1 | an unrecognised key inside `expect=` was dropped in silence, so ten `not-contains=` lines across seven files asserted nothing | `parseExpect` | FIXED by `checkKeys`, commit `8c7f0a5bf2`, 2026-09-06 |
 | 2 | every stream assertion reads the whole file's accumulated stdout and stderr, so the stream named in the directive selects nothing and the command it sits near selects nothing | `checkOutputAssertions` | documented in that function's own comment at `8c7f0a5bf2`, NOT fixed |
 | 3 | the `-` rewrite, this spec | the `binName == binNameZe` branch in `runner_exec.go`, and the unconditional `binNameZePeer` branch beside it | FIXED 2026-09-07 by `routeStdinBlock` (`runner_exec_util.go`). Both branches now run only for the shape they name, and the `.ci` selects the route by writing a `-` or not |
-| 4 | a `cmd=` line's unknown key is swallowed into the preceding value rather than refused, because `parseCmdExec` is marker-based and `checkKeys` never sees it | `parseCmdExec` with `nextMarker` | found writing this spec, not fixed |
+| 4 | a `cmd=` line's unknown key is swallowed into the preceding value rather than refused, because `parseCmdExec` is marker-based and `checkKeys` never sees it | `parseCmdExec` with `nextMarker` | FIXED 2026-09-07 by `checkMarkerKeys` (`record_parse_keys.go`), commit `0897c2b951`. It found one live instance in 3,197 `cmd=` lines: `test/plugin/forward-write-deadline.ci`, whose `:env=` became part of `timeout=`, so the test named after that variable never set it (`plan/journal/green-that-could-not-have-been-red.md`) |
 
 **What the runner owes an author who writes something it cannot honor: a refusal
 naming the directive and the line.** Not a silent fallback, and not a best-effort
@@ -435,8 +459,8 @@ green judges and watch it go red.
 | a `.ci` naming a stdin block on a Group 2 `ze` command | → | the command loop's stdin decision in `runner_exec.go` | `TestCIStdinPipesForNonDaemonZeCommand` |
 | a `.ci` naming a stdin block on `ze -` | → | the same decision, daemon arm | `TestCIStdinSubstitutesFileForDaemonLaunch` |
 | a `.ci` naming a stdin block on `ze-peer` | → | the `binNameZePeer` branch | `TestCIStdinZePeerHonorsDeclaredMode` |
-| a `cmd=` line carrying a key the parser does not read | → | the unknown-marker scan beside `parseCmdExec` | `TestCmdUnknownKeyRefused` |
-| a run whose argv the runner rewrote | → | `Record.recordStep` and the report | `TestRunReportNamesTheArgvItRan` |
+| a `cmd=` line carrying a key the parser does not read | → | `checkMarkerKeys` (`record_parse_keys.go`), called from `parseCmdExec` and `parseCmdStop` | `TestCmdUnknownKeyRefused` |
+| a run whose argv the runner rewrote | → | `Record.recordExecStep` (`runner_exec_trace.go`), `Report.printStepTraces`, and the `-v` wiring in `Runner.Run` | `TestRunReportNamesTheArgvItRan` |
 | a must-fail fixture that starts passing | → | the must-fail gate | `TestCIMustFailFixturesAllFail` |
 | `ze bgp decode pcap -` driven from a real `.ci` | → | `decodePcapInput` reading piped stdin | `test/ui/bgp-decode-pcap-stdin.ci` |
 | `ze bgp decode -` driven from a real `.ci` | → | `decodeHexStdin` | `test/ui/bgp-decode-stdin-hex.ci` |
@@ -484,10 +508,14 @@ The user here is a `.ci` author, and the product is the runner.
 | `TestCIStdinSubstitutesFileForDaemonLaunch` | `internal/test/runner/runner_exec_test.go` | `ze -` still gets the file, the `start` verb and the chosen name | |
 | `TestDaemonConfigArgIndexRejectsEveryGroupTwoCommand` | `internal/test/runner/runner_exec_util_test.go` | A-1: one argv per Group 2 row returns `-1` | |
 | `TestCIStdinZePeerHonorsDeclaredMode` | `internal/test/runner/peer_contract_test.go` | AC-5, both routes | |
-| `TestCmdUnknownKeyRefused` | `internal/test/runner/record_parse_cmd_test.go` | AC-7, and the message names the key and the accepted set | |
-| `TestCmdUnknownKeyNotSwallowedIntoExec` | `internal/test/runner/record_parse_cmd_test.go` | instance 4: the value before the unknown key is not extended over it | |
-| `TestRunReportNamesTheArgvItRan` | `internal/test/runner/report_test.go` | AC-8 | |
-| `TestCIMustFailFixturesAllFail` | `internal/test/runner/must_fail_test.go` | AC-13, the D3 gate | |
+| `TestCmdUnknownKeyRefused` | `internal/test/runner/record_parse_cmd_test.go` | AC-7, and the message names the key and the accepted set | green, `0897c2b951` |
+| `TestCmdUnknownKeyNotSwallowedIntoExec` | `internal/test/runner/record_parse_cmd_test.go` | instance 4: the value before the unknown key is not extended over it | green, `0897c2b951` |
+| `TestCmdKeysAreOneDeclaration` | `internal/test/runner/record_parse_cmd_test.go` | every key in `cmdExecKeys` parses into a field | green, `0897c2b951` |
+| `TestUnknownDirectiveNamesLineAndAccepted` | `internal/test/runner/record_parse_test.go` | AC-6: the directive, the FILE's line number, and the accepted set | green, `0897c2b951` |
+| `TestUnknownDirectiveTypeNamesAcceptedSet` | `internal/test/runner/record_parse_test.go` | AC-6 for all five type switches under the action word | green, `0897c2b951` |
+| `TestDirectiveVocabularyIsLive` | `internal/test/runner/record_parse_test.go` | one declaration: every listed word reaches an arm | green, `0897c2b951` |
+| `TestRunReportNamesTheArgvItRan` | `internal/test/runner/report_test.go` | AC-8 | green, uncommitted |
+| `TestCIMustFailFixturesAllFail` | `internal/test/runner/must_fail_test.go` | AC-13, the D3 gate | green, `61de329f6`, red observed |
 | `TestConfigNameRuleUnchanged` | `internal/test/runner/runner_config_test.go` | AC-3 and AC-4 | |
 
 ### Boundary Tests (numeric inputs)
@@ -499,11 +527,11 @@ The user here is a `.ci` author, and the product is the runner.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `bgp-decode-pcap-stdin` | `test/ui/bgp-decode-pcap-stdin.ci` | an operator pipes a capture into `ze bgp decode pcap -` | |
-| `bgp-decode-stdin-hex` | `test/ui/bgp-decode-stdin-hex.ci` | an operator pipes hex lines into `ze bgp decode -` | |
+| `bgp-decode-pcap-stdin` | `test/ui/bgp-decode-pcap-stdin.ci` | an operator pipes a capture into `ze bgp decode pcap -` | pass; RED observed 2026-09-07 with the stdin arm of `decodePcapInput` cut, the capture replaced by an empty reader under `cliio.IsStdin(args[0])`: `expected exit code 0, got 1`, client output `error: read -: pcap: read file header: EOF`. The step trace of the same run reads `ze bgp decode pcap -  [stdin=capture piped]`, so the red is the piped capture and not a path |
+| `bgp-decode-stdin-hex` | `test/ui/bgp-decode-stdin-hex.ci` | an operator pipes hex lines into `ze bgp decode -` | pass; RED observed 2026-09-07 with `decodeHexStdin` cut, the bytes `cliio.ReadFile` returned discarded before the line walk: `expected exit code 0, got 1`, client output `error: standard input carried no hexadecimal message`. The step trace reads `ze bgp decode -  [stdin=payloads piped]` |
 | `config-history-stdin-refused` | `test/ui/config-history-stdin-refused.ci` | an operator pipes a config into `ze config history -` and is told history needs on-disk revisions | |
 | `config-fmt-write-stdout` | `test/ui/config-fmt-write-stdout.ci` | an operator pipes a config into `ze config fmt -w -` and gets the formatted config on stdout | |
-| the must-fail fixtures | `internal/test/runner/testdata/mustfail/*.ci` | not user-facing: each one proves the runner still refuses or still fails where it must | |
+| the must-fail fixtures | `internal/test/runner/testdata/mustfail/*.ci` | not user-facing: each one proves the runner still refuses or still fails where it must | six fixtures, green in `61de329f6`. Red observed by pointing `exit-code-is-judged.ci` at `/bin/true` |
 
 ### Interop Tests (Scope: protocol)
 Not applicable. Test tooling with no protocol peer and no wire-visible change
