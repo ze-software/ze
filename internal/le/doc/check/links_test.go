@@ -267,3 +267,36 @@ func runGit(t *testing.T, root string, args ...string) {
 		t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, out)
 	}
 }
+
+// TestRecordTreesAreExcludedFromCitationPolicing pins which trees hold RECORDS
+// rather than live prose.
+//
+// The two under test/ are the ones with no reachable repair, which is what
+// separates them from a stale path in a live page. A ledger shard is named for
+// its commit session, ForeignShardProblems refuses a commit carrying another
+// session's shard, and every commit gets a fresh session id, so a row in a
+// closed session's shard can never be edited by anyone. Policing it reports a
+// line nobody in the repository is permitted to touch.
+func TestRecordTreesAreExcludedFromCitationPolicing(t *testing.T) {
+	cases := []struct {
+		path     string
+		excluded bool
+		why      string
+	}{
+		{"test/weakened/8c4ad6c3.md", true, "a weakened row names the test a commit deleted"},
+		{"test/rfc-changed/8ac7a711.md", true, "an approval row names what the owner approved, once"},
+		{"plan/journal/removal-leaves-the-file-on-disk.md", true, "already a record before this change"},
+		{"plan/verification-debt/20476e05.md", true, "already a record before this change"},
+		{"docs/architecture/core-design.md", false, "a live page is read for what is true now"},
+		{"test/health/latest.json", false, "not a ledger; nothing under test/ is excluded wholesale"},
+		{"internal/le/doc/check/links.go", false, "Go source keeps its Design header policed"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.path, func(t *testing.T) {
+			if got := hasPrefix(tc.path, citationExcludePrefixes); got != tc.excluded {
+				t.Fatalf("hasPrefix(%q) = %v, want %v: %s", tc.path, got, tc.excluded, tc.why)
+			}
+		})
+	}
+}

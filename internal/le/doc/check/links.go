@@ -81,6 +81,22 @@ func citationExcludes() []string {
 		"plan/journal/",
 		"plan/verification-debt/",
 		"plan/known-failures/",
+		// The two test ledgers are records of the same kind, and they are the
+		// only ones that live outside plan/. A weakened row exists to name a
+		// test that was DELETED and the spec that deleted it, so a path inside
+		// one is a fact about that commit rather than a claim about the tree
+		// today, and the spec it names is usually closed by the time anyone
+		// reads the row.
+		//
+		// They also have no reachable repair, which the plan trees do. A shard
+		// is named for its session, ForeignShardProblems
+		// (internal/le/testweakened/shard.go) refuses a commit that carries
+		// another session's, and every commit gets a fresh session id. So the
+		// only author who could edit the row is one that will never exist
+		// again, and the gate reported a line nobody in the repository is
+		// permitted to touch.
+		"test/weakened/",
+		"test/rfc-changed/",
 	}
 	buckets := specpath.Dirs()
 	prefixes := make([]string, 0, len(trees)+len(buckets))
