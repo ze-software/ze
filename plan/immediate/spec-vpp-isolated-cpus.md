@@ -276,9 +276,11 @@ wireguard startup.conf toggle landed in the SAME files):
 | Resource exhaustion | control plane retains enough non-isolated cores |
 
 ## Mistake Log
-### Wrong Assumptions
-| What was assumed | What was true | How discovered | Impact |
-|------------------|---------------|----------------|--------|
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The two worker-placement paths were written to different standards. `contiguousWorkerCores` checked every core it produced against the online inventory; `CPUInventory.workerPool` drew from `Isolated` and checked nothing, so the path this spec ADDED was the weaker of the two. | The kernel writes `/sys/devices/system/cpu/isolated` from the boot cmdline and never revises it, while a CPU hotplugged out afterwards leaves `online`. An isolated CPU can therefore be offline, and the count path would have written it into `corelist-workers`. | Closure review, applying the symmetry technique of `/ze-review` to the two branches of `resolveWorkerCores`. | Fixed in `workerPool`; `TestWorkerCoresSkipAnOfflineIsolatedCPU` and `test/plugin/vpp-cpu-offline-isolated.ci` cover it, and both were observed RED with the filter removed. |
+| approach | `image.isolated-cpus` shipped with no functional test, while `image.hugepages` and `image.crash-dump`, the two reservations validated beside it in the same `Validate`, each have one under `test/appliance/`. | A new config option owes a `.ci` at the entry point the operator reaches (`ai/rules/testing.md`). A unit test on `validateIsolatedCPUs` proves the function, not that `ze appliance init` calls it. | Closure review, comparing the new option against its two siblings in `applianceConfig.Validate`. | `test/appliance/appliance-isolated-cpus-validate.ci` added. |
 
 ## Design Insights
 <!-- LIVE -->
@@ -334,30 +336,146 @@ true when those three files land.
   channel and it refuses; a warning needs a severity, and the doctor registry
   already has one.
 
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Source worker cores from the kernel-isolated set | Done | `resolveWorkerCores`, `CPUInventory.workerPool` (`internal/component/vpp/cpuset.go`) | `GenerateStartupConf` (`startupconf.go`) writes what it returns as `corelist-workers`. |
+| Ensure the cores handed to VPP are actually isolated | Done | `isolatedCPUKernelArgs` (`internal/appliance/kernelargs.go`), reached from `resolveBuildParentDir` in the same file | `image.isolated-cpus` writes `isolcpus`, `nohz_full` and `rcu_nocbs` into the built image's cmdline. Landed at `0e72b398f`. |
+| Validate at verify: cores exist, `main-core` disjoint, enough isolated CPUs | Done | `CPUSettings.validate` and `validateAgainst` (`internal/component/vpp/cpuset.go`), called from `VPPSettings.Validate` (`config.go`), reached by `verifyVPPConfig` (`register.go`) | The `InProcessConfigVerifier` is the path `ze config validate` takes. |
+| Report a placement the host holds but should not | Done | `evaluateVPPCPUIsolation` (`internal/component/vpp/doctor_cpu_linux.go`), registered by `register_linux.go` | Code `doctor-vpp-cpu-isolation`, declared in `internal/core/diagnostic/codes.go`. |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestWorkerCoresFromIsolatedSet` (`startupconf_test.go`); `test/plugin/vpp-isolated-cpus.ci` | Isolated 2-4, `main-core 0`, `workers 2` gives `corelist-workers 2-3`, where the old arithmetic gave 1-2. |
+| AC-2 | Done | `TestCPUValidateInsufficientCores` (`config_test.go`); `vpp-cpu-validation.ci` seq=1 exit 1 | |
+| AC-3 | Done | `TestCPUValidateOverlap` (`config_test.go`); `vpp-cpu-validation.ci` seq=2 exit 1 | `workerPool` also removes `main-core` on the count path, and `contiguousWorkerCores` starts one after it. |
+| AC-4 | Done | `TestCPUValidateUnknownCore` (`config_test.go`); `vpp-cpu-validation.ci` seq=3; and on the derived-core path `TestWorkerCoresSkipAnOfflineIsolatedCPU` (`cpuset_test.go`) plus `test/plugin/vpp-cpu-offline-isolated.ci` | The derived half was the closure review's first finding. |
+| AC-5 | Done | `TestEvaluateVPPCPUIsolation` (`doctor_cpu_linux_test.go`); `test/plugin/vpp-cpu-not-isolated.ci` | Changed per Deviations: the warning lives in `ze doctor`, which has severities, rather than in `Validate`, which only refuses. |
+| AC-6 | Done | `TestCPUValidateNoPlacementReadsNoHost` (`cpuset_test.go`); `vpp-cpu-validation.ci` seq=6 exit 0 | With every placement leaf absent, `validate` reads no host at all. |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The 17 unit tests listed in the TDD plan | Done | `internal/component/vpp`, `internal/core/cpulist`, `internal/appliance` | All pass; the named-test run is in Pre-Commit Verification. |
+| `vpp-isolated-cpus`, `vpp-cpu-not-isolated`, `vpp-cpu-validation` | Done | `test/plugin/` | All three PASS in `./le functional plugin`. |
+| `TestWorkerCoresSkipAnOfflineIsolatedCPU`, `vpp-cpu-offline-isolated`, `appliance-isolated-cpus-validate` | Changed | `internal/component/vpp/cpuset_test.go`, `test/plugin/`, `test/appliance/` | Added at closure, beyond the plan, for the two review findings. |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/core/cpulist/cpulist.go`, `cpulist_test.go` | Done | |
+| `internal/component/vpp/cpuset.go`, `cpuset_test.go` | Done | |
+| `internal/component/vpp/doctor_cpu_linux.go`, `doctor_cpu_linux_test.go` | Done | |
+| `internal/component/vpp/startupconf.go`, `config.go`, `yang/ze-vpp-conf.yang` | Done | |
+| gokrazy/appliance boot config | Changed | `internal/appliance/config.go` and `kernelargs.go` rather than a new file: the kernel-argument seam already existed, as the Design Insights coordination note required. |
+| `test/plugin/vpp-isolated-cpus.ci`, `vpp-cpu-not-isolated.ci`, `vpp-cpu-validation.ci` | Done | |
+
+### Audit Summary
+- **Total items:** 20
+- **Done:** 17
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (AC-5's warning channel, the boot-config file placement, and the three tests added at closure; each recorded in Deviations or the Mistake Log)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A VPP worker does not share a CPU with the Linux scheduler: the worker cores come from the kernel-isolated set, not from arithmetic | functional | `test/plugin/vpp-isolated-cpus.ci` PASS (`./le functional plugin`, case 758 of 772). It is a real discrimination, not a tautology: the fixture isolates 2-4 and asks for `main-core 0, workers 2`, so the replaced arithmetic answered 1-2, core 1 is outside the isolated set, and `ze doctor --json` would report `doctor-vpp-cpu-isolation` under the old placement. The file asserts that code is ABSENT. |
+| A bad CPU placement is refused at verify instead of failing or underperforming at runtime | functional | `test/plugin/vpp-cpu-validation.ci` PASS: six `ze config validate` commands with per-command exit codes, covering too many workers (1), main-core inside the worker set (2), a core the host does not hold (3), both leaves set at once (4), and the two accepted shapes (5, 6). `test/plugin/vpp-cpu-offline-isolated.ci` PASS covers the derived-core half of the same goal. |
+| Ze REQUESTS the isolation it later consumes, so the isolated set has something in it | functional + unit | `test/appliance/appliance-isolated-cpus-validate.ci` drives `ze appliance init` through `validateIsolatedCPUs`; `TestKernelArgsIsolatedCPUs` (`internal/appliance/kernelargs_test.go`) PASS asserts the three tokens `isolcpus=`, `nohz_full=` and `rcu_nocbs=`, and `resolveBuildParentDir` (`kernelargs.go`) appends them to the instance's `ExtraKernelArgs`. |
+| The control plane keeps CPUs of its own (R-2) | functional + unit | `TestValidateIsolatedCPUs` PASS refuses CPU 0; `appliance-isolated-cpus-validate.ci` seq=2 refuses it at the CLI; `evaluateVPPCPUIsolation` warns when every online CPU is isolated, asserted by `TestEvaluateVPPCPUIsolation`. |
+| Interop | not applicable | No wire protocol: this is dataplane thread placement and appliance boot configuration. The spec's Interop table records the same. |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | Every AC, every Wiring Test row and both user stories are implemented and proven. | - |
+
 ## Review Gate
 
-<!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->
-<!-- the final review before closure, run AFTER the inline critical/security/doc reviews, over the complete diff. -->
-<!-- Every BLOCKER and ISSUE (severity > NOTE) must be fixed, then re-run /ze-review. -->
-<!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
-<!-- NOTE-only findings do not block — record them and proceed. -->
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/vpp-isolated-cpus-d64e7b3f-bfdc-4614-8db4-f12043eb77cc.md` (23 files, verdict=clean) |
+| `./le spec session review check` | clean |
+| Rounds | 3 |
+| Reviewer lenses used | wiring + guard audit + symmetry (round 1); functional-test coverage against the sibling config options (round 2); the round-2 fix's own scope (round 3) |
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| 1 | ISSUE | `CPUInventory.workerPool` drew the worker pool from `Isolated` without intersecting it with `Online`, while the fallback `contiguousWorkerCores` in the same file checked every core it produced against `hasCore`. The kernel writes `/sys/devices/system/cpu/isolated` from the boot cmdline and never revises it, so a CPU hotplugged out after boot stays in that file and leaves the online set. A worker could therefore be pinned to a CPU VPP cannot run on, after a commit that passed verify. | `internal/component/vpp/cpuset.go`, `CPUInventory.workerPool` | fixed |
+| 2 | NOTE | `evaluateVPPCPUIsolation` reports worker cores outside the isolated set and says nothing about `main-core`. | `internal/component/vpp/doctor_cpu_linux.go` | acknowledged: the main thread does not busy-poll, so a shared CPU costs it far less, and AC-5 names the worker placement. |
+| 3 | NOTE | `textbuf.Buffer` is reused after `String()` in `evaluateVPPCPUIsolation` and in `isolatedCPUKernelArgs`. | `doctor_cpu_linux.go`, `kernelargs.go` | acknowledged: `Buffer.String` (`internal/core/textbuf/textbuf.go`) copies inline-backed data and hands heap-backed data to the string, resetting the slice either way, so the reuse is safe. Verified at the producer rather than assumed. |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- `CPUInventory.workerPool` (`internal/component/vpp/cpuset.go`) skips an isolated CPU that is not online. `resolveWorkerCores`'s insufficiency error now names the available pool beside the isolated set, because the two differ exactly when this case fires and the isolated set alone explains the refusal with the wrong number.
+- `TestWorkerCoresSkipAnOfflineIsolatedCPU` (`cpuset_test.go`) and `test/plugin/vpp-cpu-offline-isolated.ci` added. Both were observed RED with the filter removed and GREEN with it restored.
+- `docs/architecture/vpp-host-tuning.md` and `docs/guide/vpp.md` state the online condition, which the pages did not carry before.
 
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
+### Run 2
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | ISSUE | `image.isolated-cpus` shipped with no functional test, while `image.hugepages` and `image.crash-dump` -- the two other reservations bounded by the same `applianceConfig.Validate` -- each have one under `test/appliance/`. `validateIsolatedCPUs` refusing CPU 0 is a guard proven only at the helper, with nothing driving it from `ze appliance init`. | `internal/appliance/config.go`, `validateIsolatedCPUs` | fixed by `test/appliance/appliance-isolated-cpus-validate.ci` |
+| 2 | NOTE | The round-1 fix's own scope: `workerPool` on the no-isolation path draws from `Online`, so the added `hasCore` test is a tautology there and changes nothing. | `internal/component/vpp/cpuset.go` | acknowledged: the filter is correct on both paths and costs one comparison over at most 256 ids, on a cold path. |
+
+### Run 3
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| - | none | Round 3 read the round-2 fix, which is one new `.ci` file adding no product code. No finding within its scope. | - | - |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/core/cpulist/cpulist.go`, `cpulist_test.go` | yes | `ls internal/core/cpulist/` lists both. |
+| `internal/component/vpp/cpuset.go`, `cpuset_test.go`, `doctor_cpu_linux.go`, `doctor_cpu_linux_test.go` | yes | `ls internal/component/vpp/` lists all four. |
+| `test/plugin/vpp-isolated-cpus.ci`, `vpp-cpu-not-isolated.ci`, `vpp-cpu-validation.ci`, `vpp-cpu-offline-isolated.ci` | yes | `./le functional plugin` discovered and ran all four; the case count rose from 771 to 772 when the fourth was added. |
+| `test/appliance/appliance-isolated-cpus-validate.ci` | yes | `ls test/appliance/` lists it beside its two siblings. |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Worker cores come from the isolated set | `--- PASS: TestWorkerCoresFromIsolatedSet`; `PASS 757 vpp-isolated-cpus` |
+| AC-2 | A worker count larger than the isolated set is refused | `--- PASS: TestCPUValidateInsufficientCores`; `vpp-cpu-validation` PASS with `seq=1 ... :exit=1` |
+| AC-3 | `main-core` inside the worker set is refused | `--- PASS: TestCPUValidateOverlap`; `vpp-cpu-validation` PASS with `seq=2 ... :exit=1` |
+| AC-4 | A core the host does not hold is refused, named or derived | `--- PASS: TestCPUValidateUnknownCore`, `--- PASS: TestWorkerCoresSkipAnOfflineIsolatedCPU`; `vpp-cpu-offline-isolated` PASS |
+| AC-5 | A worker core outside the isolated set is reported | `--- PASS: TestEvaluateVPPCPUIsolation`; `PASS 753 vpp-cpu-not-isolated` |
+| AC-6 | No cpu leaf leaves behaviour unchanged and reads no host | `--- PASS: TestCPUValidateNoPlacementReadsNoHost`; `vpp-cpu-validation` PASS with `seq=6 ... :exit=0` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `set vpp cpu workers 2` on a host with isolated cores | `test/plugin/vpp-isolated-cpus.ci` | yes: the file writes `cpufix/online` and `cpufix/isolated`, points `ze.test.vpp.cpu.root` at them, and runs `ze doctor --json` over a config carrying `workers 2`, asserting `doctor-vpp-cpu-isolation` is ABSENT. |
+| Worker cores outside the isolated set | `test/plugin/vpp-cpu-not-isolated.ci` | yes: `worker-cores 6-7` against isolated 2-4, asserting `doctor-vpp-cpu-isolation` and `worker core 6-7 is not isolated`. |
+| `main-core` also named in `worker-cores` | `test/plugin/vpp-cpu-validation.ci` | yes: seq=2 runs `ze config validate -` over `main-core 3; worker-cores 2-4;` with `:exit=1`, and the file asserts `is also main-core`. |
+| `ze appliance init` over `image.isolated-cpus` | `test/appliance/appliance-isolated-cpus-validate.ci` | yes: four configs through `ze appliance --dir appliances init --config`, one accepted and three refused with the message each refusal owns. |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `/sys/devices/system/cpu/isolated` returns an empty line on a host with no `isolcpus` and `online` returns `0-31`; both files exist and are readable (recorded 2026-09-05). `hostCPUInventory` reads exactly these two paths. |
+| A-2 | confirmed | `resolveBuildParentDir` (`internal/appliance/kernelargs.go`) appends `isolatedCPUKernelArgs` to the instance's `ExtraKernelArgs`, which the packer writes to `/cmdline.txt`. |
+| A-3 | confirmed | Core ids stay `uint8`. `cpulist.ParseID` refuses an id above `IDMax` with a named error instead of truncating, asserted by `TestParse`. |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| 1. New user-facing feature -> `docs/features.md` | No. `grep -n "guide/vpp" docs/features.md` returns nothing: the VPP dataplane has no row on that page, only its firewall and traffic-control backends. Adding one would be a status claim about the whole component, which this spec does not make. The user-facing surface is documented in `docs/guide/vpp.md`. | yes |
+| 2. Config syntax changed -> `docs/guide/configuration.md` | No. `grep -in vpp docs/guide/configuration.md` returns 15 hits, none of which document the `vpp {}` block's leaves; the vpp config table lives in `docs/guide/vpp.md`, where rows for `vpp.cpu.workers` and `vpp.cpu.worker-cores` were added, each with a `<!-- source: -->` anchor. | yes |
+| 12. Internal architecture changed -> `docs/research/vpp-deployment-reference.md` | No change owed. That page describes VPP's own `startup.conf` syntax and the reference deployment; `corelist-workers` and `isolcpus=<worker-cores>` still read true. Ze's own design moved to `docs/architecture/vpp-host-tuning.md`, which carries three `<!-- source: -->` anchors (`cpuset.go`, `doctor_cpu_linux.go`, `cpulist.go`) and was extended at closure with the online condition. | yes |
+| `docs/guide/vpp.md` worker-placement rows | Re-read against `resolveWorkerCores` and `CPUInventory.workerPool` after the round-1 fix and corrected: the isolated set is now qualified with "and any CPU no longer online excluded". | yes |
+| Doctor check for a runtime dependency | `doctor-vpp-cpu-isolation` is registered by `vppCPUIsolationDoctorCheck` (`doctor_cpu_linux.go`) through `register_linux.go`, and the code is declared in `internal/core/diagnostic/codes.go`. | yes |
+| `./le doc check verify` | Not run to a verdict for this spec: the gate is red across the BGP command surface and `../gh-pages/` from other sessions' uncommitted work, so it cannot answer about these pages alone. Recorded as verification debt. | no |
 
 ## Checklist
 

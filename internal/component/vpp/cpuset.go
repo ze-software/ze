@@ -140,6 +140,13 @@ func (inv CPUInventory) hasIsolatedCPUs() bool {
 // set otherwise. Drawing from the isolated set is the point of this feature: a
 // busy-polling worker on a CPU the scheduler still uses competes with every
 // other runnable task there.
+//
+// A CPU the isolated set names but the online set does not is left out. The
+// kernel writes the isolated set from the boot cmdline and never revises it,
+// while a CPU taken offline afterwards leaves the online set, so the two
+// disagree on a host that hotplugged one out. Pinning a worker to such a CPU
+// would put a core VPP cannot run on into corelist-workers, which is the
+// runtime failure after a clean commit that this file exists to refuse.
 func (inv CPUInventory) workerPool(mainCore uint8) []uint8 {
 	source := inv.Online
 	if inv.hasIsolatedCPUs() {
@@ -147,7 +154,7 @@ func (inv CPUInventory) workerPool(mainCore uint8) []uint8 {
 	}
 	pool := make([]uint8, 0, len(source))
 	for _, id := range source {
-		if id == mainCore {
+		if id == mainCore || !inv.hasCore(id) {
 			continue
 		}
 		pool = append(pool, id)
@@ -245,8 +252,11 @@ func resolveWorkerCores(cpu *CPUSettings, inv CPUInventory) ([]uint8, error) {
 
 	pool := inv.workerPool(mainCore)
 	if count > len(pool) {
-		return nil, fmt.Errorf("workers: %d requested, host offers %d for workers (isolated %s, main-core %d excluded)",
-			count, len(pool), cpulist.Format(inv.Isolated), mainCore)
+		// The pool is named beside the isolated set because the two differ
+		// whenever an isolated CPU is offline, and the isolated set alone
+		// would then explain the refusal with the wrong number.
+		return nil, fmt.Errorf("workers: %d requested, host offers %d for workers (isolated %s, available %s, main-core %d excluded)",
+			count, len(pool), cpulist.Format(inv.Isolated), cpulist.Format(pool), mainCore)
 	}
 	return pool[:count], nil
 }

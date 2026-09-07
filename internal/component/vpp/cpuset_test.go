@@ -171,3 +171,48 @@ func inventoryFromRootErr(t *testing.T, root string) (CPUInventory, error) {
 	setCPURoot(t, root)
 	return hostCPUInventory()
 }
+
+// TestWorkerCoresSkipAnOfflineIsolatedCPU proves a CPU the kernel isolated but
+// the host no longer runs never reaches corelist-workers.
+//
+// VALIDATES: AC-4 on the worker COUNT path -- the cores Ze derives itself are
+// held to the same online inventory as the cores an operator names. The
+// contiguous fallback already checked it; the isolated path did not.
+// PREVENTS: /sys/devices/system/cpu/isolated naming a CPU that was taken
+// offline after boot, which the kernel never revises, so a clean commit writes
+// a core list VPP cannot start on -- the verify-passes-runtime-fails defect
+// this spec exists to close.
+func TestWorkerCoresSkipAnOfflineIsolatedCPU(t *testing.T) {
+	// The kernel isolated 2-5 at boot; cores 4 and 5 were hotplugged out.
+	inv := CPUInventory{
+		Online:         []uint8{0, 1, 2, 3},
+		Isolated:       []uint8{2, 3, 4, 5},
+		IsolationKnown: true,
+	}
+	mainCore := uint8(0)
+
+	t.Run("the offline cores are not placed", func(t *testing.T) {
+		cpu := CPUSettings{MainCore: &mainCore, Workers: new(uint8(2))}
+		cores, err := resolveWorkerCores(&cpu, inv)
+		if err != nil {
+			t.Fatalf("resolveWorkerCores: %v", err)
+		}
+		if got := cpulist.Format(cores); got != "2-3" {
+			t.Errorf("corelist = %q, want %q", got, "2-3")
+		}
+	})
+
+	t.Run("a count only the offline cores could satisfy is refused", func(t *testing.T) {
+		cpu := CPUSettings{MainCore: &mainCore, Workers: new(uint8(3))}
+		if _, err := resolveWorkerCores(&cpu, inv); err == nil {
+			t.Fatal("resolveWorkerCores placed a worker on an offline CPU")
+		}
+		err := cpu.validateAgainst(inv)
+		if err == nil {
+			t.Fatal("validateAgainst accepted a placement the host cannot run")
+		}
+		if !strings.Contains(err.Error(), "available 2-3") {
+			t.Errorf("error = %q, want it to name the cores actually available", err)
+		}
+	})
+}

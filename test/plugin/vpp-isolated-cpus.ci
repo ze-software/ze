@@ -1,6 +1,6 @@
 # Test: VPP worker cores come from the kernel's isolated set, and ze doctor
 #       reports a placement that does not
-# Spec: plan/immediate/spec-vpp-isolated-cpus.md AC-1, AC-5
+# Spec: spec-vpp-isolated-cpus AC-1, AC-5 (closed 2026-09-07)
 # VALIDATES: on a host whose kernel isolated cores 2-4, `vpp cpu workers 2`
 #            places the workers on isolated cores, so the vpp-cpu-isolation
 #            doctor check stays silent (AC-1); a worker core outside the

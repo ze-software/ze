@@ -1,0 +1,69 @@
+# Test: a CPU the kernel isolated but the host no longer runs is not a worker core
+# Spec: spec-vpp-isolated-cpus AC-4 on the worker COUNT path (closed 2026-09-07)
+# VALIDATES: `ze config validate` refuses a worker count that only an OFFLINE
+#            isolated CPU could satisfy, and accepts the count the online
+#            isolated CPUs can hold.
+# PREVENTS: /sys/devices/system/cpu/isolated naming a CPU that was hotplugged
+#           out after boot -- the kernel writes that file from the boot cmdline
+#           and never revises it -- so a clean commit writes a
+#           corelist-workers line VPP cannot start on. That is the
+#           verify-passes-runtime-fails defect the whole spec exists to close,
+#           reached through the one path the count case did not check.
+#
+# This is the end-to-end discrimination. Without the online filter in
+# CPUInventory.workerPool (internal/component/vpp/cpuset.go) the pool is
+# 2,3,4,5, three workers are placed on 2,3,4, and seq=1 below exits 0 instead
+# of 1.
+#
+# Its own file because the fixture host is a DIFFERENT host from the one
+# test/plugin/vpp-cpu-validation.ci describes: the CPU inventory root is one
+# option=env value per FILE, and this scenario needs an isolated set that
+# reaches past the online set.
+#
+# Linux-only: the fixture stands in for /sys/devices/system/cpu, which only a
+# Linux host has.
+
+option=skip-os:value=aix,android,darwin,dragonfly,freebsd,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
+option=env:var=ze.test.vpp.cpu.root:value=cpufix
+
+# Cores 4 and 5 were isolated at boot and have since been taken offline.
+tmpfs=cpufix/online:terminator=EOF_ONLINE
+0-3
+EOF_ONLINE
+
+tmpfs=cpufix/isolated:terminator=EOF_ISOLATED
+2-5
+EOF_ISOLATED
+
+# Only cores 2 and 3 are both isolated and online, so a third worker has
+# nowhere to run even though the isolated set names four CPUs.
+stdin=offline:terminator=EOF_OFFLINE
+vpp {
+	enabled true;
+	cpu {
+		main-core 0;
+		workers 3;
+	}
+}
+EOF_OFFLINE
+
+# Two workers fit the cores that are isolated AND online.
+stdin=fits:terminator=EOF_FITS
+vpp {
+	enabled true;
+	cpu {
+		main-core 0;
+		workers 2;
+	}
+}
+EOF_FITS
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=offline:exit=1
+cmd=foreground:seq=2:exec=ze config validate -:stdin=fits:exit=0
+
+# One exit assertion, matching the last command: the file-level expect=exit
+# holds ONE code (Record.ExpectExitCode, record_parse.go). Each command above
+# carries its own per-command :exit=, which the runner does check separately.
+expect=exit:code=0
+expect=stdout:contains=isolated 2-5
+expect=stdout:contains=available 2-3

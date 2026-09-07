@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
-| Depends | spec-vpp-isolated-cpus, spec-vpp-host-tuning (closed, learned 1105) |
+| Depends | spec-vpp-isolated-cpus (closed 2026-09-07), spec-vpp-host-tuning (closed, learned 1105) |
 | Phase | - |
 | Updated | 2026-07-10 |
 
@@ -12,7 +12,7 @@
 **Re-read these after context compaction:**
 1. This spec file
 2. `.claude/rules/planning.md`
-3. `plan/immediate/spec-vpp-isolated-cpus.md` - owns worker-core selection (isolated-set sourcing)
+3. `docs/architecture/vpp-host-tuning.md` - worker-core selection from the kernel-isolated set, built by spec-vpp-isolated-cpus (closed 2026-09-07)
 4. `plan/spec-vpp-host-tuning.md` - owns global hugepage reservation + the kernel-args assembly seam
 5. `internal/component/host/inventory.go` - `CoreInfo`/`NICInfo` (facts this spec must extend)
 
@@ -34,9 +34,9 @@ do not exist yet (verified 2026-07-10):
    New facts needed: per-CPU NUMA node, NIC NUMA node, SMT sibling map.
 2. **NIC/worker NUMA alignment.** Doctor check (moved AC-5 of vpp-host-tuning):
    warn when a DPDK NIC's NUMA node has no VPP worker on it, or when workers sit
-   on a remote node. Depends on the worker-core selection helper that
-   `spec-vpp-isolated-cpus` designs (`ready`, unimplemented) -- placement cannot
-   be validated before it exists.
+   on a remote node. The worker-core selection helper it depends on now exists:
+   `resolveWorkerCores` (`internal/component/vpp/cpuset.go`), built by
+   `spec-vpp-isolated-cpus`, is the single producer of the worker core list.
 3. **SMT sibling awareness.** Avoid splitting a physical core between VPP and
    the host: warn (or refuse, per design) when a chosen worker core's SMT
    sibling is not also dedicated (isolated or another VPP core).
@@ -59,7 +59,7 @@ so this spec is about correctness on bigger iron, not the common path.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/immediate/spec-vpp-isolated-cpus.md` - worker-core selection helper this spec validates against.
+- [ ] `docs/architecture/vpp-host-tuning.md` - the worker-core selection this spec validates against; the helper is `resolveWorkerCores` (`internal/component/vpp/cpuset.go`).
 - [ ] `plan/spec-vpp-host-tuning.md` (or its learned summary after closure) - kernel-args seam, hugepage doctor check to extend.
 - [ ] `ai/rules/repo-maintenance.md` - ownership + diagnostic codes for the new checks.
 - [ ] `ai/rules/platform-linux.md` - QEMU can emulate NUMA topologies (`-numa` options) for evidence.
@@ -191,7 +191,7 @@ so this spec is about correctness on bigger iron, not the common path.
 
 ## Known Limitations
 - Skeleton only: acceptance criteria and tests above are provisional placeholders to be refined during DESIGN.
-- Worker-core selection is owned by `plan/immediate/spec-vpp-isolated-cpus.md`; global hugepage reservation and the kernel-args seam by `plan/spec-vpp-host-tuning.md`.
+- Worker-core selection is owned by `docs/architecture/vpp-host-tuning.md`, which spec-vpp-isolated-cpus built and left behind; global hugepage reservation and the kernel-args seam by `plan/spec-vpp-host-tuning.md`.
 
 ## Implementation Summary
 ### What Was Implemented

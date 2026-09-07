@@ -1,5 +1,5 @@
 # Test: a VPP worker core outside the kernel's isolated set is reported
-# Spec: plan/immediate/spec-vpp-isolated-cpus.md AC-5
+# Spec: spec-vpp-isolated-cpus AC-5 (closed 2026-09-07)
 # VALIDATES: `ze doctor --json` reports doctor-vpp-cpu-isolation when the worker
 #            cores VPP is pinned to are online but were never isolated, so the
 #            Linux scheduler still places work on them.

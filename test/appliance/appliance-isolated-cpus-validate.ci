@@ -1,0 +1,94 @@
+# Test: ze appliance init --config rejects an invalid image.isolated-cpus
+# Spec: spec-vpp-isolated-cpus, boot half (closed 2026-09-07)
+# VALIDATES: applianceConfig.validateIsolatedCPUs (internal/appliance/config.go)
+#            at the entry point an operator reaches -- CPU 0 is refused, a
+#            reversed range is refused, and a list naming no CPU is refused,
+#            while a valid list is accepted and persisted.
+# PREVENTS: an isolation list reaching isolcpus, nohz_full and rcu_nocbs on a
+#           built image's boot cmdline. The appliance ships no shell, so the
+#           build is the only place to catch it, and isolating CPU 0 leaves
+#           Linux without the CPU that carries the boot processor, most of its
+#           timer work and the default IRQ affinity -- the control plane
+#           starvation risk R-2 of the spec.
+#
+# Its two siblings, appliance-hugepages-validate.ci and
+# appliance-crash-reservation.ci, cover the other two image reservations the
+# same Validate bounds. The unit test TestValidateIsolatedCPUs drives the same
+# function directly; this file proves the CLI reaches it.
+option=env:var=ze_appliance_ssh_password:value=secret
+
+# Cores 2 to 4 handed to the dataplane, CPU 0 left to Linux.
+tmpfs=good.json:terminator=EOF_GOOD
+{
+  "identity": {"name": "ignored", "hostname": "iso"},
+  "credentials": {"username": "admin", "admin-enabled": true},
+  "ssh": {"host": "0.0.0.0", "port": "22"},
+  "web": {"enabled": true, "host": "0.0.0.0", "port": "8080"},
+  "tls": {"cert-name": "iso", "validity-years": 10},
+  "managed": false,
+  "device": {"address": "192.0.2.10", "update-port": 443},
+  "image": {"arch": "amd64", "size-bytes": 2147483648, "isolated-cpus": "2-4"},
+  "qemu": {"ssh-port": 2222, "web-port": 28080, "gokrazy-port": 18080}
+}
+EOF_GOOD
+
+# CPU 0 runs the Linux control plane and must stay with it.
+tmpfs=cpuzero.json:terminator=EOF_ZERO
+{
+  "identity": {"name": "ignored", "hostname": "iso"},
+  "credentials": {"username": "admin", "admin-enabled": true},
+  "ssh": {"host": "0.0.0.0", "port": "22"},
+  "web": {"enabled": true, "host": "0.0.0.0", "port": "8080"},
+  "tls": {"cert-name": "iso", "validity-years": 10},
+  "managed": false,
+  "device": {"address": "192.0.2.10", "update-port": 443},
+  "image": {"arch": "amd64", "size-bytes": 2147483648, "isolated-cpus": "0-3"},
+  "qemu": {"ssh-port": 2222, "web-port": 28080, "gokrazy-port": 18080}
+}
+EOF_ZERO
+
+# A range whose high bound is below its low bound names no CPU the operator meant.
+tmpfs=backwards.json:terminator=EOF_BACK
+{
+  "identity": {"name": "ignored", "hostname": "iso"},
+  "credentials": {"username": "admin", "admin-enabled": true},
+  "ssh": {"host": "0.0.0.0", "port": "22"},
+  "web": {"enabled": true, "host": "0.0.0.0", "port": "8080"},
+  "tls": {"cert-name": "iso", "validity-years": 10},
+  "managed": false,
+  "device": {"address": "192.0.2.10", "update-port": 443},
+  "image": {"arch": "amd64", "size-bytes": 2147483648, "isolated-cpus": "4-2"},
+  "qemu": {"ssh-port": 2222, "web-port": 28080, "gokrazy-port": 18080}
+}
+EOF_BACK
+
+# A list that parses and names nothing is refused rather than read as "no
+# isolation", which an absent leaf already means.
+tmpfs=blank.json:terminator=EOF_BLANK
+{
+  "identity": {"name": "ignored", "hostname": "iso"},
+  "credentials": {"username": "admin", "admin-enabled": true},
+  "ssh": {"host": "0.0.0.0", "port": "22"},
+  "web": {"enabled": true, "host": "0.0.0.0", "port": "8080"},
+  "tls": {"cert-name": "iso", "validity-years": 10},
+  "managed": false,
+  "device": {"address": "192.0.2.10", "update-port": 443},
+  "image": {"arch": "amd64", "size-bytes": 2147483648, "isolated-cpus": "  "},
+  "qemu": {"ssh-port": 2222, "web-port": 28080, "gokrazy-port": 18080}
+}
+EOF_BLANK
+
+cmd=foreground:seq=1:exec=ze appliance --dir appliances init --config good.json goodiso:exit=0
+expect=exit:code=0
+
+cmd=foreground:seq=2:exec=ze appliance --dir appliances init --config cpuzero.json zeroiso:exit=1
+expect=exit:code=1
+expect=stderr:contains=must not be isolated
+
+cmd=foreground:seq=3:exec=ze appliance --dir appliances init --config backwards.json backiso:exit=1
+expect=exit:code=1
+expect=stderr:contains=counts down
+
+cmd=foreground:seq=4:exec=ze appliance --dir appliances init --config blank.json blankiso:exit=1
+expect=exit:code=1
+expect=stderr:contains=names no CPU

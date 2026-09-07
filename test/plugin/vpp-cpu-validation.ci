@@ -1,5 +1,5 @@
 # Test: bad VPP CPU placement is refused at config verify
-# Spec: plan/immediate/spec-vpp-isolated-cpus.md AC-2, AC-3, AC-4, AC-6
+# Spec: spec-vpp-isolated-cpus AC-2, AC-3, AC-4, AC-6 (closed 2026-09-07)
 # VALIDATES: `ze config validate` runs the vpp InProcessConfigVerifier, which
 #            reaches VPPSettings.Validate, reads the host CPU inventory, and
 #            refuses a placement the host contradicts: a worker count larger

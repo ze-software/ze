@@ -55,6 +55,13 @@ therefore competes with every runnable task on that CPU, which is what
 after `main-core`". It means "N of the cores the kernel isolated", read from
 `/sys/devices/system/cpu/isolated`, lowest first, with `main-core` excluded.
 
+An isolated CPU that is not also online is left out. The kernel writes the
+isolated set from the boot cmdline and never revises it, while a CPU taken
+offline afterwards leaves `/sys/devices/system/cpu/online`, so the two files
+disagree on a host that hotplugged one out. Ze holds the cores it derives to
+the same online inventory as the cores an operator names, and refuses the
+count rather than writing a `corelist-workers` line VPP cannot start on.
+
 On a host that isolated nothing, the list falls back to the contiguous block
 after `main-core`, which is the placement ze emitted before it read the isolated
 set. That fallback is not silent: the `vpp-cpu-isolation` doctor check reports
