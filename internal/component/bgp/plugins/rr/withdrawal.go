@@ -298,7 +298,7 @@ func parseTextNLRIOps(text string) map[family.Family][]familyOperation {
 
 		// Attribute keywords: consume their values.
 		case textparse.KWOrigin, textparse.KWMED, textparse.KWLocalPreference,
-			textparse.KWAggregator, textparse.KWOriginatorID:
+			textparse.KWAggregator, textparse.KWOriginatorID, textparse.KWAIGP:
 			s.Next()
 		case textparse.KWASPath, textparse.KWCommunity, textparse.KWLargeCommunity,
 			textparse.KWExtendedCommunity, textparse.KWClusterList:

@@ -860,7 +860,7 @@ func parsePersistNLRIOps(text string) map[family.Family][]persistFamilyOp {
 
 		// Skip attribute keywords.
 		case textparse.KWOrigin, textparse.KWMED, textparse.KWLocalPreference,
-			textparse.KWAggregator, textparse.KWOriginatorID:
+			textparse.KWAggregator, textparse.KWOriginatorID, textparse.KWAIGP:
 			s.Next()
 		case textparse.KWASPath, textparse.KWCommunity, textparse.KWLargeCommunity,
 			textparse.KWExtendedCommunity, textparse.KWClusterList:

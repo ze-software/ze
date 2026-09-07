@@ -276,7 +276,7 @@ func parseTextNLRIOps(text string) map[string][]FamilyOperation {
 		// Attribute keywords: consume their values.
 		// Scalar attributes (one value token).
 		case textparse.KWOrigin, textparse.KWMED, textparse.KWLocalPreference,
-			textparse.KWAggregator, textparse.KWOriginatorID:
+			textparse.KWAggregator, textparse.KWOriginatorID, textparse.KWAIGP:
 			s.Next()
 		// Comma-list attributes (one comma-separated value token).
 		case textparse.KWASPath, textparse.KWCommunity, textparse.KWLargeCommunity,
