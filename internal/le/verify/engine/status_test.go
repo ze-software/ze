@@ -211,3 +211,57 @@ func writeVerifyFixture(t *testing.T, root, rel, content string) {
 		t.Fatal(err)
 	}
 }
+
+// TestScopedFreshnessFollowsContentRatherThanHEAD pins the property that makes
+// a scoped certificate worth asking for in a checkout many sessions commit to.
+// The scoped answer is about the caller's own files: another session's commit
+// does not void it, and committing the very content the stages read does not
+// void it either. Only a commit that reaches a scoped path does.
+func TestScopedFreshnessFollowsContentRatherThanHEAD(t *testing.T) {
+	root := statusFixture(t)
+	start := job.SnapshotTree(root)
+	if _, err := WriteCertificate(root, WriteRequest{
+		Exit: 0, Mode: Mode, GitSHA: job.Head(root), Start: start,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	writeVerifyFixture(t, root, "foreign.txt", "another session\n")
+	runVerifyGit(t, root, "add", "foreign.txt")
+	runVerifyGit(t, root, "commit", "--quiet", "-m", "another session commits")
+	if got := CheckCertificate(root, []string{"changed.txt"}); !got.Fresh {
+		t.Fatalf("scoped check after a foreign commit = %#v", got)
+	}
+
+	runVerifyGit(t, root, "add", "changed.txt")
+	runVerifyGit(t, root, "commit", "--quiet", "-m", "commit the verified content")
+	if got := CheckCertificate(root, []string{"changed.txt"}); !got.Fresh {
+		t.Fatalf("scoped check after committing the verified content = %#v", got)
+	}
+
+	writeVerifyFixture(t, root, "other.txt", "changed and committed\n")
+	runVerifyGit(t, root, "add", "other.txt")
+	runVerifyGit(t, root, "commit", "--quiet", "-m", "commit reaches the scope")
+	got := CheckCertificate(root, []string{"other.txt"})
+	if got.Fresh || !strings.Contains(got.Reason, "changed a scoped path") {
+		t.Fatalf("scoped check after a commit reaching the scope = %#v", got)
+	}
+}
+
+// TestScopedFreshnessRefusesAnUnjudgedDirtyPath keeps the content rule from
+// reading silence as agreement. A path with no manifest row was clean when the
+// run read it, so a row appearing for it afterwards is content no stage judged.
+func TestScopedFreshnessRefusesAnUnjudgedDirtyPath(t *testing.T) {
+	root := statusFixture(t)
+	if _, err := WriteCertificate(root, WriteRequest{
+		Exit: 0, Mode: Mode, GitSHA: job.Head(root), Start: job.SnapshotTree(root),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	writeVerifyFixture(t, root, "other.txt", "dirty after verify\n")
+	got := CheckCertificate(root, []string{"other.txt"})
+	if got.Fresh || !strings.Contains(got.Reason, "no stage judged it") {
+		t.Fatalf("scoped check over a newly dirty path = %#v", got)
+	}
+}

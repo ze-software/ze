@@ -231,11 +231,6 @@ func CheckCertificate(root string, paths []string) Freshness {
 }
 
 func checkScoped(root string, certificate Certificate, paths []string) Freshness {
-	head := job.Head(root)
-	if head != certificate.GitSHA {
-		return stale(fmt.Sprintf("STALE: HEAD moved since PASS at %s (%s -> %s)",
-			certificate.Timestamp, certificate.GitSHA, head))
-	}
 	recorded, err := readManifest(filepath.Join(root, filepath.FromSlash(ManifestPath)))
 	if errors.Is(err, os.ErrNotExist) {
 		return stale("STALE: no per-path manifest (PASS predates scoped checking)")
@@ -243,29 +238,99 @@ func checkScoped(root string, certificate Certificate, paths []string) Freshness
 	if err != nil {
 		return stale("STALE: per-path manifest is unreadable (run a full verify to replace it)")
 	}
-	live := job.DirtyManifest(root)
-	recordedRows := scopedRows(recorded, paths)
-	if strings.Join(recordedRows, "\n") == strings.Join(scopedRows(live, paths), "\n") {
-		mode := certificate.Mode
-		if mode == "" {
-			mode = Mode
+	if reason := scopedChange(root, certificate, recorded, paths); reason != "" {
+		return stale(reason)
+	}
+
+	mode := certificate.Mode
+	if mode == "" {
+		mode = Mode
+	}
+	var text textbuf.Buffer
+	return Freshness{
+		Fresh:       true,
+		Mode:        mode,
+		Timestamp:   certificate.Timestamp,
+		GitSHA:      certificate.GitSHA,
+		ScopedPaths: append([]string(nil), paths...),
+		Reason: text.Reset().Str("FRESH(").Str(mode).Str("): ").Int(int64(len(paths))).
+			Str(" scoped path(s) unchanged since PASS at ").Str(certificate.Timestamp).
+			Str(" (sha ").Str(certificate.GitSHA).Byte(')').String(),
+	}
+}
+
+// scopedChange answers why the scoped paths no longer hold what the stages
+// read, or the empty string when they still hold it.
+//
+// The question is asked about CONTENT, and asking it any other way is what made
+// a scoped PASS worthless in a checkout that many sessions commit to. The
+// manifest is HEAD-relative, so a path the run read as dirty stops being dirty
+// the moment a commit absorbs it unchanged. Comparing dirty SETS therefore
+// calls a path stale for moving out of the worktree into a commit, and
+// comparing the certificate's commit against HEAD calls EVERY scoped path stale
+// as soon as any other session commits anything at all. Neither answer is about
+// the files the caller asked about.
+//
+// So a recorded row is compared against the file on disk, and the commits made
+// since the PASS are asked only about the scoped paths that carry no row. Those
+// paths were identical to the certificate's commit when the run read them, and
+// that commit is the only record of what they held.
+func scopedChange(root string, certificate Certificate, recorded map[string]string, paths []string) string {
+	for rel, fingerprint := range recorded {
+		if !underScope(rel, paths) {
+			continue
 		}
-		return Freshness{
-			Fresh:       true,
-			Mode:        mode,
-			Timestamp:   certificate.Timestamp,
-			GitSHA:      certificate.GitSHA,
-			ScopedPaths: append([]string(nil), paths...),
-			Reason: fmt.Sprintf("FRESH(%s): %d scoped path(s) unchanged since PASS at %s (sha %s)",
-				mode, len(paths), certificate.Timestamp, certificate.GitSHA),
+		if fingerprint == movedDuringRun {
+			return scopedReason("a scoped path moved while the run was in flight, so no stage judged the content it now holds", certificate)
+		}
+		if job.Fingerprint(root, rel) != fingerprint {
+			return scopedReason("a scoped path no longer holds the content the stages read", certificate)
 		}
 	}
-	for _, row := range recordedRows {
-		if strings.HasPrefix(row, movedDuringRun+" ") {
-			return stale(fmt.Sprintf("STALE: a scoped path moved while the run was in flight, so no stage judged the content it now holds (PASS at %s)", certificate.Timestamp))
+	for rel := range job.DirtyManifest(root) {
+		if _, judged := recorded[rel]; judged || !underScope(rel, paths) {
+			continue
+		}
+		return scopedReason("a scoped path is dirty and no stage judged it", certificate)
+	}
+
+	head := job.Head(root)
+	if head == certificate.GitSHA {
+		return ""
+	}
+	moved, err := job.PathsChangedBetween(root, certificate.GitSHA, head)
+	if err != nil {
+		return scopedReason("the commit this PASS read can no longer be compared with HEAD", certificate)
+	}
+	for _, rel := range moved {
+		if _, judged := recorded[rel]; judged || !underScope(rel, paths) {
+			continue
+		}
+		return scopedReason("a commit made since the PASS changed a scoped path", certificate)
+	}
+	return ""
+}
+
+// scopedReason renders one stale answer. Every one of them names the PASS it
+// judged, because a checkout can hold several certificates over a morning and
+// the reason alone does not say which one the reader is being told about.
+func scopedReason(what string, certificate Certificate) string {
+	var text textbuf.Buffer
+	return text.Reset().Str("STALE: ").Str(what).
+		Str(" (PASS at ").Str(certificate.Timestamp).
+		Str(", sha ").Str(certificate.GitSHA).Byte(')').String()
+}
+
+// underScope answers whether one path IS the scope or sits inside it. An empty
+// scope reaches nothing, which is why CheckCertificate asks the whole-tree
+// question rather than this one when the caller names no path.
+func underScope(rel string, paths []string) bool {
+	for _, scope := range paths {
+		if rel == scope || strings.HasPrefix(rel, scope+"/") {
+			return true
 		}
 	}
-	return stale(fmt.Sprintf("STALE: a scoped path changed since last PASS at %s", certificate.Timestamp))
+	return false
 }
 
 func stale(reason string) Freshness { return Freshness{Reason: reason} }
@@ -287,24 +352,6 @@ func readManifest(path string) (map[string]string, error) {
 		manifest[rel] = fingerprint
 	}
 	return manifest, nil
-}
-
-func scopedRows(manifest map[string]string, paths []string) []string {
-	rows := make([]string, 0, len(manifest))
-	for rel, fingerprint := range manifest {
-		for _, scope := range paths {
-			if rel == scope {
-				rows = append(rows, fingerprint+" "+rel)
-				break
-			}
-			if strings.HasPrefix(rel, scope+"/") {
-				rows = append(rows, fingerprint+" "+rel)
-				break
-			}
-		}
-	}
-	slices.Sort(rows)
-	return rows
 }
 
 // atomicWrite publishes one verification artifact through a temporary file in

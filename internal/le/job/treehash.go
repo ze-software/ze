@@ -23,6 +23,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"hash"
 	"io"
 	"os"
@@ -214,24 +215,48 @@ func DirtyManifest(root string) map[string]string {
 		if _, exists := manifest[rel]; exists {
 			continue
 		}
-		path := filepath.Join(root, filepath.FromSlash(rel))
-		info, err := os.Stat(path)
-		if err != nil {
-			manifest[rel] = strings.TrimSpace(missingFile)
-			continue
-		}
-		if !info.Mode().IsRegular() {
-			manifest[rel] = strings.TrimSpace(missingFile)
-			continue
-		}
-		fingerprint, err := fileHash(path)
-		if err != nil {
-			manifest[rel] = strings.TrimSpace(missingFile)
-			continue
-		}
-		manifest[rel] = fingerprint
+		manifest[rel] = Fingerprint(root, rel)
 	}
 	return manifest
+}
+
+// Fingerprint answers the content fingerprint a manifest row carries for one
+// path, whether or not that path differs from HEAD.
+//
+// A dirty manifest can only speak about the paths that were dirty when it was
+// taken, and a reader comparing an old manifest against today's checkout needs
+// the same measurement for a path that has since gone clean. It is the same
+// answer either way: the content decides it, and where the content is stored
+// does not.
+//
+// A path that is absent, or that is not a regular file, carries the MISSING
+// sentinel a manifest row uses, so the two views compare directly.
+func Fingerprint(root, rel string) string {
+	path := filepath.Join(root, filepath.FromSlash(rel))
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() {
+		return strings.TrimSpace(missingFile)
+	}
+	fingerprint, err := fileHash(path)
+	if err != nil {
+		return strings.TrimSpace(missingFile)
+	}
+	return fingerprint
+}
+
+// PathsChangedBetween names every path whose content differs between two
+// commits, in git's own spelling.
+//
+// The error says the two commits cannot be compared, which is what a commit
+// that has left the checkout looks like after a rebase. A caller that cannot
+// compare has learned nothing about the paths, so it must not read the empty
+// result as "nothing changed".
+func PathsChangedBetween(root, from, to string) ([]string, error) {
+	out, err := git(root, "diff", "--name-only", from, to)
+	if err != nil {
+		return nil, fmt.Errorf("git diff %s %s: %w", from, to, err)
+	}
+	return nonEmptyLines(out), nil
 }
 
 // Head returns the current commit, or Unknown when Git cannot name one.
