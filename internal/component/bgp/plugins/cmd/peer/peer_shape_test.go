@@ -3,7 +3,7 @@ package peer
 import (
 	"encoding/json"
 	"net/netip"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -171,8 +171,9 @@ func TestPeerListRefusesResolveAndAnswersCount(t *testing.T) {
 //   - The eleven commands under `show bgp rpki`, `show bgp rs`,
 //     `show bgp adj-rib-in` and `show bgp healthcheck`. A plugin PROCESS
 //     registers those at runtime as plugin names, so no RPCRegistration carries
-//     them and no in-core package can declare for them until CommandDecl
-//     carries a shape. That is plan/spec-plugin-declares-answer-shape.md. A
+//     them and no in-core package declares for them. Each declares for itself
+//     in its Stage 1 message, through CommandDecl.Shape (pkg/plugin/rpc/types.go)
+//     and RegisterPluginShapes (internal/component/command/answer_shape.go). A
 //     path that later gains an in-core shim enters this set on its own.
 //   - `show bgp decode` and `show bgp encode`. The CLI registers those with
 //     registry.MustRegisterLocal and each prints finished text and returns an
@@ -197,7 +198,7 @@ func showBgpPaths(t *testing.T) []string {
 			}
 		}
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	require.NotEmpty(t, paths, "no show bgp command was derived; the registry or the YANG tree is not loaded")
 	return paths
 }
@@ -207,10 +208,12 @@ func showBgpPaths(t *testing.T) []string {
 //
 // VALIDATES: AC-20.
 // PREVENTS: a command reaching no pre-dispatch refusal and publishing nothing.
-// validateDeclaredShape returns at `if !declared`
+// validateDeclaredShape skips its shape test at `if !declared`
 // (internal/component/command/pipe.go), so an undeclared command accepts every
-// operator until its answer is in hand, and `ze help command --json` says
-// "with-rows" for each one rather than naming what it supports.
+// ROW operator until its answer is in hand, and `ze help command --json` says
+// "with-rows" for each one rather than naming what it supports (operatorsFor in
+// cmd/ze/help_command.go). Only the two address operators are refused without a
+// declaration, because no answer says a field of it holds an address.
 //
 // The population is DERIVED (showBgpPaths), so a `show bgp` command added later
 // fails this test until it declares.
@@ -477,6 +480,6 @@ func sortedKeys(row map[string]any) []string {
 	for name := range row {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
