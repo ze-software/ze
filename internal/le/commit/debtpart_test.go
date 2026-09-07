@@ -168,3 +168,85 @@ func commitDebtFixture(t *testing.T, root, subject string) {
 		}
 	}
 }
+
+// redDebtRunner answers exit 1 for every stage, so a sweep meets a red piece
+// wherever it looks. The question is what the SWEEP does with one, never
+// whether the stage was right to be red.
+func redDebtRunner(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
+	return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true, Code: 1}
+}
+
+// TestASweepProvesEveryPieceInOneInvocation: `debt-clear all of <m>` runs every
+// piece in order and clears the row when the last one lands, which is what the
+// named-piece form takes m invocations to reach.
+//
+// MUTATION: return only the named piece from debtPart.sweep and this fails: one
+// piece proves one piece, and debtPartsComplete keeps the row open.
+func TestASweepProvesEveryPieceInOneInvocation(t *testing.T) {
+	root := debtClearFixture(t)
+
+	result, code := clearDebtWith(root, debtPart{Index: 1, Of: 3, All: true}, greenDebtRunner)
+	if code != 0 {
+		t.Fatalf("a green sweep answered %d: %#v", code, result)
+	}
+	if !slices.Equal(result.Proven, []int{1, 2, 3}) {
+		t.Errorf("the sweep reports %v proven, want [1 2 3]", result.Proven)
+	}
+	if result.Cleared != 1 || result.Remaining != 1 {
+		t.Errorf("the sweep cleared %d of %d rows, want 1 with the unrunnable row remaining",
+			result.Cleared, result.Open)
+	}
+	if status := debtClearStatuses(t, root)[debtGates[0].Name]; status != "cleared" {
+		t.Errorf("the runnable row is %q after a whole sweep, want cleared", status)
+	}
+}
+
+// TestASweepSkipsAPieceAlreadyProven: a sweep resumed after a kill does not run
+// again what an earlier pass proved at the same commit. That is the property
+// that makes the sweep usable at all, because the piece carrying the fattest
+// stage is the one a kill lands on.
+//
+// MUTATION: drop the provenDebtParts consultation and this fails: the sweep
+// reports nothing skipped and pays for the proven piece a second time.
+func TestASweepSkipsAPieceAlreadyProven(t *testing.T) {
+	root := debtClearFixture(t)
+
+	if _, code := clearDebtWith(root, debtPart{Index: 1, Of: 3}, greenDebtRunner); code != 0 {
+		t.Fatalf("the first piece answered %d", code)
+	}
+
+	result, code := clearDebtWith(root, debtPart{Index: 1, Of: 3, All: true}, greenDebtRunner)
+	if code != 0 {
+		t.Fatalf("the sweep answered %d: %#v", code, result)
+	}
+	if !slices.Equal(result.Skipped, []int{1}) {
+		t.Errorf("the sweep skipped %v, want [1]: piece 1 was already proven", result.Skipped)
+	}
+	if !slices.Equal(result.Proven, []int{1, 2, 3}) {
+		t.Errorf("the sweep reports %v proven, want [1 2 3]", result.Proven)
+	}
+	if result.Cleared != 1 {
+		t.Errorf("the sweep cleared %d rows, want 1", result.Cleared)
+	}
+}
+
+// TestASweepCarriesOnPastARedPiece: the pieces are independent, so one red says
+// nothing about the ones behind it and the sweep runs them all. Nothing clears,
+// and the answer names every piece the next sweep owes.
+//
+// MUTATION: break out of the loop on a red piece and this fails: only piece 1
+// is reported red, so the answer understates what is still owed.
+func TestASweepCarriesOnPastARedPiece(t *testing.T) {
+	root := debtClearFixture(t)
+
+	result, _ := clearDebtWith(root, debtPart{Index: 1, Of: 3, All: true}, redDebtRunner)
+	if !slices.Equal(result.Failed, []int{1, 2, 3}) {
+		t.Errorf("the sweep reports %v red, want [1 2 3]: a red piece must not end the sweep", result.Failed)
+	}
+	if result.Cleared != 0 || result.Remaining != result.Open {
+		t.Errorf("a red sweep cleared %d of %d rows, want none", result.Cleared, result.Open)
+	}
+	if status := debtClearStatuses(t, root)[debtGates[0].Name]; status != "open" {
+		t.Errorf("the runnable row is %q after a red sweep, want open", status)
+	}
+}

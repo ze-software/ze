@@ -30,7 +30,7 @@ var commandVerbs = []struct {
 	{actionReviewCheck, false, "re-check a hash-pinned independent review immediately before staging"},
 	{"debt-list", false, "list every verification-debt row"},
 	{"debt-status", false, "summarize open and cleared verification debt"},
-	{"debt-clear", true, "run owed native gates against HEAD and clear rows only after exit zero; part <n> of <m> runs one piece and clears nothing until every piece has passed at one commit"},
+	{"debt-clear", true, "run owed native gates against HEAD and clear rows only after exit zero; part <n> of <m> runs one piece, all of <m> sweeps every piece in order, and nothing clears until every piece has passed at one commit"},
 }
 
 // CommandRow is one closed verb exposed by `le commit`.
@@ -64,6 +64,8 @@ type debtClearResult struct {
 	Part        int      `json:"part,omitempty"`
 	Of          int      `json:"of,omitempty"`
 	Proven      []int    `json:"proven-parts,omitempty"`
+	Skipped     []int    `json:"skipped-parts,omitempty"`
+	Failed      []int    `json:"failed-parts,omitempty"`
 	Runnable    []string `json:"runnable,omitempty"`
 	Unrunnable  []string `json:"unrunnable,omitempty"`
 	Diagnostics []string `json:"diagnostics,omitempty"`
@@ -172,7 +174,7 @@ func Answer(args []string) (any, int) {
 		return status, 0
 	case "debt-clear":
 		values, err := parseKeywords(args[1:], map[string]keywordRule{
-			"part": {Value: true}, "of": {Value: true},
+			"part": {Value: true}, "of": {Value: true}, "all": {Value: false},
 		})
 		if err != nil {
 			return commandError(err, 2)
@@ -330,33 +332,55 @@ func clearDebtWith(root string, part debtPart, runner verifyengine.ActionRunner)
 	passed := make(map[string]bool)
 	proven := false
 	if len(result.Runnable) != 0 {
-		report := verify.Run(context.Background(), root,
-			verify.Options{Commit: "HEAD", Part: part.Index, Parts: part.Of}, runner)
-		result.Commit = report.Commit
-		result.Diagnostics = report.Diagnostics
-		if part.cut() {
-			result.Part, result.Of = part.Index, part.Of
-		}
-		switch {
-		case report.Code != 0:
-			result.Remaining = result.Open
-			if report.Verify == nil {
-				return result, 1
+		// A sweep skips what an earlier sweep already proved at this commit, so
+		// a run killed at its fattest stage resumes rather than starting again.
+		already := provenDebtParts(root, debtSweepCommit(root), part.Of)
+		for _, piece := range part.sweep() {
+			if part.All && slices.Contains(already, piece.Index) {
+				result.Skipped = append(result.Skipped, piece.Index)
+				result.Proven = already
+				result.Of = piece.Of
+				proven = debtPartsComplete(already, piece.Of)
+				continue
 			}
-		case !part.cut():
-			proven = true
-		default:
+			report := verify.Run(context.Background(), root,
+				verify.Options{Commit: "HEAD", Part: piece.Index, Parts: piece.Of}, runner)
+			result.Commit = report.Commit
+			result.Diagnostics = append(result.Diagnostics, report.Diagnostics...)
+			if piece.cut() {
+				result.Of = piece.Of
+				if !part.All {
+					result.Part = piece.Index
+				}
+			}
+			if report.Code != 0 {
+				result.Remaining = result.Open
+				if !part.All {
+					if report.Verify == nil {
+						return result, 1
+					}
+					break
+				}
+				// A sweep carries on: the pieces are independent, so one red
+				// says nothing about the ones behind it.
+				result.Failed = append(result.Failed, piece.Index)
+				continue
+			}
+			if !piece.cut() {
+				proven = true
+				break
+			}
 			// The piece exited 0, so what it proved is recorded before anything
 			// else can end this process. The whole point of cutting the run is
 			// that a piece killed mid-flight costs that piece and not the run.
-			recorded, err := recordDebtPart(root, report.Commit, part)
+			recorded, err := recordDebtPart(root, report.Commit, piece)
 			if err != nil {
 				leaction.ReportError(err)
 				result.Remaining = result.Open
 				return result, 2
 			}
 			result.Proven = recorded
-			proven = debtPartsComplete(recorded, part.Of)
+			proven = debtPartsComplete(recorded, piece.Of)
 		}
 	}
 	if proven {
@@ -448,12 +472,30 @@ func (r debtClearResult) Text() string {
 		text.Str(line).Byte('\n')
 	}
 	if r.Of != 0 {
-		text.Str("part ").Int(int64(r.Part)).Str(" of ").Int(int64(r.Of)).
-			Str(" over ").Str(r.Commit).Str("; proven so far:")
+		if r.Part == 0 {
+			text.Str("sweep of ").Int(int64(r.Of)).Str(" piece(s)")
+		} else {
+			text.Str("part ").Int(int64(r.Part)).Str(" of ").Int(int64(r.Of))
+		}
+		text.Str(" over ").Str(r.Commit).Str("; proven so far:")
 		for _, piece := range r.Proven {
 			text.Byte(' ').Int(int64(piece))
 		}
 		text.Str(" of ").Int(int64(r.Of)).Byte('\n')
+		if len(r.Skipped) != 0 {
+			text.Str("already proven, not re-run:")
+			for _, piece := range r.Skipped {
+				text.Byte(' ').Int(int64(piece))
+			}
+			text.Byte('\n')
+		}
+		if len(r.Failed) != 0 {
+			text.Str("red this sweep, re-run them:")
+			for _, piece := range r.Failed {
+				text.Byte(' ').Int(int64(piece))
+			}
+			text.Byte('\n')
+		}
 	}
 	return text.Str("cleared ").Int(int64(r.Cleared)).Str(" row(s), ").
 		Int(int64(r.Remaining)).Str(" still open\n").String()

@@ -3,10 +3,12 @@
 package commit
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -25,6 +27,10 @@ const debtPartsPath = "tmp/ze-verify-debt-parts.json"
 type debtPart struct {
 	Index int
 	Of    int
+	// All runs every piece of the cut in one invocation, in order, each in its
+	// own worktree. A piece that fails does not end the sweep, because the
+	// pieces are independent and a red one is re-run on the next sweep.
+	All bool
 }
 
 func uncutDebtPart() debtPart { return debtPart{Index: 1, Of: 1} }
@@ -41,6 +47,20 @@ func (p debtPart) cut() bool { return p.Of != 1 }
 func debtPartFrom(values keywordValues) (debtPart, error) {
 	index, hasIndex := values["part"], values.has("part")
 	count, hasCount := values["of"], values.has("of")
+	hasAll := values.has("all")
+	if hasAll && hasIndex {
+		return debtPart{}, errors.New("all and part name different passes: use one of debt-clear all of <m> or debt-clear part <n> of <m>")
+	}
+	if hasAll {
+		if !hasCount {
+			return debtPart{}, errors.New("a sweep needs the piece count: debt-clear all of <m>")
+		}
+		of, err := debtPartNumber("of", count[0])
+		if err != nil {
+			return debtPart{}, err
+		}
+		return debtPart{Index: 1, Of: of, All: true}, nil
+	}
 	if !hasIndex && !hasCount {
 		return uncutDebtPart(), nil
 	}
@@ -141,6 +161,57 @@ func recordDebtPart(root, commit string, part debtPart) ([]int, error) {
 		return nil, err
 	}
 	return progress.Passed, nil
+}
+
+// sweep answers the pieces this invocation runs, in the order it runs them.
+//
+// A named piece is one piece. A sweep is every piece of the cut, each still in
+// its own worktree, because that is what makes progress durable: the record is
+// written as each piece exits 0, so a sweep killed mid-flight costs the piece
+// it was running and keeps the ones behind it.
+func (p debtPart) sweep() []debtPart {
+	if !p.All {
+		return []debtPart{p}
+	}
+	pieces := make([]debtPart, 0, p.Of)
+	for index := 1; index <= p.Of; index++ {
+		pieces = append(pieces, debtPart{Index: index, Of: p.Of})
+	}
+	return pieces
+}
+
+// provenDebtParts answers the pieces already recorded green for commit under
+// this cut, so a sweep resumed after a kill does not run them again.
+//
+// A record pinned to another commit or another cut answers nothing, which is
+// the same reset rule recordDebtPart states: a verdict is evidence about the
+// tree it ran on.
+func provenDebtParts(root, commit string, of int) []int {
+	if commit == "" {
+		return nil
+	}
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(debtPartsPath))) //nolint:gosec // the path is this checkout's verification artifact
+	if err != nil {
+		return nil
+	}
+	var held debtProgress
+	if json.Unmarshal(content, &held) != nil || held.Commit != commit || held.Of != of {
+		return nil
+	}
+	return held.Passed
+}
+
+// debtSweepCommit answers the commit a sweep judges, so pieces proven by an
+// earlier sweep at the same commit can be skipped before the first one runs.
+// An unreadable HEAD answers empty, which skips nothing and runs every piece.
+func debtSweepCommit(root string) string {
+	resolve := exec.CommandContext(context.Background(), "git", "rev-parse", "--verify", "-q", "HEAD^{commit}")
+	resolve.Dir = root
+	out, err := resolve.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 // debtPartsComplete reports whether every piece of a cut into of pieces is
