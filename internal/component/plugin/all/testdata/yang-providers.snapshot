@@ -41,6 +41,7 @@ fib-kernel
 fib-p4
 fib-vpp
 firewall
+firewall-domain
 firewall-irr
 flow-export
 geodns

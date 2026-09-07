@@ -53,6 +53,7 @@ ze-bgp:withdraw-tag
 ze-clear:dns-cache
 ze-clear:dns-cache-record
 ze-clear:dns-cache-stats
+ze-clear:firewall-domain-group
 ze-clear:firewall-irr-as-set
 ze-clear:firewall-irr-asn
 ze-clear:interface-counters
@@ -176,6 +177,7 @@ ze-show:errors
 ze-show:event-delivery
 ze-show:event-namespaces
 ze-show:event-recent
+ze-show:firewall-domain-group-status
 ze-show:firewall-group
 ze-show:firewall-irr-prefix
 ze-show:firewall-irr-status
@@ -350,6 +352,7 @@ ze-system:subsystem-list
 ze-system:version-api
 ze-system:version-software
 ze-update:bgp-peer-prefix
+ze-update:firewall-domain-group
 ze-update:firewall-irr-all
 ze-update:firewall-irr-as-set
 ze-update:firewall-irr-asn
