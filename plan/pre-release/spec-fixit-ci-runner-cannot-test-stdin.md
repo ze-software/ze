@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 7/8 |
+| Phase | 8/8 |
 | Handoff | - |
 | Updated | 2026-09-07 |
 
@@ -64,10 +64,68 @@ against a tree carrying every change this spec made, and returned `pass 39/39
 100.0%`. The pass set is unchanged, which is what AC-15 asks: `parseCIFile`
 drives that suite and none of this spec's work reached it.
 
-What is NOT built: AC-14, the whole functional suite before and after. There is
-no "before" left to take, because the work has landed. What is reachable is a
-run now with every difference from the recorded state explained, and the closure
-record must say which of the two it holds.
+Built 2026-09-07: AC-14, the whole gating set measured, with a per-suite
+attribution. The closure record below holds it. No failing test in the gating
+run ran an argv this spec changed.
+
+### AC-14: the gating set, and what each red is
+
+**The step trace AC-8 added is the discriminator, and it answers over the whole
+run rather than one suite at a time.** `recordExecStep`
+(`internal/test/runner/runner_exec_trace.go`) writes `[stdin=<name> piped]` only
+for a block `routeStdinBlock` sends to standard input, and `5c9254bdd` moves a
+block from a file to the pipe and never the other way. So a test this spec
+changed the argv of is a test whose trace carries `piped]`.
+
+The gating run of 2026-09-07 (26,112 lines,
+`tmp/session/2026-09-05-644c18af-0c07-4cae-bd15-d866d73f0718/scratch/gating.log`)
+holds 269 `TEST FAILURE` blocks and 269 `STEP TRACE` blocks, one per failing
+test, so every red printed its trace. Across all 269, 986 exec steps named a
+block written to a FILE, 138 named no block, and `piped]` appears **0 times**.
+
+Two suites were then run A/B to corroborate that reading. `routeStdinBlock` and
+the daemon-config arm of `runOrchestrated` were restored by hand to the
+pre-`5c9254bdd` decision (first `-` in argv takes the file, `ze-peer` always
+takes the appended file), each suite was run, the two files were restored from
+copies, and `git status` over `internal/test/runner/` came back clean.
+
+| Suite | Failures at HEAD | Failures with the old routing | Difference |
+|-------|------------------|-------------------------------|------------|
+| `encode` (59) | 5: `ebgp-encode`, `ebgp-new`, `tmpfs-ebgp`, `keepalive-encode`, `default-originate` | the same 5 | none |
+| `ui` (261) | 17 | 24 | 3 that the change FIXES, plus 7 with no `stdin=` block at all |
+
+The three `ui` reds the change fixes are this spec's own fixtures:
+`bgp-decode-stdin-hex` (AC-10), `config-history-stdin-refused` (AC-11) and
+`config-fmt-write-stdout` (AC-12). Each is red under the old routing and green
+under the new one, which is the criterion those ACs state.
+
+The other seven differ in the other direction or carry no block. Six failed only
+under the old routing (`show-bgp-children-do-not-inherit`,
+`show-bgp-plugin-shapes`, `show-bgp-summary-column-order`,
+`web-recovery-session-survives-commit`, `web-user-removed-by-reload`,
+`ze-stripped-surface`) and one only under the new one
+(`display-fill-completion`). Every one of the seven is a single
+`cmd=foreground:seq=1:exec=ze-test fixture ui/<name>` line with no `stdin=`
+anywhere in the file, and `runOrchestrated` computes a route only when
+`cmd.Stdin != ""` (`runner_exec.go`, the `if stdinContent != nil` guard above
+the two arms). They are load noise on a machine several sessions share.
+
+Two of the ten failing suites cannot reach the change at all, for the reason
+AC-15 gives for `decode`: they are driven by other code.
+`parsingRunner.runOneCommand` (`internal/test/runner/parsing.go`) makes its own
+stdin decision under `!containsDash(parts)`, so `test/parse` is untouched, and
+the `.wb` driver sets `cmd.Stdin` directly (`internal/test/cli/cmd_web.go`), so
+`test/web` is untouched.
+
+**Attribution of the 269 reds.** None is caused by this spec.
+
+| Cause | Reds | Evidence |
+|-------|------|----------|
+| `ze-test peer` sends an OPEN whose two AS carriers disagree | 224 (5 `encode`, 212 `plugin`, 6 `ui`, 1 `vrrp`) | `generateOpen` (`internal/test/peer/peer.go`) mirrors ze's OPEN and then writes `p.config.ASN` into the two-octet My AS field alone, leaving the mirrored AS4 capability holding ze's own AS. `openAdvertisedAS` (`internal/component/bgp/reactor/peer.go`) reads the AS4 capability first, per RFC 6793 Section 3, so `validateOpenPeerAS` (`session_open_as.go`) answers NOTIFICATION 2/2 Bad Peer AS. The peer trace reads `open sent ...04FDE8...41040000FFFD`: My AS 65000 beside AS4 65533. Already carried by three journal rows, one of them filed under this spec |
+| the kernel build needs 40.0G and `/var/lib/docker` has 13.4G | 11 (`install`) | `ZE-OBSERVER-FAIL: kernel build needs 40.0G free` |
+| QEMU | 1 (`appliance`, `vpp-hugepages-qemu`) | the scenario needs a guest |
+| another session's uncommitted work in this shared checkout | 11 (`ui`) | the eight `le-*-answers` fixtures run `./le` gates over the tree: `./le repository check` names `ExtractRemovePrivateASOps`, `SuiteRun` and `Deal`, three exported symbols in files `git status` reports modified or untracked. `doctor-listeners` misses `doctor-ipsec-listen` while `internal/component/ike/` is being edited, and `help-command-json-summary-only` sees a `long-help` key while `internal/component/command/declared.go` is |
+| no root, no capabilities, an observer timeout, or a contended run | 22 (19 `plugin`, 2 `reload`, 1 `runner`) | `warning: running without root; missing capabilities`, `SSH server did not start`, four `TYPE: timeout` blocks in a suite running 231 reds at once. The `runner` red (`verify-scope-suite-map`) was another session's work in flight and is green now: `./le functional runner` returns 10/10, `stdin-pipes-into-a-dash` included |
 
 **Bucket: `plan/pre-release/`.** No operator meets this: the `ze` binary reads
 standard input correctly, and the defect is in the instrument that judges it. It
@@ -549,6 +607,7 @@ The user here is a `.ci` author, and the product is the runner.
 | `config-fmt-write-stdout` | `test/ui/config-fmt-write-stdout.ci` | an operator pipes a config into `ze config fmt -w -` and gets the formatted config on stdout | pass; RED observed 2026-09-07 with the `cliio.IsStdin(configPath)` arm of `cmdFmt` cut so the in-place arm runs. The whole fixture fails on `stderr unexpectedly contains "Formatted"`, the in-place note a pipeline stage never prints. A second run of the same cut, with that reject line removed, fails on `stdout does not contain "router-id 5.6.7.8"`, because the in-place arm writes nothing for the already-formatted input of seq=2. Both runs print the formatted config of seq=1 and no `router-id 5.6.7.8`, and the step trace reads `ze config fmt -w -  [stdin=formatted piped]` |
 | the must-fail fixtures | `internal/test/runner/testdata/mustfail/*.ci` | not user-facing: each one proves the runner still refuses or still fails where it must | six fixtures, green in `61de329f6`. Red observed by pointing `exit-code-is-judged.ci` at `/bin/true` |
 | the whole decode suite | `test/decode/*.ci` | not user-facing: it proves this spec's work did not reach the second `.ci` driver | AC-15. `./le functional decode` over a tree carrying every change here: `pass 39/39 100.0%`, the pass set unchanged. `parseCIFile` drives that suite, and no red is owed: the criterion is that nothing MOVED |
+| the whole gating set | every gating suite | not user-facing: it measures what the routing change moved across 1,394 intercepted `cmd=` lines | AC-14, and the closure record above holds it. 269 reds, 269 step traces, `piped]` in none of them, so no failing test ran an argv this spec changed. `encode` fails identically under both routings; `ui` differs by the three fixtures AC-10 to AC-12 name and by seven tests that declare no `stdin=` block |
 
 ### Interop Tests (Scope: protocol)
 Not applicable. Test tooling with no protocol peer and no wire-visible change
