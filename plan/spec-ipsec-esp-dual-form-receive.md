@@ -858,6 +858,46 @@ AC-1, AC-2, AC-3, AC-4, AC-6 and AC-7 were re-verified at their producers on
 (`encap_formchange_integration_linux_test.go:161`) and
 `test/interop-ipsec/scenarios/esp-form-change/` are all present.
 
+## Ruling 2026-09-05: AC-5 is MEASURE IT, and the pair was not Thomas's to pick from
+
+The 2026-09-05 closure attempt refused to close (correctly) and put two options
+for AC-5 to the owner: measure dual-form receive on a real VPP, or make
+`vppBackend.InstallSA` refuse `AcceptBothESPForms` until that measurement
+exists. That pair MUST NOT have been offered.
+
+`ai/rules/rfc-compliance.md` settles it: "A choice between two ways of proving
+the same requirement is legitimate and stays open; a choice between proving a
+requirement and describing it accurately is not a choice." Measuring proves the
+behavior on the VPP dataplane. Refusing describes the silence honestly and
+leaves Ze exactly as unproven as it was. One arm proves more, so that arm IS the
+answer and the other is not written down.
+
+**The answer is: extend `run_ipsec_evidence`
+(`internal/le/deployment/vppevidence.go`, which sends no ESP today) so a real
+VPP receives both ESP forms on one inbound SA and decrypts both.** No owner
+decision is owed. The work is queued behind the owner's defer-heavy-testing
+instruction, which is a SCHEDULING constraint and never a licence to take the
+narrower arm.
+
+The urgency is real and is about an accidental guard rather than about VPP.
+`vppPolicyInterface` refuses every IKE policy today because IKE leaves
+`SPParams.IfIndex` zero, so the unmeasured pass-through in `InstallSA` is
+harmless only by coincidence. When `plan/spec-ipsec-vpp-policy-interface.md`
+lands and sets the index, the gap opens with no line deleted and no test red.
+That is exactly the shape `ai/rules/principles.md` names first: a zero another
+branch relies on, doing a job nothing names.
+
+Two smaller debts stay attached to this spec and are owed at closure, not now:
+A-7's Status cell still reads "see Phase 1 Evidence", which is neither
+`confirmed` nor `broken`; and the `// Design:` headers on
+`internal/component/ike/dataplane/espform.go` and `espform_linux.go` point at
+this spec file, so they need repointing at a durable page before the closure
+commit removes it.
+
+Story 1 (`test/interop-ipsec/scenarios/esp-encap-no-nat/`) and Story 3 (no
+encap or ESP-form field in `internal/component/ike/cmd/show_ipsec.go`) are also
+unbuilt and are part of the same queued package.
+
 ## Acceptance Criteria status (2026-08-02)
 
 | AC | Status | Evidence |
