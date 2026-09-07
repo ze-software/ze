@@ -83,7 +83,7 @@ type Change struct {
 	// A protocol that inserts one Path per equal-cost next-hop (IS-IS ECMP,
 	// distinct Instance) is the producer this serves: the single best Path on
 	// Best would otherwise collapse the multipath to one next-hop downstream.
-	ECMP []netip.Addr
+	ECMP []NextHop
 }
 
 // ChangeHandler is invoked synchronously from Insert/Remove when the best

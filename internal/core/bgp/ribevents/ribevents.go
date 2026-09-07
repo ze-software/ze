@@ -28,6 +28,7 @@ import (
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/replay"
+	"github.com/ze-software/ze/internal/core/rib/nexthop"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
 )
 
@@ -82,10 +83,19 @@ type BestChangeEntry struct {
 	// NLRI nil and names the route in Prefix. A consumer that installs routes
 	// MUST read Prefix and skip an entry that has none: such an entry names a
 	// route the consumer holds no key for.
-	NLRI         []byte                   `json:"nlri,omitempty"`
-	AddPath      bool                     `json:"add-path,omitempty"`
-	PathID       uint32                   `json:"path-id,omitempty"`
-	NextHop      netip.Addr               `json:"next-hop,omitzero"`
+	NLRI    []byte     `json:"nlri,omitempty"`
+	AddPath bool       `json:"add-path,omitempty"`
+	PathID  uint32     `json:"path-id,omitempty"`
+	NextHop netip.Addr `json:"next-hop,omitzero"`
+	// Interface is the outgoing device for NextHop and Weight is its share of a
+	// weighted multipath group, both carried from locrib.Path by sysrib's
+	// changeToBatch. A BGP path names a gateway address alone and leaves both
+	// zero; a producer whose one route names a device or a weight (the static
+	// plugin) reaches the FIB through here. In-process hints (json:"-"), like
+	// ECMPNextHops below: the forked event-bus path has no Loc-RIB to read them
+	// from.
+	Interface    string                   `json:"-"`
+	Weight       uint8                    `json:"-"`
 	Priority     int                      `json:"priority"`
 	Metric       uint32                   `json:"metric"`
 	ProtocolType routeaction.ProtocolType `json:"protocol-type,omitempty"`
@@ -113,7 +123,12 @@ type BestChangeEntry struct {
 	// build the kernel multipath without re-reading the PathGroup. The forked
 	// (cross-process) event-bus path has no Loc-RIB and leaves it nil; json:"-"
 	// because it is an in-process hint only, never part of the wire contract.
-	ECMPNextHops []netip.Addr `json:"-"`
+	//
+	// Each sibling carries its own outgoing interface and weight, because a
+	// producer whose one route names a whole weighted next-hop set (the static
+	// plugin) reaches the FIB through here. A protocol-learned sibling names an
+	// address alone and leaves both zero.
+	ECMPNextHops []nexthop.NextHop `json:"-"`
 
 	// BackupNextHop and BackupRepairLabels carry a pre-computed fast-reroute
 	// backup next-hop (an IP fast-reroute alternate) plus its optional MPLS repair

@@ -22,7 +22,7 @@ func TestStaticEmitCarriesRouteTag(t *testing.T) {
 	setEventBus(bus)
 	t.Cleanup(func() { eventBusPtr.Store(nil) })
 
-	rm := newRouteManager(&mockStaticBackend{})
+	rm := newTestRouteManager(&mockStaticBackend{})
 	require.NoError(t, rm.applyRoutes([]staticRoute{
 		{
 			Prefix:   netip.MustParsePrefix("10.0.0.0/8"),

@@ -1,4 +1,4 @@
-// Design: plan/spec-fib-depth.md -- recursive next-hop resolution
+// Design: plan/immediate/spec-fib-depth.md -- recursive next-hop resolution
 // Related: sysrib.go -- sysRIB calls nhResolver after best-path selection
 
 package sysrib

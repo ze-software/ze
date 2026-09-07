@@ -19,6 +19,13 @@ import (
 // never bites, so the full kernel-legal range stays available.
 const maxEncodableTableID = uint64(math.MaxInt)
 
+// MainTableName is the name every config spells for the kernel main table. It is
+// built in rather than declared: Resolve answers 0 for it and for an omitted
+// name, and 0 is how Ze spells RT_TABLE_MAIN (254) internally. Exported so a
+// caller deciding whether a route is a main-table route reads the name from here
+// rather than repeating the literal.
+const MainTableName = "default"
+
 // Registry maps routing table names to kernel table IDs.
 // "default" is built-in (table 0, kernel RT_TABLE_MAIN 254).
 type Registry struct {
@@ -32,7 +39,7 @@ func New(tables map[string]uint32) *Registry {
 
 // Resolve returns the kernel table ID for a named routing table.
 func (r *Registry) Resolve(name string) (uint32, error) {
-	if name == "default" || name == "" {
+	if name == MainTableName || name == "" {
 		return 0, nil
 	}
 	if r == nil || r.tables == nil {

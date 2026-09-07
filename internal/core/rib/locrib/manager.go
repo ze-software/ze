@@ -175,8 +175,8 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 	// consumers (sysrib) never re-look-up the RIB to recover an ECMP group. Nil
 	// for single-path groups; populated only when the selected best is itself a
 	// multipath member.
-	var prevECMP []netip.Addr
-	var ecmp []netip.Addr
+	var prevECMP []NextHop
+	var ecmp []NextHop
 
 	if !sh.store.Modify(prefix, func(g *PathGroup) {
 		prevBest, hadBest = g.best()
@@ -241,7 +241,7 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 // PathGroup: same Source as best, same AdminDistance, same Metric, valid
 // next-hop, different from best.NextHop. Runs under the shard lock with g in
 // hand; allocates nothing for single-path groups.
-func siblingNextHops(g *PathGroup, best Path) []netip.Addr {
+func siblingNextHops(g *PathGroup, best Path) []NextHop {
 	if !best.Valid() {
 		return nil
 	}
@@ -255,7 +255,7 @@ func siblingNextHops(g *PathGroup, best Path) []netip.Addr {
 	if g == nil || len(g.Paths) <= 1 {
 		return nil
 	}
-	var out []netip.Addr
+	var out []NextHop
 	for i := range g.Paths {
 		p := g.Paths[i]
 		if p.Source != best.Source || p.NextHop == best.NextHop || !p.NextHop.IsValid() {
@@ -264,8 +264,9 @@ func siblingNextHops(g *PathGroup, best Path) []netip.Addr {
 		if p.AdminDistance != best.AdminDistance || p.Metric != best.Metric {
 			continue
 		}
-		if !slices.Contains(out, p.NextHop) {
-			out = append(out, p.NextHop)
+		nh := NextHop{Addr: p.NextHop, Interface: p.Interface, Weight: p.Weight}
+		if !slices.Contains(out, nh) {
+			out = append(out, nh)
 		}
 	}
 	return out
@@ -275,11 +276,11 @@ func siblingNextHops(g *PathGroup, best Path) []netip.Addr {
 // PathGroup. It is the snapshot/replay counterpart to Change.ECMP, for consumers
 // that already hold a copied PathGroup and need the same ECMP membership data
 // without re-querying the RIB.
-func (g PathGroup) ECMPNextHops(best Path) []netip.Addr {
+func (g PathGroup) ECMPNextHops(best Path) []NextHop {
 	return siblingNextHops(&g, best)
 }
 
-func equalNextHopSets(a, b []netip.Addr) bool {
+func equalNextHopSets(a, b []NextHop) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -321,8 +322,8 @@ func (r *RIB) Remove(fam family.Family, prefix netip.Prefix, source redistevents
 	// post-removal best paths, captured here under sh.mu with g in hand so the
 	// synthesized fallback ChangeUpdate carries membership changes without a
 	// re-lookup. Nil unless the selected best is itself a multipath member.
-	var prevECMP []netip.Addr
-	var ecmp []netip.Addr
+	var prevECMP []NextHop
+	var ecmp []NextHop
 
 	sh.store.Modify(prefix, func(g *PathGroup) {
 		prevBest, hadBest = g.best()

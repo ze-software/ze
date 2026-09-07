@@ -33,7 +33,31 @@ a path-id map in the value layer.
 
 **Cross-source best path runs off a distance table.** `Path.AdminDistance
 uint8` orders before metric inside `selectBest`. The defaults follow Cisco and
-Juniper. A YANG override is additive future work and blocks nothing.
+Juniper, and `rib { distance { } }` overrides each of them. The producer stamps
+the value it reads from `internal/core/rib/distance`, because `selectBest` runs
+before sysrib sees the route, so a number that reaches sysrib alone cannot change
+cross-source selection.
+
+**A Path carries its whole next-hop set, not one address.** `NextHop` is the
+route's own gateway, `Interface` is the device to send out of, and `Weight` is
+that next-hop's share of the group. `ECMP` holds the rest of the group, one
+`nexthop.NextHop` per member with the same three facts. A protocol-learned path
+names a gateway and leaves the device and the weights zero; a configured route
+may name a device instead of a gateway, and may weight the members.
+
+`Interface` and `Weight` follow the `Labels` contract. They are excluded from
+`key()`, because a source moving a prefix to another device is the same path
+updated rather than a second path, and they are compared by `Equal`, because the
+FIB has to observe the move. `ECMP` stays out of both: a group change is detected
+through `Change.ECMP`.
+<!-- source: internal/core/rib/nexthop/nexthop.go -- the NextHop value type -->
+<!-- source: internal/core/rib/distance/distance.go -- the declaration seam producers read -->
+
+**The sources.** BGP, OSPF, IS-IS and the static plugin insert paths, and sysrib
+reads them. A static route enters only when it is in the MAIN table: the store is
+keyed by (family, prefix) and carries no table, so a named-table route would
+collide with the main-table route for the same prefix
+(`docs/architecture/static-routes.md`).
 
 **Two Insert methods, not variadic options.** `Insert` stays for non-BGP
 callers. `InsertForward` threads the optional `ForwardHandle`. See

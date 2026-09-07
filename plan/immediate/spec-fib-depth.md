@@ -18,6 +18,16 @@ best-path step 6 (IGP cost: `BestStepIGPCost` deferred at `bestpath.go,182`,
 against the three learned closures before trusting 7/12, and refresh Current
 Behavior.
 
+
+<!-- Note added 2026-09-07 by spec-connected-static-reach-the-locrib: this spec's
+`ECMPPath.Weight` item is SATISFIED. The field landed here and `ecmpCollect`
+hardcoded 1; it is now populated from the producer through
+`nexthop.NextHop.Weight`, and `ecmpWeight` keeps 1 for a producer that states
+none, so nothing an unweighted BGP, OSPF or IS-IS group programs changed.
+`ECMPPath` also gained `Interface`. `BestChangeEntry.TableID` is untouched and
+stays this spec's, which is why a named-table static route is kept out of the
+Loc-RIB. -->
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**

@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
+	"github.com/ze-software/ze/internal/core/rib/nexthop"
 
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -33,8 +34,8 @@ import (
 // fromLocRIBBatch builds the single-entry FromLocRIB batch that changeToBatch
 // emits for one Loc-RIB best-change, with ECMPNextHops carrying the intra-source
 // equal-cost siblings computed at emit.
-func fromLocRIBBatch(proto string, fam family.Family, c incomingChange) *incomingBatch {
-	b := makePayload(proto, fam, []incomingChange{c})
+func fromLocRIBBatch(proto string, fam family.Family, c *incomingChange) *incomingBatch {
+	b := makePayload(proto, fam, []incomingChange{*c})
 	b.FromLocRIB = true
 	return b
 }
@@ -56,13 +57,13 @@ func TestSysribECMPPathGroup(t *testing.T) {
 
 	// Loc-RIB emit selected nh1 as best and carried nh2 as an equal-cost sibling
 	// on the Change (locrib.Change.ECMP -> BestChangeEntry.ECMPNextHops).
-	_, changes := s.processEvent(fromLocRIBBatch("isis", family.IPv4Unicast, incomingChange{
+	_, changes := s.processEvent(fromLocRIBBatch("isis", family.IPv4Unicast, &incomingChange{
 		Action:       routeaction.Add,
 		Prefix:       pfx,
 		NextHop:      nh1,
 		Priority:     115,
 		Metric:       20,
-		ECMPNextHops: []netip.Addr{nh2},
+		ECMPNextHops: []nexthop.NextHop{{Addr: nh2}},
 	}))
 
 	if len(changes) != 1 {
@@ -90,7 +91,7 @@ func TestSysribSinglePathNoECMP(t *testing.T) {
 	s := newSysRIB()
 
 	pfx := netip.MustParsePrefix("10.51.0.0/24")
-	_, changes := s.processEvent(fromLocRIBBatch("bgp", family.IPv4Unicast, incomingChange{
+	_, changes := s.processEvent(fromLocRIBBatch("bgp", family.IPv4Unicast, &incomingChange{
 		Action:   routeaction.Add,
 		Prefix:   pfx,
 		NextHop:  netip.MustParseAddr("192.0.2.1"),

@@ -60,7 +60,7 @@ func TestStaticReemitsReplayID(t *testing.T) {
 	t.Cleanup(func() { eventBusPtr.Store(nil) })
 
 	mb := &mockStaticBackend{}
-	rm := newRouteManager(mb)
+	rm := newTestRouteManager(mb)
 	require.NoError(t, rm.applyRoutes([]staticRoute{
 		{
 			Prefix:   netip.MustParsePrefix("10.0.0.0/8"),

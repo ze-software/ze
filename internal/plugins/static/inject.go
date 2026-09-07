@@ -12,6 +12,7 @@ import (
 
 	bfdapi "github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
 	staticevents "github.com/ze-software/ze/internal/plugins/static/events"
 )
 
@@ -50,6 +51,12 @@ type routeManager struct {
 	routes  map[routeKey]*routeState
 	skipped map[routeKey]skippedRoute
 	bfd     bfdapi.Service
+
+	// loc and remote are where a MAIN-table route is installed: the shared
+	// Loc-RIB in-process, or the engine over RPC when static runs forked. The
+	// backend above now serves NAMED tables only. See locrib.go.
+	loc    *locrib.RIB
+	remote routeSink
 }
 
 func newRouteManager(backend routeBackend) *routeManager {
@@ -176,7 +183,7 @@ func (rm *routeManager) applyRouteLocked(r staticRoute) error {
 		// UNROUTED and skipped (re-attempted next apply). This is not the 650
 		// flap case: the route is genuinely gone, so a Remove is correct.
 		if hasReplaced {
-			if remErr := rm.backend.removeRoute(replacedRoute); remErr != nil {
+			if remErr := rm.withdrawProgrammed(replacedRoute); remErr != nil {
 				logger().Warn("static: replaced route removal failed on skip",
 					"prefix", replacedRoute.Prefix, "table", replacedRoute.Table, "error", remErr)
 			}
@@ -195,7 +202,7 @@ func (rm *routeManager) applyRouteLocked(r staticRoute) error {
 
 func (rm *routeManager) removeRouteLocked(rs *routeState) error {
 	rm.teardownRouteLocked(rs)
-	if err := rm.backend.removeRoute(rs.route); err != nil {
+	if err := rm.withdrawProgrammed(rs.route); err != nil {
 		logger().Warn("static: remove route failed", "prefix", rs.route.Prefix, "table", rs.route.Table, "error", err)
 		return err
 	}
@@ -213,7 +220,7 @@ func (rm *routeManager) teardownRouteLocked(rs *routeState) {
 
 func (rm *routeManager) programRouteLocked(rs *routeState) error {
 	if rs.route.Action != actionForward {
-		if err := rm.backend.applyRoute(rs.route); err != nil {
+		if err := rm.applyProgrammed(rs.route); err != nil {
 			logger().Warn("static: apply route failed", "prefix", rs.route.Prefix, "table", rs.route.Table, "error", err)
 			return err
 		}
@@ -222,7 +229,7 @@ func (rm *routeManager) programRouteLocked(rs *routeState) error {
 
 	active := activeNextHops(rs)
 	if len(active) == 0 {
-		if err := rm.backend.removeRoute(rs.route); err != nil {
+		if err := rm.withdrawProgrammed(rs.route); err != nil {
 			logger().Warn("static: withdraw route (all NHs down)", "prefix", rs.route.Prefix, "table", rs.route.Table, "error", err)
 			return err
 		}
@@ -235,7 +242,7 @@ func (rm *routeManager) programRouteLocked(rs *routeState) error {
 
 	programmed := rs.route
 	programmed.NextHops = active
-	if err := rm.backend.applyRoute(programmed); err != nil {
+	if err := rm.applyProgrammed(programmed); err != nil {
 		logger().Warn("static: apply route failed", "prefix", programmed.Prefix, "table", programmed.Table, "error", err)
 		return err
 	}

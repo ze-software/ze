@@ -1,4 +1,4 @@
-// Design: plan/spec-fib-depth.md -- Linux netlink rich route programming
+// Design: plan/immediate/spec-fib-depth.md -- Linux netlink rich route programming
 // Related: richroute.go -- RichRoute struct and richRouteBackend interface
 // Related: backend_linux.go -- base netlinkBackend
 
@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/netip"
 
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/sysrib/events"
 
 	"github.com/vishvananda/netlink"
@@ -114,9 +115,24 @@ func buildRichRoute(r RichRoute) (*netlink.Route, error) {
 	}
 
 	if len(r.ECMPPaths) > 0 {
-		route.MultiPath = buildMultiPath(r.NextHop, r.ECMPPaths)
-	} else if r.NextHop.IsValid() {
-		route.Gw = r.NextHop.AsSlice()
+		route.MultiPath, err = buildMultiPath(r, r.ECMPPaths)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		if r.NextHop.IsValid() {
+			route.Gw = r.NextHop.AsSlice()
+		}
+		// A route may name an outgoing device instead of, or beside, a gateway.
+		// Without the index the kernel gets a route with no next-hop at all and
+		// refuses it, which is how an interface-only route disappears.
+		if r.Interface != "" {
+			idx, ifErr := iface.ResolveIndex(r.Interface)
+			if ifErr != nil {
+				return nil, ifErr
+			}
+			route.LinkIndex = idx
+		}
 	}
 
 	if len(r.Labels) > 0 && route.Type == unix.RTN_UNICAST {
@@ -133,7 +149,10 @@ func buildRichRoute(r RichRoute) (*netlink.Route, error) {
 	// primary next-hop).
 	if len(r.Backup) > 0 {
 		if route.MultiPath == nil {
-			route.MultiPath = buildMultiPath(r.NextHop, nil)
+			route.MultiPath, err = buildMultiPath(r, nil)
+			if err != nil {
+				return nil, err
+			}
 			if route.Encap != nil && len(route.MultiPath) > 0 {
 				route.MultiPath[0].Encap = route.Encap
 				route.Encap = nil
@@ -180,27 +199,62 @@ func routeTypeToLinux(rt events.RouteType) int {
 	}
 }
 
-func buildMultiPath(primary netip.Addr, ecmpPaths []events.ECMPPath) []*netlink.NexthopInfo {
+// buildMultiPath builds the RTA_MULTIPATH next-hop list: the route's own
+// next-hop first, then every equal-cost member. Each entry carries its gateway,
+// its outgoing device where one is named, and its share of the group.
+//
+// The kernel expresses a share as rtnh_hops, which is the weight MINUS ONE, so
+// an unweighted member (weight 0 or 1) carries 0 and every member of an
+// unweighted group gets the same traffic.
+func buildMultiPath(r RichRoute, ecmpPaths []events.ECMPPath) ([]*netlink.NexthopInfo, error) {
 	paths := make([]*netlink.NexthopInfo, 0, len(ecmpPaths)+1)
-	if primary.IsValid() {
-		paths = append(paths, &netlink.NexthopInfo{
-			Hops: 0,
-			Gw:   primary.AsSlice(),
-		})
+	if namesATarget(r.NextHop, r.Interface) {
+		primary, err := buildNexthopInfo(r.NextHop, r.Interface, r.Weight)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, primary)
 	}
 	for _, p := range ecmpPaths {
-		if !p.NextHop.IsValid() {
+		if !namesATarget(p.NextHop, p.Interface) {
 			continue
 		}
-		nhi := &netlink.NexthopInfo{
-			Gw: p.NextHop.AsSlice(),
-		}
-		if p.Weight > 1 {
-			nhi.Hops = int(p.Weight) - 1
+		nhi, err := buildNexthopInfo(p.NextHop, p.Interface, p.Weight)
+		if err != nil {
+			return nil, err
 		}
 		paths = append(paths, nhi)
 	}
-	return paths
+	return paths, nil
+}
+
+// namesATarget reports whether a next-hop names somewhere to forward to: a
+// gateway address, an outgoing device, or both. A member that names neither is
+// not a next-hop and never enters a multipath list.
+func namesATarget(addr netip.Addr, ifaceName string) bool {
+	return addr.IsValid() || ifaceName != ""
+}
+
+// buildNexthopInfo renders one multipath member.
+//
+// REQUIRES: namesATarget reports true for (addr, ifaceName). A member that names
+// neither would otherwise become an entry the kernel refuses.
+func buildNexthopInfo(addr netip.Addr, ifaceName string, weight uint8) (*netlink.NexthopInfo, error) {
+	nhi := &netlink.NexthopInfo{}
+	if addr.IsValid() {
+		nhi.Gw = addr.AsSlice()
+	}
+	if ifaceName != "" {
+		idx, err := iface.ResolveIndex(ifaceName)
+		if err != nil {
+			return nil, err
+		}
+		nhi.LinkIndex = idx
+	}
+	if weight > 1 {
+		nhi.Hops = int(weight) - 1
+	}
+	return nhi, nil
 }
 
 func buildMPLSEncap(labels []uint32) *netlink.MPLSEncap {

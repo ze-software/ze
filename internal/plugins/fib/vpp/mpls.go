@@ -67,7 +67,10 @@ func (b *govppMPLSBackend) addMPLSRoute(prefix netip.Prefix, nextHop netip.Addr,
 	if err := validateLabels(labels); err != nil {
 		return err
 	}
-	path := toFibPath(nextHop)
+	path, err := gatewayPath(nextHop, prefix)
+	if err != nil {
+		return err
+	}
 	path.NLabels = uint8(len(labels)) //nolint:gosec // validated <= 16
 	for i, l := range labels {
 		path.LabelStack[i] = fib_types.FibMplsLabel{
@@ -122,7 +125,13 @@ func (b *govppMPLSBackend) addMPLSSwap(inLabel, outLabel uint32, nextHop netip.A
 	if outLabel > maxMPLSLabel {
 		return fmt.Errorf("mpls: out-label %d exceeds maximum", outLabel)
 	}
-	path := toFibPath(nextHop)
+	// An MPLS swap forwards to a gateway, and the label decides the family of
+	// what is carried rather than of the path, so there is no route prefix to
+	// derive one from.
+	path, err := gatewayPath(nextHop, netip.PrefixFrom(nextHop, nextHop.BitLen()))
+	if err != nil {
+		return err
+	}
 	path.NLabels = 1
 	path.LabelStack[0] = fib_types.FibMplsLabel{
 		Label: outLabel,

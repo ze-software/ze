@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | plugin |
 | Depends | spec-fib-depth (owns `BestChangeEntry.TableID` and the VRF dimension) |
-| Phase | - |
+| Phase | 1/7 |
 | Handoff | - |
-| Updated | 2026-09-04 |
+| Updated | 2026-09-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

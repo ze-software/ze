@@ -201,15 +201,22 @@ func newFIBKernel(backend routeBackend) *fibKernel {
 }
 
 // hasRichFields reports whether a change carries attributes beyond prefix+next-hop.
+//
+// The outgoing device counts: the plain backend takes a next-hop STRING and has
+// nowhere to put a device, so a route named by a device alone would reach the
+// kernel with neither a gateway nor an interface and be refused.
 func hasRichFields(c *incomingChange) bool {
-	return c.RouteType != 0 || c.Metric != 0 || c.TableID != 0 ||
-		len(c.ECMPPaths) > 0 || len(c.Labels) > 0 || c.SRv6SID.IsValid() || len(c.Backup) > 0
+	return c.RouteType != 0 || c.Metric != 0 || c.TableID != 0 || c.Interface != "" ||
+		c.Weight != 0 || len(c.ECMPPaths) > 0 || len(c.Labels) > 0 ||
+		c.SRv6SID.IsValid() || len(c.Backup) > 0
 }
 
 func changeToRichRoute(c *incomingChange) RichRoute {
 	return RichRoute{
 		Prefix:    c.Prefix,
 		NextHop:   c.NextHop,
+		Interface: c.Interface,
+		Weight:    c.Weight,
 		RouteType: c.RouteType,
 		Metric:    c.Metric,
 		TableID:   c.TableID,

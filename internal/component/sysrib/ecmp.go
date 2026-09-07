@@ -1,12 +1,15 @@
-// Design: plan/spec-fib-depth.md -- ECMP grouping
+// Design: plan/immediate/spec-fib-depth.md -- ECMP grouping
 // Related: sysrib.go -- recomputeBest calls into ecmpGroup after selecting best
 
 package sysrib
 
 import (
+	"cmp"
+	"net/netip"
 	"slices"
 
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
+	"github.com/ze-software/ze/internal/core/rib/nexthop"
 )
 
 // Intra-protocol equal-cost sibling next-hops (IS-IS ECMP, umbrella A-2) used
@@ -34,13 +37,14 @@ func ecmpCollect(protocols map[string]*protocolRoute, winner *protocolRoute) []s
 		if route.metric != winner.metric {
 			continue
 		}
-		if !route.nextHop.IsValid() {
+		if !namesATarget(route.nextHop, route.nextHopInterface) {
 			continue
 		}
 		paths = append(paths, sysribevents.ECMPPath{
-			NextHop: route.nextHop,
-			Weight:  1,
-			Labels:  route.labels,
+			NextHop:   route.nextHop,
+			Interface: route.nextHopInterface,
+			Weight:    ecmpWeight(route.nextHopWeight),
+			Labels:    route.labels,
 		})
 	}
 	// Intra-protocol equal-cost siblings of the winner (same source, same
@@ -48,21 +52,54 @@ func ecmpCollect(protocols map[string]*protocolRoute, winner *protocolRoute) []s
 	// path-group. These share the winner's labels (a labeled ECMP group imposes
 	// the same stack on every member today).
 	for _, nh := range winner.ecmpNextHops {
-		if nh == winner.nextHop || !nh.IsValid() {
+		if sameTarget(nh, winner) || !namesATarget(nh.Addr, nh.Interface) {
 			continue
 		}
 		paths = append(paths, sysribevents.ECMPPath{
-			NextHop: nh,
-			Weight:  1,
-			Labels:  winner.labels,
+			NextHop:   nh.Addr,
+			Interface: nh.Interface,
+			Weight:    ecmpWeight(nh.Weight),
+			Labels:    winner.labels,
 		})
 	}
+	return finishECMP(paths)
+}
+
+// ecmpWeight renders a producer's declared share for the FIB. A producer that
+// states no weight sends zero, and every member of the group then takes an equal
+// share -- which the FIB spells as 1, the value every group carried before a
+// producer could state one. Mapping it here rather than at each call site keeps
+// an unweighted group byte-identical for the protocols this arbitration does not
+// otherwise touch.
+func ecmpWeight(declared uint8) uint8 {
+	if declared == 0 {
+		return 1
+	}
+	return declared
+}
+
+// namesATarget reports whether a next-hop names somewhere to forward to: a
+// gateway address, an outgoing device, or both. A member that names neither is
+// not a next-hop and never enters a multipath group.
+func namesATarget(addr netip.Addr, iface string) bool {
+	return addr.IsValid() || iface != ""
+}
+
+// sameTarget reports whether a sibling next-hop is the winner's own. The winner
+// stays in BestChangeEntry.NextHop, so the group lists the others; a device-only
+// next-hop is told apart by its device, because its address is invalid on both
+// sides and would otherwise compare equal to every other device-only sibling.
+func sameTarget(nh nexthop.NextHop, winner *protocolRoute) bool {
+	return nh.Addr == winner.nextHop && nh.Interface == winner.nextHopInterface
+}
+
+// finishECMP sorts, dedups and bounds a collected group. Both collectors end
+// this way, so the ordering the FIB sees does not depend on which one ran.
+func finishECMP(paths []sysribevents.ECMPPath) []sysribevents.ECMPPath {
 	if len(paths) == 0 {
 		return nil
 	}
-	slices.SortFunc(paths, func(a, b sysribevents.ECMPPath) int {
-		return a.NextHop.Compare(b.NextHop)
-	})
+	slices.SortFunc(paths, ecmpPathCompare)
 	paths = dedupECMP(paths)
 	if len(paths) > sysribevents.MaxECMPPaths-1 {
 		paths = paths[:sysribevents.MaxECMPPaths-1]
@@ -80,16 +117,28 @@ func backupPaths(route *protocolRoute) []sysribevents.ECMPPath {
 	return []sysribevents.ECMPPath{{NextHop: route.backupNextHop, Weight: 1, Labels: route.backupLabels}}
 }
 
-// dedupECMP removes duplicate next-hops from an address-sorted ECMP slice,
-// keeping the first occurrence. A next-hop can appear both as an inter-protocol
-// route and an intra-protocol sibling; the kernel multipath must list it once.
+// dedupKey is the identity of one member of a multipath group: the gateway and
+// the outgoing device together. The device is part of it because a route may
+// name several device-only next-hops, whose addresses are all invalid.
+type dedupKey struct {
+	addr  netip.Addr
+	iface string
+}
+
+// dedupECMP removes duplicate next-hops from a sorted ECMP slice, keeping the
+// first occurrence. A next-hop can appear both as an inter-protocol route and an
+// intra-protocol sibling; the kernel multipath must list it once. Two members
+// are the same next-hop only when their gateway AND their device agree.
 func dedupECMP(paths []sysribevents.ECMPPath) []sysribevents.ECMPPath {
 	if len(paths) <= 1 {
 		return paths
 	}
+	key := func(p sysribevents.ECMPPath) dedupKey {
+		return dedupKey{addr: p.NextHop, iface: p.Interface}
+	}
 	out := paths[:1]
 	for _, p := range paths[1:] {
-		if p.NextHop != out[len(out)-1].NextHop {
+		if key(p) != key(out[len(out)-1]) {
 			out = append(out, p)
 		}
 	}
@@ -122,10 +171,15 @@ func ecmpChanged(a, b []sysribevents.ECMPPath) bool {
 	return false
 }
 
-// ecmpPathCompare orders ECMP paths by next-hop, then weight, then label stack,
-// giving a stable total order so two equal sets sort identically.
+// ecmpPathCompare orders ECMP paths by next-hop, then outgoing device, then
+// weight, then label stack, giving a stable total order so two equal sets sort
+// identically. The device is compared before the weight so that device-only
+// members, whose addresses are all invalid, still sort apart from each other.
 func ecmpPathCompare(a, b sysribevents.ECMPPath) int {
 	if c := a.NextHop.Compare(b.NextHop); c != 0 {
+		return c
+	}
+	if c := cmp.Compare(a.Interface, b.Interface); c != 0 {
 		return c
 	}
 	if a.Weight != b.Weight {
@@ -138,7 +192,8 @@ func ecmpPathCompare(a, b sysribevents.ECMPPath) int {
 }
 
 // ecmpPathEqual reports whether two ECMP paths are identical in next-hop,
-// weight, and label stack.
+// outgoing device, weight, and label stack.
 func ecmpPathEqual(a, b sysribevents.ECMPPath) bool {
-	return a.NextHop == b.NextHop && a.Weight == b.Weight && slices.Equal(a.Labels, b.Labels)
+	return a.NextHop == b.NextHop && a.Interface == b.Interface &&
+		a.Weight == b.Weight && slices.Equal(a.Labels, b.Labels)
 }

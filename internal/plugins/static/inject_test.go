@@ -3,11 +3,16 @@ package static
 import (
 	"net/netip"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
 type mockStaticBackend struct {
 	applied []staticRoute
 	removed []staticRoute
+	paths   []locrib.Path
 	err     error
 }
 
@@ -29,6 +34,32 @@ func (m *mockStaticBackend) removeRoute(r staticRoute) error {
 
 func (m *mockStaticBackend) listRoutes() ([]installedStaticRoute, error) { return nil, nil }
 func (m *mockStaticBackend) close() error                                { return nil }
+
+// The route manager has two destinations: a MAIN-table route becomes a Loc-RIB
+// Path and a NAMED-table route goes straight to the data plane. The mock stands
+// in for both and records into one pair of slices, so a test asking what the
+// manager installed reads one recorder whichever table the route is in.
+func (m *mockStaticBackend) InsertForward(_ family.Family, prefix netip.Prefix, p locrib.Path) {
+	m.applied = append(m.applied, staticRoute{Prefix: prefix, Metric: p.Metric})
+	m.paths = append(m.paths, p)
+}
+
+func (m *mockStaticBackend) Remove(_ family.Family, prefix netip.Prefix, _ redistevents.ProtocolID, _ uint32) {
+	m.removed = append(m.removed, staticRoute{Prefix: prefix})
+}
+
+func (m *mockStaticBackend) Flush() {}
+
+// newTestRouteManager builds a route manager whose main-table installs reach mb
+// as a remote sink, the shape a FORKED static plugin has in production
+// (register.go wires routeinstall.New there). In-process production wires the
+// shared Loc-RIB instead, and both go through insertPathLocked, so the manager
+// behavior under test is the same either way.
+func newTestRouteManager(mb *mockStaticBackend) *routeManager {
+	rm := newRouteManager(mb)
+	rm.setLocRIB(nil, mb)
+	return rm
+}
 
 func TestActiveNextHops(t *testing.T) {
 	rs := &routeState{
@@ -73,7 +104,7 @@ func TestActiveNextHopsAllDown(t *testing.T) {
 
 func TestRouteManagerApplyRoutes(t *testing.T) {
 	mb := &mockStaticBackend{}
-	rm := newRouteManager(mb)
+	rm := newTestRouteManager(mb)
 
 	routes := []staticRoute{
 		{
@@ -99,7 +130,7 @@ func TestRouteManagerApplyRoutes(t *testing.T) {
 
 func TestRouteManagerRemoveOnReload(t *testing.T) {
 	mb := &mockStaticBackend{}
-	rm := newRouteManager(mb)
+	rm := newTestRouteManager(mb)
 
 	_ = rm.applyRoutes([]staticRoute{
 		{
@@ -141,7 +172,7 @@ func TestRouteManagerRemoveOnReload(t *testing.T) {
 // the FIB.
 func TestRouteManagerWithdrawsAllOnEmptyConfig(t *testing.T) {
 	mb := &mockStaticBackend{}
-	rm := newRouteManager(mb)
+	rm := newTestRouteManager(mb)
 
 	_ = rm.applyRoutes([]staticRoute{
 		{
@@ -170,7 +201,7 @@ func TestRouteManagerWithdrawsAllOnEmptyConfig(t *testing.T) {
 
 func TestRouteManagerSkipsUnchangedRoutes(t *testing.T) {
 	mb := &mockStaticBackend{}
-	rm := newRouteManager(mb)
+	rm := newTestRouteManager(mb)
 
 	route := []staticRoute{
 		{
@@ -194,7 +225,7 @@ func TestRouteManagerSkipsUnchangedRoutes(t *testing.T) {
 
 func TestRouteManagerShutdownRemovesRoutes(t *testing.T) {
 	mb := &mockStaticBackend{}
-	rm := newRouteManager(mb)
+	rm := newTestRouteManager(mb)
 
 	_ = rm.applyRoutes([]staticRoute{
 		{

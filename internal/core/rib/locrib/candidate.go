@@ -10,8 +10,14 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/rib/nexthop"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
 )
+
+// NextHop is the forwarding target a Path's equal-cost group is built from. It
+// is the leaf-package type, not a second declaration: the best-change event
+// contract carries the same value, and neither package may depend on the other.
+type NextHop = nexthop.NextHop
 
 // Path is one route option for a single (family, prefix), contributed by one
 // source (protocol + instance). Value-typed and self-contained so copies
@@ -41,6 +47,27 @@ type Path struct {
 	// NextHop is the IP address the FIB should forward to. The zero Addr
 	// means "directly connected" or "reject" depending on protocol.
 	NextHop netip.Addr
+
+	// Interface is the name of the outgoing interface for NextHop, for a
+	// producer that forwards out a named device rather than to a gateway a
+	// route lookup finds. Empty when the address alone names the next-hop,
+	// which is every protocol-learned path. The FIB resolves the name to a
+	// kernel ifindex; the Loc-RIB carries the NAME because an ifindex is not
+	// stable across a device replacement and the resolver lives in the FIB.
+	//
+	// Carry-through metadata on the Labels contract: EXCLUDED from key(), so a
+	// source that moves a prefix to another device is the same path updated,
+	// and IS compared by Equal, because the FIB must observe the move.
+	Interface string
+
+	// Weight is this next-hop's share of a weighted multipath group, as the
+	// operator declared it. Zero means the producer states no weight, and the
+	// FIB then gives every member an equal share. Set together with ECMP by a
+	// producer whose one route names several weighted next-hops.
+	//
+	// Carry-through metadata, excluded from key(), compared by Equal: a reweight
+	// with an unchanged next-hop set is a change the kernel must see.
+	Weight uint8
 
 	// AdminDistance is the protocol's trustworthiness rank. Classical
 	// Cisco/Juniper defaults: Connected=0, Static=1, eBGP=20, OSPF=110,
@@ -90,13 +117,14 @@ type Path struct {
 	// source that arbitrates ONE best across many candidates (BGP multipath:
 	// best-path selection picks one winner across peers, so the equal-cost
 	// siblings never enter the PathGroup as separate Paths the way IS-IS/OSPF
-	// insert one Path per next-hop). siblingNextHops returns this set directly
-	// when present; intra-source producers leave it nil and let the PathGroup
-	// scan compute their siblings. EXCLUDED from key() and Equal (an ECMP-set
-	// change is detected via the Change.ECMP set comparison, not best identity),
-	// so it never affects arbitration. Built once per best-path change, shared
-	// not mutated, exactly like Labels.
-	ECMP []netip.Addr
+	// insert one Path per next-hop; the static plugin does the same, because one
+	// configured route names its whole next-hop set). siblingNextHops returns
+	// this set directly when present; intra-source producers leave it nil and
+	// let the PathGroup scan compute their siblings. EXCLUDED from key() and
+	// Equal (an ECMP-set change is detected via the Change.ECMP set comparison,
+	// not best identity), so it never affects arbitration. Built once per
+	// best-path change, shared not mutated, exactly like Labels.
+	ECMP []NextHop
 
 	// RouteType is the forwarding action the FIB programs for this path: an
 	// ordinary next-hop, or a discard. The zero value is "unset" and the FIB
@@ -121,7 +149,8 @@ func (p Path) Valid() bool {
 }
 
 // Equal reports whether two Paths are identical for change detection: every
-// selection field, the MPLS label stack, and the forwarding action. Required
+// selection field, the outgoing interface and weight, the MPLS label stack, and
+// the forwarding action. Required
 // because Path has a slice field (Labels) and cannot be compared with ==/!=.
 // Without the label comparison a relabel is missed: same next hop, new label.
 // Without the RouteType comparison a prefix turning into a discard with an
@@ -130,6 +159,8 @@ func (p Path) Equal(q Path) bool {
 	return p.Source == q.Source &&
 		p.Instance == q.Instance &&
 		p.NextHop == q.NextHop &&
+		p.Interface == q.Interface &&
+		p.Weight == q.Weight &&
 		p.AdminDistance == q.AdminDistance &&
 		p.Metric == q.Metric &&
 		p.BackupNextHop == q.BackupNextHop &&

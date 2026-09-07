@@ -312,7 +312,7 @@ func TestOnChangeCarriesBestPathECMP(t *testing.T) {
 	nh3 := netip.MustParseAddr("10.0.0.3")
 
 	bgpMulti := func(ecmp ...netip.Addr) Path {
-		return Path{Source: idBGP, Instance: 0, NextHop: nh1, AdminDistance: 20, Metric: 0, ECMP: ecmp}
+		return Path{Source: idBGP, Instance: 0, NextHop: nh1, AdminDistance: 20, Metric: 0, ECMP: hops(ecmp...)}
 	}
 
 	// One BGP best Path carrying its own ECMP siblings (single Path, no per-
@@ -321,14 +321,14 @@ func TestOnChangeCarriesBestPathECMP(t *testing.T) {
 	require.Len(t, changes, 1)
 	assert.Equal(t, ChangeAdd, changes[0].Kind)
 	assert.Equal(t, nh1, changes[0].Best.NextHop)
-	assert.Equal(t, []netip.Addr{nh2, nh3}, changes[0].ECMP, "Best.ECMP must surface on Change.ECMP")
+	assert.Equal(t, hops(nh2, nh3), changes[0].ECMP, "Best.ECMP must surface on Change.ECMP")
 
 	// Shrink the ECMP set to [nh2]: same best next-hop, so this is an ECMP
 	// membership-only ChangeUpdate.
 	r.InsertForward(famV4, pfx, bgpMulti(nh2), nil)
 	require.Len(t, changes, 2)
 	assert.Equal(t, ChangeUpdate, changes[1].Kind)
-	assert.Equal(t, []netip.Addr{nh2}, changes[1].ECMP)
+	assert.Equal(t, hops(nh2), changes[1].ECMP)
 
 	// Drop the ECMP set entirely: another membership-only ChangeUpdate to nil.
 	r.InsertForward(famV4, pfx, bgpMulti(), nil)
@@ -373,13 +373,13 @@ func TestOnChangeDispatchesECMPMembershipChanges(t *testing.T) {
 	require.Len(t, changes, 3, "adding another equal-cost sibling must dispatch")
 	assert.Equal(t, ChangeUpdate, changes[2].Kind)
 	assert.Equal(t, nh1, changes[2].Best.NextHop)
-	assert.ElementsMatch(t, []netip.Addr{nh2, nh3}, changes[2].ECMP)
+	assert.ElementsMatch(t, hops(nh2, nh3), changes[2].ECMP)
 
 	r.Remove(famV4, ecmpPfx, idOSPF, 2)
 	require.Len(t, changes, 4, "removing a non-best equal-cost sibling must dispatch")
 	assert.Equal(t, ChangeUpdate, changes[3].Kind)
 	assert.Equal(t, nh1, changes[3].Best.NextHop)
-	assert.Equal(t, []netip.Addr{nh2}, changes[3].ECMP)
+	assert.Equal(t, hops(nh2), changes[3].ECMP)
 
 	r.Remove(famV4, ecmpPfx, idOSPF, 1)
 	require.Len(t, changes, 5, "shrinking to a single best must dispatch")
@@ -399,10 +399,24 @@ func assertECMPGroup(t *testing.T, c Change, a, b netip.Addr) {
 		t.Fatalf("Best.NextHop = %s, want one of {%s, %s}", best, a, b)
 	}
 	require.Len(t, c.ECMP, 1, "ECMP must hold exactly the one sibling")
-	assert.NotEqual(t, best, c.ECMP[0], "ECMP must never contain Best.NextHop")
-	union := map[netip.Addr]bool{best: true, c.ECMP[0]: true}
+	assert.NotEqual(t, best, c.ECMP[0].Addr, "ECMP must never contain Best.NextHop")
+	union := map[netip.Addr]bool{best: true, c.ECMP[0].Addr: true}
 	assert.True(t, union[a] && union[b],
-		"Best.NextHop + ECMP = {%s, %s}, want {%s, %s}", best, c.ECMP[0], a, b)
+		"Best.NextHop + ECMP = {%s, %s}, want {%s, %s}", best, c.ECMP[0].Addr, a, b)
+}
+
+// hops renders addresses as the unweighted, device-less NextHop values a
+// protocol-learned equal-cost group carries, so an address-only expectation
+// reads the same as it did before NextHop replaced netip.Addr in Change.ECMP.
+func hops(addrs ...netip.Addr) []NextHop {
+	if len(addrs) == 0 {
+		return nil
+	}
+	out := make([]NextHop, 0, len(addrs))
+	for _, a := range addrs {
+		out = append(out, NextHop{Addr: a})
+	}
+	return out
 }
 
 // countingHandle is a ForwardHandle used by the fastpath tests. AddRef /

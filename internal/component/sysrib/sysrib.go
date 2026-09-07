@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
-	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -30,6 +29,7 @@ import (
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
+	"github.com/ze-software/ze/internal/core/rib/nexthop"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/ze"
@@ -136,8 +136,10 @@ type protocolRoute struct {
 	protocol         string
 	protocolType     string // "ebgp", "ibgp", "static", etc. for admin distance lookup
 	nextHop          netip.Addr
-	priority         int // effective admin distance (lower wins)
-	incomingPriority int // original priority from protocol RIB (before override)
+	nextHopInterface string // outgoing device for nextHop, empty for a gateway-only next-hop
+	nextHopWeight    uint8  // nextHop's share of the multipath group, 0 for an unweighted one
+	priority         int    // effective admin distance (lower wins)
+	incomingPriority int    // original priority from protocol RIB (before override)
 	metric           uint32
 	labels           []uint32   // MPLS label stack (nil for unlabeled routes)
 	srv6SID          netip.Addr // SRv6 SID from PrefixSID attribute (zero if absent)
@@ -172,7 +174,7 @@ type protocolRoute struct {
 	// here, so ecmpCollect surfaces them in BestChangeEntry.ECMPPaths and the
 	// kernel installs a multipath route. Empty for single-Path prefixes and on the
 	// forked EventBus path (no shared Loc-RIB), so existing sources are unaffected.
-	ecmpNextHops []netip.Addr
+	ecmpNextHops []nexthop.NextHop
 }
 
 // prefixKey identifies a unique prefix in the system RIB.
@@ -425,6 +427,8 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 				protocol:         proto,
 				protocolType:     protoType,
 				nextHop:          c.NextHop,
+				nextHopInterface: c.Interface,
+				nextHopWeight:    c.Weight,
 				priority:         priority,
 				incomingPriority: c.Priority,
 				metric:           c.Metric,
@@ -573,6 +577,8 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 			Action:    routeaction.Add,
 			Prefix:    key.prefix,
 			NextHop:   resolved,
+			Interface: winner.nextHopInterface,
+			Weight:    winner.nextHopWeight,
 			Protocol:  winner.protocol,
 			Labels:    winner.labels,
 			SRv6SID:   winner.srv6SID,
@@ -586,9 +592,13 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 	// The no-op test. Every field the FIB programs is compared here, the
 	// forwarding action included. A prefix that turns into a discard with its
 	// next-hop, metric and labels unchanged is a change the kernel must see.
-	// Leaving routeType out suppresses the case RFC 7999 exists for.
+	// Leaving routeType out suppresses the case RFC 7999 exists for, and leaving
+	// the outgoing device or the weight out suppresses a route that moved to
+	// another interface or changed its share of a weighted group.
 	ecmpPaths := ecmpCollect(protocols, winner)
 	if prev.protocol == winner.protocol && prev.nextHop == winner.nextHop &&
+		prev.nextHopInterface == winner.nextHopInterface &&
+		prev.nextHopWeight == winner.nextHopWeight &&
 		prev.priority == winner.priority && prev.metric == winner.metric &&
 		prev.srv6SID == winner.srv6SID && prev.routeType == winner.routeType &&
 		labelsEqual(prev.labels, winner.labels) && !ecmpChanged(s.lastECMP[key], ecmpPaths) {
@@ -628,6 +638,8 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 		Action:    routeaction.Update,
 		Prefix:    key.prefix,
 		NextHop:   resolved,
+		Interface: winner.nextHopInterface,
+		Weight:    winner.nextHopWeight,
 		Protocol:  winner.protocol,
 		Labels:    winner.labels,
 		SRv6SID:   winner.srv6SID,
@@ -712,9 +724,14 @@ func (s *sysRIB) cascadeRecompute(key prefixKey) *outgoingChange {
 				action = routeaction.Add
 			}
 			return &outgoingChange{
-				Action:    action,
-				Prefix:    key.prefix,
-				NextHop:   promoted,
+				Action:  action,
+				Prefix:  key.prefix,
+				NextHop: promoted,
+				// The promoted member brings its own device and share: it is
+				// now the primary next-hop, and the winner's are the ones the
+				// resolver just declared unreachable.
+				Interface: ecmpPaths[0].Interface,
+				Weight:    ecmpPaths[0].Weight,
 				Protocol:  best.protocol,
 				Labels:    best.labels,
 				SRv6SID:   best.srv6SID,
@@ -764,6 +781,8 @@ func (s *sysRIB) cascadeRecompute(key prefixKey) *outgoingChange {
 		Action:    action,
 		Prefix:    key.prefix,
 		NextHop:   newResolved,
+		Interface: best.nextHopInterface,
+		Weight:    best.nextHopWeight,
 		Protocol:  best.protocol,
 		Labels:    best.labels,
 		SRv6SID:   best.srv6SID,
@@ -785,46 +804,56 @@ func ecmpCollectResolved(protocols map[string]*protocolRoute, winner *protocolRo
 		if route.priority != winner.priority || route.metric != winner.metric {
 			continue
 		}
-		if !route.nextHop.IsValid() {
+		if !namesATarget(route.nextHop, route.nextHopInterface) {
 			continue
 		}
-		memberRes := r.Resolve(route.nextHop)
-		if !memberRes.Resolved {
+		directNH, reachable := resolveMember(route.nextHop, route.nextHopInterface, r)
+		if !reachable {
 			continue
 		}
 		paths = append(paths, sysribevents.ECMPPath{
-			NextHop: memberRes.DirectNH,
-			Weight:  1,
-			Labels:  route.labels,
+			NextHop:   directNH,
+			Interface: route.nextHopInterface,
+			Weight:    ecmpWeight(route.nextHopWeight),
+			Labels:    route.labels,
 		})
 	}
 	// Intra-protocol equal-cost siblings of the winner (Loc-RIB path-group
 	// expansion, isis-9), filtered to those whose next-hop resolves.
 	for _, nh := range winner.ecmpNextHops {
-		if nh == winner.nextHop || !nh.IsValid() {
+		if sameTarget(nh, winner) || !namesATarget(nh.Addr, nh.Interface) {
 			continue
 		}
-		memberRes := r.Resolve(nh)
-		if !memberRes.Resolved {
+		directNH, reachable := resolveMember(nh.Addr, nh.Interface, r)
+		if !reachable {
 			continue
 		}
 		paths = append(paths, sysribevents.ECMPPath{
-			NextHop: memberRes.DirectNH,
-			Weight:  1,
-			Labels:  winner.labels,
+			NextHop:   directNH,
+			Interface: nh.Interface,
+			Weight:    ecmpWeight(nh.Weight),
+			Labels:    winner.labels,
 		})
 	}
-	if len(paths) == 0 {
-		return nil
+	return finishECMP(paths)
+}
+
+// resolveMember resolves one multipath member's gateway to the directly-reachable
+// address the FIB programs, and reports whether the member is usable.
+//
+// A member named by a DEVICE alone is already direct: there is no address to
+// look up, so it is kept as it stands. Running it through the resolver would
+// report it unreachable and drop it, which is how a device-only next-hop
+// disappears from a group that names both kinds.
+func resolveMember(addr netip.Addr, iface string, r *nhResolver) (netip.Addr, bool) {
+	if !addr.IsValid() {
+		return addr, iface != ""
 	}
-	slices.SortFunc(paths, func(a, b sysribevents.ECMPPath) int {
-		return a.NextHop.Compare(b.NextHop)
-	})
-	paths = dedupECMP(paths)
-	if len(paths) > sysribevents.MaxECMPPaths-1 {
-		paths = paths[:sysribevents.MaxECMPPaths-1]
+	res := r.Resolve(addr)
+	if !res.Resolved {
+		return netip.Addr{}, false
 	}
-	return paths
+	return res.DirectNH, true
 }
 
 // processCascade re-evaluates all prefixes that depend on the given NHs.
@@ -914,6 +943,8 @@ func (s *sysRIB) replayBest(req *replay.Request) {
 			Action:    routeaction.Add,
 			Prefix:    key.prefix,
 			NextHop:   resolveNextHop(route.nextHop),
+			Interface: route.nextHopInterface,
+			Weight:    route.nextHopWeight,
 			Protocol:  route.protocol,
 			Labels:    route.labels,
 			SRv6SID:   route.srv6SID,
@@ -1176,12 +1207,20 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 		return nil
 	}
 	var nextHop netip.Addr
+	var iface string
+	var weight uint8
 	var priority int
 	var metric uint32
 	var labels []uint32
 	var routeTyp routetype.Type
 	if c.Kind != locrib.ChangeRemove {
 		nextHop = c.Best.NextHop
+		// A route whose next-hop is a device, or one member of a weighted group,
+		// loses both facts here unless they are carried. The kernel then gets a
+		// route with no next-hop at all, or an equal share where the operator
+		// asked for a proportion.
+		iface = c.Best.Interface
+		weight = c.Best.Weight
 		priority = int(c.Best.AdminDistance)
 		metric = c.Best.Metric
 		// Carry the MPLS label stack so labeled-unicast routes program a kernel
@@ -1214,6 +1253,8 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 			Action:       action,
 			Prefix:       c.Prefix,
 			NextHop:      nextHop,
+			Interface:    iface,
+			Weight:       weight,
 			Priority:     priority,
 			Metric:       metric,
 			Labels:       labels,
@@ -1236,7 +1277,7 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 // overrides and downstream emission work the same as any live change. ECMP is
 // supplied from the PathGroup snapshot so pre-existing multipath groups do not
 // collapse to the primary next-hop on replay.
-func (s *sysRIB) replayPath(fam family.Family, pfx netip.Prefix, p locrib.Path, ecmp []netip.Addr) {
+func (s *sysRIB) replayPath(fam family.Family, pfx netip.Prefix, p locrib.Path, ecmp []nexthop.NextHop) {
 	batch := changeToBatch(locrib.Change{
 		Family: fam,
 		Prefix: pfx,

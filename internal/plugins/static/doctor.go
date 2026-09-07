@@ -8,6 +8,7 @@ package static
 import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/routingtable"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -25,6 +26,12 @@ const doctorCodeInterfaceNexthopNoBackend = "doctor-static-interface-nexthop-no-
 // internal/core/diagnostic/codes.go so `ze explain` can describe it.
 const doctorCodeRouteSkipped = "doctor-static-route-skipped"
 
+// doctorCodeNoFIBWriter is emitted when the config declares a main-table static
+// route and no `fib { ... }` block, so nothing programs the route the system RIB
+// selects. Registered in internal/core/diagnostic/codes.go so `ze explain` can
+// describe it.
+const doctorCodeNoFIBWriter = "doctor-static-no-fib-writer"
+
 // staticDoctorChecks declares the static plugin's doctor readiness checks. The
 // interface-only next-hop check is the config-time backstop for the runtime
 // dependency an interface next-hop has on a loaded iface backend
@@ -32,6 +39,11 @@ const doctorCodeRouteSkipped = "doctor-static-route-skipped"
 // The route-skipped check surfaces routes the running plugin isolated at apply
 // time so a skip is never a silent no-op (spec-fixit-static-per-route-isolation
 // AC-3, ai/rules/evidence.md).
+// anyPlatform is the platform selector for a check that runs everywhere. Every
+// static check does: the config-time ones read a tree, and the runtime one reads
+// the plugin's own skip state.
+const anyPlatform = "any"
+
 func staticDoctorChecks() []registry.DoctorCheckDef {
 	return []registry.DoctorCheckDef{
 		{
@@ -42,6 +54,15 @@ func staticDoctorChecks() []registry.DoctorCheckDef {
 			Platforms:    []string{"any"},
 			Codes:        []string{doctorCodeInterfaceNexthopNoBackend},
 			Check:        checkInterfaceNexthopBackend,
+		},
+		{
+			Name:         "static-fib-writer",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        719,
+			Dependencies: []string{pluginName},
+			Platforms:    []string{anyPlatform},
+			Codes:        []string{doctorCodeNoFIBWriter},
+			Check:        checkFIBWriter,
 		},
 		{
 			Name:         "static-route-skipped",
@@ -85,6 +106,60 @@ func checkRouteSkipped(_ registry.DoctorCheckContext) []rpc.DoctorCheckDiagnosti
 		Severity: "warning",
 		Message:  tb.String(),
 	}}
+}
+
+// checkFIBWriter refuses a config that declares a main-table static route with no
+// FIB plugin to program it.
+//
+// A main-table static route is a Loc-RIB Path now: the system RIB arbitrates it
+// against every other protocol offering the prefix, and the FIB plugin writes the
+// winner to the data plane. With no `fib { ... }` block no plugin subscribes to
+// the system RIB, so the route reaches arbitration and stops there.
+//
+// It is an ERROR, not a warning, and that is the same answer the MPLS
+// availability check gives for the same reason (docs/guide/mpls.md): a route the
+// operator declared and the daemon silently does not install is worse than a
+// daemon that will not start. A NAMED-table route needs no FIB plugin, so a
+// config whose static routes are all in named tables passes.
+func checkFIBWriter(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
+	tree, ok := ctx.Tree.(*config.Tree)
+	if !ok || tree == nil {
+		return nil
+	}
+	if !hasMainTableRoute(tree) {
+		return nil
+	}
+	if tree.GetContainer("fib") != nil {
+		return nil
+	}
+	return []rpc.DoctorCheckDiagnostic{{
+		Code:     doctorCodeNoFIBWriter,
+		Severity: "error",
+		Message: "a static route is declared in the main table but the config has no " +
+			"`fib { ... }` block; the system RIB selects the route and no plugin programs " +
+			"it, so it would never reach the data plane. Add `fib { kernel { } }` for the " +
+			"Linux data plane, or `fib { vpp { } }` for VPP",
+	}}
+}
+
+// hasMainTableRoute reports whether any static route is declared in the main
+// table. The table name "default" and an omitted table both mean the main table;
+// every other name resolves through the routing-table registry to a named table
+// static programs directly.
+func hasMainTableRoute(tree *config.Tree) bool {
+	static := tree.GetContainer("static")
+	if static == nil {
+		return false
+	}
+	for _, table := range static.GetListOrdered("table") {
+		if table.Key != "" && table.Key != routingtable.MainTableName {
+			continue
+		}
+		if len(table.Value.GetListOrdered("route")) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // checkInterfaceNexthopBackend warns when a static route forwards over an

@@ -1,4 +1,4 @@
-// Design: plan/spec-fib-depth.md -- rich route programming
+// Design: plan/immediate/spec-fib-depth.md -- rich route programming
 // Related: fibkernel.go -- processEvent uses richRouteBackend when available
 // Related: backend_linux.go -- netlinkBackend implements richRouteBackend
 
@@ -13,8 +13,14 @@ import (
 // RichRoute carries all attributes needed for full FIB programming.
 // Value-typed: no heap escapes in the hot path when stack-allocated.
 type RichRoute struct {
-	Prefix    netip.Prefix
-	NextHop   netip.Addr
+	Prefix  netip.Prefix
+	NextHop netip.Addr
+	// Interface is the outgoing device name for NextHop, empty when the gateway
+	// alone names the next-hop. Weight is NextHop's share of the multipath group
+	// ECMPPaths completes, zero for an unweighted route. Both come from an
+	// operator-configured route; a protocol-learned route leaves them empty.
+	Interface string
+	Weight    uint8
 	RouteType sysribevents.RouteType
 	Metric    uint32
 	TableID   uint32

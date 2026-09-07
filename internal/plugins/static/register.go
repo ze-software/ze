@@ -14,6 +14,8 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
+	"github.com/ze-software/ze/internal/core/rib/routeinstall"
 	"github.com/ze-software/ze/internal/core/routingtable"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	staticyang "github.com/ze-software/ze/internal/plugins/static/yang"
@@ -99,12 +101,17 @@ func init() {
 	registerStaticSources()
 
 	reg := registry.Registration{
-		Name:         pluginName,
-		Description:  "Static routes: config-driven kernel/VPP route programming with ECMP",
-		Features:     "yang",
-		YANG:         staticyang.ZeStaticConfYANG,
-		ConfigRoots:  []string{pluginName},
-		Dependencies: []string{"routing-table"},
+		Name:        pluginName,
+		Description: "Static routes: config-driven kernel/VPP route programming with ECMP",
+		Features:    "yang",
+		YANG:        staticyang.ZeStaticConfYANG,
+		ConfigRoots: []string{pluginName},
+		// The system RIB is where a main-table static route is arbitrated against
+		// every other protocol offering the same prefix, so static cannot run
+		// without it. It is not a data-plane choice: sysrib seeds every
+		// protocol's declared distance from the schema at start, so a config with
+		// no `rib { }` block gets the declared defaults rather than nothing.
+		Dependencies: []string{"routing-table", "rib"},
 		// OptionalDependencies orders static AFTER the iface component when an
 		// `interface` stanza is present, so the iface backend is loaded before
 		// static applies a route whose next-hop names an interface. Without it
@@ -178,6 +185,16 @@ func runStaticPlugin(conn net.Conn) int {
 
 	backend := newStaticBackend()
 	rm := newRouteManager(backend)
+	// Main-table routes are installed as Loc-RIB Paths. In-process that is the
+	// shared Loc-RIB; forked, locrib.Default() answers nil and the operations
+	// travel to the engine over the route-install RPC, which rebuilds the Path in
+	// the engine's own Loc-RIB (internal/component/plugin/server/dispatch_route.go).
+	loc := locrib.Default()
+	var remote routeSink
+	if loc == nil {
+		remote = routeinstall.New(context.Background(), p)
+	}
+	rm.setLocRIB(loc, remote)
 	// Publish the live route manager so the static-route-skipped doctor check can
 	// report routes skipped at apply time (per-route isolation, AC-3). Cleared on
 	// exit so a stopped plugin leaves no stale skip state behind.

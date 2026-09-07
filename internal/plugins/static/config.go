@@ -170,6 +170,12 @@ func parseRoute(prefixStr string, entry map[string]any) (staticRoute, error) {
 	if len(r.NextHops) == 0 {
 		return r, fmt.Errorf("route %s: no valid next-hops", prefixStr)
 	}
+	// The two loops above walk YANG lists delivered as maps, so their iteration
+	// order differs between applies. Sorting makes the parsed set stable, which
+	// the Loc-RIB Path depends on: its first next-hop is the route's own and the
+	// rest are its equal-cost group, so an unsorted set would rewrite the Path
+	// and re-program the kernel on every apply that changed nothing.
+	r.NextHops = sortedNextHops(r.NextHops)
 
 	return r, nil
 }

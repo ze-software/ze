@@ -95,20 +95,12 @@ func (b *netlinkStaticBackend) listRoutes() ([]installedStaticRoute, error) {
 // the os-name / mac-match selectors instead of assuming name == kernel device.
 // For the common case (name == kernel device) the resolver returns the same
 // index a direct LinkByName would, so existing configs are unaffected.
+//
+// The two failure messages an operator needs live in iface.ResolveIndex, which
+// the FIB plugin calls for the same job on the main-table path
+// (spec-fixit-static-interface-nexthops C-2).
 func resolveNexthopIndex(name string) (int, error) {
-	b, err := iface.Resolve(name)
-	if err != nil {
-		// Distinguish the no-backend case (the whole iface component is
-		// absent because the config has no `interface { backend ... }`
-		// stanza) from a device-absent case, so the operator sees an
-		// actionable message instead of the bare "iface: no backend loaded"
-		// (spec-fixit-static-interface-nexthops C-2).
-		if iface.GetBackend() == nil {
-			return 0, fmt.Errorf("interface %q: no interface backend loaded; add an `interface { backend ... }` stanza so static next-hop interfaces can be resolved: %w", name, err)
-		}
-		return 0, fmt.Errorf("interface %q: %w", name, err)
-	}
-	return b.Ifindex, nil
+	return iface.ResolveIndex(name)
 }
 
 func (b *netlinkStaticBackend) close() error {

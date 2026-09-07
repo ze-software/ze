@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
+	"github.com/ze-software/ze/internal/core/rib/nexthop"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -73,10 +74,14 @@ func (s *Sink) InsertForward(fam family.Family, prefix netip.Prefix, p locrib.Pa
 		Prefix:             prefix.String(),
 		Instance:           p.Instance,
 		NextHop:            addrString(p.NextHop),
+		Interface:          p.Interface,
+		Weight:             p.Weight,
+		RouteType:          uint8(p.RouteType),
 		AdminDistance:      p.AdminDistance,
 		Metric:             p.Metric,
 		Labels:             p.Labels,
 		IsEBGP:             p.IsEBGP,
+		ECMP:               wireNextHops(p.ECMP),
 		BackupNextHop:      addrString(p.BackupNextHop),
 		BackupRepairLabels: p.BackupRepairLabels,
 	}
@@ -145,6 +150,23 @@ func (s *Sink) send(op string, n int, fn func() error) {
 		}
 	}
 	logger().Warn("forked route flush failed after retries", "op", op, "routes", n, "attempts", maxFlushAttempts, "error", err)
+}
+
+// wireNextHops renders a Path's equal-cost set for the wire. Nil stays nil, so a
+// single-next-hop route carries no ecmp key at all.
+func wireNextHops(set []nexthop.NextHop) []rpc.RouteNextHop {
+	if len(set) == 0 {
+		return nil
+	}
+	out := make([]rpc.RouteNextHop, 0, len(set))
+	for _, nh := range set {
+		out = append(out, rpc.RouteNextHop{
+			NextHop:   addrString(nh.Addr),
+			Interface: nh.Interface,
+			Weight:    nh.Weight,
+		})
+	}
+	return out
 }
 
 // addrString renders a next-hop for the wire; an invalid Addr (zero value, "no

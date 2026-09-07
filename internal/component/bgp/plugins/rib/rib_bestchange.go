@@ -30,6 +30,7 @@ import (
 	"github.com/ze-software/ze/internal/core/replay"
 	ribdistance "github.com/ze-software/ze/internal/core/rib/distance"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
+	"github.com/ze-software/ze/internal/core/rib/nexthop"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
 	"github.com/ze-software/ze/internal/core/rib/store"
 )
@@ -802,7 +803,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		isEBGP       bool
 		bestLabels   []uint32
 		srv6SID      netip.Addr
-		ecmpNextHops []netip.Addr
+		ecmpNextHops []nexthop.NextHop
 	)
 	if newBest != nil {
 		nextHop = r.bestCandidateNextHopAddr(fam, nlriBytes, newBest)
@@ -819,8 +820,11 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		// primary and each other. Resolved before the shard lock (the accessor
 		// takes r.peerMu.RLock), preserving the r.peerMu -> shard.mu lock order.
 		for _, s := range siblings {
-			nh := r.bestCandidateNextHopAddr(fam, nlriBytes, s)
-			if nh.IsValid() && nh != nextHop && !slices.Contains(ecmpNextHops, nh) {
+			// A BGP sibling names a gateway address and never a device or a
+			// weight, so the group is unweighted: nexthop.NextHop's zero Weight
+			// is what "share equally" is spelled as.
+			nh := nexthop.NextHop{Addr: r.bestCandidateNextHopAddr(fam, nlriBytes, s)}
+			if nh.Addr.IsValid() && nh.Addr != nextHop && !slices.Contains(ecmpNextHops, nh) {
 				ecmpNextHops = append(ecmpNextHops, nh)
 			}
 		}

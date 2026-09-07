@@ -15,7 +15,9 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
 // selectiveFailBackend fails applyRoute for exactly one prefix (failPrefix) while
@@ -50,6 +52,32 @@ func (b *selectiveFailBackend) removeRoute(r staticRoute) error {
 func (b *selectiveFailBackend) listRoutes() ([]installedStaticRoute, error) { return nil, nil }
 func (b *selectiveFailBackend) close() error                                { return nil }
 
+// A MAIN-table route is installed as a Loc-RIB Path rather than written to the
+// data plane, so the backend stands in for that destination too and records both
+// under one pair of counters. It cannot refuse an install there: the Loc-RIB
+// accepts every Path, so a main-table route is refused by VALIDATION instead,
+// which is what ifaceNextHop below drives.
+func (b *selectiveFailBackend) InsertForward(_ family.Family, prefix netip.Prefix, p locrib.Path) {
+	b.applyCalls++
+	b.applied = append(b.applied, staticRoute{Prefix: prefix, Metric: p.Metric})
+}
+
+func (b *selectiveFailBackend) Remove(_ family.Family, prefix netip.Prefix, _ redistevents.ProtocolID, _ uint32) {
+	b.removeCalls++
+	b.removed = append(b.removed, staticRoute{Prefix: prefix})
+}
+
+func (b *selectiveFailBackend) Flush() {}
+
+// newIsolationManager builds a route manager whose main-table installs reach be
+// as well, so one recorder answers what the manager installed whichever table a
+// route is in.
+func newIsolationManager(be *selectiveFailBackend) *routeManager {
+	rm := newRouteManager(be)
+	rm.setLocRIB(nil, be)
+	return rm
+}
+
 func fwd(prefix, nh string) staticRoute {
 	return staticRoute{
 		Prefix:   netip.MustParsePrefix(prefix),
@@ -58,19 +86,45 @@ func fwd(prefix, nh string) staticRoute {
 	}
 }
 
+// namedTableFwd is fwd in a NAMED table, where the data-plane backend is still
+// the writer, so a test that needs the backend to refuse one route on demand
+// keeps driving the same applyRouteLocked isolation logic. The logic does not
+// read the table; only the destination does.
+func namedTableFwd(prefix, nh string) staticRoute {
+	r := fwd(prefix, nh)
+	r.Table = isolationTable
+	return r
+}
+
+// isolationTable is the named table the backend-driven isolation tests use. Any
+// non-zero id serves: static resolves the name to an id before this point.
+const isolationTable uint32 = 100
+
+// ifaceNextHop is a route whose only next-hop names an interface. No iface
+// backend is loaded in a unit test, so iface.ResolveIndex refuses the name and
+// the route is refused before any Path is inserted. It is the main-table
+// counterpart of a backend that will not program: the failure an operator meets
+// when a next-hop device is absent (test/static/static-interface-nexthop-no-backend.ci).
+func ifaceNextHop(prefix string) staticRoute {
+	return staticRoute{
+		Prefix:   netip.MustParsePrefix(prefix),
+		Action:   actionForward,
+		NextHops: []nextHop{{Interface: absentDevice, Weight: 1}},
+	}
+}
+
+// absentDevice is a logical interface name no backend can answer for.
+const absentDevice = "absent-device"
+
 func TestApplyRoutesSkipsUnresolvableKeepsRest(t *testing.T) {
 	badPfx := "203.0.113.0/24"
 	badKey := routeKey{prefix: netip.MustParsePrefix(badPfx)}
-	be := &selectiveFailBackend{
-		failPrefix: netip.MustParsePrefix(badPfx),
-		failing:    true,
-		applyErr:   errors.New("network unreachable"),
-	}
-	rm := newRouteManager(be)
+	be := &selectiveFailBackend{}
+	rm := newIsolationManager(be)
 
 	routes := []staticRoute{
 		fwd("10.0.0.0/8", "1.1.1.1"),
-		fwd(badPfx, "2.2.2.2"),
+		ifaceNextHop(badPfx),
 		{Prefix: netip.MustParsePrefix("192.0.2.0/24"), Action: actionBlackhole},
 	}
 
@@ -107,19 +161,26 @@ func TestApplyRoutesSkipsUnresolvableKeepsRest(t *testing.T) {
 	}
 }
 
+// TestApplyRoutesSkipPreservesDiffBaseline drives its routes through a NAMED
+// table, because it needs a failure that CLEARS: the dependency appears and the
+// retry succeeds. Only the data-plane backend can be told to stop refusing, and
+// a named table is where the backend still writes. The isolation logic under
+// test (applyRouteLocked, the diff baseline, the retry) never reads the table.
+// The main-table half of the same contract is TestApplyRoutesSkipsUnresolvableKeepsRest,
+// whose refusal is a validation that cannot clear inside one process.
 func TestApplyRoutesSkipPreservesDiffBaseline(t *testing.T) {
 	badPfx := "203.0.113.0/24"
-	badKey := routeKey{prefix: netip.MustParsePrefix(badPfx)}
+	badKey := routeKey{table: isolationTable, prefix: netip.MustParsePrefix(badPfx)}
 	be := &selectiveFailBackend{
 		failPrefix: netip.MustParsePrefix(badPfx),
 		failing:    true,
 		applyErr:   errors.New("network unreachable"),
 	}
-	rm := newRouteManager(be)
+	rm := newIsolationManager(be)
 
 	routes := []staticRoute{
-		fwd("10.0.0.0/8", "1.1.1.1"),
-		fwd(badPfx, "2.2.2.2"),
+		namedTableFwd("10.0.0.0/8", "1.1.1.1"),
+		namedTableFwd(badPfx, "2.2.2.2"),
 	}
 
 	// First apply: good programmed, bad skipped.
@@ -162,7 +223,7 @@ func TestUnrelatedInterfaceEditReprogramsNothing(t *testing.T) {
 	// unrelated interface edit reaching static because WantsConfig includes
 	// "interface") must reprogram NO static route.
 	be := &selectiveFailBackend{}
-	rm := newRouteManager(be)
+	rm := newIsolationManager(be)
 
 	routes := []staticRoute{
 		fwd("10.0.0.0/8", "1.1.1.1"),
@@ -203,7 +264,7 @@ func TestSkippedReplaceWithdrawsOldEmittedRoute(t *testing.T) {
 	pfx := netip.MustParsePrefix(p)
 	pKey := routeKey{prefix: pfx}
 	be := &selectiveFailBackend{}
-	rm := newRouteManager(be)
+	rm := newIsolationManager(be)
 
 	// Seed an emitted forward route P->N1 (programmed + announced).
 	if err := rm.applyRoutes([]staticRoute{fwd(p, "1.1.1.1")}); err != nil {
@@ -219,11 +280,9 @@ func TestSkippedReplaceWithdrawsOldEmittedRoute(t *testing.T) {
 	be.removeCalls = 0
 	bus.reset()
 
-	// Replace with P->N2 (different next-hop) whose program FAILS.
-	be.failing = true
-	be.failPrefix = pfx
-	be.applyErr = errors.New("network unreachable")
-	if err := rm.applyRoutes([]staticRoute{fwd(p, "2.2.2.2")}); err != nil {
+	// Replace with a next-hop the plugin cannot resolve, so the replacement is
+	// refused before it reaches the Loc-RIB.
+	if err := rm.applyRoutes([]staticRoute{ifaceNextHop(p)}); err != nil {
 		t.Fatalf("replace apply returned %v, want nil (skip must not be section-fatal)", err)
 	}
 
@@ -268,16 +327,12 @@ func TestSkippedReplaceWithdrawsOldEmittedRoute(t *testing.T) {
 
 func TestShowRoutesMarksSkipped(t *testing.T) {
 	badPfx := "203.0.113.0/24"
-	be := &selectiveFailBackend{
-		failPrefix: netip.MustParsePrefix(badPfx),
-		failing:    true,
-		applyErr:   errors.New("network unreachable"),
-	}
-	rm := newRouteManager(be)
+	be := &selectiveFailBackend{}
+	rm := newIsolationManager(be)
 
 	_ = rm.applyRoutes([]staticRoute{
 		fwd("10.0.0.0/8", "1.1.1.1"),
-		fwd(badPfx, "2.2.2.2"),
+		ifaceNextHop(badPfx),
 	})
 
 	rows := rm.showRoutes()

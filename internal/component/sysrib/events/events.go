@@ -43,10 +43,20 @@ const (
 )
 
 // ECMPPath is a single next-hop within an ECMP group.
+//
+// Interface is the outgoing device name, empty when NextHop alone names the
+// target, which is every protocol-learned next-hop. A configured route may name
+// a device instead of, or beside, a gateway, and the FIB plugin resolves the
+// name to its own index: a kernel ifindex for netlink, a sw_if_index for VPP.
+//
+// Weight is this member's share of the group. Zero means the producer states no
+// weight and every member shares equally, which is what a protocol-learned
+// group carries.
 type ECMPPath struct {
-	NextHop netip.Addr `json:"next-hop"`
-	Weight  uint8      `json:"weight,omitempty"`
-	Labels  []uint32   `json:"labels,omitempty"`
+	NextHop   netip.Addr `json:"next-hop"`
+	Interface string     `json:"interface,omitempty"`
+	Weight    uint8      `json:"weight,omitempty"`
+	Labels    []uint32   `json:"labels,omitempty"`
 }
 
 // MaxECMPPaths is the maximum number of paths in an ECMP group.
@@ -57,16 +67,24 @@ const MaxECMPPaths = 128
 // RouteAction.MarshalText, so FIB consumers that already parse the JSON form
 // keep working unchanged.
 type BestChangeEntry struct {
-	Action    routeaction.Action `json:"action"`
-	Prefix    netip.Prefix       `json:"prefix"`
-	NextHop   netip.Addr         `json:"next-hop,omitzero"`
-	Protocol  string             `json:"protocol"`
-	Labels    []uint32           `json:"labels,omitempty"`
-	RouteType RouteType          `json:"route-type,omitempty"`
-	Metric    uint32             `json:"metric,omitempty"`
-	TableID   uint32             `json:"table-id,omitempty"`
-	SRv6SID   netip.Addr         `json:"srv6-sid,omitzero"`
-	ECMPPaths []ECMPPath         `json:"ecmp-paths,omitempty"`
+	Action  routeaction.Action `json:"action"`
+	Prefix  netip.Prefix       `json:"prefix"`
+	NextHop netip.Addr         `json:"next-hop,omitzero"`
+	// Interface is the outgoing device for NextHop and Weight is NextHop's share
+	// of the multipath group ECMPPaths completes. Both are empty for a
+	// protocol-learned route, which names a gateway address and no device. A
+	// route whose only next-hop is a device leaves NextHop invalid and names the
+	// device here; the FIB then programs an interface route rather than dropping
+	// the entry for want of a gateway.
+	Interface string     `json:"interface,omitempty"`
+	Weight    uint8      `json:"weight,omitempty"`
+	Protocol  string     `json:"protocol"`
+	Labels    []uint32   `json:"labels,omitempty"`
+	RouteType RouteType  `json:"route-type,omitempty"`
+	Metric    uint32     `json:"metric,omitempty"`
+	TableID   uint32     `json:"table-id,omitempty"`
+	SRv6SID   netip.Addr `json:"srv6-sid,omitzero"`
+	ECMPPaths []ECMPPath `json:"ecmp-paths,omitempty"`
 	// Backup carries pre-computed fast-reroute backup next-hop(s) (an IP FRR
 	// alternate + optional MPLS repair label stack). Each is programmed by the FIB
 	// as a link-down/backup next-hop, DISTINCT from ECMPPaths (which load-share):

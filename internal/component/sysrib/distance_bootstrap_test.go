@@ -57,12 +57,28 @@ const (
 )
 
 // producer is one package that stamps an administrative distance: whether it
-// reads the seam, the declared protocol names its seam-reading files write, and
-// the bootstrap constants it declares with the value of each.
+// reads the seam, the declared protocol names its seam-reading files write, the
+// bootstrap constants it declares with the value of each, and whether it only
+// FORWARDS another package's answer.
 type producer struct {
 	readsSeam bool
 	protocols map[string]bool
 	constants map[string]int
+
+	// forwards records a seam call whose protocol name AND fallback are both
+	// values computed at run time rather than literals. Such a call stamps no
+	// protocol of its own: it re-resolves the name a route ARRIVED with, and
+	// falls back to the distance that route already carried. The engine's
+	// forked-route-install handler is the one site
+	// (internal/component/plugin/server/dispatch_route.go), which re-stamps a
+	// forked plugin's route because the seam is process-global and never reached
+	// that plugin. Its bootstrap belongs to the producing package and is checked
+	// there, so there is nothing here to pair with a leaf.
+	//
+	// Both arguments have to be non-literal for this to hold. A real producer
+	// writes at least one of them down, so `OrDefault("ospf", x)` and
+	// `OrDefault(p, 110)` are still checked.
+	forwards bool
 }
 
 func newProducer() *producer {
@@ -191,13 +207,17 @@ func scanFile(path string, declared map[string]int, producers map[string]*produc
 	if alias == "" {
 		return problems
 	}
-	if !readsSeam(file, alias) {
+	reads, forwards := seamCalls(file, alias)
+	if !reads {
 		// sysrib itself imports the seam to PUBLISH on it. A publisher stamps
 		// nothing, so it owes no bootstrap constant.
 		return problems
 	}
 
 	prod.readsSeam = true
+	if forwards {
+		prod.forwards = true
+	}
 	for _, name := range stringLiterals(file) {
 		if _, ok := declared[name]; ok {
 			prod.protocols[name] = true
@@ -270,10 +290,14 @@ func seamAlias(file *ast.File) string {
 	return ""
 }
 
-// readsSeam reports whether the file asks the seam for a distance. Set is the
-// publisher's call and does not count.
-func readsSeam(file *ast.File, alias string) bool {
-	found := false
+// seamCalls reports whether the file asks the seam for a distance, and whether
+// every one of its asks merely FORWARDS another package's answer. Set is the
+// publisher's call and does not count as either.
+//
+// A forwarding call writes down neither the protocol nor the fallback: both
+// arrive at run time from the route being handled. See producer.forwards.
+func seamCalls(file *ast.File, alias string) (reads, forwards bool) {
+	asks, forwarded := 0, 0
 	ast.Inspect(file, func(node ast.Node) bool {
 		call, ok := node.(*ast.CallExpr)
 		if !ok {
@@ -287,12 +311,28 @@ func readsSeam(file *ast.File, alias string) bool {
 		if !ok || pkg.Name != alias {
 			return true
 		}
-		if selector.Sel.Name == "OrDefault" || selector.Sel.Name == "Of" {
-			found = true
+		if selector.Sel.Name != "OrDefault" && selector.Sel.Name != "Of" {
+			return true
+		}
+		asks++
+		if noLiteralArgument(call) {
+			forwarded++
 		}
 		return true
 	})
-	return found
+	return asks > 0, asks > 0 && asks == forwarded
+}
+
+// noLiteralArgument reports whether a call writes none of its arguments down as
+// a literal. One literal anywhere means the caller chose something, so the call
+// is a producer's and its choice is checkable.
+func noLiteralArgument(call *ast.CallExpr) bool {
+	for _, arg := range call.Args {
+		if _, ok := arg.(*ast.BasicLit); ok {
+			return false
+		}
+	}
+	return true
 }
 
 // stringLiterals returns every string literal in the file.
@@ -327,6 +367,13 @@ func checkProducer(dir string, prod *producer, declared map[string]int) []string
 	}
 
 	if len(prod.protocols) == 0 {
+		if prod.forwards && len(prod.constants) == 0 {
+			// Every ask forwards a route's own protocol and its own stamped
+			// distance, and the package declares no bootstrap of its own. There
+			// is nothing here to pair with a leaf; the value being forwarded was
+			// already checked in the package that chose it.
+			return nil
+		}
 		return []string{fmt.Sprintf(
 			"%s: reads the distance seam but names no declared protocol, so its bootstrap "+
 				"value could not be checked against any leaf of rib { distance { } }", dir)}

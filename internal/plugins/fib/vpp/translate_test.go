@@ -82,7 +82,10 @@ func TestToVPPPrefixDefaultRoute(t *testing.T) {
 func TestToFibPathIPv4(t *testing.T) {
 	// VALIDATES: AC-7 -- IPv4 next-hop FibPath
 	nh := netip.MustParseAddr("192.168.1.1")
-	path := toFibPath(nh)
+	path, err := gatewayPath(nh, netip.MustParsePrefix("10.0.0.0/8"))
+	if err != nil {
+		t.Fatalf("gatewayPath: %v", err)
+	}
 
 	if path.Proto != fib_types.FIB_API_PATH_NH_PROTO_IP4 {
 		t.Fatalf("Proto: got %d, want FIB_API_PATH_NH_PROTO_IP4", path.Proto)
@@ -100,7 +103,10 @@ func TestToFibPathIPv4(t *testing.T) {
 func TestToFibPathIPv6(t *testing.T) {
 	// VALIDATES: AC-8 -- IPv6 next-hop FibPath
 	nh := netip.MustParseAddr("fe80::1")
-	path := toFibPath(nh)
+	path, err := gatewayPath(nh, netip.MustParsePrefix("2001:db8::/32"))
+	if err != nil {
+		t.Fatalf("gatewayPath: %v", err)
+	}
 
 	if path.Proto != fib_types.FIB_API_PATH_NH_PROTO_IP6 {
 		t.Fatalf("Proto: got %d, want FIB_API_PATH_NH_PROTO_IP6", path.Proto)

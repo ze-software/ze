@@ -45,7 +45,10 @@ func TestCheckBestPathChange_BGPMultipathECMP(t *testing.T) {
 	require.NoError(t, err)
 
 	// The best next-hop plus the ECMP set must together cover both next-hops.
-	all := append([]netip.Addr{last.Best.NextHop}, last.ECMP...)
+	all := []netip.Addr{last.Best.NextHop}
+	for _, sibling := range last.ECMP {
+		all = append(all, sibling.Addr)
+	}
 	assert.ElementsMatch(t, []netip.Addr{
 		netip.MustParseAddr("10.0.0.11"), netip.MustParseAddr("10.0.0.12"),
 	}, all, "Loc-RIB Change must carry the full BGP ECMP next-hop set")

@@ -490,6 +490,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/core/rib/distance` | carries every protocol's administrative distance from the one place it is declared to the producers that stamp it on a route |  |
 | `internal/core/rib/igpcost` | carries the IGP metric of a resolved next-hop from whoever computes it to whoever ranks paths by it |  |
 | `internal/core/rib/locrib` | implements the unified, sharded Loc-RIB that arbitrates best paths across routing protocols |  |
+| `internal/core/rib/nexthop` | carries the one description of a forwarding target that crosses every RIB boundary: the Loc-RIB Path, the best-change event the BGP RIB emits, and the multipath group sysrib hands the FIB plugins |  |
 | `internal/core/rib/routeinstall` | provides the RouteSink a FORKED route-installing plugin (OSPF, IS-IS) uses in place of a direct Loc-RIB write |  |
 | `internal/core/rib/routetype` | holds the forwarding action a FIB entry takes |  |
 | `internal/core/rib/store` | provides a generic prefix-keyed route store backed by a BART trie |  |

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/netip"
 
+	"github.com/ze-software/ze/internal/component/iface"
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 
 	"go.fd.io/govpp/api"
@@ -17,7 +18,12 @@ import (
 
 // vppRichRoute carries all attributes needed for full VPP FIB programming.
 type vppRichRoute struct {
-	Prefix    netip.Prefix
+	Prefix netip.Prefix
+	// Interface is the outgoing device name for NextHop and Weight is NextHop's
+	// share of the path list ECMPPaths completes. Both come from an
+	// operator-configured route; a protocol-learned route leaves them empty.
+	Interface string
+	Weight    uint8
 	NextHop   netip.Addr
 	RouteType sysribevents.RouteType
 	Metric    uint32
@@ -105,29 +111,31 @@ func (b *govppBackend) richRouteAddDel(isAdd bool, r vppRichRoute) error {
 		paths = []fib_types.FibPath{{Type: pathType, Weight: 1}}
 	case len(r.ECMPPaths) > 0:
 		paths = make([]fib_types.FibPath, 0, len(r.ECMPPaths)+1)
-		if r.NextHop.IsValid() {
-			p := toFibPath(r.NextHop)
+		if namesATarget(r.NextHop, r.Interface) {
+			p, err := toFibPath(r.NextHop, r.Interface, r.Weight, r.Prefix)
+			if err != nil {
+				return err
+			}
 			p.Type = pathType
-			p.Weight = defaultWeight()
 			paths = append(paths, p)
 		}
 		for _, ep := range r.ECMPPaths {
-			if !ep.NextHop.IsValid() {
+			if !namesATarget(ep.NextHop, ep.Interface) {
 				continue
 			}
-			p := toFibPath(ep.NextHop)
-			p.Type = pathType
-			if ep.Weight > 0 {
-				p.Weight = ep.Weight
-			} else {
-				p.Weight = defaultWeight()
+			p, err := toFibPath(ep.NextHop, ep.Interface, ep.Weight, r.Prefix)
+			if err != nil {
+				return err
 			}
+			p.Type = pathType
 			paths = append(paths, p)
 		}
-	case r.NextHop.IsValid():
-		p := toFibPath(r.NextHop)
+	case namesATarget(r.NextHop, r.Interface):
+		p, err := toFibPath(r.NextHop, r.Interface, r.Weight, r.Prefix)
+		if err != nil {
+			return err
+		}
 		p.Type = pathType
-		p.Weight = defaultWeight()
 		paths = []fib_types.FibPath{p}
 	}
 
@@ -185,14 +193,17 @@ func (b *govppBackend) routeAddDel(isAdd bool, prefix netip.Prefix, nextHop neti
 		Route: ip.IPRoute{
 			TableID: b.tableID,
 			Prefix:  toVPPPrefix(prefix),
-			NPaths:  1,
-			Paths:   []fib_types.FibPath{toFibPath(nextHop)},
 		},
 	}
-	if !isAdd {
-		// For delete, no paths needed, just the prefix.
-		req.Route.NPaths = 0
-		req.Route.Paths = nil
+	// A delete names the prefix and no path, so it is not asked for a next-hop
+	// and must not be refused for the want of one.
+	if isAdd {
+		path, err := gatewayPath(nextHop, prefix)
+		if err != nil {
+			return err
+		}
+		req.Route.NPaths = 1
+		req.Route.Paths = []fib_types.FibPath{path}
 	}
 
 	reply := &ip.IPRouteAddDelReply{}
@@ -233,24 +244,64 @@ func toVPPPrefix(p netip.Prefix) ip_types.Prefix {
 }
 
 // toFibPath converts a next-hop address to a VPP fib_types.FibPath.
-func toFibPath(nextHop netip.Addr) fib_types.FibPath {
-	path := fib_types.FibPath{
-		Weight: 1,
+// namesATarget reports whether a next-hop names somewhere to forward to: a
+// gateway address, an outgoing device, or both. A path that names neither is not
+// a next-hop and never enters the path list.
+func namesATarget(nextHop netip.Addr, ifaceName string) bool {
+	return nextHop.IsValid() || ifaceName != ""
+}
+
+// toFibPath renders one FIB path: a gateway, an outgoing interface, or both,
+// with the share the producer declared.
+//
+// dst is the ROUTE's prefix and it decides the protocol for an interface-only
+// path. A zero netip.Addr reports Is4() == false, so deriving the family from an
+// absent next-hop would encode an IPv4 route as PROTO_IP6 with an all-zero IPv6
+// gateway (docs/architecture/static-routes.md).
+//
+// REQUIRES: namesATarget reports true for (nextHop, ifaceName).
+func toFibPath(nextHop netip.Addr, ifaceName string, weight uint8, dst netip.Prefix) (fib_types.FibPath, error) {
+	path := fib_types.FibPath{Weight: weight}
+	if path.Weight == 0 {
+		path.Weight = defaultWeight()
 	}
-	if nextHop.Is4() {
+	if ifaceName != "" {
+		idx, err := iface.ResolveVPPIndex(ifaceName)
+		if err != nil {
+			return fib_types.FibPath{}, fmt.Errorf("fib/vpp: %w", err)
+		}
+		path.SwIfIndex = idx
+	}
+	switch {
+	case nextHop.Is4():
 		path.Proto = fib_types.FIB_API_PATH_NH_PROTO_IP4
 		a4 := nextHop.As4()
 		var ip4 ip_types.IP4Address
 		copy(ip4[:], a4[:])
 		path.Nh.Address = ip_types.AddressUnionIP4(ip4)
-	} else {
+	case nextHop.Is6():
 		path.Proto = fib_types.FIB_API_PATH_NH_PROTO_IP6
 		a16 := nextHop.As16()
 		var ip6 ip_types.IP6Address
 		copy(ip6[:], a16[:])
 		path.Nh.Address = ip_types.AddressUnionIP6(ip6)
+	case dst.Addr().Is4():
+		path.Proto = fib_types.FIB_API_PATH_NH_PROTO_IP4
+	default:
+		path.Proto = fib_types.FIB_API_PATH_NH_PROTO_IP6
 	}
-	return path
+	return path, nil
+}
+
+// gatewayPath renders the one path of a plain route: a gateway address, no
+// device, no declared weight. It is the caller that has a next-hop by
+// construction; an invalid one is a programmer error the caller cannot recover
+// from, so it is reported rather than programmed as a path to nowhere.
+func gatewayPath(nextHop netip.Addr, dst netip.Prefix) (fib_types.FibPath, error) {
+	if !namesATarget(nextHop, "") {
+		return fib_types.FibPath{}, fmt.Errorf("fib/vpp: route %v names no next-hop", dst)
+	}
+	return toFibPath(nextHop, "", 0, dst)
 }
 
 // richRouteOp records a rich route operation for test verification.

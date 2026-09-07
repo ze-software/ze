@@ -25,7 +25,10 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	ribdistance "github.com/ze-software/ze/internal/core/rib/distance"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
+	"github.com/ze-software/ze/internal/core/rib/nexthop"
+	"github.com/ze-software/ze/internal/core/rib/routetype"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -153,17 +156,32 @@ func applyRouteInstall(rib *locrib.RIB, input rpc.RouteInstallInput) ([]routeKey
 				return nil, fmt.Errorf("route-install: bad backup-next-hop %q: %w", e.BackupNextHop, err)
 			}
 		}
+		ecmp, err := parseWireNextHops(e.ECMP)
+		if err != nil {
+			return nil, err
+		}
 		ops = append(ops, installOp{
 			fam:    family.Family{AFI: family.AFI(e.AFI), SAFI: family.SAFI(e.SAFI)},
 			prefix: prefix,
 			path: locrib.Path{
-				Source:             id,
-				Instance:           e.Instance,
-				NextHop:            nextHop,
-				AdminDistance:      e.AdminDistance,
+				Source:    id,
+				Instance:  e.Instance,
+				NextHop:   nextHop,
+				Interface: e.Interface,
+				Weight:    e.Weight,
+				RouteType: routetype.Type(e.RouteType),
+				// The distance the operator declared is resolved HERE, not in the
+				// plugin. The seam is process-global (internal/core/rib/distance),
+				// so a forked producer never sees a declaration and stamps its own
+				// bootstrap default: `rib { distance { ospf 5 } }` was inert for a
+				// forked OSPF at the point arbitration happens. The wire value is
+				// the fallback, so a protocol the declaration does not name keeps
+				// what its producer chose.
+				AdminDistance:      ribdistance.OrDefault(e.Protocol, e.AdminDistance),
 				Metric:             e.Metric,
 				Labels:             e.Labels,
 				IsEBGP:             e.IsEBGP,
+				ECMP:               ecmp,
 				BackupNextHop:      backup,
 				BackupRepairLabels: e.BackupRepairLabels,
 			},
@@ -175,6 +193,32 @@ func applyRouteInstall(rib *locrib.RIB, input rpc.RouteInstallInput) ([]routeKey
 		keys = append(keys, routeKey{fam: ops[i].fam, prefix: ops[i].prefix, source: ops[i].path.Source, instance: ops[i].path.Instance})
 	}
 	return keys, nil
+}
+
+// parseWireNextHops parses an entry's equal-cost set. A member names a gateway,
+// a device, or both; one that names neither is malformed input and fails the
+// whole batch, the same as a bad prefix does.
+func parseWireNextHops(set []rpc.RouteNextHop) ([]nexthop.NextHop, error) {
+	if len(set) == 0 {
+		return nil, nil
+	}
+	out := make([]nexthop.NextHop, 0, len(set))
+	for i := range set {
+		m := &set[i]
+		nh := nexthop.NextHop{Interface: m.Interface, Weight: m.Weight}
+		if m.NextHop != "" {
+			addr, err := netip.ParseAddr(m.NextHop)
+			if err != nil {
+				return nil, fmt.Errorf("route-install: bad ecmp next-hop %q: %w", m.NextHop, err)
+			}
+			nh.Addr = addr
+		}
+		if !nh.Addr.IsValid() && nh.Interface == "" {
+			return nil, fmt.Errorf("route-install: ecmp member names neither a next-hop nor an interface")
+		}
+		out = append(out, nh)
+	}
+	return out, nil
 }
 
 // applyRouteRemove validates and applies a route-remove batch to rib, withdrawing

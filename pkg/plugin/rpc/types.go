@@ -852,18 +852,43 @@ type RelayStoredRouteInput struct {
 // numeric family identifiers (stable across processes). Prefix/NextHop/
 // BackupNextHop are netip string forms; empty NextHop means "directly connected".
 type RouteInstallEntry struct {
-	Protocol           string   `json:"protocol"`
-	AFI                uint16   `json:"afi"`
-	SAFI               uint8    `json:"safi"`
-	Prefix             string   `json:"prefix"`
-	Instance           uint32   `json:"instance"`
-	NextHop            string   `json:"next-hop,omitempty"`
-	AdminDistance      uint8    `json:"distance"`
-	Metric             uint32   `json:"metric"`
-	Labels             []uint32 `json:"labels,omitempty"`
-	IsEBGP             bool     `json:"is-ebgp,omitempty"`
-	BackupNextHop      string   `json:"backup-next-hop,omitempty"`
-	BackupRepairLabels []uint32 `json:"backup-repair-labels,omitempty"`
+	Protocol string `json:"protocol"`
+	AFI      uint16 `json:"afi"`
+	SAFI     uint8  `json:"safi"`
+	Prefix   string `json:"prefix"`
+	Instance uint32 `json:"instance"`
+	NextHop  string `json:"next-hop,omitempty"`
+	// Interface is the outgoing device name for NextHop and Weight is NextHop's
+	// share of the group ECMP completes. A protocol-learned route names a gateway
+	// alone and leaves both empty; a configured route may name a device instead.
+	Interface string `json:"interface,omitempty"`
+	Weight    uint8  `json:"weight,omitempty"`
+	// RouteType is the forwarding action the FIB programs, as the number
+	// internal/core/rib/routetype defines: 1 unicast, 6 blackhole,
+	// 7 unreachable, 8 prohibit. Zero means the plugin states no action and the
+	// FIB installs an ordinary route. A discard route names no next-hop, so
+	// without this field a forked plugin's blackhole arrives as a route to
+	// nowhere and is dropped.
+	RouteType     uint8    `json:"route-type,omitempty"`
+	AdminDistance uint8    `json:"distance"`
+	Metric        uint32   `json:"metric"`
+	Labels        []uint32 `json:"labels,omitempty"`
+	IsEBGP        bool     `json:"is-ebgp,omitempty"`
+	// ECMP is the route's own equal-cost next-hop set, for a plugin whose one
+	// route names several. Without it a forked plugin's multipath arrives as a
+	// single next-hop.
+	ECMP               []RouteNextHop `json:"ecmp,omitempty"`
+	BackupNextHop      string         `json:"backup-next-hop,omitempty"`
+	BackupRepairLabels []uint32       `json:"backup-repair-labels,omitempty"`
+}
+
+// RouteNextHop is one member of a RouteInstallEntry's equal-cost next-hop set:
+// a gateway address, an outgoing device, or both, with its share of the group.
+// NextHop is the netip string form and is empty for a device-only member.
+type RouteNextHop struct {
+	NextHop   string `json:"next-hop,omitempty"`
+	Interface string `json:"interface,omitempty"`
+	Weight    uint8  `json:"weight,omitempty"`
 }
 
 // RouteInstallInput is the input for ze-plugin-engine:route-install. Routes are

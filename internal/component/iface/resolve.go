@@ -67,6 +67,58 @@ var globalResolver = &resolver{
 // is absent. The result is cached until a monitor link event invalidates it.
 func Resolve(name string) (Binding, error) { return globalResolver.resolve(name) }
 
+// ResolveIndex returns the kernel ifindex of the logical interface name, for a
+// caller that programs a route out of a named device. It is Resolve plus the one
+// error message that tells an operator which of the two failures happened.
+//
+// The two read the same to a caller and mean different things to an operator. No
+// backend loaded means the configuration carries no `interface { backend ... }`
+// stanza, so NO name can resolve and the fix is a config edit. A backend loaded
+// and the device absent means this one name is wrong or its device has not
+// appeared yet. Reporting the bare resolver error for the first case told the
+// operator "iface: no backend loaded" and nothing about what to write.
+func ResolveIndex(name string) (int, error) {
+	b, err := Resolve(name)
+	if err == nil {
+		return b.Ifindex, nil
+	}
+	if GetBackend() == nil {
+		return 0, fmt.Errorf("interface %q: no interface backend loaded; add an `interface { backend ... }` stanza so a route next-hop interface can be resolved: %w", name, err)
+	}
+	return 0, fmt.Errorf("interface %q: %w", name, err)
+}
+
+// ResolveVPPIndex returns the VPP sw_if_index of the logical interface name, for
+// a caller programming a path into the VPP FIB.
+//
+// It is gated on the ACTIVE iface backend being vpp, and that gate is the point
+// of the function. Resolve answers from whichever backend is loaded, and a
+// netlink backend answers with a KERNEL ifindex. Programming that number as a
+// sw_if_index installs a path to a different interface, and nothing reports it.
+// The two globals are independent (vpp.GetActiveConnector selects the data
+// plane, LoadBackend selects the resolver), so they CAN disagree.
+//
+// A zero index is never returned without an error: sw_if_index 0 is VPP's local0,
+// so an unresolved name would otherwise install a working path to the wrong
+// place.
+func ResolveVPPIndex(name string) (uint32, error) {
+	backend := ActiveBackendName()
+	if backend == "" {
+		return 0, fmt.Errorf("interface %q needs the vpp iface backend, but no iface backend is loaded", name)
+	}
+	if backend != "vpp" {
+		return 0, fmt.Errorf("interface %q needs the vpp iface backend, but the active iface backend is %q (a kernel ifindex must not be programmed as a VPP sw_if_index)", name, backend)
+	}
+	binding, err := Resolve(name)
+	if err != nil {
+		return 0, fmt.Errorf("interface %q: %w", name, err)
+	}
+	if binding.Ifindex <= 0 {
+		return 0, fmt.Errorf("interface %q resolved to invalid sw_if_index %d", name, binding.Ifindex)
+	}
+	return uint32(binding.Ifindex), nil
+}
+
 // Addresses returns the IP addresses of the logical interface, each tagged with
 // Family and LinkLocal so a consumer can split v4 / v6-link-local / v6-global
 // without re-parsing. The logical name is translated via the os-name selector

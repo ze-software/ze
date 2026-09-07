@@ -93,7 +93,7 @@ func TestCheckInterfaceNexthopBackendNilOrEmpty(t *testing.T) {
 // prefix and reason. PREVENTS: a skip being a silent no-op
 // (ai/rules/evidence.md).
 func TestCheckRouteSkippedFires(t *testing.T) {
-	rm := newRouteManager(&mockStaticBackend{})
+	rm := newTestRouteManager(&mockStaticBackend{})
 	bad := netip.MustParsePrefix("203.0.113.0/24")
 	rm.skipped[routeKey{prefix: bad}] = skippedRoute{
 		route:  staticRoute{Prefix: bad, Action: actionForward},
@@ -124,7 +124,7 @@ func TestCheckRouteSkippedFires(t *testing.T) {
 // VALIDATES: AC-3 -- the check stays silent when no route is skipped, so it does
 // not raise a false doctor warning during normal operation.
 func TestCheckRouteSkippedSilentWhenNone(t *testing.T) {
-	rm := newRouteManager(&mockStaticBackend{})
+	rm := newTestRouteManager(&mockStaticBackend{})
 	activeRouteManager.Store(rm)
 	t.Cleanup(func() { activeRouteManager.Store(nil) })
 

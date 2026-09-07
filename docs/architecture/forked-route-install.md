@@ -1,8 +1,8 @@
 # Route Install from a Forked Plugin
 
-OSPF and IS-IS do not program the FIB. Their SPF installers insert `locrib.Path`
-values into the process-wide Loc-RIB singleton, sysrib arbitrates, and
-fib-kernel programs the result as `RTPROT_ZE`.
+OSPF, IS-IS and the static plugin do not program the FIB. They insert
+`locrib.Path` values into the process-wide Loc-RIB singleton, sysrib arbitrates,
+and fib-kernel programs the result as `RTPROT_ZE`.
 
 In a forked plugin subprocess, `locrib.Default()` returns nil, because the
 singleton lives in the engine's address space. Both installers short-circuited
@@ -12,6 +12,7 @@ forked path carries the routes over RPC instead of failing fast.
 
 <!-- source: internal/component/plugin/server/dispatch_route.go -- route-install and route-remove RPC -->
 <!-- source: internal/core/rib/routeinstall/sink.go -- forked sink, buffering and retry -->
+<!-- source: pkg/plugin/rpc/types.go -- RouteInstallEntry and RouteNextHop, the wire form -->
 
 ## The wire carries a name, the engine resolves it
 
@@ -22,6 +23,22 @@ sysrib's `OnChange` carries it to the kernel unchanged.
 A protocol ID is per-process, allocated in registration order, so it cannot
 travel. The payload names the protocol and the engine looks the name up with
 `redistevents.ProtocolIDOf`, then REJECTS an unknown name.
+
+**The engine also RE-STAMPS the administrative distance.** The declaration seam
+(`internal/core/rib/distance`) is process-global and sysrib is its only publisher,
+so a forked producer never sees it and ships whatever bootstrap constant its own
+package holds. `rib { distance { ospf 5 } }` was therefore inert for a forked OSPF
+at the point arbitration happens, and nothing said so. `applyRouteInstall` reads
+the declaration for the protocol the entry names and takes the wire value as the
+fallback, so a protocol the declaration does not name keeps what its producer
+chose.
+
+**The entry carries the whole path.** Besides the gateway, `RouteInstallEntry`
+carries the outgoing device, the next-hop's weight, the forwarding action
+(`route-type`, the `routetype` number) and the equal-cost set (`ecmp`, one
+`RouteNextHop` per member). A forked producer's blackhole route and its multipath
+were dropped at this boundary until the fields existed, because the entry had
+nowhere to put either.
 
 Register-on-demand was the first cut and is a crash vector: a forked plugin
 could exhaust the global protocol registry, which panics at about 65535 names.
@@ -60,8 +77,10 @@ withdrawal.
 
 The route-install path is forked-only. An in-process or bridge plugin holds a
 non-nil local Loc-RIB and uses the local sink, so there is no direct-dispatch
-twin of this RPC. Static routes and the BGP RIB share the nil-Loc-RIB-when-forked
-property and have not adopted `RouteSink`.
+twin of this RPC. The static plugin adopted the same shape when its main-table
+routes moved into the Loc-RIB: `runStaticPlugin` builds with `locrib.Default()`
+and installs a `routeinstall.Sink` when that answers nil. The BGP RIB shares the
+nil-Loc-RIB-when-forked property and has not adopted `RouteSink`.
 
 A kernel route needs an on-link next hop, so the kernel-level test adds a dummy
 interface before it asserts that fib-kernel accepted the route.

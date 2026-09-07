@@ -163,13 +163,19 @@ func newFibVPP(backend vppBackend) *fibVPP {
 
 // hasRichFields reports whether a change carries attributes beyond prefix+next-hop.
 func hasRichFields(c *incomingChange) bool {
-	return c.RouteType != 0 || c.Metric != 0 || c.TableID != 0 || len(c.ECMPPaths) > 0
+	// The outgoing device counts: the plain backend takes an address alone and
+	// has nowhere to put a device, so a route named by a device would reach VPP
+	// with no path at all.
+	return c.RouteType != 0 || c.Metric != 0 || c.TableID != 0 ||
+		c.Interface != "" || c.Weight != 0 || len(c.ECMPPaths) > 0
 }
 
 func changeToRichRoute(c *incomingChange) vppRichRoute {
 	return vppRichRoute{
 		Prefix:    c.Prefix,
 		NextHop:   c.NextHop,
+		Interface: c.Interface,
+		Weight:    c.Weight,
 		RouteType: c.RouteType,
 		Metric:    c.Metric,
 		TableID:   c.TableID,

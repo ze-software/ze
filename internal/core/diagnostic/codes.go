@@ -212,6 +212,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-static-route-skipped"},
 	},
 	{
+		Code:        "doctor-static-no-fib-writer",
+		Title:       "Static routes in the main table have no FIB plugin to program them",
+		Description: "The config declares a static route in the main table, and no `fib { ... }` block. A main-table static route is arbitrated by the system RIB against every other protocol that offers the same prefix, and the FIB plugin programs the winner, so with no FIB plugin the route reaches the system RIB and stops there: nothing writes it to the kernel or to VPP. Add `fib { kernel { } }` for the Linux data plane, or `fib { vpp { } }` for VPP. A route in a NAMED table does not need this: static programs it directly.",
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-static-no-fib-writer"},
+	},
+	{
 		Code:        "doctor-ddos-detect-no-flow-source",
 		Title:       "DDoS characterization has no flow source",
 		Description: "ddos-detect is enabled with characterization on, but neither traffic-usage (track-ip) nor flow-export (conntrack) is configured. Detection still works, but mitigation degrades to generic-flood with no target prefix, so responders cannot install a surgical or targeted rule. Enable traffic-usage track-ip and/or flow-export conntrack.",
