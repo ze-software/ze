@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-08-05 |
+| Updated | 2026-09-05 |
 
 ## OWNER RULING 2026-08-05: implement confederation support
 
