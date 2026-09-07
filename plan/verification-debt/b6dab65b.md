@@ -16,8 +16,5 @@ is open.
 
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
-| 2026-08-24 | b6dab65b | feat(website): rework the blog, FAQ, and pipe reference pages | ./le verify current mode full (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
-| 2026-08-24 | b6dab65b | plan: spec the asciinema conversion of the terminal demos | ./le verify current mode full (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
-| 2026-08-24 | b6dab65b | fix(tests): make the python runner count what each file ran | ./le verify current mode full (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-24 | b6dab65b | feat(website): rework the blog, FAQ, and pipe reference pages (+3 more) | ./le verify current mode full (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-24 | b6dab65b | fix(tests): make the python runner count what each file ran | full ./le verify current mode full over this commit's Go | no full ./le verify current mode full recorded (tmp/ze-verify-full.json is missing) | open |
-| 2026-08-24 | b6dab65b | fix(tests): stop a duplicate class name shadowing 1 of 821 tests | ./le verify current mode full (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |

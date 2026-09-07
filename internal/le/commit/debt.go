@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -45,8 +46,22 @@ func debtPath(session string) string {
 	return filepath.ToSlash(filepath.Join(debtDir, session+".md"))
 }
 
+// recordDebt writes this commit's owed gates into the session's ledger shard.
+// A (gate, reason) pair holds ONE open row: a later commit owing the same gate
+// for the same reason EXTENDS that row's commit count instead of appending a
+// copy of it. The freshness gates state one fact about the tree, in a reason
+// string byte-identical for every commit a long verification run overlaps, so
+// appending recorded that one fact thousands of times.
+//
+// The row keeps the date and the subject of the first commit it covers. Every
+// commit that extends a row writes the shard, so `git log -- <shard>` names
+// each commit the rows cover, and the date and subject of every commit after
+// the first are read there.
 func recordDebt(root, session, subject string, owed []Debt) (string, error) {
 	relative := debtPath(session)
+	if len(owed) == 0 {
+		return relative, nil
+	}
 	path := filepath.Join(root, filepath.FromSlash(relative))
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return "", err
@@ -64,50 +79,111 @@ func recordDebt(root, session, subject string, owed []Debt) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	held := make(map[string]bool)
-	for line := range strings.SplitSeq(string(content), "\n") {
-		cells := strings.Split(line, "|")
-		if len(cells) == 8 && strings.EqualFold(strings.TrimSpace(cells[6]), statusOpen) {
-			held[strings.TrimSpace(line)] = true
-		}
-	}
-	lines := make([]string, 0)
-	if len(content) == 0 {
-		lines = append(lines,
-			"# Verification debt -- commit session "+session,
-			"",
-			"Gates that had not run green over these commits when they were made.",
-			"Clear rows only through `le commit debt-clear` after the named gate exits 0.",
-			"",
-			"| Date | Session | Subject | Gate owed | Reason | Status |",
-			"|------|---------|---------|-----------|--------|--------|",
-		)
+	lines := debtHeader(session)
+	if len(content) != 0 {
+		lines = strings.Split(strings.TrimSuffix(string(content), "\n"), "\n")
 	}
 	stamp := time.Now().UTC().Format(time.DateOnly)
 	for _, row := range owed {
-		rendered := "| " + stamp + " | " + debtCell(session) + " | " + debtCell(subject) +
-			" | " + debtCell(row.Gate) + " | " + debtCell(row.Reason) + " | open |"
-		if !held[rendered] {
-			lines = append(lines, rendered)
+		gate, reason := debtCell(row.Gate), debtCell(row.Reason)
+		at := openDebtRowAt(lines, gate, reason)
+		if at < 0 {
+			lines = append(lines, debtRow(stamp, debtCell(session), debtCell(subject), gate, reason))
+			continue
 		}
+		lines[at] = extendDebtRow(lines[at])
 	}
-	if len(lines) == 0 {
-		return relative, nil
-	}
-	if _, err := file.Seek(0, 2); err != nil {
+	rendered := strings.Join(lines, "\n") + "\n"
+	if _, err := file.Seek(0, 0); err != nil {
 		return "", err
 	}
-	prefix := ""
-	if len(content) != 0 && content[len(content)-1] != '\n' {
-		prefix = "\n"
+	if _, err := file.WriteString(rendered); err != nil {
+		return "", err
 	}
-	if _, err := file.WriteString(prefix + strings.Join(lines, "\n") + "\n"); err != nil {
+	if err := file.Truncate(int64(len(rendered))); err != nil {
 		return "", err
 	}
 	if err := file.Sync(); err != nil {
 		return "", err
 	}
 	return relative, nil
+}
+
+// debtHeader is the shard's prose and table head, written once per session.
+func debtHeader(session string) []string {
+	return []string{
+		"# Verification debt -- commit session " + session,
+		"",
+		"Gates that had not run green over these commits when they were made.",
+		"One row holds one gate and one reason, and covers every commit this",
+		"session made under it. `git log -- <this file>` names those commits.",
+		"Clear rows only through `le commit debt-clear` after the named gate exits 0.",
+		"",
+		"| Date | Session | Subject | Gate owed | Reason | Status |",
+		"|------|---------|---------|-----------|--------|--------|",
+	}
+}
+
+// debtRow renders one open row.
+func debtRow(date, session, subject, gate, reason string) string {
+	return "| " + date + " | " + session + " | " + subject +
+		" | " + gate + " | " + reason + " | open |"
+}
+
+// openDebtRowAt answers the index of the open row this gate and reason already
+// hold, and -1 when the pair holds none. A cleared row is never extended, so a
+// gate owed again after it was cleared opens a row of its own.
+func openDebtRowAt(lines []string, gate, reason string) int {
+	for index, line := range lines {
+		row, ok := parseDebtRow("", index+1, line)
+		if !ok || row.Status != statusOpen {
+			continue
+		}
+		if row.Gate == gate && row.Reason == reason {
+			return index
+		}
+	}
+	return -1
+}
+
+// extendDebtRow adds one commit to the row's cover. The caller MUST pass a line
+// openDebtRowAt matched, which is why a malformed one is a Ze defect here.
+func extendDebtRow(line string) string {
+	cells := strings.Split(line, "|")
+	if len(cells) != 8 {
+		panic("BUG: extendDebtRow was given a line openDebtRowAt did not match")
+	}
+	subject, covered := debtCovered(strings.TrimSpace(cells[3]))
+	cells[3] = " " + debtSubject(subject, covered+1) + " "
+	return strings.Join(cells, "|")
+}
+
+// debtCovered reads a subject cell back: the first commit's subject, and the
+// number of commits the row covers.
+func debtCovered(cell string) (string, int) {
+	const opening = " (+"
+	const closing = " more)"
+	if !strings.HasSuffix(cell, closing) {
+		return cell, 1
+	}
+	head := strings.TrimSuffix(cell, closing)
+	at := strings.LastIndex(head, opening)
+	if at < 0 {
+		return cell, 1
+	}
+	after, err := strconv.Atoi(head[at+len(opening):])
+	if err != nil || after < 1 {
+		return cell, 1
+	}
+	return head[:at], after + 1
+}
+
+// debtSubject renders a subject cell covering the named number of commits.
+func debtSubject(subject string, covered int) string {
+	if covered < 2 {
+		return subject
+	}
+	return subject + " (+" + strconv.Itoa(covered-1) + " more)"
 }
 
 func debtCell(value string) string {

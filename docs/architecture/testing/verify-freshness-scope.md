@@ -13,11 +13,13 @@ Four properties of the narrower question matter to a caller:
 - A path that MOVED while the run was in flight is STALE whatever it holds now, because no stage judged the content it holds today. The manifest records that path as `movedDuringRun` rather than voiding the whole run, so this is finer granularity and never leniency.
 - The scoped question is about CONTENT, and `scopedChange` asks it that way because the manifest is HEAD-relative while `HEAD` moves under a checkout many sessions commit to. A scoped path the run read as dirty stops being dirty the moment a commit absorbs it unchanged, so each manifest row is compared against the file on disk. A scoped path with no row was identical to the certificate's commit, so the commits made since are asked whether any of them reached it. A commit that reaches nothing in the path list therefore leaves the answer FRESH, which is the same reading the property below gives an uncommitted edit outside the list.
 - `CheckCertificate` reads the run's recorded exit code BEFORE it reads any scope, so a run that FAILED is STALE for every path list. Scoping is no route around a red run.
-- The answer is qualified by mode. `FRESH(full)` covers everything; `FRESH(changed)` is a weaker pass with no vet evidence, no cached full unit pass, and no allocation benchmarks. Lint is NOT among the omissions: `changedStages` keeps `verify lint/run` at its full identity, and the lint action reads no change scope, so both modes load the whole module. A pass recorded with skipped suites (`ZE_SKIP_SUITES`) reports STALE. Only the full mode writes `tmp/ze-verify-full.json`, so a cheaper run cannot certify a Go-carrying commit.
+- A certificate whose mode names no stage population is STALE, whatever it holds. A run cut into pieces records the piece it ran (`full-part-2-of-6`), and `StagesForMode` knows no such population, so one piece of a verification can never read as a pass over the tree.
+- The answer is qualified by mode, and "full" names the STAGE POPULATION rather than a promise that every stage judged everything: a full run narrows its Staticcheck rows by the change set's feature tags and, once a suite map exists, narrows its functional suites by what they were observed to reach. Both narrow only from recorded evidence and widen on anything unanswerable. `FRESH(full)` therefore covers every stage; `FRESH(changed)` is a weaker pass with no vet evidence, no cached full unit pass, and no allocation benchmarks. Lint is NOT among the omissions: `changedStages` keeps `verify lint/run` at its full identity, and the lint action reads no change scope, so both modes load the whole module. A pass recorded with skipped suites (`ZE_SKIP_SUITES`) reports STALE. Only the full mode writes `tmp/ze-verify-full.json`, so a cheaper run cannot certify a Go-carrying commit.
 
 `verificationState` (`internal/le/commit/verification.go`) is what asks the scoped question on a prospective commit's behalf: it passes the commit's own explicit path list, so an edit another session makes outside that list does not make the evidence STALE.
 
 <!-- source: internal/le/verify/engine/status.go -- WriteCertificate, CheckCertificate, scopedChange, movedDuringRun -->
+<!-- source: internal/le/verify/engine/part.go -- Part, deal, Name -->
 <!-- source: internal/le/job/treehash.go -- Fingerprint, PathsChangedBetween -->
 <!-- source: internal/le/verify/engine/stages.go -- changedStages -->
 <!-- source: internal/le/verify/status/answer.go -- Answer -->
@@ -61,7 +63,7 @@ One producer answers the change set: `Scope.resolveSelector` (`internal/le/chang
 
 <!-- source: internal/le/changed/actions.go -- Answer -->
 <!-- source: internal/le/staticcheckfeaturematrix/actions.go -- Answer -->
-<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
+<!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 
 ## The suite map
 
@@ -86,7 +88,40 @@ A caller cannot mistake a widening for an empty selection. `suiteSelection` carr
 
 `ZE_SKIP_SUITES` outranks the map: `gatingRunList` reads the operator's skip set first, so a recorded map can only ever subtract a suite and never add a skipped one back. The closing report names the operator's skips.
 
-Today `selectSuites` answers `verdictEverySuite` on every path. It reads and validates the map, and no change set is compared against it, so a recorded map subtracts no suite and an absent one costs nothing.
+### How a package becomes answerable
+
+`selectSuites` needs three answers before it can rule one suite out, and a route that cannot produce one of them widens.
+
+**A package is ANSWERABLE only when the map records a suite reaching it AND no commit since the recording touched it.** One unanswerable package widens the whole run and is NAMED, because the map cannot say which suites a change to that package could break.
+
+| The condition | What the run does |
+|---------------|-------------------|
+| The map records a suite reaching the package, and no commit has touched it | The suites recorded as reaching it run |
+| The map records no suite reaching the package | Every suite runs, and the answer names the package |
+| A commit since the map's `head` touched the package | Every suite runs, and the answer names the package and the commit |
+| The map's `head` cannot be compared with `HEAD` | Every suite runs. `job.PathsChangedBetween` answers an error rather than an empty list, so a commit a rebase dropped never reads as "no package moved" |
+| The change-set selector refused the checkout, or widened to `./...` | Every suite runs |
+| This run records the map (`ZE_COVER`) | Every suite runs. Only a run of every gating suite may publish, so a recording run that narrowed would refuse its own map and the artifact could never be refreshed |
+
+**A gating suite the map does not name is UNKNOWN, and every unknown suite runs.** A suite that recorded nothing is omitted rather than written empty, so nothing rules it out: `editor`, `web`, `runner` and `policy` are in that state on every run and always run. A change set holding no package at all is a valid narrow answer, and those four still run.
+
+The touched-package test is deliberately per-package rather than per-tree. The stale-map risk this bounds is a suite that newly reaches a package, and a run that widened on any commit at all would widen on every commit this shared checkout takes, which is the same as having no map.
+
+`packageOf` (`internal/le/functional/suitemap.go`) spells a touched path the way the change-set selector spells a package, so the two sides compare directly. Any file counts, not only a `.go` one: a package whose testdata moved is a package whose recorded reach was observed on another tree.
+
+### Reading the run list before the run
+
+`le functional select` prints the run list a gating run would start for this checkout, and runs nothing. It is what an operator reads when a run started fewer suites than they expected, and it is the run's own decision rather than a second derivation of one: `planRun` (`internal/le/functional/suitemap.go`) produces the plan, `le functional select` prints it, and `runGating` executes it.
+
+The answer places every gating suite in exactly one of three states, so a suite cannot go missing unnoticed.
+
+| State | Why the suite is there |
+|-------|------------------------|
+| `running` | The map records it as reaching a changed package, or the map does not name it at all |
+| `ruled-out` | The map records it, and it reached none of the changed packages |
+| `skipped` | `ZE_SKIP_SUITES` names it. It outranks the map |
+
+<!-- source: internal/le/functional/actions.go -- selectVerb -->
 
 ### What a suite REACHED
 
@@ -116,7 +151,7 @@ The recorded `head` is the commit read BEFORE the first suite starts, which is t
 
 The map is published through a temporary file in the same directory and one rename, so a session reading `tmp/` meets the old map or the new one and never a half-written one.
 
-<!-- source: internal/le/functional/suitemap.go -- suiteMap, readSuiteMap, suiteSelection, selectSuites, gatingRunList, suiteRecording, publish -->
+<!-- source: internal/le/functional/suitemap.go -- suiteMap, readSuiteMap, suiteSelection, selectSuites, suitesFor, touchedSince, planRun, gatingRunList, suiteRecording, publish -->
 <!-- source: internal/le/functional/reach.go -- reachedPackages, packagesInProfile, initLineRanges -->
 <!-- source: internal/le/functional/run.go -- runGating, reduceCoverage, publishSuiteMap -->
 
@@ -128,11 +163,13 @@ Native `./le` actions are the public interface, while Go-to-Go paths call their 
 
 A run has four outcomes, not three. 0 certifies the tree, 1 says a stage judged it and found it wrong, 2 says the run itself broke, and 3 (`Unjudged`) says the run reached no verdict at all. A stage answers 2 when it could not judge its own subject, which `le staticcheck-feature-matrix check` does for an empty package population, and `runCode` carries that outcome up as `Unjudged` instead of flattening it to 1. A stage that judged the tree and found it wrong outranks it, because that stage did reach a verdict. A full device is the second route to `Unjudged`, recognized by `Defeated` with `errors.Is(err, syscall.ENOSPC)` at each write site that holds the typed error: no stage output reaches a `Report`, so text matching cannot see it at all. `CheckCertificate` stales on any non-zero exit, so an unjudged run can never read as fresh.
 
+A run can be CUT. `internal/le/verify/engine.RunPart` runs one piece of the mode's population, dealt round robin by `Part.deal`, which is the shape `staticcheck-feature-matrix check part <n> of <m>` already uses and for the same reason: the expensive stages sit together in the ordered population. Every stage lands in exactly one piece, so the pieces together run the population exactly once, and a piece that names no part of it (the zero value, an index past the count) is refused with `unknown-part` before a stage starts. The pieces of one commit are separate work in the job registry: `worktreeArgv` carries the piece, so a second piece cannot attach to the first and take its exit code.
+
 The lifecycle prints its verdict from the first deferred call, which makes it the last line of the run. Every branch that can still move `Report.Code`, the deferred cleanup included, has run by then. `verify worktree` also links the extracted worktree's `cache/` to the shared per-user target before any stage starts, so GOCACHE resolves out of tree and the run does not build a private Go build cache it will delete unread.
 
-<!-- source: internal/le/verify/engine/run.go -- ActionResult, RunMode, Slot, nameJobParent, Unjudged, Defeated -->
+<!-- source: internal/le/verify/engine/run.go -- ActionResult, RunMode, RunPart, Slot, nameJobParent, Unjudged, Defeated -->
 <!-- source: internal/le/verify/current.go -- runCurrent, jobLabel, slotFor -->
-<!-- source: internal/le/verify/lifecycle.go -- run, sharedCacheLink -->
+<!-- source: internal/le/verify/lifecycle.go -- run, sharedCacheLink, worktreeArgv -->
 <!-- source: internal/le/job/answer.go -- Answer -->
 <!-- source: internal/le/verify/lock/register.go -- Answer -->
 
@@ -169,7 +206,15 @@ A stage declares whether its red means the tree is BROKEN, on the stage itself: 
 
 Verification debt records an authorised commit that lacked fresh evidence. It follows the commit until the owed gates pass, and open debt blocks a push. `./le commit debt-list` and `./le commit debt-clear` use the same native ledger as commit preparation.
 
+One row holds ONE gate and ONE reason, and covers every commit the session made under that pair. `recordDebt` (`internal/le/commit/debt.go`) extends the open row it finds rather than appending a copy of it. The freshness gates state one fact about the tree, in a reason string byte-identical for every commit a long verification run overlaps: `verify worktree` pins its subject at launch and takes over an hour, so its verdict describes an ancestor and every commit made during it owed the same gate for the same reason. Appending recorded that one fact thousands of times.
+
+The row keeps the date and the subject of the FIRST commit it covers, and its subject cell then carries `(+N more)` for the N commits that followed. Each of those commits writes the shard, so `git log -- plan/verification-debt/<session>.md` names them all and gives their dates and subjects back. A cleared row is never extended, so a gate owed again after it was cleared opens a row of its own. The shards written before this rule were collapsed once to the same shape: 3587 rows became the 1270 distinct (shard, gate, reason, status) triples they carried, over 216 shards, and no triple was lost.
+
 `clearDebt` (`internal/le/commit/actions.go`) re-runs each DISTINCT gate the open rows name, once per pass whatever the row count, and writes `cleared` only on exit 0. Every runnable gate runs inside ONE throwaway worktree at HEAD, so a cleared row says the gate was green over the COMMIT rather than over the several sessions' uncommitted files this checkout holds. When no worktree can be made, NOTHING clears and the pass exits 1: that is a refusal to fall back to the working tree, not a gate failure. A pass whose every row names an unrunnable gate materialises no worktree at all.
+
+`./le commit debt-clear part <n> of <m>` runs ONE piece of that verification. The whole population is 50 stages and it uses the whole machine, so on a box several sessions share it is killed before a single row is reachable: on 2026-09-07 the OOM killer ended a pass with 3302 rows open across 216 shards, and nothing cleared. A piece that exits 0 records itself in `tmp/ze-verify-debt-parts.json`, so a piece killed mid-flight costs that piece rather than the pass.
+
+Nothing clears until EVERY piece of the cut has exited 0 over ONE commit. The record is pinned to the commit the pieces judged and to the count they were dealt into, and either one moving starts it again: a verdict is evidence about the tree it ran on, and two cuts deal the stages differently, so pieces of two commits or of two cuts never add up to a population. The record is dropped once its pieces have cleared their rows, so a row written later at the same HEAD cannot clear on a verification that ran before it existed. Reads and writes take the same advisory lock the ledger shards take.
 
 ### Asking before the run ends
 
@@ -180,12 +225,13 @@ That query is not a certificate and MUST NOT be read as one. It answers about PA
 The pass clears no row whose gate no command produces. A row naming `independent critical review` prints UNRUNNABLE and stays open, and so does a row naming a gate string the runner table does not hold. Those are answered by doing the work the row names, which for a review is `/ze-review` recorded through `internal/le/spec/session/review.go`.
 
 <!-- source: internal/le/doc/wiring/groups.go -- Group, declareFailureGroup -->
-<!-- source: internal/le/commit/actions.go -- Answer, clearDebt -->
+<!-- source: internal/le/commit/actions.go -- Answer, clearDebt, clearDebtWith -->
+<!-- source: internal/le/commit/debtpart.go -- debtPartFrom, recordDebtPart, debtPartsComplete -->
 <!-- source: internal/le/commit/verification.go -- structuralGateReds -->
 <!-- source: internal/le/verify/engine/artifacts.go -- writeRunArtifacts, DeclaredGroups -->
 <!-- source: internal/le/verify/reds.go -- readReds, verdictOf -->
 <!-- source: internal/le/verify/engine/stages.go -- Structural -->
-<!-- source: internal/le/commit/debt.go -- Debt, ListDebt -->
+<!-- source: internal/le/commit/debt.go -- Debt, ListDebt, recordDebt, extendDebtRow -->
 
 ## Producer contract
 

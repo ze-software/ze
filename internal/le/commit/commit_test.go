@@ -774,7 +774,7 @@ func TestDebtClearingHonorsTheGateExit(t *testing.T) {
 	}
 
 	passing := debtClearFixture(t)
-	result, code := clearDebtWith(passing, green)
+	result, code := clearDebtWith(passing, uncutDebtPart(), green)
 	if code != 0 {
 		t.Fatalf("a passing verification answered %d: %#v", code, result)
 	}
@@ -793,7 +793,7 @@ func TestDebtClearingHonorsTheGateExit(t *testing.T) {
 	}
 
 	failing := debtClearFixture(t)
-	result, _ = clearDebtWith(failing, red)
+	result, _ = clearDebtWith(failing, uncutDebtPart(), red)
 	if result.Cleared != 0 || result.Remaining != result.Open {
 		t.Errorf("a red verification cleared %d of %d rows, want none", result.Cleared, result.Open)
 	}
@@ -801,5 +801,42 @@ func TestDebtClearingHonorsTheGateExit(t *testing.T) {
 		if state != "open" {
 			t.Errorf("%q is %q after a red gate, want open", gate, state)
 		}
+	}
+}
+
+// TestOneOpenRowPerGateAndReason pins both polarities of the writer's dedup: a
+// second commit owing the same gate for the same reason extends the row it
+// already wrote, and a second reason still opens a row of its own.
+func TestOneOpenRowPerGateAndReason(t *testing.T) {
+	root := t.TempDir()
+	same := []Debt{{Gate: debtGates[0].Name, Reason: "verify-status is not FRESH-green: STALE"}}
+	for index, subject := range []string{"first commit", "second commit", "third commit"} {
+		if _, err := recordDebt(root, "12345678", subject, same); err != nil {
+			t.Fatalf("record the owed gate for commit %d: %v", index+1, err)
+		}
+	}
+	rows, err := ListDebt(root)
+	if err != nil {
+		t.Fatalf("read the ledger: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("three commits owing one gate for one reason wrote %d rows: %#v", len(rows), rows)
+	}
+	if rows[0].Subject != "first commit (+2 more)" {
+		t.Fatalf("the extended row names %q, not the first subject and the two commits after it", rows[0].Subject)
+	}
+	other := []Debt{{Gate: debtGates[0].Name, Reason: "verify-status is not FRESH-green: last verify failed"}}
+	if _, err := recordDebt(root, "12345678", "fourth commit", other); err != nil {
+		t.Fatalf("record the second reason: %v", err)
+	}
+	rows, err = ListDebt(root)
+	if err != nil {
+		t.Fatalf("read the ledger after the second reason: %v", err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("a second reason under the same gate wrote %d rows in total: %#v", len(rows), rows)
+	}
+	if rows[1].Subject != "fourth commit" || rows[1].Reason != other[0].Reason {
+		t.Fatalf("the second reason's row = %#v", rows[1])
 	}
 }
