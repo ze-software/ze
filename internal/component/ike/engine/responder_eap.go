@@ -81,6 +81,14 @@ func eapTLSServerConfig(sa *SA) (eap.MethodConfig, error) {
 			"ike: EAP-TLS ca-certificate %q not found in PKI store (peer %q)", caName, sa.PeerName)
 	}
 	cfg.CACertPEM = pem.EncodeToMemory(&pem.Block{Type: pemBlockCertificate, Bytes: ca.Raw})
+
+	// RFC 9190 Section 5.4: "When EAP-TLS is used with TLS 1.3, the revocation
+	// status of all the certificates in the certificate chains MUST be checked
+	// (except the trust anchor)." The lists this CA published are the
+	// authenticator's means of doing so, and a CA that holds none leaves the
+	// answer nil, which refuses a TLS 1.3 client rather than admitting one whose
+	// status nobody read (eap.checkChainRevocation).
+	cfg.CRLPEM = ca.CRLPEM()
 	return cfg, nil
 }
 

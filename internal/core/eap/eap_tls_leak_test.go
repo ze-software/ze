@@ -99,6 +99,7 @@ func startAbandonedPeer(t *testing.T, pki *eapTLSPKI) *PeerSession {
 		CertPEM:   pki.clientCertPEM,
 		KeyPEM:    pki.clientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 
 	identity := peer.Process(&Packet{Code: CodeRequest, Identifier: 1, Type: TypeIdentity})
@@ -209,6 +210,7 @@ func TestEAPTLSCloseIsSafeOnEveryShape(t *testing.T) {
 			CertPEM:   pki.clientCertPEM,
 			KeyPEM:    pki.clientKeyPEM,
 			CACertPEM: pki.trustedCAPEM,
+			CRLPEM:    pki.trustedCRLPEM,
 		})
 		peer.Close()
 		peer.Close()
@@ -236,6 +238,7 @@ func TestEAPTLSCloseAfterCompletedHandshakeIsHarmless(t *testing.T) {
 		CertPEM:   pki.clientCertPEM,
 		KeyPEM:    pki.clientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 
 	res := runEAPTLSHandshake(t, pki.serverConfig(), peer)

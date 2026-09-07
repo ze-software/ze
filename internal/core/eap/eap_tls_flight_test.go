@@ -99,6 +99,7 @@ func TestEAPTLSPeerFirstResponseCarriesClientHello(t *testing.T) {
 		CertPEM:   pki.clientCertPEM,
 		KeyPEM:    pki.clientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 	// This test stops after the first flight, so the peer's TLS engine stays
 	// parked in eapTLSTransport.Read until the transport is closed.
@@ -129,6 +130,7 @@ func TestEAPTLSAuthenticatorFirstResponseCarriesServerHello(t *testing.T) {
 		CertPEM:   pki.clientCertPEM,
 		KeyPEM:    pki.clientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 	sess, err := NewSession(TypeTLS, pki.serverConfig())
 	if err != nil {

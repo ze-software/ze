@@ -466,6 +466,7 @@ func TestRFC3748EAPTLSValidatesItsPerPacketMIC(t *testing.T) {
 		CertPEM:   pki.clientCertPEM,
 		KeyPEM:    pki.clientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	}
 
 	// RFC requirement: RFC3748-7.5-1 positive -- RFC 3748 Section 7.5: "If a
@@ -497,6 +498,7 @@ func TestRFC3748KeyDerivingMethodAuthenticatesBothEnds(t *testing.T) {
 		CertPEM:   pki.clientCertPEM,
 		KeyPEM:    pki.clientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	}
 
 	// RFC requirement: RFC3748-7.10-4 positive -- RFC 3748 Section 7.10: "EAP
@@ -520,6 +522,7 @@ func TestRFC3748KeyDerivingMethodAuthenticatesBothEnds(t *testing.T) {
 		ServerCertPEM: pki.untrustedServerCertPEM,
 		ServerKeyPEM:  pki.untrustedServerKeyPEM,
 		CACertPEM:     pki.trustedCAPEM,
+		CRLPEM:        pki.trustedCRLPEM,
 	}
 	bad := runEAPTLSHandshake(t, rogue, NewPeerSessionTLS("eap-tls-client", peerCfg))
 	if bad.peerDone {

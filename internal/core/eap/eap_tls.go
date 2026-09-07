@@ -332,6 +332,15 @@ func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 		return nil, fmt.Errorf("eap-tls: load server cert: %w", err)
 	}
 
+	// Parse the revocation material HERE rather than at the handshake. A CRL the
+	// operator pasted wrong is a configuration error, and it is reported when the
+	// session is built, where the message can name the config, instead of as a
+	// refused peer whose certificate is in fact valid.
+	crls, err := parseCRLs(config.CRLPEM)
+	if err != nil {
+		return nil, err
+	}
+
 	pool := x509.NewCertPool()
 	if len(config.CACertPEM) > 0 {
 		if !pool.AppendCertsFromPEM(config.CACertPEM) {
@@ -363,6 +372,23 @@ func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 		// line must be removed deliberately, and removing it arms those six
 		// obligations in the same commit rather than silently.
 		SessionTicketsDisabled: true,
+
+		// RFC 9190 Section 5.4: "When EAP-TLS is used with TLS 1.3, the
+		// revocation status of all the certificates in the certificate chains
+		// MUST be checked (except the trust anchor)."
+		//
+		// ClientAuth is RequireAndVerifyClientCert above, so crypto/tls has
+		// already built and verified the client's chain against ClientCAs by the
+		// time this runs, and hands it over in VerifiedChains. This callback is
+		// where the check belongs rather than VerifyPeerCertificate, because
+		// ConnectionState carries the NEGOTIATED version and Section 5.4's
+		// obligation turns on it. crypto/tls calls it straight after
+		// processCertsFromClient and sends a fatal bad_certificate alert for a
+		// non-nil return (serverHandshakeStateTLS13.readClientCertificate,
+		// crypto/tls/handshake_server_tls13.go).
+		VerifyConnection: func(cs tls.ConnectionState) error {
+			return checkChainRevocation(crls, cs.VerifiedChains, cs.Version, time.Now())
+		},
 	}
 
 	return &tlsMethod{

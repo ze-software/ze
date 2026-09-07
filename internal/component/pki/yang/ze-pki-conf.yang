@@ -9,6 +9,10 @@ module ze-pki-conf {
                  private keys. Used by IPsec, TLS, and other subsystems
                  that need X.509 identity.";
 
+    revision 2026-09-05 {
+        description "CA revocation lists, for RFC 9190 Section 5.4 (spec-ipsec-rfc9190).";
+    }
+
     revision 2026-05-19 {
         description "Initial PKI store (spec-ipsec-1).";
     }
@@ -28,6 +32,11 @@ module ze-pki-conf {
             leaf name {
                 type string;
                 description "CA certificate name (referenced by consumers).";
+                ze:help "The name is the list key, so one name holds one CA entry. Another block names this entry to
+                    reach the trust anchor: an ipsec peer names it in ca-certificate, and a managed-client block
+                    names it in ca. Ze takes letters, digits, dash, underscore and dot, up to 255 characters, and
+                    refuses a config that holds any other character. An ipsec peer that names a CA this list does
+                    not hold is refused at commit, so a typo never reaches a handshake.";
             }
 
             leaf certificate {
@@ -39,16 +48,41 @@ module ze-pki-conf {
                     holds. Base64-encoded DER with no headers is also read, for a config written before PEM was
                     accepted.";
             }
+
+            leaf-list crl {
+                type string;
+                ordered-by user;
+                description "Certificate revocation lists this CA issued, each a PEM document or base64-encoded DER.";
+                ze:help "Certificate revocation lists this CA issued, each an 'X509 CRL' PEM document or
+                    base64-encoded DER. EAP-TLS on TLS 1.3 checks the revocation status of every certificate on a
+                    peer's chain except the trust anchor. RFC 9190 Section 5.4 makes that check mandatory. An
+                    EAP-TLS peer that validates against this CA and finds no current list here is refused. Publish
+                    a fresh list before the nextUpdate of the one here passes: an expired list answers nothing
+                    about the present and refuses the same peers. A list that revokes nothing is a valid answer
+                    and is what a CA publishes while it has withdrawn no certificate.";
+            }
         }
 
         list certificate {
             key "name";
             description "Device certificate with optional private key and
                          intermediate certificates.";
+            ze:help "One entry holds the certificate this device presents, the intermediate certificates that lead
+                toward its trust anchor, and the private key that signs with it. The certificate leaf is mandatory
+                and the private container is not, so an entry can hold a certificate Ze sends and cannot sign with.
+                A TLS listener that asks for the key of such an entry is refused, and is never served another
+                certificate in its place. Ze validates every entry when it loads the config. An expired certificate
+                refuses the commit and stops the daemon from starting. A certificate that builds no chain to a ca
+                entry in this block does the same.";
 
             leaf name {
                 type string;
                 description "Certificate name (referenced by consumers).";
+                ze:help "The name is the list key, so one name holds one certificate entry. Another block names this
+                    entry to present it: an ipsec peer in certificate, and a managed-client listener in certificate.
+                    'show pki certificate name <name> pem' prints the entry under this name. Ze takes letters,
+                    digits, dash, underscore and dot, up to 255 characters, and refuses a config that holds any
+                    other character.";
             }
 
             leaf certificate {
@@ -73,6 +107,12 @@ module ze-pki-conf {
 
             container private {
                 description "Private key associated with this certificate.";
+                ze:help "The container holds one leaf, key, and the container is optional. An entry with no private
+                    key holds a certificate Ze sends and verifies against, and cannot sign with. Ze checks when it
+                    loads the config that the key matches the public key of the certificate beside it. Ze refuses
+                    the config when it does not, so a mismatched pair never reaches a handshake. The key leaf is
+                    marked sensitive. The config file stores it as $9$, Ze decodes it on load, and a display path
+                    prints a placeholder in its place.";
 
                 leaf key {
                     type string;

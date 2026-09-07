@@ -25,6 +25,11 @@ authenticator such as strongSwan. The responder half is described in
   the MS-CHAPv2 Success packet, and to end the session when that response is
   missing or incorrect. This is the mutual half of MS-CHAPv2: only a party that
   knows the password hash can produce the S= value.
+- RFC 9190 Section 5.4 requires that "when EAP-TLS is used with TLS 1.3, the
+  revocation status of all the certificates in the certificate chains MUST be
+  checked (except the trust anchor)". The obligation binds both roles, so one
+  function serves both: `checkChainRevocation` runs from the authenticator's
+  `tls.Config.VerifyConnection` and from the peer's.
 
 ## Decisions
 
@@ -50,9 +55,28 @@ exhaustion path an unauthenticated peer can drive.
 <!-- source: internal/core/eap/eap_tls.go -- tlsFragmenter.reassemble, eapTLSMaxReassembly, eapTLSMaxPeerBuffered -->
 
 **A trust anchor must be checked, not assumed.** The peer verifies the server
-chain against the configured roots through an explicit callback.
+chain against the configured roots through an explicit callback. `serverChainCheck`
+holds that callback and the revocation gate together, because the two crypto/tls
+callbacks see different halves of what the checks need: `verifyPeerCertificate`
+is where the chain is BUILT (EAP carries no server hostname, so the config sets
+`InsecureSkipVerify` and crypto/tls builds none), and `verifyConnection` is where
+the NEGOTIATED VERSION is known, which is what Section 5.4's "when EAP-TLS is
+used with TLS 1.3" turns on.
 
-<!-- source: internal/core/eap/peer.go -- verifyServerChain, PeerTLSConfig -->
+<!-- source: internal/core/eap/peer.go -- serverChainCheck, PeerTLSConfig -->
+
+**A chain nobody can answer for is refused, not admitted.** On TLS 1.3 an end
+holding no revocation list performs no check, and an unchecked chain is what the
+Section 5.4 MUST forbids, so the handshake fails with a message naming the
+remedy. A list that revokes nothing is a real answer and completes the session.
+The two states are kept apart all the way from the config: `CACertEntry.CRLPEM`
+answers nil for a CA with no list. TLS 1.2 is governed by RFC 5216 Section 5.4
+instead, which asks only that the implementation "MUST support the use of
+Certificate Revocation Lists (CRLs)", so a TLS 1.2 session with no list
+completes.
+
+<!-- source: internal/core/eap/revocation.go -- crlSet, parseCRLs, checkChainRevocation, crlSet.checkChain, crlSet.currentListFrom, revocationEntry -->
+<!-- source: internal/component/ike/engine/responder_eap.go -- eapTLSServerConfig -->
 
 **A round-trip cap keeps a broken authenticator from looping forever.**
 
@@ -126,6 +150,14 @@ encoded Response. `test/ipsec/ipsec-eap-nak-unacceptable-type.ci` reads it from
 ze's own authenticator, which logs `the peer refused type 13 with a Nak asking
 for type 26`.
 
+`responder-eap-tls13-revoked-client` is `responder-eap-tls13` with one file
+changed: the CRL ze holds for the trusted CA lists the strongSwan client
+certificate's serial number. Ze is the EAP-TLS SERVER in both, the client
+certificate is valid and issued by that CA in both, and the sibling scenario
+establishes with the same material. So the refusal this one asserts can only be
+the revocation check. Ze logs the certificate, its serial number, the CA that
+withdrew it and RFC 9190 Section 5.4, and neither end installs an XFRM SA.
+
 <!-- source: internal/core/eap/eap_tls.go -- exportEAPTLSMSK, eapTLS12ExportRefused -->
 <!-- source: internal/core/eap/peer.go -- naks, nakResponse -->
-<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkEAPNakMethodNegotiation, eapNakFacts -->
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkEAPNakMethodNegotiation, eapNakFacts, checkResponderEAPTLS13RevokedClient -->

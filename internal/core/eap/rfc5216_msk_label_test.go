@@ -44,6 +44,7 @@ func mskLabelHandshake(t *testing.T, version uint16) (*tlsMethod, *PeerSession, 
 		CertPEM:   pki.clientCertPEM,
 		KeyPEM:    pki.clientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 
 	sess, err := NewSession(TypeTLS, pki.serverConfig())

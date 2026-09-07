@@ -182,6 +182,7 @@ func TestEAPTLS13SendsProtectedSuccessIndication(t *testing.T) {
 		CertPEM:   pki.clientCertPEM,
 		KeyPEM:    pki.clientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 
 	fl := driveEAPTLSFlight(t, pki.serverConfig(), peer, tls.VersionTLS13, eapTLS13Rounds)
@@ -277,6 +278,7 @@ func TestEAPTLS13RefusedClientGetsNoSuccessIndication(t *testing.T) {
 		CertPEM:   pki.untrustedClientCertPEM,
 		KeyPEM:    pki.untrustedClientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 
 	method := driveRejectedEAPTLS13(t, pki.serverConfig(), peer)
@@ -311,6 +313,7 @@ func TestEAPTLS12SendsNoProtectedSuccessIndication(t *testing.T) {
 		CertPEM:   pki.clientCertPEM,
 		KeyPEM:    pki.clientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 
 	fl := driveEAPTLSFlight(t, pki.serverConfig(), peer, tls.VersionTLS12, eapTLS13Rounds)
@@ -363,6 +366,7 @@ func TestEAPTLSIssuesNoUnredeemableSessionTicket(t *testing.T) {
 		CertPEM:   pki.clientCertPEM,
 		KeyPEM:    pki.clientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 	fl := driveEAPTLSFlight(t, pki.serverConfig(), peer, tls.VersionTLS13, eapTLS13Rounds)
 	if fl.successAt < 1 {

@@ -9,7 +9,7 @@
 //      select picked at random and dropped roughly half of all wakeups, parking
 //      a blocked Read and deadlocking the handshake).
 //   2. feedPeerData must wake a Read that is blocked on an empty buffer.
-//   3. verifyServerChain validates the authenticator chain against the trust
+//   3. serverChainCheck validates the authenticator chain against the trust
 //      anchor with no hostname check (EAP-TLS has no server name).
 //   4. deriveTLSMSK fail-closes (all-zero MSK, no panic) on an incomplete handshake.
 //
@@ -179,7 +179,7 @@ func TestVerifyServerChain(t *testing.T) {
 
 	roots := x509.NewCertPool()
 	roots.AddCert(trustedCA)
-	verify := verifyServerChain(roots)
+	verify := (&serverChainCheck{roots: roots}).verifyPeerCertificate
 
 	trustedLeaf := regrServerLeafDER(t, trustedCA, trustedKey, "regr-server", 3)
 	untrustedLeaf := regrServerLeafDER(t, untrustedCA, untrustedKey, "regr-rogue-server", 4)

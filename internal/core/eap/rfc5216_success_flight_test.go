@@ -211,6 +211,7 @@ func TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess(t *testing.T) {
 		CertPEM:   pki.clientCertPEM,
 		KeyPEM:    pki.clientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 
 	fl := driveEAPTLSFlight(t, pki.serverConfig(), peer, tls.VersionTLS12, 40)
@@ -308,6 +309,7 @@ func TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected(t *testing.T) {
 		CertPEM:   pki.untrustedClientCertPEM,
 		KeyPEM:    pki.untrustedClientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 
 	fl := driveEAPTLSFlight(t, pki.serverConfig(), peer, tls.VersionTLS12, 40)
@@ -355,11 +357,13 @@ func TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse(t *testing.T) {
 		ServerCertPEM: pki.untrustedServerCertPEM,
 		ServerKeyPEM:  pki.untrustedServerKeyPEM,
 		CACertPEM:     pki.trustedCAPEM, // the client certificate stays valid
+		CRLPEM:        pki.trustedCRLPEM,
 	}
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
 		CertPEM:   pki.clientCertPEM,
 		KeyPEM:    pki.clientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 
 	fl := driveEAPTLSFlight(t, serverCfg, peer, tls.VersionTLS12, 40)

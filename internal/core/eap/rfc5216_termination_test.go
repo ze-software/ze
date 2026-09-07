@@ -135,11 +135,13 @@ func TestRFC5216ServerRepliesEAPFailureToPeerAlert(t *testing.T) {
 		ServerCertPEM: pki.untrustedServerCertPEM,
 		ServerKeyPEM:  pki.untrustedServerKeyPEM,
 		CACertPEM:     pki.trustedCAPEM, // the client certificate stays valid
+		CRLPEM:        pki.trustedCRLPEM,
 	}
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
 		CertPEM:   pki.clientCertPEM,
 		KeyPEM:    pki.clientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 
 	ex := driveEAPTLSConversation(t, serverCfg, peer, 40)
@@ -216,6 +218,7 @@ func TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate(t *testing.T) {
 		CertPEM:   pki.clientCertPEM,
 		KeyPEM:    pki.clientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 
 	ex := driveEAPTLSConversation(t, pki.serverConfig(), peer, 40)

@@ -16,9 +16,10 @@ A TLS listener that serves one of these certificates with its full chain is
 
 <!-- source: internal/component/pki/store.go -- Load, Validate, GetCA, GetCertificate, CertCN, CAPool, IntermediatePool, ExportPEM, CleanupPEM -->
 <!-- source: internal/component/pki/ca.go -- RootStore, Root, LoadOrGenerateRoot, LoadOrGenerateRootFor, Root.IssueLeaf, Root.IssueLeafFor, Root.CertificatePEM, loadedRoot -->
-<!-- source: internal/component/pki/config.go -- ParseConfig, parseCACert, parseDeviceCert, parsePrivateKey, certificateDER, privateKeyDER, verifyKeyMatchesCert -->
+<!-- source: internal/component/pki/config.go -- ParseConfig, parseCACert, parseDeviceCert, parsePrivateKey, certificateDER, privateKeyDER, revocationListDER, verifyKeyMatchesCert -->
 <!-- source: internal/component/plugin/leaf.go -- ServingLeaf, ServingLeaf.Certificate, renewalDeadline -->
 <!-- source: internal/component/pki/types.go -- CACertEntry, CertificateEntry, PKIConfig, CertSummary -->
+<!-- source: internal/component/pki/store.go -- CACertEntry.CRLPEM -->
 <!-- source: internal/component/pki/show.go -- handleShowPKICertificates, handleShowPKICertificate, handleShowPKICertificatePEM, handleShowPKICertificateBundlePEM, handleShowPKICertificateFingerprint, handleShowPKILocalCAPEM -->
 <!-- source: internal/component/pki/doctor.go -- caRootDoctorCheck, checkCARoot -->
 <!-- source: internal/component/pki/register.go -- the doctor check registration -->
@@ -39,6 +40,22 @@ paste is never reported as a base64 error. Base64 DER is the compact form and
 every config written before this still loads. PEM is what the operator has:
 `ze show pki local-ca pem` prints it, a `.crt` file holds it, and a leaf that
 refused it made the operator strip the armor and rejoin the lines by hand.
+
+**A CA carries the revocation lists it issued, in a `crl` leaf-list.** The list
+belongs to the CA that signed it, so it lives in the `ca` block rather than in a
+store of its own, and `parseCACert` refuses one another CA signed: a list pasted
+under the wrong `ca` would otherwise read as a working revocation source while
+answering nothing. It is a leaf-list because one CA can publish several, a
+segmented CRL or a fresh one beside the outgoing one during a rollover. The
+values take the same two forms every other certificate leaf takes, PEM or
+base64-encoded DER.
+
+**A CA with no list and a list that revokes nothing are different answers, and
+`CACertEntry.CRLPEM` keeps them apart by answering nil for the first.** The
+consumer turns on the distinction: an EAP-TLS session on TLS 1.3 refuses a peer
+whose revocation status nothing can answer, and completes for one a current list
+says nothing about. RFC 9190 Section 5.4 is what makes the check mandatory, and
+`internal/core/eap/revocation.go` performs it for both EAP-TLS roles.
 
 **Private key detection tries PKCS8, then SEC1, then PKCS1.** Real keys arrive
 in all three encodings depending on the tool that produced them, so requiring
@@ -103,7 +120,9 @@ certificate material that does not parse.
 **The doctor warns 90 days ahead of the root's expiry, where a configured
 certificate gets 30.** A configured certificate is replaced on the router that
 serves it. The root is replaced on every peer that trusts it, by hand, because
-Ze distributes it manually and holds no revocation.
+Ze distributes the root manually. Ze holds no revocation for the root it ISSUES:
+the `crl` leaf-list is material an external CA published for the certificates it
+signed, and the internal authority publishes none.
 
 **Issuance is INJECTED into its consumers, never imported.** This package
 already reaches `internal/component/plugin/ipc` (`show.go` imports

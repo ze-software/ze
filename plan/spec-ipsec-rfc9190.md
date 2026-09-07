@@ -5,8 +5,8 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 1/8 |
-| Updated | 2026-08-12 |
+| Phase | 4/8 |
+| Updated | 2026-09-05 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -84,7 +84,15 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 
 ### Architecture Docs
 - [ ] `docs/architecture/ike/ipsec-11-interop-eap.md` - EAP-MSCHAPv2 and EAP-TLS driven from the initiator seat
+  → Constraint: it is the design page of `internal/core/eap/revocation.go`, so the
+    Section 5.4 chain walk and its two-callback shape are stated there.
 - [ ] `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` - EAP authentication and NAT traversal, for site-to-site and road-warrior peers
+- [ ] `docs/architecture/ike/ipsec-14-responder.md` - the IKE responder EAP authenticator, whose `eapTLSServerConfig` hands the CRLs to the EAP method
+- [ ] `docs/architecture/pki/pki-store.md` - the CA store the `crl` leaf-list lives in
+  → Constraint: a CA with no list and a list revoking nothing are different
+    answers, and `CACertEntry.CRLPEM` keeps them apart by answering nil for the
+    first.
+- [ ] `docs/architecture/testing/interop.md` - how a scenario is discovered, named and checked
 - [ ] `ai/rules/rfc-compliance.md` - Extraction Completeness, and the enrolment gates
   → Constraint: a new enrolment needs a hand-classified `rfc/extraction/rfc9190.json`
     sign-off. A generated skeleton can never pass, by design.
@@ -153,7 +161,7 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | strongSwan 5.9.14 implements the Section 2.5 protected success indication, so it can validate ours | its `eap_tls.c` `get_msk` checks for it | the interop proof needs a different peer, or a raw-socket harness | read `eap_tls.c`, then run scenario eap-tls13 with 2.5 on | confirmed 2026-08-12. `get_msk` returns FAILED and logs `missing protected success indication for EAP-TLS with TLS 1.3` when `get_version_max() >= TLS_1_3 && !indication_sent_received`; `client_process` requires exactly one octet equal to 0. MEASURED both ways in scenario responder-eap-tls13 |
 | A-2 | Adding 2.5 does not break the TLS 1.2 path | 2.5 is TLS 1.3 only | scenario eap-tls reddens | scenario eap-tls stays green at every step | confirmed 2026-08-12. Scenarios eap-tls and eap-tls13 both green after the change, and `TestEAPTLS12SendsNoProtectedSuccessIndication` pins it in unit form |
-| A-3 | Resumption, OCSP and privacy NAIs are each independently landable | they touch different sections | the spec cannot be phased and must land at once | map each to its files during design | unvalidated |
+| A-3 | Resumption, OCSP and privacy NAIs are each independently landable | they touch different sections | the spec cannot be phased and must land at once | map each to its files during design | confirmed for revocation 2026-09-05. RFC9190-5.4-1 landed on its own, with resumption untouched: `checkChainRevocation` (`internal/core/eap/revocation.go`) is reached from each role's `tls.Config.VerifyConnection` and shares no code with the ticket path. Not yet shown for resumption or for privacy NAIs |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -209,6 +217,16 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | `TestEAPTLS12SendsNoProtectedSuccessIndication` | same | AC-3 | done, phase 1 |
 | `TestEAPTLSIssuesNoUnredeemableSessionTicket` | same | pins `SessionTicketsDisabled`, which keeps AC-4's six §5.6/§5.7 MUSTs provably dead until resumption is built | done, phase 1 |
 | `TestEAPTLS13ResumptionUsesATicket` | same | AC-4 | |
+| `TestEAPTLS13RefusesARevokedClientCertificate` | `internal/core/eap/rfc9190_revocation_test.go` | AC-5, RFC9190-5.4-1 positive on the authenticator | done, phase 4 |
+| `TestEAPTLS13RefusesARevokedServerCertificate` | same | AC-5, RFC9190-5.4-1 positive on the peer | done, phase 4 |
+| `TestEAPTLS13RefusesARevokedIntermediate` | same | AC-5, "all the certificates in the certificate chains" rather than the leaf alone | done, phase 4 |
+| `TestEAPTLS13RefusesAnUncheckableChain` | same | AC-5, the "MUST be checked" half: no source means no check | done, phase 4 |
+| `TestEAPTLS13RefusesAStaleRevocationList` | same | AC-5, a list past its nextUpdate answers nothing about the present | done, phase 4 |
+| `TestEAPTLS13ExceptsTheTrustAnchorFromRevocation` | same | AC-5, the "(except the trust anchor)" clause is applied rather than merely unreachable | done, phase 4 |
+| `TestEAPTLS13CompletesWithAnUnrevokedChain` | same | AC-5, RFC9190-5.4-1 negative: a gate that refused everything would pass every row above | done, phase 4 |
+| `TestEAPTLS12CompletesWithNoRevocationList` | same | AC-5, RFC9190-5.4-1 negative: Section 5.4 opens "When EAP-TLS is used with TLS 1.3", so RFC 5216 Section 5.4 governs TLS 1.2 | done, phase 4 |
+| `TestParseCACRLAcceptsPEMAndBase64`, `TestCACRLPEMRoundTripsToTheConsumer`, `TestCACRLPEMIsNilWhenNoListIsConfigured`, `TestParseCACRLRefusesAnotherCAsList`, `TestParseCACRLRefusesACertificatePastedIntoTheCRLLeaf` | `internal/component/pki/config_crl_test.go` | the `crl` leaf-list an operator writes, and what the consumer receives | done, phase 4 |
+| `TestEAPTLSConfigsCarryTheCARevocationLists`, `TestEAPTLSConfigsCarryNoListWhenTheCAHasNone` | `internal/component/ike/engine/rfc9190_crl_wiring_test.go` | the wiring test: what the operator wrote reaches BOTH EAP-TLS roles | done, phase 4 |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -226,20 +244,31 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | `eap-tls13` | `test/interop-ipsec/scenarios/` | strongSwan | Ze as EAP-TLS CLIENT on TLS 1.3 | exists, green after phase 1 |
 | `responder-eap-tls13` | same | strongSwan | Ze as EAP-TLS SERVER sends the indication and a real client accepts it. Reverting the write makes charon log `missing protected success indication` and the SA never establishes | done, phase 1 |
 | a resumption scenario | same | strongSwan | AC-4 against a real peer | |
+| `responder-eap-tls13-revoked-client` | same | strongSwan | RFC9190-5.4-1 against a real peer, with Ze in the EAP-TLS SERVER role. It is `responder-eap-tls13` with ONE file changed, the CRL naming the strongSwan client certificate's serial number | done, phase 4. Red phase measured 2026-09-05: with `checkChainRevocation` made to return nil, charon logs `received protected success indication via TLS` and `CHILD_SA ze-child{1} established`; with it restored, charon logs `received fatal TLS alert 'bad certificate'` and `EAP_TLS method failed`, and neither end installs an XFRM state |
 
 ## Files to Modify
-- `internal/core/eap/eap_tls.go` - the indication on the authenticator, and resumption.
-- `internal/core/eap/peer.go` - the indication on the peer.
+- `internal/core/eap/eap_tls.go` - the indication on the authenticator, resumption, and the authenticator's revocation gate.
+- `internal/core/eap/peer.go` - the indication on the peer, and the peer's revocation gate.
+- `internal/core/eap/eap.go` - `MethodConfig.CRLPEM`.
+- `internal/component/pki/config.go`, `types.go`, `store.go`, `yang/ze-pki-conf.yang` - the `crl` leaf-list a CA carries, and `CACertEntry.CRLPEM`.
+- `internal/component/ike/engine/responder_eap.go`, `fsm.go` - the lists reaching each EAP-TLS role.
+- `internal/le/interoplab/ipsec/checkers.go` - the revoked-client checker.
 - `rfc/enrolled.txt`, `rfc/not-enrolled.txt` - move the row at the end.
 - `docs/features/rfc-status.md` - the public row.
 
 ## Files to Create
 - `rfc/extraction/rfc9190.json` - the hand-classified sign-off enrolment requires.
 - `internal/core/eap/rfc9190_test.go` - created, phase 1.
+- `internal/core/eap/revocation.go` - created, phase 4. The RFC 9190 Section 5.4
+  chain walk both roles run.
+- `internal/core/eap/rfc9190_revocation_test.go` - created, phase 4.
+- `internal/component/pki/config_crl_test.go` - created, phase 4.
+- `internal/component/ike/engine/rfc9190_crl_wiring_test.go` - created, phase 4.
 - `test/interop-ipsec/scenarios/responder-eap-tls13/` - created, phase 1. The
   first scenario in the lab with Ze in the EAP-TLS SERVER role. eap-tls and eap-tls13 both
   put strongSwan there, which is why a wire-visible violation on Ze's
   authenticator survived until 2026-08-12.
+- `test/interop-ipsec/scenarios/responder-eap-tls13-revoked-client/` - created, phase 4.
 - `test/ipsec/ipsec-eap-tls13-resumption.ci`
 
 ### Integration Checklist
@@ -269,6 +298,16 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
    DONE 2026-08-12, and the reading is quoted in the A-1 row.
 3. Resumption and NewSessionTicket.
 4. OCSP stapling and revocation.
+   PARTLY DONE 2026-09-05: RFC9190-5.4-1 alone, the chain revocation check, on BOTH
+   roles, with CRL as the revocation source RFC 9190 Section 5.4 permits. It landed as
+   its own package because the remaining four requirements each need a surface it does
+   not: 5.4-2 needs an OCSP response encoder and a fetch-and-refresh path on the
+   authenticator, 5.4-3 needs per-CertificateEntry status that Go does not surface
+   (`crypto/tls/handshake_messages.go` skips extensions on every entry after the leaf,
+   both directions, so only `ConnectionState.OCSPResponse` is readable), and 5.4-4 with
+   5.4-5 need a post-authentication check over a secure transport, wired to a point
+   after the CHILD_SA is up. Those four are STILL OPEN and are gaps, never exclusions:
+   Ze fills the role every one of them addresses.
 5. Anonymous and privacy-friendly NAIs.
 6. Write `rfc/extraction/rfc9190.json` by hand and run `./le rfc check`.
 7. Move the row from `rfc/not-enrolled.txt` to `rfc/enrolled.txt`, add the status row.

@@ -60,11 +60,13 @@ func TestRFC5216PeerRepliesBeforeItTerminates(t *testing.T) {
 		ServerCertPEM: pki.untrustedServerCertPEM,
 		ServerKeyPEM:  pki.untrustedServerKeyPEM,
 		CACertPEM:     pki.trustedCAPEM, // the client certificate stays valid
+		CRLPEM:        pki.trustedCRLPEM,
 	}
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
 		CertPEM:   pki.clientCertPEM,
 		KeyPEM:    pki.clientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 
 	sess, err := NewSession(TypeTLS, serverCfg)

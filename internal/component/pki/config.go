@@ -30,6 +30,11 @@ var (
 	errPKIKeyPEMExtra    = errors.New("pki: private key leaf holds more than one PEM block, and this leaf names one key")
 	errPKIKeyMismatch    = errors.New("pki: private key does not match certificate public key")
 	errPKIKeyUnsupported = errors.New("pki: unsupported private key type")
+	errPKICRLDecode      = errors.New("pki: crl leaf is neither a PEM X509 CRL nor base64 DER")
+	errPKICRLNotPEM      = errors.New("pki: crl leaf opens a PEM block that does not decode")
+	errPKICRLPEMBlock    = errors.New("pki: crl leaf holds a PEM block that is not an X509 CRL")
+	errPKICRLPEMExtra    = errors.New("pki: crl leaf holds more than one PEM block, and this leaf names one revocation list")
+	errPKICRLIssuer      = errors.New("pki: crl is not signed by this ca, so it cannot answer for the certificates this ca issued")
 	errPKINameInvalid    = errors.New("pki: name contains invalid characters (allowed: alphanumeric, dash, underscore, dot)")
 	errPKINameTooLong    = errors.New("pki: name exceeds 255 characters")
 )
@@ -192,11 +197,72 @@ func parseCACert(name string, tree *config.Tree) (*CACertEntry, error) {
 		return nil, fmt.Errorf("pki: x509 parse: %w", err)
 	}
 
-	return &CACertEntry{
+	entry := &CACertEntry{
 		Name:        name,
 		Certificate: cert,
 		Raw:         der,
-	}, nil
+	}
+
+	// crl is a leaf-list, so an operator can hold several lists for one CA: a
+	// segmented CRL, or a fresh one published beside the outgoing one during a
+	// rollover. GetSlice reads a single value and a bracket list alike.
+	//
+	// Each list is parsed HERE so a bad paste is refused at config load, where
+	// the message names the CA. Left to the handshake it would surface as a
+	// refused peer whose certificate is in fact valid.
+	for _, crlValue := range tree.GetSlice("crl") {
+		if crlValue == "" {
+			continue
+		}
+		crlDER, cErr := revocationListDER(crlValue)
+		if cErr != nil {
+			return nil, cErr
+		}
+		list, cErr := x509.ParseRevocationList(crlDER)
+		if cErr != nil {
+			return nil, fmt.Errorf("pki: crl x509 parse: %w", cErr)
+		}
+		// The list must be one this CA signed. A list from another CA cannot
+		// answer for the certificates this one issued, and storing it here would
+		// let a paste into the wrong ca block read as a working revocation
+		// source while answering nothing.
+		if sErr := list.CheckSignatureFrom(cert); sErr != nil {
+			return nil, fmt.Errorf("%w: %w", errPKICRLIssuer, sErr)
+		}
+		entry.CRLs = append(entry.CRLs, list)
+		entry.RawCRLs = append(entry.RawCRLs, crlDER)
+	}
+
+	return entry, nil
+}
+
+// revocationListDER decodes what a pki `crl` leaf-list entry holds, in the same
+// two forms certificateDER takes: an operator who holds certificates in PEM
+// holds the revocation list beside them in PEM too.
+func revocationListDER(value string) ([]byte, error) {
+	if !strings.Contains(value, pemPreamble) {
+		der, err := base64.StdEncoding.DecodeString(value)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", errPKICRLDecode, err)
+		}
+		return der, nil
+	}
+
+	block, rest := pem.Decode([]byte(value))
+	if block == nil {
+		return nil, errPKICRLNotPEM
+	}
+	if block.Type != pemBlockCRL {
+		return nil, fmt.Errorf("%w: %s", errPKICRLPEMBlock, block.Type)
+	}
+	// A second block is refused rather than ignored, for the reason
+	// certificateDER gives: a whole file pasted into one leaf would store its
+	// first document and drop the rest with no message. Each list gets its own
+	// entry in the leaf-list.
+	if extra, _ := pem.Decode(rest); extra != nil {
+		return nil, fmt.Errorf("%w: the second is %s", errPKICRLPEMExtra, extra.Type)
+	}
+	return block.Bytes, nil
 }
 
 func parseDeviceCert(name string, tree *config.Tree) (*CertificateEntry, error) {

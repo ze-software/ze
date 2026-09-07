@@ -38,6 +38,15 @@ import (
 type eapTLSPKI struct {
 	trustedCAPEM []byte
 
+	// trustedCA and trustedCAKey issue the revocation lists RFC 9190 Section 5.4
+	// requires on TLS 1.3, and trustedCRLPEM is the empty one every handshake
+	// this harness expects to SUCCEED is configured with. An empty list is a
+	// real answer -- "no certificate this CA issued is revoked" -- and it is what
+	// a CA publishes while it has revoked nothing.
+	trustedCA     *x509.Certificate
+	trustedCAKey  *ecdsa.PrivateKey
+	trustedCRLPEM []byte
+
 	serverCertPEM []byte
 	serverKeyPEM  []byte
 
@@ -65,7 +74,10 @@ func newCA(t *testing.T, cn string, serial int64) (*x509.Certificate, *ecdsa.Pri
 		NotAfter:              time.Now().Add(time.Hour),
 		IsCA:                  true,
 		BasicConstraintsValid: true,
-		KeyUsage:              x509.KeyUsageCertSign,
+		// CRLSign is here because these CAs issue the revocation lists RFC 9190
+		// Section 5.4 makes mandatory on TLS 1.3. x509.CreateRevocationList
+		// refuses an issuer whose KeyUsage is set and omits it.
+		KeyUsage: x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
 	}
 	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
 	if err != nil {
@@ -105,12 +117,46 @@ func newLeaf(t *testing.T, caCert *x509.Certificate, caKey *ecdsa.PrivateKey, cn
 		pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})
 }
 
+// newCRL issues a certificate revocation list signed by caCert/caKey listing the
+// serial numbers given, valid from an hour ago until an hour from now.
+//
+// An empty list is a valid CRL and is what a CA publishes while it has revoked
+// nothing. It ANSWERS the question RFC 9190 Section 5.4 asks, which is what
+// separates it from configuring no list at all: the first says "not revoked",
+// the second says nothing and refuses the session (checkChainRevocation,
+// revocation.go).
+func newCRL(t *testing.T, caCert *x509.Certificate, caKey *ecdsa.PrivateKey, revoked ...int64) []byte {
+	t.Helper()
+	entries := make([]x509.RevocationListEntry, 0, len(revoked))
+	for _, serial := range revoked {
+		entries = append(entries, x509.RevocationListEntry{
+			SerialNumber:   big.NewInt(serial),
+			RevocationTime: time.Now().Add(-time.Minute),
+		})
+	}
+	der, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{
+		Number:                    big.NewInt(1),
+		ThisUpdate:                time.Now().Add(-time.Hour),
+		NextUpdate:                time.Now().Add(time.Hour),
+		RevokedCertificateEntries: entries,
+	}, caCert, caKey)
+	if err != nil {
+		t.Fatalf("crl: %v", err)
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "X509 CRL", Bytes: der})
+}
+
 func newEAPTLSPKI(t *testing.T) *eapTLSPKI {
 	t.Helper()
 	trustedCA, trustedKey, trustedPEM := newCA(t, "eap-tls-trusted-ca", 1)
 	untrustedCA, untrustedKey, _ := newCA(t, "eap-tls-untrusted-ca", 100)
 
-	p := &eapTLSPKI{trustedCAPEM: trustedPEM}
+	p := &eapTLSPKI{
+		trustedCAPEM:  trustedPEM,
+		trustedCA:     trustedCA,
+		trustedCAKey:  trustedKey,
+		trustedCRLPEM: newCRL(t, trustedCA, trustedKey),
+	}
 	p.serverCertPEM, p.serverKeyPEM = newLeaf(t, trustedCA, trustedKey, "eap-tls-server", 2, []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth})
 	p.clientCertPEM, p.clientKeyPEM = newLeaf(t, trustedCA, trustedKey, "eap-tls-client", 3, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth})
 	p.untrustedClientCertPEM, p.untrustedClientKeyPEM = newLeaf(t, untrustedCA, untrustedKey, "rogue-client", 4, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth})
@@ -124,7 +170,24 @@ func (p *eapTLSPKI) serverConfig() MethodConfig {
 		ServerCertPEM: p.serverCertPEM,
 		ServerKeyPEM:  p.serverKeyPEM,
 		CACertPEM:     p.trustedCAPEM,
+		CRLPEM:        p.trustedCRLPEM,
 	}
+}
+
+// eapTLSClientSerial and eapTLSServerSerial are the serial numbers
+// newEAPTLSPKI gives the two certificates a successful exchange uses. A test
+// that needs one of them revoked names it here rather than repeating the number
+// (newEAPTLSPKI, above).
+const (
+	eapTLSServerSerial int64 = 2
+	eapTLSClientSerial int64 = 3
+)
+
+// crlRevoking issues a fresh trusted-CA revocation list naming the serial
+// numbers given, for a test that needs a revoked certificate.
+func (p *eapTLSPKI) crlRevoking(t *testing.T, serials ...int64) []byte {
+	t.Helper()
+	return newCRL(t, p.trustedCA, p.trustedCAKey, serials...)
 }
 
 // hsResult captures everything observable after driving one EAP-TLS exchange.
@@ -271,6 +334,7 @@ func TestEAPTLSMutualAuthHandshakeSucceeds(t *testing.T) {
 		CertPEM:   pki.clientCertPEM,
 		KeyPEM:    pki.clientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 
 	res := runEAPTLSHandshake(t, pki.serverConfig(), peer)
@@ -365,6 +429,7 @@ func TestEAPTLSServerRejectsUntrustedClientChain(t *testing.T) {
 		// first; the point of this test is the authenticator rejecting the
 		// untrusted CLIENT chain.
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 
 	res := runEAPTLSHandshake(t, pki.serverConfig(), peer)
@@ -392,11 +457,13 @@ func TestEAPTLSPeerRejectsUntrustedServerChain(t *testing.T) {
 		ServerCertPEM: pki.untrustedServerCertPEM,
 		ServerKeyPEM:  pki.untrustedServerKeyPEM,
 		CACertPEM:     pki.trustedCAPEM, // still verifies the (valid) client
+		CRLPEM:        pki.trustedCRLPEM,
 	}
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
 		CertPEM:   pki.clientCertPEM,
 		KeyPEM:    pki.clientKeyPEM,
 		CACertPEM: pki.trustedCAPEM, // peer trusts only the trusted CA
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 
 	res := runEAPTLSHandshake(t, serverCfg, peer)
@@ -422,6 +489,7 @@ func TestEAPTLSPeerWithoutCARefusesToStart(t *testing.T) {
 		ServerCertPEM: pki.untrustedServerCertPEM,
 		ServerKeyPEM:  pki.untrustedServerKeyPEM,
 		CACertPEM:     pki.trustedCAPEM,
+		CRLPEM:        pki.trustedCRLPEM,
 	}
 	noAnchor := func() *PeerSession {
 		return NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{

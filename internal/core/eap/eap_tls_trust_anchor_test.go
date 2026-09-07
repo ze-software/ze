@@ -42,6 +42,7 @@ func TestEAPTLSAuthenticatorWithoutCARejectsEveryClient(t *testing.T) {
 		CertPEM:   pki.clientCertPEM,
 		KeyPEM:    pki.clientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 
 	res := runEAPTLSHandshake(t, serverCfg, peer)

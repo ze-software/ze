@@ -21,11 +21,22 @@ const (
 	fieldType     = "type"
 )
 
-// CACertEntry holds a parsed CA certificate.
+// CACertEntry holds a parsed CA certificate and the revocation lists it issued.
+//
+// CRLs and RawCRLs are index-aligned: RawCRLs[i] is the DER that parsed into
+// CRLs[i]. The raw form is kept because a consumer hands the list on as PEM,
+// and re-encoding a parsed structure would not reproduce the bytes the CA
+// signed.
+//
+// A CA with no list is a DIFFERENT state from one whose list revokes nothing.
+// The first cannot answer the question RFC 9190 Section 5.4 makes mandatory on
+// TLS 1.3, and the second answers "not revoked" (eap.checkChainRevocation).
 type CACertEntry struct {
 	Name        string
 	Certificate *x509.Certificate
 	Raw         []byte
+	CRLs        []*x509.RevocationList
+	RawCRLs     [][]byte
 }
 
 // CertificateEntry holds a parsed device certificate with its private key

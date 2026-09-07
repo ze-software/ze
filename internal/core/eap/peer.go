@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 )
 
 const maxEAPRounds = 20
@@ -85,6 +86,13 @@ type PeerTLSConfig struct {
 	CertPEM   []byte
 	KeyPEM    []byte
 	CACertPEM []byte
+
+	// CRLPEM holds the certificate revocation lists the peer checks the
+	// authenticator chain against, concatenated as PEM. RFC 9190 Section 5.4
+	// makes that check mandatory on TLS 1.3, so an empty value refuses a TLS 1.3
+	// session rather than completing one whose revocation status nobody read
+	// (checkChainRevocation, revocation.go).
+	CRLPEM []byte
 }
 
 // PeerSession manages the EAP peer (client/initiator) side of an exchange.
@@ -1070,32 +1078,70 @@ func (ps *PeerSession) handleTLSRequest(req *Packet) PeerResult {
 	return result
 }
 
-// verifyServerChain returns a tls.Config.VerifyPeerCertificate callback that
-// validates the authenticator's presented certificate chain against roots
-// without any DNS/hostname check (EAP-TLS has no server hostname).
+// serverChainCheck holds the checks a ze EAP-TLS peer runs on the
+// authenticator's certificate chain.
+//
+// It spans the two crypto/tls callbacks because neither one alone sees
+// everything the checks need. verifyPeerCertificate is where the chain is BUILT:
+// EAP carries no server hostname, so the config sets InsecureSkipVerify and
+// crypto/tls builds none of its own. verifyConnection is where the NEGOTIATED
+// VERSION is known, and RFC 9190 Section 5.4's "When EAP-TLS is used with TLS
+// 1.3" turns on it.
+//
+// crypto/tls calls the two in that order on one goroutine, a few statements
+// apart (Conn.verifyServerCertificate, crypto/tls/handshake_client.go), so
+// chains is written before it is read and needs no lock.
+type serverChainCheck struct {
+	roots *x509.CertPool
+	crls  crlSet
+
+	// chains is what verifyPeerCertificate built, leaf first and trust anchor
+	// last, for verifyConnection to check the revocation status over.
+	chains [][]*x509.Certificate
+}
+
+// verifyPeerCertificate validates the authenticator's presented certificate
+// chain against the configured roots, without any DNS or hostname check
+// (EAP-TLS has no server hostname), and keeps the verified chain for
+// verifyConnection.
+//
 // RFC 5216 Section 5.3: the peer validates the authenticator's certificate.
-func verifyServerChain(roots *x509.CertPool) func([][]byte, [][]*x509.Certificate) error {
-	return func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
-		if len(rawCerts) == 0 {
-			return fmt.Errorf("eap-tls: authenticator presented no certificate")
-		}
-		certs := make([]*x509.Certificate, 0, len(rawCerts))
-		for _, raw := range rawCerts {
-			c, err := x509.ParseCertificate(raw)
-			if err != nil {
-				return fmt.Errorf("eap-tls: parse authenticator certificate: %w", err)
-			}
-			certs = append(certs, c)
-		}
-		opts := x509.VerifyOptions{Roots: roots, Intermediates: x509.NewCertPool()}
-		for _, c := range certs[1:] {
-			opts.Intermediates.AddCert(c)
-		}
-		if _, err := certs[0].Verify(opts); err != nil {
-			return fmt.Errorf("eap-tls: authenticator certificate chain verification failed: %w", err)
-		}
-		return nil
+func (c *serverChainCheck) verifyPeerCertificate(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+	if len(rawCerts) == 0 {
+		return fmt.Errorf("eap-tls: authenticator presented no certificate")
 	}
+	certs := make([]*x509.Certificate, 0, len(rawCerts))
+	for _, raw := range rawCerts {
+		cert, err := x509.ParseCertificate(raw)
+		if err != nil {
+			return fmt.Errorf("eap-tls: parse authenticator certificate: %w", err)
+		}
+		certs = append(certs, cert)
+	}
+	opts := x509.VerifyOptions{Roots: c.roots, Intermediates: x509.NewCertPool()}
+	for _, cert := range certs[1:] {
+		opts.Intermediates.AddCert(cert)
+	}
+	chains, err := certs[0].Verify(opts)
+	if err != nil {
+		return fmt.Errorf("eap-tls: authenticator certificate chain verification failed: %w", err)
+	}
+	c.chains = chains
+	return nil
+}
+
+// verifyConnection checks the revocation status of the chain
+// verifyPeerCertificate built.
+//
+// RFC 9190 Section 5.4: "When EAP-TLS is used with TLS 1.3, the revocation
+// status of all the certificates in the certificate chains MUST be checked
+// (except the trust anchor)."
+//
+// crypto/tls sends a fatal bad_certificate alert for a non-nil return
+// (Conn.verifyServerCertificate, crypto/tls/handshake_client.go), which is the
+// abort Section 5.4 asks for.
+func (c *serverChainCheck) verifyConnection(cs tls.ConnectionState) error {
+	return checkChainRevocation(c.crls, c.chains, cs.Version, time.Now())
 }
 
 func (ps *PeerSession) startTLSClient() error {
@@ -1128,6 +1174,17 @@ func (ps *PeerSession) startTLSClient() error {
 	// only that default hostname check; the chain itself is always verified
 	// against the trust anchor in VerifyPeerCertificate, which the guard above
 	// guarantees is present.
+
+	// Parse the revocation material HERE rather than at the handshake. A CRL the
+	// operator pasted wrong is a configuration error, and it is reported when the
+	// client is built, where the message can name the config, instead of as a
+	// refused authenticator whose certificate is in fact valid.
+	crls, err := parseCRLs(ps.tlsCfg.CRLPEM)
+	if err != nil {
+		return err
+	}
+	check := &serverChainCheck{roots: rootCAs, crls: crls}
+
 	tlsCfg := &tls.Config{
 		Certificates:       []tls.Certificate{cert},
 		InsecureSkipVerify: true, //nolint:gosec // EAP has no server hostname; the chain is always verified in VerifyPeerCertificate
@@ -1139,7 +1196,8 @@ func (ps *PeerSession) startTLSClient() error {
 		// tickets here states the requirement instead of leaving it to that
 		// default, so adding a cache later cannot skip the chain check.
 		SessionTicketsDisabled: true,
-		VerifyPeerCertificate:  verifyServerChain(rootCAs),
+		VerifyPeerCertificate:  check.verifyPeerCertificate,
+		VerifyConnection:       check.verifyConnection,
 	}
 
 	ps.tlsTransport = newEAPTLSTransport()

@@ -97,6 +97,12 @@ type impostorPKI struct {
 	serverKeyPEM  []byte
 	clientCertPEM []byte
 	clientKeyPEM  []byte
+
+	// crlPEM is the trusted CA's empty revocation list. Both ends need one on
+	// TLS 1.3 (RFC 9190 Section 5.4), and without it the PEER would refuse the
+	// exchange before the authenticator ever reported the chain rejection these
+	// tests are about.
+	crlPEM []byte
 }
 
 func newImpostorPKI(t *testing.T) *impostorPKI {
@@ -106,7 +112,7 @@ func newImpostorPKI(t *testing.T) *impostorPKI {
 	trustedCA, trustedKey, trustedPEM := newCA(t, sharedCN, 300)
 	impostorCA, impostorKey, _ := newCA(t, sharedCN, 301)
 
-	p := &impostorPKI{caPEM: trustedPEM}
+	p := &impostorPKI{caPEM: trustedPEM, crlPEM: newCRL(t, trustedCA, trustedKey)}
 	p.serverCertPEM, p.serverKeyPEM = newLeaf(t, trustedCA, trustedKey, "impostor-pki-server", 302,
 		[]x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth})
 	p.clientCertPEM, p.clientKeyPEM = newLeaf(t, impostorCA, impostorKey, "impostor-pki-client", 303,
@@ -119,6 +125,7 @@ func (p *impostorPKI) serverConfig() MethodConfig {
 		ServerCertPEM: p.serverCertPEM,
 		ServerKeyPEM:  p.serverKeyPEM,
 		CACertPEM:     p.caPEM,
+		CRLPEM:        p.crlPEM,
 	}
 }
 
@@ -127,6 +134,7 @@ func (p *impostorPKI) peerConfig() *PeerTLSConfig {
 		CertPEM:   p.clientCertPEM,
 		KeyPEM:    p.clientKeyPEM,
 		CACertPEM: p.caPEM,
+		CRLPEM:    p.crlPEM,
 	}
 }
 
@@ -164,6 +172,7 @@ func TestEAPTLSAuthenticatorReportsRejectedClientCertificate(t *testing.T) {
 				// The peer trusts the authenticator, so it does not fail first: the
 				// rejection under test is the authenticator's.
 				CACertPEM: trusted.trustedCAPEM,
+				CRLPEM:    trusted.trustedCRLPEM,
 			},
 			wantReason: "certificate",
 		},

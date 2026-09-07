@@ -102,9 +102,9 @@ func tls12ClientState(t *testing.T, refuseExport bool) tls.ConnectionState {
 	// hostname, so the default name check is off and the chain is verified against
 	// the trust anchor by the production callback.
 	clientCfg := &tls.Config{
-		InsecureSkipVerify:    true, //nolint:gosec // EAP has no server hostname; verifyServerChain checks the chain
+		InsecureSkipVerify:    true, //nolint:gosec // EAP has no server hostname; serverChainCheck checks the chain
 		RootCAs:               roots,
-		VerifyPeerCertificate: verifyServerChain(roots),
+		VerifyPeerCertificate: (&serverChainCheck{roots: roots}).verifyPeerCertificate,
 		MinVersion:            tls.VersionTLS12,
 		MaxVersion:            tls.VersionTLS12,
 	}
@@ -225,6 +225,7 @@ func TestEAPTLSAuthenticatorKeepsItsRefusalReason(t *testing.T) {
 		CertPEM:   pki.untrustedClientCertPEM,
 		KeyPEM:    pki.untrustedClientKeyPEM,
 		CACertPEM: pki.trustedCAPEM,
+		CRLPEM:    pki.trustedCRLPEM,
 	})
 
 	res := runEAPTLSHandshake(t, pki.serverConfig(), peer)

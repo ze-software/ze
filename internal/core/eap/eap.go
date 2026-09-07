@@ -310,6 +310,13 @@ type MethodConfig struct {
 	CACertPEM     []byte
 	ServerCertPEM []byte
 	ServerKeyPEM  []byte
+
+	// CRLPEM holds the certificate revocation lists the authenticator checks the
+	// client chain against, concatenated as PEM. RFC 9190 Section 5.4 makes that
+	// check mandatory on TLS 1.3, so an empty value refuses a TLS 1.3 session
+	// rather than completing one whose revocation status nobody read
+	// (checkChainRevocation, revocation.go).
+	CRLPEM []byte
 }
 
 // Begin returns the initial EAP-Request/Identity packet.

@@ -15,9 +15,11 @@ import (
 )
 
 // PEM block types this package writes. RFC 7468 names CERTIFICATE for a DER
-// X.509 certificate and PRIVATE KEY for a PKCS#8 key.
+// X.509 certificate, X509 CRL for a certificate revocation list, and PRIVATE KEY
+// for a PKCS#8 key.
 const (
 	pemBlockCertificate = "CERTIFICATE"
+	pemBlockCRL         = "X509 CRL"
 	pemBlockPrivateKey  = "PRIVATE KEY"
 )
 
@@ -132,6 +134,25 @@ func get() *storeState {
 // GetCA returns the named CA certificate, or nil if not found.
 func GetCA(name string) *CACertEntry {
 	return get().caCerts[name]
+}
+
+// CRLPEM answers this CA's revocation lists concatenated as PEM documents, and
+// nil when the CA holds none.
+//
+// The two answers are read differently by the consumer, and that is the reason
+// this returns nil rather than an empty slice: no list means the CA cannot say
+// whether a certificate it issued is revoked, and an EAP-TLS 1.3 session
+// refuses on that (eap.checkChainRevocation, RFC 9190 Section 5.4). A list that
+// names no serial number says "not revoked" and completes the session.
+func (e *CACertEntry) CRLPEM() []byte {
+	if len(e.RawCRLs) == 0 {
+		return nil
+	}
+	var out []byte
+	for _, der := range e.RawCRLs {
+		out = append(out, pem.EncodeToMemory(&pem.Block{Type: pemBlockCRL, Bytes: der})...)
+	}
+	return out
 }
 
 // GetCertificate returns the named device certificate, or nil if not found.
