@@ -161,7 +161,7 @@ The bridge subprocess reads `exabgp.api.ack` via `os.Getenv` because it
 runs before Ze's env registry is initialized. The parent Ze process
 writes it via `config.ApplyEnvConfig` when the operator sets
 `environment { exabgp { api { ack <bool>; } } }`.
-<!-- source: internal/exabgp/bridge/bridge_ack.go -- ackMode -->
+<!-- source: internal/exabgp/bridge/bridge_ack.go -- AckMode -->
 
 ---
 

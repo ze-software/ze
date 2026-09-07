@@ -1,4 +1,4 @@
-// Design: plan/spec-mgmt-version-header-suppress.md -- the management-hardening toggle
+// Design: docs/architecture/web-interface.md -- the security headers and the hide-version toggle
 // Related: register_version_header_suppress.go -- the scenario name
 // Related: internal/core/version/version.go -- HTTPHeaderHidden, the toggle both servers read
 

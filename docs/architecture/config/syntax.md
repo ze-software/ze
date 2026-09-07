@@ -571,8 +571,8 @@ Peer configuration is organized into nested containers by concern.
 
 | Keyword | Type | Description |
 |---------|------|-------------|
-| `connection { local { ip; port; accept; } }` | container | Local address (`auto` or IP), bind port, accept inbound connections (default: true) |
-| `connection { remote { ip; port; connect; } }` | container | Peer IP address, connection port, initiate outbound connections (default: true) |
+| `connection { local { ip; port; accept; } }` | container | Local address (`auto` or IP), listen port, accept inbound connections (default: true) |
+| `connection { remote { ip; port; connect; } }` | container | Peer IP address, dial port, initiate outbound connections (default: true) |
 | `connection { md5 { password; ip; } }` | container | TCP MD5 authentication (RFC 2385) |
 | `connection { ttl { max; set; min; } }` | container | GTSM max (RFC 5082), outgoing TTL, minimum incoming TTL |
 | `connection { link-local; }` | bool | Accepted and read by no code. `session { link-local; }` is the leaf that carries the address |
