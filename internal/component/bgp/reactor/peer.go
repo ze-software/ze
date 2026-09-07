@@ -426,7 +426,7 @@ type Peer struct {
 
 	// staticMu serializes the two writers of this peer's static route set on the
 	// wire: sendInitialRoutes, on the establishment goroutine, and the reload
-	// delta, on the config goroutine (peer_static_delta.go). It guards staticWire
+	// delta, on the config goroutine (peer_static_wire.go). It guards staticWire
 	// as well, so the recorded set and the frames that produced it are decided in
 	// one critical section.
 	//
