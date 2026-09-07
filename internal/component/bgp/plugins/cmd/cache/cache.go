@@ -21,10 +21,11 @@ const (
 	actionForward = "forward"
 )
 
-var (
-	errMissingID       = errors.New("missing id")
-	errMissingSelector = errors.New("missing selector")
-)
+// errMissingID is the only argument error the cache commands raise. The
+// selector is not among them: it reaches `send bgp <selector> cached <id>`
+// through ctx, and Dispatch refuses the command before the handler runs when
+// nothing bound it (RequiresSelector).
+var errMissingID = errors.New("missing id")
 
 func init() {
 	pluginserver.RegisterRPCs(
@@ -47,7 +48,7 @@ func handleCacheRetainRPC(ctx *pluginserver.CommandContext, args []string) (*plu
 			Error:  "usage: request cache retain <id>",
 		}, errMissingID
 	}
-	return dispatchCacheByID(ctx, actionRetain, args[0], args[1:])
+	return dispatchCacheByID(ctx, actionRetain, args[0])
 }
 
 func handleCacheReleaseRPC(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
@@ -57,7 +58,7 @@ func handleCacheReleaseRPC(ctx *pluginserver.CommandContext, args []string) (*pl
 			Error:  "usage: request cache release <id>",
 		}, errMissingID
 	}
-	return dispatchCacheByID(ctx, actionRelease, args[0], args[1:])
+	return dispatchCacheByID(ctx, actionRelease, args[0])
 }
 
 func handleCacheExpireRPC(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
@@ -67,23 +68,32 @@ func handleCacheExpireRPC(ctx *pluginserver.CommandContext, args []string) (*plu
 			Error:  "usage: request cache expire <id>",
 		}, errMissingID
 	}
-	return dispatchCacheByID(ctx, actionExpire, args[0], args[1:])
+	return dispatchCacheByID(ctx, actionExpire, args[0])
 }
 
+// handleCacheForwardRPC answers `send bgp <selector> cached <id>`.
+//
+// The id is the ONLY argument that arrives positionally. The selector is the
+// leaf the `bgp` container declares, so matchCommandTokens binds it into
+// ctx.Peer and leaves it out of args
+// (internal/component/plugin/server/command.go). Reading it from args[0] is
+// what this handler did while the command was `request cache forward <id>
+// <selector>`, and under the new path it made every forward answer "missing
+// selector".
 func handleCacheForwardRPC(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	if len(args) < 2 {
+	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "usage: request cache forward <id> <selector>",
-		}, errMissingSelector
+			Error:  "usage: send bgp <selector> cached <id>",
+		}, errMissingID
 	}
-	return dispatchCacheByID(ctx, actionForward, args[0], args[1:])
+	return dispatchCacheByID(ctx, actionForward, args[0])
 }
 
 // dispatchCacheByID routes a cache action to the right handler after parsing the ID.
-func dispatchCacheByID(ctx *pluginserver.CommandContext, action, idStr string, extraArgs []string) (*plugin.Response, error) {
+func dispatchCacheByID(ctx *pluginserver.CommandContext, action, idStr string) (*plugin.Response, error) {
 	if strings.Contains(idStr, ",") {
-		return handleBgpCacheBatch(ctx, idStr, action, extraArgs)
+		return handleBgpCacheBatch(ctx, idStr, action)
 	}
 
 	var tb textbuf.Buffer
@@ -103,7 +113,7 @@ func dispatchCacheByID(ctx *pluginserver.CommandContext, action, idStr string, e
 	case actionExpire:
 		return handleBgpCacheExpire(ctx, cacheID)
 	case actionForward:
-		return handleBgpCacheForward(ctx, cacheID, extraArgs)
+		return handleBgpCacheForward(ctx, cacheID)
 	default:
 		return &plugin.Response{
 			Status: plugin.StatusError,
@@ -198,15 +208,16 @@ func handleBgpCacheExpire(ctx *pluginserver.CommandContext, id uint64) (*plugin.
 }
 
 // handleBgpCacheForward forwards a cached UPDATE to peers and records plugin ack.
-func handleBgpCacheForward(ctx *pluginserver.CommandContext, id uint64, args []string) (*plugin.Response, error) {
-	if len(args) < 1 {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  "usage: request cache forward <id> <selector>",
-		}, errMissingSelector
-	}
-
-	sel, err := selector.Parse(args[0])
+//
+// The peers come from ctx, never from an argument: the selector is the leaf
+// `container bgp` declares, and the dispatcher binds it before the handler runs.
+// selector.Parse rather than ParseDefault, because a selector this command
+// cannot read is refused by name instead of becoming a peer name that matches
+// nothing (ai/rules/principles.md). The empty case cannot arrive: the command
+// registers RequiresSelector, so Dispatch refuses it first, and PeerSelector
+// answers "*" only for a caller that got past that guard.
+func handleBgpCacheForward(ctx *pluginserver.CommandContext, id uint64) (*plugin.Response, error) {
+	sel, err := selector.Parse(ctx.PeerSelector())
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
@@ -243,7 +254,7 @@ func handleBgpCacheForward(ctx *pluginserver.CommandContext, id uint64, args []s
 // Parses each ID and dispatches to the per-ID handler for the given action.
 // All valid IDs are processed even if some are invalid — errors are collected
 // and returned as a combined error if any ID failed.
-func handleBgpCacheBatch(ctx *pluginserver.CommandContext, idList, action string, actionArgs []string) (*plugin.Response, error) {
+func handleBgpCacheBatch(ctx *pluginserver.CommandContext, idList, action string) (*plugin.Response, error) {
 	var errs []string
 	processed := 0
 
@@ -263,7 +274,7 @@ func handleBgpCacheBatch(ctx *pluginserver.CommandContext, idList, action string
 		case actionExpire:
 			_, actionErr = handleBgpCacheExpire(ctx, id)
 		case actionForward:
-			_, actionErr = handleBgpCacheForward(ctx, id, actionArgs)
+			_, actionErr = handleBgpCacheForward(ctx, id)
 		default:
 			return &plugin.Response{
 				Status: plugin.StatusError,

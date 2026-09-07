@@ -97,11 +97,13 @@ func (r *Registry) Announce(key, value string, sel *selector.Selector, batch typ
 // withdrawMatching withdraws every entry the peer filter and the predicate both
 // accept, and answers how many it withdrew.
 //
-// peer is the selector the operator typed BEFORE the verb, or "" when they typed
-// none. It is compared against the selector each announcement was MADE with,
-// rather than resolved against the peer table.
+// peer is the selector the operator typed after `send bgp`. Every send form
+// registers RequiresSelector, so it is never empty on the command path. It is
+// compared against the selector each announcement was MADE with, rather than
+// resolved against the peer table.
 //
-// An entry records the fan-out it went to. So `peer 192.0.2.9 withdraw all` asks
+// An entry records the fan-out it went to. So `send bgp 192.0.2.9 withdraw all`
+// asks
 // for the announcements sent to that fan-out and nothing else, and an operator
 // who names a peer that received nothing withdraws nothing.
 //

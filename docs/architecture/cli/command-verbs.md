@@ -66,10 +66,9 @@ fixed keyword. That ambiguity is what every rule below exists to prevent.
 ## The verb classes
 
 Thirteen verbs are canonical. `send` is the newest: decided by Thomas on
-2026-09-05 and declared by
-`plan/immediate/spec-fixit-send-names-its-destination.md`. `command.Verbs` is
-the one statement of the set, and both the grammar gate and the plugin
-registration check derive their verb set from it.
+2026-09-05 and declared by `spec-fixit-send-names-its-destination`.
+`command.Verbs` is the one statement of the set, and both the grammar gate and
+the plugin registration check derive their verb set from it.
 <!-- source: internal/component/command/verbs.go -- Verbs, verbRole -->
 
 | Verb | Role | It promises | Side effect on | Repeat is safe | Commands |

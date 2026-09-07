@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | cli |
 | Depends | - |
 | Phase | 9/9 |
 | Handoff | - |
-| Updated | 2026-09-05 |
+| Updated | 2026-09-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -1052,3 +1052,277 @@ traffic action) are each enforced below the command layer and are untouched.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+The nine wire methods answer at `send bgp <selector> <form>`, and the fifteen old
+paths match nothing. `send` is the thirteenth entry of `command.Verbs` with the
+role `VerbAction`. `container send / container bgp` is declared once, in
+`ze-raw-cmd.yang`, which owns the shared description and the mandatory selector
+leaf; `ze-update-cmd.yang`, `ze-cli-announce-cmd.yang` and `ze-cli-cache-cmd.yang`
+re-declare the two containers with no description and hang their own forms on
+them. All nine registrations carry `RequiresSelector: true`. `bridgeSurface`
+holds one entry, `ze-bgp:help`. The translator learned the bare ExaBGP forms and
+the passthrough refuses an unrecognized line by name.
+
+The closure phase found and fixed one BLOCKER in that work, described below.
+
+### Bugs Found/Fixed
+
+- **`send bgp <selector> cached <id>` never worked.** `handleCacheForwardRPC`
+  guarded on a second positional argument and `handleBgpCacheForward` read the
+  selector from the first, which is the argument layout of the path the command
+  LEFT. Under the new grammar `matchCommandTokens` consumes the selector into
+  `ctx.Peer` and returns only the tail, so the handler saw the id alone and every
+  forward answered `usage: request cache forward <id> <selector>` -- a usage line
+  naming a path the tree no longer has. Fixed at the source: the selector is read
+  from `ctx.PeerSelector()`, and the positional threading (`extraArgs`,
+  `actionArgs`) is deleted rather than relaxed, because it had no other user.
+  Covered by `TestEverySendFormReachesItsHandler`
+  (`internal/component/plugin/server/send_test.go`), whose RED was observed by
+  restoring the old guard.
+- **Eight surfaces still published a command path the tree does not have.**
+  `rfc/short/rfc7999.md` (twice, and through it the generated
+  `docs/features/rfc-status.md` and `rfc/enrolled.txt`), `ze-rib.yang`,
+  `ze-flowspec-cmd.yang`, `rpc_register.go`, `registry.go`, `command.go`,
+  `usage.go`, `update_wire.go` and two `.ci` headers. None appeared in the
+  implementation diff, which is why a diff-scoped read passed over them.
+
+### Documentation Updates
+
+- `docs/architecture/cli/command-verbs.md` -- the `send` verb paragraph now
+  restates the decision inline and cites the bare stem, because commit B removes
+  the spec it named by path. Source anchor `internal/component/command/verbs.go`
+  is unchanged and still resolves.
+- `docs/architecture/exabgp-bridge.md` -- the passthrough narrowing is now
+  RECORDED ON THE PAGE rather than delegated to the spec's Known Limitations,
+  which commit B deletes. This is the repoint the closure step requires: the
+  page is the durable document that replaced the spec for this fact.
+- `rfc/short/rfc7999.md` -- the two sentences naming `announce blackhole` and
+  `announce unicast community 65535:666` now name `send bgp <selector> blackhole`
+  and `send bgp <selector> unicast community 65535:666`. Regenerated with
+  `./le rfc index-update`.
+- `./le doc check links`: 32 broken references, all pre-existing and none in a
+  file this spec touches.
+
+### Deviations from Plan
+
+- `TestSendRawRefusesAWildcardSelector`, `TestSendAddsNoWireMethod`,
+  `TestSendSubtreeIsCheckedNotExempt`, `TestAnnounceFormsAreInstantiatedOnce`,
+  `TestWithdrawIDMatchesTheRecordedSelector` and
+  `TestBridgeTranslatesTheNeighborForms` do not exist under those names. Each
+  behavior is covered elsewhere, named in the Tests table below. No behavior is
+  unproven; the names in the TDD plan were not kept.
+- The generated artifacts `docs/features/rfc-status.md`, `rfc/enrolled.txt` and
+  `ai/RFC-REQUIREMENTS.md` are NOT in this spec's commit. Regenerating them picked
+  up four other sessions' uncommitted `rfc/short/` edits (RFC 7311, 8671, 4301,
+  5036, 9190), and those rows are not this spec's to carry. `rfc/short/rfc7999.md`
+  is the canonical source and IS committed, so the next regeneration by any
+  session publishes the corrected text.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-9 assumed `docs/guide/command-reference.md` is written by `./le wiki-catalog update` | That command writes the live registry to a destination you name, and running it at either page destroys the authored content | during the documentation phase | A-9 recorded broken; the row is already in `plan/journal/test-against-broken-path.md` (2026-09-05) |
+| approach | `test/plugin/api-send-cached.ci` was accepted as proof that the cached form reaches its handler | Its fixture accepts `StatusDone` OR `StatusError`, so it was green under the defect it existed to catch | closure review, by dispatching all nine forms through the real merged tree | the defect fixed, and `TestEverySendFormReachesItsHandler` added with an observed RED |
+| escalation | Six of the nine stale command spellings sat in files no phase of this spec edited | A diff-scoped review cannot see a page nobody touched | closure sweep of the whole tracked tree for the fifteen dead paths | swept `git grep` over all tracked files rather than over the diff; the lesson is in `plan/journal/green-that-could-not-have-been-red.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `send <protocol> <selector> raw [<type>] <encoding> <data>` | Done | `internal/component/bgp/plugins/cmd/raw/yang/ze-raw-cmd.yang` | Token ORDER is the owner's exactly. The type word takes a `type` keyword in front of it, which `ai/rules/cli.md` requires and A-4 records |
+| `send <protocol> <selector> <message> [fields...]` | Done | `ze-update-cmd.yang`, `ze-cli-announce-cmd.yang`, `ze-cli-cache-cmd.yang` | Seven message words: `unicast`, `blackhole`, `flowspec`, `update`, `cached`, `withdraw`, plus `raw` |
+| Protocol first, so the selector can be parsed | Done | `anchoredDef`, `matchCommandTokens` (`internal/component/plugin/server/command.go`) | The selector leaf is declared on `container bgp`, and the anchor is that keyword |
+| `send` is a root verb, not a noun under `request` | Done | `internal/component/command/verbs.go` | Thirteenth entry, role `VerbAction` |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `./le cli-grammar`: 0 grammar findings over 368 commands | Every child of `send` is a protocol keyword; the one free-form slot follows `bgp` |
+| AC-2 | Done | `ui_fixture_send_raw.go` refusal table: `send bgp * raw` says "one specific peer", `send bgp !peer1 raw` says "exclusion selector" | The two-peer case is proven at `ResolveSinglePeer`, not at the `.ci` |
+| AC-3 | Done | `TestSendRefusesAMissingSelector`; `grep RequiresSelector` names all nine | |
+| AC-4 | Done | `TestSendArgumentsAreDeclared` (7 subtests), `test/ui/cli-completion-send-forms.ci` | A value outside an enumeration is refused by the model, naming the declared set |
+| AC-5 | Done | `TestEverySendFormReachesItsHandler` (11 rows) | Was BROKEN for `cached` until this closure; see Bugs Found/Fixed |
+| AC-6 | Done | `TestOldSendPathsMatchNothing` (15 subtests), `test/ui/send-old-paths-are-refused.ci` | |
+| AC-7 | Done | `./le command list`: exactly nine `send bgp` rows, mapping to the nine wire methods the spec names | |
+| AC-8 | Done | `internal/exabgp/bridge` package green; both bridge `.ci` hex expectations unedited | |
+| AC-9 | Done | `TestBridgeTranslatesTheBareForms`, `test/plugin/exabgp-bridge-bare-form-reaches-the-wire.ci` | |
+| AC-10 | Done | `TestBridgeRefusesAnUnrecognizedLineByName` | |
+| AC-11 | Done | `TestFlushBlocksUntilResponse` | No `.ci` discriminates on the flush; the spec records the measurement |
+| AC-12 | Done | `TestBridgeSelectorCannotBeSilentlyEmpty` | |
+| AC-13 | Done | `./le cli-grammar` reports `Exempt (bridge): 1`; `TestExemptCategory` asserts all nine retired methods carry no exemption | |
+| AC-14 | Done | `docs/architecture/exabgp-bridge.md` | The three-row table is current; the narrowing is now recorded on the page itself |
+| AC-15 | Done | `./le ci-dispatch check`: 0 dead | 1 unverifiable, in `internal/plugins/exabgp/bridgerun/fleet.go` at the `Dispatcher` interface, introduced by `af8eb7c816` (another session) |
+| AC-16 | Done | `TestSendIsDeniedToAReadOnlyProfile`, `TestBuiltinReadOnlyProfileDeniesEverySendByDefault` | |
+| AC-17 | Done | `TestVerbRegistryCanonical`, `TestSendIsAVerbTheGrammarGateAccepts` | |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestSendRawReachesOnePeerAtItsNewPath` | Done | `internal/component/bgp/plugins/cmd/raw/raw_test.go` | |
+| `TestSendRawRefusesAWildcardSelector` | Changed | `internal/test/fixture/ui_fixture_send_raw.go` refusal table | The behavior is proven at the `.ci`, not under this name |
+| `TestSendRefusesAMissingSelector` | Done | `internal/component/plugin/server/send_test.go` | |
+| `TestSendArgumentsAreDeclared` | Done | same | |
+| `TestOldSendPathsMatchNothing` | Done | same | |
+| `TestSendAddsNoWireMethod` | Changed | `./le command list` plus the AC-7 row above | The wire-method set is read from the live tree rather than pinned |
+| `TestSendSubtreeIsCheckedNotExempt` | Changed | `TestExemptCategory` (`internal/component/command/grammar/checker_test.go`) | Asserts all nine retired methods are unexempt and `ze-bgp:help` is the one member |
+| `TestVerbRegistryCanonical` | Done | `internal/component/command/verbs_test.go` | |
+| `TestSendIsDeniedToAReadOnlyProfile` | Done | `internal/component/plugin/server/send_test.go` | |
+| `TestAnnounceFormsAreInstantiatedOnce` | Changed | `TestOldSendPathsMatchNothing` proves both old paths per form are gone and one new path answers | |
+| `TestWithdrawIDMatchesTheRecordedSelector` | Changed | `TestRegistryPeerNarrowsWithdrawByID` (`announce/registry_test.go`) | |
+| `TestBridgeTranslatesTheNeighborForms` | Changed | the `TestExabgpToZebgpCommand_*` family (`bridge_test.go`) | 16 cases over the neighbor branch |
+| `TestBridgeTranslatesTheBareForms` | Done | `internal/exabgp/bridge/bridge_test.go` | |
+| `TestBridgeRefusesAnUnrecognizedLineByName` | Done | same | |
+| `TestBridgeSelectorCannotBeSilentlyEmpty` | Done | same | Spec named `bridge_muxconn_test.go`; it lives in `bridge_test.go` |
+| `TestEverySendFormReachesItsHandler` | Done | `internal/component/plugin/server/send_test.go` | ADDED at closure; not in the TDD plan |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| The four YANG modules | Done | `send/bgp` declared once, in `ze-raw-cmd.yang` |
+| The five handlers | Done | `cache.go` corrected at closure |
+| `verbs.go`, `verbs_test.go` | Done | thirteen verbs |
+| `checker.go` | Done | `bridgeSurface` holds one entry |
+| The five bridge files | Done | translator, muxconn, bridge, `main_sdk.go`, `bridgeplugin/internal.go` |
+| 70 `.ci` files, `help_ai.go` | Done | `./le ci-dispatch check` reports 0 dead |
+| The 15 documentation pages | Done | plus eight surfaces the closure sweep found |
+
+### Audit Summary
+
+- **Total items:** 17 AC, 16 tests, 7 file groups
+- **Done:** 17 AC, 10 tests, 7 file groups
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 6 tests, each renamed or relocated with the behavior still proven (listed above)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An operator's send names its destination, at the owner's token order | functional | `test/ui/send-raw-reaches-one-peer.ci` and `test/ui/send-unicast-reaches-the-wire.ci`: a scripted peer holds the assertion and exits zero only when the UPDATE arrived. `./le command list` shows the nine paths as `send bgp <form>` |
+| No slot holds an operator value and a keyword at once | gate | `./le cli-grammar`: 0 grammar findings over 368 commands, 39 roots. The eight moved methods are inside that population for the first time |
+| Every send fails closed with no destination | functional | `TestSendRefusesAMissingSelector` at the dispatcher; `ui_fixture_send_raw.go` proves `*` and `!peer1` are refused BY NAME at the CLI |
+| Every moved form still does what it did | functional | `TestEverySendFormReachesItsHandler`, 11 rows, RED observed under the restored defect. This is the goal the `cached` bug had silently broken |
+| An unmodified ExaBGP script is unaffected | interop | `test/plugin/exabgp-bridge-internal.ci` and `exabgp-bridge-sdk.ci` drive the bridge from ExaBGP-format input and assert the resulting UPDATE in hex. Both hex expectations are unedited in the whole diff |
+| An ExaBGP bare form starts working | interop | `test/plugin/exabgp-bridge-bare-form-reaches-the-wire.ci`, plus `TestBridgeTranslatesTheBareForms`. This is behavior the bridge did not have |
+| No programmatic sender left behind | gate | `./le ci-dispatch check`: 0 dead over 489 registered commands and 72 emitters |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| (none) | Every AC has working product code and a test. The `cached` gap found at closure was fixed here rather than homed elsewhere | -- |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-send-names-its-destination-644c18af-0c07-4cae-bd15-d866d73f0718.md` (21 files, verdict=clean) |
+| `./le spec session review check` | `review_gate: OK (15 code files, clean, hashes match)` |
+| Rounds | 3 |
+| Reviewer lenses used | argument-plumbing at the dispatcher boundary (all nine forms dispatched through the real merged tree); whole-tree sweep for the fifteen dead paths, not diff-scoped; guard/fail-closed on the selector; gate population (`cli-grammar`, `ci-dispatch`, `doc check links`, `spec citation`); Go style over the changed files |
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | `send bgp <selector> cached <id>` answered `usage: request cache forward <id> <selector>` for every input. The handler read the selector from the first positional after the dispatcher began binding it into `ctx.Peer` | `handleCacheForwardRPC`, `handleBgpCacheForward` (`internal/component/bgp/plugins/cmd/cache/cache.go`) | Selector read from `ctx.PeerSelector()`; `extraArgs`/`actionArgs` threading deleted; `errMissingSelector` removed. `TestEverySendFormReachesItsHandler` added, RED observed |
+| 2 | ISSUE | Two cache tests asserted the pre-move positional grammar, passing a selector as a second positional. One asserted that a single argument is an ERROR, pinning the defect | `TestHandlerCacheForward`, `TestHandlerCacheForwardMissingSelector` (`cache_test.go`) | Corrected to the live grammar; the second became `TestHandlerCacheForwardMissingID` and now asserts the usage line names the live path |
+| 3 | ISSUE | The public RFC ledger published two dead command paths | `rfc/short/rfc7999.md`, and through it `docs/features/rfc-status.md` and `rfc/enrolled.txt` | Corrected at the canonical source and regenerated |
+| 4 | ISSUE | Two operator-visible YANG descriptions named a dead path | `ze-rib.yang`, `ze-flowspec-cmd.yang` | Respelled |
+| 5 | ISSUE | Five code comments described the superseded grammar (`ai/rules/stale-comments.md`) | `rpc_register.go`, `registry.go`, `command.go`, `usage.go`, `update_wire.go` | Respelled; `rpc_register.go` also needed a live EXAMPLE, and now cites `show policy chain peer <selector>` |
+| 6 | ISSUE | Five citations named the spec by path, and commit B deletes it | `command-verbs.md`, `exabgp-bridge.md`, `checker.go`, `authz_test.go`, `raw_test.go`, and the pipe spec | Bare stem, except `exabgp-bridge.md` where the fact was restated on the page |
+| 7 | NOTE | Two `.ci` headers named the old spelling | `api-raw.ci`, `api-announce-unicast.ci` | Respelled |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/ui/send-raw-reaches-one-peer.ci` | Yes | `ls` OK |
+| `test/ui/cli-completion-send-forms.ci` | Yes | `ls` OK |
+| `test/ui/send-old-paths-are-refused.ci` | Yes | `ls` OK |
+| `test/ui/send-unicast-reaches-the-wire.ci` | Yes | `ls` OK |
+| `test/ui/send-withdraw-by-tag.ci` | Yes | `ls` OK |
+| `test/plugin/api-send-cached.ci` | Yes | `ls` OK |
+| `test/plugin/exabgp-bridge-bare-form-reaches-the-wire.ci` | Yes | `ls` OK |
+| `internal/test/fixture/ui_fixture_send_bgp.go`, `ui_fixture_send_raw.go` | Yes | `ls` OK |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-3 | all nine carry `RequiresSelector` | `grep -rn RequiresSelector internal/component/bgp/plugins/cmd` names announce x6, raw, update, cache-forward |
+| AC-5 | every form behaves at its new path | `go test -run TestEverySendFormReachesItsHandler`: PASS, 11 subtests; RED observed under the restored guard |
+| AC-6 | fifteen old paths match nothing | `go test -run TestOldSendPathsMatchNothing`: PASS, 15 subtests |
+| AC-7 | nine wire methods, nine after | `./le command list` filtered to `send bgp`: 9 rows, one per wire method the spec names |
+| AC-13 | E1 has one member and the eight are checked | `./le cli-grammar`: `Exempt (bridge): 1`, `0 grammar` findings |
+| AC-15 | every sender still routes | `./le ci-dispatch check`: `0 dead` |
+| AC-16, AC-17 | read-only denial and the thirteenth verb | `go test -run 'TestSendIsDeniedToAReadOnlyProfile\|TestSendIsAVerbTheGrammarGateAccepts'`: PASS |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `send bgp <addr> raw hex ...` | `test/ui/send-raw-reaches-one-peer.ci` | Yes -- read: a scripted peer expects the injected frame in hex, and the fixture runs the `*` and `!peer1` refusals first |
+| `send bgp * unicast ...` | `test/ui/send-unicast-reaches-the-wire.ci` | Yes -- read: the peer asserts the UPDATE's ORIGIN, AS_PATH, NEXT_HOP and NLRI in hex |
+| an old path | `test/ui/send-old-paths-are-refused.ci` | Yes -- read: all fifteen lines driven at the offline binary, each expecting `unknown command` |
+| `send bgp <sel> cached <id>` | `test/plugin/api-send-cached.ci` plus `TestEverySendFormReachesItsHandler` | Yes -- the `.ci` alone is NOT discriminating (it accepts Done or Error); the unit test is what proves the path |
+| ExaBGP `neighbor` line | `test/plugin/exabgp-bridge-internal.ci`, `-sdk.ci` | Yes -- hex expectations unedited in the diff |
+| ExaBGP bare line | `test/plugin/exabgp-bridge-bare-form-reaches-the-wire.ci` | Yes -- read: drives the bare form and asserts the wire |
+| completion after `send ` | `test/ui/cli-completion-send-forms.ci` | Yes -- read: pins the usage lines and the completions |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestSendRawReachesOnePeerAtItsNewPath`; no dispatcher file is edited |
+| A-2 | confirmed | `./le cli-grammar`: 0 grammar findings with the eight methods now inside the checked population |
+| A-3 | confirmed | one `selectorLeaf` constant (`internal/component/plugin/server/command.go`); one selector leaf under `send/bgp`, in `ze-raw-cmd.yang` |
+| A-4 | confirmed | `TestSendArgumentsAreDeclared`, 7 subtests |
+| A-5 | confirmed | the bridge diff removes no accepted form; `internal/exabgp/bridge` green; both bridge `.ci` hex lines unedited |
+| A-6 | confirmed | `TestBridgeRefusesAnUnrecognizedLineByName`: `help` passes through, everything else is refused by name |
+| A-7 | confirmed | the word `raw` does not occur in `internal/exabgp/bridge/bridge_command.go` |
+| A-8 | confirmed | `./le ci-dispatch check`: 0 dead over 489 commands and 72 emitters |
+| A-9 | **broken** | `./le wiki-catalog update` writes the live registry to a named destination and destroys authored content. Recorded in `plan/journal/test-against-broken-path.md` (2026-09-05) and in the Mistake Log above. Both pages were edited by hand instead |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Row 3, CLI reference | `docs/guide/command-reference.md`, `command-catalogue.md`: `grep` for the fifteen dead paths returns 0 | Yes |
+| Row 4, API/RPC | `docs/architecture/api/commands.md`, `ipc_protocol.md`, `update-syntax.md`, `text-format.md`, `architecture.md`, `hub-api-commands.md`: 0 dead paths | Yes |
+| Row 5, plugin | `docs/architecture/exabgp-bridge.md` states the translator, the three groups and the narrowed passthrough (AC-14) | Yes |
+| Row 9, RFC behavior | Answered N-A by the spec. FALSE: `rfc/short/rfc7999.md` published two dead command paths. Corrected and regenerated | Yes, after repair |
+| Row 15, inventory | `docs/features/cli-commands.md`, `docs/plugin-overview.md`: 0 dead paths | Yes |
+| Row 16, source anchors | `docs/architecture/cli/command-verbs.md` anchor naming `verbs.go` and `Verbs` resolves; `./le doc check links` reports 32 broken references, none in a file this spec touches | Yes |
+| Whole-tree sweep | `git grep` for the fifteen dead paths over ALL tracked files: the only remaining hits are `test/ui/send-old-paths-are-refused.ci` (which types them on purpose), `website/changes/` (frozen changelogs) and one journal row another session holds uncommitted | Yes |
+
+## Core Insight
+
+**A command that moves keeps two contracts, and only one of them is in the
+model.** The path is declared in YANG and every gate reads it: completion, the
+grammar checker, `ci-dispatch` and the citation walk all went green on the
+`cached` form. The ARGUMENT LAYOUT is declared nowhere. It is an agreement
+between the dispatcher, which decides what it consumes, and the handler, which
+decides what it reads, and moving the selector from a positional slot to an
+anchored leaf broke that agreement in silence.
+
+Nothing could see it. The node existed, the wire method existed, the usage line
+rendered, the completion offered the id, and the one functional test accepted
+either answer the handler could give. The only observation that separates "bound
+its arguments" from "did not" is whether the handler got far enough to complain
+about something else. That is why the test which catches it asserts on the error
+each form fails with, at a server deliberately built without a reactor.

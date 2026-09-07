@@ -285,7 +285,7 @@ func CheckRootNamespace(roots []string, namespaces map[string]bool) []Finding {
 // translator output, and `ze-bgp:peer-raw` was never reachable from the line
 // protocol at all. All nine answer at `send bgp <selector> <form>`, under a verb
 // command.Verbs holds, so they need no exemption to pass
-// (plan/immediate/spec-fixit-send-names-its-destination.md, AC-13).
+// (spec-fixit-send-names-its-destination, AC-13).
 var bridgeSurface = map[string]bool{
 	"ze-bgp:help": true,
 }

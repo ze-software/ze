@@ -17,7 +17,7 @@ module ze-flowspec-cmd {
     // whose own Config is not false, and goyang sets Config from the node's own
     // statement with no propagation from the parent, so an augmented container
     // that omits it is dropped from the command tree without a word.
-    description "The FlowSpec match components an operator types after `announce flowspec`.";
+    description "The FlowSpec match components an operator types after `send bgp <selector> flowspec`.";
     // A prefix component names its family: RFC 8955 type 1 and RFC 8956 type 1
     // share a type code and carry different encodings, so destination-ipv4 and
     // destination-ipv6 are two names rather than one name and a qualifier. These

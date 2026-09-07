@@ -956,9 +956,9 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		// the command must REQUIRE a selector (so the only path altered is one
 		// that returns an error), none may have arrived out of band, and
 		// validateCommandArgs must have bound the value from a LONE spare token.
-		// The last fence is what keeps `announce unicast 10.0.0.0/24 ...` --
-		// a single-token command that also carries `leaf selector mandatory` --
-		// from announcing to a peer called "unicast".
+		// The last fence is what keeps `send bgp unicast 10.0.0.0/24 ...` --
+		// a command that also carries `leaf selector mandatory` -- from taking
+		// the prefix as the destination.
 		if matchedCmd.RequiresSelector && selectors[selectorLeaf] == "" && (ctx == nil || ctx.Peer == "") {
 			if value, found := positional[selectorLeaf]; found {
 				if selectors == nil {

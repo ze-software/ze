@@ -291,7 +291,7 @@ func appendGroupTokens(tokens []UsageToken, node *Node) []UsageToken {
 // declaredContainerOrder (internal/component/config/yang/command.go) counts the
 // PARENT's own container statements, so every container an augment contributes
 // carries order 0: the whole augmented set sorts by name, ahead of the groups
-// the parent's module declares. `announce flowspec` is the case that reads
+// the parent's module declares. `send bgp flowspec` is the case that reads
 // this way, and its seventeen match components come from ze-flowspec-cmd.yang.
 //
 // Nothing is hoisted for being required. A module that declares its groups in

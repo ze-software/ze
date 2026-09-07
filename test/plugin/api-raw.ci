@@ -1,4 +1,4 @@
-# Test: peer raw sends raw bytes to peer
+# Test: send bgp <selector> raw sends raw bytes to peer
 # VALIDATES: raw command puts the exact bytes it was handed on the wire, judged on
 #            a frame ze never sends on its own account
 # PREVENTS: raw command handler broken or bytes not reaching peer

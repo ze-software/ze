@@ -2,7 +2,7 @@
 // Overview: doc.go — bgp-cmd-update plugin registration
 //
 // update_wire.go provides the wire-encoded update parser.
-// Handles hex and b64 encodings for peer update commands.
+// Handles hex and b64 encodings for the send bgp update command.
 package update
 
 import (

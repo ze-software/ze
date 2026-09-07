@@ -111,7 +111,7 @@ func TestParseMessageType(t *testing.T) {
 // selector leaf, inheritArgDefs anchors it to that keyword, and anchoredDef
 // binds the bare token that follows it. Nothing else in the chain changes, so
 // this test is the whole answer to assumption A-1 of
-// plan/spec-fixit-send-names-its-destination.md: the move needs no new dispatch
+// spec-fixit-send-names-its-destination: the move needs no new dispatch
 // machinery.
 //
 // VALIDATES: the token after `bgp` reaches CommandContext.Peer, ResolveSinglePeer

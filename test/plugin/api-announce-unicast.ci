@@ -1,5 +1,5 @@
-# Test: the operator's `announce unicast` command originates the route on the wire
-# VALIDATES: announce unicast dispatches through the engine to the announce
+# Test: the operator's `send bgp <selector> unicast` command originates the route on the wire
+# VALIDATES: send bgp unicast dispatches through the engine to the announce
 #            command plugin, and the UPDATE the peer receives carries the
 #            prefix, the next hop and the community the operator typed
 # PREVENTS: a form that answers "done" and originates nothing, which every
@@ -16,7 +16,7 @@ expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B02000418CB00710000
 EOF_PEER
 
-# Native test plugin: dispatches announce unicast once the session is quiet
+# Native test plugin: dispatches send bgp unicast once the session is quiet
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF

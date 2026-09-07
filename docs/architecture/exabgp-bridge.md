@@ -158,9 +158,13 @@ all before the translator learned it.
 
 What remained of the passthrough after that was an untyped path from a script's
 stdout to ze's dispatcher, by which a script could type any ze command. A line
-sent down it died as an unknown command with no mention of the bridge. Removing
-it is a behavior change, and it is recorded in Known Limitations of
-`plan/immediate/spec-fixit-send-names-its-destination.md`.
+sent down it died as an unknown command with no mention of the bridge.
+
+Removing it is a behavior change, and this page is where it is recorded: the
+bridge no longer carries a way for a script process to reach an arbitrary ze
+command. Nothing in the repository used that path
+(`spec-fixit-send-names-its-destination` enumerated the lines a script can send
+before the narrowing landed).
 
 | Wire method | How a script reaches it | What a rename costs |
 |---|---|---|

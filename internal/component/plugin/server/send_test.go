@@ -356,3 +356,70 @@ func TestOldSendPathsMatchNothing(t *testing.T) {
 		})
 	}
 }
+
+// sendFormsAtTheirNewPath is one operator line per send form, spelled the way
+// the grammar publishes it, with the error each must fail on.
+//
+// It is the whole population: nine wire methods, each reachable at exactly one
+// path (movedSendPaths above proves the fifteen old ones are gone). The last row
+// is the comma-separated id list, which walks handleBgpCacheBatch instead of
+// reaching the per-id handler directly.
+var sendFormsAtTheirNewPath = []struct {
+	line string
+	says string
+}{
+	{line: "send bgp 192.0.2.1 raw hex DEADBEEF", says: "reactor"},
+	{line: "send bgp 192.0.2.1 raw hex DEADBEEF type update", says: "reactor"},
+	{line: "send bgp 192.0.2.1 update text nlri ipv4/unicast add 10.0.0.0/24", says: "reactor"},
+	{line: "send bgp 192.0.2.1 unicast 10.0.0.0/24 next-hop 10.0.0.1", says: "reactor"},
+	{line: "send bgp 192.0.2.1 blackhole 10.0.0.0/24", says: "reactor"},
+	{line: "send bgp 192.0.2.1 flowspec destination-ipv4 10.0.0.0/24 discard", says: "reactor"},
+	{line: "send bgp 192.0.2.1 withdraw tag maint", says: "reactor"},
+	{line: "send bgp 192.0.2.1 withdraw id 7", says: "reactor"},
+	{line: "send bgp 192.0.2.1 withdraw all", says: "reactor"},
+	{line: "send bgp 192.0.2.1 cached 999", says: "reactor"},
+	// handleBgpCacheBatch counts the per-id failures and reports the count, so
+	// the reactor's own words do not survive it. Reaching the batch walk at all
+	// is the thing this row proves: before the selector moved into ctx, this
+	// line never got there, because handleCacheForwardRPC refused it first.
+	{line: "send bgp 192.0.2.1 cached 1,2", says: "batch forward"},
+}
+
+// TestEverySendFormReachesItsHandler asserts each send form gets PAST argument
+// binding and into the code that does the sending.
+//
+// The selector is bound by the model, not by the handler: matchCommandTokens
+// consumes the token after `bgp` into ctx.Peer and hands the handler only the
+// tail. A handler still reading the selector out of args[0] therefore sees one
+// argument fewer than it expects, and answers about a missing argument instead
+// of sending anything. That is what `send bgp <selector> cached <id>` did until
+// 2026-09-07: it answered `usage: request cache forward <id> <selector>` for
+// every input, naming a path the tree no longer has.
+//
+// The discriminator is the reactor. This server has none, so a form that
+// reaches its handler can only fail on the reactor, while a form whose
+// arguments never bound fails before it gets there. No other assertion
+// separates the two, which is why test/plugin/api-send-cached.ci could not: it
+// accepts StatusDone OR StatusError, so the usage refusal read as a pass.
+//
+// VALIDATES: AC-5 -- every moved form behaves at its new path, argument binding
+// included, not merely resolving to a node.
+// PREVENTS: a handler left reading the pre-move positional layout, which makes
+// the command answer a usage line forever while the model, the completion and
+// the grammar gate all stay green.
+func TestEverySendFormReachesItsHandler(t *testing.T) {
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	require.NoError(t, err)
+
+	for _, form := range sendFormsAtTheirNewPath {
+		t.Run(form.line, func(t *testing.T) {
+			ctx := &pluginserver.CommandContext{Server: server}
+			_, dispatchErr := server.Dispatcher().Dispatch(ctx, form.line)
+			require.Error(t, dispatchErr, "no reactor is configured, so the send cannot succeed")
+			assert.Contains(t, dispatchErr.Error(), form.says,
+				"the form must fail inside its handler; any other error means it never reached one")
+			assert.NotContains(t, dispatchErr.Error(), "usage:",
+				"a usage refusal means the handler read an argument the model had already bound")
+		})
+	}
+}

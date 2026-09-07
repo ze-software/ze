@@ -117,7 +117,7 @@ module ze-rib {
                    The list governs the SEND side too. RFC 7999 Section 3.1
                    requires the two networks to agree on use of the BLACKHOLE
                    community before a speaker advertises it. Naming it here is
-                   this speaker's half. `announce blackhole` reaches only the
+                   this speaker's half. `send bgp <selector> blackhole` reaches only the
                    sessions that hold 65535:666, under either spelling. A session
                    that named its own value alone is left out of the
                    announcement, and is not sent the prefix untagged.";

@@ -1153,7 +1153,7 @@ func TestStoreAuthorizerBoundProfilesDoNotCrossSessions(t *testing.T) {
 }
 
 // TestBuiltinReadOnlyProfileDeniesEverySendByDefault pins the second half of
-// AC-16 of plan/spec-fixit-send-names-its-destination.md: the denial is reached
+// AC-16 of spec-fixit-send-names-its-destination: the denial is reached
 // by two defaults, and by no entry that names the verb.
 //
 // The first default is IsReadOnlyPath, an ALLOWLIST of the read verbs that

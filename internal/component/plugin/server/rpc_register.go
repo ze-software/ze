@@ -131,7 +131,7 @@ func readPeerContainer(peer *command.Node, keywords PeerKeywords) {
 // mandatory ArgDef anchored to `peer`. A command holding none is one the
 // operator types straight after the keyword: it declares ze:inherit none
 // (`show bgp peer list`), or it declares a selector of its own, which the model
-// then places after the verb (`peer raw <selector>`).
+// then places after the verb (`show policy chain peer <selector>`).
 //
 // A node with no command under it contributes nothing, because a keyword that
 // dispatches nothing takes no peer name.

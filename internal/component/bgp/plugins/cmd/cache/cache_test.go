@@ -70,24 +70,50 @@ func TestHandlerCacheExpire(t *testing.T) {
 	assert.Equal(t, uint64(42), reactor.deletedIDs[0])
 }
 
+// TestHandlerCacheForward pins the argument split of
+// `send bgp <selector> cached <id>`: the id arrives positionally and the
+// selector arrives on the context.
+//
+// The dispatcher binds the token after `bgp` into ctx.Peer and hands the
+// handler only the tail (matchCommandTokens,
+// internal/component/plugin/server/command.go), so args carries the id alone.
+// Passing a second positional here would test the grammar the command left.
+//
+// VALIDATES: the forward reaches the reactor with the id from args and the
+// selector from ctx.
+// PREVENTS: the handler reading the selector out of args[0] again, which made
+// every forward answer a usage line.
 func TestHandlerCacheForward(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newTestContext(reactor)
+	ctx.Peer = "192.0.2.9"
 
-	resp, err := handleCacheForwardRPC(ctx, []string{"42", "*"})
+	resp, err := handleCacheForwardRPC(ctx, []string{"42"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
 	require.Len(t, reactor.forwardedUpdates, 1)
 	assert.Equal(t, uint64(42), reactor.forwardedUpdates[0].id)
+	assert.Equal(t, "192.0.2.9", reactor.forwardedUpdates[0].sel.String(),
+		"the peers must come from the context, not from an argument")
 }
 
-func TestHandlerCacheForwardMissingSelector(t *testing.T) {
+// TestHandlerCacheForwardMissingID asserts the one argument this handler still
+// reads positionally is required.
+//
+// The selector is NOT among the arguments it can miss: the command registers
+// RequiresSelector, so Dispatch refuses a send with nothing bound before the
+// handler runs (TestSendRefusesAMissingSelector,
+// internal/component/plugin/server/send_test.go).
+func TestHandlerCacheForwardMissingID(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
+	ctx.Peer = "192.0.2.9"
 
-	resp, err := handleCacheForwardRPC(ctx, []string{"42"})
+	resp, err := handleCacheForwardRPC(ctx, nil)
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Error, "send bgp <selector> cached <id>",
+		"the usage line must name the path the command answers at")
 }
 
 func TestHandlerCacheRetainMissingID(t *testing.T) {
@@ -117,7 +143,7 @@ func TestHandlerCacheBatchForward(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleCacheForwardRPC(ctx, []string{"10,20,30", "*"})
+	resp, err := handleCacheForwardRPC(ctx, []string{"10,20,30"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -142,7 +168,7 @@ func TestHandlerCacheBatchPartialFailure(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleCacheForwardRPC(ctx, []string{"10,abc,30", "*"})
+	resp, err := handleCacheForwardRPC(ctx, []string{"10,abc,30"})
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 
