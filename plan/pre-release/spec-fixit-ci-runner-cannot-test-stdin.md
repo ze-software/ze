@@ -5,15 +5,15 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 6/8 |
+| Phase | 7/8 |
 | Handoff | - |
 | Updated | 2026-09-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-**Nobody is working on this (2026-09-07).** Status is `ready`, not
-`in-progress`: nothing claims it and no session is working it. The `Phase` field
-keeps the position so whoever picks it up does not restart.
+**A session claims this (2026-09-07).** Status is `in-progress`, which the
+`Status` field above and `./le spec session current` both report. The `Phase`
+field keeps the position so whoever picks it up does not restart.
 
 What is built, verified at the producer today: AC-1 through AC-5. The blanket
 rewrite of the first `-` in argv is gone, replaced by `routeStdinBlock`
@@ -33,6 +33,8 @@ AC-8 and AC-13.
 | AC-13 | `TestCIMustFailFixturesAllFail` (`must_fail_test.go`) over six fixtures in `internal/test/runner/testdata/mustfail/`, each naming its own failure text | `61de329f6` |
 | AC-9 | `test/ui/bgp-decode-pcap-stdin.ci` over the stdin arm of `decodePcapInput` (`internal/component/bgp/cli/decode_pcap.go`), reached through `routeStdinBlock` | fixture at HEAD in `a83f838dfa`; red observed and recorded 2026-09-07 |
 | AC-10 | `test/ui/bgp-decode-stdin-hex.ci` over `decodeHexStdin` (same file), reached the same way | fixture at HEAD in `a83f838dfa`; red observed and recorded 2026-09-07 |
+| AC-11 | `test/ui/config-history-stdin-refused.ci` over the `cliio.IsStdin` guard in `cmdHistory` (`internal/component/config/cli/cmd_history.go`), reached through `routeStdinBlock` | fixture at HEAD in `e1a00896d`; red observed and recorded 2026-09-07 |
+| AC-12 | `test/ui/config-fmt-write-stdout.ci` over the `cliio.IsStdin(configPath)` arm of `cmdFmt` (`internal/component/config/cli/cmd_fmt.go`), reached the same way | fixture at HEAD in `e1a00896d`; red observed and recorded 2026-09-07 |
 
 AC-8's code is finished and green and sits uncommitted, because its one call
 site is in `runner_exec.go`, which also holds the uncommitted AC-1..AC-5 hunks
@@ -47,11 +49,14 @@ run green, then run again against a `ze` rebuilt with its own producer cut, and
 each went RED with the text the Functional Tests table records. Both breaks were
 restored and both fixtures re-run green.
 
-What is NOT built: AC-11 and AC-12, whose fixtures
-(`test/ui/config-history-stdin-refused.ci`, `test/ui/config-fmt-write-stdout.ci`)
-are uncommitted and carry no observed red. AC-14 and AC-15 need a whole
-functional suite run, which the owner deferred until the machine is free of the
-concurrent exabgp session.
+Built 2026-09-07: AC-11 and AC-12, fixture and discrimination together. Each one
+was run green, run again against a `ze` rebuilt with its own producer cut, and
+went RED with the text the Functional Tests table records. Both cuts were
+restored, `git status` over `internal/component/config/cli/` came back clean, and
+both fixtures were re-run green.
+
+What is NOT built: AC-14 and AC-15, which need a whole functional suite run. The
+owner deferred that until the machine is free of the concurrent exabgp session.
 
 **Bucket: `plan/pre-release/`.** No operator meets this: the `ze` binary reads
 standard input correctly, and the defect is in the instrument that judges it. It
@@ -529,8 +534,8 @@ The user here is a `.ci` author, and the product is the runner.
 |------|----------|-------------------|--------|
 | `bgp-decode-pcap-stdin` | `test/ui/bgp-decode-pcap-stdin.ci` | an operator pipes a capture into `ze bgp decode pcap -` | pass; RED observed 2026-09-07 with the stdin arm of `decodePcapInput` cut, the capture replaced by an empty reader under `cliio.IsStdin(args[0])`: `expected exit code 0, got 1`, client output `error: read -: pcap: read file header: EOF`. The step trace of the same run reads `ze bgp decode pcap -  [stdin=capture piped]`, so the red is the piped capture and not a path |
 | `bgp-decode-stdin-hex` | `test/ui/bgp-decode-stdin-hex.ci` | an operator pipes hex lines into `ze bgp decode -` | pass; RED observed 2026-09-07 with `decodeHexStdin` cut, the bytes `cliio.ReadFile` returned discarded before the line walk: `expected exit code 0, got 1`, client output `error: standard input carried no hexadecimal message`. The step trace reads `ze bgp decode -  [stdin=payloads piped]` |
-| `config-history-stdin-refused` | `test/ui/config-history-stdin-refused.ci` | an operator pipes a config into `ze config history -` and is told history needs on-disk revisions | |
-| `config-fmt-write-stdout` | `test/ui/config-fmt-write-stdout.ci` | an operator pipes a config into `ze config fmt -w -` and gets the formatted config on stdout | |
+| `config-history-stdin-refused` | `test/ui/config-history-stdin-refused.ci` | an operator pipes a config into `ze config history -` and is told history needs on-disk revisions | pass; RED observed 2026-09-07 with the `cliio.IsStdin` guard of `cmdHistory` cut: `stderr does not contain "history needs on-disk revision history"`, client output `error: cannot read config file: read file/active/-: file does not exist`. The exit assertion PASSED under that same cut, so the stderr text is the whole discriminator. The step trace reads `ze config history -  [stdin=config piped]` |
+| `config-fmt-write-stdout` | `test/ui/config-fmt-write-stdout.ci` | an operator pipes a config into `ze config fmt -w -` and gets the formatted config on stdout | pass; RED observed 2026-09-07 with the `cliio.IsStdin(configPath)` arm of `cmdFmt` cut so the in-place arm runs. The whole fixture fails on `stderr unexpectedly contains "Formatted"`, the in-place note a pipeline stage never prints. A second run of the same cut, with that reject line removed, fails on `stdout does not contain "router-id 5.6.7.8"`, because the in-place arm writes nothing for the already-formatted input of seq=2. Both runs print the formatted config of seq=1 and no `router-id 5.6.7.8`, and the step trace reads `ze config fmt -w -  [stdin=formatted piped]` |
 | the must-fail fixtures | `internal/test/runner/testdata/mustfail/*.ci` | not user-facing: each one proves the runner still refuses or still fails where it must | six fixtures, green in `61de329f6`. Red observed by pointing `exit-code-is-judged.ci` at `/bin/true` |
 
 ### Interop Tests (Scope: protocol)
