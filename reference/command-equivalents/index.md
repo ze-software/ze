@@ -1,6 +1,6 @@
 # Command Equivalents
 
-409 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+413 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -60,14 +60,6 @@ These rows have at least one listed vendor command.
 Rows without vendor CLI remain visible so missing coverage is explicit.
 
 
-### announce
-
-| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
-| --- | --- | --- | --- | --- | --- | --- |
-| `announce blackhole` | Daemon | - | - | - | - | [details](announce-blackhole/) |
-| `announce flowspec` | Daemon | - | - | - | - | [details](announce-flowspec/) |
-| `announce unicast` | Daemon | - | - | - | - | [details](announce-unicast/) |
-
 ### clear
 
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
@@ -78,6 +70,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `clear dns cache` | Daemon | - | - | - | - | [details](clear-dns-cache/) |
 | `clear dns cache record` | Daemon | - | - | - | - | [details](clear-dns-cache-record/) |
 | `clear dns cache stats` | Daemon | - | - | - | - | [details](clear-dns-cache-stats/) |
+| `clear firewall domain-group` | Daemon | - | - | - | - | [details](clear-firewall-domain-group/) |
 | `clear firewall irr as-set` | Daemon | - | - | - | - | [details](clear-firewall-irr-as-set/) |
 | `clear firewall irr asn` | Daemon | - | - | - | - | [details](clear-firewall-irr-asn/) |
 | `clear interface counters` | Daemon | - | - | - | `clear interfaces ethernet <name> counters` | [details](clear-interface-counters/) |
@@ -98,6 +91,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
 | --- | --- | --- | --- | --- | --- | --- |
+| `create bgp peer` | Daemon | - | - | - | - | [details](create-bgp-peer/) |
 | `create interface address` | Daemon | - | - | - | - | [details](create-interface-address/) |
 | `create interface bridge name` | Daemon | - | - | - | - | [details](create-interface-bridge-name/) |
 | `create interface bridge name address` | Daemon | - | - | - | - | [details](create-interface-bridge-name-address/) |
@@ -167,19 +161,6 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `monitor traffic stat` | Read-only | - | - | - | - | [details](monitor-traffic-stat/) |
 | `monitor vpn ipsec` | Read-only | - | - | - | - | [details](monitor-vpn-ipsec/) |
 
-### peer
-
-| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
-| --- | --- | --- | --- | --- | --- | --- |
-| `peer announce blackhole` | Daemon | - | - | - | - | [details](peer-announce-blackhole/) |
-| `peer announce flowspec` | Daemon | - | - | - | - | [details](peer-announce-flowspec/) |
-| `peer announce unicast` | Daemon | - | - | - | - | [details](peer-announce-unicast/) |
-| `peer raw` | Daemon | - | - | - | - | [details](peer-raw/) |
-| `peer update` | Daemon | - | - | - | - | [details](peer-update/) |
-| `peer withdraw all` | Daemon | - | - | - | - | [details](peer-withdraw-all/) |
-| `peer withdraw id` | Daemon | - | - | - | - | [details](peer-withdraw-id/) |
-| `peer withdraw tag` | Daemon | - | - | - | - | [details](peer-withdraw-tag/) |
-
 ### plugin
 
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
@@ -203,7 +184,6 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request bgp rib inject` | Daemon | - | - | - | - | [details](request-bgp-rib-inject/) |
 | `request bgp rib withdraw` | Daemon | - | - | - | - | [details](request-bgp-rib-withdraw/) |
 | `request cache expire` | Daemon | - | - | - | - | [details](request-cache-expire/) |
-| `request cache forward` | Daemon | - | - | - | - | [details](request-cache-forward/) |
 | `request cache release` | Daemon | - | - | - | - | [details](request-cache-release/) |
 | `request cache retain` | Daemon | - | - | - | - | [details](request-cache-retain/) |
 | `request commit` | Daemon | - | - | - | `commit` | [details](request-commit/) |
@@ -249,6 +229,20 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `resolve ping` | Read-only | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](resolve-ping/) |
 | `resolve traceroute` | Read-only | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](resolve-traceroute/) |
 
+### send
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
+| `send bgp blackhole` | Daemon | - | - | - | - | [details](send-bgp-blackhole/) |
+| `send bgp cached` | Daemon | - | - | - | - | [details](send-bgp-cached/) |
+| `send bgp flowspec` | Daemon | - | - | - | - | [details](send-bgp-flowspec/) |
+| `send bgp raw` | Daemon | - | - | - | - | [details](send-bgp-raw/) |
+| `send bgp unicast` | Daemon | - | - | - | - | [details](send-bgp-unicast/) |
+| `send bgp update` | Daemon | - | - | - | - | [details](send-bgp-update/) |
+| `send bgp withdraw all` | Daemon | - | - | - | - | [details](send-bgp-withdraw-all/) |
+| `send bgp withdraw id` | Daemon | - | - | - | - | [details](send-bgp-withdraw-id/) |
+| `send bgp withdraw tag` | Daemon | - | - | - | - | [details](send-bgp-withdraw-tag/) |
+
 ### set
 
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
@@ -288,6 +282,9 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show bgp peer list` | Read-only | - | - | - | - | [details](show-bgp-peer-list/) |
 | `show bgp peer rib` | Read-only | `show route advertising-protocol bgp <peer>`<br>`show route receive-protocol bgp <peer>` | - | - | - | [details](show-bgp-peer-rib/) |
 | `show bgp peer statistics` | Read-only | - | - | - | - | [details](show-bgp-peer-statistics/) |
+| `show bgp reject-asn` | Read-only | - | - | - | - | [details](show-bgp-reject-asn/) |
+| `show bgp reject-asn known transit-free` | Read-only | - | - | - | - | [details](show-bgp-reject-asn-known-transit-free/) |
+| `show bgp reject-asn name` | Read-only | - | - | - | - | [details](show-bgp-reject-asn-name/) |
 | `show bgp rib` | Read-only | - | - | - | - | [details](show-bgp-rib/) |
 | `show bgp rib best` | Read-only | `show route <prefix> protocol bgp`<br>`show route protocol bgp` | `show bgp ipv4 unicast`<br>`show bgp ipv4 unicast <prefix>` | - | `show ip bgp <prefix>` | [details](show-bgp-rib-best/) |
 | `show bgp rib best status` | Read-only | - | - | - | - | [details](show-bgp-rib-best-status/) |
@@ -334,6 +331,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show event list` | Read-only | - | - | - | - | [details](show-event-list/) |
 | `show event namespaces` | Read-only | - | - | - | - | [details](show-event-namespaces/) |
 | `show event recent` | Read-only | - | - | - | - | [details](show-event-recent/) |
+| `show firewall domain-group` | Read-only | - | - | - | - | [details](show-firewall-domain-group/) |
 | `show firewall group` | Read-only | - | - | - | - | [details](show-firewall-group/) |
 | `show firewall irr` | Read-only | - | - | - | - | [details](show-firewall-irr/) |
 | `show firewall irr prefix` | Read-only | - | - | - | - | [details](show-firewall-irr-prefix/) |
@@ -450,6 +448,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show pki certificate name fingerprint` | Read-only | - | - | - | - | [details](show-pki-certificate-name-fingerprint/) |
 | `show pki certificate name pem` | Read-only | - | - | - | - | [details](show-pki-certificate-name-pem/) |
 | `show pki certificates` | Read-only | - | - | - | - | [details](show-pki-certificates/) |
+| `show pki local-ca pem` | Read-only | - | - | - | - | [details](show-pki-local-ca-pem/) |
 | `show plugins` | Offline | - | - | - | - | [details](show-plugins/) |
 | `show policy chain peer` | Read-only | - | - | - | - | [details](show-policy-chain-peer/) |
 | `show policy list` | Read-only | - | - | - | - | [details](show-policy-list/) |
@@ -462,6 +461,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show pppoe statistics` | Read-only | - | - | - | - | [details](show-pppoe-statistics/) |
 | `show probe-round` | Read-only | - | - | - | - | [details](show-probe-round/) |
 | `show reload-status` | Read-only | - | - | - | - | [details](show-reload-status/) |
+| `show resolve rir` | Read-only | - | - | - | - | [details](show-resolve-rir/) |
 | `show route` | Read-only | `show route` | - | - | `show ip route` | [details](show-route/) |
 | `show route lookup` | Read-only | `show route <prefix>` | - | - | `show ip route <prefix>` | [details](show-route-lookup/) |
 | `show rr peers` | Read-only | - | - | - | - | [details](show-rr-peers/) |
@@ -555,9 +555,11 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `update bgp irr as-set` | Daemon | - | - | - | - | [details](update-bgp-irr-as-set/) |
 | `update bgp irr asn` | Daemon | - | - | - | - | [details](update-bgp-irr-asn/) |
 | `update bgp peer prefix` | Daemon | - | - | - | - | [details](update-bgp-peer-prefix/) |
+| `update firewall domain-group` | Daemon | - | - | - | - | [details](update-firewall-domain-group/) |
 | `update firewall irr all` | Daemon | - | - | - | - | [details](update-firewall-irr-all/) |
 | `update firewall irr as-set` | Daemon | - | - | - | - | [details](update-firewall-irr-as-set/) |
 | `update firewall irr asn` | Daemon | - | - | - | - | [details](update-firewall-irr-asn/) |
+| `update resolve rir` | Daemon | - | - | - | - | [details](update-resolve-rir/) |
 | `update serve` | Offline | - | - | - | - | [details](update-serve/) |
 | `update system firmware apply` | Daemon | - | - | - | - | [details](update-system-firmware-apply/) |
 | `update system firmware check` | Daemon | - | - | - | - | [details](update-system-firmware-check/) |
@@ -570,14 +572,6 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
 | --- | --- | --- | --- | --- | --- | --- |
 | `validate config` | Offline | - | - | - | - | [details](validate-config/) |
-
-### withdraw
-
-| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
-| --- | --- | --- | --- | --- | --- | --- |
-| `withdraw all` | Daemon | - | - | - | - | [details](withdraw-all/) |
-| `withdraw id` | Daemon | - | - | - | - | [details](withdraw-id/) |
-| `withdraw tag` | Daemon | - | - | - | - | [details](withdraw-tag/) |
 
 ## Vendor-only gaps
 

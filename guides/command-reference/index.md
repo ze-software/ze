@@ -252,7 +252,10 @@ Exit codes: 0 = running, 1 = not running.
 BGP protocol tools (offline, no daemon needed).
 
 ```
-ze bgp decode <hex>              # Decode BGP message hex to JSON
+ze bgp decode <hex>              # Decode one BGP message from hex
+ze bgp decode -                  # Decode one hex message for each line of standard input
+ze bgp decode pcap <file>        # Decode every BGP message in a capture
+ze bgp decode pcap -             # Decode a capture read from standard input
 ze bgp encode <route-command>    # Encode route command to BGP hex
 ze bgp plugin cli                # Plugin debug shell (5-stage handshake + interactive)
 ze bgp plugin cli --name <name>  # Debug shell with custom plugin name
@@ -261,6 +264,14 @@ ze bgp plugin cli --name <name>  # Debug shell with custom plugin name
 ze show bgp decode <hex>
 ze show bgp encode <route-command>
 ```
+
+The `pcap` keyword precedes the path, so the first word after `decode` is always
+a keyword or a hex payload and never an ambiguous file name. A capture may be
+one `show capture-raw dump bgp pcap` wrote or one from tcpdump: the reader takes
+either byte order and the Ethernet, raw IP and Linux cooked link types, reads
+only TCP flows with port 179 at either end, and reassembles each direction
+before it frames messages. A hole in the capture is reported and never read
+across, and a capture with no BGP in it exits non-zero naming what it examined.
 
 **decode flags:**
 
@@ -327,7 +338,7 @@ ze show errors source l2tp count 5     # last 5 errors from l2tp
 | error | `bgp / session-dropped` | An Established session ends without a NOTIFICATION exchange (TCP loss, hold-timer with no notification, peer FIN) | Never |
 
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- report code constants and helper functions -->
-<!-- source: internal/component/bgp/reactor/peer_stats.go -- IncrNotificationSent, IncrNotificationReceived -->
+<!-- source: internal/component/bgp/reactor/peer_stats.go -- incrNotificationSent, incrNotificationReceived -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- raiseSessionDropped at FSM Established->Idle transition -->
 
 **Capacity limits** (configurable via env vars):
@@ -959,6 +970,7 @@ ze show pki certificate name <name> pem                 # PEM-encoded certificat
 ze show pki certificate name <name> bundle pem          # Certificate + private key in one PEM
 ze show pki certificate name <name> fingerprint         # SHA-256 fingerprint (colon-separated hex)
 ze show pki certificate name <name> fingerprint sha512  # SHA-512 fingerprint
+ze show pki local-ca pem                                # Root of the local certificate authority
 ```
 
 **`show pki certificates`** returns a sorted list of all loaded
@@ -979,7 +991,19 @@ only). Useful for clients that need a single PEM file (e.g. OpenConnect).
 **`show pki certificate name <name> fingerprint [sha256|sha384|sha512]`**
 returns the DER fingerprint as colon-separated hex. Defaults to SHA-256.
 
-<!-- source: internal/component/pki/show.go -- handleShowPKICertificates, handleShowPKICertificate, handleShowPKICertificatePEM, handleShowPKICertificateBundlePEM, handleShowPKICertificateFingerprint -->
+**`show pki local-ca pem`** returns the root certificate of the local
+certificate authority, which ze generates at its first start and signs
+its own components' certificates with. The answer carries the PEM, the
+subject, and the expiry date. It never carries the root private key.
+
+This root is not one of the certificates the `pki {}` section configures,
+and it has no name. Give the PEM to each node that must trust this one,
+in that node's `pki { ca <name> { certificate <base64> } }` block. The
+client then validates the ISSUER, so it keeps working when this node
+issues itself a new leaf.
+
+<!-- source: internal/component/pki/show.go -- handleShowPKICertificates, handleShowPKICertificate, handleShowPKICertificatePEM, handleShowPKICertificateBundlePEM, handleShowPKICertificateFingerprint, handleShowPKILocalCAPEM -->
+<!-- source: internal/component/pki/ca.go -- LoadOrGenerateRoot, Root.CertificatePEM -->
 
 ### show firewall
 
@@ -1042,6 +1066,40 @@ deregistered upstream: no IRR answer removes prefixes on its own.
 
 <!-- source: internal/component/firewall/plugins/irr/command.go -- handleCommand, showIRR, showIRRPrefix, updateASN, updateASSet, clearASN, clearASSet -->
 <!-- source: internal/component/resolve/irr/store/store.go -- Refresh keeps last-known-good, Purge removes -->
+
+### show, update and clear firewall domain-group
+
+DNS-resolved addresses behind firewall rules that name a domain group. Provided
+by the `firewall-domain` plugin.
+
+```
+ze show firewall domain-group           # Every group: addresses, freshness, last answer
+ze show firewall domain-group <name>    # One group
+ze update firewall domain-group <name>  # Resolve the group's names now
+ze clear firewall domain-group <name>   # Remove the group's cached addresses
+```
+
+**`show firewall domain-group`** reports one row per configured group, and
+within it one entry per DNS name and address family. `status` carries what the
+last answer said: `NOERROR`, `NXDOMAIN`, `SERVFAIL`, `REFUSED`, or `missing`
+when that name and family have never been asked for. `missing` and a `NOERROR`
+holding no address are different facts: the first says nothing was asked, the
+second says the name holds no address of that family. An entry whose name has
+stopped answering also carries `failing-since`.
+
+**`update firewall domain-group <name>`** resolves every name in the group at
+once rather than waiting for a TTL. It is the only path back from a cold cache,
+because a commit naming a group Ze has never resolved is refused. A name that
+fails keeps the addresses Ze already had for it, and the command reports what
+did resolve beside what did not.
+
+**`clear firewall domain-group <name>`** is how addresses are removed. It drops
+them from memory and from ZeFS and re-applies the tables. Use it when a name is
+gone upstream for good: only an NXDOMAIN removes addresses on its own, and a
+failing server never does.
+
+<!-- source: internal/component/firewall/plugins/domain/command.go -- handleCommand, showDomainGroup, updateDomainGroup, clearDomainGroup -->
+<!-- source: internal/component/firewall/plugins/domain/domain.go -- resolveAndRecord, the four outcomes -->
 
 ### show system uptime
 
@@ -1239,6 +1297,44 @@ clear dns cache record example.com type AAAA        # Delete a single entry by n
 ```
 
 <!-- source: internal/component/resolve/cmd/dns.go -- handleClearDNSCache, handleClearDNSCacheStats, handleClearDNSCacheRecord -->
+
+### show resolve rir
+
+```
+ze show resolve rir 15169                      # Which registry holds AS15169
+ze show resolve rir 15169 | json               # The same answer as structured data
+```
+
+Returns `asn`, `registry`, `whois`, `range-start` and `range-end`. It reads the
+shipped delegation table, or the copy `update resolve rir` stored when that copy
+is newer, so it answers with no network. An AS number in no delegated range and
+a table that cannot be read are two different answers, and both are errors.
+
+<!-- source: internal/component/resolve/cmd/rir.go -- handleRIRASN -->
+
+### update resolve rir
+
+```
+update resolve rir                             # Refresh the RIR delegation table
+```
+
+Fetches the five registry delegation files, parses them, and stores the table
+under the `meta/rir/delegation` key. It answers `key`, `ranges` (how many ranges
+the stored table holds) and `generated` (the date it stored).
+
+The refresh is all or nothing. A registry that does not answer, a file the
+parser refuses, and a run that read no ASN record each store nothing, report
+which one it was, and leave the previous table answering. A run that could not
+store reports an error and never reports success.
+
+Each file is read from the registry that publishes it, unless `system/rir` names
+a URL for that registry. A mirror is read over HTTPS, or over plain HTTP when it
+is the host itself. The sources are read when the command runs, so one committed
+after the daemon started needs no restart, and the stored table's `Source:` lines
+name the URLs that run actually read.
+
+<!-- source: internal/component/resolve/cmd/rir.go -- handleRIRRefresh, configuredDelegationSources -->
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system/rir/delegation-source -->
 
 ### clear vpn ipsec sa
 
@@ -1446,7 +1542,7 @@ daemon is running.
 ### show crashes
 
 ```
-ze show crashes              # List crash files with timestamp and size (JSON)
+ze show crashes              # List crash reports with size, kind and readiness (JSON)
 ze show crashes latest       # Display the most recent crash report
 ze show crashes name <file>  # Display a specific crash report
 ```
@@ -1456,9 +1552,44 @@ it falls back to reading the crash files in-process. That fallback matters most
 here: you inspect a crash precisely when the daemon has died, so the command must
 work with no daemon.
 
-Crash reports contain the panic stack trace, ring buffer context (last 64
-log entries before the crash), version, build date, and uptime. Crash files
+Each row carries a `kind`. `panic` is a Go panic this daemon caught and wrote
+itself. `kernel` is a kernel fault, which leaves no process behind to write a
+report: the kernel writes its own record into a reserved memory region, and Ze
+reads it on the next boot. Both kinds live in one directory, share the
+`ze.crash.keep` retention count, and are listed by this one command.
+
+Crash reports contain the panic stack trace or the kernel backtrace, ring buffer
+context (last 64 log entries), version, build date, and uptime. Crash files
 are stored in the autodetected crash directory (see `ze.crash.dir` env var).
+
+The listing also carries a `readiness` block, which answers **configured** and
+**armed** separately:
+
+| Field | Meaning |
+|-------|---------|
+| `configured` | `system crash-dump enabled` is set in the running config |
+| `armed` | the RUNNING kernel booted with the reservation, and its record store is readable |
+| `reason` | what to do next when the two disagree |
+| `region`, `reserve-megabytes` | the reservation the running kernel carries |
+| `directory-writable` | a crash directory was resolved and is writable |
+| `pstore-available` | kernel crash records can be read back |
+| `memory-image` | the same two states for the full-memory-image option, with `shortfall-bytes` when the target lacks room |
+
+The two fields come from different places on purpose. A reservation is a kernel
+boot argument, so a commit looks like it took effect and changes nothing until
+the box reboots into an image built with `image.crash-dump`. Reporting one field
+would hide exactly that gap. See `docs/guide/appliance.md` for the reservation
+and `docs/guide/configuration.md` for the config leaves.
+<!-- source: internal/plugins/crashes/readiness.go -- Readiness, the one answer every surface reads -->
+<!-- source: internal/core/crashlog/kernel.go -- CrashReadiness, configured versus armed -->
+<!-- source: internal/core/crashlog/list.go -- CrashKind, CrashListFields -->
+
+Three `ze doctor` checks report the same facts with stable diagnostic codes:
+`doctor-crash-capture-unarmed`, `doctor-crash-capture-pstore` and
+`doctor-crash-directory-unwritable`.
+<!-- source: internal/plugins/crashes/doctor.go -- the three checks -->
+<!-- source: internal/plugins/crashes/register.go -- their registration -->
+
 <!-- source: internal/plugins/crashes/cmd/register.go -- online show crashes RPC -->
 <!-- source: internal/plugins/crashes/register.go -- offline fallback (registry.RegisterOfflineFallback) -->
 
@@ -1703,6 +1834,10 @@ ze passwd                                                # interactive
 
 The output is suitable for direct paste into a YANG `password` leaf, or as a
 shell substitution into `ze config set ... password "$(echo s | ze passwd)"`.
+
+A weak password draws `warning: weak password (<reason>)` on stderr. The hash
+still goes to stdout and the exit code stays 0, so a pipeline is unaffected. See
+[authentication](../authentication/index.md) for the policy.
 <!-- source: internal/plugins/passwd/main.go -- runImpl -->
 
 ### --user / -u flag (all client CLIs)
@@ -1908,6 +2043,7 @@ ze resolve peeringdb max-prefix 13335                  # IPv4/IPv6 prefix counts
 ze resolve peeringdb as-set 13335                      # Registered IRR AS-SETs
 ze resolve irr as-set AS-CLOUDFLARE                    # Expand AS-SET to member ASNs
 ze resolve irr prefix AS-CLOUDFLARE                    # Lookup announced prefixes
+ze resolve rir 15169                                   # Which registry holds an AS number
 ```
 
 | Flag | Subcommand | Purpose |
@@ -2135,6 +2271,13 @@ Optional: `source-asn4 false` to test with ASN2 encoding context (default: ASN4)
 
 Output is structured JSON with fields: `direction`, `peer`, `action` (accept/reject/modify), `trace` (per-filter decisions), `text-before`, `text-after`, `changed-attrs`, and `wire-changes` (wire-level attribute ops such as `AS4_PATH suppressed` that the flat filter text cannot express).
 
+`text-before` and `text-after` name every attribute the UPDATE carries. Five of
+those names first appeared on 2026-09-04: `origin`, `med`, `local-preference`,
+`atomic-aggregate` and `cluster-list`. The renderer named a Go type no parser
+built for each of them, so the dry-run output was silent about all five. See
+[The Attribute Names in the Filter Text Protocol](https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md)
+for the full set.
+
 This command does not forward routes, update the RIB, populate cache, or mutate peer state.
 <!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- handleShowPolicyTest -->
 
@@ -2169,6 +2312,24 @@ Config keys are parsed from the YANG `peer-fields` schema via `ParseInlineArgs`.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- grouping peer-fields, the source of every key in this table -->
 <!-- source: internal/component/plugin/types_bgp.go -- AddDynamicPeer, which takes the parsed peer-fields tree -->
 
+### Create Commands
+
+| Command | Access | Purpose |
+|---------|--------|---------|
+| `create bgp peer <address> asn <asn> [...]` | write | Add a peer to the running daemon <!-- source: internal/component/bgp/plugins/cmd/peer/create.go -- handleBgpPeerAdd --> |
+
+The peer address comes first and `asn` is the only required keyword. The rest
+are optional: `local-as`, `local-address`, `router-id`, `receive-hold-time`,
+`send-hold-time`, `connect-retry`, `connect`, `accept`, `family`,
+`graceful-restart`, `group-updates` and `attach`. `family` and `attach` each
+take a comma-separated list. A keyword the command does not take is refused by
+name, and so is a value it cannot use.
+
+The peer lives in the running daemon alone. Nothing is written to the
+configuration, so `show config` does not carry it and a reload removes it. That
+is what `delete bgp peer` mirrors on the way out: it removes the peer from the
+running daemon and leaves the file on disk alone.
+
 ### Del Commands
 
 | Command | Access | Purpose |
@@ -2183,10 +2344,10 @@ Config keys are parsed from the YANG `peer-fields` schema via `ParseInlineArgs`.
 ### Route Injection
 
 ```
-peer <sel> update text <attrs> nlri <family> <op> <prefixes>
-peer <sel> update hex <hex-data>
-peer <sel> update b64 <b64-data>
-peer <sel> raw [<type>] <encoding> <data>
+send bgp <sel> update text <attrs> nlri <family> <op> <prefixes>
+send bgp <sel> update hex <hex-data>
+send bgp <sel> update b64 <b64-data>
+send bgp <sel> raw <hex|b64> <data> [type <type>]
 ```
 
 Text format attributes:
@@ -2234,6 +2395,23 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | `update bgp irr asn <asn>` | write | Refresh IRR prefix-list for a specific ASN |
 | `update bgp irr as-set <as-set>` | write | Refresh IRR prefix-list for a specific AS-SET <!-- source: internal/component/bgp/plugins/filter_irr/command.go -- handleCommand, showIRR, showIRRPrefix, showIRRCheck, updateASN, updateASSet --> |
 | `update bgp peer <sel> prefix` | write | Refresh max-prefix limits from PeeringDB (saves to draft; run `config commit` to apply) <!-- source: internal/component/bgp/plugins/cmd/peer/prefix_update.go -- handleBgpPeerPrefixUpdate --> |
+
+### Reject-ASN Filter Commands
+
+| Command | Access | Purpose |
+|---------|--------|---------|
+| `show bgp reject-asn` | read-only | Every reject-asn list: each ASN with its effective position set, the network the curated table names for it, and the peers that name the list on import and on export |
+| `show bgp reject-asn name <name>` | read-only | The same answer for one list |
+| `show bgp reject-asn known transit-free` | read-only | Print the well-known transit-free ASNs as an `indirect [ ... ];` block to paste inside a `reject-asn` list, with the sources and the curated date as comments <!-- source: internal/component/bgp/plugins/filter_path_asn/command.go -- handleCommand, showRejectASN, showRejectASNName, showKnownTransitFree --> |
+
+An ASN the curated table does not know is listed with an EMPTY annotation. It is
+never omitted and never guessed: an operator has to make a policy decision about
+that ASN, and an invented network name would be an input to it.
+
+Ze acts on no ASN it was not configured with, so `known transit-free` is how the
+well-known set reaches a config. After the paste the config holds the numbers,
+and a later change to the curated table cannot alter what that config does.
+<!-- source: internal/component/bgp/plugins/filter_path_asn/curated.go -- curatedTransitFree, curatedAnnotation -->
 
 ### Healthcheck Commands
 
@@ -2284,9 +2462,9 @@ a keyword.
 | `request cache retain <id>` | write | Pin in cache (prevent eviction) |
 | `request cache release <id>` | write | Release from cache |
 | `request cache expire <id>` | write | Remove immediately |
-| `request cache forward <id> <peer-sel>` | write | Re-inject UPDATE to peer(s) |
+| `send bgp <peer-sel> cached <id>` | write | Re-inject UPDATE to peer(s) |
 
-Batch operations: `request cache forward <id1>,<id2> <selector>`.
+Batch operations: `send bgp <selector> cached <id1>,<id2>`.
 <!-- source: internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang -- module ze-cli-cache-cmd -->
 
 ### Static Routes
@@ -2529,6 +2707,7 @@ Inside `ze cli`:
 | Set default format | `set cli format json` (session override) |
 | Show current format | `set cli format` (no argument) |
 | Tab completion | Contextual command/argument completion <!-- source: internal/component/cli/client/main.go -- pipe operators, interactive model --> <!-- source: internal/component/command/pipe.go -- pipe operator definitions --> <!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat --> |
+| Command help at the prompt | Tab, then Tab again: [keys that reveal help](../cli/index.md#keys-that-reveal-help) |
 
 `ze cli` with no command argument runs the interactive model in the CLIENT
 process and expands the pipe chain there. Only the aliases compiled into Ze

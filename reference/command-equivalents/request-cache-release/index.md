@@ -20,6 +20,8 @@ Ack without forwarding (cache consumer) or undo retain (API).
 - Command pipes: none
 - Pipe aliases: none
 
+The meaning depends on the caller. A cache consumer acknowledges the message and does not forward it. An API caller undoes an earlier retain. The ID leaf accepts a comma-separated list, and each ID is acted on in turn.
+
 ## Arguments
 
 | Name | Type | Required | Values |

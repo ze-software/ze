@@ -17,7 +17,7 @@ Static routes: config-driven kernel/VPP route programming with ECMP
 
 ## Dependencies
 
-- Required: [`routing-table`](../routing-table/index.md)
+- Required: [`routing-table`](../routing-table/index.md), [`rib`](../rib/index.md)
 - Optional: [`interface`](../interface/index.md)
 
 ## Used by

@@ -348,8 +348,9 @@ commit; the committed config replaces the bootstrap config on the next restart.<
 <li><strong>Installer drops to a shell</strong> instead of rebooting on a bad <code>ze.server</code>, no
 writable disk, or a download that fails 3 times. Read the serial/VGA console
 for the <code>[ze-install] FATAL:</code> line.</li>
-<li><strong>Wrong disk</strong> written: the initrd picks the first non-removable disk; detach
-extra fixed disks or net-boot into the shell and inspect <code>/sys/block</code>.</li>
+<li><strong>No disk chosen</strong>: with more than one non-removable disk and no <code>ze.target</code>,
+the installer stops and names the candidates rather than picking one. Pass
+<code>ze.target=/dev/vda</code> in the cmdline, or detach the extra fixed disks.</li>
 <li><strong>Download stalls / non-standard port</strong>: confirm the image server's port and
 pass <code>ze.port=</code> in the iPXE cmdline.</li>
 <li><strong>Dry-run first</strong>: <code>./le qemu install-test</code> reproduces the whole chain and
@@ -855,10 +856,10 @@ default source is <code>http</code>.</p>
 <p>The installer selects a non-removable block device via sysfs. Virtual devices
 (loop, ram, dm, zram, md), optical drives (sr), floppies (fd), and firmware/CFI
 flash (<code>mtdblock</code>, the QEMU <code>virt</code> machine's pflash) are skipped.</p>
-<p>In HTTP mode, the installer preserves the existing first-candidate behavior. In
-ISO mode, it also excludes the ISO source media and refuses to choose
-implicitly when more than one fixed candidate remains. Use <code>ze.target=/dev/vda</code>
-to name an explicit whole disk.</p>
+<p>The installer refuses to choose implicitly when more than one fixed candidate
+remains, in both HTTP and ISO mode, and names the candidates it found. ISO mode
+also excludes the ISO source media before it counts them. Use
+<code>ze.target=/dev/vda</code> to name an explicit whole disk.</p>
 <p>Supported target disk forms include <code>/dev/sda</code> (SATA/SCSI), <code>/dev/vda</code>
 (virtio-blk, used by QEMU/KVM), <code>/dev/nvme0n1</code> (NVMe), and <code>/dev/mmcblk0</code>
 (eMMC).</p>
@@ -1086,7 +1087,7 @@ real network and <code>ze install remote</code> on port 80.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 02:01 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

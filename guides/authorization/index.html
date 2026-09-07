@@ -60,6 +60,7 @@ commands.</p>
 <li><a href="#entries">Entries</a></li>
 <li><a href="#default-action">Default action</a></li>
 <li><a href="#evaluation-order">Evaluation order</a></li>
+<li><a href="#what-happens-when-a-backend-will-not-build">What happens when a backend will not build</a></li>
 </ol></li>
 <li><a href="#matching-rules">Matching rules</a>
 <ol>
@@ -170,6 +171,19 @@ applies (run or edit).</li>
 assignment order. The first profile with a matching entry wins. If no
 profile has a matching entry, the first profile's <code>default-action</code>
 applies.</p>
+<h3 id="what-happens-when-a-backend-will-not-build">What happens when a backend will not build</h3>
+<p>The rules above assume a chain. Where a BACKEND failed to build, it is dropped
+and the chain composes from the rest.</p>
+<p>These rules then still apply. The first authorizer any surviving backend
+contributed decides. Where the local backend survived, that is the local RBAC
+store this page describes.</p>
+<p>A TACACS+ server declared with no shared secret puts a daemon in that state. So
+does any other error while the chain is built.</p>
+<p>Where EVERY backend failed there is no chain, and then <strong>every command is
+refused.</strong> Nothing was installed to consult, and no session exists to ask: ssh
+is not started either, because nothing can authenticate.</p>
+<!-- source: internal/component/aaa/types.go -- backendRegistry.Build -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAAABundleAuthorizer -->
 <h2 id="matching-rules">Matching rules</h2>
 <h3 id="prefix-matching-default">Prefix matching (default)</h3>
 <p>When <code>regex</code> is absent or <code>false</code>, the <code>match</code> string is compared as a
@@ -658,7 +672,7 @@ profile "test" run: entry 10: invalid regex "[broken": error parsing regexp: mis
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

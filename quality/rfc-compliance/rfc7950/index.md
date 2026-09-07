@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 100.0% | 4 of 4 binding obligations | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 4 binding obligations | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 4 binding obligations | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 4 binding obligations | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 18 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 44.4% | 4 of 9 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 9 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| No test at all | 0.0% | 0 of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 10.0% | 2 of 20 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -23,9 +23,12 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 9 | of 10 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 5 | of 9 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below |
+| Out of scope | 5 | of 9 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 55.6% | 5 of 9 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 9 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 9 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 4 shares marked as a part above are the whole of the 4 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -37,6 +40,9 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
@@ -48,15 +54,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Enrolled |
 | Requirements | 10 |
 | Gated MUST-level | 9 |
-| Obligations that bind Ze | 4 |
 | Not applicable, so out of scope | 5 |
 | Declared gaps | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 18 |
-| Tagged units | 18 |
+| Test tags | 20 |
+| Tagged units | 20 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 2 |
 | Summary | `rfc/short/rfc7950.md` |
 | Requirement shard | `rfc/requirements/rfc7950.md` |
 | RFC text | `rfc/full/rfc7950.txt` |
@@ -89,7 +94,7 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC7950-8.3.1-1` | If a leaf data value does not match type constraints (range, length, pattern), server must reply with an invalid-value error (Section 8.3.1) | MUST | 8.3.1 | **positive:** `unit/verify` [`TestValidator_HoldTimeRange`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L833). **positive:** `unit/verify` [`TestValidator_ValidatePattern`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L784). **negative:** `unit/verify` [`TestValidateTree_LengthViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L351). **negative:** `unit/verify` [`TestValidateTree_PatternViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L250). **negative:** `unit/verify` [`TestValidateTree_RangeViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L162). **negative:** `unit/verify` [`TestValidator_HoldTimeRange`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L834). **negative:** `unit/verify` [`TestValidator_ValidatePattern`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L785) |
-| `RFC7950-9.6-1` | An enumeration value must be one of the values specified in the type's enum statements (Section 9.6) | MUST | 9.6 | **positive:** `unit/verify` [`TestISISAuthAlgorithmEnumAcceptsAll`](https://github.com/ze-software/ze/blob/main/internal/component/config/isis_auth_algorithm_enum_test.go#L64). **positive:** `unit/verify` [`TestValidateTree_AddPathDirectionEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L552). **positive:** `unit/verify` [`TestValidateTree_FamilyModeEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L486). **negative:** `unit/verify` [`TestISISAuthAlgorithmEnumAcceptsAll`](https://github.com/ze-software/ze/blob/main/internal/component/config/isis_auth_algorithm_enum_test.go#L81). **negative:** `unit/verify` [`TestValidateTree_AddPathDirectionEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L553). **negative:** `unit/verify` [`TestValidateTree_FamilyModeEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L487) |
+| `RFC7950-9.6-1` | An enumeration value must be one of the values specified in the type's enum statements (Section 9.6) | MUST | 9.6 | **positive:** `unit/verify` [`TestISISAuthAlgorithmEnumAcceptsAll`](https://github.com/ze-software/ze/blob/main/internal/component/config/isis_auth_algorithm_enum_test.go#L64). **positive:** `unit/verify` [`TestRadiusAuthMethodEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/radius_auth_method_enum_test.go#L53). **positive:** `unit/verify` [`TestValidateTree_AddPathDirectionEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L552). **positive:** `unit/verify` [`TestValidateTree_FamilyModeEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L486). **negative:** `unit/verify` [`TestISISAuthAlgorithmEnumAcceptsAll`](https://github.com/ze-software/ze/blob/main/internal/component/config/isis_auth_algorithm_enum_test.go#L81). **negative:** `unit/verify` [`TestRadiusAuthMethodEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/radius_auth_method_enum_test.go#L64). **negative:** `unit/verify` [`TestValidateTree_AddPathDirectionEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L553). **negative:** `unit/verify` [`TestValidateTree_FamilyModeEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L487) |
 | `RFC7950-9.12-1` | A union value must match at least one member type (Section 9.12) | MUST | 9.12 | **positive:** `unit/verify` [`TestValidateTree_ValidConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L39). **negative:** `unit/verify` [`TestValidateTree_UnionViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L300) |
 | `RFC7950-7.6.5-1` | If a mandatory node does not exist, server must reply with a missing-element error (Section 7.6.5) | MUST | 7.6.5 | **positive:** `unit/verify` [`TestValidator_MandatoryField`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L868). **negative:** `unit/verify` [`TestValidateTree_MandatoryMissing`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L272). **negative:** `unit/verify` [`TestValidator_MandatoryField`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L869) |
 | `RFC7950-7.5.3-1` | If a must expression evaluates to false, the data is not valid (Section 7.5.3) | MUST | 7.5.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze uses zero YANG must statements (a grep of the .yang models finds must only inside a description); it parses via goyang which evaluates no XPath, and enforces cross-field constraints with Go ze:validate functions (internal/component/config/yang/validator.go:756 applyCustomValidators) instead, so there is no must-XPath code path |
@@ -138,9 +143,11 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestISISAuthAlgorithmEnumAcceptsAll`](https://github.com/ze-software/ze/blob/main/internal/component/config/isis_auth_algorithm_enum_test.go#L81) | unit/verify | unproven |
+| negative | [`TestRadiusAuthMethodEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/radius_auth_method_enum_test.go#L64) | unit/verify | revert, verified |
 | negative | [`TestValidateTree_AddPathDirectionEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L553) | unit/verify | unproven |
 | negative | [`TestValidateTree_FamilyModeEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L487) | unit/verify | unproven |
 | positive | [`TestISISAuthAlgorithmEnumAcceptsAll`](https://github.com/ze-software/ze/blob/main/internal/component/config/isis_auth_algorithm_enum_test.go#L64) | unit/verify | unproven |
+| positive | [`TestRadiusAuthMethodEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/radius_auth_method_enum_test.go#L53) | unit/verify | revert, verified |
 | positive | [`TestValidateTree_AddPathDirectionEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L552) | unit/verify | unproven |
 | positive | [`TestValidateTree_FamilyModeEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L486) | unit/verify | unproven |
 

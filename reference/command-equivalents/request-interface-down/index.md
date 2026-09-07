@@ -20,6 +20,8 @@ Shut down an interface.
 - Command pipes: none
 - Pipe aliases: none
 
+Only the administrative state changes. A name bound to hardware by a selector is refused when the selector resolves to no device, so the shutdown cannot reach another port.
+
 ## Arguments
 
 | Name | Type | Required | Values |

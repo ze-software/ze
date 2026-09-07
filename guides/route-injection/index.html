@@ -64,6 +64,8 @@
 <li><a href="#one-encoder-per-flowspec-action">One Encoder Per FlowSpec Action</a></li>
 <li><a href="#next-hop-self">Next-Hop Self</a></li>
 <li><a href="#a-peer-never-receives-its-own-address-as-next-hop">A Peer Never Receives Its Own Address as Next Hop</a></li>
+<li><a href="#a-withdrawal-needs-a-session-that-advertised-something">A Withdrawal Needs a Session That Advertised Something</a></li>
+<li><a href="#an-exabgp-scripts-burst-nets-before-the-wire">An ExaBGP Script&#39;s Burst Nets Before the Wire</a></li>
 <li><a href="#nlri-operations">NLRI Operations</a></li>
 </ol></li>
 <li><a href="#hex-format">Hex Format</a></li>
@@ -154,7 +156,7 @@ The route enters Ze&#39;s BGP RIB, wins best-path selection, reaches the protoco
 </figure>
 <h2 id="text-format">Text Format</h2>
 <p>Human-readable format with flat attribute declarations:</p>
-<pre><code class="language-bash">ze cli -c "peer upstream1 update text \
+<pre><code class="language-bash">ze cli -c "send bgp upstream1 update text \
     origin igp \
     nhop 192.168.1.1 \
     local-preference 200 \
@@ -338,7 +340,7 @@ in <code>update text</code> and in config alike, from one keyword table both par
 </tr>
 </tbody>
 </table>
-<pre><code class="language-bash">ze cli -c "peer upstream update text \
+<pre><code class="language-bash">ze cli -c "send bgp upstream update text \
     origin igp nhop self \
     extended-community [ discard ] \
     nlri ipv4/flow add &lt;flowspec-nlri&gt;"
@@ -372,6 +374,28 @@ peer.</p>
 <p>The same question is asked of a relayed route, where the address arrives as the
 third-party next hop Section 5.1.3 case 2 permits.</p>
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- originatedNextHopIsPeerOwn, egressNextHopIsPeerOwn -->
+<h3 id="a-withdrawal-needs-a-session-that-advertised-something">A Withdrawal Needs a Session That Advertised Something</h3>
+<p>RFC 4271 Section 4.3 identifies a withdrawn route "in the context of the BGP
+speaker - BGP speaker connection to which it has been previously advertised", so
+a session that has advertised nothing has no route for a withdrawal to name. Ze
+writes no UPDATE to such a peer, and the command names it:</p>
+<pre><code>warning: withdraw ipv4/unicast: withdrawal withheld: this session has advertised
+no route to the peer: ipv4/unicast, peers 192.0.2.10
+</code></pre>
+<p>The command still answers <code>done</code>. Once the session has carried one UPDATE that
+makes any destination reachable, a configured route and a relayed one included,
+every later withdrawal is written, whether or not the peer holds the route
+named.</p>
+<p>A script migrated from ExaBGP meets the same rule there, where it comes from
+<code>include_withdraw</code>.</p>
+<h3 id="an-exabgp-scripts-burst-nets-before-the-wire">An ExaBGP Script's Burst Nets Before the Wire</h3>
+<p>An ExaBGP API script that writes several commands in ONE write reads back the
+frames of the NET of that write, not one frame per line. ze's bridge takes the
+same unit: a withdrawal cancels an announce of the same route earlier in the
+same write, an announce cancels nothing, and the withdrawals of a write leave
+before its announces.</p>
+<p>Two commands written in two separate writes never cancel each other, whatever
+the interval between them. See <code>docs/architecture/exabgp-bridge.md</code>.</p>
 <h3 id="nlri-operations">NLRI Operations</h3>
 <p><code>add</code> and <code>del</code> are NLRI operations (MP_REACH and MP_UNREACH):</p>
 <pre><code class="language-bash">nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24    # Announce prefixes
@@ -384,14 +408,14 @@ nlri ipv6/unicast add 2001:db8::/32
 </code></pre>
 <h2 id="hex-format">Hex Format</h2>
 <p>Wire-encoded bytes for debugging or replay:</p>
-<pre><code class="language-bash">ze cli -c "peer upstream1 update hex \
+<pre><code class="language-bash">ze cli -c "send bgp upstream1 update hex \
     attr set 40010100400200400304c0a80101 \
     nhop set c0a80101 \
     nlri ipv4/unicast add 180a0000"
 </code></pre>
 <h2 id="base64-format">Base64 Format</h2>
 <p>Compact encoding for scripts:</p>
-<pre><code class="language-bash">ze cli -c "peer upstream1 update b64 \
+<pre><code class="language-bash">ze cli -c "send bgp upstream1 update b64 \
     attr set QAEBAAQDAsCoBQE= \
     nlri ipv4/unicast add GAoAAA=="
 </code></pre>
@@ -435,11 +459,21 @@ nlri ipv6/unicast add 2001:db8::/32
 </table>
 <!-- source: internal/component/bgp/plugins/cmd/raw/ -- raw message injection -->
 <h2 id="commit-workflow">Commit Workflow</h2>
-<p>For atomic multi-route updates:</p>
+<p>A named commit collects WITHDRAWALS and sends them together:</p>
 <pre><code class="language-bash">ze cli -c "request commit start my-batch"
-ze cli -c "peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24"
-ze cli -c "peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.1.0/24"
-ze cli -c "request commit end my-batch"    # All routes sent together
+ze cli -c "request commit withdraw my-batch route 10.0.0.0/24"
+ze cli -c "request commit withdraw my-batch route 10.0.1.0/24"
+ze cli -c "request commit end my-batch"    # Both withdrawals sent together
+</code></pre>
+<p>A named commit cannot collect an ANNOUNCEMENT. Nothing queues one:
+<code>(*Transaction).QueueAnnounce</code> has no non-test caller, so a <code>send bgp ... update text ... add</code> between <code>commit start</code> and <code>commit end</code> announces immediately and
+does not join the commit. This page showed that workflow until 2026-09-05
+(<code>plan/journal/unwired-feature.md</code>).</p>
+<p><code>end</code> and <code>eor</code> answer one row per matched peer, under <code>peers</code>, stating what
+that peer took. A peer that took less than the commit queued carries a <code>reasons</code>
+entry saying why, and makes the command answer <code>error</code> naming it, because this
+rail drops the work for a peer whose session is not established:</p>
+<pre><code class="language-bash">ze cli -c "request commit end my-batch | table"
 </code></pre>
 <!-- source: internal/component/bgp/plugins/cmd/commit/ -- commit command RPCs; internal/component/bgp/transaction/ -- commit manager -->
 <h2 id="from-plugins">From Plugins</h2>
@@ -492,7 +526,7 @@ ships a Python launcher or helper.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

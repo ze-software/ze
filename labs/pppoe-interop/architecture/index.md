@@ -22,7 +22,9 @@ session state disappeared.
 
 ```
 test/interop-pppoe/
-  Dockerfile.ze        Ze image used in both roles
+  Dockerfile.ze        Ze image used in both roles (copies the ze-linux the
+                       suite preflight cross-compiles)
+  ze-linux             the staged daemon, git-ignored and rewritten each run
   Dockerfile.accel     accel-ppp access-concentrator image
   Dockerfile.client    pppd and rp-pppoe client image
   scenarios/

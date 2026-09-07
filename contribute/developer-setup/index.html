@@ -73,7 +73,7 @@
 </ol></nav>
 <h2 id="quick-start">Quick Start</h2>
 <pre><code class="language-bash">git clone &lt;repo-url&gt; &amp;&amp; cd ze
-./le setup
+./le setup install
 </code></pre>
 <p>This detects your OS (macOS with Homebrew or Debian/Ubuntu with apt), installs
 missing tools, vendors Go dependencies, and reports what it did.</p>
@@ -83,6 +83,26 @@ Setup behavior lives in <code>internal/le/setup.Answer</code>.</p>
 <p>The cache is an existence test, never a freshness test, so a change under
 <code>internal/le/</code> does not reach <code>./le</code> on its own.</p>
 <!-- source: le -- the binary existence cache -->
+<p>The launcher does not rebuild by itself, because a peer session's half-written
+source would then fail every call in every session. It tells you instead. About
+one call in sixteen compares the binary with the build inputs and prints one
+line on stderr when a COMMITTED file is newer:</p>
+<pre><code>le: bin/le is older than committed sources; refresh it with './le --update'
+</code></pre>
+<p>A file that git holds as modified is never counted, so a peer's work in progress
+says nothing. The check runs after your command, so it never delays the answer
+you asked for.</p>
+<!-- source: le -- warn_when_stale, committed_change_is_newer -->
+<p><code>./le --update</code> builds the working tree into <code>bin/le</code>:</p>
+<pre><code class="language-bash">./le --update
+</code></pre>
+<p>It renames the new binary into place rather than writing through the file. A peer
+executing the old one therefore keeps the inode it started with. A failed build
+leaves <code>bin/le</code> as it was and says so. With a command after it, the option
+updates first and then runs that command against the new binary.</p>
+<p><code>--update</code> is the answer to a stale shared binary. <code>--name</code> below is the answer
+to reading a result back from your own uncommitted edits.</p>
+<!-- source: le -- update_le -->
 <p>Do not delete <code>bin/le</code>. Several sessions share one checkout and one of them can
 be executing that file right now. Ask for a build of your own instead:</p>
 <pre><code class="language-bash">./le --name mywork verify current mode full
@@ -262,7 +282,7 @@ a container (colima/docker). The setup action skips grub on macOS.</li>
 <!-- source: internal/appliance/homebrew.go -- brewPrefixes, brewKegDirs -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
 <h3 id="linux">Linux</h3>
-<p><code>./le setup</code> installs the apt packages itself, the same way it installs the
+<p><code>./le setup install</code> installs the apt packages itself, the same way it installs the
 Homebrew ones on macOS. Each command is echoed before it runs. It takes
 <code>apt-get update</code> once per run, because a container image ships no package
 lists, and it sets <code>DEBIAN_FRONTEND=noninteractive</code> so a package with a debconf
@@ -310,7 +330,7 @@ OTHER architecture needs that architecture's set too, through
 <code>kernel.apparmor_restrict_unprivileged_userns=1</code>, which blocks the sandbox
 Chrome relies on and makes the <code>agent-browser</code> web functional tests fail to
 launch Chrome (<code>No usable sandbox!</code>). Setup checks this tunable as
-<code>userns-unrestricted</code>. When it is restricted, <code>./le setup</code> (install mode)
+<code>userns-unrestricted</code>. When it is restricted, <code>./le setup install</code>
 echoes and then runs these commands via <code>sudo</code> to lift it globally:</p>
 <pre><code class="language-bash">echo "kernel.apparmor_restrict_unprivileged_userns = 0" | sudo tee /etc/sysctl.d/60-ze-userns.conf
 sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
@@ -359,7 +379,7 @@ test runner cannot add either family itself (the ioctl returns EPERM
 unprivileged, and the Linux route needs CAP_NET_ADMIN), so a test that binds a
 missing address fails at once naming the command above.</p>
 <!-- source: internal/test/runner/loopback.go -- the runner's probe and its error -->
-<p>Neither addition survives a reboot. Re-run <code>./le setup</code> after one;
+<p>Neither addition survives a reboot. Re-run <code>./le setup install</code> after one;
 <code>./le setup check</code> says when it is needed. The merge gate adds the IPv6
 address the same way, as its own workflow step (<code>.github/workflows/verify.yml</code>).</p>
 <p>These three, and the apt installs above, are every place setup reaches for root.
@@ -387,7 +407,7 @@ preventing the lists from drifting apart.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:20 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

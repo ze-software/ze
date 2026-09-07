@@ -221,11 +221,18 @@ ZE_SSH_PASSWORD='CHANGE_ME_OPERATOR' \
 </code></pre>
 <p>Pick a real command the profile denies when you write your own check. A command Ze does not have reports <code>unknown command</code> and exits non-zero for everyone, authorized or not, so testing with one proves nothing about your profiles: the check would pass even with authorization disabled. <code>configure</code> is one of these. It is a mode switch inside the interactive CLI, not a daemon command, so <code>ze cli -c "configure"</code> is never an authorization test. To check the edit path, run a command that writes, such as <code>set system ...</code>, or log in and try <code>configure</code> interactively.</p>
 <h3 id="how-authorization-decides">How authorization decides</h3>
-<p>Once you define any <code>system.authorization</code> profile, authorization is in use and it fails closed:</p>
+<p>Once you define any <code>system.authorization</code> profile, authorization is in use and it fails closed for a user the profiles do not cover:</p>
 <ul>
 <li>A user who authenticates but resolves <strong>no applicable profile</strong> is <strong>denied every command</strong>, not granted access. Assign every account a profile. A profile reaches an account either through <code>system.authentication.user &lt;name&gt; profile ...</code> (local users) or through the TACACS+/RADIUS priv-level mapping (remote users).</li>
 <li>A box that defines <strong>no</strong> <code>system.authorization</code> profile at all stays fully permissive: with authorization unconfigured there is nothing to enforce.</li>
 </ul>
+<p>There is a third state, and it is the one to plan for.</p>
+<ul>
+<li>When a backend cannot be BUILT, it is dropped and the chain composes without it. A TACACS+ server declared with no shared secret does this. The local backend then answers the login. The profiles above govern the command, so a box with local profiles keeps working to its own rules.</li>
+<li>When EVERY backend fails to build there is no chain. Nothing authenticates, ssh is not started, and every command is refused.</li>
+</ul>
+<p>So local profiles are what carry a box through a broken central server. A box that leaves authorization to TACACS+ or RADIUS and declares none of its own has nothing to fall back to. That is the reason this guide has you define them.</p>
+<p><code>docs/architecture/aaa-tacacs.md</code> carries the mechanism.</p>
 <p>The daemon log states which rule decided, so you can tell "denied by profile" from "denied because no profile applied":</p>
 <pre><code class="language-bash">journalctl -u ze.service -n 100 --no-pager | grep -i authorize
 </code></pre>
@@ -383,7 +390,7 @@ list, which never authenticated it.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

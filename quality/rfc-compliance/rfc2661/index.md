@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 77.8% | 14 of 18 binding obligations | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 16.7% | 3 of 18 binding obligations | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 18 binding obligations | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 42 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 80.0% | 16 of 20 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 15.0% | 3 of 20 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 20 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Proven by a recorded break | 14.3% | 7 of 49 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -21,8 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 18 | of 25 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 18 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below |
+| Gated MUSTs | 20 | of 27 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 20 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 20 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 20 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 20 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -30,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 5.6% | 1 of 18 binding obligations | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 5.0% | 1 of 20 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 4 shares marked as a part above are the whole of the 18 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 20 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -44,6 +47,9 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
@@ -53,24 +59,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 25 |
-| Gated MUST-level | 18 |
-| Obligations that bind Ze | 18 |
+| Requirements | 27 |
+| Gated MUST-level | 20 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 1 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 42 |
-| Tagged units | 42 |
+| Test tags | 49 |
+| Tagged units | 49 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 7 |
 | Summary | `rfc/short/rfc2661.md` |
 | Requirement shard | `rfc/requirements/rfc2661.md` |
 | RFC text | `rfc/full/rfc2661.txt` |
 
 ## Enrolment
 
-Enrolled: Layer Two Tunneling Protocol / L2TP (RFC 2661): LAC+LNS control plane. 14 MET (AVP format+reserved bits, control-message framing, ICRQ/ICRP session setup, SCCRQ/SCCRP/SCCCN tunnel handshake, unknown-mandatory-AVP teardown, reliable transport max-attempts/retransmit/duplicate-detect/window/post-teardown-ack retention, StopCCN cascade, CDN drop, SID boundary) + 3 single-polarity positive (retransmit backoff schedule, backoff cap >= 8s, control-header reserved bits zero) + 1 gap (hidden-AVP MD5 codec present but not wired: no Random Vector emitted, no H=1 encoder)
+Enrolled: Layer Two Tunneling Protocol / L2TP (RFC 2661): LAC+LNS control plane. 16 MET (AVP format+reserved bits, control-message framing, ICRQ/ICRP session setup, SCCRQ/SCCRP/SCCCN tunnel handshake, SCCRQ and SCCRP mandatory-AVP refusal, unknown-mandatory-AVP teardown, reliable transport max-attempts/retransmit/duplicate-detect/window/post-teardown-ack retention, StopCCN cascade, CDN drop, SID boundary) + 3 single-polarity positive (retransmit backoff schedule, backoff cap >= 8s, control-header reserved bits zero) + 1 gap (hidden-AVP MD5 codec present but not wired: no Random Vector emitted, no H=1 encoder)
 
 ## What the public ledger says
 
@@ -90,14 +95,14 @@ Feature remains Partial; see L2TP guide for operational limits. One MUST gap gat
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 14 | one part of the gated population |
+| Positive and negative tests | 16 | one part of the gated population |
 | Annotated instead of tested | 4 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| **Gated MUST-level requirements** | **18** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **20** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (14):** [`RFC2661-4.1-1`](#rfc2661-4.1-1), [`RFC2661-4.1-2`](#rfc2661-4.1-2), [`RFC2661-4.1-3`](#rfc2661-4.1-3), [`RFC2661-4.1-4`](#rfc2661-4.1-4), [`RFC2661-5.8-3`](#rfc2661-5.8-3), [`RFC2661-5.8-4`](#rfc2661-5.8-4), [`RFC2661-5.8-5`](#rfc2661-5.8-5), [`RFC2661-5.8-6`](#rfc2661-5.8-6), [`RFC2661-5.8-7`](#rfc2661-5.8-7), [`RFC2661-24.10-1`](#rfc2661-24.10-1), [`RFC2661-24.12-1`](#rfc2661-24.12-1), [`RFC2661-10-1`](#rfc2661-10-1), [`RFC2661-9-1`](#rfc2661-9-1), [`RFC2661-10-2`](#rfc2661-10-2)
+**Positive and negative tests (16):** [`RFC2661-4.1-1`](#rfc2661-4.1-1), [`RFC2661-4.1-2`](#rfc2661-4.1-2), [`RFC2661-4.1-3`](#rfc2661-4.1-3), [`RFC2661-4.1-4`](#rfc2661-4.1-4), [`RFC2661-5.8-3`](#rfc2661-5.8-3), [`RFC2661-5.8-4`](#rfc2661-5.8-4), [`RFC2661-5.8-5`](#rfc2661-5.8-5), [`RFC2661-5.8-6`](#rfc2661-5.8-6), [`RFC2661-5.8-7`](#rfc2661-5.8-7), [`RFC2661-6.1-1`](#rfc2661-6.1-1), [`RFC2661-6.2-1`](#rfc2661-6.2-1), [`RFC2661-24.10-1`](#rfc2661-24.10-1), [`RFC2661-24.12-1`](#rfc2661-24.12-1), [`RFC2661-10-1`](#rfc2661-10-1), [`RFC2661-9-1`](#rfc2661-9-1), [`RFC2661-10-2`](#rfc2661-10-2)
 
 **Annotated instead of tested (4):** [`RFC2661-x-1`](#rfc2661-x-1), [`RFC2661-5.8-1`](#rfc2661-5.8-1), [`RFC2661-5.8-2`](#rfc2661-5.8-2), [`RFC2661-4.3-1`](#rfc2661-4.3-1)
 
@@ -118,6 +123,8 @@ Feature remains Partial; see L2TP guide for operational limits. One MUST gap gat
 | `RFC2661-5.8-6` | Implementations MUST accept a peer Receive Window Size of up to 4 (§5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestWindowAvailable`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_window_test.go#L183). **negative:** `unit/verify` [`TestWindowPeerRWSZero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_window_test.go#L112) |
 | `RFC2661-5.8-7` | State and reliable delivery mechanisms MUST be maintained for the full retransmission interval after the final message exchange (§5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestExpired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_test.go#L560). **positive:** `unit/verify` [`TestPostTeardownAckRetention`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_integration_test.go#L191). **negative:** `unit/verify` [`TestExpired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_test.go#L563). **negative:** `unit/verify` [`TestPostTeardownAckRetention`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reliable_integration_test.go#L195) |
 | `RFC2661-4.3-1` | A Random Vector AVP (type 36) MUST precede any hidden AVP (H=1) in the same message (§4.3) | MUST | 4.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the hidden-AVP MD5 cipher is implemented and unit-tested but is not wired into any control-message path -- no encoder sets H=1 or emits a Random Vector, and decoders skip hidden AVPs without decrypting or checking precedence (internal/component/l2tp/hidden.go:38 has no production caller; avp.go:156-168 skips hidden AVPs; AVPRandomVector avp.go:56 never emitted) |
+| `RFC2661-6.1-1` | Every AVP RFC 2661 Section 6.1 makes mandatory in an SCCRQ is required, and an SCCRQ missing one is answered with StopCCN rather than dropped in silence. RFC 2661 Section 6.1: "The following AVPs MUST be present in the SCCRQ: Message Type AVP, Protocol Version, Host Name, Framing Capabilities, Assigned Tunnel ID"; RFC 2661 Section 7.1: "Examples of a malformed control message include ... a message that is missing a required AVP", and receipt of one "should be logged appropriately and the control connection cleared to ensure recovery to a known state" (§6.1) | MUST | 6.1 | **positive:** `unit/verify` [`TestSCCRQWithEveryMandatoryAVPEstablishes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go#L108). **negative:** `unit/verify` [`TestSCCRQMissingMandatoryAVPIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go#L45). **negative:** `unit/verify` [`TestSCCRQWithShortFramingCapabilitiesIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go#L149). **positive:** `functional/verify` [`rfc2661-sccrq-mandatory-avp.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-mandatory-avp.ci#L28). **negative:** `functional/verify` [`rfc2661-sccrq-mandatory-avp.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-mandatory-avp.ci#L24) |
+| `RFC2661-6.2-1` | Every AVP RFC 2661 Section 6.2 makes mandatory in an SCCRP is required, and an SCCRP missing one tears the dialed tunnel down with StopCCN rather than establishing it. RFC 2661 Section 6.2: "The following AVPs MUST be present in the SCCRP: Message Type, Protocol Version, Framing Capabilities, Host Name, Assigned Tunnel ID"; RFC 2661 Section 7.2.1 gives wait-ctl-reply the row "Receive SCCRP, not acceptable \| Send StopCCN, Clean up \| idle" (§6.2) | MUST | 6.2 | **positive:** `unit/verify` [`TestSCCRPWithEveryMandatoryAVPEstablishes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_sccrp_mandatory_avp_test.go#L107). **negative:** `unit/verify` [`TestSCCRPMissingMandatoryAVPTearsTheTunnelDown`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_sccrp_mandatory_avp_test.go#L58) |
 | `RFC2661-24.10-1` | Assigned Tunnel ID of 0 in SCCRQ/SCCRP is a protocol error; reject with StopCCN. RFC 2661 Section 4.4.3: "The Assigned Tunnel ID is a 2 octet non-zero unsigned integer"; RFC 2661 Section 5.3: the value 0 "MUST NOT be used as an Assigned Session ID or Assigned Tunnel ID". The id anchor below numbers no section of RFC 2661 and is frozen (§24.10) | MUST | 24.10 | **positive:** `unit/verify` [`TestSCCRQWithNonZeroAssignedTunnelIDEstablishes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_zero_tid_test.go#L117). **positive:** `unit/verify` [`TestTunnelInitiatorHandshake`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_test.go#L135). **negative:** `unit/verify` [`TestParseSCCRP_Rejects`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_test.go#L107). **negative:** `unit/verify` [`TestSCCRQWithZeroAssignedTunnelIDIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_zero_tid_test.go#L75). **positive:** `functional/verify` [`rfc2661-sccrq-tunnel-id-zero.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci#L24). **negative:** `functional/verify` [`rfc2661-sccrq-tunnel-id-zero.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci#L21) |
 | `RFC2661-24.12-1` | Unknown M=1 vendor AVP in a session context tears down the session with CDN, not the tunnel with StopCCN. RFC 2661 Section 4.1 states the session/tunnel split and RFC 2661 Section 4.2 states the consequence. The id anchor below numbers no section of RFC 2661 and is frozen (§24.12) | MUST | 24.12 | **positive:** `unit/verify` [`TestSession_UnknownMandatoryAVP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L556). **negative:** `unit/verify` [`TestSession_UnknownMandatoryAVP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L558) |
 | `RFC2661-10-1` | CDN is valid in any non-idle session state; receiving CDN destroys the session. RFC 2661 Section 5.6 states session teardown by CDN and RFC 2661 Section 7.4.2 gives the state table. The id anchor below is frozen and does NOT name Section 10, which is IANA Considerations (§10) | MUST | 10 | **positive:** `unit/verify` [`TestSession_CDN_AnyState`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L337). **positive:** `unit/verify` [`TestSession_CDN_EstablishedSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L308). **negative:** `unit/verify` [`TestSession_CDN_UnknownSessionDropped`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L361) |
@@ -283,6 +290,31 @@ A Random Vector AVP (type 36) MUST precede any hidden AVP (H=1) in the same mess
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC2661-4.3-1, so no unit is bound to it.
+
+### [`RFC2661-6.1-1`](#rfc2661-6.1-1)
+
+Every AVP RFC 2661 Section 6.1 makes mandatory in an SCCRQ is required, and an SCCRQ missing one is answered with StopCCN rather than dropped in silence. RFC 2661 Section 6.1: "The following AVPs MUST be present in the SCCRQ: Message Type AVP, Protocol Version, Host Name, Framing Capabilities, Assigned Tunnel ID"; RFC 2661 Section 7.1: "Examples of a malformed control message include ... a message that is missing a required AVP", and receipt of one "should be logged appropriately and the control connection cleared to ensure recovery to a known state" (§6.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSCCRQMissingMandatoryAVPIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go#L45) | unit/verify | revert, verified |
+| negative | [`TestSCCRQWithShortFramingCapabilitiesIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go#L149) | unit/verify | revert, verified |
+| negative | [`rfc2661-sccrq-mandatory-avp.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-mandatory-avp.ci#L24) | functional/verify | revert, verified |
+| positive | [`TestSCCRQWithEveryMandatoryAVPEstablishes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go#L108) | unit/verify | revert, verified |
+| positive | [`rfc2661-sccrq-mandatory-avp.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-mandatory-avp.ci#L28) | functional/verify | revert, verified |
+
+### [`RFC2661-6.2-1`](#rfc2661-6.2-1)
+
+Every AVP RFC 2661 Section 6.2 makes mandatory in an SCCRP is required, and an SCCRP missing one tears the dialed tunnel down with StopCCN rather than establishing it. RFC 2661 Section 6.2: "The following AVPs MUST be present in the SCCRP: Message Type, Protocol Version, Framing Capabilities, Host Name, Assigned Tunnel ID"; RFC 2661 Section 7.2.1 gives wait-ctl-reply the row "Receive SCCRP, not acceptable | Send StopCCN, Clean up | idle" (§6.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSCCRPMissingMandatoryAVPTearsTheTunnelDown`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_sccrp_mandatory_avp_test.go#L58) | unit/verify | revert, verified |
+| positive | [`TestSCCRPWithEveryMandatoryAVPEstablishes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator_sccrp_mandatory_avp_test.go#L107) | unit/verify | revert, verified |
 
 ### [`RFC2661-24.10-1`](#rfc2661-24.10-1)
 

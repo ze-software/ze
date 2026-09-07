@@ -19,6 +19,8 @@ Save the current debug state as a named profile.
 - Command pipes: none
 - Pipe aliases: none
 
+It copies what the daemon is writing NOW into a named slot. The default slot is left as it is, so saving a profile does not change what the running daemon logs.
+
 ## Arguments
 
 No command-specific arguments listed.

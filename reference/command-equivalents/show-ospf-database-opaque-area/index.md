@@ -20,6 +20,8 @@ Show only area-scope opaque-LSAs (Type 10, RFC 5250).
 - Command pipes: none
 - Pipe aliases: none
 
+RFC 5250 Section 3 gives link-state type-10 an area-local scope: a type-10 opaque LSA is not flooded beyond the borders of its area. So this view is per area, and an area border router does not carry what it lists into the backbone.
+
 ## Arguments
 
 No command-specific arguments listed.

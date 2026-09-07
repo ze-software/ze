@@ -20,6 +20,8 @@ Show one BFD profile by name.
 - Command pipes: none
 - Pipe aliases: none
 
+Give the profile name after the name keyword. The answer is one profile object, not a list. An unknown name fails with 'bfd: no profile named <name>'.
+
 ## Arguments
 
 | Name | Type | Required | Values |

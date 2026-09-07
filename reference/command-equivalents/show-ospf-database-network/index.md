@@ -20,6 +20,8 @@ Show only Network-LSAs (Type 2).
 - Command pipes: none
 - Pipe aliases: none
 
+RFC 2328 Section 12.4.2 states that the Designated Router originates a Network-LSA for a broadcast or NBMA network. The LSA lists the routers connected to that network. It is flooded throughout a single area only. A point-to-point link has no Designated Router, so it produces none.
+
 ## Arguments
 
 No command-specific arguments listed.

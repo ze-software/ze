@@ -20,6 +20,8 @@ Show one plugin command's summary, explanation, arguments, and source plugin.
 - Command pipes: none
 - Pipe aliases: none
 
+The name is looked up in the plugin registry only, so a built-in command is reported as unknown. The answer carries the summary, the long explanation, the argument form and the plugin that registered it.
+
 ## Arguments
 
 No command-specific arguments listed.

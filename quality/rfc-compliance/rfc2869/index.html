@@ -75,6 +75,8 @@
 .rfc-tape-both_polarities { background: var(--teal-chip); }
 .rfc-tape-single_polarity { background: var(--sky-chip); }
 .rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -113,19 +115,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>88.9%</strong><b>8 of 9 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>11.1%</strong><b>1 of 9 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 9 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>72.7%</strong><b>8 of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>9.1%</strong><b>1 of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 17 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>11</strong><b>of 14 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>2</strong><b>of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>2</strong><b>of 11 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>18.2%</strong><b>2 of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 4 shares marked as a part above are the whole of the 9 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -156,6 +161,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
+</tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
@@ -185,9 +202,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Gated MUST-level</td>
 <td>11</td>
-</tr>
-<tr><td>Obligations that bind Ze</td>
-<td>9</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>2</td>
@@ -278,8 +292,8 @@ Scoped to subscriber access.
 <td>MUST NOT</td>
 <td>1.1 - Specification of Requirements</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2869-1.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L97" title="internal/component/radius/rfc2869_unoffered_service_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC2869DictionaryCoversTheServicesZeOffers</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L126" title="internal/component/radius/rfc2869_unoffered_service_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L108" title="internal/component/radius/rfc2869_unoffered_service_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC2869DictionaryCoversTheServicesZeOffers</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L144" title="internal/component/radius/rfc2869_unoffered_service_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2869-1.1-2">RFC2869-1.1-2</code></td><td colspan="3"><span class="rfc-subject">A NAS MUST treat a RADIUS access-request requesting an unavailable service as an access-reject instead (§1.1)</span></td></tr>
@@ -332,7 +346,7 @@ Scoped to subscriber access.
 <td>MUST</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2869-x-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L293" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L297" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_accounting_test.go#L21" title="internal/component/l2tp/plugins/authradius/rfc2869_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2869GigawordsAbsentOnStart</code></a></span></div>
 </div></td>
 </tr>
@@ -341,8 +355,8 @@ Scoped to subscriber access.
 <td>MUST</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2869-x-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L295" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L257" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketWithCounters</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L299" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L261" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketWithCounters</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2869-x-4">RFC2869-x-4</code></td><td colspan="3"><span class="rfc-subject">Total byte count MUST be reconstructed as (Gigawords * 2^32) + Octets (Gigaword Accounting)</span></td></tr>
@@ -359,9 +373,9 @@ Scoped to subscriber access.
 <td>MUST</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2869-x-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L227" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestSplitGigawords</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L231" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestSplitGigawords</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> splitGigawords derives Gigawords directly from the 64-bit byte counter (internal/component/l2tp/plugins/authradius/acct.go:37-39) with no separate wrap counter; there is no reject path so no negative case exists</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> splitGigawords derives Gigawords directly from the 64-bit byte counter (internal/component/l2tp/plugins/authradius/acct.go) with no separate wrap counter; there is no reject path so no negative case exists</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2869-5.14-1">RFC2869-5.14-1</code></td><td colspan="3"><span class="rfc-subject">A RADIUS client receiving an Access-Accept, Access-Reject or Access-Challenge with a Message-Authenticator attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent (§5.14)</span></td></tr>
 <tr><td></td>
@@ -430,12 +444,12 @@ Scoped to subscriber access.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L126" title="internal/component/radius/rfc2869_unoffered_service_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L144" title="internal/component/radius/rfc2869_unoffered_service_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L97" title="internal/component/radius/rfc2869_unoffered_service_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC2869DictionaryCoversTheServicesZeOffers</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L108" title="internal/component/radius/rfc2869_unoffered_service_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC2869DictionaryCoversTheServicesZeOffers</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -539,7 +553,7 @@ Scoped to subscriber access.
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L293" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L297" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -554,12 +568,12 @@ Scoped to subscriber access.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L257" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketWithCounters</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L261" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketWithCounters</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L295" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L299" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -578,7 +592,7 @@ Scoped to subscriber access.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L227" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestSplitGigawords</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L231" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestSplitGigawords</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -701,7 +715,7 @@ Scoped to subscriber access.
 <td>Protocol Overview</td>
 <td>12</td>
 <td>walked</td>
-<td>Protocol Overview. Twelve capitalised MUSTs describing an EAP conversation carried over RADIUS. Ze carries no EAP over RADIUS: internal/component/radius/dict.go declares no EAP-Message attribute (type 79), and internal/component/l2tp/ppp has no EAP module, so LCP never negotiates EAP. Ze&#39;s IKEv2 EAP (internal/component/ike/eap) terminates EAP locally and imports no RADIUS package.</td>
+<td>Protocol Overview. Twelve capitalised MUSTs describing an EAP conversation carried over RADIUS. Ze carries no EAP over RADIUS: internal/component/radius/dict.go declares no EAP-Message attribute (type 79), and internal/component/l2tp/ppp has no EAP module, so LCP never negotiates EAP. Ze&#39;s IKEv2 EAP (internal/core/eap) terminates EAP locally and imports no RADIUS package.</td>
 </tr>
 <tr><td><code>2.3.2</code></td>
 <td>Retransmission</td>
@@ -969,17 +983,17 @@ Scoped to subscriber access.
 </tr>
 <tr><td><code>2.3.1:1</code></td>
 <td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
-<td>Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze&#39;s IKEv2 EAP (internal/component/ike/eap) is a separate protocol terminated locally and imports no RADIUS package.</td>
+<td>Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze&#39;s IKEv2 EAP (internal/core/eap) is a separate protocol terminated locally and imports no RADIUS package.</td>
 <td>Once EAP has been negotiated, the NAS MUST send an EAP-Request/Identity message to the authenticating peer, unless identity is determined via some other means such as Called-Station-Id or Calling-Station-Id.</td>
 </tr>
 <tr><td><code>2.3.1:2</code></td>
 <td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
-<td>Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze&#39;s IKEv2 EAP (internal/component/ike/eap) is a separate protocol terminated locally and imports no RADIUS package.</td>
+<td>Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze&#39;s IKEv2 EAP (internal/core/eap) is a separate protocol terminated locally and imports no RADIUS package.</td>
 <td>In order to permit non-EAP aware RADIUS proxies to forward the Access-Request packet, if the NAS sends the EAP-Request/Identity, the NAS MUST copy the contents of the EAP-Response/Identity into the User-Name attribute and MUST include the EAP-Response/Identity in the User-Name attribute in every subsequent Access-Request.</td>
 </tr>
 <tr><td><code>2.3.1:3</code></td>
 <td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
-<td>Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze&#39;s IKEv2 EAP (internal/component/ike/eap) is a separate protocol terminated locally and imports no RADIUS package.</td>
+<td>Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze&#39;s IKEv2 EAP (internal/core/eap) is a separate protocol terminated locally and imports no RADIUS package.</td>
 <td>NAS-Port or NAS-Port-Id SHOULD be included in the attributes issued by the NAS in the Access-Request packet, and either NAS-Identifier or NAS-IP- Address MUST be included.</td>
 </tr>
 <tr><td><code>2.3.1:4</code></td>
@@ -989,7 +1003,7 @@ Scoped to subscriber access.
 </tr>
 <tr><td><code>2.3.1:5</code></td>
 <td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
-<td>Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze&#39;s IKEv2 EAP (internal/component/ike/eap) is a separate protocol terminated locally and imports no RADIUS package.</td>
+<td>Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze&#39;s IKEv2 EAP (internal/core/eap) is a separate protocol terminated locally and imports no RADIUS package.</td>
 <td>If identity is determined via another means such as Called-Station-Id or Calling-Station-Id, the NAS MUST include these identifying attributes in every Access-Request.</td>
 </tr>
 <tr><td><code>2.3.1:6</code></td>
@@ -1004,7 +1018,7 @@ Scoped to subscriber access.
 </tr>
 <tr><td><code>2.3.1:8</code></td>
 <td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
-<td>Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze&#39;s IKEv2 EAP (internal/component/ike/eap) is a separate protocol terminated locally and imports no RADIUS package.</td>
+<td>Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze&#39;s IKEv2 EAP (internal/core/eap) is a separate protocol terminated locally and imports no RADIUS package.</td>
 <td>Reception of a RADIUS Access-Reject packet, with or without an EAP- Message attribute encapsulating EAP-Failure, MUST result in the NAS issuing an LCP Terminate Request to the authenticating peer.</td>
 </tr>
 <tr><td><code>2.3.1:9</code></td>
@@ -1024,7 +1038,7 @@ Scoped to subscriber access.
 </tr>
 <tr><td><code>2.3.1:12</code></td>
 <td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
-<td>Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze&#39;s IKEv2 EAP (internal/component/ike/eap) is a separate protocol terminated locally and imports no RADIUS package.</td>
+<td>Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze&#39;s IKEv2 EAP (internal/core/eap) is a separate protocol terminated locally and imports no RADIUS package.</td>
 <td>On receiving an Access-Reject, the NAS MUST send an LCP Terminate Request to the authenticating peer, and disconnect.</td>
 </tr>
 <tr><td><code>2.3.5:1</code></td>
@@ -1139,7 +1153,7 @@ Scoped to subscriber access.
 </tr>
 <tr><td><code>7.2.5:7</code></td>
 <td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
-<td>Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze&#39;s IKEv2 EAP (internal/component/ike/eap) is a separate protocol terminated locally and imports no RADIUS package.</td>
+<td>Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze&#39;s IKEv2 EAP (internal/core/eap) is a separate protocol terminated locally and imports no RADIUS package.</td>
 <td>In these cases, the NAS MUST send an LCP-Terminate and disconnect the user.</td>
 </tr>
 <tr><td><code>7.2.5:8</code></td>
@@ -1183,7 +1197,7 @@ Scoped to subscriber access.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

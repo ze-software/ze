@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 86.7% | 13 of 15 binding obligations | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 13.3% | 2 of 15 binding obligations | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 15 binding obligations | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 15 binding obligations | no test carries the requirement id, whether or not a gap states why |
+| Tested both ways | 86.7% | 13 of 15 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 13.3% | 2 of 15 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 15 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| No test at all | 0.0% | 0 of 15 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Proven by a recorded break | 0.0% | 0 of 28 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -23,9 +23,12 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 15 | of 20 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 15 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below |
+| Out of scope | 0 | of 15 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 15 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 15 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 15 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 4 shares marked as a part above are the whole of the 15 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 15 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -37,6 +40,9 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
@@ -48,7 +54,6 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Enrolled |
 | Requirements | 20 |
 | Gated MUST-level | 15 |
-| Obligations that bind Ze | 15 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Gated with no test | 0 |
@@ -101,9 +106,9 @@ Same OSPF experimental status.
 | `RFC5709-3-3` | Implement Keyed-MD5 for backwards compatibility with RFC 2328 deployments (Section 3) | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5709-3-4` | Implement HMAC-SHA-384 and HMAC-SHA-512 (Section 3) | MAY | 3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5709-3-5` | Allow operators to configure any supported algorithm for any given Key ID value (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L77). **negative:** no negative test. **{single-polarity}:** keyConfig binds KeyID and Algorithm independently and resolveChainKeys/signKey honor each per-key algorithm with no fixed algorithm-per-KeyID mapping, so this is a permissive config capability with no forbidden (supported-algorithm, KeyID) pairing to reject (internal/plugins/ospf/auth_keystore.go:239-253, :292-324) |
-| `RFC5709-3.1-1` | Set AuType to 2 (Cryptographic Authentication) for SHA/HMAC-authenticated packets (Section 3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestEngineSignPacketCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_wiring_test.go#L56). **negative:** `unit/verify` [`TestOSPFAuthStoreSignVerify`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L68) |
+| `RFC5709-3.1-1` | Set AuType to 2 (Cryptographic Authentication) for SHA/HMAC-authenticated packets (Section 3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestEngineSignPacketCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_wiring_test.go#L56). **negative:** `unit/verify` [`TestOSPFAuthStoreSignVerify`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L70) |
 | `RFC5709-3.1-2` | Set the Authentication Data Length field to the hash length in bytes (20/32/48/64) (Section 3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L60). **negative:** `unit/verify` [`TestOSPFAuthCryptoRejectsExtraTrailerBytes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L224) |
-| `RFC5709-3.1-3` | Set the 32-bit Cryptographic Sequence Number per RFC 2328 Appendix D (Section 3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L62). **negative:** `unit/verify` [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L135) |
+| `RFC5709-3.1-3` | Set the 32-bit Cryptographic Sequence Number per RFC 2328 Appendix D (Section 3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L62). **negative:** `unit/verify` [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L137) |
 | `RFC5709-3.1-4` | Append the computed digest after the OSPF packet (Authentication Trailer), not inside the 8-byte auth field (Section 3.1, Section 3.3) | MUST | 3.1 | **positive:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L67). **negative:** `unit/verify` [`TestOSPFAuthCryptoRejectsExtraTrailerBytes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L225) |
 | `RFC5709-3.3-1` | Fill the Authentication Trailer with Apad (0x878FE1F3 repeated L/4 times) before computing the hash (Section 3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L73). **negative:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L91) |
 | `RFC5709-3.3-2` | Derive Ko to length L: Ko = K, H(K), or K zero-padded to L (Section 3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L74). **negative:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L83) |
@@ -113,7 +118,7 @@ Same OSPF experimental status.
 | `RFC5709-3.4-1` | On receive, save the wire digest, replace the trailer with Apad, recompute, and compare (Section 3.4) | MUST | 3.4 | **positive:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L76). **negative:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L93) |
 | `RFC5709-3.4-2` | Select algorithm/key on receive implicitly from the packet's Key ID (Section 3.4) | MUST | 3.4 | **positive:** `unit/verify` [`TestOSPFAuthCryptoRejectsKeyIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L245). **negative:** `unit/verify` [`TestOSPFAuthCryptoRejectsKeyIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L242) |
 | `RFC5709-3.2-1` | Ensure a new key's KeyStartGenerate <= the old key's KeyStopGenerate on rollover (Section 3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestKeyRolloverOverlapAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_test.go#L558). **negative:** `unit/verify` [`TestKeyRolloverGapRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_test.go#L571) |
-| `RFC5709-3.2-2` | Revert to an unauthenticated condition when the last key expires (Section 3.2) | MUST NOT | 3.2 | **positive:** `unit/verify` [`TestSignKeyNoRevertWhenAllExpired`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L296). **negative:** no negative test. **{single-polarity}:** selectSendKey returns the most-recently-starting key when every send-lifetime has expired and signKey never yields AuTypeNull for a resolved chain, so the forbidden revert-to-unauthenticated transition is structurally absent and there is no packet-reject direction (internal/plugins/ospf/auth_keystore.go:263-287) |
+| `RFC5709-3.2-2` | Revert to an unauthenticated condition when the last key expires (Section 3.2) | MUST NOT | 3.2 | **positive:** `unit/verify` [`TestSignKeyNoRevertWhenAllExpired`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L298). **negative:** no negative test. **{single-polarity}:** selectSendKey returns the most-recently-starting key when every send-lifetime has expired and signKey never yields AuTypeNull for a resolved chain, so the forbidden revert-to-unauthenticated transition is structurally absent and there is no packet-reject direction (internal/plugins/ospf/auth_keystore.go:263-287) |
 | `RFC5709-3.2-3` | Set KeyStartAccept < KeyStartGenerate and KeyStopGenerate < KeyStopAccept (Section 3.2) | SHOULD | 3.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5709-3.2-4` | Never send the Authentication Key or Algorithm over the wire in cleartext; persist key storage across restart (Section 3.2) | SHOULD | 3.2 | **positive:** no positive test. **negative:** no negative test |
 
@@ -154,7 +159,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFAuthStoreSignVerify`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L68) | unit/verify | unproven |
+| negative | [`TestOSPFAuthStoreSignVerify`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L70) | unit/verify | unproven |
 | positive | [`TestEngineSignPacketCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_wiring_test.go#L56) | unit/verify | unproven |
 
 ### [`RFC5709-3.1-2`](#rfc5709-3.1-2)
@@ -176,7 +181,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L135) | unit/verify | unproven |
+| negative | [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L137) | unit/verify | unproven |
 | positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L62) | unit/verify | unproven |
 
 ### [`RFC5709-3.1-4`](#rfc5709-3.1-4)
@@ -286,7 +291,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestSignKeyNoRevertWhenAllExpired`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L296) | unit/verify | unproven |
+| positive | [`TestSignKeyNoRevertWhenAllExpired`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L298) | unit/verify | unproven |
 
 ## Extraction sign-off
 

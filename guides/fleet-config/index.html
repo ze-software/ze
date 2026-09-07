@@ -130,11 +130,17 @@ ze init --force                     # Replace existing database
 }
 </code></pre>
 <h2 id="config-management">Config Management</h2>
-<p>On the hub, manage client configurations through the config editor:</p>
-<pre><code class="language-bash">ze config edit edge-01.conf         # Edit config for edge-01
-ze config archive backup edge-01.conf  # Archive to named destination
-ze config history edge-01.conf      # View rollback history
+<p>On the hub, manage client configurations through the config editor. Stop the hub daemon
+first. Each of these commands opens the blob store in its own process. A running hub
+answers every read from the tree it loaded at startup. An edit made behind it therefore
+changes nothing the hub serves.</p>
+<pre><code class="language-bash">ze config edit client-edge-01.conf         # Edit config for edge-01
+ze config archive backup client-edge-01.conf  # Archive to named destination
+ze config history client-edge-01.conf      # View rollback history
 </code></pre>
+<p>The blob key for a client carries a <code>client-</code> prefix. That prefix keeps a client's config
+from colliding with the hub's own config file.</p>
+<!-- source: internal/component/plugin/server/managed_serve.go -- ClientConfigKey -->
 <!-- source: internal/component/config/cli/cmd_edit.go -- config edit command -->
 <!-- source: internal/component/config/cli/cmd_history.go -- config history command -->
 <!-- source: internal/component/config/cli/cmd_archive.go -- config archive command -->
@@ -210,7 +216,7 @@ ze config history edge-01.conf      # View rollback history
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

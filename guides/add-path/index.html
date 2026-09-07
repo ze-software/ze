@@ -226,7 +226,7 @@
 <tbody>
 <tr>
 <td>Key</td>
-<td>The path at ingress: the source that sent it and the identifier that source used. Never the message, never the attributes</td>
+<td>The path at ingress, never the message and never the attributes. How much of the path the key holds follows what the source framed: a source that negotiated no ADD-PATH gets one identifier for its whole session, and a source that negotiated it gets one entry per family, received identifier and prefix</td>
 </tr>
 <tr>
 <td>Withdrawal</td>
@@ -238,7 +238,7 @@
 </tr>
 <tr>
 <td>Release</td>
-<td>Identifiers are released at peer removal, not at session down. A reconnecting peer re-announces under the identifiers its destinations already hold</td>
+<td>A source that framed no identifier holds its one entry until the peer is removed. A source that framed one has each pair freed when Ze has relayed that pair's withdraw. Neither is released at session down, so a reconnecting peer re-announces under the identifiers its destinations already hold</td>
 </tr>
 <tr>
 <td>Zero</td>
@@ -247,7 +247,7 @@
 </tbody>
 </table>
 <p>Regeneration runs whenever either side of the forward frames identifiers. A session where neither side negotiated ADD-PATH keeps its zero-copy forward.</p>
-<!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdPathIDs, fwdRegenerateRawPathIDs -->
+<!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdPathIDs, fwdRegenerateRawPathIDs, fwdReleaseWithdrawnPathIDs -->
 <!-- source: internal/component/bgp/reactor/forward_body.go -- fwdReencodeNLRIs -->
 <h2 id="interaction-with-route-reflection">Interaction with Route Reflection</h2>
 <p>ADD-PATH fits the route server plugin (<code>bgp-rs</code>). Without ADD-PATH, the route server can only forward one path per prefix to each peer. With ADD-PATH, it forwards all received paths, and downstream routers make their own best-path decisions.</p>
@@ -294,7 +294,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:15 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

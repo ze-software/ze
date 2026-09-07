@@ -20,6 +20,8 @@ Pause reading from a peer's TCP socket.
 - Command pipes: none
 - Pipe aliases: none
 
+Ze stops reading the peer's socket and the session stays up, so nothing is withdrawn. The selector resolves to one peer and a wildcard is refused, because flow control acts on one read loop. 'request peer <selector> resume' restarts it.
+
 ## Arguments
 
 | Name | Type | Required | Values |

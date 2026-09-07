@@ -294,6 +294,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - YANG-modelled **certificate** management
 - Chain validation, **expiry** checks
 - Shared by IPsec, **TLS**, mutual auth
+- **Local CA** issues 24-hour certs to Ze's components
 
 [Learn more](https://ze-software.net/features/)
 
@@ -391,6 +392,7 @@ Implemented and tested, still waiting for production evidence.
 - **15 match** types, 19 actions
 - SNAT, DNAT, **masquerade**
 - FlowSpec-to-firewall **bridge**
+- **DNS-sourced** address groups, TTL-tracked
 
 [Learn more](https://ze-software.net/guides/firewall/)
 

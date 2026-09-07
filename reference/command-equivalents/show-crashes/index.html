@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>show crashes - Command Equivalents - Ze</title>
-        <meta name="description" content="View saved crash reports from panics." />
+        <meta name="description" content="View saved crash reports, and whether kernel capture is armed." />
         <meta property="og:title" content="show crashes - Command Equivalents - Ze" />
-        <meta property="og:description" content="View saved crash reports from panics." />
+        <meta property="og:description" content="View saved crash reports, and whether kernel capture is armed." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="show crashes - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="View saved crash reports from panics." />
+        <meta name="twitter:description" content="View saved crash reports, and whether kernel capture is armed." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -48,7 +48,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Command map</span>
     <h1 id="command-equivalent-detail-title">show crashes</h1>
-    <p>View saved crash reports from panics.</p>
+    <p>View saved crash reports, and whether kernel capture is armed.</p>
 </div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
@@ -65,7 +65,7 @@
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
-<h3>Description</h3><p>Without arguments, lists available crash files. Use &#39;latest&#39; to see the newest<br>crash or &#39;name &lt;filename&gt;&#39; to print one specific report. Send the output to<br>support when reporting a crash.</p>
+<h3>Description</h3><p>Without arguments, lists every stored report with its kind: &#39;panic&#39; for a Go<br>panic this daemon caught, &#39;kernel&#39; for a kernel fault recovered from the<br>reserved region on the following boot. The listing also carries a readiness<br>block, which reports configured and armed separately because the reservation<br>is a kernel boot argument and a commit alone does not arm it. Use &#39;latest&#39; to<br>see the newest report or &#39;name &lt;filename&gt;&#39; to print one. Send the output to<br>support when reporting a crash.</p>
 <h3>Arguments</h3>
 <table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
 <tr><td><code>name</code></td><td>string</td><td>no</td><td>any value of this type</td></tr>
@@ -132,7 +132,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

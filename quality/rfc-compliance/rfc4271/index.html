@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4271 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4271: A Border Gateway Protocol 4 (BGP-4). 100 gated MUST-level requirements, 15 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 4271: A Border Gateway Protocol 4 (BGP-4). 101 gated MUST-level requirements, 15 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 4271 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4271: A Border Gateway Protocol 4 (BGP-4). 100 gated MUST-level requirements, 15 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 4271: A Border Gateway Protocol 4 (BGP-4). 101 gated MUST-level requirements, 15 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4271 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4271: A Border Gateway Protocol 4 (BGP-4). 100 gated MUST-level requirements, 15 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 4271: A Border Gateway Protocol 4 (BGP-4). 101 gated MUST-level requirements, 15 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -75,6 +75,8 @@
 .rfc-tape-both_polarities { background: var(--teal-chip); }
 .rfc-tape-single_polarity { background: var(--sky-chip); }
 .rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -113,23 +115,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>80.6%</strong><b>75 of 93 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>3.2%</strong><b>3 of 93 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 93 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 230 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>75.2%</strong><b>76 of 101 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>3.0%</strong><b>3 of 101 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 101 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.9%</strong><b>2 of 232 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>100</strong><b>of 134 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>7</strong><b>of 100 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>101</strong><b>of 135 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>7</strong><b>of 101 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>6.9%</strong><b>7 of 101 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 101 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 101 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>16.1%</strong><b>15 of 93 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>14.9%</strong><b>15 of 101 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 4 shares marked as a part above are the whole of the 93 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 101 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -160,6 +165,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
+</tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
@@ -185,13 +202,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>134</td>
+<td>135</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>100</td>
-</tr>
-<tr><td>Obligations that bind Ze</td>
-<td>93</td>
+<td>101</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>7</td>
@@ -206,16 +220,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>230</td>
+<td>232</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>230</td>
+<td>232</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4271.md</code></td>
@@ -264,7 +278,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>75</strong></td>
+<td><strong>76</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
@@ -283,11 +297,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>100</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>101</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (75):</strong> <a href="#rfc4271-4.1-1"><code>RFC4271-4.1-1</code></a>, <a href="#rfc4271-4.1-2"><code>RFC4271-4.1-2</code></a>, <a href="#rfc4271-4.1-3"><code>RFC4271-4.1-3</code></a>, <a href="#rfc4271-4.3-1"><code>RFC4271-4.3-1</code></a>, <a href="#rfc4271-4.3-2"><code>RFC4271-4.3-2</code></a>, <a href="#rfc4271-4.3-4"><code>RFC4271-4.3-4</code></a>, <a href="#rfc4271-4.4-1"><code>RFC4271-4.4-1</code></a>, <a href="#rfc4271-4.4-2"><code>RFC4271-4.4-2</code></a>, <a href="#rfc4271-6-1"><code>RFC4271-6-1</code></a>, <a href="#rfc4271-4.2-1"><code>RFC4271-4.2-1</code></a>, <a href="#rfc4271-4.2-2"><code>RFC4271-4.2-2</code></a>, <a href="#rfc4271-6.2-1"><code>RFC4271-6.2-1</code></a>, <a href="#rfc4271-6.2-2"><code>RFC4271-6.2-2</code></a>, <a href="#rfc4271-5-1"><code>RFC4271-5-1</code></a>, <a href="#rfc4271-5-2"><code>RFC4271-5-2</code></a>, <a href="#rfc4271-5-3"><code>RFC4271-5-3</code></a>, <a href="#rfc4271-5-4"><code>RFC4271-5-4</code></a>, <a href="#rfc4271-5-5"><code>RFC4271-5-5</code></a>, <a href="#rfc4271-5-6"><code>RFC4271-5-6</code></a>, <a href="#rfc4271-5.1.3-1"><code>RFC4271-5.1.3-1</code></a>, <a href="#rfc4271-5.1.3-2"><code>RFC4271-5.1.3-2</code></a>, <a href="#rfc4271-5.1.3-3"><code>RFC4271-5.1.3-3</code></a>, <a href="#rfc4271-5.1.4-1"><code>RFC4271-5.1.4-1</code></a>, <a href="#rfc4271-5.1.4-4"><code>RFC4271-5.1.4-4</code></a>, <a href="#rfc4271-5.1.4-2"><code>RFC4271-5.1.4-2</code></a>, <a href="#rfc4271-5.1.5-1"><code>RFC4271-5.1.5-1</code></a>, <a href="#rfc4271-5.1.5-2"><code>RFC4271-5.1.5-2</code></a>, <a href="#rfc4271-5.1.5-3"><code>RFC4271-5.1.5-3</code></a>, <a href="#rfc4271-5.1.5-4"><code>RFC4271-5.1.5-4</code></a>, <a href="#rfc4271-6.3-1"><code>RFC4271-6.3-1</code></a>, <a href="#rfc4271-6.7-1"><code>RFC4271-6.7-1</code></a>, <a href="#rfc4271-8.2.1-1"><code>RFC4271-8.2.1-1</code></a>, <a href="#rfc4271-8.2.1-2"><code>RFC4271-8.2.1-2</code></a>, <a href="#rfc4271-8.2.2-1"><code>RFC4271-8.2.2-1</code></a>, <a href="#rfc4271-8.2.2-2"><code>RFC4271-8.2.2-2</code></a>, <a href="#rfc4271-8.2.2-3"><code>RFC4271-8.2.2-3</code></a>, <a href="#rfc4271-8.2.2-4"><code>RFC4271-8.2.2-4</code></a>, <a href="#rfc4271-8.2.2-5"><code>RFC4271-8.2.2-5</code></a>, <a href="#rfc4271-8.2.2-7"><code>RFC4271-8.2.2-7</code></a>, <a href="#rfc4271-8.2.2-8"><code>RFC4271-8.2.2-8</code></a>, <a href="#rfc4271-8.2.2-9"><code>RFC4271-8.2.2-9</code></a>, <a href="#rfc4271-8.2.2-10"><code>RFC4271-8.2.2-10</code></a>, <a href="#rfc4271-8.2.2-11"><code>RFC4271-8.2.2-11</code></a>, <a href="#rfc4271-8.2.2-12"><code>RFC4271-8.2.2-12</code></a>, <a href="#rfc4271-8.2.2-13"><code>RFC4271-8.2.2-13</code></a>, <a href="#rfc4271-8.2.2-14"><code>RFC4271-8.2.2-14</code></a>, <a href="#rfc4271-8.2.2-15"><code>RFC4271-8.2.2-15</code></a>, <a href="#rfc4271-8.2.2-16"><code>RFC4271-8.2.2-16</code></a>, <a href="#rfc4271-8.2.2-17"><code>RFC4271-8.2.2-17</code></a>, <a href="#rfc4271-8.2.2-18"><code>RFC4271-8.2.2-18</code></a>, <a href="#rfc4271-10-1"><code>RFC4271-10-1</code></a>, <a href="#rfc4271-5.1.2-2"><code>RFC4271-5.1.2-2</code></a>, <a href="#rfc4271-5.1.2-3"><code>RFC4271-5.1.2-3</code></a>, <a href="#rfc4271-5.1.5-5"><code>RFC4271-5.1.5-5</code></a>, <a href="#rfc4271-6.7-4"><code>RFC4271-6.7-4</code></a>, <a href="#rfc4271-6.8-1"><code>RFC4271-6.8-1</code></a>, <a href="#rfc4271-6.8-2"><code>RFC4271-6.8-2</code></a>, <a href="#rfc4271-9-1"><code>RFC4271-9-1</code></a>, <a href="#rfc4271-9-2"><code>RFC4271-9-2</code></a>, <a href="#rfc4271-9-3"><code>RFC4271-9-3</code></a>, <a href="#rfc4271-9.1.1-1"><code>RFC4271-9.1.1-1</code></a>, <a href="#rfc4271-9.1.1-2"><code>RFC4271-9.1.1-2</code></a>, <a href="#rfc4271-9.1.2-2"><code>RFC4271-9.1.2-2</code></a>, <a href="#rfc4271-9.1.2-3"><code>RFC4271-9.1.2-3</code></a>, <a href="#rfc4271-9.1.2.1-1"><code>RFC4271-9.1.2.1-1</code></a>, <a href="#rfc4271-9.1.2.2-1"><code>RFC4271-9.1.2.2-1</code></a>, <a href="#rfc4271-9.1.2.2-3"><code>RFC4271-9.1.2.2-3</code></a>, <a href="#rfc4271-9.2-4"><code>RFC4271-9.2-4</code></a>, <a href="#rfc4271-9.2-5"><code>RFC4271-9.2-5</code></a>, <a href="#rfc4271-security-1"><code>RFC4271-Security-1</code></a>, <a href="#rfc4271-9.2-6"><code>RFC4271-9.2-6</code></a>, <a href="#rfc4271-9.2-7"><code>RFC4271-9.2-7</code></a>, <a href="#rfc4271-9.2-8"><code>RFC4271-9.2-8</code></a>, <a href="#rfc4271-9.2-9"><code>RFC4271-9.2-9</code></a>, <a href="#rfc4271-9.2-10"><code>RFC4271-9.2-10</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (76):</strong> <a href="#rfc4271-4.1-1"><code>RFC4271-4.1-1</code></a>, <a href="#rfc4271-4.1-2"><code>RFC4271-4.1-2</code></a>, <a href="#rfc4271-4.1-3"><code>RFC4271-4.1-3</code></a>, <a href="#rfc4271-4.3-1"><code>RFC4271-4.3-1</code></a>, <a href="#rfc4271-4.3-2"><code>RFC4271-4.3-2</code></a>, <a href="#rfc4271-4.3-4"><code>RFC4271-4.3-4</code></a>, <a href="#rfc4271-4.4-1"><code>RFC4271-4.4-1</code></a>, <a href="#rfc4271-4.4-2"><code>RFC4271-4.4-2</code></a>, <a href="#rfc4271-6-1"><code>RFC4271-6-1</code></a>, <a href="#rfc4271-4.2-1"><code>RFC4271-4.2-1</code></a>, <a href="#rfc4271-4.2-2"><code>RFC4271-4.2-2</code></a>, <a href="#rfc4271-6.2-1"><code>RFC4271-6.2-1</code></a>, <a href="#rfc4271-6.2-2"><code>RFC4271-6.2-2</code></a>, <a href="#rfc4271-5-1"><code>RFC4271-5-1</code></a>, <a href="#rfc4271-5-2"><code>RFC4271-5-2</code></a>, <a href="#rfc4271-5-3"><code>RFC4271-5-3</code></a>, <a href="#rfc4271-5-4"><code>RFC4271-5-4</code></a>, <a href="#rfc4271-5-5"><code>RFC4271-5-5</code></a>, <a href="#rfc4271-5-6"><code>RFC4271-5-6</code></a>, <a href="#rfc4271-5.1.3-1"><code>RFC4271-5.1.3-1</code></a>, <a href="#rfc4271-5.1.3-2"><code>RFC4271-5.1.3-2</code></a>, <a href="#rfc4271-5.1.3-3"><code>RFC4271-5.1.3-3</code></a>, <a href="#rfc4271-5.1.4-1"><code>RFC4271-5.1.4-1</code></a>, <a href="#rfc4271-5.1.4-4"><code>RFC4271-5.1.4-4</code></a>, <a href="#rfc4271-5.1.4-2"><code>RFC4271-5.1.4-2</code></a>, <a href="#rfc4271-5.1.5-1"><code>RFC4271-5.1.5-1</code></a>, <a href="#rfc4271-5.1.5-2"><code>RFC4271-5.1.5-2</code></a>, <a href="#rfc4271-5.1.5-3"><code>RFC4271-5.1.5-3</code></a>, <a href="#rfc4271-5.1.5-4"><code>RFC4271-5.1.5-4</code></a>, <a href="#rfc4271-6.3-1"><code>RFC4271-6.3-1</code></a>, <a href="#rfc4271-6.7-1"><code>RFC4271-6.7-1</code></a>, <a href="#rfc4271-8.2.1-1"><code>RFC4271-8.2.1-1</code></a>, <a href="#rfc4271-8.2.1-2"><code>RFC4271-8.2.1-2</code></a>, <a href="#rfc4271-8.2.2-1"><code>RFC4271-8.2.2-1</code></a>, <a href="#rfc4271-8.2.2-2"><code>RFC4271-8.2.2-2</code></a>, <a href="#rfc4271-8.2.2-3"><code>RFC4271-8.2.2-3</code></a>, <a href="#rfc4271-8.2.2-4"><code>RFC4271-8.2.2-4</code></a>, <a href="#rfc4271-8.2.2-5"><code>RFC4271-8.2.2-5</code></a>, <a href="#rfc4271-8.2.2-7"><code>RFC4271-8.2.2-7</code></a>, <a href="#rfc4271-8.2.2-8"><code>RFC4271-8.2.2-8</code></a>, <a href="#rfc4271-8.2.2-9"><code>RFC4271-8.2.2-9</code></a>, <a href="#rfc4271-8.2.2-10"><code>RFC4271-8.2.2-10</code></a>, <a href="#rfc4271-8.2.2-11"><code>RFC4271-8.2.2-11</code></a>, <a href="#rfc4271-8.2.2-12"><code>RFC4271-8.2.2-12</code></a>, <a href="#rfc4271-8.2.2-13"><code>RFC4271-8.2.2-13</code></a>, <a href="#rfc4271-8.2.2-14"><code>RFC4271-8.2.2-14</code></a>, <a href="#rfc4271-8.2.2-15"><code>RFC4271-8.2.2-15</code></a>, <a href="#rfc4271-8.2.2-16"><code>RFC4271-8.2.2-16</code></a>, <a href="#rfc4271-8.2.2-17"><code>RFC4271-8.2.2-17</code></a>, <a href="#rfc4271-8.2.2-18"><code>RFC4271-8.2.2-18</code></a>, <a href="#rfc4271-10-1"><code>RFC4271-10-1</code></a>, <a href="#rfc4271-5.1.2-2"><code>RFC4271-5.1.2-2</code></a>, <a href="#rfc4271-5.1.2-3"><code>RFC4271-5.1.2-3</code></a>, <a href="#rfc4271-5.1.5-5"><code>RFC4271-5.1.5-5</code></a>, <a href="#rfc4271-6.7-4"><code>RFC4271-6.7-4</code></a>, <a href="#rfc4271-6.8-1"><code>RFC4271-6.8-1</code></a>, <a href="#rfc4271-6.8-2"><code>RFC4271-6.8-2</code></a>, <a href="#rfc4271-9-1"><code>RFC4271-9-1</code></a>, <a href="#rfc4271-9-2"><code>RFC4271-9-2</code></a>, <a href="#rfc4271-9-3"><code>RFC4271-9-3</code></a>, <a href="#rfc4271-9.1.1-1"><code>RFC4271-9.1.1-1</code></a>, <a href="#rfc4271-9.1.1-2"><code>RFC4271-9.1.1-2</code></a>, <a href="#rfc4271-9.1.2-2"><code>RFC4271-9.1.2-2</code></a>, <a href="#rfc4271-9.1.2-3"><code>RFC4271-9.1.2-3</code></a>, <a href="#rfc4271-9.1.2.1-1"><code>RFC4271-9.1.2.1-1</code></a>, <a href="#rfc4271-9.1.2.2-1"><code>RFC4271-9.1.2.2-1</code></a>, <a href="#rfc4271-9.1.2.2-3"><code>RFC4271-9.1.2.2-3</code></a>, <a href="#rfc4271-9.1.2.2-4"><code>RFC4271-9.1.2.2-4</code></a>, <a href="#rfc4271-9.2-4"><code>RFC4271-9.2-4</code></a>, <a href="#rfc4271-9.2-5"><code>RFC4271-9.2-5</code></a>, <a href="#rfc4271-security-1"><code>RFC4271-Security-1</code></a>, <a href="#rfc4271-9.2-6"><code>RFC4271-9.2-6</code></a>, <a href="#rfc4271-9.2-7"><code>RFC4271-9.2-7</code></a>, <a href="#rfc4271-9.2-8"><code>RFC4271-9.2-8</code></a>, <a href="#rfc4271-9.2-9"><code>RFC4271-9.2-9</code></a>, <a href="#rfc4271-9.2-10"><code>RFC4271-9.2-10</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (25):</strong> <a href="#rfc4271-4.3-3"><code>RFC4271-4.3-3</code></a>, <a href="#rfc4271-4.3-5"><code>RFC4271-4.3-5</code></a>, <a href="#rfc4271-5.1.6-1"><code>RFC4271-5.1.6-1</code></a>, <a href="#rfc4271-6.1-1"><code>RFC4271-6.1-1</code></a>, <a href="#rfc4271-6.1-2"><code>RFC4271-6.1-2</code></a>, <a href="#rfc4271-6.1-3"><code>RFC4271-6.1-3</code></a>, <a href="#rfc4271-6.1-4"><code>RFC4271-6.1-4</code></a>, <a href="#rfc4271-6.2-3"><code>RFC4271-6.2-3</code></a>, <a href="#rfc4271-8.2.1-3"><code>RFC4271-8.2.1-3</code></a>, <a href="#rfc4271-3.1-2"><code>RFC4271-3.1-2</code></a>, <a href="#rfc4271-5.1.4-3"><code>RFC4271-5.1.4-3</code></a>, <a href="#rfc4271-5.1.7-1"><code>RFC4271-5.1.7-1</code></a>, <a href="#rfc4271-9.1.2-1"><code>RFC4271-9.1.2-1</code></a>, <a href="#rfc4271-9.1.2-4"><code>RFC4271-9.1.2-4</code></a>, <a href="#rfc4271-9.1.2.1-2"><code>RFC4271-9.1.2.1-2</code></a>, <a href="#rfc4271-9.1.2.2-2"><code>RFC4271-9.1.2.2-2</code></a>, <a href="#rfc4271-9.2-2"><code>RFC4271-9.2-2</code></a>, <a href="#rfc4271-9.2-3"><code>RFC4271-9.2-3</code></a>, <a href="#rfc4271-9.2.1.1-2"><code>RFC4271-9.2.1.1-2</code></a>, <a href="#rfc4271-9.2.2.2-1"><code>RFC4271-9.2.2.2-1</code></a>, <a href="#rfc4271-9.2.2.2-2"><code>RFC4271-9.2.2.2-2</code></a>, <a href="#rfc4271-9.2.2.2-3"><code>RFC4271-9.2.2.2-3</code></a>, <a href="#rfc4271-9.2.2.2-4"><code>RFC4271-9.2.2.2-4</code></a>, <a href="#rfc4271-9.2.2.2-5"><code>RFC4271-9.2.2.2-5</code></a>, <a href="#rfc4271-9.2.1.1-3"><code>RFC4271-9.2.1.1-3</code></a></p>
 </section>
 <section><h2>Requirements</h2>
@@ -541,11 +555,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>5.1.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-5.1.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L213" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardSuppressesReceivedMEDToAnotherAS</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L314" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardKeepsFilterSetMED</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L218" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardSuppressesReceivedMEDToAnotherAS</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L281" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardWritesLocallySetMED</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L418" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDPropagationAllowedTo</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L221" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardSuppressesReceivedMEDToAnotherAS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L322" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardKeepsFilterSetMED</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L226" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardSuppressesReceivedMEDToAnotherAS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L289" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardWritesLocallySetMED</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L426" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDPropagationAllowedTo</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L4" title="test/plugin/med-not-propagated-across-as.ci" target="_blank" rel="noopener"><code>med-not-propagated-across-as.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/med-locally-set-reaches-peer.ci#L4" title="test/plugin/med-locally-set-reaches-peer.ci" target="_blank" rel="noopener"><code>med-locally-set-reaches-peer.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L8" title="test/plugin/med-not-propagated-across-as.ci" target="_blank" rel="noopener"><code>med-not-propagated-across-as.ci</code></a></span></div>
@@ -558,11 +572,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.1.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-5.1.4-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L460" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemovalMechanismIsConfigurable</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L548" title="internal/component/bgp/plugins/filter_modify/modify_test.go" target="_blank" rel="noopener"><code>TestParseModifyDefsMEDRemove</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L467" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemovalMechanismIsConfigurable</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L560" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemoveDirectiveIsValueless</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L553" title="internal/component/bgp/plugins/filter_modify/modify_test.go" target="_blank" rel="noopener"><code>TestParseModifyDefsMEDRemove</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L468" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemovalMechanismIsConfigurable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L642" title="internal/component/bgp/plugins/filter_modify/modify_test.go" target="_blank" rel="noopener"><code>TestParseModifyDefsMEDRemove</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L475" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemovalMechanismIsConfigurable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L568" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemoveDirectiveIsValueless</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L647" title="internal/component/bgp/plugins/filter_modify/modify_test.go" target="_blank" rel="noopener"><code>TestParseModifyDefsMEDRemove</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-configured.ci#L4" title="test/plugin/med-removal-configured.ci" target="_blank" rel="noopener"><code>med-removal-configured.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L318" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkMEDRemovalConfiguration</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L322" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkMEDRemovalConfiguration</code></a></span></div>
@@ -573,10 +587,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.1.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-5.1.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L621" title="internal/component/bgp/plugins/filter_modify/modify_test.go" target="_blank" rel="noopener"><code>TestHandleFilterUpdateMEDRemoveIsImportOnly</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L472" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemovalMechanismIsConfigurable</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L628" title="internal/component/bgp/plugins/filter_modify/modify_test.go" target="_blank" rel="noopener"><code>TestHandleFilterUpdateMEDRemoveIsImportOnly</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L480" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemovalMechanismIsConfigurable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L715" title="internal/component/bgp/plugins/filter_modify/modify_test.go" target="_blank" rel="noopener"><code>TestHandleFilterUpdateMEDRemoveIsImportOnly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L480" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemovalMechanismIsConfigurable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L722" title="internal/component/bgp/plugins/filter_modify/modify_test.go" target="_blank" rel="noopener"><code>TestHandleFilterUpdateMEDRemoveIsImportOnly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L488" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemovalMechanismIsConfigurable</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-before-decision.ci#L4" title="test/plugin/med-removal-before-decision.ci" target="_blank" rel="noopener"><code>med-removal-before-decision.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-configured.ci#L8" title="test/plugin/med-removal-configured.ci" target="_blank" rel="noopener"><code>med-removal-configured.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-before-decision.ci#L10" title="test/plugin/med-removal-before-decision.ci" target="_blank" rel="noopener"><code>med-removal-before-decision.ci</code></a></span></div>
@@ -1070,7 +1084,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHALL NOT</td>
 <td>5.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-5.1.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L567" title="internal/component/bgp/reactor/reactor_batch_test.go" target="_blank" rel="noopener"><code>TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L569" title="internal/component/bgp/reactor/reactor_batch_test.go" target="_blank" rel="noopener"><code>TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L131" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271ASPathUnmodifiedTowardInternalPeer</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L148" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271ASPathPrependedTowardExternalPeer</code></a></span></div>
 </div></td>
@@ -1081,9 +1095,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>5.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-5.1.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/advertise_test.go#L97" title="internal/component/bgp/wireu/advertise_test.go" target="_blank" rel="noopener"><code>TestASPathSlotPrependOnlyWhenAdvertising</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L541" title="internal/component/bgp/reactor/reactor_batch_test.go" target="_blank" rel="noopener"><code>TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L543" title="internal/component/bgp/reactor/reactor_batch_test.go" target="_blank" rel="noopener"><code>TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/advertise_test.go#L99" title="internal/component/bgp/wireu/advertise_test.go" target="_blank" rel="noopener"><code>TestASPathSlotPrependOnlyWhenAdvertising</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L565" title="internal/component/bgp/reactor/reactor_batch_test.go" target="_blank" rel="noopener"><code>TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L567" title="internal/component/bgp/reactor/reactor_batch_test.go" target="_blank" rel="noopener"><code>TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L431" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRelayWithdrawalShape</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L432" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRelayWithdrawalShape</code></a></span></div>
 </div></td>
@@ -1165,8 +1179,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHALL</td>
 <td>9</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-9-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L685" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeWithdraw</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L649" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeNoPublishSameBest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L686" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeWithdraw</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L650" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeNoPublishSameBest</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-9.1.1-1">RFC4271-9.1.1-1</code></td><td colspan="3"><span class="rfc-subject">The degree of preference function SHALL NOT use the existence or attributes of other routes as inputs (§9.1.1)</span></td></tr>
@@ -1201,8 +1215,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHALL</td>
 <td>9.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-9.1.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1512" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L690" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeWithdraw</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1513" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L691" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeWithdraw</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-9.1.2-3">RFC4271-9.1.2-3</code></td><td colspan="3"><span class="rfc-subject">The local speaker MUST determine the immediate next-hop address from the NEXT_HOP attribute (§9.1.2)</span></td></tr>
@@ -1210,7 +1224,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>9.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-9.1.2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1514" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1515" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L94" title="internal/component/bgp/plugins/rib/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocRIBNextHopComesFromNextHopAttribute</code></a></span></div>
 </div></td>
 </tr>
@@ -1228,7 +1242,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>9.1.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-9.1.2.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1517" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1518" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L98" title="internal/component/bgp/plugins/rib/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocRIBNextHopComesFromNextHopAttribute</code></a></span></div>
 </div></td>
 </tr>
@@ -1270,6 +1284,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-9.1.2.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L319" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestBestPath_MED_SameNeighborAS</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L322" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestBestPath_MED_SameNeighborAS</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-9.1.2.2-4">RFC4271-9.1.2.2-4</code></td><td colspan="3"><span class="rfc-subject">Routes that do not have the MULTI_EXIT_DISC attribute are considered to have the lowest possible MULTI_EXIT_DISC value (§9.1.2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>9.1.2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-9.1.2.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L225" title="internal/component/bgp/plugins/rib/rfc4271_test.go" target="_blank" rel="noopener"><code>TestAbsentMedStillComparesAsZeroInPhaseTwo</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L257" title="internal/component/bgp/plugins/rib/rfc4271_test.go" target="_blank" rel="noopener"><code>TestAbsentMedTiesAnExplicitMedOfZero</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-9.2-2">RFC4271-9.2-2</code></td><td colspan="3"><span class="rfc-subject">A route SHALL NOT be installed in Adj-RIB-Out unless its destination and NEXT_HOP may be forwarded by the Routing Table (§9.2)</span></td></tr>
@@ -1394,8 +1417,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHALL</td>
 <td>9.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-9.2-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L688" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeWithdraw</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L652" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeNoPublishSameBest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L689" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeWithdraw</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L653" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeNoPublishSameBest</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-9.2-8">RFC4271-9.2-8</code></td><td colspan="3"><span class="rfc-subject">Any routes in the Loc-RIB marked as unfeasible SHALL be removed (§9.2)</span></td></tr>
@@ -1403,8 +1426,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHALL</td>
 <td>9.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-9.2-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1520" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L654" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeNoPublishSameBest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1521" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L655" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeNoPublishSameBest</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-9.2-9">RFC4271-9.2-9</code></td><td colspan="3"><span class="rfc-subject">Changes to reachable destinations within the speaker&#39;s own AS SHALL be advertised in an UPDATE (§9.2)</span></td></tr>
@@ -2279,22 +2302,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L314" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardKeepsFilterSetMED</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L322" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardKeepsFilterSetMED</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L218" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardSuppressesReceivedMEDToAnotherAS</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L226" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardSuppressesReceivedMEDToAnotherAS</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L281" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardWritesLocallySetMED</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L289" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardWritesLocallySetMED</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L418" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDPropagationAllowedTo</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L426" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDPropagationAllowedTo</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2314,7 +2337,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L213" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardSuppressesReceivedMEDToAnotherAS</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L221" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardSuppressesReceivedMEDToAnotherAS</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2339,17 +2362,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L553" title="internal/component/bgp/plugins/filter_modify/modify_test.go" target="_blank" rel="noopener"><code>TestParseModifyDefsMEDRemove</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L647" title="internal/component/bgp/plugins/filter_modify/modify_test.go" target="_blank" rel="noopener"><code>TestParseModifyDefsMEDRemove</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L467" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemovalMechanismIsConfigurable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L475" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemovalMechanismIsConfigurable</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L560" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemoveDirectiveIsValueless</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L568" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemoveDirectiveIsValueless</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2359,12 +2382,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L548" title="internal/component/bgp/plugins/filter_modify/modify_test.go" target="_blank" rel="noopener"><code>TestParseModifyDefsMEDRemove</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L642" title="internal/component/bgp/plugins/filter_modify/modify_test.go" target="_blank" rel="noopener"><code>TestParseModifyDefsMEDRemove</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L460" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemovalMechanismIsConfigurable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L468" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemovalMechanismIsConfigurable</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2389,12 +2412,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L628" title="internal/component/bgp/plugins/filter_modify/modify_test.go" target="_blank" rel="noopener"><code>TestHandleFilterUpdateMEDRemoveIsImportOnly</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L722" title="internal/component/bgp/plugins/filter_modify/modify_test.go" target="_blank" rel="noopener"><code>TestHandleFilterUpdateMEDRemoveIsImportOnly</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L480" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemovalMechanismIsConfigurable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L488" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemovalMechanismIsConfigurable</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2409,12 +2432,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L621" title="internal/component/bgp/plugins/filter_modify/modify_test.go" target="_blank" rel="noopener"><code>TestHandleFilterUpdateMEDRemoveIsImportOnly</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L715" title="internal/component/bgp/plugins/filter_modify/modify_test.go" target="_blank" rel="noopener"><code>TestHandleFilterUpdateMEDRemoveIsImportOnly</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L472" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemovalMechanismIsConfigurable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L480" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestMEDRemovalMechanismIsConfigurable</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3096,7 +3119,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L567" title="internal/component/bgp/reactor/reactor_batch_test.go" target="_blank" rel="noopener"><code>TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L569" title="internal/component/bgp/reactor/reactor_batch_test.go" target="_blank" rel="noopener"><code>TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3116,7 +3139,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L565" title="internal/component/bgp/reactor/reactor_batch_test.go" target="_blank" rel="noopener"><code>TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L567" title="internal/component/bgp/reactor/reactor_batch_test.go" target="_blank" rel="noopener"><code>TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3131,7 +3154,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L541" title="internal/component/bgp/reactor/reactor_batch_test.go" target="_blank" rel="noopener"><code>TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L543" title="internal/component/bgp/reactor/reactor_batch_test.go" target="_blank" rel="noopener"><code>TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3295,12 +3318,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L649" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeNoPublishSameBest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L650" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeNoPublishSameBest</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L685" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeWithdraw</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L686" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeWithdraw</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3359,12 +3382,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L690" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeWithdraw</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L691" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeWithdraw</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1512" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1513" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3384,7 +3407,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1514" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1515" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3408,7 +3431,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1517" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1518" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3479,6 +3502,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L319" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestBestPath_MED_SameNeighborAS</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc4271-9.1.2.2-4"><code>RFC4271-9.1.2.2-4</code></a></h3>
+<p>Routes that do not have the MULTI_EXIT_DISC attribute are considered to have the lowest possible MULTI_EXIT_DISC value (§9.1.2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L257" title="internal/component/bgp/plugins/rib/rfc4271_test.go" target="_blank" rel="noopener"><code>TestAbsentMedTiesAnExplicitMedOfZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L225" title="internal/component/bgp/plugins/rib/rfc4271_test.go" target="_blank" rel="noopener"><code>TestAbsentMedStillComparesAsZeroInPhaseTwo</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -3607,12 +3650,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L652" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeNoPublishSameBest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L653" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeNoPublishSameBest</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L688" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeWithdraw</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L689" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeWithdraw</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3627,12 +3670,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L654" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeNoPublishSameBest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L655" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeNoPublishSameBest</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1520" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1521" title="internal/component/bgp/plugins/rib/rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3770,7 +3813,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

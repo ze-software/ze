@@ -1,6 +1,6 @@
 # RFC 5798 - Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6
 
-Supported. Every requirement this repository extracted from RFC 5798, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Partial. Every requirement this repository extracted from RFC 5798, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,10 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0.0% | 0 of 55 binding obligations | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 55 binding obligations | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 55 binding obligations | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 60.0% | 33 of 55 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 55 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Proven by a recorded break | 100.0% | 73 of 73 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,7 +21,10 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 55 | of 80 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 55 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below |
+| Out of scope | 0 | of 55 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 55 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 55 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 55 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -30,9 +32,10 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 100.0% | 55 of 55 binding obligations | no test carries the requirement id, whether or not a gap states why |
+| One polarity, unexcused | 12.7% | 7 of 55 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| No test at all | 27.3% | 15 of 55 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 4 shares marked as a part above are the whole of the 55 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 55 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -42,8 +45,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| One polarity, unexcused | bad | green at zero, RED above it: half a proof with no reason for the other half |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
@@ -51,30 +57,29 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Field | Value |
 |---|---|
-| Public status | Supported |
+| Public status | Partial |
 | Enrolment | Enrolled |
 | Requirements | 80 |
 | Gated MUST-level | 55 |
-| Obligations that bind Ze | 55 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
-| Gated with no test | 55 |
+| Gated with no test | 15 |
 | Nightly-only evidence | 0 |
-| Test tags | 0 |
-| Tagged units | 0 |
+| Test tags | 73 |
+| Tagged units | 73 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 73 |
 | Summary | `rfc/short/rfc5798.md` |
 | Requirement shard | `rfc/requirements/rfc5798.md` |
 | RFC text | `rfc/full/rfc5798.txt` |
 
 ## Enrolment
 
-Enrolled: VRRP Version 3 for IPv4 and IPv6 (RFC 5798, obsoleted by RFC 9568): the VRRPv3 document ze actually speaks on the IPv4 wire. Every one of its 55 gated requirements carries a {superseded} marker naming where the obligation lives in RFC 9568, and 51 of them are restated there unchanged, so ze implements them through the same producers rfc/short/rfc9568.md gates: internal/plugins/vrrp/packet (advert encode/decode, checksum), internal/plugins/vrrp/fsm (Initialize/Backup/Master), internal/plugins/vrrp/transport (proto 112, GTSM, GARP/NA). The row that is NOT a restatement is RFC5798-5.2.8-1: Section 5.2.8 puts a pseudo-header under the checksum for both families, RFC 9568 Section 5.2.8 removes it for IPv4, and ze transmits this document form because keepalived and the pre-RFC-9568 base require it (pseudoSumV4Legacy and FillChecksum, internal/plugins/vrrp/packet/checksum.go). Enrolled 2026-08-31 with no requirement yet tagged under an RFC5798 id: the behaviour is proven under the RFC 9568 ids and the RFC5798 tags are owed.
+Enrolled: VRRP Version 3 for IPv4 and IPv6 (RFC 5798, obsoleted by RFC 9568): the VRRPv3 document ze actually speaks on the IPv4 wire. Every one of its 55 gated requirements carries a {superseded} marker naming where the obligation lives in RFC 9568, and 51 of them are restated there unchanged, so ze implements them through the same producers rfc/short/rfc9568.md gates: internal/plugins/vrrp/packet (advert encode/decode, checksum), internal/plugins/vrrp/fsm (Initialize/Backup/Master), internal/plugins/vrrp/transport (proto 112, GTSM, GARP/NA). The row that is NOT a restatement is RFC5798-5.2.8-1: Section 5.2.8 puts a pseudo-header under the checksum for both families, RFC 9568 Section 5.2.8 removes it for IPv4, and ze transmits this document form because keepalived and the pre-RFC-9568 base require it (pseudoSumV4Legacy and FillChecksum, internal/plugins/vrrp/packet/checksum.go). Tagged under RFC5798 ids on 2026-09-05: 33 of the 55 gated MUSTs carry a positive and a negative test with a discrimination record for each, and 7 more carry a recorded positive proof whose obligation has no negative case, because the producer writes a constant.
 
 ## What the public ledger says
 
-**Status:** Supported
+**Status:** Partial
 
 **What the ledger says is covered**
 
@@ -86,77 +91,81 @@ Enrolled: VRRP Version 3 for IPv4 and IPv6 (RFC 5798, obsoleted by RFC 9568): th
 
 RFC 9568 Section 5.2.8 clarifies the IPv4 checksum as message-only (no pseudo-header); ze diverges from that clarification on transmit for interoperability, and counts message-only senders (`checksum-rfc9568-message-only`) so the strict-RFC-9568 population is visible. When that population dominates, the transmit form can be revisited.
 
-- **Enrolled 2026-09-01:** [`rfc/short/rfc5798.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc5798.md) declares 80 requirements, 55 of them MUST-level, and every one carries a `{superseded}` marker naming where RFC 9568 states it. No test carries an `RFC5798-` tag yet, so the behavior is proven under the RFC 9568 ids and the RFC 5798 ids are an open proof backlog `./le rfc check` names row by row. One RFC 5798 obligation is NOT a restatement: [`RFC5798-5.2.8-1`](#rfc5798-5.2.8-1) puts a pseudo-header under the checksum for both address families, which is the divergence this row describes. RFC 5798 Section 5.2.8 cites the pseudo-header "as defined in Section 8.1 of [RFC2460]", an IPv6-only shape, so what ze and the deployed base compute for IPv4 is the classic IPv4 pseudo-header (`pseudoSumV4Legacy`, [`internal/plugins/vrrp/packet/checksum.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/checksum.go)) rather than the shape that sentence names.
+- **Enrolled 2026-09-01:** [`rfc/short/rfc5798.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc5798.md) declares 80 requirements, 55 of them MUST-level, and every one carries a `{superseded}` marker naming where RFC 9568 states it. 33 of those 55 are proven under RFC5798 ids in both polarities, each polarity carrying a discrimination record. 7 more carry a recorded positive proof and no negative case, because the producer writes a constant no input changes: [`RFC5798-5.1.1.3-1`](#rfc5798-5.1.1.3-1), [`RFC5798-6.4.3-2`](#rfc5798-6.4.3-2), [`RFC5798-7.2-1`](#rfc5798-7.2-1) through [`RFC5798-7.2-4`](#rfc5798-7.2-4), and [`RFC5798-8.2.2-1`](#rfc5798-8.2.2-1). The 15 that carry no tag are 9 whose RFC 9568 twin is recorded `{not-applicable}`, 2 whose twin is recorded `{gap}` ([`RFC5798-6.4.3-3`](#rfc5798-6.4.3-3) and [`RFC5798-6.4.3-4`](#rfc5798-6.4.3-4), the IPv6 Neighbor Advertisement Router flag and the Router Advertisement a Master owes), 2 that RFC 9568 dropped rather than restated ([`RFC5798-7.4-1`](#rfc5798-7.4-1) and the Token Ring appendix RFC5798-A.2-1), [`RFC5798-5.1.2.3-1`](#rfc5798-5.1.2.3-1), whose only evidence is an integration-gated test the privileged QEMU suite runs and `./le rfc discriminate-record` cannot reach, and [`RFC5798-7.1-3`](#rfc5798-7.1-3), which ze does not fully implement: Section 7.1 makes the receiver discard an advertisement when the local router is the IPvX address owner, and `Decode` ([`internal/plugins/vrrp/packet/validate.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate.go)) verifies only the VRID half, because RFC 9568 erratum 8298 lowers the address-owner half to a log. One RFC 5798 obligation is NOT a restatement: [`RFC5798-5.2.8-1`](#rfc5798-5.2.8-1) puts a pseudo-header under the checksum for both address families, which is the divergence this row describes. RFC 5798 Section 5.2.8 cites the pseudo-header "as defined in Section 8.1 of [RFC2460]", an IPv6-only shape, so what ze and the deployed base compute for IPv4 is the classic IPv4 pseudo-header (`pseudoSumV4Legacy`, [`internal/plugins/vrrp/packet/checksum.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/checksum.go)) rather than the shape that sentence names.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 0 | one part of the gated population |
+| Positive and negative tests | 33 | one part of the gated population |
 | Annotated instead of tested | 0 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 55 | one part of the gated population |
+| One polarity only | 7 | one part of the gated population |
+| No test and no annotation | 15 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | **Gated MUST-level requirements** | **55** | every gated MUST falls in exactly one bucket above |
 
-**No test and no annotation (55):** [`RFC5798-5.1.1.2-1`](#rfc5798-5.1.1.2-1), [`RFC5798-5.1.1.3-1`](#rfc5798-5.1.1.3-1), [`RFC5798-5.1.1.3-2`](#rfc5798-5.1.1.3-2), [`RFC5798-5.1.2.2-1`](#rfc5798-5.1.2.2-1), [`RFC5798-5.1.2.3-1`](#rfc5798-5.1.2.3-1), [`RFC5798-5.1.2.3-2`](#rfc5798-5.1.2.3-2), [`RFC5798-5.2.2-1`](#rfc5798-5.2.2-1), [`RFC5798-5.2.4-1`](#rfc5798-5.2.4-1), [`RFC5798-5.2.4-2`](#rfc5798-5.2.4-2), [`RFC5798-5.2.6-1`](#rfc5798-5.2.6-1), [`RFC5798-5.2.8-1`](#rfc5798-5.2.8-1), [`RFC5798-5.2.9-1`](#rfc5798-5.2.9-1), [`RFC5798-5.2.9-2`](#rfc5798-5.2.9-2), [`RFC5798-6.1-1`](#rfc5798-6.1-1), [`RFC5798-6.4.2-1`](#rfc5798-6.4.2-1), [`RFC5798-6.4.2-2`](#rfc5798-6.4.2-2), [`RFC5798-6.4.2-3`](#rfc5798-6.4.2-3), [`RFC5798-6.4.2-4`](#rfc5798-6.4.2-4), [`RFC5798-6.4.2-5`](#rfc5798-6.4.2-5), [`RFC5798-6.4.2-6`](#rfc5798-6.4.2-6), [`RFC5798-6.4.2-7`](#rfc5798-6.4.2-7), [`RFC5798-6.4.2-8`](#rfc5798-6.4.2-8), [`RFC5798-6.4.2-9`](#rfc5798-6.4.2-9), [`RFC5798-6.4.2-10`](#rfc5798-6.4.2-10), [`RFC5798-6.4.3-1`](#rfc5798-6.4.3-1), [`RFC5798-6.4.3-2`](#rfc5798-6.4.3-2), [`RFC5798-6.4.3-3`](#rfc5798-6.4.3-3), [`RFC5798-6.4.3-4`](#rfc5798-6.4.3-4), [`RFC5798-6.4.3-5`](#rfc5798-6.4.3-5), [`RFC5798-6.4.3-6`](#rfc5798-6.4.3-6), [`RFC5798-6.4.3-7`](#rfc5798-6.4.3-7), [`RFC5798-6.4.3-8`](#rfc5798-6.4.3-8), [`RFC5798-6.4.3-9`](#rfc5798-6.4.3-9), [`RFC5798-6.4.3-10`](#rfc5798-6.4.3-10), [`RFC5798-6.4.3-11`](#rfc5798-6.4.3-11), [`RFC5798-6.4.3-12`](#rfc5798-6.4.3-12), [`RFC5798-7.1-1`](#rfc5798-7.1-1), [`RFC5798-7.1-2`](#rfc5798-7.1-2), [`RFC5798-7.1-3`](#rfc5798-7.1-3), [`RFC5798-7.1-4`](#rfc5798-7.1-4), [`RFC5798-7.2-1`](#rfc5798-7.2-1), [`RFC5798-7.2-2`](#rfc5798-7.2-2), [`RFC5798-7.2-3`](#rfc5798-7.2-3), [`RFC5798-7.2-4`](#rfc5798-7.2-4), [`RFC5798-7.4-1`](#rfc5798-7.4-1), [`RFC5798-7.4-2`](#rfc5798-7.4-2), [`RFC5798-8.1.2-1`](#rfc5798-8.1.2-1), [`RFC5798-8.1.3-1`](#rfc5798-8.1.3-1), [`RFC5798-8.2.2-1`](#rfc5798-8.2.2-1), [`RFC5798-8.2.2-2`](#rfc5798-8.2.2-2), [`RFC5798-8.2.2-3`](#rfc5798-8.2.2-3), [`RFC5798-8.2.2-4`](#rfc5798-8.2.2-4), [`RFC5798-8.2.3-1`](#rfc5798-8.2.3-1), [`RFC5798-8.4.2-1`](#rfc5798-8.4.2-1), [`RFC5798-A.2-1`](#rfc5798-a.2-1)
+**Positive and negative tests (33):** [`RFC5798-5.1.1.3-2`](#rfc5798-5.1.1.3-2), [`RFC5798-5.1.2.3-2`](#rfc5798-5.1.2.3-2), [`RFC5798-5.2.2-1`](#rfc5798-5.2.2-1), [`RFC5798-5.2.4-1`](#rfc5798-5.2.4-1), [`RFC5798-5.2.4-2`](#rfc5798-5.2.4-2), [`RFC5798-5.2.6-1`](#rfc5798-5.2.6-1), [`RFC5798-5.2.8-1`](#rfc5798-5.2.8-1), [`RFC5798-5.2.9-1`](#rfc5798-5.2.9-1), [`RFC5798-5.2.9-2`](#rfc5798-5.2.9-2), [`RFC5798-6.1-1`](#rfc5798-6.1-1), [`RFC5798-6.4.2-1`](#rfc5798-6.4.2-1), [`RFC5798-6.4.2-2`](#rfc5798-6.4.2-2), [`RFC5798-6.4.2-4`](#rfc5798-6.4.2-4), [`RFC5798-6.4.2-5`](#rfc5798-6.4.2-5), [`RFC5798-6.4.2-6`](#rfc5798-6.4.2-6), [`RFC5798-6.4.2-7`](#rfc5798-6.4.2-7), [`RFC5798-6.4.2-8`](#rfc5798-6.4.2-8), [`RFC5798-6.4.2-9`](#rfc5798-6.4.2-9), [`RFC5798-6.4.2-10`](#rfc5798-6.4.2-10), [`RFC5798-6.4.3-1`](#rfc5798-6.4.3-1), [`RFC5798-6.4.3-5`](#rfc5798-6.4.3-5), [`RFC5798-6.4.3-6`](#rfc5798-6.4.3-6), [`RFC5798-6.4.3-7`](#rfc5798-6.4.3-7), [`RFC5798-6.4.3-8`](#rfc5798-6.4.3-8), [`RFC5798-6.4.3-9`](#rfc5798-6.4.3-9), [`RFC5798-6.4.3-10`](#rfc5798-6.4.3-10), [`RFC5798-6.4.3-11`](#rfc5798-6.4.3-11), [`RFC5798-6.4.3-12`](#rfc5798-6.4.3-12), [`RFC5798-7.1-1`](#rfc5798-7.1-1), [`RFC5798-7.1-2`](#rfc5798-7.1-2), [`RFC5798-7.1-4`](#rfc5798-7.1-4), [`RFC5798-8.1.2-1`](#rfc5798-8.1.2-1), [`RFC5798-8.2.2-4`](#rfc5798-8.2.2-4)
+
+**One polarity only (7):** [`RFC5798-5.1.1.3-1`](#rfc5798-5.1.1.3-1), [`RFC5798-6.4.3-2`](#rfc5798-6.4.3-2), [`RFC5798-7.2-1`](#rfc5798-7.2-1), [`RFC5798-7.2-2`](#rfc5798-7.2-2), [`RFC5798-7.2-3`](#rfc5798-7.2-3), [`RFC5798-7.2-4`](#rfc5798-7.2-4), [`RFC5798-8.2.2-1`](#rfc5798-8.2.2-1)
+
+**No test and no annotation (15):** [`RFC5798-5.1.1.2-1`](#rfc5798-5.1.1.2-1), [`RFC5798-5.1.2.2-1`](#rfc5798-5.1.2.2-1), [`RFC5798-5.1.2.3-1`](#rfc5798-5.1.2.3-1), [`RFC5798-6.4.2-3`](#rfc5798-6.4.2-3), [`RFC5798-6.4.3-3`](#rfc5798-6.4.3-3), [`RFC5798-6.4.3-4`](#rfc5798-6.4.3-4), [`RFC5798-7.1-3`](#rfc5798-7.1-3), [`RFC5798-7.4-1`](#rfc5798-7.4-1), [`RFC5798-7.4-2`](#rfc5798-7.4-2), [`RFC5798-8.1.3-1`](#rfc5798-8.1.3-1), [`RFC5798-8.2.2-2`](#rfc5798-8.2.2-2), [`RFC5798-8.2.2-3`](#rfc5798-8.2.2-3), [`RFC5798-8.2.3-1`](#rfc5798-8.2.3-1), [`RFC5798-8.4.2-1`](#rfc5798-8.4.2-1), [`RFC5798-A.2-1`](#rfc5798-a.2-1)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC5798-5.1.1.2-1` | Never forward a datagram destined to 224.0.0.18, regardless of its TTL (§5.1.1.2) | MUST NOT | 5.1.1.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-5.1.1.3-1` | Set the IPv4 TTL of transmitted VRRP packets to 255 (§5.1.1.3) | MUST | 5.1.1.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-5.1.1.3-2` | Discard a received IPv4 VRRP packet whose TTL is not 255 (§5.1.1.3, §7.1) | MUST | 5.1.1.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5798-5.1.1.3-1` | Set the IPv4 TTL of transmitted VRRP packets to 255 (§5.1.1.3) | MUST | 5.1.1.3 | **positive:** `unit/verify` [`TestSendAdvertV3IPv4HeaderTTLProtoDst`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L301). **negative:** no negative test |
+| `RFC5798-5.1.1.3-2` | Discard a received IPv4 VRRP packet whose TTL is not 255 (§5.1.1.3, §7.1) | MUST | 5.1.1.3 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L75). **negative:** `unit/verify` [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L535) |
 | `RFC5798-5.1.2.2-1` | Never forward a datagram destined to FF02:0:0:0:0:0:0:12, regardless of its Hop Limit (§5.1.2.2) | MUST NOT | 5.1.2.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5798-5.1.2.3-1` | Set the IPv6 Hop Limit of transmitted VRRP packets to 255 (§5.1.2.3) | MUST | 5.1.2.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-5.1.2.3-2` | Discard a received IPv6 VRRP packet whose Hop Limit is not 255 (§5.1.2.3, §7.1) | MUST | 5.1.2.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-5.2.2-1` | Discard a packet with unknown Type; 1 = ADVERTISEMENT is the only type defined (§5.2.2) | MUST | 5.2.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-5.2.4-1` | Use Priority 255 for the VRRP router that owns the IPvX address associated with the virtual router (§5.2.4) | MUST | 5.2.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-5.2.4-2` | Use Priority values 1-254 for VRRP routers backing up a virtual router (§5.2.4) | MUST | 5.2.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-5.2.6-1` | Set the rsvd field to zero on transmission and ignore it on reception (§5.2.6) | MUST | 5.2.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-5.2.8-1` | Compute and verify the checksum as the 16-bit one's complement of the one's complement sum of the entire VRRP message starting with the version field and a pseudo-header defined by RFC 2460, with next header 112 and the checksum field zeroed, for both address families (§5.2.8, §7.1) | MUST | 5.2.8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-5.2.9-1` | Send the IPv6 link-local address associated with the virtual router as the first address in the list (§5.2.9, §6.1; lowercase "must" in the RFC) | MUST | 5.2.9 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-5.2.9-2` | Never carry IPv4 and IPv6 addresses together in one IPvX Address field (§5.2.9) | MUST NOT | 5.2.9 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.1-1` | Never drop IPv6 Neighbor Solicitations and Neighbor Advertisements when Accept_Mode is False (§6.1, §6.4.3) | MUST NOT | 6.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.4.2-1` | Backup: never respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.2) | MUST NOT | 6.4.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.4.2-2` | Backup: never respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.2) | MUST NOT | 6.4.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5798-5.1.2.3-2` | Discard a received IPv6 VRRP packet whose Hop Limit is not 255 (§5.1.2.3, §7.1) | MUST | 5.1.2.3 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv6`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L104). **negative:** `unit/verify` [`TestDecodeV3IPv6ChecksumAndHopLimit`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L665) |
+| `RFC5798-5.2.2-1` | Discard a packet with unknown Type; 1 = ADVERTISEMENT is the only type defined (§5.2.2) | MUST | 5.2.2 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L77). **negative:** `unit/verify` [`TestValidationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L152) |
+| `RFC5798-5.2.4-1` | Use Priority 255 for the VRRP router that owns the IPvX address associated with the virtual router (§5.2.4) | MUST | 5.2.4 | **positive:** `unit/verify` [`TestOwnerAutoDetection`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L773). **negative:** `unit/verify` [`TestOwnerAutoDetection`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L775) |
+| `RFC5798-5.2.4-2` | Use Priority values 1-254 for VRRP routers backing up a virtual router (§5.2.4) | MUST | 5.2.4 | **positive:** `unit/verify` [`TestBoundaryPriority`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L318). **negative:** `unit/verify` [`TestBoundaryPriority`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L320) |
+| `RFC5798-5.2.6-1` | Set the rsvd field to zero on transmission and ignore it on reception (§5.2.6) | MUST | 5.2.6 | **positive:** `unit/verify` [`TestEncodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L107). **negative:** `unit/verify` [`TestDecodeV3ReserveIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L639) |
+| `RFC5798-5.2.8-1` | Compute and verify the checksum as the 16-bit one's complement of the one's complement sum of the entire VRRP message starting with the version field and a pseudo-header defined by RFC 2460, with next header 112 and the checksum field zeroed, for both address families (§5.2.8, §7.1) | MUST | 5.2.8 | **positive:** `unit/verify` [`TestFillChecksumFamilies`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/checksum_test.go#L68). **negative:** `unit/verify` [`TestDecodeV3IPv6ChecksumAndHopLimit`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L663) |
+| `RFC5798-5.2.9-1` | Send the IPv6 link-local address associated with the virtual router as the first address in the list (§5.2.9, §6.1; lowercase "must" in the RFC) | MUST | 5.2.9 | **positive:** `unit/verify` [`TestValidateIPv6LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L523). **negative:** `unit/verify` [`TestValidateIPv6LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L525) |
+| `RFC5798-5.2.9-2` | Never carry IPv4 and IPv6 addresses together in one IPvX Address field (§5.2.9) | MUST NOT | 5.2.9 | **positive:** `unit/verify` [`TestValidateVIPFamilyMatchesGroupFamily`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L547). **negative:** `unit/verify` [`TestValidateVIPFamilyMatchesGroupFamily`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L549) |
+| `RFC5798-6.1-1` | Never drop IPv6 Neighbor Solicitations and Neighbor Advertisements when Accept_Mode is False (§6.1, §6.4.3) | MUST NOT | 6.1 | **positive:** `unit/verify` [`TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L110). **negative:** `unit/verify` [`TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L112) |
+| `RFC5798-6.4.2-1` | Backup: never respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.2) | MUST NOT | 6.4.2 | **positive:** `unit/verify` [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L322). **negative:** `unit/verify` [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L367) |
+| `RFC5798-6.4.2-2` | Backup: never respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.2) | MUST NOT | 6.4.2 | **positive:** `unit/verify` [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L646). **negative:** `unit/verify` [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L648) |
 | `RFC5798-6.4.2-3` | Backup: never send ND Router Advertisement messages for the virtual router (§6.4.2) | MUST NOT | 6.4.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.4.2-4` | Backup: discard packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.2) | MUST | 6.4.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.4.2-5` | Backup: never accept packets addressed to the IPvX address(es) associated with the virtual router (§6.4.2) | MUST NOT | 6.4.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.4.2-6` | Backup: on a Shutdown event, cancel the Master_Down_Timer and transition to Initialize (§6.4.2) | MUST | 6.4.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.4.2-7` | Backup: when the Master_Down_Timer fires, send an ADVERTISEMENT, broadcast a gratuitous ARP carrying the virtual router MAC for each IPv4 address or, for IPv6, join the Solicited-Node multicast address and send an unsolicited Neighbor Advertisement for each address, set the Adver_Timer to Advertisement_Interval, and transition to Master (§6.4.2) | MUST | 6.4.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.4.2-8` | Backup: on an ADVERTISEMENT with Priority 0, set the Master_Down_Timer to Skew_Time (§6.4.2) | MUST | 6.4.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.4.2-9` | Backup: on a non-zero-priority ADVERTISEMENT, when Preempt_Mode is False or the advertised Priority is greater than or equal to the local Priority, set Master_Adver_Interval to the Adver Interval in the advertisement, recompute Master_Down_Interval, and reset the Master_Down_Timer to it (§6.4.2) | MUST | 6.4.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.4.2-10` | Backup: on a non-zero-priority ADVERTISEMENT with Preempt_Mode True and an advertised Priority lower than the local Priority, discard the ADVERTISEMENT (§6.4.2) | MUST | 6.4.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.4.3-1` | Master: respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.3, §8.1.2) | MUST | 6.4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.4.3-2` | Master: be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the virtual router (§6.4.3) | MUST | 6.4.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5798-6.4.2-4` | Backup: discard packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.2) | MUST | 6.4.2 | **positive:** `unit/verify` [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L324). **negative:** `unit/verify` [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L369) |
+| `RFC5798-6.4.2-5` | Backup: never accept packets addressed to the IPvX address(es) associated with the virtual router (§6.4.2) | MUST NOT | 6.4.2 | **positive:** `unit/verify` [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L326). **negative:** `unit/verify` [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L371) |
+| `RFC5798-6.4.2-6` | Backup: on a Shutdown event, cancel the Master_Down_Timer and transition to Initialize (§6.4.2) | MUST | 6.4.2 | **positive:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L110). **negative:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L112) |
+| `RFC5798-6.4.2-7` | Backup: when the Master_Down_Timer fires, send an ADVERTISEMENT, broadcast a gratuitous ARP carrying the virtual router MAC for each IPv4 address or, for IPv6, join the Solicited-Node multicast address and send an unsolicited Neighbor Advertisement for each address, set the Adver_Timer to Advertisement_Interval, and transition to Master (§6.4.2) | MUST | 6.4.2 | **positive:** `unit/verify` [`TestFSMMasterDownPromotion`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L448). **negative:** `unit/verify` [`TestFSMStaleTimerGenerationIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L639) |
+| `RFC5798-6.4.2-8` | Backup: on an ADVERTISEMENT with Priority 0, set the Master_Down_Timer to Skew_Time (§6.4.2) | MUST | 6.4.2 | **positive:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L114). **negative:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L116) |
+| `RFC5798-6.4.2-9` | Backup: on a non-zero-priority ADVERTISEMENT, when Preempt_Mode is False or the advertised Priority is greater than or equal to the local Priority, set Master_Adver_Interval to the Adver Interval in the advertisement, recompute Master_Down_Interval, and reset the Master_Down_Timer to it (§6.4.2) | MUST | 6.4.2 | **positive:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L118). **negative:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L120) |
+| `RFC5798-6.4.2-10` | Backup: on a non-zero-priority ADVERTISEMENT with Preempt_Mode True and an advertised Priority lower than the local Priority, discard the ADVERTISEMENT (§6.4.2) | MUST | 6.4.2 | **positive:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L122). **negative:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L124) |
+| `RFC5798-6.4.3-1` | Master: respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.3, §8.1.2) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L64). **negative:** `unit/verify` [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L125) |
+| `RFC5798-6.4.3-2` | Master: be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the virtual router (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L650). **negative:** no negative test |
 | `RFC5798-6.4.3-3` | Master: respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.3, §8.2.2) | MUST | 6.4.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5798-6.4.3-4` | Master: send ND Router Advertisements for the virtual router (§6.4.3) | MUST | 6.4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.4.3-5` | Master: forward packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.3) | MUST | 6.4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.4.3-6` | Master: accept packets addressed to the IPvX address(es) associated with the virtual router when it is the address owner or when Accept_Mode is True (§6.4.3) | MUST | 6.4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.4.3-7` | Master: never accept those packets when it is neither the address owner nor configured with Accept_Mode True (§6.4.3) | MUST NOT | 6.4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.4.3-8` | Master: on a Shutdown event, cancel the Adver_Timer, send an ADVERTISEMENT with Priority = 0, and transition to Initialize (§6.4.3) | MUST | 6.4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.4.3-9` | Master: when the Adver_Timer fires, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3) | MUST | 6.4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.4.3-10` | Master: on an ADVERTISEMENT with Priority 0, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3) | MUST | 6.4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.4.3-11` | Master: on an ADVERTISEMENT with a higher Priority, or an equal Priority with a greater sender primary IPvX address, cancel the Adver_Timer, set Master_Adver_Interval to the advertised Adver Interval, recompute Skew_Time and Master_Down_Interval, set the Master_Down_Timer, and transition to Backup (§6.4.3) | MUST | 6.4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-6.4.3-12` | Master: on a losing ADVERTISEMENT, one with a lower Priority or an equal Priority with a smaller sender address, discard it (§6.4.3) | MUST | 6.4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-7.1-1` | Rx: verify that the VRRP version is 3 (§7.1) | MUST | 7.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-7.1-2` | Rx: verify that the received packet contains the complete VRRP packet, the fixed fields and the IPvX address list (§7.1) | MUST | 7.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5798-6.4.3-5` | Master: forward packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L364). **negative:** `unit/verify` [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L328) |
+| `RFC5798-6.4.3-6` | Master: accept packets addressed to the IPvX address(es) associated with the virtual router when it is the address owner or when Accept_Mode is True (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L242). **negative:** `unit/verify` [`TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L206) |
+| `RFC5798-6.4.3-7` | Master: never accept those packets when it is neither the address owner nor configured with Accept_Mode True (§6.4.3) | MUST NOT | 6.4.3 | **positive:** `unit/verify` [`TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L204). **negative:** `unit/verify` [`TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L244) |
+| `RFC5798-6.4.3-8` | Master: on a Shutdown event, cancel the Adver_Timer, send an ADVERTISEMENT with Priority = 0, and transition to Initialize (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L126). **negative:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L128) |
+| `RFC5798-6.4.3-9` | Master: when the Adver_Timer fires, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L130). **negative:** `unit/verify` [`TestFSMStaleTimerGenerationIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L641) |
+| `RFC5798-6.4.3-10` | Master: on an ADVERTISEMENT with Priority 0, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L132). **negative:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L134) |
+| `RFC5798-6.4.3-11` | Master: on an ADVERTISEMENT with a higher Priority, or an equal Priority with a greater sender primary IPvX address, cancel the Adver_Timer, set Master_Adver_Interval to the advertised Adver Interval, recompute Skew_Time and Master_Down_Interval, set the Master_Down_Timer, and transition to Backup (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L136). **negative:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L138) |
+| `RFC5798-6.4.3-12` | Master: on a losing ADVERTISEMENT, one with a lower Priority or an equal Priority with a smaller sender address, discard it (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L140). **negative:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L142) |
+| `RFC5798-7.1-1` | Rx: verify that the VRRP version is 3 (§7.1) | MUST | 7.1 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L80). **negative:** `unit/verify` [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L611) |
+| `RFC5798-7.1-2` | Rx: verify that the received packet contains the complete VRRP packet, the fixed fields and the IPvX address list (§7.1) | MUST | 7.1 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L83). **negative:** `unit/verify` [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L511) |
 | `RFC5798-7.1-3` | Rx: verify that the VRID is configured on the receiving interface and that the local router is not the IPvX address owner (§7.1) | MUST | 7.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-7.1-4` | Rx: discard the packet when any mandatory receive check fails (§7.1) | MUST | 7.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-7.2-1` | Tx: fill in the VRRP packet fields from the virtual router configuration state and compute the VRRP checksum (§7.2) | MUST | 7.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-7.2-2` | Tx: set the source MAC address to the virtual router MAC address (§7.2) | MUST | 7.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-7.2-3` | Tx: set the source IPv4 address to the interface primary IPv4 address, or the source IPv6 address to the interface link-local IPv6 address (§7.2) | MUST | 7.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-7.2-4` | Tx: set the IPvX protocol to VRRP and send the packet to the VRRP IPvX multicast group (§7.2) | MUST | 7.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5798-7.1-4` | Rx: discard the packet when any mandatory receive check fails (§7.1) | MUST | 7.1 | **positive:** `unit/verify` [`TestInstanceRxValidAdvertReachesFSM`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L483). **negative:** `unit/verify` [`TestInstanceRxDecodeErrorMapsReason`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L463) |
+| `RFC5798-7.2-1` | Tx: fill in the VRRP packet fields from the virtual router configuration state and compute the VRRP checksum (§7.2) | MUST | 7.2 | **positive:** `unit/verify` [`TestEncodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L109). **negative:** no negative test |
+| `RFC5798-7.2-2` | Tx: set the source MAC address to the virtual router MAC address (§7.2) | MUST | 7.2 | **positive:** `unit/verify` [`TestConstants`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L387). **negative:** no negative test |
+| `RFC5798-7.2-3` | Tx: set the source IPv4 address to the interface primary IPv4 address, or the source IPv6 address to the interface link-local IPv6 address (§7.2) | MUST | 7.2 | **positive:** `unit/verify` [`TestSendAdvertUsesParentPrimaryV4Source`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L204). **negative:** no negative test |
+| `RFC5798-7.2-4` | Tx: set the IPvX protocol to VRRP and send the packet to the VRRP IPvX multicast group (§7.2) | MUST | 7.2 | **positive:** `unit/verify` [`TestSendAdvertV3IPv4HeaderTTLProtoDst`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L303). **negative:** no negative test |
 | `RFC5798-7.4-1` | Create the Interface Identifiers of an IPv6 router running VRRP in the normal manner, as in Transmission of IPv6 Packets over Ethernet Networks (§7.4) | MUST | 7.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5798-7.4-2` | Never use the virtual router MAC address to create the Modified Extended Unique Identifier (EUI)-64 identifiers (§7.4) | MUST NOT | 7.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-8.1.2-1` | Master: never respond to a host ARP request for a virtual router IPv4 address with its physical MAC address (§8.1.2) | MUST NOT | 8.1.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5798-8.1.2-1` | Master: never respond to a host ARP request for a virtual router IPv4 address with its physical MAC address (§8.1.2) | MUST NOT | 8.1.2 | **positive:** `unit/verify` [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L66). **negative:** `unit/verify` [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L127) |
 | `RFC5798-8.1.3-1` | Advertise the virtual router MAC address in the Proxy ARP message when Proxy ARP is used on a VRRP router (§8.1.3; lowercase "must" in the RFC) | MUST | 8.1.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-8.2.2-1` | Master: never respond to an ND Neighbor Solicitation for a virtual router IPv6 address with its physical MAC address (§8.2.2) | MUST NOT | 8.2.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5798-8.2.2-1` | Master: never respond to an ND Neighbor Solicitation for a virtual router IPv6 address with its physical MAC address (§8.2.2) | MUST NOT | 8.2.2 | **positive:** `unit/verify` [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L652). **negative:** no negative test |
 | `RFC5798-8.2.2-2` | Master: include the virtual router MAC address in the source link-layer address option of a Neighbor Solicitation it sends for a host's IPv6 address, when it sends that option (§8.2.2) | MUST | 8.2.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5798-8.2.2-3` | Master: never use its physical MAC address in that source link-layer address option (§8.2.2) | MUST NOT | 8.2.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5798-8.2.2-4` | At system boot, delay every ND Router Advertisement, Neighbor Advertisement and Neighbor Solicitation until both the IPv6 address and the virtual router MAC address are configured (§8.2.2; lowercase "must" in the RFC) | MUST | 8.2.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5798-8.2.2-4` | At system boot, delay every ND Router Advertisement, Neighbor Advertisement and Neighbor Solicitation until both the IPv6 address and the virtual router MAC address are configured (§8.2.2; lowercase "must" in the RFC) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L695). **negative:** `unit/verify` [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L697) |
 | `RFC5798-8.2.3-1` | Configure Backup routers to send the same Router Advertisement options as the address owner (§8.2.3; lowercase "must" in the RFC) | MUST | 8.2.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5798-8.4.2-1` | Interop mode, Master: send both VRRPv2 and VRRPv3 advertisements at the configured rate, even when it is sub-second (§8.4.2) | MUST | 8.4.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5798-A.2-1` | Token Ring: implement the functional-address mode of operation when supporting VRRP on Token Ring (§A.2) | MUST | A.2 | **positive:** no positive test. **negative:** no negative test |
@@ -191,57 +200,17 @@ RFC 9568 Section 5.2.8 clarifies the IPv4 checksum as message-only (no pseudo-he
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC5798-5.1.1.2-1`](#rfc5798-5.1.1.2-1) Never forward a datagram destined to 224.0.0.18, regardless of its TTL (§5.1.1.2) | no test | no test carries this requirement id |
-| [`RFC5798-5.1.1.3-1`](#rfc5798-5.1.1.3-1) Set the IPv4 TTL of transmitted VRRP packets to 255 (§5.1.1.3) | no test | no test carries this requirement id |
-| [`RFC5798-5.1.1.3-2`](#rfc5798-5.1.1.3-2) Discard a received IPv4 VRRP packet whose TTL is not 255 (§5.1.1.3, §7.1) | no test | no test carries this requirement id |
 | [`RFC5798-5.1.2.2-1`](#rfc5798-5.1.2.2-1) Never forward a datagram destined to FF02:0:0:0:0:0:0:12, regardless of its Hop Limit (§5.1.2.2) | no test | no test carries this requirement id |
 | [`RFC5798-5.1.2.3-1`](#rfc5798-5.1.2.3-1) Set the IPv6 Hop Limit of transmitted VRRP packets to 255 (§5.1.2.3) | no test | no test carries this requirement id |
-| [`RFC5798-5.1.2.3-2`](#rfc5798-5.1.2.3-2) Discard a received IPv6 VRRP packet whose Hop Limit is not 255 (§5.1.2.3, §7.1) | no test | no test carries this requirement id |
-| [`RFC5798-5.2.2-1`](#rfc5798-5.2.2-1) Discard a packet with unknown Type; 1 = ADVERTISEMENT is the only type defined (§5.2.2) | no test | no test carries this requirement id |
-| [`RFC5798-5.2.4-1`](#rfc5798-5.2.4-1) Use Priority 255 for the VRRP router that owns the IPvX address associated with the virtual router (§5.2.4) | no test | no test carries this requirement id |
-| [`RFC5798-5.2.4-2`](#rfc5798-5.2.4-2) Use Priority values 1-254 for VRRP routers backing up a virtual router (§5.2.4) | no test | no test carries this requirement id |
-| [`RFC5798-5.2.6-1`](#rfc5798-5.2.6-1) Set the rsvd field to zero on transmission and ignore it on reception (§5.2.6) | no test | no test carries this requirement id |
-| [`RFC5798-5.2.8-1`](#rfc5798-5.2.8-1) Compute and verify the checksum as the 16-bit one's complement of the one's complement sum of the entire VRRP message starting with the version field and a pseudo-header defined by RFC 2460, with next header 112 and the checksum field zeroed, for both address families (§5.2.8, §7.1) | no test | no test carries this requirement id |
-| [`RFC5798-5.2.9-1`](#rfc5798-5.2.9-1) Send the IPv6 link-local address associated with the virtual router as the first address in the list (§5.2.9, §6.1; lowercase "must" in the RFC) | no test | no test carries this requirement id |
-| [`RFC5798-5.2.9-2`](#rfc5798-5.2.9-2) Never carry IPv4 and IPv6 addresses together in one IPvX Address field (§5.2.9) | no test | no test carries this requirement id |
-| [`RFC5798-6.1-1`](#rfc5798-6.1-1) Never drop IPv6 Neighbor Solicitations and Neighbor Advertisements when Accept_Mode is False (§6.1, §6.4.3) | no test | no test carries this requirement id |
-| [`RFC5798-6.4.2-1`](#rfc5798-6.4.2-1) Backup: never respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.2) | no test | no test carries this requirement id |
-| [`RFC5798-6.4.2-2`](#rfc5798-6.4.2-2) Backup: never respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.2) | no test | no test carries this requirement id |
 | [`RFC5798-6.4.2-3`](#rfc5798-6.4.2-3) Backup: never send ND Router Advertisement messages for the virtual router (§6.4.2) | no test | no test carries this requirement id |
-| [`RFC5798-6.4.2-4`](#rfc5798-6.4.2-4) Backup: discard packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.2) | no test | no test carries this requirement id |
-| [`RFC5798-6.4.2-5`](#rfc5798-6.4.2-5) Backup: never accept packets addressed to the IPvX address(es) associated with the virtual router (§6.4.2) | no test | no test carries this requirement id |
-| [`RFC5798-6.4.2-6`](#rfc5798-6.4.2-6) Backup: on a Shutdown event, cancel the Master_Down_Timer and transition to Initialize (§6.4.2) | no test | no test carries this requirement id |
-| [`RFC5798-6.4.2-7`](#rfc5798-6.4.2-7) Backup: when the Master_Down_Timer fires, send an ADVERTISEMENT, broadcast a gratuitous ARP carrying the virtual router MAC for each IPv4 address or, for IPv6, join the Solicited-Node multicast address and send an unsolicited Neighbor Advertisement for each address, set the Adver_Timer to Advertisement_Interval, and transition to Master (§6.4.2) | no test | no test carries this requirement id |
-| [`RFC5798-6.4.2-8`](#rfc5798-6.4.2-8) Backup: on an ADVERTISEMENT with Priority 0, set the Master_Down_Timer to Skew_Time (§6.4.2) | no test | no test carries this requirement id |
-| [`RFC5798-6.4.2-9`](#rfc5798-6.4.2-9) Backup: on a non-zero-priority ADVERTISEMENT, when Preempt_Mode is False or the advertised Priority is greater than or equal to the local Priority, set Master_Adver_Interval to the Adver Interval in the advertisement, recompute Master_Down_Interval, and reset the Master_Down_Timer to it (§6.4.2) | no test | no test carries this requirement id |
-| [`RFC5798-6.4.2-10`](#rfc5798-6.4.2-10) Backup: on a non-zero-priority ADVERTISEMENT with Preempt_Mode True and an advertised Priority lower than the local Priority, discard the ADVERTISEMENT (§6.4.2) | no test | no test carries this requirement id |
-| [`RFC5798-6.4.3-1`](#rfc5798-6.4.3-1) Master: respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.3, §8.1.2) | no test | no test carries this requirement id |
-| [`RFC5798-6.4.3-2`](#rfc5798-6.4.3-2) Master: be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the virtual router (§6.4.3) | no test | no test carries this requirement id |
 | [`RFC5798-6.4.3-3`](#rfc5798-6.4.3-3) Master: respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.3, §8.2.2) | no test | no test carries this requirement id |
 | [`RFC5798-6.4.3-4`](#rfc5798-6.4.3-4) Master: send ND Router Advertisements for the virtual router (§6.4.3) | no test | no test carries this requirement id |
-| [`RFC5798-6.4.3-5`](#rfc5798-6.4.3-5) Master: forward packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.3) | no test | no test carries this requirement id |
-| [`RFC5798-6.4.3-6`](#rfc5798-6.4.3-6) Master: accept packets addressed to the IPvX address(es) associated with the virtual router when it is the address owner or when Accept_Mode is True (§6.4.3) | no test | no test carries this requirement id |
-| [`RFC5798-6.4.3-7`](#rfc5798-6.4.3-7) Master: never accept those packets when it is neither the address owner nor configured with Accept_Mode True (§6.4.3) | no test | no test carries this requirement id |
-| [`RFC5798-6.4.3-8`](#rfc5798-6.4.3-8) Master: on a Shutdown event, cancel the Adver_Timer, send an ADVERTISEMENT with Priority = 0, and transition to Initialize (§6.4.3) | no test | no test carries this requirement id |
-| [`RFC5798-6.4.3-9`](#rfc5798-6.4.3-9) Master: when the Adver_Timer fires, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3) | no test | no test carries this requirement id |
-| [`RFC5798-6.4.3-10`](#rfc5798-6.4.3-10) Master: on an ADVERTISEMENT with Priority 0, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3) | no test | no test carries this requirement id |
-| [`RFC5798-6.4.3-11`](#rfc5798-6.4.3-11) Master: on an ADVERTISEMENT with a higher Priority, or an equal Priority with a greater sender primary IPvX address, cancel the Adver_Timer, set Master_Adver_Interval to the advertised Adver Interval, recompute Skew_Time and Master_Down_Interval, set the Master_Down_Timer, and transition to Backup (§6.4.3) | no test | no test carries this requirement id |
-| [`RFC5798-6.4.3-12`](#rfc5798-6.4.3-12) Master: on a losing ADVERTISEMENT, one with a lower Priority or an equal Priority with a smaller sender address, discard it (§6.4.3) | no test | no test carries this requirement id |
-| [`RFC5798-7.1-1`](#rfc5798-7.1-1) Rx: verify that the VRRP version is 3 (§7.1) | no test | no test carries this requirement id |
-| [`RFC5798-7.1-2`](#rfc5798-7.1-2) Rx: verify that the received packet contains the complete VRRP packet, the fixed fields and the IPvX address list (§7.1) | no test | no test carries this requirement id |
 | [`RFC5798-7.1-3`](#rfc5798-7.1-3) Rx: verify that the VRID is configured on the receiving interface and that the local router is not the IPvX address owner (§7.1) | no test | no test carries this requirement id |
-| [`RFC5798-7.1-4`](#rfc5798-7.1-4) Rx: discard the packet when any mandatory receive check fails (§7.1) | no test | no test carries this requirement id |
-| [`RFC5798-7.2-1`](#rfc5798-7.2-1) Tx: fill in the VRRP packet fields from the virtual router configuration state and compute the VRRP checksum (§7.2) | no test | no test carries this requirement id |
-| [`RFC5798-7.2-2`](#rfc5798-7.2-2) Tx: set the source MAC address to the virtual router MAC address (§7.2) | no test | no test carries this requirement id |
-| [`RFC5798-7.2-3`](#rfc5798-7.2-3) Tx: set the source IPv4 address to the interface primary IPv4 address, or the source IPv6 address to the interface link-local IPv6 address (§7.2) | no test | no test carries this requirement id |
-| [`RFC5798-7.2-4`](#rfc5798-7.2-4) Tx: set the IPvX protocol to VRRP and send the packet to the VRRP IPvX multicast group (§7.2) | no test | no test carries this requirement id |
 | [`RFC5798-7.4-1`](#rfc5798-7.4-1) Create the Interface Identifiers of an IPv6 router running VRRP in the normal manner, as in Transmission of IPv6 Packets over Ethernet Networks (§7.4) | no test | no test carries this requirement id |
 | [`RFC5798-7.4-2`](#rfc5798-7.4-2) Never use the virtual router MAC address to create the Modified Extended Unique Identifier (EUI)-64 identifiers (§7.4) | no test | no test carries this requirement id |
-| [`RFC5798-8.1.2-1`](#rfc5798-8.1.2-1) Master: never respond to a host ARP request for a virtual router IPv4 address with its physical MAC address (§8.1.2) | no test | no test carries this requirement id |
 | [`RFC5798-8.1.3-1`](#rfc5798-8.1.3-1) Advertise the virtual router MAC address in the Proxy ARP message when Proxy ARP is used on a VRRP router (§8.1.3; lowercase "must" in the RFC) | no test | no test carries this requirement id |
-| [`RFC5798-8.2.2-1`](#rfc5798-8.2.2-1) Master: never respond to an ND Neighbor Solicitation for a virtual router IPv6 address with its physical MAC address (§8.2.2) | no test | no test carries this requirement id |
 | [`RFC5798-8.2.2-2`](#rfc5798-8.2.2-2) Master: include the virtual router MAC address in the source link-layer address option of a Neighbor Solicitation it sends for a host's IPv6 address, when it sends that option (§8.2.2) | no test | no test carries this requirement id |
 | [`RFC5798-8.2.2-3`](#rfc5798-8.2.2-3) Master: never use its physical MAC address in that source link-layer address option (§8.2.2) | no test | no test carries this requirement id |
-| [`RFC5798-8.2.2-4`](#rfc5798-8.2.2-4) At system boot, delay every ND Router Advertisement, Neighbor Advertisement and Neighbor Solicitation until both the IPv6 address and the virtual router MAC address are configured (§8.2.2; lowercase "must" in the RFC) | no test | no test carries this requirement id |
 | [`RFC5798-8.2.3-1`](#rfc5798-8.2.3-1) Configure Backup routers to send the same Router Advertisement options as the address owner (§8.2.3; lowercase "must" in the RFC) | no test | no test carries this requirement id |
 | [`RFC5798-8.4.2-1`](#rfc5798-8.4.2-1) Interop mode, Master: send both VRRPv2 and VRRPv3 advertisements at the configured rate, even when it is sub-second (§8.4.2) | no test | no test carries this requirement id |
 | [`RFC5798-A.2-1`](#rfc5798-a.2-1) Token Ring: implement the functional-address mode of operation when supporting VRRP on Token Ring (§A.2) | no test | no test carries this requirement id |
@@ -264,7 +233,9 @@ Set the IPv4 TTL of transmitted VRRP packets to 255 (§5.1.1.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-5.1.1.3-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestSendAdvertV3IPv4HeaderTTLProtoDst`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L301) | unit/verify | revert, verified |
 
 ### [`RFC5798-5.1.1.3-2`](#rfc5798-5.1.1.3-2)
 
@@ -272,7 +243,10 @@ Discard a received IPv4 VRRP packet whose TTL is not 255 (§5.1.1.3, §7.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-5.1.1.3-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L535) | unit/verify | revert, verified |
+| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L75) | unit/verify | revert, verified |
 
 ### [`RFC5798-5.1.2.2-1`](#rfc5798-5.1.2.2-1)
 
@@ -296,7 +270,10 @@ Discard a received IPv6 VRRP packet whose Hop Limit is not 255 (§5.1.2.3, §7.1
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-5.1.2.3-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestDecodeV3IPv6ChecksumAndHopLimit`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L665) | unit/verify | revert, verified |
+| positive | [`TestDecodeGoldenV3IPv6`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L104) | unit/verify | revert, verified |
 
 ### [`RFC5798-5.2.2-1`](#rfc5798-5.2.2-1)
 
@@ -304,7 +281,10 @@ Discard a packet with unknown Type; 1 = ADVERTISEMENT is the only type defined (
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-5.2.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestValidationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L152) | unit/verify | revert, verified |
+| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L77) | unit/verify | revert, verified |
 
 ### [`RFC5798-5.2.4-1`](#rfc5798-5.2.4-1)
 
@@ -312,7 +292,10 @@ Use Priority 255 for the VRRP router that owns the IPvX address associated with 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-5.2.4-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestOwnerAutoDetection`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L775) | unit/verify | revert, verified |
+| positive | [`TestOwnerAutoDetection`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L773) | unit/verify | revert, verified |
 
 ### [`RFC5798-5.2.4-2`](#rfc5798-5.2.4-2)
 
@@ -320,7 +303,10 @@ Use Priority values 1-254 for VRRP routers backing up a virtual router (§5.2.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-5.2.4-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestBoundaryPriority`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L320) | unit/verify | revert, verified |
+| positive | [`TestBoundaryPriority`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L318) | unit/verify | revert, verified |
 
 ### [`RFC5798-5.2.6-1`](#rfc5798-5.2.6-1)
 
@@ -328,7 +314,10 @@ Set the rsvd field to zero on transmission and ignore it on reception (§5.2.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-5.2.6-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestDecodeV3ReserveIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L639) | unit/verify | revert, verified |
+| positive | [`TestEncodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L107) | unit/verify | revert, verified |
 
 ### [`RFC5798-5.2.8-1`](#rfc5798-5.2.8-1)
 
@@ -336,7 +325,10 @@ Compute and verify the checksum as the 16-bit one's complement of the one's comp
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-5.2.8-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestDecodeV3IPv6ChecksumAndHopLimit`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L663) | unit/verify | revert, verified |
+| positive | [`TestFillChecksumFamilies`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/checksum_test.go#L68) | unit/verify | revert, verified |
 
 ### [`RFC5798-5.2.9-1`](#rfc5798-5.2.9-1)
 
@@ -344,7 +336,10 @@ Send the IPv6 link-local address associated with the virtual router as the first
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-5.2.9-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestValidateIPv6LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L525) | unit/verify | revert, verified |
+| positive | [`TestValidateIPv6LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L523) | unit/verify | revert, verified |
 
 ### [`RFC5798-5.2.9-2`](#rfc5798-5.2.9-2)
 
@@ -352,7 +347,10 @@ Never carry IPv4 and IPv6 addresses together in one IPvX Address field (§5.2.9)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-5.2.9-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestValidateVIPFamilyMatchesGroupFamily`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L549) | unit/verify | revert, verified |
+| positive | [`TestValidateVIPFamilyMatchesGroupFamily`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L547) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.1-1`](#rfc5798-6.1-1)
 
@@ -360,7 +358,10 @@ Never drop IPv6 Neighbor Solicitations and Neighbor Advertisements when Accept_M
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L112) | unit/verify | revert, verified |
+| positive | [`TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L110) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.4.2-1`](#rfc5798-6.4.2-1)
 
@@ -368,7 +369,10 @@ Backup: never respond to ARP requests for the IPv4 address(es) associated with t
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.4.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L367) | unit/verify | revert, verified |
+| positive | [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L322) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.4.2-2`](#rfc5798-6.4.2-2)
 
@@ -376,7 +380,10 @@ Backup: never respond to ND Neighbor Solicitation messages for the IPv6 address(
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.4.2-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L648) | unit/verify | revert, verified |
+| positive | [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L646) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.4.2-3`](#rfc5798-6.4.2-3)
 
@@ -392,7 +399,10 @@ Backup: discard packets with a destination link-layer MAC address equal to the v
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.4.2-4, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L369) | unit/verify | revert, verified |
+| positive | [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L324) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.4.2-5`](#rfc5798-6.4.2-5)
 
@@ -400,7 +410,10 @@ Backup: never accept packets addressed to the IPvX address(es) associated with t
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.4.2-5, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L371) | unit/verify | revert, verified |
+| positive | [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L326) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.4.2-6`](#rfc5798-6.4.2-6)
 
@@ -408,7 +421,10 @@ Backup: on a Shutdown event, cancel the Master_Down_Timer and transition to Init
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.4.2-6, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L112) | unit/verify | revert, verified |
+| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L110) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.4.2-7`](#rfc5798-6.4.2-7)
 
@@ -416,7 +432,10 @@ Backup: when the Master_Down_Timer fires, send an ADVERTISEMENT, broadcast a gra
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.4.2-7, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestFSMStaleTimerGenerationIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L639) | unit/verify | revert, verified |
+| positive | [`TestFSMMasterDownPromotion`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L448) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.4.2-8`](#rfc5798-6.4.2-8)
 
@@ -424,7 +443,10 @@ Backup: on an ADVERTISEMENT with Priority 0, set the Master_Down_Timer to Skew_T
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.4.2-8, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L116) | unit/verify | revert, verified |
+| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L114) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.4.2-9`](#rfc5798-6.4.2-9)
 
@@ -432,7 +454,10 @@ Backup: on a non-zero-priority ADVERTISEMENT, when Preempt_Mode is False or the 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.4.2-9, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L120) | unit/verify | revert, verified |
+| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L118) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.4.2-10`](#rfc5798-6.4.2-10)
 
@@ -440,7 +465,10 @@ Backup: on a non-zero-priority ADVERTISEMENT with Preempt_Mode True and an adver
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.4.2-10, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L124) | unit/verify | revert, verified |
+| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L122) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.4.3-1`](#rfc5798-6.4.3-1)
 
@@ -448,7 +476,10 @@ Master: respond to ARP requests for the IPv4 address(es) associated with the vir
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.4.3-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L125) | unit/verify | revert, verified |
+| positive | [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L64) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.4.3-2`](#rfc5798-6.4.3-2)
 
@@ -456,7 +487,9 @@ Master: be a member of the Solicited-Node multicast address for the IPv6 address
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.4.3-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L650) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.4.3-3`](#rfc5798-6.4.3-3)
 
@@ -480,7 +513,10 @@ Master: forward packets with a destination link-layer MAC address equal to the v
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.4.3-5, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L328) | unit/verify | revert, verified |
+| positive | [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L364) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.4.3-6`](#rfc5798-6.4.3-6)
 
@@ -488,7 +524,10 @@ Master: accept packets addressed to the IPvX address(es) associated with the vir
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.4.3-6, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L206) | unit/verify | revert, verified |
+| positive | [`TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L242) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.4.3-7`](#rfc5798-6.4.3-7)
 
@@ -496,7 +535,10 @@ Master: never accept those packets when it is neither the address owner nor conf
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.4.3-7, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L244) | unit/verify | revert, verified |
+| positive | [`TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L204) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.4.3-8`](#rfc5798-6.4.3-8)
 
@@ -504,7 +546,10 @@ Master: on a Shutdown event, cancel the Adver_Timer, send an ADVERTISEMENT with 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.4.3-8, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L128) | unit/verify | revert, verified |
+| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L126) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.4.3-9`](#rfc5798-6.4.3-9)
 
@@ -512,7 +557,10 @@ Master: when the Adver_Timer fires, send an ADVERTISEMENT and reset the Adver_Ti
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.4.3-9, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestFSMStaleTimerGenerationIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L641) | unit/verify | revert, verified |
+| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L130) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.4.3-10`](#rfc5798-6.4.3-10)
 
@@ -520,7 +568,10 @@ Master: on an ADVERTISEMENT with Priority 0, send an ADVERTISEMENT and reset the
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.4.3-10, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L134) | unit/verify | revert, verified |
+| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L132) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.4.3-11`](#rfc5798-6.4.3-11)
 
@@ -528,7 +579,10 @@ Master: on an ADVERTISEMENT with a higher Priority, or an equal Priority with a 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.4.3-11, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L138) | unit/verify | revert, verified |
+| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L136) | unit/verify | revert, verified |
 
 ### [`RFC5798-6.4.3-12`](#rfc5798-6.4.3-12)
 
@@ -536,7 +590,10 @@ Master: on a losing ADVERTISEMENT, one with a lower Priority or an equal Priorit
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-6.4.3-12, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L142) | unit/verify | revert, verified |
+| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L140) | unit/verify | revert, verified |
 
 ### [`RFC5798-7.1-1`](#rfc5798-7.1-1)
 
@@ -544,7 +601,10 @@ Rx: verify that the VRRP version is 3 (§7.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-7.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L611) | unit/verify | revert, verified |
+| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L80) | unit/verify | revert, verified |
 
 ### [`RFC5798-7.1-2`](#rfc5798-7.1-2)
 
@@ -552,7 +612,10 @@ Rx: verify that the received packet contains the complete VRRP packet, the fixed
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-7.1-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L511) | unit/verify | revert, verified |
+| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L83) | unit/verify | revert, verified |
 
 ### [`RFC5798-7.1-3`](#rfc5798-7.1-3)
 
@@ -568,7 +631,10 @@ Rx: discard the packet when any mandatory receive check fails (§7.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-7.1-4, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestInstanceRxDecodeErrorMapsReason`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L463) | unit/verify | revert, verified |
+| positive | [`TestInstanceRxValidAdvertReachesFSM`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L483) | unit/verify | revert, verified |
 
 ### [`RFC5798-7.2-1`](#rfc5798-7.2-1)
 
@@ -576,7 +642,9 @@ Tx: fill in the VRRP packet fields from the virtual router configuration state a
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-7.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestEncodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L109) | unit/verify | revert, verified |
 
 ### [`RFC5798-7.2-2`](#rfc5798-7.2-2)
 
@@ -584,7 +652,9 @@ Tx: set the source MAC address to the virtual router MAC address (§7.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-7.2-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestConstants`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L387) | unit/verify | revert, verified |
 
 ### [`RFC5798-7.2-3`](#rfc5798-7.2-3)
 
@@ -592,7 +662,9 @@ Tx: set the source IPv4 address to the interface primary IPv4 address, or the so
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-7.2-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestSendAdvertUsesParentPrimaryV4Source`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L204) | unit/verify | revert, verified |
 
 ### [`RFC5798-7.2-4`](#rfc5798-7.2-4)
 
@@ -600,7 +672,9 @@ Tx: set the IPvX protocol to VRRP and send the packet to the VRRP IPvX multicast
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-7.2-4, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestSendAdvertV3IPv4HeaderTTLProtoDst`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L303) | unit/verify | revert, verified |
 
 ### [`RFC5798-7.4-1`](#rfc5798-7.4-1)
 
@@ -624,7 +698,10 @@ Master: never respond to a host ARP request for a virtual router IPv4 address wi
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-8.1.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L127) | unit/verify | revert, verified |
+| positive | [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L66) | unit/verify | revert, verified |
 
 ### [`RFC5798-8.1.3-1`](#rfc5798-8.1.3-1)
 
@@ -640,7 +717,9 @@ Master: never respond to an ND Neighbor Solicitation for a virtual router IPv6 a
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-8.2.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L652) | unit/verify | revert, verified |
 
 ### [`RFC5798-8.2.2-2`](#rfc5798-8.2.2-2)
 
@@ -664,7 +743,10 @@ At system boot, delay every ND Router Advertisement, Neighbor Advertisement and 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5798-8.2.2-4, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L697) | unit/verify | revert, verified |
+| positive | [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L695) | unit/verify | revert, verified |
 
 ### [`RFC5798-8.2.3-1`](#rfc5798-8.2.3-1)
 

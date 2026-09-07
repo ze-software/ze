@@ -207,7 +207,8 @@ last state transition, the last session error, and live route counts:</p>
       "routes_received": 600,
       "routes_imported": 600,
       "routes_exported": 580,
-      "routes_filtered": 0
+      "routes_filtered": 0,
+      "routes_counts_available": true
     }
   }
 }
@@ -215,10 +216,19 @@ last state transition, the last session error, and live route counts:</p>
 <p><code>routes_received</code> and <code>routes_imported</code> both report the retained Adj-RIB-In
 size because Ze does not keep routes rejected by import policy.
 <code>routes_exported</code> is the Adj-RIB-Out size. <code>routes_filtered</code> remains zero for
-the same reason, and the filtered-routes endpoint returns an empty list. Route
-counts are present only when the <code>bgp-rib</code> plugin is loaded.</p>
-<!-- source: internal/component/lg/handler_api.go -- transformProtocols -->
+the same reason, and the filtered-routes endpoint returns an empty list.</p>
+<p>The four counts are always present. When Ze has no source for them, each one is
+<code>0</code>, because a birdwatcher client must never meet a missing key. Read
+<code>routes_counts_available</code> to tell the two apart. It is <code>true</code> only when the
+counts came from a real source, and <code>false</code> when they are placeholders. Ze has
+no source when the <code>bgp-rib</code> plugin is not loaded, and none for a BMP-monitored
+peer. Do not read <code>0</code> as "this peer sent no routes" until this field says
+<code>true</code>.</p>
+<!-- source: internal/component/lg/handler_api.go -- transformProtocols, routeCountsAvailable -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- route counts and peer history -->
+<p>The normative statement of this behavior is
+<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/birdwatcher-compat.md" target="_blank" rel="noopener">Birdwatcher compatibility</a>,
+Sections 7.2 and 7.3.</p>
 <p>The UI under <code>/lg/</code> uses the same data and adds the peer table, route lookup, route search, and AS-path graph.</p>
 <h2 id="5-publish-it-safely">5. Publish it safely</h2>
 <p>The looking glass is read-only, but it still publishes topology and routing information. Common deployment choices:</p>
@@ -244,7 +254,7 @@ counts are present only when the <code>bgp-rib</code> plugin is loaded.</p>
 </tr>
 </tbody>
 </table>
-<p>Ze terminates TLS itself unless you set <code>tls false</code>. This needs a zefs blob store to hold the certificate, so create one first with <code>ze init</code> (see <a href="../ubuntu-build-install/">Build and install Ze on Ubuntu</a>). Without a blob store, an explicit <code>tls true</code> fails with <code>looking glass TLS requires blob storage (run ze init first)</code>, while the default falls back to plaintext and prints a warning naming the same remedy.</p>
+<p>Ze terminates TLS itself unless you set <code>tls false</code>. The self-signed certificate needs a zefs blob store to hold it, so create one first with <code>ze init</code> (see <a href="../ubuntu-build-install/">Build and install Ze on Ubuntu</a>). Without a blob store, an explicit <code>tls true</code> fails with <code>looking glass TLS requires blob storage (run ze init first)</code>, while the default falls back to plaintext and prints a warning naming the same remedy. Set <code>certificate &lt;name&gt;</code> to serve a certificate from the <code>pki {}</code> store instead: that material needs no blob store, and the listener sends the full chain (see <a href="../looking-glass/">Looking Glass</a>).</p>
 <pre><code class="language-text">environment {
     looking-glass {
         enabled true
@@ -305,7 +315,7 @@ journalctl -u ze.service -n 100 --no-pager
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

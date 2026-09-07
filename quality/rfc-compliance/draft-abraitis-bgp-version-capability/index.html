@@ -45,7 +45,7 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">Supported</span>
+    <span class="journey-eyebrow">Partial</span>
     <h1 id="rfc-detail-title">DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY - Software Version Capability for BGP</h1>
     <p>Every requirement this repository extracted from DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
 </div>
@@ -75,6 +75,8 @@
 .rfc-tape-both_polarities { background: var(--teal-chip); }
 .rfc-tape-single_polarity { background: var(--sky-chip); }
 .rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -113,23 +115,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 11 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 11 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>11</strong><b>of 15 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 11 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>100.0%</strong><b>11 of 11 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>100.0%</strong><b>11 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 4 shares marked as a part above are the whole of the 11 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -160,6 +165,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
+</tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
@@ -179,7 +196,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Public status</td>
-<td>Supported</td>
+<td>Partial</td>
 </tr>
 <tr><td>Enrolment</td>
 <td>Enrolled</td>
@@ -188,9 +205,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>15</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>11</td>
-</tr>
-<tr><td>Obligations that bind Ze</td>
 <td>11</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
@@ -234,7 +248,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>Enrolled: Software Version capability for BGP (code 75): eleven MUST-level requirements. Send side is implemented and gated by config -- encodeValue writes one length octet plus the constant ZeVersion and extractSoftverCapabilities declares code 75 only for a peer or group whose config carries a software-version key that is not disable or refuse (internal/component/bgp/plugins/softver/softver.go), which is 3-1, 3-2, 3-3, 3-6, 3-8 and 4-2. Receive side: parseCapability (internal/core/bgp/capability/capability.go) has no case for code 75, so a received capability becomes an Unknown nothing reads, which is how 3-4, 3-5, 3-7 and 4-1 are met. 3.1-1 requires RFC 9072, which is enrolled separately and Partial. No requirement carries a tagged test yet; the coverage rollup names them.</p>
 </section>
 <section><h2>What the public ledger says</h2>
-<p><strong>Status:</strong> Supported</p>
+<p><strong>Status:</strong> Partial</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
 <ul class="rfc-prose">
 <li>Send side only, and the draft makes both halves optional: &#34;Implementations are not required to advertise the version nor to process received advertisements&#34; (Abstract). <code>encodeValue</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/softver.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/softver/softver.go</code></a>) writes one length octet plus the constant <code>ZeVersion</code>, and <code>extractSoftverCapabilities</code> (same file) declares code 75 only for a peer or group whose config carries a <code>software-version</code> capability key that is not <code>disable</code> or <code>refuse</code>, so the default is disabled. Receive side: <code>parseCapability</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability.go" target="_blank" rel="noopener"><code>internal/core/bgp/capability/capability.go</code></a>) has no case for code 75, so a received capability becomes an <code>Unknown</code> that nothing reads. That is the RFC 5492 Section 3 outcome the draft points at, and it is why the three receiver obligations are met by ignoring rather than by parsing. <code>ze bgp decode capability 75 &lt;hex&gt;</code> decodes a payload an operator supplies</li>
@@ -685,7 +699,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

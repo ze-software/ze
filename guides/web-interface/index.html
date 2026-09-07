@@ -105,9 +105,9 @@
 <pre><code class="language-bash">ze start --web 8443                              # Start daemon + web on port 8443
 ze start --web 8443 --insecure-web               # No authentication (forces 127.0.0.1)
 </code></pre>
-<p>When no certificate is configured, ze generates an ECDSA P-256 self-signed certificate automatically. The certificate includes SANs for localhost, 127.0.0.1, ::1, and the listen address.</p>
+<p>When no certificate is configured, ze generates an ECDSA P-256 self-signed certificate automatically. The certificate includes SANs for localhost, 127.0.0.1, ::1, and the listen address. <code>WebCertHosts</code> builds that list, and a listen address of <code>0.0.0.0</code> adds every non-loopback interface address of the machine.</p>
 <!-- source: cmd/ze/ze_core_start.go -- cmdStart, flagStartWeb, flagStartInsecureWeb -->
-<!-- source: internal/core/selfcert/selfcert.go -- GenerateWebCertWithAddr, GenerateWebCertWithNames -->
+<!-- source: internal/core/selfcert/selfcert.go -- GenerateWebCertWithAddr, GenerateWebCertWithNames, WebCertHosts -->
 <table>
 <thead>
 <tr>
@@ -166,7 +166,9 @@ ze start --web 8443 --insecure-web               # No authentication (forces 127
 </code></pre>
 <h3 id="security-headers">Security Headers</h3>
 <p>Every response carries <code>X-Frame-Options: DENY</code>, <code>X-Content-Type-Options: nosniff</code>, <code>Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'</code>, and HSTS (<code>max-age=63072000; includeSubDomains</code>). An authenticated response adds <code>Cache-Control: no-store</code> and <code>X-Ze-Version</code>.</p>
+<p><code>X-Ze-Version</code> carries the release, the git commit, the Go version and the OS, which tells a client the exact build it speaks to. Write <code>environment { hide-version true; }</code> to keep it off every response of the web interface and the looking glass together. The default is false, so the banner stays until you hide it, and no other header changes. Ze sends no <code>Server</code> header at all.</p>
 <!-- source: internal/component/web/auth.go -- setSecurityHeaders, addSecurityHeaders -->
+<!-- source: internal/core/version/version.go -- HTTPHeaderHidden -->
 <p><code>script-src 'self'</code> refuses an inline script and refuses <code>Function()</code>. No page therefore carries an inline event handler, and no htmx attribute uses a bracketed trigger filter, because htmx compiles such a filter into source and calls <code>Function()</code> on it. A test refuses both in any <code>.templ</code> source.</p>
 <!-- source: internal/component/web/markup_contract_test.go -- TestNoTriggerFilterNeedsEval, TestSelfReplacingControlsCarryAStableID -->
 <h3 id="secret-masking">Secret Masking</h3>
@@ -195,12 +197,17 @@ apart.</p>
 <td><code>show</code> masks the same leaves. The verb needs no config authorization, so any authenticated session used to reach them</td>
 </tr>
 <tr>
+<td>The terminal's answer to <code>set</code></td>
+<td>The acknowledgement reads <code>set &lt;leaf&gt; /* SECRET-DATA */</code>, so the value never travels back in the response body</td>
+</tr>
+<tr>
 <td>Commit, load and upload</td>
 <td>A tree carrying the placeholder in a secret leaf is refused. Restore the real value from the edit-authorized raw download, or set it through <code>plaintext-&lt;name&gt;</code> or <code>ze passwd</code></td>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, ChangedSecretPaths, RejectMaskedSecretLeaves -->
+<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, ChangedSecretPaths, DisplayValueAtPath, RejectMaskedSecretLeaves -->
+<!-- source: internal/component/web/cli_terminal.go -- executeTerminalSet -->
 <h2 id="rendering">Rendering</h2>
 <p>Every page, panel, fragment and out-of-band swap is written in a <code>.templ</code> source
 and compiled to Go by <a href="https://templ.guide" target="_blank" rel="noopener">templ</a>. No Go file in the package
@@ -230,7 +237,7 @@ nothing on <code>PATH</code>. Run <code>./le repository generate</code>, not a b
 root is written into the generated Go, so a bare run rewrites every file and
 reds the check.</p>
 <p>The browser assets are vendored in <code>third_party/web/</code> and copied to each
-consumer by the same <code>./le repository generate</code> run. htmx 4.0.0-beta6 and its
+consumer by the same <code>./le repository generate</code> run. htmx 4.0.0 and its
 <code>hx-sse.min.js</code> extension serve the web interface, the looking glass and the
 chaos dashboard. <code>internal/le/webassets.Write</code> derives each page's asset set
 from its component graph, so a page loads only what it reaches.</p>
@@ -451,6 +458,9 @@ from its component graph, so a page loads only what it reaches.</p>
 <p>Duplicate entry keys are rejected. Validation runs before the entry is created, so invalid input never produces a partial entry.</p>
 <p>Navigating to a non-existent list entry (e.g., <code>/show/bgp/peer/london/</code> when <code>london</code> has not been created) redirects to the root view with an error notification.</p>
 <!-- source: internal/component/web/fragment.go -- HandleFragment, isListEntryPath check -->
+<p>A field check reads one value. A commit runs the whole-config validator, the same one <code>ze config validate</code> runs, over the config the commit is about to write. This includes the BGP peer pipeline, so a peer the daemon would refuse blocks the commit while the config is still on the screen. The refusal appears in the commit modal as <code>Commit failed:</code> with the validator's message, and nothing is written.</p>
+<!-- source: internal/component/cli/editor_commit.go -- validateStagedTree -->
+<!-- source: internal/component/web/handler_config_commit.go -- handleCommitPost -->
 <h3 id="notifications">Notifications</h3>
 <p>Error notifications appear as toasts in the top-right corner with a 30-second countdown. Click the countdown to pause (for screenshots). Click the close button to dismiss immediately.</p>
 <!-- source: internal/component/web/component_notification_error.templ -->
@@ -593,7 +603,7 @@ data: &lt;html-fragment&gt;
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 02:44 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

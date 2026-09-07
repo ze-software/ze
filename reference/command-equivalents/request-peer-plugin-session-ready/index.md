@@ -20,6 +20,8 @@ Signal that per-peer plugin setup is complete.
 - Command pipes: none
 - Pipe aliases: none
 
+The daemon closes this process's share of the peer's End-of-RIB barrier, so the peer stops waiting for routes from this process. The signal is keyed on the sending process, so one process does not release another. A peer of '*', and an empty peer, are both ignored.
+
 ## Arguments
 
 | Name | Type | Required | Values |

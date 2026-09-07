@@ -511,8 +511,15 @@ inside a `terminator=` block):
   test; a one-sided test passes on blanket accept or blanket reject. If a
   requirement is genuinely testable only one way, annotate its summary line
   `{single-polarity: positive|negative; why}` instead. `{gap: why; ref}` and
-  `{not-applicable: why}` cover deliberate divergence and inapplicability, each
-  with a reason (a bare annotation is rejected).
+  `{not-applicable: why}` cover deliberate divergence and inapplicability,
+  `{lower-layer: <layer>; <path>.go::<Symbol> ...}` covers a behavior a layer
+  under Ze performs on state Ze installs, where Ze's own boundary carries no
+  value to assert, and `{feature-declined: "<RFC sentence>"; <path>.go::<Symbol>
+  ...}` covers an obligation conditional on a feature the RFC makes optional and
+  Ze declined. Each needs a reason (a bare annotation is rejected), and the last
+  two need the facts their gates check: the layer and the producer, or the
+  quoted sentence and the producer
+  (`docs/contributing/rfc-conformance-gates.md`).
 - **Place the tag inline at the table case** when one function covers many
   requirements. One id per line, polarity mandatory. The tag is the only authored
   half of the binding, so it dies with the test.
@@ -540,8 +547,8 @@ declared by the test.
 
 | Carrier | Kind | Executed by | Tier |
 |---------|------|-------------|------|
-| `*_test.go` outside `internal/le/` | `unit` | `./le test-unit` | `verify`, on every push |
-| `test/<suite>/*.ci` | `functional` | `./le functional` | `verify`, but only from a suite the functional run actually gates. `suiteCarriers` builds one prefixed row per name in `functional.GatingNames()`, so a `.ci` in a non-gating suite (static, traffic, flow-export, vpp, vrrp) earns no verify tier, and `test/draft/` is skipped entirely |
+| `*_test.go` outside `internal/le/` | `unit` | `./le test-unit all` | `verify`, on every push |
+| `test/<suite>/*.ci` | `functional` | `./le functional gating` | `verify`, but only from a suite the functional run actually gates. `suiteCarriers` builds one prefixed row per name in `functional.GatingNames()`, so a `.ci` in a non-gating suite (static, traffic, flow-export, vpp, vrrp) earns no verify tier, and `test/draft/` is skipped entirely |
 | `test/editor/*.et` | `editor` | `./le functional editor` | `verify`, on the same earned-per-suite basis |
 | `internal/le/interoplab/bgp/*.go` | `interop` | `./le integration interop` | `nightly` when a scheduled workflow names that runner, `unrun` otherwise |
 | `internal/le/interoplab/ipsec/*.go` | `interop` | `./le integration interop-ipsec` | same derivation |
@@ -575,8 +582,9 @@ never sums the two, because a nightly tier is not merge-gate proof.
   generated from those tables by `./le rfc index-update`. A hand edit to one of the
   three is lost at the next run. Write `| Enrolment | <kind> |` beside
   `| Enrolment reason | <why> |`, kind one of `enrolled`, `non-normative`,
-  `backlog`, `blocked` or `source-restricted`. A summary that declares neither row
-  does not parse, so the state that used to red the gate cannot be written now.
+  `backlog`, `blocked`, `out-of-scope` or `source-restricted`. A summary that
+  declares neither row does not parse, so the state that used to red the gate
+  cannot be written now.
 
   Un-enrolment used to be the one state that carried no information. So "the RFC
   imposes nothing", "nobody extracted it" and "we do not even have the text" all
@@ -586,13 +594,22 @@ never sums the two, because a nightly tier is not merge-gate proof.
   of the DOCUMENT: its category, a missing RFC 2119 section, a keyword scan. It must
   never say the obligation does not apply to Ze. `source-restricted` is the permanent
   kind: the standard's own text cannot be redistributed, so no enrolment is ever
-  reachable. Its reason names the publishing body or the license. `backlog` and
-  `blocked` are debt, and the ledger renders them as debt.
+  reachable. Its reason names the publishing body or the license, and it excuses no
+  public support claim, because being unable to bound a claim is a reason to stop
+  making it. `out-of-scope` says the extraction is DONE and the owner declined the
+  feature, so its reason carries the decision date and its row reads `Future` or
+  `Unsupported`. `backlog` and `blocked` are debt, and the ledger renders them as
+  debt.
 
-  Two related reds come from the same place. First, a public row that claims support
+  Three related reds come from the same place. First, a public row that claims support
   over a summary with zero gated requirements. The escape is evidence that zero is
-  real: a `non-normative` or `source-restricted` disposition, or a `manual-walk`
-  extraction sign-off whose `register-reason` says why. Second, a `Support remaining`
+  real: a `non-normative` disposition, or a `manual-walk`
+  extraction sign-off whose `register-reason` says why. Second, a row that PROMISES
+  conformance -- `Supported`, alone or with a scope after it -- over gated requirements
+  of which not one carries a test in both polarities. Neither escape reaches that one:
+  each says the DOCUMENT imposes no MUST, and this red is about a MUST that exists and
+  is unproven. Prove one requirement, or write `| Support status | Partial |`, which is
+  what the public page's own vocabulary calls "not proven". Third, a `Support remaining`
   cell that spells a gap count immediately before MUST or SHALL must agree with the
   summary's `{gap}` count.
   <!-- source: internal/le/rfc/meta.go -- ParseMeta, readEnrolment, readSupport -->
@@ -627,8 +644,35 @@ never sums the two, because a nightly tier is not merge-gate proof.
 - **Never change a tagged test to make it pass.** Once a test carries an
   `RFC requirement:` tag it is the requirement: fix your code, not the test.
   Changing its behavior needs the owner's approval. Write it as one row in
-  `test/rfc-changed.md`, and commit that file with the change. The native
-  weakening check reads the file and blocks the edit until a row names the test.
+  `test/rfc-changed/<session>.md`, your own session's shard of the approval
+  ledger, and commit that shard with the change. The native weakening check
+  reads it and blocks the edit until a row names the test.
+
+### Who writes an owner-approval row
+
+This is the one difference between the two ledgers, and it decides everything
+else. A weakening row in `test/weakened/<session>.md` is the author's own
+justification, and a reviewer reads it to judge the author. A row in
+`test/rfc-changed/<session>.md` is the OWNER's decision, written down by the
+author who asked for it.
+
+An author cannot approve their own change. `ai/rules/testing.md` says it in one
+line: a weakening row does not authorize changing a tagged test, because
+self-service justification is not user approval. **A row here with no answer
+from the owner behind it is a forgery, not a shortcut.** So the Reason column
+holds what the owner approved, not what the author wanted.
+
+The shard layout serves that rule rather than bending it. A row you did not
+write sits in a file named after its writer, no commit but that writer's own can
+carry it (`./le commit create` refuses a foreign shard), and the gate drops a
+row only after proving git holds it at HEAD. Reason: an approval published under
+the wrong commit's subject is a forged record of an owner decision, and it is
+the one failure of this file that leaves no trace.
+
+Name what the owner approved, and say why the tagged requirement is still proven
+after the change. Quote the requirement id, so a reader can open `rfc/short/`
+beside it. A reason that does not answer the second question approves a
+compliance claim losing its evidence.
 
 <!-- source: internal/le/testweakened/proposed.go -- RFC-tagged carrier approval -->
 <!-- source: ai/skills/ze-rfc.md -- requirement id allocation and annotations -->
@@ -684,6 +728,7 @@ by what was extracted. Record the walk in an artifact the gate re-checks:
 ./le rfc extraction-create stem rfcNNNN   # skeleton to session scratch, never to rfc/extraction/
                                           # classify every site and section by hand,
                                           # then move the file in as the command says
+./le rfc extraction-classify decisions <path>  # or write the decisions in one file and apply them
 ./le rfc check                            # re-derives the inventory and judges it
 ```
 
@@ -718,7 +763,7 @@ Before marking implementation complete:
 ```
 [ ] Pre-commit verification passes: ./le verify current mode full
 [ ] Fuzz targets pass: ./le fuzz run
-[ ] Functional tests pass: ./le functional
+[ ] Functional tests pass: ./le functional gating
 [ ] RFC MUST tests have both polarities: ./le rfc check
 [ ] RFC section comments on all protocol code
 [ ] RFC constraint comments with quoted requirements

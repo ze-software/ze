@@ -7,7 +7,7 @@ directives, fuzz target list), see `docs/functional-tests.md`.
 ## First-time setup
 
 ```sh
-./le setup
+./le setup install
 ./le verify current mode full
 ```
 
@@ -46,8 +46,10 @@ machine.
 | `./le test-unit config` | Config parsing and YANG | about 20 seconds |
 | `./le test-unit cli` | CLI component | about 10 seconds |
 | `./le test-unit installer` | Installer initrd logic behind the `ze_installer` tag | about 10 seconds |
+| `./le test-unit all` | The whole checkout, then the groups their build tags hide from it | minutes: it is every package under `-race` |
 
-Pick the group matching your change.
+Pick the group matching your change. Each group is a subset of `all`, so a
+green group says nothing about the rest of the tree.
 
 The `installer` group runs the tests on Linux. On another host `go test`
 cross-compiles a Linux binary it cannot start, so the group runs `go vet`
@@ -115,7 +117,7 @@ Run a full suite:
 ```sh
 ./le functional encode
 ./le functional plugin
-./le functional
+./le functional gating
 ./le functional exabgp-test
 ```
 
@@ -190,19 +192,29 @@ A red test means the CODE is wrong by default. Fix the code. When the coverage i
 genuinely gone, because the feature it proved was removed or another test now
 proves it, the removal is recorded rather than silent.
 
-The record is `test/weakened.md`. It holds one row per weakened test, `| Test |
-Reason |`, and it is REPLACED per commit. Delete the rows of the last commit,
-write the rows of this one, and commit the file with the change. Git history
-holds every past row beside the change it accepted, so
-`git log -p -- test/weakened.md` is how you read them.
+The record is `test/weakened/<session>.md`, the ledger shard your own commit
+session owns, where `<session>` is the eight hex characters `./le commit
+session` prints. It holds one row per weakened test, `| Test | Reason |`. No
+other session reads your shard and none can write it, so nobody has to be
+careful about anybody else's rows.
+
+Write the rows this commit owes and leave the rest to the gate: `./le commit
+create` drops every row your shard holds whose text git already has at HEAD,
+because a row whose commit landed explains a diff history holds. Git history is
+where past rows are read, so `git log -p -- test/weakened/` shows each one
+beside the change it accepted.
 
 The route, in order:
 
-1. Write the row first. The native write-edit hook reads the file from disk, so
+1. Write the row first. The native write-edit hook reads the shard from disk, so
    a row added after the edit takes effect only after the edit is retried.
 2. Make the edit.
-3. Name `test/weakened.md` in the commit. `internal/le/commit.Answer` refuses
-   a commit that weakens a test and leaves the row in the working tree.
+3. Name `test/weakened/<session>.md` in the commit. `internal/le/commit.Answer`
+   refuses a commit that weakens a test and leaves the row in the working tree.
+
+`./le test-weakened check` prints every session's shard and the rows in it, and
+names yours. Read it when you want to know what the ledger holds without
+preparing a commit.
 
 The test name is the enclosing top-level `func TestXxx` for Go, and the file stem
 for a `.ci` or a `.et`. Write `package.TestName` when the bare name matches two
@@ -245,6 +257,60 @@ set. `./le verify lint run` therefore runs more than one.
 | 2 | `GOOS=linux`, plus `integration` | every kernel-facing `//go:build integration` test |
 | 3..N | one for each row of `FLAVORS` (`internal/le/verify/lint.Answer`) | `ze_installer`, `ze_distro`, `ze_appliance`, `ze_setup`, `tinygo`, and the capability tags (`debug`, `race`, `live`, ...). Also the GOOS and GOARCH targets no other pass compiles: `darwin`, `freebsd`, `openbsd`, `dragonfly`, `wasip1`, `linux/arm64` and `linux/riscv64`. Also the `compile-out` build, which drops every feature gate and keeps `ze_core` alone |
 
+### Waiting for the linter's own lock
+
+<!-- source: internal/le/verify/lint/verifylint.go -- passPlan, allowSerial -->
+
+golangci-lint takes one lock for the whole machine, at
+`$TMPDIR/golangci-lint.lock`. Several sessions share this checkout, so a second
+linter is normal here. Every command line Ze builds therefore carries
+`--allow-serial-runners`, which makes the child WAIT for that lock. Without it
+the child gives up after five seconds and exits `parallel golangci-lint is
+running`, and the stage turns that into a red that names no file.
+
+A pass that waits prints nothing while it waits. A whole-tree pass holds the
+lock for about ten minutes on this workstation, so a pass behind one can stay
+silent for that long. That is the linter in a queue, not a hang.
+
+### The slot a lint holds
+
+<!-- source: internal/le/verify/lint/actions.go -- runHere, jobArgv -->
+<!-- source: internal/le/job/registry.go -- shares, reportBusy -->
+<!-- source: internal/le/job/treehash.go -- InputHash, lintIgnores -->
+
+`./le verify lint run` claims the `lint` label in the shared job registry
+(`internal/le/job`) before it plans anything. A lint uses cores allocated for
+the whole machine, so admission decides how many run at once, and it prints
+`[lint] waiting: <holder> running (pid N, Ns elapsed): <the holder's last log
+line>` while it queues. That last line is the holder's current stage, read from
+the log the holder is writing (`reportBusy`, `internal/le/job/registry.go`), so
+a waiter can tell a run that is progressing from one that is stuck. A holder
+with no readable log gets the banner without it.
+
+A second session asking for the SAME work over the SAME inputs does not queue.
+It attaches: it replays the running lint's output, takes that run's verdict, and
+the tree is linted once for both. `[lint] attaching to the lint already running
+over these inputs` is that answer. A full run and a scoped run are different
+work, so they never share a verdict.
+
+The inputs are the ones a lint READS, and not the whole checkout. Nine sessions
+write this checkout. A journal row or a spec edit that one of them made while
+your lint runs used to void the match, and the tree was linted a second time. Go
+source, `.golangci.yml`, `go.mod`, `go.sum` and `vendor/modules.txt` each void a
+share. A file under `.claude/`, `ai/`, `backups/`, `docs/`, `plan/`, `rfc/` or
+`website/` does not.
+
+That list is declared once, as `lintIgnores` beside `job.LintLabel`
+(`internal/le/job/treehash.go`), and it EXCLUDES rather than includes. An input
+nobody listed still voids the share, so a missing entry costs a duplicate run
+and never a stale verdict. A tree is on the list because it holds no Go file at
+all, and a `//go:embed` pattern cannot leave the directory of the package that
+writes it, so nothing under such a tree can reach a Go package.
+
+The findings a shared verdict names are read back out of the replay, so an
+attached red still says which files it was about. A red that names no file is
+charged to every commit in the checkout.
+
 Each flavor pass lints only the packages holding a file the two passes above do
 not load. That package set is DERIVED from the tree with `go list` on every run.
 A hand-written list drifts the moment somebody adds a `//go:build debug`
@@ -271,6 +337,50 @@ negated term at once. A feature-only helper must therefore carry its consumer's
 build constraint. Without it, the bare-core build reports the helper as
 `unused`, which is what it is in a binary that compiles its only caller out.
 
+### The accounting every gate owes its population
+
+<!-- source: internal/le/population/population.go -- Claim -->
+
+The lint driver above is the shape every gate is held to, and
+`internal/le/population` is that shape as a callable type. A gate states what it
+governs, what it walked, and a reason for each member it deliberately skipped.
+`Claim.Assess` then answers a `Coverage`. It goes red on two things: a member
+neither walked nor excused, and an excuse that has stopped being needed.
+
+Both halves matter. The first is the gate covering less than it says. The second
+is a stated exception nobody rechecked, which hides the next member to land on
+that same path. An empty population is an error rather than a clean report,
+because a walk that found nothing prints what a healthy tree prints.
+
+A count floor -- refuse below N members -- is NOT this. It catches only the empty
+case, and comparing sizes where the question is about sets is the same defect one
+level up. `plan/journal/gate-excludes-part-of-its-population.md` records both.
+
+### The exemptions are a population too
+
+<!-- source: internal/le/population/population.go -- Exemptions -->
+
+A gate that either scans a member or exempts it balances by construction. Its own
+accounting proves nothing, because every member it read fell into one of the two
+buckets by definition. `population.Exemptions` asks the other question: of the
+rules the gate declares, which ones still do work?
+
+A rule earns its place only where it SUPPRESSED something. The weaker reading,
+that a file exists under it, stays true for a rule whose file stopped doing the
+thing it was excused for. So the walk scans the exempt file and then drops the
+result, rather than skipping it, and credits the rule only when it dropped
+something.
+
+`iface-resolution`, `plugin-boundary` and `fs-persistence` each split `Check`
+from `CheckCheckout` for this. Over a fixture, a rule that suppresses nothing
+means the tree does not hold that code. Over the real checkout it means an
+exemption nobody rechecked. Only the caller knows which tree it passed.
+
+An empty rule set is a clean answer, not the refusal an empty population gets.
+The two empties are different facts. A walked population that came back empty is
+a walk that found nothing, which looks like a healthy tree. A rule set was
+written empty, in source a reader can see.
+
 ### Feature-tag structural type check
 
 <!-- source: internal/le/staticcheckfeaturematrix/actions.go -- Answer -->
@@ -288,10 +398,16 @@ Inside a verify run the stage judges only the rows the change set can move: the
 distro all-on and bare-core rows, plus one row per feature tag the change
 reached. Typing the target yourself judges every row, because only a verify run
 publishes the feature-tag answer it scopes by. What widens the scope back to
-every row is `../architecture/testing/verify-freshness-scope.md`. Rerun the stage
-directly:
+every row is `../architecture/testing/verify-freshness-scope.md`.
+
+A verify run also CUTS those rows. It runs six stages,
+`check part 1 of 6` through `check part 6 of 6`, and each one judges the rows
+dealt to its piece. CI deals the stage list to its shards round robin, so the
+six pieces run on six shards rather than on one job's clock. Each piece names
+the rows it judged in its own log. Rerun one piece, or the whole matrix:
 
 ```sh
+./le staticcheck-feature-matrix check part 3 of 6
 ./le staticcheck-feature-matrix check
 ```
 

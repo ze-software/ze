@@ -22,7 +22,7 @@ System RIB: selects best route across protocols by admin distance
 
 ## Used by
 
-- Required dependency for: [`fib-kernel`](../fib-kernel/index.md), [`fib-p4`](../fib-p4/index.md), [`fib-vpp`](../fib-vpp/index.md)
+- Required dependency for: [`fib-kernel`](../fib-kernel/index.md), [`fib-p4`](../fib-p4/index.md), [`fib-vpp`](../fib-vpp/index.md), [`static`](../static/index.md)
 - Optional dependency for: None
 
 ## Repository artifacts

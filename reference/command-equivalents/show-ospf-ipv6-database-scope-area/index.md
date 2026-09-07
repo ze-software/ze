@@ -20,6 +20,8 @@ Show only area-scope (S2/S1 = 01) LSAs.
 - Command pipes: none
 - Pipe aliases: none
 
+RFC 5340 Section 2.3 gives area scope to the router-LSA, the network-LSA, the inter-area-prefix-LSA, the inter-area-router-LSA and the intra-area-prefix-LSA. Ze reads the per-area store for them.
+
 ## Arguments
 
 No command-specific arguments listed.

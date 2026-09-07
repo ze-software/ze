@@ -29,15 +29,20 @@ remediation guidance.
 | `doctor-config-reference` | Dangling policy/filter references |
 | `doctor-tls-*` | TLS cert existence, expiry, validity |
 | `doctor-plugin-missing` | Plugin binary on PATH |
+| `doctor-hub-managed-collision` | A `plugin/hub/server` block declares managed clients on the address the plugin acceptor binds, so its managed listener cannot bind and its clients are refused <!-- source: internal/component/plugin/doctor/check_managed_listener.go -- diagnoseManagedListener --> |
 | `doctor-service-executable` | Installed systemd unit `ExecStart` points to an executable ze binary |
 | `doctor-service-user` / `doctor-service-group` | User/group referenced by installed `ze.service` exists |
 | `doctor-ssh-hostkey-missing` | SSH host key |
 | `doctor-listen-unavailable` | Port binding |
 | `doctor-iface-missing` / `doctor-iface-down` | Interface existence and state |
+| `doctor-iface-selector-unmatched` / `doctor-iface-selector-ambiguous` | A `mac { match }` selector names no device, or several |
+| `doctor-iface-mac-override-by-name` | An ethernet overrides its MAC but binds by name, so the address lands on whichever device holds that name |
 | `doctor-disk-space` | Partition free space (<5%) |
 | `doctor-dns-resolver` | Name server reachability |
 | `doctor-*-unreachable` | External-service reachability probes that warn (never fail startup) when a configured peer is down: RADIUS admin (`doctor-radius-admin-unreachable`), RPKI cache (`doctor-rpki-unreachable`), BMP collector (`doctor-bmp-unreachable`), NTP (`doctor-ntp-server-unreachable`), management hub (`doctor-hub-unreachable`) <!-- source: internal/component/managed/doctor.go -- checkHubReachable / doctor-hub-unreachable --> |
 | `doctor-clock-skew` | System clock vs NTP (>5 min) |
+| `doctor-redistribute-unknown-source` | A `redistribute` import names a source no component registered. The daemon refuses to start on it |
+| `doctor-redistribute-unknown-destination` | A `redistribute` destination names a protocol nothing registered, so every rule under it is inert. A warning, because a build that omits that protocol is a legitimate reason <!-- source: internal/component/doctor/checks_redistribute.go -- checkRedistributeRules --> |
 | `doctor-vpp-unreachable` | VPP API socket (Linux) |
 | `doctor-vpp-version` | VPP version compatibility (Linux) |
 | `doctor-module-missing` | Kernel modules (Linux) |

@@ -20,6 +20,8 @@ List the completion candidates for a partial plugin command.
 - Command pipes: none
 - Pipe aliases: none
 
+The candidates come from the plugin registry only, and a command marked hidden is left out. A built-in command is never offered here.
+
 ## Arguments
 
 No command-specific arguments listed.

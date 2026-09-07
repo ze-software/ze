@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>show ospf database opaque-as detail - Command Equivalents - Ze</title>
-        <meta name="description" content="Decode each AS-scope opaque LSA body into its typed TLVs (TE / Router-Information / Extended / Segment-Routing) or a generic type/length/hex view (spec-ospf-ext-14, RFC 5250)." />
+        <meta name="description" content="Decode each AS-scope opaque LSA body (RFC 5250)." />
         <meta property="og:title" content="show ospf database opaque-as detail - Command Equivalents - Ze" />
-        <meta property="og:description" content="Decode each AS-scope opaque LSA body into its typed TLVs (TE / Router-Information / Extended / Segment-Routing) or a generic type/length/hex view (spec-ospf-ext-14, RFC 5250)." />
+        <meta property="og:description" content="Decode each AS-scope opaque LSA body (RFC 5250)." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="show ospf database opaque-as detail - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Decode each AS-scope opaque LSA body into its typed TLVs (TE / Router-Information / Extended / Segment-Routing) or a generic type/length/hex view (spec-ospf-ext-14, RFC 5250)." />
+        <meta name="twitter:description" content="Decode each AS-scope opaque LSA body (RFC 5250)." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -48,7 +48,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Command map</span>
     <h1 id="command-equivalent-detail-title">show ospf database opaque-as detail</h1>
-    <p>Decode each AS-scope opaque LSA body into its typed TLVs (TE / Router-Information / Extended / Segment-Routing) or a generic type/length/hex view (spec-ospf-ext-14, RFC 5250).</p>
+    <p>Decode each AS-scope opaque LSA body (RFC 5250).</p>
 </div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
@@ -65,6 +65,7 @@
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
+<h3>Description</h3><p>A body with a typed decoder returns its TLVs, which are TE,<br>Router-Information, Extended and Segment-Routing. Every other body returns a<br>generic type, length and hex view (spec-ospf-ext-14).</p>
 <h3>Arguments</h3>
 <p>No command-specific arguments listed.</p>
 </article>
@@ -129,7 +130,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

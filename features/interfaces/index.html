@@ -55,7 +55,10 @@ JunOS-style two-layer model: physical interfaces with named logical units.</p>
 <li><a href="#architecture">Architecture</a></li>
 <li><a href="#interface-discovery">Interface Discovery</a></li>
 <li><a href="#key-design-decisions">Key Design Decisions</a></li>
-<li><a href="#tunnel-configuration">Tunnel Configuration</a></li>
+<li><a href="#tunnel-configuration">Tunnel Configuration</a>
+<ol>
+<li><a href="#outer-header-ttl">Outer-header TTL</a></li>
+</ol></li>
 <li><a href="#tunnel-reload-behaviour">Tunnel Reload Behaviour</a></li>
 <li><a href="#tunnel-validation-scope">Tunnel Validation Scope</a></li>
 <li><a href="#wireguard-configuration">WireGuard Configuration</a>
@@ -932,9 +935,13 @@ optional and, when set, must be unique within each list. Omit it to keep the
 hardware-assigned MAC, or set it to override the address and pin the named config entry to
 a specific physical device.</p>
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- unique on ethernet/veth/bridge lists -->
-<p>Each discovered interface also records an <code>os-name</code> hidden leaf that preserves the original
-OS interface name. This field is auto-populated during discovery and remains available for
-debugging and internal binding after the user renames the config entry.</p>
+<p>Discovery writes one selector per entry. An ethernet that reports a factory address
+(<code>IFLA_PERM_ADDRESS</code>) is bound by <code>mac { match }</code> against that address, so the entry
+follows the NIC across a kernel rename. Every other discovered kind records an <code>os-name</code>
+hidden leaf holding the original OS interface name, which remains available for debugging
+and internal binding after the user renames the config entry. A discovered ethernet gets no
+<code>mac { address }</code> override: that leaf imposes an address on whatever device the entry
+resolves to, which is a wrong write the moment the name reaches a different port.</p>
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- os-name hidden leaf in interface-common grouping -->
 <p>Operator-facing interface operations resolve the logical name to its kernel
 device through the shared resolver before touching the kernel, so a configured
@@ -1185,8 +1192,34 @@ Both surface as distinct YANG cases so the schema and config are unambiguous.</p
 <p>L2 tunnel kinds (<code>gretap</code>, <code>ip6gretap</code>) support an optional <code>mac</code> container (with an
 <code>address</code> leaf) inside the case container. L3 kinds do not carry a MAC address (the
 kernel does not assign one).</p>
+<h3 id="outer-header-ttl">Outer-header TTL</h3>
+<p>A tunnel that names no <code>ttl</code> carries an outer TTL of 64, and a tunnel that names no
+<code>hoplimit</code> carries an outer hop limit of 64. The value 0 keeps its meaning: it tells
+the kernel to copy the inner packet's TTL onto the outer header, and an operator who
+wants that mode writes <code>ttl 0</code>.</p>
+<p>64 is the default because inherit blackholes a multi-hop underlay. A locally
+originated packet can carry a small inner TTL, and every underlay router decrements
+the outer header, so an inherited value expires the encapsulated packet before it
+reaches the far endpoint. The tunnel then works between directly connected endpoints
+and drops everything else.</p>
+<p>Each default is declared once, in the YANG leaf, and the parse materializes it into
+the tunnel spec before the backend reads the leaves. No Go constant repeats it, so
+the schema, the CLI completion, the config diff and the device cannot disagree.</p>
+<p>The defaults reach netlink-backed tunnels. The VPP tunnel calls carry no outer-TTL
+field, so the <code>ttl</code> leaf is declared <code>ze:backend "netlink"</code> and a commit that names
+one on the vpp backend is refused by path:</p>
+<pre><code>/interface/tunnel/t0/encapsulation/gre/ttl: feature not supported by backend "vpp" (supported: netlink)
+</code></pre>
+<p>A vpp-backed tunnel that names no <code>ttl</code> still commits, because the gate reads what
+the operator wrote and the schema default is materialized after it. <code>sit</code> and the
+other netlink-only kinds are refused at the kind rather than at this leaf.</p>
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- the ttl and hoplimit leaves and their defaults -->
+<!-- source: internal/component/iface/tunnel.go -- tunnelSchema, loadTunnelSchema, applyDefaults -->
+<!-- source: internal/plugins/iface/vpp/tunnel.go -- createGRETunnel and createIPIPTunnel, which carry no TTL field -->
+<!-- source: test/plugin/tunnel-ttl-default.ci -- the outer TTL read back from each device -->
+<!-- source: internal/component/iface/register.go -- validateBackendGate, run before parseIfaceSections -->
 <p>ERSPAN, GRE keepalives, VRF underlay/overlay leaves, and <code>ignore-df</code> on gretap are
-out of scope for v1; see <code>plan/deferrals/</code>.</p>
+out of scope for v1.</p>
 <p>All nine kinds are creatable on the gokrazy appliance image. Nine kinds need six
 kernel symbols plus the GRE demux gate, and the appliance kernel builds all seven
 in: <code>NET_IPGRE_DEMUX</code>, <code>NET_IPGRE</code>, <code>IPV6_GRE</code>, <code>NET_IPIP</code>, <code>IPV6_TUNNEL</code>,
@@ -1644,8 +1677,12 @@ leaves with Hop Limit 255, which RFC 4861 Section 6.1.2 makes a receiver check.<
 and a burst of solicitations draws one answer, timed from the first of them.
 Consecutive multicast advertisements stay 3 seconds apart, so a flood of
 solicitations cannot become a flood of advertisements (RFC 4861 Section 6.2.6).
-A sender that stops sends up to three advertisements with a Router Lifetime of
-0. Each host then drops Ze from its default router list at once.</p>
+A sender that stops sends ONE advertisement with a Router Lifetime of 0, so each
+host drops Ze from its default router list at once instead of waiting the
+lifetime out (RFC 4861 Section 6.2.5). The RFC permits up to three. Ze sends one
+because three leave in a single scheduler tick, so a receiver cannot tell them
+apart and a link that drops one drops all three; radvd, FRR and BIRD each send
+one as well.</p>
 <p>Nothing leaves a link that is down. The next link-up event restarts the initial
 burst.</p>
 <!-- source: internal/plugins/iface/ra/sender_linux.go -- openRASocket, run, sendFinal -->
@@ -2231,7 +2268,7 @@ exact-or-reject.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

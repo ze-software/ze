@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 46.2% | 6 of 13 binding obligations | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 53.8% | 7 of 13 binding obligations | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 13 binding obligations | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 13 binding obligations | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 27 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 46.2% | 6 of 13 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 53.8% | 7 of 13 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 13 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| No test at all | 0.0% | 0 of 13 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 6.9% | 2 of 29 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -23,9 +23,12 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 13 | of 21 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 13 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below |
+| Out of scope | 0 | of 13 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 13 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 13 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 13 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 4 shares marked as a part above are the whole of the 13 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -37,6 +40,9 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
@@ -48,15 +54,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Enrolled |
 | Requirements | 21 |
 | Gated MUST-level | 13 |
-| Obligations that bind Ze | 13 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 27 |
-| Tagged units | 27 |
+| Test tags | 29 |
+| Tagged units | 29 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 2 |
 | Summary | `rfc/short/rfc7854.md` |
 | Requirement shard | `rfc/requirements/rfc7854.md` |
 | RFC text | `rfc/full/rfc7854.txt` |
@@ -108,14 +113,14 @@ Loc-RIB route monitoring is provided under RFC 9069.
 | `RFC7854-x-8` | Peer Up message must include both sent and received OPEN messages (Message Types) | MUST | x | **positive:** `unit/verify` [`TestBMPSenderPeerUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L207). **positive:** `unit/verify` [`TestHandleSenderStatePeerUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L127). **negative:** `unit/verify` [`TestBMPPeerUpSkippedOnCacheMiss`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L260). **negative:** `unit/verify` [`TestPeerUpOnCacheMissNeverReachesTheCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerup_openless_test.go#L47) |
 | `RFC7854-x-9` | Route Monitoring messages must contain a BGP UPDATE message (Message Types) | MUST | x | **positive:** `unit/verify` [`TestBMPSenderRouteMonitoring`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L275). **negative:** no negative test. **{single-polarity}:** Route Monitoring is only ever constructed around a complete BGP UPDATE PDU, so there is no valid Route Monitoring lacking one to reject |
 | `RFC7854-x-10` | Peer Down must include the reason code (1 byte) (Message Types) | MUST | x | **positive:** `unit/verify` [`TestBMPSenderPeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L244). **positive:** `unit/verify` [`TestHandleSenderStatePeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L289). **negative:** no negative test. **{single-polarity}:** Peer Down is always written with a reason byte, so there is no valid Peer Down without one to assert against |
-| `RFC7854-x-11` | Termination message must be sent when BMP session is being closed (Session Lifecycle) | MUST | x | **positive:** `unit/verify` [`TestBMPSenderTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L359). **positive:** `unit/verify` [`TestSenderStopSendsTerminationToCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_queue_test.go#L560). **negative:** no negative test. **{single-polarity}:** Termination is produced unconditionally when the session is torn down, so there is no valid shutdown that omits it to reject |
+| `RFC7854-x-11` | Termination message must be sent when BMP session is being closed (Session Lifecycle) | MUST | x | **positive:** `unit/verify` [`TestBMPSenderTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L359). **positive:** `unit/verify` [`TestSenderStopSendsTerminationToCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_queue_test.go#L561). **negative:** no negative test. **{single-polarity}:** Termination is produced unconditionally when the session is torn down, so there is no valid shutdown that omits it to reject |
 | `RFC7854-x-12` | BMP is unidirectional: router to collector only (Session Lifecycle) | MUST | x | **positive:** `unit/verify` [`TestBMPReceiverUnidirectional`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L130). **negative:** no negative test. **{single-polarity}:** the receiver loop (internal/component/bgp/plugins/bmp/bmp.go:441-492) issues only reads and the sender hold-loop (sender.go:207-237) reads only to detect close, so neither role writes toward the monitored router on a valid session and there is no reject case to construct |
 | `RFC7854-4.5-2` | The monitoring station must close the TCP session after receiving a termination message (§4.5, Termination Message) | MUST | 4.5 | **positive:** `unit/verify` [`TestBMPReceiverClosesAfterTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/termination_close_test.go#L9). **negative:** `unit/verify` [`TestBMPReceiverKeepsSessionWithoutTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/termination_absent_test.go#L9) |
 | `RFC7854-x-13` | Minimum 30 seconds between reconnection attempts (Reconnection) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
 | `RFC7854-x-14` | Maximum 720 seconds between reconnection attempts with exponential backoff (Reconnection) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-x-15` | Statistics Reports should be sent periodically (Session Lifecycle) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-x-16` | Peer Up message should be sent for each established peer (Session Lifecycle) | SHOULD | x | **positive:** `unit/verify` [`TestConcurrentDumpsStayAddressedToTheirOwnCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L457). **negative:** no negative test |
-| `RFC7854-x-17` | Initial RIB dump via Route Monitoring should follow Peer Up (Session Lifecycle) | SHOULD | x | **positive:** `unit/verify` [`TestConcurrentDumpsStayAddressedToTheirOwnCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L460). **negative:** no negative test |
+| `RFC7854-x-15` | Statistics Reports should be sent periodically (Session Lifecycle) | SHOULD | x | **positive:** `unit/verify` [`TestRFC7854StatisticsTimeoutSendsPeriodicReports`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L411). **negative:** `unit/verify` [`TestRFC7854StatisticsTimeoutZeroSendsNoReport`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L464) |
+| `RFC7854-x-16` | Peer Up message should be sent for each established peer (Session Lifecycle) | SHOULD | x | **positive:** `unit/verify` [`TestConcurrentDumpsStayAddressedToTheirOwnCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L462). **negative:** no negative test |
+| `RFC7854-x-17` | Initial RIB dump via Route Monitoring should follow Peer Up (Session Lifecycle) | SHOULD | x | **positive:** `unit/verify` [`TestConcurrentDumpsStayAddressedToTheirOwnCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L465). **negative:** no negative test |
 | `RFC7854-x-18` | Initiation message may include sysDescr TLV (type 1) and free-form string TLV (type 0) (Message Types) | MAY | x | **positive:** no positive test. **negative:** no negative test |
 | `RFC7854-x-19` | Peer Up message may include optional TLVs (Message Types) | MAY | x | **positive:** no positive test. **negative:** no negative test |
 | `RFC7854-x-20` | Route Mirroring messages may be used to mirror BGP messages verbatim (Message Types) | MAY | x | **positive:** no positive test. **negative:** no negative test |
@@ -246,7 +251,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestSenderStopSendsTerminationToCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_queue_test.go#L560) | unit/verify | unproven |
+| positive | [`TestSenderStopSendsTerminationToCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_queue_test.go#L561) | unit/verify | unproven |
 | positive | [`TestBMPSenderTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L359) | unit/verify | unproven |
 
 ### [`RFC7854-x-12`](#rfc7854-x-12)
@@ -270,6 +275,17 @@ Audit verdict: not audited: no reader has judged these tests
 | negative | [`TestBMPReceiverKeepsSessionWithoutTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/termination_absent_test.go#L9) | unit/verify | unproven |
 | positive | [`TestBMPReceiverClosesAfterTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/termination_close_test.go#L9) | unit/verify | unproven |
 
+### [`RFC7854-x-15`](#rfc7854-x-15)
+
+Statistics Reports should be sent periodically (Session Lifecycle)
+
+Audit verdict: not audited: no reader has judged these tests
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854StatisticsTimeoutZeroSendsNoReport`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L464) | unit/verify | revert, verified |
+| positive | [`TestRFC7854StatisticsTimeoutSendsPeriodicReports`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L411) | unit/verify | revert, verified |
+
 ### [`RFC7854-x-16`](#rfc7854-x-16)
 
 Peer Up message should be sent for each established peer (Session Lifecycle)
@@ -278,7 +294,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestConcurrentDumpsStayAddressedToTheirOwnCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L457) | unit/verify | unproven |
+| positive | [`TestConcurrentDumpsStayAddressedToTheirOwnCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L462) | unit/verify | unproven |
 
 ### [`RFC7854-x-17`](#rfc7854-x-17)
 
@@ -288,7 +304,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestConcurrentDumpsStayAddressedToTheirOwnCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L460) | unit/verify | unproven |
+| positive | [`TestConcurrentDumpsStayAddressedToTheirOwnCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L465) | unit/verify | unproven |
 
 ## Extraction sign-off
 

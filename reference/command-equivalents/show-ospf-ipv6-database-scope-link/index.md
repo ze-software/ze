@@ -20,6 +20,8 @@ Show only link-local (S2/S1 = 00) LSAs, including the per-interface Link-LSA sto
 - Command pipes: none
 - Pipe aliases: none
 
+Ze reads the per-interface Link-LSA store as well as the area store, so a Link-LSA appears here beside its interface. RFC 5340 Section 2.3 states that a link-local LSA is flooded on the local link and no further.
+
 ## Arguments
 
 No command-specific arguments listed.

@@ -19,6 +19,8 @@ Load a named debug profile and apply it to the running daemon.
 - Command pipes: none
 - Pipe aliases: none
 
+The named profile becomes the live state and the default slot is NOT overwritten, so a restart returns the daemon to the default profile rather than to this one.
+
 ## Arguments
 
 No command-specific arguments listed.

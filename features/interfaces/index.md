@@ -205,9 +205,13 @@ a specific physical device.
 
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- unique on ethernet/veth/bridge lists -->
 
-Each discovered interface also records an `os-name` hidden leaf that preserves the original
-OS interface name. This field is auto-populated during discovery and remains available for
-debugging and internal binding after the user renames the config entry.
+Discovery writes one selector per entry. An ethernet that reports a factory address
+(`IFLA_PERM_ADDRESS`) is bound by `mac { match }` against that address, so the entry
+follows the NIC across a kernel rename. Every other discovered kind records an `os-name`
+hidden leaf holding the original OS interface name, which remains available for debugging
+and internal binding after the user renames the config entry. A discovered ethernet gets no
+`mac { address }` override: that leaf imposes an address on whatever device the entry
+resolves to, which is a wrong write the moment the name reaches a different port.
 
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- os-name hidden leaf in interface-common grouping -->
 
@@ -406,8 +410,44 @@ L2 tunnel kinds (`gretap`, `ip6gretap`) support an optional `mac` container (wit
 `address` leaf) inside the case container. L3 kinds do not carry a MAC address (the
 kernel does not assign one).
 
+### Outer-header TTL
+
+A tunnel that names no `ttl` carries an outer TTL of 64, and a tunnel that names no
+`hoplimit` carries an outer hop limit of 64. The value 0 keeps its meaning: it tells
+the kernel to copy the inner packet's TTL onto the outer header, and an operator who
+wants that mode writes `ttl 0`.
+
+64 is the default because inherit blackholes a multi-hop underlay. A locally
+originated packet can carry a small inner TTL, and every underlay router decrements
+the outer header, so an inherited value expires the encapsulated packet before it
+reaches the far endpoint. The tunnel then works between directly connected endpoints
+and drops everything else.
+
+Each default is declared once, in the YANG leaf, and the parse materializes it into
+the tunnel spec before the backend reads the leaves. No Go constant repeats it, so
+the schema, the CLI completion, the config diff and the device cannot disagree.
+
+The defaults reach netlink-backed tunnels. The VPP tunnel calls carry no outer-TTL
+field, so the `ttl` leaf is declared `ze:backend "netlink"` and a commit that names
+one on the vpp backend is refused by path:
+
+```
+/interface/tunnel/t0/encapsulation/gre/ttl: feature not supported by backend "vpp" (supported: netlink)
+```
+
+A vpp-backed tunnel that names no `ttl` still commits, because the gate reads what
+the operator wrote and the schema default is materialized after it. `sit` and the
+other netlink-only kinds are refused at the kind rather than at this leaf.
+
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- the ttl and hoplimit leaves and their defaults -->
+<!-- source: internal/component/iface/tunnel.go -- tunnelSchema, loadTunnelSchema, applyDefaults -->
+<!-- source: internal/plugins/iface/vpp/tunnel.go -- createGRETunnel and createIPIPTunnel, which carry no TTL field -->
+<!-- source: test/plugin/tunnel-ttl-default.ci -- the outer TTL read back from each device -->
+<!-- source: internal/component/iface/register.go -- validateBackendGate, run before parseIfaceSections -->
+
+
 ERSPAN, GRE keepalives, VRF underlay/overlay leaves, and `ignore-df` on gretap are
-out of scope for v1; see `plan/deferrals/`.
+out of scope for v1.
 
 All nine kinds are creatable on the gokrazy appliance image. Nine kinds need six
 kernel symbols plus the GRE demux gate, and the appliance kernel builds all seven
@@ -762,8 +802,12 @@ A solicitation draws an answer after a random wait of 500 milliseconds at most,
 and a burst of solicitations draws one answer, timed from the first of them.
 Consecutive multicast advertisements stay 3 seconds apart, so a flood of
 solicitations cannot become a flood of advertisements (RFC 4861 Section 6.2.6).
-A sender that stops sends up to three advertisements with a Router Lifetime of
-0. Each host then drops Ze from its default router list at once.
+A sender that stops sends ONE advertisement with a Router Lifetime of 0, so each
+host drops Ze from its default router list at once instead of waiting the
+lifetime out (RFC 4861 Section 6.2.5). The RFC permits up to three. Ze sends one
+because three leave in a single scheduler tick, so a receiver cannot tell them
+apart and a link that drops one drops all three; radvd, FRR and BIRD each send
+one as well.
 
 Nothing leaves a link that is down. The next link-up event restarts the initial
 burst.

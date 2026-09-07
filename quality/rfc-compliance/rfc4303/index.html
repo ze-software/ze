@@ -75,6 +75,8 @@
 .rfc-tape-both_polarities { background: var(--teal-chip); }
 .rfc-tape-single_polarity { background: var(--sky-chip); }
 .rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -113,19 +115,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>75.0%</strong><b>6 of 8 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>25.0%</strong><b>2 of 8 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 8 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 8 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>27.3%</strong><b>6 of 22 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>9.1%</strong><b>2 of 22 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 22 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 22 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 17 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>22</strong><b>of 25 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>14</strong><b>of 22 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>14</strong><b>of 22 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>63.6%</strong><b>14 of 22 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 22 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 22 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 4 shares marked as a part above are the whole of the 8 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 22 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -156,6 +161,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
+</tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
@@ -185,9 +202,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Gated MUST-level</td>
 <td>22</td>
-</tr>
-<tr><td>Obligations that bind Ze</td>
-<td>8</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>14</td>
@@ -278,8 +292,8 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>1 - Introduction</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L126" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L111" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L127" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L112" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2-1">RFC4303-2-1</code></td><td colspan="3"><span class="rfc-subject">The outer protocol header that precedes the ESP header SHALL carry the value 50 in its Protocol or Next Header field (§2)</span></td></tr>
@@ -296,10 +310,10 @@ No tracked gap in current source anchors.
 <td>MUST NOT</td>
 <td>2.1 - Security Parameters Index</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-2.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L243" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L191" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIBoundary</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L257" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L185" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIBoundary</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L258" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L192" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIBoundary</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L272" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L186" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIBoundary</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2.1-2">RFC4303-2.1-2</code></td><td colspan="3"><span class="rfc-subject">Whether source and destination address matching is required to map inbound traffic to an SA MUST be set by manual SA configuration or by SA management protocol negotiation (§2.1)</span></td></tr>
@@ -307,8 +321,8 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>2.1 - Security Parameters Index</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-2.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L313" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAAddressMatchIndication</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L319" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAAddressMatchIndication</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L320" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAAddressMatchIndication</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L326" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAAddressMatchIndication</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2.2-1">RFC4303-2.2-1</code></td><td colspan="3"><span class="rfc-subject">Sequence Number MUST be incremented for every transmitted packet (§2.2)</span></td></tr>
@@ -370,8 +384,8 @@ No tracked gap in current source anchors.
 <td>MUST NOT</td>
 <td>3.2 - Algorithms</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-3.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L130" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L107" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L131" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L108" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-3.3.3-1">RFC4303-3.3.3-1</code></td><td colspan="3"><span class="rfc-subject">Sender initializes sequence counter to 0 at SA establishment; first transmitted packet carries Sequence Number 1 (§3.3.3)</span></td></tr>
@@ -406,7 +420,7 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>3.4.3 - Sequence Number verification, the anti-replay section</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-3.4.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L308" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L323" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze projects a 64-packet anti-replay window on IKE child SAs (ReplayWin=64) to the kernel state, which exceeds the minimum at the SA-parameter level, while the sliding-window check itself runs in the kernel (internal/component/ike/engine/child.go:62, :377, :444, internal/component/ike/dataplane/xfrm_linux.go:132-133)</p></td>
 </tr>
@@ -415,7 +429,7 @@ No tracked gap in current source anchors.
 <td>MUST NOT</td>
 <td>3.4.3 - Sequence Number verification, the anti-replay section</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-3.4.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L334" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayRequiresIntegrity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L349" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayRequiresIntegrity</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s ESP SA model always projects integrity (planStateAlgos returns Crypt+Auth or AEAD for ESP) and the replay window is set only on those integrity-bearing child SAs, so anti-replay is structurally never enabled without integrity (internal/component/ike/dataplane/dataplane.go:53-62, internal/component/ike/engine/child.go:218-261)</p></td>
 </tr>
@@ -487,7 +501,7 @@ No tracked gap in current source anchors.
 <td>SHOULD</td>
 <td>3.4.3 - Sequence Number verification, the anti-replay section</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-3.4.3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L311" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L326" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a default value has no conforming negative. The requirement is met or it is not, and there is no input a receiver must refuse, so the sibling rows -3.4.3-1 and -3.4.3-2 carry the same annotation. Proven by the production Child SA path installing ReplayWin=64 on both directions (internal/component/ike/engine/child.go:62, :377, :444)</p></td>
 </tr>
@@ -579,12 +593,12 @@ No tracked gap in current source anchors.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L111" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L112" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L126" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L127" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -619,22 +633,22 @@ No tracked gap in current source anchors.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L257" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L272" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L185" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIBoundary</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L186" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIBoundary</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L243" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L258" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L191" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIBoundary</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L192" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIBoundary</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -649,12 +663,12 @@ No tracked gap in current source anchors.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L319" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAAddressMatchIndication</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L326" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAAddressMatchIndication</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L313" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAAddressMatchIndication</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L320" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAAddressMatchIndication</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -693,12 +707,12 @@ No tracked gap in current source anchors.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L107" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L108" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L130" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L131" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -725,7 +739,7 @@ No tracked gap in current source anchors.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L308" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L323" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -740,7 +754,7 @@ No tracked gap in current source anchors.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L334" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayRequiresIntegrity</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L349" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayRequiresIntegrity</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -795,7 +809,7 @@ No tracked gap in current source anchors.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L311" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L326" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1224,7 +1238,7 @@ No tracked gap in current source anchors.
 </tr>
 <tr><td><code>3.3.3:2</code></td>
 <td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
-<td>Binds the ESP transmit datapath that maintains the per-SA sequence counter across reboots, and only once a user employs anti-replay with a manually keyed SA. Ze enables neither half: buildIPsecSA (internal/plugins/ospf/ipsec_install.go) sets no ReplayWin on the manually keyed OSPFv3 SA, so anti-replay is off there, and the counter itself is kernel state. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet.</td>
+<td>Binds the ESP transmit datapath that maintains the per-SA sequence counter across reboots, and only once a user employs anti-replay with a manually keyed SA. The counter itself is kernel state. An operator can now switch anti-replay on for a manually keyed OSPFv3 SA (the interface replay-window leaf, carried into SAParams.ReplayWin by buildIPsecSA, internal/plugins/ospf/ipsec_install.go), and it is off unless they do; either way the sender counter is maintained by Linux XFRM and Ze never reads or writes it. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet.</td>
 <td>If a user chooses to employ anti-replay in conjunction with SAs that are manually keyed, the sequence number counter at the sender MUST be correctly maintained across local reboots, etc., until the key is replaced.</td>
 </tr>
 <tr><td><code>3.4.1:1</code></td>
@@ -1328,7 +1342,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

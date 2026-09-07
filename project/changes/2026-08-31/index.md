@@ -1,0 +1,78 @@
+# Week of 2026-08-31
+
+Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and most of the week went on fixing what it found. Three of them mattered: an authentication bypass on IKE logins, a redistribute block that discarded every route from every peer, and subscriber IPv6 that never worked at all.
+
+## 🔒 Security
+
+Fixed:
+
+- A forged EAP Success, or a Response answering no outstanding challenge, was accepted during an IKE login. Someone off path could finish the login without ever answering the challenge. Both are discarded now (RFC 3748 Section 4).
+- Ze accepted a BGP OPEN from any AS. A mistyped `remote-as` on the far end still established, and every AS-scoped decision after it ran against an AS the peer never claimed. The session is now refused with Bad Peer AS (RFC 4271 Section 6.2).
+- If every configured RADIUS Change-of-Authorization server was a hostname that failed to resolve, Ze accepted CoA and Disconnect requests from any source using the default shared secret. A DNS outage opened the port to spoofed subscriber disconnects (RFC 5176 Section 6.1).
+- An AAA chain with a broken remote backend took local login down with it, so a TACACS+ server missing its shared secret locked the operator out of the box. Login falls back to local accounts now, and authorization denies rather than permits.
+
+New:
+
+- A firewall `domain-group` matches on what a DNS name resolves to, and the set follows the name's own TTL.
+- Ze runs a local certificate authority and issues its own components short-lived certificates. The `certificate-fingerprint` leaf is gone, and a configuration that still sets it is refused. An unset fingerprint previously turned certificate verification off.
+
+## 🛰️ BGP
+
+Fixed:
+
+- One `redistribute` block anywhere in the configuration discarded every route from every peer, with no log line.
+
+New:
+
+- `reject-asn` filters a path by the ASNs it carries and where it carries them: `direct`, `indirect`, `transit`, `origin`, `anywhere`, `regex` and `nth <n>`. `show bgp reject-asn known transit-free` reports it against the well-known transit-free set (BCP 194).
+- A router being renumbered can run one iBGP session under either of two AS numbers at once. The leaf is `session { asn { migration <asn>; } }` (RFC 7705 Section 4.2).
+- Administrative distance is declared in one place, `rib { distance { ... } }`. The `bgp { admin-distance }` container is deleted.
+- FlowSpec prefix keywords name their family: `destination-ipv4`, `destination-ipv6`, `source-ipv4`, `source-ipv6`. The bare `destination` and `source` are gone.
+
+## 🏠 Subscribers and tunnels
+
+Fixed:
+
+- Router advertisements on the PPPoE and L2TP path left without Hop Limit 255, so every conforming subscriber discarded them. IPv6 address autoconfiguration did not work at all, and nothing on Ze's side looked wrong.
+- `l2tp { shaper { upload-rate } }` was accepted, stored and reported, and never enforced. Only the download direction was ever shaped. An ingress policer on the subscriber interface enforces it now.
+- IPsec transport mode behind a NAT was refused in both roles. `show vpn ipsec sa` reports `behind-nat`, `peer-behind-nat`, `original-tsi` and `original-tsr` so the substitution is visible (RFC 7296 Section 2.23.1).
+- An IPsec child rekey reused the old key material even though `esp-group pfs` defaults to enabled.
+- GRE, GRETAP, IPIP and SIT tunnels defaulted their outer TTL to inherit, which black-holed traffic whenever the underlay was more than one hop. The `ttl` leaf now defaults to 64, and `ttl 0` still means inherit.
+
+## 🔁 ExaBGP compatibility
+
+New:
+
+- The bridge is checked against ExaBGP's own tests. All 40 of the upstream `qa/api` scripts now run against Ze, and 34 of them pass, alongside 42 of 42 encoding cases. None of them ran at all before.
+- `encoder text;` gives a script line-based output instead of JSON, and `feed <peer> { event [ ... ]; }` limits a script to the peers and event kinds it asked for. Every script previously saw every peer.
+- Non-route commands are answered rather than stopping the script dead: `clear adj-rib`, `flush adj-rib`, `announce watchdog`, `withdraw watchdog`, `shutdown`, `enable-ack`, `disable-ack` and `silence-ack`.
+- `ze exabgp migrate` converts the rest of a neighbor when one capability word does not carry over, and names the word on stderr. It refused the whole neighbor before.
+
+Fixed:
+
+- Only the first `process` block ever started a script, and a script was answered `done` only for its first command, so a real script hung after one line.
+- A line with no `neighbor <ip>` in front of it, which is the form most scripts use, was passed through unread and died at Ze's own command line. It reaches every peer now.
+- An announce carrying an attribute Ze could not encode went on the wire without it while the script was told it succeeded. It is refused by name now, and `atomic-aggregate`, `aggregator`, `originator-id`, `cluster-list` and `aigp` are carried.
+
+## 🖥️ CLI
+
+New:
+
+- Every form that puts a message on the wire answers at one path: `send bgp <selector> unicast`, `blackhole`, `flowspec`, `withdraw`, `raw` and `update`. `send` is the verb, and `send bgp *` reaches every peer.
+- Tab on an ambiguous command shows each candidate with its one-line summary, and Tab with nothing left to type shows the full explanation. `?` on a configuration key does the same for that key.
+
+## 📚 Standards programme
+
+Ze is being checked against every RFC it implements, one MUST at a time. The work continues.
+
+Of 5,443 requirements, 3,579 are MUST-level and 3,303 are checked. That is 327 more MUSTs checked than last week. 313 still owe a test, against 68 last week, and 57 of the 182 documents have been read end to end, against 6.
+
+The owing number rose because a document read end to end writes down every obligation in it, including the ones nothing tests yet. The list gained 508 MUSTs this week, faster than the fixing closed them.
+
+Every one of those documents now has a page on the site. It names each requirement, the test that proves it, the recorded verdict and its age, and every gap, one line per requirement rather than folded into a count: https://ze-software.net/quality/rfc-compliance/
+
+## 🔭 Coming up
+
+45 pieces of work were finished and closed this week, and 217 were opened. About thirty of the new ones are one per configuration leaf that Ze accepts today and that reaches no behavior.
+
+Reading continues, and the 125 documents not yet read end to end are the queue. Closing what the reading found comes first, then the 313 MUSTs owing a test. SHOULD-level work waits behind all of it.

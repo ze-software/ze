@@ -93,7 +93,7 @@ bgp {
 | `route-monitoring-policy` | all | `pre-policy` (Adj-RIB-In), `post-policy` (Adj-RIB-Out, RFC 8671), or `all` |
 | `route-mirroring` | false | Stream verbatim copies of every BGP message as Route Mirroring (RFC 7854 Section 4.7) |
 | `loc-rib` | false | Stream local RIB best-path changes as Loc-RIB Route Monitoring (RFC 9069, Peer Type 3) |
-| `statistics-timeout` | 0 | Seconds between statistics reports. Read by nothing today: the sender has no statistics timer |
+| `statistics-timeout` | 0 | Seconds between Statistics Reports (RFC 7854 Section 4.8). 0 sends none |
 
 The sender reconnects automatically with exponential backoff (30s to 720s)
 per RFC 7854 recommendations.
@@ -119,7 +119,7 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 | Peer Up (3) | Tracks monitored peer | Sends on BGP Established |
 | Peer Down (2) | Marks peer down | Sends on BGP session close |
 | Route Monitoring (0) | Decodes inner BGP UPDATE | Wraps received UPDATEs |
-| Statistics Report (1) | Stores per-peer counters | Encoder only, with the O flag cleared (RFC 8671 Section 6.2); no timer sends one yet |
+| Statistics Report (1) | Stores per-peer counters | Sends one per established peer every `statistics-timeout` seconds, with the O flag cleared (RFC 8671 Section 6.2) |
 | Route Mirroring (6) | Logs raw BGP PDUs | Wraps every BGP PDU when `route-mirroring` is on |
 
 ### Receiver Behavior
@@ -140,6 +140,14 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 - With `route-mirroring true`, wraps every BGP message (OPEN, UPDATE, NOTIFICATION,
   KEEPALIVE, ROUTE-REFRESH, both directions) as Route Mirroring (RFC 7854 Section 4.7).
   The O flag follows the direction, as it does for Route Monitoring
+- With `statistics-timeout` set to a nonzero number of seconds, sends one
+  Statistics Report per established BGP peer, to every collector, at that
+  interval. Each report carries RFC 7854 Section 4.8 Stat Type 13, "Number of
+  duplicate update messages received", as a 4-byte counter. That is the one
+  statistic ze measures: an UPDATE body a peer sends twice is counted once, and
+  a body ze advertised is not counted at all. The counter resets when the BGP
+  peer goes down or when a configuration change bounces it, because either one
+  makes it a new peer to the collector
 - Clears the O flag on a Statistics Report, which RFC 8671 Section 6.2 requires
   because the report belongs to neither RIB
 - Route-monitoring-policy controls which direction(s) are streamed
@@ -154,6 +162,14 @@ Ze handles all 7 BMP message types defined in RFC 7854:
   capabilities to represent the Loc-RIB Route Monitoring messages." Ze
   advertises the 4-octet ASN capability and one address-family capability per
   family the dump delivers, and nothing else
+- Reads that ASN and that router-id from `bgp session asn local` and `bgp
+  router-id`, and from nowhere else. Both leaves are required, so a configured
+  ze always knows its own identity, and it knows it before any BGP peer comes
+  up. That is the case RFC 9069 Section 1.1 exists to serve, a Loc-RIB monitored
+  where there are "no preexisting BGP peers": a router that read its identity
+  off an established session would have none to read. Ze sends no Loc-RIB
+  message at all while the identity is unknown, and logs why, rather than
+  sending a Peer AS of 0 from router 0.0.0.0
 - Names that Loc-RIB `global` in a VRF/Table Name Information TLV (type 3) on
   the Peer Up, and repeats the TLV after reason code 6 on the Peer Down. RFC
   9069 Section 5.2.1: "The default value of "global" MUST be used for the
@@ -188,11 +204,20 @@ session carries, and only a move in one of them bounces the peers:
 | `route-monitoring-policy` | decides which direction is streamed |
 | `route-mirroring` | decides whether verbatim BGP messages are streamed |
 | `loc-rib` | decides whether the Loc-RIB feed is streamed |
-| `statistics-timeout` | configures the Statistics Report interval |
+| `statistics-timeout` | decides whether a periodic Statistics Report is sent, and how often |
 
 A commit that changes anything else under `bgp`, a new neighbor for example,
 leaves every collector session untouched. So does a commit that changes nothing
 under `bgp`.
+
+The router's own identity is the one exception, and it bounces the Loc-RIB
+emulated peer alone. A commit that moves `bgp router-id` or `bgp session asn
+local` while `loc-rib` is on sends that peer a Peer Down with reason 6 under the
+OLD identity, then a Peer Up under the new one. RFC 9069 Section 6.1.1 has the
+collector identify the Loc-RIB "by the peer header distinguisher and BGP ID", so
+a new BGP ID is a new peer to it and Section 6.1.3 owes it the bounce. The
+monitored BGP peers are not bounced: their per-peer headers carry their own
+addresses and AS numbers, which the router's identity does not appear in.
 
 The collector list is separate, because changing it changes which sessions exist
 rather than what one of them carries. A collector you remove, or point at another
@@ -208,8 +233,15 @@ Peer Up per peer on each collector, rather than a full re-dump of the table.
 <!-- source: internal/component/bgp/plugins/bmp/bmp_events.go -- bounceMonitoredPeers -->
 <!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- the four sender behavior leaves -->
 
-Ze sends no periodic Statistics Report yet, so `statistics-timeout` bounces the
-peers but changes nothing else (`plan/journal/unwired-feature.md`, 2026-08-31).
+A move in `statistics-timeout` also replaces the report timer: exactly one
+report stream is live per configuration, so a collector never reads two streams
+at two intervals. Setting it to 0 stops the reports and leaves the session up.
+
+<!-- source: internal/component/bgp/plugins/bmp/statistics.go -- setStatisticsTimeout, statisticsLoop, sendStatisticsReports -->
+
+The RFC 9069 Loc-RIB emulated peer gets no Statistics Report. RFC 9069
+Section 5.6 names the two stat types relevant to a Loc-RIB, 8 and 10, and both
+count routes in the Loc-RIB itself, which the BMP plugin does not hold.
 
 #### Every Connection Is a Fresh BMP Session
 

@@ -52,7 +52,10 @@ tunnels with bandwidth reservation. It runs directly over IP as protocol 46 and
 requires <code>CAP_NET_RAW</code>.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
-<li><a href="#configuration">Configuration</a></li>
+<li><a href="#configuration">Configuration</a>
+<ol>
+<li><a href="#what-a-commit-changes">What a commit changes</a></li>
+</ol></li>
 <li><a href="#how-signaling-works">How signaling works</a></li>
 <li><a href="#fast-reroute-rfc-4090">Fast Reroute (RFC 4090)</a></li>
 <li><a href="#inspecting-lsps">Inspecting LSPs</a></li>
@@ -68,7 +71,9 @@ pending. Use for evaluation, not production forwarding.</p>
 </blockquote>
 <h2 id="configuration">Configuration</h2>
 <pre><code>rsvp-te {
-    router-id 10.0.0.1
+    router-id          10.0.0.1
+    refresh-period     30
+    refresh-multiplier 3
 
     interface eth0 {
         max-bandwidth            10e9
@@ -103,6 +108,14 @@ pending. Use for evaluation, not production forwarding.</p>
 <ul>
 <li><code>router-id</code> -- this LSR's address; also the raw-socket source and the SESSION
 extended-tunnel-id.</li>
+<li><code>refresh-period</code> -- how often ze re-sends PATH and RESV, 1 to 65535 seconds,
+default 30. Ze advertises this value in TIME_VALUES, and a neighbor derives the
+lifetime of the state ze created from it (RFC 2205 Section 3.7).</li>
+<li><code>refresh-multiplier</code> -- how many missed refreshes expire state, 1 to 255,
+default 3. State expires when its last refresh is older than the period
+multiplied by this number, which is 90 seconds at the defaults. Expiry releases
+the reserved bandwidth, the MPLS forwarding entry and the label, then sends an
+<code>lsp-down</code> event.</li>
 <li><code>interface</code> -- per-link <code>max-bandwidth</code> / <code>max-reservable-bandwidth</code> used by
 admission control. <code>address</code> (the local link prefix, e.g. <code>10.0.0.4/30</code>) lets
 admission map an LSP to this interface when more than one is configured: the
@@ -122,6 +135,21 @@ backup. Presence of the container is what enables protection.</li>
 Repair) to a <code>merge-point</code> along an <code>explicit-route</code> that avoids the protected
 resource. ze has no IGP/CSPF, so bypass paths are explicit. <code>node-protection true</code> marks a bypass that merges at a next-next hop (for node protection).</li>
 </ul>
+<h3 id="what-a-commit-changes">What a commit changes</h3>
+<p>A <code>commit</code> applies the rsvp-te block to the running daemon. <code>refresh-period</code> and
+<code>refresh-multiplier</code> take effect on the next refresh tick, so the new cadence and
+the new expiry deadline start within one old period. An interface you remove stops
+being serviced at the commit: it leaves <code>show rsvp-te interface</code> and its
+reservation records are dropped. The LSPs that reserved bandwidth on that link
+stay up, because a withdrawn bandwidth declaration is not a teardown request
+(RFC 2205 Section 2.4). An interface removed and added back accounts from zero
+until those LSPs drain.</p>
+<p>Tunnels and bypasses reconcile the same way: an added tunnel signals, a changed
+explicit route reroutes make-before-break, and a removed tunnel is torn down.</p>
+<p><code>router-id</code> is the one leaf a commit does not change. The engine keeps the
+running value and logs a warning, because the LSP keys and the message encoders
+are built from it. Restart ze to change it.</p>
+<!-- source: internal/plugins/rsvpte/register.go -- reconcileInterfaces, refreshTick, the OnConfigApply hook -->
 <h2 id="how-signaling-works">How signaling works</h2>
 <ol>
 <li><strong>Ingress</strong> sends a PATH along the ERO toward the egress.</li>
@@ -231,7 +259,7 @@ is available / in use.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

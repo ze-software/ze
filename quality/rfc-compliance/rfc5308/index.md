@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 100.0% | 7 of 7 binding obligations | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 7 binding obligations | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 7 binding obligations | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 7 binding obligations | no test carries the requirement id, whether or not a gap states why |
+| Tested both ways | 100.0% | 7 of 7 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 7 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 7 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| No test at all | 0.0% | 0 of 7 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Proven by a recorded break | 0.0% | 0 of 18 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -23,9 +23,12 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 7 | of 8 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 7 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below |
+| Out of scope | 0 | of 7 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 7 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 7 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 7 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 4 shares marked as a part above are the whole of the 7 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -37,6 +40,9 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
@@ -48,7 +54,6 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Enrolled |
 | Requirements | 8 |
 | Gated MUST-level | 7 |
-| Obligations that bind Ze | 7 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Gated with no test | 0 |
@@ -96,11 +101,11 @@ Same IS-IS experimental status.
 |---|---|---|---|---|
 | `RFC5308-2-1` | Advertise link-local prefixes in TLV 236 (Section 2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestISISOriginateTLV236`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L65). **negative:** `unit/verify` [`TestISISOriginateTLV236`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L66) |
 | `RFC5308-2-2` | Consider a TLV 236 prefix with metric above MAX_V6_PATH_METRIC (0xFE000000) in normal SPF (Section 2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestISISIPv6MetricAboveMaxIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/ipv6_test.go#L207). **negative:** `unit/verify` [`TestISISIPv6MetricAboveMaxIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/ipv6_test.go#L206) |
-| `RFC5308-3-1` | Carry only link-local IPv6 addresses in TLV 232 in Hellos (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISIIHTLV232LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L29). **negative:** `unit/verify` [`TestISISIIHTLV232OmittedNoLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L102). **negative:** `unit/verify` [`TestISISIIHTLV232RejectsNonLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L129) |
+| `RFC5308-3-1` | Carry only link-local IPv6 addresses in TLV 232 in Hellos (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISIIHTLV232LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L30). **negative:** `unit/verify` [`TestISISIIHTLV232OmittedNoLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L103). **negative:** `unit/verify` [`TestISISIIHTLV232RejectsNonLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L130) |
 | `RFC5308-3-2` | Carry only non-link-local IPv6 addresses in TLV 232 in LSPs (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISOriginateTLV232Scope`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L110). **negative:** `unit/verify` [`TestISISOriginateTLV232Scope`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L111) |
-| `RFC5308-4-1` | Advertise the IPv6 NLPID (142, 0x8E) in the NLPID TLV when supporting IPv6 (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestISISIIHTLV232LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L30). **positive:** `unit/verify` [`TestISISProtocolsSupportedDualStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L148). **negative:** `unit/verify` [`TestISISIIHNoTLV232WhenIPv4Only`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L77). **negative:** `unit/verify` [`TestISISProtocolsSupportedDualStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L149) |
+| `RFC5308-4-1` | Advertise the IPv6 NLPID (142, 0x8E) in the NLPID TLV when supporting IPv6 (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestISISIIHTLV232LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L31). **positive:** `unit/verify` [`TestISISProtocolsSupportedDualStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L148). **negative:** `unit/verify` [`TestISISIIHNoTLV232WhenIPv4Only`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L78). **negative:** `unit/verify` [`TestISISProtocolsSupportedDualStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L149) |
 | `RFC5308-5-1` | Apply the up/down-aware path preference order (Level 1 up, Level 2 up, Level 2 down, Level 1 down) (Section 5) | MUST | 5 | **positive:** `unit/verify` [`TestISISIPv6LevelArbitration`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/ipv6_test.go#L91). **positive:** `unit/verify` [`TestISISLeakUpDownBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_test.go#L46). **negative:** `unit/verify` [`TestISISLeakUpDownBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_test.go#L47) |
-| `RFC5308-5-2` | Clamp an SPF path metric that would exceed MAX_V6_PATH_METRIC to MAX_V6_PATH_METRIC (Section 5) | SHALL | 5 | **positive:** `unit/verify` [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L248). **negative:** `unit/verify` [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L249) |
+| `RFC5308-5-2` | Clamp an SPF path metric that would exceed MAX_V6_PATH_METRIC to MAX_V6_PATH_METRIC (Section 5) | SHALL | 5 | **positive:** `unit/verify` [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L250). **negative:** `unit/verify` [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L251) |
 | `RFC5308-5-3` | Consider equal-best paths for equal-cost multi-path routing where supported (Section 5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
@@ -141,9 +146,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISIIHTLV232OmittedNoLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L102) | unit/verify | unproven |
-| negative | [`TestISISIIHTLV232RejectsNonLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L129) | unit/verify | unproven |
-| positive | [`TestISISIIHTLV232LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L29) | unit/verify | unproven |
+| negative | [`TestISISIIHTLV232OmittedNoLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L103) | unit/verify | unproven |
+| negative | [`TestISISIIHTLV232RejectsNonLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L130) | unit/verify | unproven |
+| positive | [`TestISISIIHTLV232LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L30) | unit/verify | unproven |
 
 ### [`RFC5308-3-2`](#rfc5308-3-2)
 
@@ -164,9 +169,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISIIHNoTLV232WhenIPv4Only`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L77) | unit/verify | unproven |
+| negative | [`TestISISIIHNoTLV232WhenIPv4Only`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L78) | unit/verify | unproven |
 | negative | [`TestISISProtocolsSupportedDualStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L149) | unit/verify | unproven |
-| positive | [`TestISISIIHTLV232LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L30) | unit/verify | unproven |
+| positive | [`TestISISIIHTLV232LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L31) | unit/verify | unproven |
 | positive | [`TestISISProtocolsSupportedDualStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L148) | unit/verify | unproven |
 
 ### [`RFC5308-5-1`](#rfc5308-5-1)
@@ -189,8 +194,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L249) | unit/verify | unproven |
-| positive | [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L248) | unit/verify | unproven |
+| negative | [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L251) | unit/verify | unproven |
+| positive | [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L250) | unit/verify | unproven |
 
 ## Extraction sign-off
 

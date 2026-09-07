@@ -75,6 +75,8 @@
 .rfc-tape-both_polarities { background: var(--teal-chip); }
 .rfc-tape-single_polarity { background: var(--sky-chip); }
 .rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -113,23 +115,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>28.0%</strong><b>7 of 25 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>32.0%</strong><b>8 of 25 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 25 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 29 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>28.0%</strong><b>7 of 25 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>32.0%</strong><b>8 of 25 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>22.9%</strong><b>8 of 35 tagged units, 0 escaped and 4 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>25</strong><b>of 44 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 25 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 25 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>40.0%</strong><b>10 of 25 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>40.0%</strong><b>10 of 25 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 4 shares marked as a part above are the whole of the 25 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 25 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -159,6 +164,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
 </tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -190,9 +207,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Gated MUST-level</td>
 <td>25</td>
 </tr>
-<tr><td>Obligations that bind Ze</td>
-<td>25</td>
-</tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
 </tr>
@@ -206,16 +220,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>29</td>
+<td>35</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>29</td>
+<td>35</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>12</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8669.md</code></td>
@@ -238,7 +252,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
 <ul class="rfc-prose">
 <li>Attribute code 40 is registered as optional transitive (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/attribute.go" target="_blank" rel="noopener"><code>internal/core/bgp/attribute/attribute.go</code></a>) and carried end to end: the Label-Index TLV (type 1) and the Originator SRGB TLV (type 3) are encoded from route configuration with their Reserved and Flags octets cleared (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_prefixsid.go" target="_blank" rel="noopener"><code>internal/component/bgp/config/routeattr_prefixsid.go</code></a>,:129) and attached to labeled-unicast and VPN UPDATEs (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_labeled.go" target="_blank" rel="noopener"><code>internal/component/bgp/message/update_build_labeled.go</code></a>)</li>
-<li>on reception every TLV is bounds-checked with Section 6 attribute-discard for an overrunning TLV length or trailing bytes (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606.go" target="_blank" rel="noopener"><code>internal/component/bgp/message/rfc7606.go</code></a>), a duplicate attribute is discarded unexamined in favor of the first for PROCESSING purposes (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606.go" target="_blank" rel="noopener"><code>internal/component/bgp/message/rfc7606.go</code></a>), a duplicate recognized Service TLV never displaces the first (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/rib/pool/srv6sid.go</code></a>), the Section 4 EBGP boundary discards the attribute unless the peer is configured to accept it (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/session_validation.go</code></a>), the Section 8 boundary removes it on egress from every UPDATE sent to an EBGP peer the operator has not configured for propagation, on both forward rails and on the origination rails (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_prefix_sid.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/forward_prefix_sid.go</code></a>), unknown TLVs and the Reserved/Flags fields are ignored and left byte-identical for propagation, and the label carried in a received labeled-unicast NLRI is the outbound label programmed toward the next hop (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/labeled.go" target="_blank" rel="noopener"><code>internal/core/bgp/nlri/nlrisplit/labeled.go</code></a> to <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/nexthop_linux.go" target="_blank" rel="noopener"><code>internal/plugins/fib/kernel/nexthop_linux.go</code></a>). Requirements bound per line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc8669.md" target="_blank" rel="noopener"><code>rfc/short/rfc8669.md</code></a>.</li>
+<li>on reception every TLV is bounds-checked with Section 6 attribute-discard for an overrunning TLV length or trailing bytes (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606.go" target="_blank" rel="noopener"><code>internal/component/bgp/message/rfc7606.go</code></a>), a duplicate attribute is discarded unexamined in favor of the first for PROCESSING purposes (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606.go" target="_blank" rel="noopener"><code>internal/component/bgp/message/rfc7606.go</code></a>), a duplicate recognized Service TLV never displaces the first (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/rib/pool/srv6sid.go</code></a>), the Section 4 EBGP boundary discards the attribute unless the peer is configured to accept it (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/session_validation.go</code></a>), the Section 8 boundary removes it on egress toward an EBGP peer the operator has not configured for propagation, on every rail that writes an UPDATE: the two forward rails, the two origination rails and the API/readvertise announce rail all ask prefixSIDAllowedTo (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_prefix_sid.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/forward_prefix_sid.go</code></a>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_batch.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/reactor_api_batch.go</code></a>), unknown TLVs and the Reserved/Flags fields are ignored and left byte-identical for propagation, and the label carried in a received labeled-unicast NLRI is the outbound label programmed toward the next hop (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/labeled.go" target="_blank" rel="noopener"><code>internal/core/bgp/nlri/nlrisplit/labeled.go</code></a> to <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/nexthop_linux.go" target="_blank" rel="noopener"><code>internal/plugins/fib/kernel/nexthop_linux.go</code></a>). Requirements bound per line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc8669.md" target="_blank" rel="noopener"><code>rfc/short/rfc8669.md</code></a>.</li>
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
@@ -315,7 +329,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8669-3.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L26" title="internal/component/bgp/config/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L30" title="internal/component/bgp/config/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ParsePrefixSID hardcodes the Reserved octet to 0 on encode and no code path emits a non-zero value, so there is no negative input to reject (internal/component/bgp/config/routeattr_prefixsid.go:68)</p></td>
 </tr>
@@ -333,7 +347,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8669-3.1-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L27" title="internal/component/bgp/config/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L31" title="internal/component/bgp/config/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ParsePrefixSID hardcodes the Flags field to 0 on encode with no non-zero path to reject (internal/component/bgp/config/routeattr_prefixsid.go:69)</p></td>
 </tr>
@@ -351,7 +365,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8669-3.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L51" title="internal/component/bgp/config/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L55" title="internal/component/bgp/config/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> parsePrefixSIDWithSRGB hardcodes both Flags octets to 0 on encode with no non-zero path to reject (internal/component/bgp/config/routeattr_prefixsid.go:133)</p></td>
 </tr>
@@ -479,11 +493,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8669-8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go#L49" title="internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go" target="_blank" rel="noopener"><code>TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_prefix_sid_test.go#L155" title="internal/component/bgp/reactor/forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDEgressBoundary</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_prefix_sid_test.go#L283" title="internal/component/bgp/reactor/forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDOriginationBoundary</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_prefix_sid_readvertise_rail_test.go#L141" title="internal/component/bgp/reactor/forward_prefix_sid_readvertise_rail_test.go" target="_blank" rel="noopener"><code>TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go#L46" title="internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go" target="_blank" rel="noopener"><code>TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_prefix_sid_test.go#L156" title="internal/component/bgp/reactor/forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDEgressBoundary</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_prefix_sid_test.go#L284" title="internal/component/bgp/reactor/forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDOriginationBoundary</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_prefix_sid_readvertise_rail_test.go#L138" title="internal/component/bgp/reactor/forward_prefix_sid_readvertise_rail_test.go" target="_blank" rel="noopener"><code>TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-announce-rail-boundary.ci#L7" title="test/plugin/prefixsid-announce-rail-boundary.ci" target="_blank" rel="noopener"><code>prefixsid-announce-rail-boundary.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-ebgp-egress-boundary.ci#L7" title="test/plugin/prefixsid-ebgp-egress-boundary.ci" target="_blank" rel="noopener"><code>prefixsid-ebgp-egress-boundary.ci</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-announce-rail-boundary.ci#L4" title="test/plugin/prefixsid-announce-rail-boundary.ci" target="_blank" rel="noopener"><code>prefixsid-announce-rail-boundary.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-ebgp-egress-boundary.ci#L4" title="test/plugin/prefixsid-ebgp-egress-boundary.ci" target="_blank" rel="noopener"><code>prefixsid-ebgp-egress-boundary.ci</code></a></span></div>
 </div></td>
 </tr>
@@ -783,7 +803,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L26" title="internal/component/bgp/config/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L30" title="internal/component/bgp/config/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -818,7 +838,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L27" title="internal/component/bgp/config/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L31" title="internal/component/bgp/config/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -853,7 +873,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L51" title="internal/component/bgp/config/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L55" title="internal/component/bgp/config/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -995,34 +1015,64 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go#L46" title="internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go" target="_blank" rel="noopener"><code>TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain</code></a></td>
+<td>unit/verify</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_prefix_sid_readvertise_rail_test.go#L138" title="internal/component/bgp/reactor/forward_prefix_sid_readvertise_rail_test.go" target="_blank" rel="noopener"><code>TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain</code></a></td>
+<td>unit/verify</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_prefix_sid_test.go#L156" title="internal/component/bgp/reactor/forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDEgressBoundary</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_prefix_sid_test.go#L284" title="internal/component/bgp/reactor/forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDOriginationBoundary</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-announce-rail-boundary.ci#L4" title="test/plugin/prefixsid-announce-rail-boundary.ci" target="_blank" rel="noopener"><code>prefixsid-announce-rail-boundary.ci</code></a></td>
+<td>functional/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-ebgp-egress-boundary.ci#L4" title="test/plugin/prefixsid-ebgp-egress-boundary.ci" target="_blank" rel="noopener"><code>prefixsid-ebgp-egress-boundary.ci</code></a></td>
 <td>functional/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go#L49" title="internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go" target="_blank" rel="noopener"><code>TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain</code></a></td>
+<td>unit/verify</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_prefix_sid_readvertise_rail_test.go#L141" title="internal/component/bgp/reactor/forward_prefix_sid_readvertise_rail_test.go" target="_blank" rel="noopener"><code>TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain</code></a></td>
+<td>unit/verify</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_prefix_sid_test.go#L155" title="internal/component/bgp/reactor/forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDEgressBoundary</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_prefix_sid_test.go#L283" title="internal/component/bgp/reactor/forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDOriginationBoundary</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-announce-rail-boundary.ci#L7" title="test/plugin/prefixsid-announce-rail-boundary.ci" target="_blank" rel="noopener"><code>prefixsid-announce-rail-boundary.ci</code></a></td>
+<td>functional/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-ebgp-egress-boundary.ci#L7" title="test/plugin/prefixsid-ebgp-egress-boundary.ci" target="_blank" rel="noopener"><code>prefixsid-ebgp-egress-boundary.ci</code></a></td>
 <td>functional/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1112,7 +1162,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

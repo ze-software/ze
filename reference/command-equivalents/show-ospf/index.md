@@ -1,6 +1,6 @@
 # `show ospf`
 
-OSPFv2 process summary: router-id, areas, ABR/ASBR status, and stub-router (max-metric) state (RFC 2328).
+Show the OSPFv2 process summary (RFC 2328).
 
 ## Ze command
 
@@ -19,6 +19,8 @@ OSPFv2 process summary: router-id, areas, ABR/ASBR status, and stub-router (max-
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
+
+Returns the router-id, the areas, the ABR and ASBR status, and the stub-router (max-metric) state.
 
 ## Arguments
 

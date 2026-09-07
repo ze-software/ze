@@ -76,7 +76,7 @@ The route enters Ze's BGP RIB, wins best-path selection, reaches the protocol-in
 Human-readable format with flat attribute declarations:
 
 ```bash
-ze cli -c "peer upstream1 update text \
+ze cli -c "send bgp upstream1 update text \
     origin igp \
     nhop 192.168.1.1 \
     local-preference 200 \
@@ -141,7 +141,7 @@ in `update text` and in config alike, from one keyword table both parsers read.
 | `redirect-to-nexthop-draft` | type 0x08, subtype 0x00, value 0 | Redirect to next hop, pre-IETF draft |
 
 ```bash
-ze cli -c "peer upstream update text \
+ze cli -c "send bgp upstream update text \
     origin igp nhop self \
     extended-community [ discard ] \
     nlri ipv4/flow add <flowspec-nlri>"
@@ -185,6 +185,37 @@ The same question is asked of a relayed route, where the address arrives as the
 third-party next hop Section 5.1.3 case 2 permits.
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- originatedNextHopIsPeerOwn, egressNextHopIsPeerOwn -->
 
+### A Withdrawal Needs a Session That Advertised Something
+
+RFC 4271 Section 4.3 identifies a withdrawn route "in the context of the BGP
+speaker - BGP speaker connection to which it has been previously advertised", so
+a session that has advertised nothing has no route for a withdrawal to name. Ze
+writes no UPDATE to such a peer, and the command names it:
+
+```
+warning: withdraw ipv4/unicast: withdrawal withheld: this session has advertised
+no route to the peer: ipv4/unicast, peers 192.0.2.10
+```
+
+The command still answers `done`. Once the session has carried one UPDATE that
+makes any destination reachable, a configured route and a relayed one included,
+every later withdrawal is written, whether or not the peer holds the route
+named.
+
+A script migrated from ExaBGP meets the same rule there, where it comes from
+`include_withdraw`.
+
+### An ExaBGP Script's Burst Nets Before the Wire
+
+An ExaBGP API script that writes several commands in ONE write reads back the
+frames of the NET of that write, not one frame per line. ze's bridge takes the
+same unit: a withdrawal cancels an announce of the same route earlier in the
+same write, an announce cancels nothing, and the withdrawals of a write leave
+before its announces.
+
+Two commands written in two separate writes never cancel each other, whatever
+the interval between them. See `docs/architecture/exabgp-bridge.md`.
+
 ### NLRI Operations
 
 `add` and `del` are NLRI operations (MP_REACH and MP_UNREACH):
@@ -207,7 +238,7 @@ nlri ipv6/unicast add 2001:db8::/32
 Wire-encoded bytes for debugging or replay:
 
 ```bash
-ze cli -c "peer upstream1 update hex \
+ze cli -c "send bgp upstream1 update hex \
     attr set 40010100400200400304c0a80101 \
     nhop set c0a80101 \
     nlri ipv4/unicast add 180a0000"
@@ -218,7 +249,7 @@ ze cli -c "peer upstream1 update hex \
 Compact encoding for scripts:
 
 ```bash
-ze cli -c "peer upstream1 update b64 \
+ze cli -c "send bgp upstream1 update b64 \
     attr set QAEBAAQDAsCoBQE= \
     nlri ipv4/unicast add GAoAAA=="
 ```
@@ -239,13 +270,28 @@ Routes are sent to peers matching the selector:
 
 ## Commit Workflow
 
-For atomic multi-route updates:
+A named commit collects WITHDRAWALS and sends them together:
 
 ```bash
 ze cli -c "request commit start my-batch"
-ze cli -c "peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24"
-ze cli -c "peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.1.0/24"
-ze cli -c "request commit end my-batch"    # All routes sent together
+ze cli -c "request commit withdraw my-batch route 10.0.0.0/24"
+ze cli -c "request commit withdraw my-batch route 10.0.1.0/24"
+ze cli -c "request commit end my-batch"    # Both withdrawals sent together
+```
+
+A named commit cannot collect an ANNOUNCEMENT. Nothing queues one:
+`(*Transaction).QueueAnnounce` has no non-test caller, so a `send bgp ... update
+text ... add` between `commit start` and `commit end` announces immediately and
+does not join the commit. This page showed that workflow until 2026-09-05
+(`plan/journal/unwired-feature.md`).
+
+`end` and `eor` answer one row per matched peer, under `peers`, stating what
+that peer took. A peer that took less than the commit queued carries a `reasons`
+entry saying why, and makes the command answer `error` naming it, because this
+rail drops the work for a peer whose session is not established:
+
+```bash
+ze cli -c "request commit end my-batch | table"
 ```
 <!-- source: internal/component/bgp/plugins/cmd/commit/ -- commit command RPCs; internal/component/bgp/transaction/ -- commit manager -->
 

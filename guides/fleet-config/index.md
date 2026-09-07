@@ -90,13 +90,21 @@ plugin {
 
 ## Config Management
 
-On the hub, manage client configurations through the config editor:
+On the hub, manage client configurations through the config editor. Stop the hub daemon
+first. Each of these commands opens the blob store in its own process. A running hub
+answers every read from the tree it loaded at startup. An edit made behind it therefore
+changes nothing the hub serves.
 
 ```bash
-ze config edit edge-01.conf         # Edit config for edge-01
-ze config archive backup edge-01.conf  # Archive to named destination
-ze config history edge-01.conf      # View rollback history
+ze config edit client-edge-01.conf         # Edit config for edge-01
+ze config archive backup client-edge-01.conf  # Archive to named destination
+ze config history client-edge-01.conf      # View rollback history
 ```
+
+The blob key for a client carries a `client-` prefix. That prefix keeps a client's config
+from colliding with the hub's own config file.
+
+<!-- source: internal/component/plugin/server/managed_serve.go -- ClientConfigKey -->
 <!-- source: internal/component/config/cli/cmd_edit.go -- config edit command -->
 <!-- source: internal/component/config/cli/cmd_history.go -- config history command -->
 <!-- source: internal/component/config/cli/cmd_archive.go -- config archive command -->

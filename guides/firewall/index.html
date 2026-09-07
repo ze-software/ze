@@ -83,6 +83,16 @@ the nft backend lowers them to nftables kernel expressions.</p>
 <li><a href="#irr-policy">IRR Policy</a></li>
 <li><a href="#per-interface-source-validation">Per-Interface Source Validation</a></li>
 </ol></li>
+<li><a href="#dns-sourced-address-groups">DNS-Sourced Address Groups</a>
+<ol>
+<li><a href="#operator-workflow_1">Operator Workflow</a></li>
+<li><a href="#config-leaves_1">Config Leaves</a></li>
+<li><a href="#refresh-schedule">Refresh Schedule</a></li>
+<li><a href="#what-a-failed-lookup-does">What a Failed Lookup Does</a></li>
+<li><a href="#the-change-log">The Change Log</a></li>
+<li><a href="#restart-and-recovery">Restart and Recovery</a></li>
+<li><a href="#observability">Observability</a></li>
+</ol></li>
 <li><a href="#cli">CLI</a></li>
 <li><a href="#lifecycle">Lifecycle</a></li>
 </ol></nav>
@@ -782,6 +792,10 @@ preserve the last-good cache, log the reason, and count under the
 <code>ze_firewall_irr_refresh_outcomes_total</code> labels <code>error</code> and <code>empty</code>. An empty
 answer never replaces a cached prefix list, because a filter built from an empty
 list drops everything the operator wrote it to accept.</p>
+<p>A scheduled refresh that panics is caught, so it costs that tick rather than the
+plugin process, and counts under the same metric's <code>panic</code> label. Alert on it:
+<code>error</code> and <code>empty</code> report an upstream condition, <code>panic</code> reports a defect in
+ze, and the cached prefixes stay in force until it is fixed.</p>
 <p><code>show firewall irr</code> reports each entry as <code>ok</code>, <code>stale</code>, or <code>missing</code>, and gives
 <code>data-age-seconds</code> for cached entries and <code>stale-since</code> for stale ones.
 <code>ze doctor</code> reports the same condition with two codes:</p>
@@ -830,6 +844,178 @@ stays and the drop term does not become the only rule for that family.</p>
 <p>Same fail-closed semantics apply: config commit rejects if any bound AS-SET
 has no cached prefix data. Removing an interface binding removes its filter
 on the next apply.</p>
+<h2 id="dns-sourced-address-groups">DNS-Sourced Address Groups</h2>
+<!-- source: internal/component/firewall/plugins/domain/domain.go -- firewall-domain plugin entry point -->
+<p>A domain group holds one or more DNS names, and its nftables set holds the
+addresses those names resolve to. The <code>firewall-domain</code> plugin asks the daemon's
+resolver for each name, programs the answers, and asks again when that answer
+expires. An operator who wants to permit or deny a service that publishes its
+addresses in DNS writes the name once instead of transcribing addresses and
+re-transcribing them each time they move.</p>
+<p>A permit rule keyed on a DNS name trusts whoever controls that name. Ze caps
+what one name may contribute at 64 addresses per family and honors the hub's
+DNSSEC setting, and it does not otherwise constrain what a name resolves to.
+That is an operator decision, and <code>dnssecDecision</code> does no signature validation
+of its own: it sets the EDNS0 DO bit and trusts an upstream validating resolver.</p>
+<h3 id="operator-workflow_1">Operator Workflow</h3>
+<ol>
+<li>Resolve the group: <code>update firewall domain-group cdn</code></li>
+<li>Inspect what it holds: <code>show firewall domain-group cdn</code></li>
+<li>Commit a term whose from-block names the group:</li>
+</ol>
+<pre><code>firewall {
+    backend nft;
+    domain-group cdn {
+        domain-names [ api.example.com cdn.example.com ];
+        ttl-floor 300;
+    }
+    table wan {
+        family inet;
+        chain input {
+            type filter;
+            hook input;
+            priority 0;
+            policy drop;
+            term from-cdn {
+                from {
+                    source-domain-group cdn;
+                }
+                then {
+                    accept;
+                }
+            }
+        }
+    }
+}
+</code></pre>
+<p>Resolve the group first. The commit is refused while its names have never
+resolved, and the refusal names the group and the command that resolves it. A
+term reaches the kernel as two rules, one for the IPv4 addresses and one for the
+IPv6 addresses, so the table family must be <code>inet</code>.</p>
+<p>The sets belong to the <code>firewall-domain</code> plugin, not to the table that names
+them, so the same hold-back behavior the IRR section describes applies here.</p>
+<h3 id="config-leaves_1">Config Leaves</h3>
+<table>
+<thead>
+<tr>
+<th>Leaf</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>domain-group &lt;name&gt;</code></td>
+<td>list</td>
+<td>An address group whose members are what its DNS names resolve to</td>
+</tr>
+<tr>
+<td><code>domain-names</code></td>
+<td>leaf-list of string (1-255)</td>
+<td>The DNS names whose addresses fill the group</td>
+</tr>
+<tr>
+<td><code>ttl-floor</code></td>
+<td>uint32 (1-86400), units seconds</td>
+<td>Shortest interval Ze waits before resolving a name again. Default 60</td>
+</tr>
+<tr>
+<td><code>source-domain-group</code></td>
+<td>string (1-64)</td>
+<td>Match source address against the group's addresses</td>
+</tr>
+<tr>
+<td><code>destination-domain-group</code></td>
+<td>string (1-64)</td>
+<td>Match destination address against the group's addresses</td>
+</tr>
+</tbody>
+</table>
+<h3 id="refresh-schedule">Refresh Schedule</h3>
+<p>Each name is re-resolved on its OWN answer TTL, and each family keeps its own
+schedule: a name with an A record at 60 seconds and an AAAA record at an hour is
+asked for on both clocks, and a change in one family does not reprogram the
+other. <code>ttl-floor</code> is the shortest Ze will wait whatever the answer says. A TTL
+of 0 means "do not cache" rather than "expired now", so it waits the floor too
+and does not spin.</p>
+<p>The set is reprogrammed only when the addresses actually CHANGED. A name that
+keeps answering the same addresses costs one query and nothing else, so a
+60-second TTL does not rewrite the kernel's sets 1440 times a day.</p>
+<h3 id="what-a-failed-lookup-does">What a Failed Lookup Does</h3>
+<p>The response code decides, and the four outcomes are different:</p>
+<table>
+<thead>
+<tr>
+<th>The answer</th>
+<th>What Ze does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NOERROR</td>
+<td>The addresses are what the group holds. An empty answer is an empty set for that family</td>
+</tr>
+<tr>
+<td>NXDOMAIN</td>
+<td>The name is gone. Its addresses are emptied and the change is recorded</td>
+</tr>
+<tr>
+<td>SERVFAIL, REFUSED, any other code</td>
+<td>The server could not answer. The last good addresses stay</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td>The query never reached a server. The last good addresses stay</td>
+</tr>
+</tbody>
+</table>
+<p>Only NXDOMAIN empties a set, because only NXDOMAIN says something about the
+NAME. Emptying on a SERVFAIL would enforce a DNS outage: for a permit rule that
+blocks every source the rule was written to allow.</p>
+<p>Addresses are removed on purpose with <code>clear firewall domain-group &lt;name&gt;</code>,
+which drops them from memory and from zefs and re-applies the tables. Use it
+when a name is gone upstream for good.</p>
+<h3 id="the-change-log">The Change Log</h3>
+<p>Every change in what a name resolves to is appended to
+<code>&lt;config-dir&gt;/firewall-domain-group.dns.jsonl</code>, one JSON object per line,
+carrying the group, the name, the family, the addresses before, the addresses
+after, and the time. It answers "what did this name point at last week".</p>
+<p>Only a CHANGE is recorded. A refresh that confirmed the same addresses writes
+nothing. The log keeps its most recent 10000 records and drops the oldest past
+that, so a name whose addresses rotate cannot fill the disk.</p>
+<p>It is deliberately not the operator audit log (<code>&lt;config&gt;.audit.jsonl</code>). That log
+records operator actions and is bounded by how often a person acts; a rotating
+name is neither, and sharing the file would evict commit history.</p>
+<h3 id="restart-and-recovery">Restart and Recovery</h3>
+<p>Resolved addresses are kept in zefs, so a box that reboots with its upstream DNS
+unreachable programs its domain-group sets from what it learned last time and
+resumes filtering without waiting for a query. The plugin runs as its own
+process: a panic while handling an answer costs one refresh cycle rather than
+the process, and a crash starts the plugin again with the cache intact: the
+plugin declares <code>failure-policy: restart</code>, and the cache is in the shared zefs
+store rather than in the process.</p>
+<h3 id="observability">Observability</h3>
+<p><code>show firewall domain-group [&lt;name&gt;]</code> reports each group with its names, the
+addresses being enforced per family, when each last resolved, and what the last
+answer said. A family reads <code>missing</code> until it has been asked for once, which is
+a different fact from a family that answered and holds nothing.</p>
+<p><code>ze doctor</code> reports two codes:</p>
+<ul>
+<li><code>doctor-firewall-domain-group-no-data</code>: a referenced group has no addresses,
+so the rules naming it filter nothing.</li>
+<li><code>doctor-firewall-domain-group-stale-data</code>: a name in a referenced group has
+not resolved for more than a day, and Ze is still enforcing the addresses it
+learned before.</li>
+</ul>
+<p>Run <code>ze explain &lt;code&gt;</code> for the full description. Four metrics carry the same
+state: <code>ze_firewall_domain_group_addresses_cached</code>,
+<code>ze_firewall_domain_group_refresh_outcomes_total</code> (labels <code>unchanged</code>,
+<code>changed</code>, <code>nxdomain</code>, <code>error</code>, <code>panic</code>),
+<code>ze_firewall_domain_group_last_refresh_timestamp</code>, which moves only when a
+refresh changed the addresses, and <code>ze_firewall_domain_group_data_age_seconds</code>.</p>
+<!-- source: internal/component/firewall/plugins/domain/schedule.go -- per-name, per-family TTL schedule -->
+<!-- source: internal/component/firewall/plugins/domain/changelog.go -- the bounded JSON-lines change log -->
+<!-- source: internal/component/firewall/plugins/domain/doctor.go -- checkDomainGroupData -->
 <h2 id="cli">CLI</h2>
 <table>
 <thead>
@@ -874,6 +1060,18 @@ on the next apply.</p>
 <tr>
 <td><code>clear firewall irr as-set &lt;name&gt;</code></td>
 <td>Remove an AS-SET's cached prefixes</td>
+</tr>
+<tr>
+<td><code>show firewall domain-group [&lt;name&gt;]</code></td>
+<td>Show what each domain group's DNS names resolve to</td>
+</tr>
+<tr>
+<td><code>update firewall domain-group &lt;name&gt;</code></td>
+<td>Resolve a domain group's names now and program its set</td>
+</tr>
+<tr>
+<td><code>clear firewall domain-group &lt;name&gt;</code></td>
+<td>Remove a domain group's cached addresses</td>
 </tr>
 </tbody>
 </table>
@@ -931,7 +1129,7 @@ A crash bypasses this path entirely, leaving tables in place.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

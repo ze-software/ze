@@ -73,6 +73,13 @@
 ze config edit myconfig.conf        # Edit specific file
 </code></pre>
 <p>The editor starts an ephemeral ze instance in the background for live YANG validation and completion suggestions.</p>
+<p>Three more surfaces reach the same editor against a running daemon. An SSH
+session opens in configuration mode. The web interface gives each authenticated
+user an editor of their own. The console of <code>ze start --cli</code> opens at the
+operational prompt, where <code>configure</code> enters configuration mode. A <code>commit</code> from
+any of the three reloads the daemon.</p>
+<!-- source: cmd/ze/hub/session_editor.go -- newSessionEditor, attachedConsoleEditor -->
+<!-- source: internal/component/cli/model_keys.go -- handleEnter, the configure arm -->
 <h2 id="editor-commands">Editor Commands</h2>
 <table>
 <thead>
@@ -182,8 +189,15 @@ view, the annotated view, the search results, the blame view, <code>ze config sh
 <code>ze config dump</code>, and <code>ze config diff</code>. <code>ze config diff</code> masks the COMPUTED diff,
 so a rotated credential still reports as changed and neither value is shown. The
 text output and the JSON output agree.</p>
-<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, SecretKeys -->
+<p>What a command says back is masked too. <code>ze config set</code> writes
+<code>set &lt;path&gt; /* SECRET-DATA */</code> rather than the password the operator typed, and
+so do its <code>--dry-run</code> line, the <code>set</code> status line of the SSH CLI editor, the
+adoption prompt of <code>ze config edit</code>, and both sides of a commit conflict. A
+refusal names the rule the value broke and not the value. The path stays in the
+clear, so the operator still reads which leaf was written.</p>
+<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, SecretKeys, DisplayValueAtPath, DisplayMessageAtPath -->
 <!-- source: internal/component/config/cli/cmd_diff.go -- maskDiffSecrets -->
+<!-- source: internal/component/config/cli/cmd_set.go -- cmdSetImpl -->
 <h3 id="commands-run-one-at-a-time-in-order">Commands run one at a time, in order</h3>
 <p>The config commands of one session run serially, in the order the operator
 entered them. Pasting a block of <code>set</code> lines followed by <code>commit</code> over SSH lands
@@ -352,7 +366,30 @@ leaf-list member rather than a leaf or a path.</p>
 <li>Valid config keys at the current level</li>
 <li>Enum values for leaf nodes</li>
 <li>Address family names from registered plugins</li>
+<li>The keys of a list whose key is an enumeration, including the ones the config
+does not hold yet, each with the help text the schema declares</li>
+<li>Well-known values a plugin offers for one of its own leaves, such as the
+transit-free ASNs on <code>bgp policy reject-asn ... via</code></li>
 </ul>
+<!-- source: internal/component/cli/completer.go -- valueCompletions, validateCompletions, listKeyCompletions -->
+<p><strong>A suggestion is never a constraint.</strong> A leaf that offers well-known values
+still accepts every value its YANG type admits, so an ASN outside the offered
+set is entered and committed with no warning.</p>
+<p>A menu row is the config key alone. The second message line above the prompt
+shows the summary of the selected key, which the YANG <code>description</code> statement
+declares.</p>
+<!-- source: internal/component/cli/model_render.go -- renderDropdownBox, warningText -->
+<p>Press <code>?</code> on a highlighted key to read its long explanation, in a box above the
+prompt. That text is the <code>ze:help</code> extension the schema declares, and it is
+often a paragraph. The message line holds one row, so the box is the only place
+the paragraph fits. A key that declares no <code>ze:help</code> says so on the message
+line, and its summary is not repeated in the box.</p>
+<!-- source: internal/component/cli/model_keys.go -- revealCandidateExplanation, revealDeclared -->
+<p>Tab on a complete config path reveals nothing more to read: <code>?</code> is the key that
+opens the explanation of a config key. Operational command help is reachable
+from configuration mode behind <code>run </code>, and the keys are in the
+<a href="../cli/#keys-that-reveal-help">CLI guide</a>.</p>
+<!-- source: internal/component/cli/model.go -- commandCompleterInput -->
 <h2 id="commit-confirmed">Commit Confirmed</h2>
 <p><code>commit confirmed &lt;seconds&gt;</code> writes the configuration and notifies the daemon, but starts a countdown timer. If <code>confirm</code> is not issued before the timer expires, the configuration automatically reverts to the previous version. This prevents lockouts when making changes remotely -- if a bad config breaks connectivity, the auto-revert restores access.</p>
 <!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed, handleConfirmCountdown, rollbackConfirmed -->
@@ -522,7 +559,7 @@ ze config archive prod config.conf # Archive to named destination
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

@@ -62,6 +62,9 @@ validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).</p
 <li><a href="#scenario-structure">Scenario Structure</a></li>
 <li><a href="#optional-sidecars">Optional sidecars</a></li>
 <li><a href="#prove-a-scenario-discriminates">Prove a scenario discriminates</a></li>
+<li><a href="#the-ipsec-nat-box">The IPsec NAT box</a></li>
+<li><a href="#the-strongswan-lab-drop-in">The strongSwan lab drop-in</a></li>
+<li><a href="#the-freeradius-admin-login-suite">The FreeRADIUS admin-login suite</a></li>
 <li><a href="#typed-checker-operations">Typed checker operations</a></li>
 <li><a href="#querying-ze">Querying Ze</a></li>
 <li><a href="#a-compiled-process-helper-that-fails">A compiled process helper that fails</a></li>
@@ -122,9 +125,15 @@ This page is the infrastructure it is owed against.</p>
 <td><span class="ev-src"><span class="ev-ref"><code>test/interop-pppoe/</code></span></span></td>
 <td><code>./le deployment docker-pppoe-accel-test</code></td>
 </tr>
+<tr>
+<td>RADIUS (admin login: PAP, CHAP, EAP, Filter-Id)</td>
+<td>Docker: FreeRADIUS</td>
+<td><span class="ev-src"><span class="ev-ref"><code>test/interop-radius/scenarios/</code></span></span></td>
+<td><code>./le integration interop-radius</code></td>
+</tr>
 </tbody>
 </table>
-<!-- source: internal/le/integration/gates.go -- interop and interop-ipsec verbs -->
+<!-- source: internal/le/integration/gates.go -- interop, interop-ipsec and interop-radius verbs -->
 <!-- source: internal/le/deployment/actions.go -- l2tp-test, l2tp-ppp-test, docker-pppoe-accel-test verbs -->
 <p>Every suite discovers its scenarios the same way. <code>Discover</code>
 (<code>internal/le/interoplab/discover.go</code>) reads the scenario directory, keeps the
@@ -183,6 +192,13 @@ as a scenario selector, and specs, journal rows and code comments cite it.</p>
 <td>Go builder</td>
 <td>HTTP. <span class="ev-src"><span class="ev-ref"><code>/rpki.json</code></span></span></td>
 <td>RTR (RFC 8210) as the CACHE, so Ze is the client of an implementation that is not its own. Origin validation answers (RFC 6811) against VRPs a third party encoded</td>
+</tr>
+<tr>
+<td>pmacct <code>pmbmpd</code></td>
+<td>latest</td>
+<td><code>pmacct/pmbmpd:latest</code></td>
+<td>JSON msglog file</td>
+<td>BMP (RFC 7854, RFC 9069) as the COLLECTOR. pmacct decodes the per-peer header, the Peer Up Information TLVs and the Peer Down reason itself, so a scenario reads another implementation's reading of Ze's bytes rather than a string Ze emitted</td>
 </tr>
 <tr>
 <td>ExaBGP</td>
@@ -292,6 +308,11 @@ opening this page.</p>
 <td>172.30.0.12</td>
 <td><code>ze-iop-stayrtr-&lt;pid&gt;</code></td>
 </tr>
+<tr>
+<td>pmacct <code>pmbmpd</code></td>
+<td>172.30.0.13</td>
+<td><code>ze-iop-pmacct-&lt;pid&gt;</code></td>
+</tr>
 </tbody>
 </table>
 <p>Container names include the runner PID as suffix, so concurrent runs do not conflict.</p>
@@ -344,9 +365,19 @@ the call is an error that always fires and every line under it is unreachable.</
 <td>StayRTR (172.30.0.12:8282)</td>
 <td>Serve RPKI VRPs from a real third-party cache, so Ze is the RTR client of an implementation that is not its own. The typed checker asserts each per-prefix validation answer, not merely the RTR session.</td>
 </tr>
+<tr>
+<td><code>pmbmpd.conf</code></td>
+<td>pmacct <code>pmbmpd</code> (172.30.0.13:1790)</td>
+<td>Read Ze's BMP stream with a collector Ze did not write. The file is also the selector: a scenario that carries it starts pmacct INSTEAD of Ze's own collector, because two collectors are two readings of one stream and only the third-party one is interop evidence. The typed checker greps pmacct's JSON msglog, so every needle is a field pmacct printed after decoding.</td>
+</tr>
 </tbody>
 </table>
-<p>BMP scenarios start <code>ze-test interop-bgp bmp-collector</code>. Announcement and
+<p>A scenario carrying <code>frr.conf</code> may also carry its own <code>daemons</code> file. That file
+names which FRR daemons run and what each one is started with, so a scenario
+needing a <code>bgpd</code> module (<code>-M bmp</code> for one that drives Ze's BMP receiver) carries
+its own copy instead of adding the module to every scenario in the suite. Without
+one, the shared <code>test/interop/daemons</code> is mounted.</p>
+<p>A BMP scenario with no <code>pmbmpd.conf</code> starts <code>ze-test interop-bgp bmp-collector</code>. Announcement and
 observer process plugins use <code>ze-test interop-bgp process &lt;scenario&gt; &lt;plugin&gt;</code>.
 These personalities are compiled into <code>ze-test</code>; no interpreter or source mount
 is present in the Ze image.</p>
@@ -356,6 +387,7 @@ is present in the Ze image.</p>
 <!-- source: test/interop/scenarios/bgp-rfc7606-relay-shape-frr/ -- injector worked example -->
 <!-- source: test/interop/scenarios/bgp-rfc7606-speaker-dup-attr/ -- speaker worked example -->
 <!-- source: test/interop/scenarios/rtr-stayrtr/ -- StayRTR worked example -->
+<!-- source: test/interop/scenarios/bmp-locrib-pmacct/ -- pmacct collector worked example -->
 <h3 id="prove-a-scenario-discriminates">Prove a scenario discriminates</h3>
 <p>An interop scenario is evidence only if it goes RED when the behaviour it tests is
 broken. Before you rely on a new scenario, revert the fix, run the scenario, and
@@ -374,7 +406,7 @@ mutation test that CAN fail.</p>
 <p>A scenario added to ALREADY-WORKING code never had a red phase, so its
 discrimination is unproven until you force one. That is not TDD's red-then-green:
 a regression test and a scenario for existing behaviour both start green.</p>
-<p>Four traps make a scenario pass whatever the code does. Check each by its tell
+<p>Five traps make a scenario pass whatever the code does. Check each by its tell
 before you call the scenario evidence:</p>
 <table>
 <thead>
@@ -405,8 +437,177 @@ before you call the scenario evidence:</p>
 <td>The unchanged path still delivers</td>
 <td>Trace which code path actually produces the asserted bytes</td>
 </tr>
+<tr>
+<td>An assertion whose clauses are all satisfied by ONE stimulus</td>
+<td>Each clause reads as an independent observation, and they are one observation written twice</td>
+<td>Name the single event that satisfies every clause. Then ask which clause a peer that did nothing would still satisfy</td>
+</tr>
 </tbody>
 </table>
+<p>The fifth trap is what the IPsec suite carried until 2026-09-04, and it is worth
+reading in full because the shape recurs. <code>verifyTunnelTraffic</code>
+(<code>internal/le/interoplab/ipsec/helpers.go</code>) pinged from Ze to strongSwan and
+passed when each peer's ESP byte counters advanced. Both clauses were satisfied by
+that ONE ping: Ze encrypting the echo request advances Ze's outbound SA, and
+strongSwan decrypting the same request advances strongSwan's inbound SA. Nothing
+required strongSwan to have encrypted anything toward Ze.</p>
+<p>RFC 4301 Section 4.1 says why the aggregate could not discriminate:</p>
+<blockquote>
+<p>An SA is a simplex "connection" that affords security services to the traffic
+carried by it.</p>
+</blockquote>
+<p>A protected bidirectional flow is two SAs, and the RECEIVER chooses the SPI, so
+both peers name one direction by the same SPI value. Measured in
+<code>psk-site-to-site</code>: Ze holds <code>src 172.28.0.2 dst 172.28.0.3 spi 0xc12fa7e3</code> and
+<code>src 172.28.0.3 dst 172.28.0.2 spi 0xf008af63</code>, and strongSwan holds those same
+two SPIs. A counter map keyed by SPI alone therefore folds the two peers' views of
+one direction into one entry. <code>verifyESPDirections</code> now reads each simplex SA by
+its own <code>src</code>/<code>dst</code> header and takes the set of directions its caller can claim,
+and it also refuses a ping whose <code>% packet loss</code> summary is missing or non-zero.</p>
+<!-- source: internal/le/interoplab/ipsec/helpers.go -- directed ESP counters and the lossless-ping clause -->
+<h3 id="the-ipsec-nat-box">The IPsec NAT box</h3>
+<p>A scenario that carries <code>nat.conf</code> starts a third container, <code>nat</code>, at
+172.28.0.5. It is keyed on that file exactly as strongSwan is keyed on
+<code>swanctl.conf</code> and FRR on <code>frr.conf</code>, and it is started FIRST so its addresses
+answer ARP before either daemon sends a datagram.</p>
+<p>It exists because RFC 7296 Section 2.23.1 is only reachable across a REAL
+translation. <code>natt-transport-inner-checksum</code> and <code>natt-tunnel-inner-checksum</code>
+reach the UDP-encapsulated path through strongSwan's <code>encap = yes</code>, which fakes
+the NAT_DETECTION_SOURCE_IP hash with no middlebox on the path. The pre-NAT
+address and the observed address are therefore equal in those two, every
+Section 2.23.1 substitution is the identity, and its absence cannot show. That is
+the fourth vacuity trap above: the asserted bytes reach the peer by a path the
+mechanism under test does not touch.</p>
+<p><code>nat.conf</code> is one translation per line, <code>&lt;real&gt; &lt;public&gt;</code>. The box gives itself
+each public address as a SECONDARY address on <code>eth0</code>, then installs one DNAT rule
+in PREROUTING and one SNAT rule in POSTROUTING per line. Three consequences are
+load-bearing:</p>
+<ul>
+<li><strong>No peer needs a route.</strong> Both public addresses sit inside the lab bridge's own
+prefix, so a peer resolves them by ARP and the box answers. A NAT on its own
+segment would need a second Docker network, and <code>interoplab.ScenarioPlan</code> carries
+one <code>NetworkSpec</code> that the BGP suite shares.</li>
+<li><strong>Both addresses of a crossing datagram are rewritten,</strong> which is the two-NAT
+figure of Section 2.23.1 drawn with one box, and it is what makes all four
+NAT_DETECTION comparisons mismatch.</li>
+<li><strong>The rules carry no port and no protocol.</strong> IKE floats from UDP 500 to UDP 4500
+mid exchange, so a port-scoped rule would translate the handshake and drop the
+ESP that follows.</li>
+</ul>
+<p>Three scenarios use it, and they differ in one variable each. The two transport
+scenarios differ in ROLE, because the substitution has two producers and a single
+scenario cannot fail on one of them. <code>real-nat-tunnel-control</code> differs from them in
+MODE, and it does two jobs: it proves the substitution stays out of tunnel mode, and
+it makes a red transport scenario readable, because a broken topology reds it too.
+Its selectors are INNER addresses the box never sees, which is the one selector pair
+in this lab a translation cannot move.</p>
+<!-- source: internal/le/interoplab/ipsec/nat.go -- readNATConfig, natSetupScript -->
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkRealNATTransport, checkRealNATTunnelControl -->
+<h3 id="the-strongswan-lab-drop-in">The strongSwan lab drop-in</h3>
+<p>Every scenario that starts a strongSwan peer mounts
+<code>test/interop-ipsec/strongswan-lab.conf</code> read-only at
+<code>/etc/strongswan.d/98-lab.conf</code>. It carries the charon settings the whole lab
+needs, and today that is one: <code>charon.plugins.bypass-lan.load = no</code>.</p>
+<p>charon loads <code>bypass-lan</code> by default, and that plugin installs a PASS shunt for
+every locally attached subnet. This lab puts both containers on 172.28.0.0/24, so
+the shunt covers the peer. Measured on 2026-08-30 in <code>psk-site-to-site</code>, the shunt
+sits at priority 175423 against the Child SA policy's 399999, the lower number
+wins, and every packet strongSwan sends to Ze leaves in the clear. A ping still
+succeeds under that shunt, which is exactly why a lossless ping is necessary and
+not sufficient evidence that a tunnel carried anything.</p>
+<p>A scenario's own <code>strongswan.conf</code> still mounts at
+<code>/etc/strongswan.d/99-interop.conf</code> and composes with the lab file. A scenario
+MUST NOT set <code>bypass-lan</code> itself: <code>TestNoScenarioCarriesItsOwnBypassLanOverride</code>
+(<code>test/interop-ipsec/parity_test.go</code>) refuses a second copy, because two files
+setting one value is a disagreement with nothing to arbitrate it.</p>
+<!-- source: internal/le/interoplab/ipsec/ipsec.go -- prepareScenario mounts the lab drop-in -->
+<!-- source: test/interop-ipsec/strongswan-lab.conf -- the lab-wide charon settings -->
+<h3 id="the-freeradius-admin-login-suite">The FreeRADIUS admin-login suite</h3>
+<p><code>internal/le/interoplab/radius/</code> runs ze's operator login against a real
+FreeRADIUS server at a pinned tag, pulled through <code>ImageBuild{Pull: true}</code>. It
+exists because every other RADIUS proof ze holds runs against a mock ze wrote:
+<code>test/plugin/aaa-radius-admin.ci</code> drives <code>internal/test/mock/radius/radius.go</code>,
+and the L2TP lab's peer is <code>internal/le/interoplab/l2tp/radiusmock/</code>, which is
+ze's own Go program in a container. A mock built beside ze's encoder agrees with
+ze by construction, and ze now computes a CHAP digest a server must reproduce
+from its own stored password. Only a server ze did not write can disagree.</p>
+<p>It is its own suite rather than four more L2TP scenarios. The L2TP lab probes
+for the <code>l2tp_ppp</code> or <code>pppol2tp</code> kernel module and refuses to run without it,
+which is correct for a suite that carries PPP sessions. Admin login is ze's SSH
+listener, a UDP socket and a RADIUS server, so this lab declares no preflight
+beyond its own ze cross-compile, mounts no module tree, asks for no capability
+and runs nothing privileged. <code>TestSuiteNeedsNoKernelModule</code> holds that.</p>
+<p>Every checker reads BOTH sides. Ze's log saying <code>source=radius</code> is not enough on
+its own, because a login the local bcrypt backend satisfied produces a line of
+the same shape and no server traffic at all. The lab therefore mounts a
+<code>linelog</code> module at <code>/etc/raddb/mods-enabled/ze_request_log</code> that writes one
+line per answered request to <code>/var/log/freeradius/ze-request.log</code>, carrying the
+verdict, the User-Name, the PRESENCE of a User-Password, of a CHAP-Password and
+of an EAP-Message, and the NAS-Identifier. Presence and not value: a fixture
+must not put a password or a digest in a log file. <code>parseServerRecord</code> refuses a
+line missing any of the six fields, so a truncated or reformatted line is never
+read as a partial verdict.</p>
+<p>An EAP login is several requests and FreeRADIUS runs no <code>post-auth</code> section for
+an Access-Challenge, so the reply that asked the question records nothing. A
+second module, <code>ze_state_echo_log</code>, is called from <code>authorize</code> on a request
+carrying both an EAP-Message and a State, and writes <code>verdict=state-echo</code>. That
+is the server's own evidence that ze returned the State unmodified, which
+RFC 2865 Section 5.24 requires, and that the login was a conversation rather
+than one request.</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Ze's side</th>
+<th>The server's side</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>radius-admin-pap-freeradius</code></td>
+<td>An operator logs in over ze's real SSH listener, ze's log says <code>source=radius</code>, the Filter-Id profile denies <code>show bgp</code>, and the local account's own password is refused</td>
+<td><code>verdict=accept</code> with a User-Password present, a CHAP-Password absent and ze's NAS-Identifier, then <code>verdict=reject</code> for the wrong password</td>
+</tr>
+<tr>
+<td><code>radius-admin-chap-freeradius</code></td>
+<td>The same, with <code>auth-method chap</code> against a <code>Cleartext-Password</code> entry</td>
+<td><code>verdict=accept</code> with a CHAP-Password present and NO User-Password beside it, which is what RFC 2865 Section 4.1 demands of an Access-Request</td>
+</tr>
+<tr>
+<td><code>radius-admin-chap-hashed-freeradius</code></td>
+<td>The CHAP login is REFUSED, and ze authenticates the user through no backend at all</td>
+<td>A <code>radclient</code> probe first proves the same entry accepts the same password over PAP, then <code>verdict=reject</code> for the CHAP request</td>
+</tr>
+<tr>
+<td><code>radius-admin-eap-freeradius</code></td>
+<td>The same, with <code>auth-method eap-mschapv2</code>. Ze answers the EAP conversation itself from the operator's password, Naks the server's MD5-Challenge toward MSCHAPv2, and returns the State on every later round</td>
+<td><code>verdict=state-echo</code> for at least one round carrying the State the server issued, then <code>verdict=accept</code>, both with an EAP-Message present and NEITHER password attribute beside it</td>
+</tr>
+</tbody>
+</table>
+<p>The third scenario is the one that proves <code>docs/guide/radius.md</code> is telling the
+truth. RFC 2865 Section 2.2:</p>
+<blockquote>
+<p>For example, CHAP requires that the user's password be available in cleartext
+to the server so that it can encrypt the CHAP challenge and compare that to
+the CHAP response.  If the password is not available in cleartext to the
+RADIUS server then the server MUST send an Access-Reject to the client.</p>
+</blockquote>
+<p>A rejection on its own would also follow from a typo in the user file, which is
+the fourth vacuity trap wearing another face: the asserted result would be
+produced by a different cause than the one under test. The <code>radclient</code> PAP probe
+removes it, because the storage form is then the only thing left to explain the
+CHAP rejection.</p>
+<p>Two credentials share one username on purpose. <code>radiusop</code> exists in the server's
+user file AND in ze's local account list with a DIFFERENT password, so the
+scenario can send the local password while RADIUS rejects it: a chain that fell
+through to local bcrypt would accept that login. <code>localop</code> exists only locally
+and the server answers nothing for it, which is the positive control that proves
+the SSH listener and the local backend are both live before any refusal is read
+as evidence.</p>
+<!-- source: internal/le/interoplab/radius/radius.go -- the suite, its pinned image, its peers and its probes -->
+<!-- source: internal/le/interoplab/radius/checkers.go -- every observation, on ze's side and on the server's -->
+<!-- source: test/interop-radius/mods-ze-request-log -- the linelog module the server's record comes from -->
 <h3 id="typed-checker-operations">Typed checker operations</h3>
 <p><code>checkers.go</code> is the complete scenario catalogue. Each operation identifies the
 peer, exact command, required or forbidden evidence, proof for negative
@@ -416,6 +617,11 @@ state are all queried through explicit typed branches.</p>
 <p>An absent value never proves a negative assertion by itself. The operation must
 also name positive evidence that the query mechanism ran. Failed and empty
 queries remain errors rather than becoming plausible empty protocol state.</p>
+<p>That rule decides which command a negative assertion sends. <code>opBIRDRouteAbsent</code>
+reads the whole table with <code>birdc show route</code>, and never <code>show route for &lt;prefix&gt;</code>: BIRD answers a lookup for a network it does not hold with "Network
+not found", and birdc exits 1. A lookup therefore fails in the exact state the
+assertion exists to observe, and the failure is not absence. Ask a question the
+peer answers in both states, then read the absence out of the answer.</p>
 <p>Scenarios with non-linear behavior register a bespoke checker in
 <code>specialCheckers</code> (<code>check_special.go</code>). Each one owes a named subtest in
 <code>TestBespokeCheckerBranches</code> that drives its predicate in BOTH polarities: the
@@ -443,6 +649,16 @@ field, because 0 is a legitimate RIB size and a failed query is not
 separate faults hid behind that one number for three days
 (<code>spec-fixit-test-harness-fail-open-guards</code>, guard 3). Write new Ze
 helpers the same way.</p>
+<p><strong>A checker asserts on the STRUCTURED answer, never on the rendered text.</strong> The
+IPsec suite asks with <code>show vpn ipsec sa | json</code> and decodes the list of SA
+records (<code>zeIKESAs</code>, <code>internal/le/interoplab/ipsec/helpers.go</code>). The text
+rendering is a table, and its column order follows the field names, so a
+line-anchored <code>&lt;field&gt; &lt;value&gt;</code> regex over that table matches by accident. On
+2026-09-06 one new field, <code>behind-nat</code>, took first place from <code>child-sa</code> in that
+order. Every nested Child SA key moved off the line start, and
+<code>child-rekey-narrowing</code>, <code>peer-reload-narrowing</code> and
+<code>initiator-rekey-answer-narrows</code> went red with no daemon behavior changed.</p>
+<!-- source: internal/le/interoplab/ipsec/helpers.go -- zeIKESAs, assertNATVerdict, assertZeSelectors -->
 <p>All session waiters use explicit bounds (default 90 seconds, override via
 <code>SESSION_TIMEOUT</code>). The harness passes that value into the Ze container so a
 compiled process helper can size its barriers against the same budget.</p>
@@ -462,8 +678,17 @@ replace the protocol failure that triggered it.</p>
 <h3 id="scenario-inventory">Scenario Inventory</h3>
 <p>The suite has grown to over 100 scenario directories in <code>test/interop/scenarios/</code>. The table
 below lists the core BGP scenarios (01-37); beyond these, the suite also covers route
-reflection, policy import/export, RPKI origin validation, BMP monitoring, PATHS-LIMIT,
-max-prefix cease, GTSM, AS112, ADD-PATH re-advertisement (<code>bgp-addpath-readvertise-collision-frr</code>
+reflection, policy import/export, RPKI origin validation, BMP monitoring
+(<code>bmp-locrib-pmacct</code> puts Ze's RFC 9069 Loc-RIB feed in front of pmacct and requires
+pmacct to print the configured Peer AS, the configured Peer BGP ID, the <code>global</code>
+VRF/Table Name TLV and reason code 6 on the Peer Down; <code>bmp-locrib-receiver-frr</code>
+turns the direction around, so FRR's <code>bmpd</code> drives Ze's BMP receiver and
+<code>show bmp peers</code> must report the third party's Loc-RIB peer and its address
+family), PATHS-LIMIT,
+max-prefix cease, GTSM, AS112, the RFC 7454 Section 9 transit leak
+(<code>bgp-path-asn-leak-frr</code> gives FRR two prefixes that differ only in their AS_PATH, and requires
+ze to drop the one reached through a listed transit ASN, keep the other, and keep the session),
+ADD-PATH re-advertisement (<code>bgp-addpath-readvertise-collision-frr</code>
 proves a receiver keeps two paths whose sources both chose one Path Identifier, and
 <code>bgp-addpath-rail-agreement-speaker</code> proves the live forward and the peer-up replay emit the same
 bytes for one path), and full IS-IS (auth, convergence, dual-stack, LAN DIS,
@@ -710,12 +935,46 @@ INTEROP_SCENARIO=bgp-ebgp-ipv4-frr ./le integration interop
 VERBOSE=1 ./le integration interop
 NO_BUILD=1 ./le integration interop
 FRR_IMAGE=quay.io/frrouting/frr:10.3 ./le integration interop
+BUILD_TIMEOUT=7200 ./le integration interop
 </code></pre>
 <p>Interop tests require Docker and are not part of the offline precommit gate.
 They are a separate protocol-validation action.</p>
-<p>The first run builds Docker images (takes a few minutes). Subsequent runs with <code>NO_BUILD=1</code>
-skip rebuilds. The full suite takes roughly 5-10 minutes depending on session establishment
-times.</p>
+<p>The first run cross-compiles the lab binaries on the host, then builds the Docker
+images. No <code>Dockerfile.ze</code> carries a Go compiler: each one is an <code>alpine:3.21</code>
+base, one <code>apk add</code>, and a <code>COPY</code> of a binary the suite's preflight has already
+written into the build context (<code>internal/le/interoplab/zebuild.go</code>,
+<code>StageBinaries</code>). Each lab declares the binaries it needs beside the images it
+needs, and the bgp lab declares two, because its scenarios also run <code>ze-test</code>
+from inside the container.</p>
+<p>Measured on 2026-09-06 on a 32-core workstation: 6.1s and 4.8s for the two
+cross-compiles against a warm <code>cache/go-cache</code>, at a peak resident set of 1.03
+GiB and 0.98 GiB, then 54.7s for the <code>docker build</code>, which is now context
+transfer rather than compilation.</p>
+<p>The shape before 2026-09-06 is what those numbers are read against. <code>Dockerfile.ze</code>
+copied the whole tree and compiled ze twice with no cache mount. One colima VM of
+2 CPUs and 2 GB built it in 2m48s on 2026-09-04, and the same VM took 40m39s for
+it earlier that day, when the host disk was full and the guest was thrashing. On
+2026-09-06 the kernel killed that build three times on an idle 31 GiB
+workstation, once with 23 GiB free and nothing else running, so the compiler in
+the container was the thing that did not fit rather than the machine being busy.</p>
+<p>A consequence: <code>docker build -f test/interop/Dockerfile.ze .</code> on a clean checkout
+now fails at the <code>COPY</code> until <code>./le integration interop</code> has run its preflight.
+Each converted Dockerfile's header names the action that writes its binary.</p>
+<p>Each build is bounded at 90 minutes, and <code>BUILD_TIMEOUT</code> sets that bound in whole
+seconds for a machine slower or faster than that one. The bound stops a wedged
+Docker daemon and is not a budget for the build, so a build that finishes returns
+at once and a generous bound costs nothing. A value that does not parse, or that
+is not positive, keeps the 90 minutes.</p>
+<p>An image that needs more than the machine bound declares its own
+<code>ImageBuild.Timeout</code>, and that field only ever LENGTHENS a bound. A number below
+the machine bound shortens it, which kills a build the machine would finish, so
+no suite declares one. The PPPoE suite did until 2026-09-04: 10 minutes for its
+ze image, 15 for accel-ppp and 10 for the client, each written when the shipped
+default was 10 minutes and each a cap once the default became 90.</p>
+<p>Subsequent runs with <code>NO_BUILD=1</code> skip rebuilds. Once the images exist, the full
+suite takes roughly 5-10 minutes depending on session establishment times.</p>
+<!-- source: internal/le/interoplab/docker.go -- dockerBuildTimeoutDefault, buildTimeout -->
+<!-- source: internal/le/interoplab/zebuild.go -- StageBinaries, LabBinary -->
 <h3 id="debugging-failures">Debugging Failures</h3>
 <p>On failure, the orchestrator automatically dumps the last 20 lines of container logs.
 For more detail:</p>
@@ -772,9 +1031,22 @@ session and compares every received frame byte-for-byte.</p>
 <p>The harness migrates each ExaBGP-derived configuration, runs Ze, and compares
 its wire bytes with the known-good fixture. The 42 <code>.ci</code> cases in
 <code>test/exabgp-compat/encoding/</code> use <code>option=file:</code>, <code>option=serial</code>, <code>1:cmd:</code>,
-<code>1:raw:</code>, and <code>1:json:</code> records rather than the standard <code>.ci</code> format.
-<code>option=serial</code> marks process-driven fixtures that must not overlap other ExaBGP
-harness instances; the runner executes those after the parallel batch.</p>
+<code>1:raw:</code>, <code>1:signal:</code>, and <code>1:json:</code> records rather than the standard <code>.ci</code>
+format. <code>option=serial</code> marks process-driven fixtures that must not overlap
+other ExaBGP harness instances; the runner executes those after the parallel
+batch.</p>
+<p><code>&lt;prefix&gt;:signal:&lt;NAME&gt;</code> marks the point in a connection's script where the
+runner reloads Ze. It divides the script: every <code>raw</code> frame written before it
+must match before the reload happens, and the frames after it are matched only
+once it has. Each signal step consumes the NEXT <code>option=file:</code> config the case
+names, so a case owes one config more than it has signals, and the runner
+refuses a case where those two counts disagree. <code>test/exabgp-compat/api/api-reload.ci</code>
+is the case that drives this: its withdrawal of <code>2.0.0.0/24</code> is produced BY the
+reload.</p>
+<p>The fixtures name ExaBGP's reload signal, <code>SIGUSR1</code>. Ze reloads on SIGHUP, so
+the runner translates the name (<code>deliverExaBGPReloads</code>), writes the next
+migrated config over the path Ze reads, and signals Ze's own pid rather than the
+process group, which also holds the bridge's scripts.</p>
 <p>Coverage includes:</p>
 <table>
 <thead>
@@ -905,7 +1177,7 @@ ExaBGP compat covers wire encoding for all supported address families.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

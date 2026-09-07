@@ -20,6 +20,8 @@ Dispatch a text command through the command dispatcher.
 - Command pipes: none
 - Pipe aliases: none
 
+Ze joins the words after the keyword into one command string and runs it through the text dispatcher the CLI uses. A plugin command is reachable this way. With no dispatcher, the command fails with 'dispatcher not available'.
+
 ## Arguments
 
 No command-specific arguments listed.

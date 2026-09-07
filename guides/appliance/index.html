@@ -63,6 +63,7 @@
 <li><a href="#seed-config">Seed config</a></li>
 <li><a href="#runtime-config">Runtime config</a></li>
 <li><a href="#environment-variables">Environment variables</a></li>
+<li><a href="#kernel-crash-capture">Kernel crash capture</a></li>
 </ol></li>
 <li><a href="#updating">Updating</a></li>
 <li><a href="#architecture-notes">Architecture notes</a>
@@ -362,6 +363,60 @@ workflow's <code>config-base</code> and per-appliance <code>ze.conf</code> files
 </tr>
 </tbody>
 </table>
+<h3 id="kernel-crash-capture">Kernel crash capture</h3>
+<p>An appliance that suffers a kernel panic reboots and tells you nothing. Root is
+read-only SquashFS, the image holds no busybox and no shell, and the kernel that
+faulted is gone. Crash capture asks the kernel to write its own panic message and
+backtrace into a reserved memory region before it goes down, so the evidence
+survives the warm reboot.</p>
+<p>Two halves, and both are needed:</p>
+<table>
+<thead>
+<tr>
+<th>Half</th>
+<th>Where</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The reservation</td>
+<td><code>image.crash-dump.reserve</code> in the appliance config</td>
+<td>Renders <code>reserve_mem=&lt;N&gt;M:4096:zecrash</code> and <code>ramoops.mem_name=zecrash</code> onto the built image's kernel command line</td>
+</tr>
+<tr>
+<td>The intent</td>
+<td><code>system crash-dump enabled true</code> in the Ze config</td>
+<td>Tells the running daemon to harvest the record at boot and store it as a crash report</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-json">"image": {"arch": "amd64", "size-bytes": 2147483648, "crash-dump": {"reserve": "16mb"}}
+</code></pre>
+<p>The reservation is a boot argument, so it takes effect at the next boot of an
+image built with it, never at a config commit. <code>show crashes</code> reports the two
+states separately as <code>configured</code> and <code>armed</code>, and <code>ze doctor</code> raises
+<code>doctor-crash-capture-unarmed</code> while they disagree.</p>
+<p>The reserve is 4mb to 256mb and is taken from RAM on every boot, so it is sized
+for a backtrace: 16mb is the default and holds a full one. The build refuses a
+value outside that range, and refuses a size that is not a whole number of
+megabytes, because the appliance has no shell to diagnose a silently ineffective
+reservation with.</p>
+<p>The region is named rather than addressed. Size-named reservation has been in the
+kernel since 6.12 and <code>internal/appliance/kernel.version</code> pins a kernel above
+that floor, so no per-machine physical address is needed. The runtime kernel
+carries <code>CONFIG_PSTORE</code> and <code>CONFIG_PSTORE_RAM</code>, and the build fails if either
+stops resolving to <code>=y</code>: without them the kernel would accept the reservation,
+take the RAM, and expose nothing to read the record back from.</p>
+<p>Harvested records land in the crash directory, which on an appliance is
+<code>/perm/ze/crash</code>. Gokrazy's A/B updates replace the root partition and leave
+<code>/perm</code>, so a record survives the update that follows a crash. Records share the
+<code>ze.crash.keep</code> retention count with Go panic reports, so a panic loop cannot
+fill <code>/perm</code>.</p>
+<!-- source: internal/appliance/kernelargs.go -- crashDumpKernelArgs, the cmdline tokens -->
+<!-- source: internal/appliance/kernelreq.go -- the pstore floor and the reserve_mem kernel floor -->
+<!-- source: internal/core/crashlog/kernel_linux.go -- the pstore reader the harvest reads through -->
+<!-- source: gokrazy/kernel/runtime.require -- CONFIG_PSTORE, CONFIG_PSTORE_RAM -->
 <h2 id="updating">Updating</h2>
 <p>Gokrazy supports atomic A/B partition updates over the network:</p>
 <pre><code class="language-bash">ze appliance push &lt;name&gt;
@@ -524,8 +579,10 @@ ze appliance show lab                  # config summary and cert expiry
     secrets/                   # 0700 permissions
       .encrypted               # marker (present = secrets encrypted)
       tls/
-        cert.pem               # public certificate (plaintext)
+        cert.pem               # device certificate, then the appliance CA root (plaintext)
         key.pem                # private key (encrypted if passphrase set)
+        ca-cert.pem            # appliance CA root certificate (plaintext)
+        ca-key.pem             # appliance CA root key (encrypted if passphrase set)
       password.hash            # bcrypt hash (encrypted if passphrase set)
       update.token             # gokrazy OTA token (encrypted if passphrase set)
       authorized_keys          # SSH public keys (plaintext)
@@ -545,6 +602,10 @@ ze appliance replace-cert lab --cert ca.pem --key ca.key
 ze appliance rekey lab
 ze appliance clone lab lab2
 </code></pre>
+<p>Without <code>--cert</code> and <code>--key</code>, <code>replace-cert</code> issues a new device certificate
+from the appliance's own certificate authority, which <code>ze appliance init</code>
+generated. The root does not change, so a device you already pushed to stays
+reachable: <code>ze appliance push</code> trusts the issuer rather than one certificate.</p>
 <p><code>replace-cert</code> validates the material before it writes anything. It refuses a
 certificate and a key that are not a pair. It refuses a file that holds no PEM
 data. It refuses a certificate that is past its not-after date, and the message
@@ -618,7 +679,7 @@ not load as a pair. On such an appliance the web listener does not start. Run
 </tr>
 <tr>
 <td><code>replace-cert &lt;name&gt;</code></td>
-<td>Replace TLS cert (regenerate or <code>--cert</code>/<code>--key</code> for CA); refuses material that is not a valid pair</td>
+<td>Replace TLS cert (reissue from the appliance CA, or <code>--cert</code>/<code>--key</code> for material from another CA); refuses material that is not a valid pair</td>
 </tr>
 <tr>
 <td><code>rekey &lt;name&gt;</code></td>
@@ -778,7 +839,7 @@ ze appliance push --image ze-20260427-143022.img lab
 ze appliance push --all
 ze appliance push --all --parallel 4
 </code></pre>
-<p>Push uses the update token (from <code>secrets/update.token</code>) for HTTP basic auth, and verifies the device TLS certificate against the stored <code>cert.pem</code>. No system CA pool is consulted.</p>
+<p>Push uses the update token (from <code>secrets/update.token</code>) for HTTP basic auth, and verifies the device TLS certificate against the stored <code>cert.pem</code>. That file holds the device certificate and the appliance CA root that issued it, so the anchor is the ISSUER: a certificate reissued with <code>ze appliance replace-cert</code> still verifies, and the device does not have to be pushed again first. No system CA pool is consulted.</p>
 <!-- source: internal/appliance/cmd_push.go -- loadDeviceTLS, authTransport -->
 <p>When <code>--image</code> is set, the file name must resolve to a regular file inside the
 appliance directory. Path traversal and symlinks escaping that directory are
@@ -918,7 +979,7 @@ config was saved. If the window completes, the active config hash is written to
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

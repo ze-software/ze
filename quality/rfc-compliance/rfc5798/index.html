@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5798 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5798: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 55 gated MUST-level requirements, 0 declared gaps, 55 with no test." />
+        <meta name="description" content="RFC 5798: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 55 gated MUST-level requirements, 0 declared gaps, 15 with no test." />
         <meta property="og:title" content="RFC 5798 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5798: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 55 gated MUST-level requirements, 0 declared gaps, 55 with no test." />
+        <meta property="og:description" content="RFC 5798: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 55 gated MUST-level requirements, 0 declared gaps, 15 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5798 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5798: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 55 gated MUST-level requirements, 0 declared gaps, 55 with no test." />
+        <meta name="twitter:description" content="RFC 5798: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 55 gated MUST-level requirements, 0 declared gaps, 15 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -45,7 +45,7 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">Supported</span>
+    <span class="journey-eyebrow">Partial</span>
     <h1 id="rfc-detail-title">RFC 5798 - Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6</h1>
     <p>Every requirement this repository extracted from RFC 5798, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
 </div>
@@ -75,6 +75,8 @@
 .rfc-tape-both_polarities { background: var(--teal-chip); }
 .rfc-tape-single_polarity { background: var(--sky-chip); }
 .rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -113,23 +115,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 55 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 55 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 55 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>60.0%</strong><b>33 of 55 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 55 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>73 of 73 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>55</strong><b>of 80 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 55 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 55 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 55 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 55 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 55 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>100.0%</strong><b>55 of 55 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>One polarity, unexcused</span><strong>12.7%</strong><b>7 of 55 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>27.3%</strong><b>15 of 55 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 4 shares marked as a part above are the whole of the 55 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 55 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -153,12 +158,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
 </tr>
 <tr><td>One polarity, unexcused</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
 </tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -179,7 +196,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Public status</td>
-<td>Supported</td>
+<td>Partial</td>
 </tr>
 <tr><td>Enrolment</td>
 <td>Enrolled</td>
@@ -190,9 +207,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Gated MUST-level</td>
 <td>55</td>
 </tr>
-<tr><td>Obligations that bind Ze</td>
-<td>55</td>
-</tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
 </tr>
@@ -200,22 +214,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>55</td>
+<td>15</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>0</td>
+<td>73</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>0</td>
+<td>73</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>73</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5798.md</code></td>
@@ -231,10 +245,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: VRRP Version 3 for IPv4 and IPv6 (RFC 5798, obsoleted by RFC 9568): the VRRPv3 document ze actually speaks on the IPv4 wire. Every one of its 55 gated requirements carries a {superseded} marker naming where the obligation lives in RFC 9568, and 51 of them are restated there unchanged, so ze implements them through the same producers rfc/short/rfc9568.md gates: internal/plugins/vrrp/packet (advert encode/decode, checksum), internal/plugins/vrrp/fsm (Initialize/Backup/Master), internal/plugins/vrrp/transport (proto 112, GTSM, GARP/NA). The row that is NOT a restatement is RFC5798-5.2.8-1: Section 5.2.8 puts a pseudo-header under the checksum for both families, RFC 9568 Section 5.2.8 removes it for IPv4, and ze transmits this document form because keepalived and the pre-RFC-9568 base require it (pseudoSumV4Legacy and FillChecksum, internal/plugins/vrrp/packet/checksum.go). Enrolled 2026-08-31 with no requirement yet tagged under an RFC5798 id: the behaviour is proven under the RFC 9568 ids and the RFC5798 tags are owed.</p>
+<p>Enrolled: VRRP Version 3 for IPv4 and IPv6 (RFC 5798, obsoleted by RFC 9568): the VRRPv3 document ze actually speaks on the IPv4 wire. Every one of its 55 gated requirements carries a {superseded} marker naming where the obligation lives in RFC 9568, and 51 of them are restated there unchanged, so ze implements them through the same producers rfc/short/rfc9568.md gates: internal/plugins/vrrp/packet (advert encode/decode, checksum), internal/plugins/vrrp/fsm (Initialize/Backup/Master), internal/plugins/vrrp/transport (proto 112, GTSM, GARP/NA). The row that is NOT a restatement is RFC5798-5.2.8-1: Section 5.2.8 puts a pseudo-header under the checksum for both families, RFC 9568 Section 5.2.8 removes it for IPv4, and ze transmits this document form because keepalived and the pre-RFC-9568 base require it (pseudoSumV4Legacy and FillChecksum, internal/plugins/vrrp/packet/checksum.go). Tagged under RFC5798 ids on 2026-09-05: 33 of the 55 gated MUSTs carry a positive and a negative test with a discrimination record for each, and 7 more carry a recorded positive proof whose obligation has no negative case, because the producer writes a constant.</p>
 </section>
 <section><h2>What the public ledger says</h2>
-<p><strong>Status:</strong> Supported</p>
+<p><strong>Status:</strong> Partial</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
 <ul class="rfc-prose">
 <li>For IPv4, ze transmits the RFC 5798 pseudo-header checksum form, because that is what keepalived (proven on the wire: its own adverts use it) and the rest of the deployed base compute and require</li>
@@ -243,7 +257,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
 <p>RFC 9568 Section 5.2.8 clarifies the IPv4 checksum as message-only (no pseudo-header); ze diverges from that clarification on transmit for interoperability, and counts message-only senders (<code>checksum-rfc9568-message-only</code>) so the strict-RFC-9568 population is visible. When that population dominates, the transmit form can be revisited.</p>
-<p class="rfc-prose"><strong>Enrolled 2026-09-01:</strong> <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5798.md" target="_blank" rel="noopener"><code>rfc/short/rfc5798.md</code></a> declares 80 requirements, 55 of them MUST-level, and every one carries a <code>{superseded}</code> marker naming where RFC 9568 states it. No test carries an <code>RFC5798-</code> tag yet, so the behavior is proven under the RFC 9568 ids and the RFC 5798 ids are an open proof backlog <code>./le rfc check</code> names row by row. One RFC 5798 obligation is NOT a restatement: <a href="#rfc5798-5.2.8-1"><code>RFC5798-5.2.8-1</code></a> puts a pseudo-header under the checksum for both address families, which is the divergence this row describes. RFC 5798 Section 5.2.8 cites the pseudo-header &#34;as defined in Section 8.1 of [RFC2460]&#34;, an IPv6-only shape, so what ze and the deployed base compute for IPv4 is the classic IPv4 pseudo-header (<code>pseudoSumV4Legacy</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/checksum.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/packet/checksum.go</code></a>) rather than the shape that sentence names.</p>
+<p class="rfc-prose"><strong>Enrolled 2026-09-01:</strong> <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5798.md" target="_blank" rel="noopener"><code>rfc/short/rfc5798.md</code></a> declares 80 requirements, 55 of them MUST-level, and every one carries a <code>{superseded}</code> marker naming where RFC 9568 states it. 33 of those 55 are proven under RFC5798 ids in both polarities, each polarity carrying a discrimination record. 7 more carry a recorded positive proof and no negative case, because the producer writes a constant no input changes: <a href="#rfc5798-5.1.1.3-1"><code>RFC5798-5.1.1.3-1</code></a>, <a href="#rfc5798-6.4.3-2"><code>RFC5798-6.4.3-2</code></a>, <a href="#rfc5798-7.2-1"><code>RFC5798-7.2-1</code></a> through <a href="#rfc5798-7.2-4"><code>RFC5798-7.2-4</code></a>, and <a href="#rfc5798-8.2.2-1"><code>RFC5798-8.2.2-1</code></a>. The 15 that carry no tag are 9 whose RFC 9568 twin is recorded <code>{not-applicable}</code>, 2 whose twin is recorded <code>{gap}</code> (<a href="#rfc5798-6.4.3-3"><code>RFC5798-6.4.3-3</code></a> and <a href="#rfc5798-6.4.3-4"><code>RFC5798-6.4.3-4</code></a>, the IPv6 Neighbor Advertisement Router flag and the Router Advertisement a Master owes), 2 that RFC 9568 dropped rather than restated (<a href="#rfc5798-7.4-1"><code>RFC5798-7.4-1</code></a> and the Token Ring appendix RFC5798-A.2-1), <a href="#rfc5798-5.1.2.3-1"><code>RFC5798-5.1.2.3-1</code></a>, whose only evidence is an integration-gated test the privileged QEMU suite runs and <code>./le rfc discriminate-record</code> cannot reach, and <a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a>, which ze does not fully implement: Section 7.1 makes the receiver discard an advertisement when the local router is the IPvX address owner, and <code>Decode</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/packet/validate.go</code></a>) verifies only the VRID half, because RFC 9568 erratum 8298 lowers the address-owner half to a log. One RFC 5798 obligation is NOT a restatement: <a href="#rfc5798-5.2.8-1"><code>RFC5798-5.2.8-1</code></a> puts a pseudo-header under the checksum for both address families, which is the divergence this row describes. RFC 5798 Section 5.2.8 cites the pseudo-header &#34;as defined in Section 8.1 of [RFC2460]&#34;, an IPv6-only shape, so what ze and the deployed base compute for IPv4 is the classic IPv4 pseudo-header (<code>pseudoSumV4Legacy</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/checksum.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/packet/checksum.go</code></a>) rather than the shape that sentence names.</p>
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -252,7 +266,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>0</strong></td>
+<td><strong>33</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
@@ -260,11 +274,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
-<td><strong>0</strong></td>
+<td><strong>7</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>55</strong></td>
+<td><strong>15</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -275,7 +289,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>No test and no annotation (55):</strong> <a href="#rfc5798-5.1.1.2-1"><code>RFC5798-5.1.1.2-1</code></a>, <a href="#rfc5798-5.1.1.3-1"><code>RFC5798-5.1.1.3-1</code></a>, <a href="#rfc5798-5.1.1.3-2"><code>RFC5798-5.1.1.3-2</code></a>, <a href="#rfc5798-5.1.2.2-1"><code>RFC5798-5.1.2.2-1</code></a>, <a href="#rfc5798-5.1.2.3-1"><code>RFC5798-5.1.2.3-1</code></a>, <a href="#rfc5798-5.1.2.3-2"><code>RFC5798-5.1.2.3-2</code></a>, <a href="#rfc5798-5.2.2-1"><code>RFC5798-5.2.2-1</code></a>, <a href="#rfc5798-5.2.4-1"><code>RFC5798-5.2.4-1</code></a>, <a href="#rfc5798-5.2.4-2"><code>RFC5798-5.2.4-2</code></a>, <a href="#rfc5798-5.2.6-1"><code>RFC5798-5.2.6-1</code></a>, <a href="#rfc5798-5.2.8-1"><code>RFC5798-5.2.8-1</code></a>, <a href="#rfc5798-5.2.9-1"><code>RFC5798-5.2.9-1</code></a>, <a href="#rfc5798-5.2.9-2"><code>RFC5798-5.2.9-2</code></a>, <a href="#rfc5798-6.1-1"><code>RFC5798-6.1-1</code></a>, <a href="#rfc5798-6.4.2-1"><code>RFC5798-6.4.2-1</code></a>, <a href="#rfc5798-6.4.2-2"><code>RFC5798-6.4.2-2</code></a>, <a href="#rfc5798-6.4.2-3"><code>RFC5798-6.4.2-3</code></a>, <a href="#rfc5798-6.4.2-4"><code>RFC5798-6.4.2-4</code></a>, <a href="#rfc5798-6.4.2-5"><code>RFC5798-6.4.2-5</code></a>, <a href="#rfc5798-6.4.2-6"><code>RFC5798-6.4.2-6</code></a>, <a href="#rfc5798-6.4.2-7"><code>RFC5798-6.4.2-7</code></a>, <a href="#rfc5798-6.4.2-8"><code>RFC5798-6.4.2-8</code></a>, <a href="#rfc5798-6.4.2-9"><code>RFC5798-6.4.2-9</code></a>, <a href="#rfc5798-6.4.2-10"><code>RFC5798-6.4.2-10</code></a>, <a href="#rfc5798-6.4.3-1"><code>RFC5798-6.4.3-1</code></a>, <a href="#rfc5798-6.4.3-2"><code>RFC5798-6.4.3-2</code></a>, <a href="#rfc5798-6.4.3-3"><code>RFC5798-6.4.3-3</code></a>, <a href="#rfc5798-6.4.3-4"><code>RFC5798-6.4.3-4</code></a>, <a href="#rfc5798-6.4.3-5"><code>RFC5798-6.4.3-5</code></a>, <a href="#rfc5798-6.4.3-6"><code>RFC5798-6.4.3-6</code></a>, <a href="#rfc5798-6.4.3-7"><code>RFC5798-6.4.3-7</code></a>, <a href="#rfc5798-6.4.3-8"><code>RFC5798-6.4.3-8</code></a>, <a href="#rfc5798-6.4.3-9"><code>RFC5798-6.4.3-9</code></a>, <a href="#rfc5798-6.4.3-10"><code>RFC5798-6.4.3-10</code></a>, <a href="#rfc5798-6.4.3-11"><code>RFC5798-6.4.3-11</code></a>, <a href="#rfc5798-6.4.3-12"><code>RFC5798-6.4.3-12</code></a>, <a href="#rfc5798-7.1-1"><code>RFC5798-7.1-1</code></a>, <a href="#rfc5798-7.1-2"><code>RFC5798-7.1-2</code></a>, <a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a>, <a href="#rfc5798-7.1-4"><code>RFC5798-7.1-4</code></a>, <a href="#rfc5798-7.2-1"><code>RFC5798-7.2-1</code></a>, <a href="#rfc5798-7.2-2"><code>RFC5798-7.2-2</code></a>, <a href="#rfc5798-7.2-3"><code>RFC5798-7.2-3</code></a>, <a href="#rfc5798-7.2-4"><code>RFC5798-7.2-4</code></a>, <a href="#rfc5798-7.4-1"><code>RFC5798-7.4-1</code></a>, <a href="#rfc5798-7.4-2"><code>RFC5798-7.4-2</code></a>, <a href="#rfc5798-8.1.2-1"><code>RFC5798-8.1.2-1</code></a>, <a href="#rfc5798-8.1.3-1"><code>RFC5798-8.1.3-1</code></a>, <a href="#rfc5798-8.2.2-1"><code>RFC5798-8.2.2-1</code></a>, <a href="#rfc5798-8.2.2-2"><code>RFC5798-8.2.2-2</code></a>, <a href="#rfc5798-8.2.2-3"><code>RFC5798-8.2.2-3</code></a>, <a href="#rfc5798-8.2.2-4"><code>RFC5798-8.2.2-4</code></a>, <a href="#rfc5798-8.2.3-1"><code>RFC5798-8.2.3-1</code></a>, <a href="#rfc5798-8.4.2-1"><code>RFC5798-8.4.2-1</code></a>, <a href="#rfc5798-a.2-1"><code>RFC5798-A.2-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (33):</strong> <a href="#rfc5798-5.1.1.3-2"><code>RFC5798-5.1.1.3-2</code></a>, <a href="#rfc5798-5.1.2.3-2"><code>RFC5798-5.1.2.3-2</code></a>, <a href="#rfc5798-5.2.2-1"><code>RFC5798-5.2.2-1</code></a>, <a href="#rfc5798-5.2.4-1"><code>RFC5798-5.2.4-1</code></a>, <a href="#rfc5798-5.2.4-2"><code>RFC5798-5.2.4-2</code></a>, <a href="#rfc5798-5.2.6-1"><code>RFC5798-5.2.6-1</code></a>, <a href="#rfc5798-5.2.8-1"><code>RFC5798-5.2.8-1</code></a>, <a href="#rfc5798-5.2.9-1"><code>RFC5798-5.2.9-1</code></a>, <a href="#rfc5798-5.2.9-2"><code>RFC5798-5.2.9-2</code></a>, <a href="#rfc5798-6.1-1"><code>RFC5798-6.1-1</code></a>, <a href="#rfc5798-6.4.2-1"><code>RFC5798-6.4.2-1</code></a>, <a href="#rfc5798-6.4.2-2"><code>RFC5798-6.4.2-2</code></a>, <a href="#rfc5798-6.4.2-4"><code>RFC5798-6.4.2-4</code></a>, <a href="#rfc5798-6.4.2-5"><code>RFC5798-6.4.2-5</code></a>, <a href="#rfc5798-6.4.2-6"><code>RFC5798-6.4.2-6</code></a>, <a href="#rfc5798-6.4.2-7"><code>RFC5798-6.4.2-7</code></a>, <a href="#rfc5798-6.4.2-8"><code>RFC5798-6.4.2-8</code></a>, <a href="#rfc5798-6.4.2-9"><code>RFC5798-6.4.2-9</code></a>, <a href="#rfc5798-6.4.2-10"><code>RFC5798-6.4.2-10</code></a>, <a href="#rfc5798-6.4.3-1"><code>RFC5798-6.4.3-1</code></a>, <a href="#rfc5798-6.4.3-5"><code>RFC5798-6.4.3-5</code></a>, <a href="#rfc5798-6.4.3-6"><code>RFC5798-6.4.3-6</code></a>, <a href="#rfc5798-6.4.3-7"><code>RFC5798-6.4.3-7</code></a>, <a href="#rfc5798-6.4.3-8"><code>RFC5798-6.4.3-8</code></a>, <a href="#rfc5798-6.4.3-9"><code>RFC5798-6.4.3-9</code></a>, <a href="#rfc5798-6.4.3-10"><code>RFC5798-6.4.3-10</code></a>, <a href="#rfc5798-6.4.3-11"><code>RFC5798-6.4.3-11</code></a>, <a href="#rfc5798-6.4.3-12"><code>RFC5798-6.4.3-12</code></a>, <a href="#rfc5798-7.1-1"><code>RFC5798-7.1-1</code></a>, <a href="#rfc5798-7.1-2"><code>RFC5798-7.1-2</code></a>, <a href="#rfc5798-7.1-4"><code>RFC5798-7.1-4</code></a>, <a href="#rfc5798-8.1.2-1"><code>RFC5798-8.1.2-1</code></a>, <a href="#rfc5798-8.2.2-4"><code>RFC5798-8.2.2-4</code></a></p>
+<p class="rfc-id-list"><strong>One polarity only (7):</strong> <a href="#rfc5798-5.1.1.3-1"><code>RFC5798-5.1.1.3-1</code></a>, <a href="#rfc5798-6.4.3-2"><code>RFC5798-6.4.3-2</code></a>, <a href="#rfc5798-7.2-1"><code>RFC5798-7.2-1</code></a>, <a href="#rfc5798-7.2-2"><code>RFC5798-7.2-2</code></a>, <a href="#rfc5798-7.2-3"><code>RFC5798-7.2-3</code></a>, <a href="#rfc5798-7.2-4"><code>RFC5798-7.2-4</code></a>, <a href="#rfc5798-8.2.2-1"><code>RFC5798-8.2.2-1</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (15):</strong> <a href="#rfc5798-5.1.1.2-1"><code>RFC5798-5.1.1.2-1</code></a>, <a href="#rfc5798-5.1.2.2-1"><code>RFC5798-5.1.2.2-1</code></a>, <a href="#rfc5798-5.1.2.3-1"><code>RFC5798-5.1.2.3-1</code></a>, <a href="#rfc5798-6.4.2-3"><code>RFC5798-6.4.2-3</code></a>, <a href="#rfc5798-6.4.3-3"><code>RFC5798-6.4.3-3</code></a>, <a href="#rfc5798-6.4.3-4"><code>RFC5798-6.4.3-4</code></a>, <a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a>, <a href="#rfc5798-7.4-1"><code>RFC5798-7.4-1</code></a>, <a href="#rfc5798-7.4-2"><code>RFC5798-7.4-2</code></a>, <a href="#rfc5798-8.1.3-1"><code>RFC5798-8.1.3-1</code></a>, <a href="#rfc5798-8.2.2-2"><code>RFC5798-8.2.2-2</code></a>, <a href="#rfc5798-8.2.2-3"><code>RFC5798-8.2.2-3</code></a>, <a href="#rfc5798-8.2.3-1"><code>RFC5798-8.2.3-1</code></a>, <a href="#rfc5798-8.4.2-1"><code>RFC5798-8.4.2-1</code></a>, <a href="#rfc5798-a.2-1"><code>RFC5798-A.2-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -296,7 +312,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.1.1.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.1.1.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L301" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertV3IPv4HeaderTTLProtoDst</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
@@ -305,8 +321,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.1.1.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.1.1.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L75" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV3IPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L535" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.1.2.2-1">RFC5798-5.1.2.2-1</code></td><td colspan="3"><span class="rfc-subject">Never forward a datagram destined to FF02:0:0:0:0:0:0:12, regardless of its Hop Limit (§5.1.2.2)</span></td></tr>
@@ -332,8 +348,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.1.2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.1.2.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L104" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV3IPv6</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L665" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeV3IPv6ChecksumAndHopLimit</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.2.2-1">RFC5798-5.2.2-1</code></td><td colspan="3"><span class="rfc-subject">Discard a packet with unknown Type; 1 = ADVERTISEMENT is the only type defined (§5.2.2)</span></td></tr>
@@ -341,8 +357,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.2.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L77" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV3IPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L152" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.2.4-1">RFC5798-5.2.4-1</code></td><td colspan="3"><span class="rfc-subject">Use Priority 255 for the VRRP router that owns the IPvX address associated with the virtual router (§5.2.4)</span></td></tr>
@@ -350,8 +366,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.2.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L773" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestOwnerAutoDetection</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L775" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestOwnerAutoDetection</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.2.4-2">RFC5798-5.2.4-2</code></td><td colspan="3"><span class="rfc-subject">Use Priority values 1-254 for VRRP routers backing up a virtual router (§5.2.4)</span></td></tr>
@@ -359,8 +375,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.2.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L318" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestBoundaryPriority</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L320" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestBoundaryPriority</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.2.6-1">RFC5798-5.2.6-1</code></td><td colspan="3"><span class="rfc-subject">Set the rsvd field to zero on transmission and ignore it on reception (§5.2.6)</span></td></tr>
@@ -368,8 +384,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.2.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.2.6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L107" title="internal/plugins/vrrp/packet/packet_test.go" target="_blank" rel="noopener"><code>TestEncodeGoldenV3IPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L639" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeV3ReserveIgnoredOnReceive</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.2.8-1">RFC5798-5.2.8-1</code></td><td colspan="3"><span class="rfc-subject">Compute and verify the checksum as the 16-bit one&#39;s complement of the one&#39;s complement sum of the entire VRRP message starting with the version field and a pseudo-header defined by RFC 2460, with next header 112 and the checksum field zeroed, for both address families (§5.2.8, §7.1)</span></td></tr>
@@ -377,8 +393,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.2.8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.2.8-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/checksum_test.go#L68" title="internal/plugins/vrrp/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestFillChecksumFamilies</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L663" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeV3IPv6ChecksumAndHopLimit</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.2.9-1">RFC5798-5.2.9-1</code></td><td colspan="3"><span class="rfc-subject">Send the IPv6 link-local address associated with the virtual router as the first address in the list (§5.2.9, §6.1; lowercase &#34;must&#34; in the RFC)</span></td></tr>
@@ -386,8 +402,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.2.9</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.2.9-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L523" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestValidateIPv6LinkLocal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L525" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestValidateIPv6LinkLocal</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.2.9-2">RFC5798-5.2.9-2</code></td><td colspan="3"><span class="rfc-subject">Never carry IPv4 and IPv6 addresses together in one IPvX Address field (§5.2.9)</span></td></tr>
@@ -395,8 +411,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>5.2.9</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.2.9-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L547" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestValidateVIPFamilyMatchesGroupFamily</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L549" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestValidateVIPFamilyMatchesGroupFamily</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.1-1">RFC5798-6.1-1</code></td><td colspan="3"><span class="rfc-subject">Never drop IPv6 Neighbor Solicitations and Neighbor Advertisements when Accept_Mode is False (§6.1, §6.4.3)</span></td></tr>
@@ -404,8 +420,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>6.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L110" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L112" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.2-1">RFC5798-6.4.2-1</code></td><td colspan="3"><span class="rfc-subject">Backup: never respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.2)</span></td></tr>
@@ -413,8 +429,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>6.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L322" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L367" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.2-2">RFC5798-6.4.2-2</code></td><td colspan="3"><span class="rfc-subject">Backup: never respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.2)</span></td></tr>
@@ -422,8 +438,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>6.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L646" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L648" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.2-3">RFC5798-6.4.2-3</code></td><td colspan="3"><span class="rfc-subject">Backup: never send ND Router Advertisement messages for the virtual router (§6.4.2)</span></td></tr>
@@ -440,8 +456,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L324" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L369" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.2-5">RFC5798-6.4.2-5</code></td><td colspan="3"><span class="rfc-subject">Backup: never accept packets addressed to the IPvX address(es) associated with the virtual router (§6.4.2)</span></td></tr>
@@ -449,8 +465,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>6.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L326" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L371" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.2-6">RFC5798-6.4.2-6</code></td><td colspan="3"><span class="rfc-subject">Backup: on a Shutdown event, cancel the Master_Down_Timer and transition to Initialize (§6.4.2)</span></td></tr>
@@ -458,8 +474,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.2-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L110" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L112" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.2-7">RFC5798-6.4.2-7</code></td><td colspan="3"><span class="rfc-subject">Backup: when the Master_Down_Timer fires, send an ADVERTISEMENT, broadcast a gratuitous ARP carrying the virtual router MAC for each IPv4 address or, for IPv6, join the Solicited-Node multicast address and send an unsolicited Neighbor Advertisement for each address, set the Adver_Timer to Advertisement_Interval, and transition to Master (§6.4.2)</span></td></tr>
@@ -467,8 +483,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.2-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L448" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMMasterDownPromotion</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L639" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMStaleTimerGenerationIgnored</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.2-8">RFC5798-6.4.2-8</code></td><td colspan="3"><span class="rfc-subject">Backup: on an ADVERTISEMENT with Priority 0, set the Master_Down_Timer to Skew_Time (§6.4.2)</span></td></tr>
@@ -476,8 +492,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.2-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L114" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L116" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.2-9">RFC5798-6.4.2-9</code></td><td colspan="3"><span class="rfc-subject">Backup: on a non-zero-priority ADVERTISEMENT, when Preempt_Mode is False or the advertised Priority is greater than or equal to the local Priority, set Master_Adver_Interval to the Adver Interval in the advertisement, recompute Master_Down_Interval, and reset the Master_Down_Timer to it (§6.4.2)</span></td></tr>
@@ -485,8 +501,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.2-9">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L118" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L120" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.2-10">RFC5798-6.4.2-10</code></td><td colspan="3"><span class="rfc-subject">Backup: on a non-zero-priority ADVERTISEMENT with Preempt_Mode True and an advertised Priority lower than the local Priority, discard the ADVERTISEMENT (§6.4.2)</span></td></tr>
@@ -494,8 +510,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.2-10">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L122" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L124" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-1">RFC5798-6.4.3-1</code></td><td colspan="3"><span class="rfc-subject">Master: respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.3, §8.1.2)</span></td></tr>
@@ -503,8 +519,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L64" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L125" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-2">RFC5798-6.4.3-2</code></td><td colspan="3"><span class="rfc-subject">Master: be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the virtual router (§6.4.3)</span></td></tr>
@@ -512,7 +528,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L650" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
@@ -539,8 +555,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L364" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L328" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-6">RFC5798-6.4.3-6</code></td><td colspan="3"><span class="rfc-subject">Master: accept packets addressed to the IPvX address(es) associated with the virtual router when it is the address owner or when Accept_Mode is True (§6.4.3)</span></td></tr>
@@ -548,8 +564,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L242" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L206" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-7">RFC5798-6.4.3-7</code></td><td colspan="3"><span class="rfc-subject">Master: never accept those packets when it is neither the address owner nor configured with Accept_Mode True (§6.4.3)</span></td></tr>
@@ -557,8 +573,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L204" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L244" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-8">RFC5798-6.4.3-8</code></td><td colspan="3"><span class="rfc-subject">Master: on a Shutdown event, cancel the Adver_Timer, send an ADVERTISEMENT with Priority = 0, and transition to Initialize (§6.4.3)</span></td></tr>
@@ -566,8 +582,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L126" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L128" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-9">RFC5798-6.4.3-9</code></td><td colspan="3"><span class="rfc-subject">Master: when the Adver_Timer fires, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3)</span></td></tr>
@@ -575,8 +591,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-9">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L130" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L641" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMStaleTimerGenerationIgnored</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-10">RFC5798-6.4.3-10</code></td><td colspan="3"><span class="rfc-subject">Master: on an ADVERTISEMENT with Priority 0, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3)</span></td></tr>
@@ -584,8 +600,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-10">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L132" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L134" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-11">RFC5798-6.4.3-11</code></td><td colspan="3"><span class="rfc-subject">Master: on an ADVERTISEMENT with a higher Priority, or an equal Priority with a greater sender primary IPvX address, cancel the Adver_Timer, set Master_Adver_Interval to the advertised Adver Interval, recompute Skew_Time and Master_Down_Interval, set the Master_Down_Timer, and transition to Backup (§6.4.3)</span></td></tr>
@@ -593,8 +609,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-11">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L136" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L138" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-12">RFC5798-6.4.3-12</code></td><td colspan="3"><span class="rfc-subject">Master: on a losing ADVERTISEMENT, one with a lower Priority or an equal Priority with a smaller sender address, discard it (§6.4.3)</span></td></tr>
@@ -602,8 +618,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-12">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L140" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L142" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.1-1">RFC5798-7.1-1</code></td><td colspan="3"><span class="rfc-subject">Rx: verify that the VRRP version is 3 (§7.1)</span></td></tr>
@@ -611,8 +627,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L80" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV3IPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L611" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.1-2">RFC5798-7.1-2</code></td><td colspan="3"><span class="rfc-subject">Rx: verify that the received packet contains the complete VRRP packet, the fixed fields and the IPvX address list (§7.1)</span></td></tr>
@@ -620,8 +636,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L83" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV3IPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L511" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.1-3">RFC5798-7.1-3</code></td><td colspan="3"><span class="rfc-subject">Rx: verify that the VRID is configured on the receiving interface and that the local router is not the IPvX address owner (§7.1)</span></td></tr>
@@ -638,8 +654,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.1-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L483" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxValidAdvertReachesFSM</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L463" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxDecodeErrorMapsReason</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.2-1">RFC5798-7.2-1</code></td><td colspan="3"><span class="rfc-subject">Tx: fill in the VRRP packet fields from the virtual router configuration state and compute the VRRP checksum (§7.2)</span></td></tr>
@@ -647,7 +663,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>7.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L109" title="internal/plugins/vrrp/packet/packet_test.go" target="_blank" rel="noopener"><code>TestEncodeGoldenV3IPv4</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
@@ -656,7 +672,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>7.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L387" title="internal/plugins/vrrp/packet/packet_test.go" target="_blank" rel="noopener"><code>TestConstants</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
@@ -665,7 +681,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>7.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L204" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertUsesParentPrimaryV4Source</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
@@ -674,7 +690,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>7.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L303" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertV3IPv4HeaderTTLProtoDst</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
@@ -701,8 +717,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>8.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.1.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L66" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L127" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.1.3-1">RFC5798-8.1.3-1</code></td><td colspan="3"><span class="rfc-subject">Advertise the virtual router MAC address in the Proxy ARP message when Proxy ARP is used on a VRRP router (§8.1.3; lowercase &#34;must&#34; in the RFC)</span></td></tr>
@@ -719,7 +735,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>8.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.2.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L652" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
@@ -746,8 +762,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>8.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.2.2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L695" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L697" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.2.3-1">RFC5798-8.2.3-1</code></td><td colspan="3"><span class="rfc-subject">Configure Backup routers to send the same Router Advertisement options as the address owner (§8.2.3; lowercase &#34;must&#34; in the RFC)</span></td></tr>
@@ -1015,14 +1031,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc5798-5.1.1.3-1"><code>RFC5798-5.1.1.3-1</code></a> Set the IPv4 TTL of transmitted VRRP packets to 255 (§5.1.1.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-5.1.1.3-2"><code>RFC5798-5.1.1.3-2</code></a> Discard a received IPv4 VRRP packet whose TTL is not 255 (§5.1.1.3, §7.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
 <tr><td><a href="#rfc5798-5.1.2.2-1"><code>RFC5798-5.1.2.2-1</code></a> Never forward a datagram destined to FF02:0:0:0:0:0:0:12, regardless of its Hop Limit (§5.1.2.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
@@ -1031,87 +1039,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc5798-5.1.2.3-2"><code>RFC5798-5.1.2.3-2</code></a> Discard a received IPv6 VRRP packet whose Hop Limit is not 255 (§5.1.2.3, §7.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-5.2.2-1"><code>RFC5798-5.2.2-1</code></a> Discard a packet with unknown Type; 1 = ADVERTISEMENT is the only type defined (§5.2.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-5.2.4-1"><code>RFC5798-5.2.4-1</code></a> Use Priority 255 for the VRRP router that owns the IPvX address associated with the virtual router (§5.2.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-5.2.4-2"><code>RFC5798-5.2.4-2</code></a> Use Priority values 1-254 for VRRP routers backing up a virtual router (§5.2.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-5.2.6-1"><code>RFC5798-5.2.6-1</code></a> Set the rsvd field to zero on transmission and ignore it on reception (§5.2.6)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-5.2.8-1"><code>RFC5798-5.2.8-1</code></a> Compute and verify the checksum as the 16-bit one&#39;s complement of the one&#39;s complement sum of the entire VRRP message starting with the version field and a pseudo-header defined by RFC 2460, with next header 112 and the checksum field zeroed, for both address families (§5.2.8, §7.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-5.2.9-1"><code>RFC5798-5.2.9-1</code></a> Send the IPv6 link-local address associated with the virtual router as the first address in the list (§5.2.9, §6.1; lowercase &#34;must&#34; in the RFC)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-5.2.9-2"><code>RFC5798-5.2.9-2</code></a> Never carry IPv4 and IPv6 addresses together in one IPvX Address field (§5.2.9)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-6.1-1"><code>RFC5798-6.1-1</code></a> Never drop IPv6 Neighbor Solicitations and Neighbor Advertisements when Accept_Mode is False (§6.1, §6.4.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-6.4.2-1"><code>RFC5798-6.4.2-1</code></a> Backup: never respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-6.4.2-2"><code>RFC5798-6.4.2-2</code></a> Backup: never respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
 <tr><td><a href="#rfc5798-6.4.2-3"><code>RFC5798-6.4.2-3</code></a> Backup: never send ND Router Advertisement messages for the virtual router (§6.4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-6.4.2-4"><code>RFC5798-6.4.2-4</code></a> Backup: discard packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-6.4.2-5"><code>RFC5798-6.4.2-5</code></a> Backup: never accept packets addressed to the IPvX address(es) associated with the virtual router (§6.4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-6.4.2-6"><code>RFC5798-6.4.2-6</code></a> Backup: on a Shutdown event, cancel the Master_Down_Timer and transition to Initialize (§6.4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-6.4.2-7"><code>RFC5798-6.4.2-7</code></a> Backup: when the Master_Down_Timer fires, send an ADVERTISEMENT, broadcast a gratuitous ARP carrying the virtual router MAC for each IPv4 address or, for IPv6, join the Solicited-Node multicast address and send an unsolicited Neighbor Advertisement for each address, set the Adver_Timer to Advertisement_Interval, and transition to Master (§6.4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-6.4.2-8"><code>RFC5798-6.4.2-8</code></a> Backup: on an ADVERTISEMENT with Priority 0, set the Master_Down_Timer to Skew_Time (§6.4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-6.4.2-9"><code>RFC5798-6.4.2-9</code></a> Backup: on a non-zero-priority ADVERTISEMENT, when Preempt_Mode is False or the advertised Priority is greater than or equal to the local Priority, set Master_Adver_Interval to the Adver Interval in the advertisement, recompute Master_Down_Interval, and reset the Master_Down_Timer to it (§6.4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-6.4.2-10"><code>RFC5798-6.4.2-10</code></a> Backup: on a non-zero-priority ADVERTISEMENT with Preempt_Mode True and an advertised Priority lower than the local Priority, discard the ADVERTISEMENT (§6.4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-6.4.3-1"><code>RFC5798-6.4.3-1</code></a> Master: respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.3, §8.1.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-6.4.3-2"><code>RFC5798-6.4.3-2</code></a> Master: be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the virtual router (§6.4.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
@@ -1123,67 +1051,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc5798-6.4.3-5"><code>RFC5798-6.4.3-5</code></a> Master: forward packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-6.4.3-6"><code>RFC5798-6.4.3-6</code></a> Master: accept packets addressed to the IPvX address(es) associated with the virtual router when it is the address owner or when Accept_Mode is True (§6.4.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-6.4.3-7"><code>RFC5798-6.4.3-7</code></a> Master: never accept those packets when it is neither the address owner nor configured with Accept_Mode True (§6.4.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-6.4.3-8"><code>RFC5798-6.4.3-8</code></a> Master: on a Shutdown event, cancel the Adver_Timer, send an ADVERTISEMENT with Priority = 0, and transition to Initialize (§6.4.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-6.4.3-9"><code>RFC5798-6.4.3-9</code></a> Master: when the Adver_Timer fires, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-6.4.3-10"><code>RFC5798-6.4.3-10</code></a> Master: on an ADVERTISEMENT with Priority 0, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-6.4.3-11"><code>RFC5798-6.4.3-11</code></a> Master: on an ADVERTISEMENT with a higher Priority, or an equal Priority with a greater sender primary IPvX address, cancel the Adver_Timer, set Master_Adver_Interval to the advertised Adver Interval, recompute Skew_Time and Master_Down_Interval, set the Master_Down_Timer, and transition to Backup (§6.4.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-6.4.3-12"><code>RFC5798-6.4.3-12</code></a> Master: on a losing ADVERTISEMENT, one with a lower Priority or an equal Priority with a smaller sender address, discard it (§6.4.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-7.1-1"><code>RFC5798-7.1-1</code></a> Rx: verify that the VRRP version is 3 (§7.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-7.1-2"><code>RFC5798-7.1-2</code></a> Rx: verify that the received packet contains the complete VRRP packet, the fixed fields and the IPvX address list (§7.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
 <tr><td><a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a> Rx: verify that the VRID is configured on the receiving interface and that the local router is not the IPvX address owner (§7.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-7.1-4"><code>RFC5798-7.1-4</code></a> Rx: discard the packet when any mandatory receive check fails (§7.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-7.2-1"><code>RFC5798-7.2-1</code></a> Tx: fill in the VRRP packet fields from the virtual router configuration state and compute the VRRP checksum (§7.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-7.2-2"><code>RFC5798-7.2-2</code></a> Tx: set the source MAC address to the virtual router MAC address (§7.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-7.2-3"><code>RFC5798-7.2-3</code></a> Tx: set the source IPv4 address to the interface primary IPv4 address, or the source IPv6 address to the interface link-local IPv6 address (§7.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-7.2-4"><code>RFC5798-7.2-4</code></a> Tx: set the IPvX protocol to VRRP and send the packet to the VRRP IPvX multicast group (§7.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
@@ -1195,15 +1063,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc5798-8.1.2-1"><code>RFC5798-8.1.2-1</code></a> Master: never respond to a host ARP request for a virtual router IPv4 address with its physical MAC address (§8.1.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
 <tr><td><a href="#rfc5798-8.1.3-1"><code>RFC5798-8.1.3-1</code></a> Advertise the virtual router MAC address in the Proxy ARP message when Proxy ARP is used on a VRRP router (§8.1.3; lowercase &#34;must&#34; in the RFC)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-8.2.2-1"><code>RFC5798-8.2.2-1</code></a> Master: never respond to an ND Neighbor Solicitation for a virtual router IPv6 address with its physical MAC address (§8.2.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
@@ -1212,10 +1072,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test carries this requirement id</td>
 </tr>
 <tr><td><a href="#rfc5798-8.2.2-3"><code>RFC5798-8.2.2-3</code></a> Master: never use its physical MAC address in that source link-layer address option (§8.2.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5798-8.2.2-4"><code>RFC5798-8.2.2-4</code></a> At system boot, delay every ND Router Advertisement, Neighbor Advertisement and Neighbor Solicitation until both the IPv6 address and the virtual router MAC address are configured (§8.2.2; lowercase &#34;must&#34; in the RFC)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
@@ -1244,11 +1100,38 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc5798-5.1.1.3-1"><code>RFC5798-5.1.1.3-1</code></a></h3>
 <p>Set the IPv4 TTL of transmitted VRRP packets to 255 (§5.1.1.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-5.1.1.3-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L301" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertV3IPv4HeaderTTLProtoDst</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-5.1.1.3-2"><code>RFC5798-5.1.1.3-2</code></a></h3>
 <p>Discard a received IPv4 VRRP packet whose TTL is not 255 (§5.1.1.3, §7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-5.1.1.3-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L535" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L75" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV3IPv4</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-5.1.2.2-1"><code>RFC5798-5.1.2.2-1</code></a></h3>
 <p>Never forward a datagram destined to FF02:0:0:0:0:0:0:12, regardless of its Hop Limit (§5.1.2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1260,47 +1143,223 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc5798-5.1.2.3-2"><code>RFC5798-5.1.2.3-2</code></a></h3>
 <p>Discard a received IPv6 VRRP packet whose Hop Limit is not 255 (§5.1.2.3, §7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-5.1.2.3-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L665" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeV3IPv6ChecksumAndHopLimit</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L104" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV3IPv6</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-5.2.2-1"><code>RFC5798-5.2.2-1</code></a></h3>
 <p>Discard a packet with unknown Type; 1 = ADVERTISEMENT is the only type defined (§5.2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-5.2.2-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L152" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L77" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV3IPv4</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-5.2.4-1"><code>RFC5798-5.2.4-1</code></a></h3>
 <p>Use Priority 255 for the VRRP router that owns the IPvX address associated with the virtual router (§5.2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-5.2.4-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L775" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestOwnerAutoDetection</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L773" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestOwnerAutoDetection</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-5.2.4-2"><code>RFC5798-5.2.4-2</code></a></h3>
 <p>Use Priority values 1-254 for VRRP routers backing up a virtual router (§5.2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-5.2.4-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L320" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestBoundaryPriority</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L318" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestBoundaryPriority</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-5.2.6-1"><code>RFC5798-5.2.6-1</code></a></h3>
 <p>Set the rsvd field to zero on transmission and ignore it on reception (§5.2.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-5.2.6-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L639" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeV3ReserveIgnoredOnReceive</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L107" title="internal/plugins/vrrp/packet/packet_test.go" target="_blank" rel="noopener"><code>TestEncodeGoldenV3IPv4</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-5.2.8-1"><code>RFC5798-5.2.8-1</code></a></h3>
 <p>Compute and verify the checksum as the 16-bit one&#39;s complement of the one&#39;s complement sum of the entire VRRP message starting with the version field and a pseudo-header defined by RFC 2460, with next header 112 and the checksum field zeroed, for both address families (§5.2.8, §7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-5.2.8-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L663" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeV3IPv6ChecksumAndHopLimit</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/checksum_test.go#L68" title="internal/plugins/vrrp/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestFillChecksumFamilies</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-5.2.9-1"><code>RFC5798-5.2.9-1</code></a></h3>
 <p>Send the IPv6 link-local address associated with the virtual router as the first address in the list (§5.2.9, §6.1; lowercase &#34;must&#34; in the RFC)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-5.2.9-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L525" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestValidateIPv6LinkLocal</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L523" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestValidateIPv6LinkLocal</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-5.2.9-2"><code>RFC5798-5.2.9-2</code></a></h3>
 <p>Never carry IPv4 and IPv6 addresses together in one IPvX Address field (§5.2.9)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-5.2.9-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L549" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestValidateVIPFamilyMatchesGroupFamily</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L547" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestValidateVIPFamilyMatchesGroupFamily</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.1-1"><code>RFC5798-6.1-1</code></a></h3>
 <p>Never drop IPv6 Neighbor Solicitations and Neighbor Advertisements when Accept_Mode is False (§6.1, §6.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.1-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L112" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L110" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.4.2-1"><code>RFC5798-6.4.2-1</code></a></h3>
 <p>Backup: never respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.4.2-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L367" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L322" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.4.2-2"><code>RFC5798-6.4.2-2</code></a></h3>
 <p>Backup: never respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.4.2-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L648" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L646" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.4.2-3"><code>RFC5798-6.4.2-3</code></a></h3>
 <p>Backup: never send ND Router Advertisement messages for the virtual router (§6.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1308,39 +1367,178 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc5798-6.4.2-4"><code>RFC5798-6.4.2-4</code></a></h3>
 <p>Backup: discard packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.4.2-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L369" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L324" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.4.2-5"><code>RFC5798-6.4.2-5</code></a></h3>
 <p>Backup: never accept packets addressed to the IPvX address(es) associated with the virtual router (§6.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.4.2-5, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L371" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L326" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.4.2-6"><code>RFC5798-6.4.2-6</code></a></h3>
 <p>Backup: on a Shutdown event, cancel the Master_Down_Timer and transition to Initialize (§6.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.4.2-6, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L112" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L110" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.4.2-7"><code>RFC5798-6.4.2-7</code></a></h3>
 <p>Backup: when the Master_Down_Timer fires, send an ADVERTISEMENT, broadcast a gratuitous ARP carrying the virtual router MAC for each IPv4 address or, for IPv6, join the Solicited-Node multicast address and send an unsolicited Neighbor Advertisement for each address, set the Adver_Timer to Advertisement_Interval, and transition to Master (§6.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.4.2-7, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L639" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMStaleTimerGenerationIgnored</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L448" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMMasterDownPromotion</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.4.2-8"><code>RFC5798-6.4.2-8</code></a></h3>
 <p>Backup: on an ADVERTISEMENT with Priority 0, set the Master_Down_Timer to Skew_Time (§6.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.4.2-8, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L116" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L114" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.4.2-9"><code>RFC5798-6.4.2-9</code></a></h3>
 <p>Backup: on a non-zero-priority ADVERTISEMENT, when Preempt_Mode is False or the advertised Priority is greater than or equal to the local Priority, set Master_Adver_Interval to the Adver Interval in the advertisement, recompute Master_Down_Interval, and reset the Master_Down_Timer to it (§6.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.4.2-9, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L120" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L118" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.4.2-10"><code>RFC5798-6.4.2-10</code></a></h3>
 <p>Backup: on a non-zero-priority ADVERTISEMENT with Preempt_Mode True and an advertised Priority lower than the local Priority, discard the ADVERTISEMENT (§6.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.4.2-10, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L124" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L122" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.4.3-1"><code>RFC5798-6.4.3-1</code></a></h3>
 <p>Master: respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.3, §8.1.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.4.3-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L125" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L64" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.4.3-2"><code>RFC5798-6.4.3-2</code></a></h3>
 <p>Master: be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the virtual router (§6.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.4.3-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L650" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.4.3-3"><code>RFC5798-6.4.3-3</code></a></h3>
 <p>Master: respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.3, §8.2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1352,43 +1550,203 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc5798-6.4.3-5"><code>RFC5798-6.4.3-5</code></a></h3>
 <p>Master: forward packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.4.3-5, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L328" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L364" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.4.3-6"><code>RFC5798-6.4.3-6</code></a></h3>
 <p>Master: accept packets addressed to the IPvX address(es) associated with the virtual router when it is the address owner or when Accept_Mode is True (§6.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.4.3-6, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L206" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L242" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.4.3-7"><code>RFC5798-6.4.3-7</code></a></h3>
 <p>Master: never accept those packets when it is neither the address owner nor configured with Accept_Mode True (§6.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.4.3-7, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L244" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L204" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.4.3-8"><code>RFC5798-6.4.3-8</code></a></h3>
 <p>Master: on a Shutdown event, cancel the Adver_Timer, send an ADVERTISEMENT with Priority = 0, and transition to Initialize (§6.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.4.3-8, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L128" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L126" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.4.3-9"><code>RFC5798-6.4.3-9</code></a></h3>
 <p>Master: when the Adver_Timer fires, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.4.3-9, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L641" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMStaleTimerGenerationIgnored</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L130" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.4.3-10"><code>RFC5798-6.4.3-10</code></a></h3>
 <p>Master: on an ADVERTISEMENT with Priority 0, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.4.3-10, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L134" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L132" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.4.3-11"><code>RFC5798-6.4.3-11</code></a></h3>
 <p>Master: on an ADVERTISEMENT with a higher Priority, or an equal Priority with a greater sender primary IPvX address, cancel the Adver_Timer, set Master_Adver_Interval to the advertised Adver Interval, recompute Skew_Time and Master_Down_Interval, set the Master_Down_Timer, and transition to Backup (§6.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.4.3-11, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L138" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L136" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-6.4.3-12"><code>RFC5798-6.4.3-12</code></a></h3>
 <p>Master: on a losing ADVERTISEMENT, one with a lower Priority or an equal Priority with a smaller sender address, discard it (§6.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-6.4.3-12, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L142" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L140" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-7.1-1"><code>RFC5798-7.1-1</code></a></h3>
 <p>Rx: verify that the VRRP version is 3 (§7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-7.1-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L611" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L80" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV3IPv4</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-7.1-2"><code>RFC5798-7.1-2</code></a></h3>
 <p>Rx: verify that the received packet contains the complete VRRP packet, the fixed fields and the IPvX address list (§7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-7.1-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L511" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L83" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV3IPv4</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a></h3>
 <p>Rx: verify that the VRID is configured on the receiving interface and that the local router is not the IPvX address owner (§7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1396,23 +1754,83 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc5798-7.1-4"><code>RFC5798-7.1-4</code></a></h3>
 <p>Rx: discard the packet when any mandatory receive check fails (§7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-7.1-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L463" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxDecodeErrorMapsReason</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L483" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxValidAdvertReachesFSM</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-7.2-1"><code>RFC5798-7.2-1</code></a></h3>
 <p>Tx: fill in the VRRP packet fields from the virtual router configuration state and compute the VRRP checksum (§7.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-7.2-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L109" title="internal/plugins/vrrp/packet/packet_test.go" target="_blank" rel="noopener"><code>TestEncodeGoldenV3IPv4</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-7.2-2"><code>RFC5798-7.2-2</code></a></h3>
 <p>Tx: set the source MAC address to the virtual router MAC address (§7.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-7.2-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L387" title="internal/plugins/vrrp/packet/packet_test.go" target="_blank" rel="noopener"><code>TestConstants</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-7.2-3"><code>RFC5798-7.2-3</code></a></h3>
 <p>Tx: set the source IPv4 address to the interface primary IPv4 address, or the source IPv6 address to the interface link-local IPv6 address (§7.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-7.2-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L204" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertUsesParentPrimaryV4Source</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-7.2-4"><code>RFC5798-7.2-4</code></a></h3>
 <p>Tx: set the IPvX protocol to VRRP and send the packet to the VRRP IPvX multicast group (§7.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-7.2-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L303" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertV3IPv4HeaderTTLProtoDst</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-7.4-1"><code>RFC5798-7.4-1</code></a></h3>
 <p>Create the Interface Identifiers of an IPv6 router running VRRP in the normal manner, as in Transmission of IPv6 Packets over Ethernet Networks (§7.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1424,7 +1842,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc5798-8.1.2-1"><code>RFC5798-8.1.2-1</code></a></h3>
 <p>Master: never respond to a host ARP request for a virtual router IPv4 address with its physical MAC address (§8.1.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-8.1.2-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L127" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L66" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-8.1.3-1"><code>RFC5798-8.1.3-1</code></a></h3>
 <p>Advertise the virtual router MAC address in the Proxy ARP message when Proxy ARP is used on a VRRP router (§8.1.3; lowercase &#34;must&#34; in the RFC)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1432,7 +1866,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc5798-8.2.2-1"><code>RFC5798-8.2.2-1</code></a></h3>
 <p>Master: never respond to an ND Neighbor Solicitation for a virtual router IPv6 address with its physical MAC address (§8.2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-8.2.2-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L652" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-8.2.2-2"><code>RFC5798-8.2.2-2</code></a></h3>
 <p>Master: include the virtual router MAC address in the source link-layer address option of a Neighbor Solicitation it sends for a host&#39;s IPv6 address, when it sends that option (§8.2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1444,7 +1889,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc5798-8.2.2-4"><code>RFC5798-8.2.2-4</code></a></h3>
 <p>At system boot, delay every ND Router Advertisement, Neighbor Advertisement and Neighbor Solicitation until both the IPv6 address and the virtual router MAC address are configured (§8.2.2; lowercase &#34;must&#34; in the RFC)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-8.2.2-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L697" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L695" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-8.2.3-1"><code>RFC5798-8.2.3-1</code></a></h3>
 <p>Configure Backup routers to send the same Router Advertisement options as the address owner (§8.2.3; lowercase &#34;must&#34; in the RFC)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -2503,7 +2964,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

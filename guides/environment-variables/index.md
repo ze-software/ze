@@ -23,9 +23,12 @@ An OS env var is never overwritten by a config value.
 | `ze.user` | User to drop to after binding privileged ports |
 | `ze.pid.file` | Path to PID file written at startup, removed at clean shutdown |
 | `ze.pprof` | Bind pprof HTTP server (e.g. `:6060`). Empty disables |
+| `ze.hide-version` | Keep the `X-Ze-Version` build banner off every HTTP response. Default false |
 | `ze.bgp.openwait` | Seconds to wait for peer OPEN after TCP connect |
 | `ze.bgp.announce.delay` | Duration to block between reactor Ready and first UPDATE |
 | `exabgp.api.ack` | ExaBGP bridge: emit `done`/`error` ack lines on plugin stdin |
+| `ze.web.certificate` | PKI store entry the web HTTPS listener serves. Empty means self-signed |
+| `ze.looking-glass.certificate` | PKI store entry the looking glass serves. Empty means self-signed |
 
 ## Config Block Syntax
 
@@ -42,6 +45,7 @@ environment {
         announce-delay 5s
     }
     pprof ":6060"
+    hide-version true
     exabgp {
         api {
             ack false

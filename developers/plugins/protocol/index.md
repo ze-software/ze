@@ -179,6 +179,29 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `enrichers` | `[]EnricherDecl` | Show enrichers the plugin provides |
 | `pipes` | `[]PipeDecl` | CLI pipe aliases the plugin names for its own commands |
 | `claims` | `[]string` | Exclusive runtime roles the plugin takes over |
+| `failure-policy` | `string` | What ze does when this plugin fails: `restart`, `ignore` or `fatal`. Omitting it means `ignore` |
+
+**The failure policy is what your plugin asks ze to do when your plugin fails.**
+It is voluntary, and a plugin that omits it is carried on without. A value that
+is none of the three fails the whole registration, so ze never guesses.
+
+| You declare | ze does | May ze start your plugin again? |
+|-------------|---------|---------------------------------|
+| `restart` | starts the plugin again, bounded at 5 in 60 seconds and 20 in the life of the daemon | Yes |
+| `ignore` | logs it and carries on without the plugin | No |
+| `fatal` | stops ze | No |
+
+`fatal` is open to any plugin, whether ze ships it or you wrote it (owner
+directive, 2026-09-06). An operator who configures your plugin accepts its
+terms.
+
+Declaring anything other than `restart` also says your plugin must NOT be
+started again. An operator whose `plugin { external <name> }` block writes
+`respawn true` for such a plugin gets a daemon that refuses to start, with an
+error naming your plugin and the policy it declared. Declare `restart` when
+your plugin can come back from a crash, which usually means its state lives
+outside the process.
+
 
 
 Each `CommandDecl` has these fields:

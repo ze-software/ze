@@ -331,19 +331,19 @@ server-driven mitigation commands.</p>
 <td><code>confirm-duration</code></td>
 <td><code>3</code></td>
 <td>0-3600</td>
-<td>Consecutive ticks above threshold before triggering (0 = immediate)</td>
+<td>Consecutive evaluations above threshold before triggering (0 = immediate)</td>
 </tr>
 <tr>
 <td><code>clear-consecutive-checks</code></td>
 <td><code>10</code></td>
 <td>1-100</td>
-<td>Consecutive ticks below threshold before clearing</td>
+<td>Consecutive evaluations below threshold before clearing</td>
 </tr>
 <tr>
 <td><code>baseline-window</code></td>
 <td><code>300</code></td>
 <td>10-86400</td>
-<td>Rolling baseline window in samples (~seconds at 1 Hz)</td>
+<td>Rolling baseline window in samples, one sample per evaluation (~seconds at the default <code>check-interval</code>)</td>
 </tr>
 <tr>
 <td><code>threshold-multiplier</code></td>
@@ -419,6 +419,14 @@ server-driven mitigation commands.</p>
 </tr>
 </tbody>
 </table>
+<p><strong>How <code>check-interval</code> works:</strong> both rate feeds publish once a second, and the
+detector folds <code>check-interval</code> of those samples into one evaluation. The
+evaluation reads the PEAK of the interval, on the interface that carried it, so a
+one-second flood inside a 10-second interval still reaches the threshold.
+<code>confirm-duration</code>, <code>clear-consecutive-checks</code> and <code>baseline-window</code> all count
+evaluations, so raising <code>check-interval</code> multiplies their wall-clock meaning by
+the same factor. <code>startup-grace</code> counts feed samples and stays in seconds.</p>
+<!-- source: internal/plugins/ddos/detect/detector.go -- tick, intervalPeak -->
 <p><strong>How the threshold works:</strong></p>
 <pre><code>threshold = max(baseline_p99 * threshold-multiplier, absolute-floor)
 </code></pre>
@@ -547,7 +555,7 @@ duration is not a factor.</p>
 <td><code>announce-rate-limit</code></td>
 <td><code>10</code></td>
 <td>1-600 /min</td>
-<td>Maximum FlowSpec announcements per minute</td>
+<td>Maximum FlowSpec announcements in any 60-second window. One over the limit is refused and logged, and the responder stays idle so the next characterization inside the window announces nothing</td>
 </tr>
 <tr>
 <td><code>max-mitigation-duration</code></td>
@@ -801,7 +809,7 @@ degrades to a coarse generic-flood drop.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

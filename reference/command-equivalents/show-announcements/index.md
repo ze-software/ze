@@ -20,6 +20,8 @@ List active on-demand announcements.
 - Command pipes: none
 - Pipe aliases: none
 
+Each row carries the id, the tag, the family, the peer selector, the source and the creation time. An expiry time is present only when the announcement was made with for.
+
 ## Arguments
 
 | Name | Type | Required | Values |

@@ -220,7 +220,7 @@ ze's own BGP peer state changes and route updates.</p>
 <tr>
 <td><code>statistics-timeout</code></td>
 <td>0</td>
-<td>Seconds between statistics reports. Read by nothing today: the sender has no statistics timer</td>
+<td>Seconds between Statistics Reports (RFC 7854 Section 4.8). 0 sends none</td>
 </tr>
 </tbody>
 </table>
@@ -289,7 +289,7 @@ per RFC 7854 recommendations.</p>
 <tr>
 <td>Statistics Report (1)</td>
 <td>Stores per-peer counters</td>
-<td>Encoder only, with the O flag cleared (RFC 8671 Section 6.2); no timer sends one yet</td>
+<td>Sends one per established peer every <code>statistics-timeout</code> seconds, with the O flag cleared (RFC 8671 Section 6.2)</td>
 </tr>
 <tr>
 <td>Route Mirroring (6)</td>
@@ -316,6 +316,14 @@ per RFC 7854 recommendations.</p>
 <li>With <code>route-mirroring true</code>, wraps every BGP message (OPEN, UPDATE, NOTIFICATION,
 KEEPALIVE, ROUTE-REFRESH, both directions) as Route Mirroring (RFC 7854 Section 4.7).
 The O flag follows the direction, as it does for Route Monitoring</li>
+<li>With <code>statistics-timeout</code> set to a nonzero number of seconds, sends one
+Statistics Report per established BGP peer, to every collector, at that
+interval. Each report carries RFC 7854 Section 4.8 Stat Type 13, "Number of
+duplicate update messages received", as a 4-byte counter. That is the one
+statistic ze measures: an UPDATE body a peer sends twice is counted once, and
+a body ze advertised is not counted at all. The counter resets when the BGP
+peer goes down or when a configuration change bounces it, because either one
+makes it a new peer to the collector</li>
 <li>Clears the O flag on a Statistics Report, which RFC 8671 Section 6.2 requires
 because the report belongs to neither RIB</li>
 <li>Route-monitoring-policy controls which direction(s) are streamed</li>
@@ -330,6 +338,13 @@ OPEN message. Capabilities MUST include the 4-octet ASN and all necessary
 capabilities to represent the Loc-RIB Route Monitoring messages." Ze
 advertises the 4-octet ASN capability and one address-family capability per
 family the dump delivers, and nothing else</li>
+<li>Reads that ASN and that router-id from <code>bgp session asn local</code> and <code>bgp router-id</code>, and from nowhere else. Both leaves are required, so a configured
+ze always knows its own identity, and it knows it before any BGP peer comes
+up. That is the case RFC 9069 Section 1.1 exists to serve, a Loc-RIB monitored
+where there are "no preexisting BGP peers": a router that read its identity
+off an established session would have none to read. Ze sends no Loc-RIB
+message at all while the identity is unknown, and logs why, rather than
+sending a Peer AS of 0 from router 0.0.0.0</li>
 <li>Names that Loc-RIB <code>global</code> in a VRF/Table Name Information TLV (type 3) on
 the Peer Up, and repeats the TLV after reason code 6 on the Peer Down. RFC
 9069 Section 5.2.1: "The default value of "global" MUST be used for the
@@ -377,13 +392,20 @@ session carries, and only a move in one of them bounces the peers:</p>
 </tr>
 <tr>
 <td><code>statistics-timeout</code></td>
-<td>configures the Statistics Report interval</td>
+<td>decides whether a periodic Statistics Report is sent, and how often</td>
 </tr>
 </tbody>
 </table>
 <p>A commit that changes anything else under <code>bgp</code>, a new neighbor for example,
 leaves every collector session untouched. So does a commit that changes nothing
 under <code>bgp</code>.</p>
+<p>The router's own identity is the one exception, and it bounces the Loc-RIB
+emulated peer alone. A commit that moves <code>bgp router-id</code> or <code>bgp session asn local</code> while <code>loc-rib</code> is on sends that peer a Peer Down with reason 6 under the
+OLD identity, then a Peer Up under the new one. RFC 9069 Section 6.1.1 has the
+collector identify the Loc-RIB "by the peer header distinguisher and BGP ID", so
+a new BGP ID is a new peer to it and Section 6.1.3 owes it the bounce. The
+monitored BGP peers are not bounced: their per-peer headers carry their own
+addresses and AS numbers, which the router's identity does not appear in.</p>
 <p>The collector list is separate, because changing it changes which sessions exist
 rather than what one of them carries. A collector you remove, or point at another
 address, is sent a Termination and its TCP connection is closed: that session
@@ -395,8 +417,13 @@ Peer Up per peer on each collector, rather than a full re-dump of the table.</p>
 <!-- source: internal/component/bgp/plugins/bmp/sender_config.go -- applySenderConfig, behaviorOf, syncSenders -->
 <!-- source: internal/component/bgp/plugins/bmp/bmp_events.go -- bounceMonitoredPeers -->
 <!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- the four sender behavior leaves -->
-<p>Ze sends no periodic Statistics Report yet, so <code>statistics-timeout</code> bounces the
-peers but changes nothing else (<code>plan/journal/unwired-feature.md</code>, 2026-08-31).</p>
+<p>A move in <code>statistics-timeout</code> also replaces the report timer: exactly one
+report stream is live per configuration, so a collector never reads two streams
+at two intervals. Setting it to 0 stops the reports and leaves the session up.</p>
+<!-- source: internal/component/bgp/plugins/bmp/statistics.go -- setStatisticsTimeout, statisticsLoop, sendStatisticsReports -->
+<p>The RFC 9069 Loc-RIB emulated peer gets no Statistics Report. RFC 9069
+Section 5.6 names the two stat types relevant to a Loc-RIB, 8 and 10, and both
+count routes in the Loc-RIB itself, which the BMP plugin does not hold.</p>
 <h4 id="every-connection-is-a-fresh-bmp-session">Every Connection Is a Fresh BMP Session</h4>
 <p>A BMP session carries no state across TCP connections, so a collector that
 connects (or reconnects after a drop) is told everything again, in this order:</p>
@@ -569,7 +596,7 @@ forbids a RIB back-door for the full attribute set.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 02:44 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

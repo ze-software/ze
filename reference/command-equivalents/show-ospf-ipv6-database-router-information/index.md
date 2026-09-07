@@ -1,6 +1,6 @@
 # `show ospf ipv6 database router-information`
 
-Show the OSPFv3 Router Information LSAs (RFC 7770, function code 12) decoded into capability bits and TLVs.
+Show the OSPFv3 Router Information LSAs (RFC 7770).
 
 ## Ze command
 
@@ -19,6 +19,8 @@ Show the OSPFv3 Router Information LSAs (RFC 7770, function code 12) decoded int
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
+
+The LSA carries function code 12. Each one decodes into its capability bits and its TLVs.
 
 ## Arguments
 

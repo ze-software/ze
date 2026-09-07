@@ -114,11 +114,15 @@
 </tr>
 <tr>
 <td>PKI certificate</td>
-<td><code>environment.web.certificate</code> names a <code>pki {}</code> store entry to serve instead, sending the leaf and every stored intermediate. A configured name that does not resolve stops the listener; ze never falls back to self-signed for it. Rotates on reload without rebinding, so open SSE streams survive. See <a href="../../guides/configuration-model/#tls-certificates-from-the-pki-store">TLS Certificates From the PKI Store</a></td>
+<td><code>environment.web.certificate</code> names a <code>pki {}</code> store entry to serve instead, sending the leaf and every stored intermediate. A configured name that does not resolve makes ze exit at start. ze never falls back to self-signed for it. Rotates on reload without rebinding, so open SSE streams survive. See <a href="../../guides/configuration-model/#tls-certificates-from-the-pki-store">TLS Certificates From the PKI Store</a></td>
 </tr>
 <tr>
 <td>Security headers</td>
 <td>HSTS, CSP, X-Frame-Options DENY, no-store cache on all authenticated responses</td>
+</tr>
+<tr>
+<td>Version banner</td>
+<td><code>X-Ze-Version</code> carries the build fingerprint. <code>environment { hide-version true; }</code> keeps it off the web interface and the looking glass together; the default sends it</td>
 </tr>
 <tr>
 <td>YANG decorators</td>
@@ -134,7 +138,7 @@
 </tr>
 <tr>
 <td>htmx 4</td>
-<td>htmx 4.0.0-beta6 is embedded, with <code>hx-sse.min.js</code> for the streams. Each page loads only the assets its component graph reaches</td>
+<td>htmx 4.0.0 is embedded, with <code>hx-sse.min.js</code> for the streams. Each page loads only the assets its component graph reaches</td>
 </tr>
 <tr>
 <td>Secret masking</td>
@@ -187,7 +191,7 @@ Expected result: Ze commits the browser user&#39;s isolated draft and the active
   </details>
 </figure>
 <!-- source: internal/component/web/server.go -- WebServer, TLS config, cert generation, UpdateTLSCertificate -->
-<!-- source: cmd/ze/hub/service_web.go -- webTLSMaterial: PKI store or self-signed, fail closed -->
+<!-- source: cmd/ze/hub/service_tls.go -- listenerTLSMaterial: PKI store or self-signed, fail closed -->
 <!-- source: internal/component/web/decorator.go -- Decorator registry and interface -->
 <!-- source: internal/component/web/decorator_asn.go -- ASN name decorator via Team Cymru DNS -->
 <!-- source: internal/component/web/auth.go -- SessionStore, authMiddleware, loginHandler -->
@@ -235,7 +239,7 @@ Expected result: Ze commits the browser user&#39;s isolated draft and the active
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

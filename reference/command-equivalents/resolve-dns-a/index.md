@@ -20,6 +20,8 @@ Look up IPv4 addresses (A records) for a hostname.
 - Command pipes: none
 - Pipe aliases: none
 
+The answer is the list of IPv4 addresses. A valid cache entry answers without a query, and a fresh answer is cached for the TTL the server gave.
+
 ## Arguments
 
 | Name | Type | Required | Values |

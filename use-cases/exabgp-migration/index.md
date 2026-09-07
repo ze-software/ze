@@ -76,7 +76,7 @@ The bridge translates bidirectionally:
 | Commands (from plugin) | ExaBGP text commands | Ze command format |
 
 <!-- source: internal/exabgp/bridge/bridge_event.go -- ZebgpToExabgpJSON -->
-<!-- source: internal/exabgp/bridge/bridge_command.go -- ExabgpToZebgpCommand -->
+<!-- source: internal/exabgp/bridge/bridge_command.go -- TranslateLine -->
 
 When ze's process manager launches the bridge, the bridge detects `ZE_PLUGIN_HUB_TOKEN` and
 connects back via TLS using the SDK. The SDK handles the 5-stage startup protocol

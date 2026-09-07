@@ -23,39 +23,39 @@ Generated references stay tied to code, registries and RFC evidence.
 
  Recently shipped
 
-### [Week of 2026-08-24](https://ze-software.net/project/changes/2026-08-24/)
+### [Week of 2026-08-31](https://ze-software.net/project/changes/2026-08-31/)
 
-Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and…
+Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and…
 
  RFC compliance progress
 
-### [Every MUST requirement tied to a test](https://ze-software.net/quality/rfc-compliance/)
+### [Every MUST-level requirement, and what proves it](https://ze-software.net/quality/rfc-compliance/)
 
-Every gated MUST-level requirement links to source text, status, and test evidence.
+One page per RFC, naming each requirement, the test evidence behind it, and the ones that have none.
 
 ## Release claims stay checkable.
 
 Every homepage number links to the page where you can inspect the test layer, transcript, peer list, RFC gate, or generated source evidence behind it.
 
- [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**27,200+ unit tests**
+ [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**28,900+ unit tests**
 
 - Wire encoding, parsing
 - Config, FSM, plugins
 - gomu mutates code to check assertions
 
- Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**3,264 RFC MUST checks**
+ Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**1,817 of 3,041 gated MUSTs proven by test (59.8%)**
 
-- 181 RFCs inspected
+- 145 RFCs Ze implements, 180 inspected
+- 3,303 gated MUSTs across everything inspected
 - Gaps disclosed before claims
-- Tests tied to requirement IDs
 
- RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**1,800+ end to end tests**
+ RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**1,900+ end to end tests**
 
 - Peering, sessions, updates
 - Editor, commits, reloads
 - Commands checked as operators run them
 
- Functional transcript format and rerun path.](https://ze-software.net/quality/functional-ci/) [**79 fuzz targets**
+ Functional transcript format and rerun path.](https://ze-software.net/quality/functional-ci/) [**82 fuzz targets**
 
 - Parsers, external inputs
 - Wire formats, config files
@@ -233,6 +233,16 @@ Weekly updates come from git history and Discord's `ze-news`. They stay specific
 
  01
 
+Week of 2026-08-31
+
+### [Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and most of the week went on fixing what it found. Three of them mattered: an authentication bypass on IKE logins, a redistribute block that discarded every route from every peer, and subscriber IPv6 that never worked at all.](https://ze-software.net/project/changes/2026-08-31/)
+
+ BGP ExaBGP Migration Security RADIUS
+
+**Update**
+
+ 02
+
 Week of 2026-08-24
 
 ### [Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Around it, output formatting moved off flags and onto the pipe operators, and a TACACS+ authentication bypass was closed.](https://ze-software.net/project/changes/2026-08-24/)
@@ -241,23 +251,13 @@ Week of 2026-08-24
 
 **Update**
 
- 02
+ 03
 
 Week of 2026-08-17
 
 ### [The CLI gained a clearer BGP workflow, traffic tools gained history and source-AS context, and IPsec changes now reach running tunnels.](https://ze-software.net/project/changes/2026-08-17/)
 
- BGP CLI API Flow Export
-
-**Update**
-
- 03
-
-Week of 2026-08-10
-
-### [Web and Looking Glass rewrites, remote-triggered blackholing, dynamic BGP peer repairs, authenticated PPPoE and another standards pass shaped the week.](https://ze-software.net/project/changes/2026-08-10/)
-
- BGP PPPoE IPsec Config - [See all updates](https://ze-software.net/project/changes/)
+ BGP CLI API Flow Export - [See all updates](https://ze-software.net/project/changes/)
 `Try safely`
 
 ## Try Ze before the first release.

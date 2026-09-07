@@ -49,9 +49,9 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Feature</span>
     <h1 id="output-formatting">Output Formatting</h1>
-    <p>Every command's output goes through the same pipe pipeline, whether you're
-poking around interactively or scripting against ze. One operator set,
-three ways to use it: set a persistent default, pipe it inline, or apply it
+    <p>A command that answers with DATA sends that answer through the pipe pipeline,
+whether you're poking around interactively or scripting against ze. One operator
+set, three ways to use it: set a persistent default, pipe it inline, or apply it
 offline to already-captured output.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
@@ -67,6 +67,15 @@ offline to already-captured output.</p>
 <li><a href="#a-name-for-a-chain-pipe-aliases">A name for a chain: pipe aliases</a></li>
 <li><a href="#command-specific-filters">Command-specific filters</a></li>
 </ol></nav>
+<p>Which operators a given command owes is a property of that command, not of the
+language: <code>ze help command --json</code> publishes the list per command, and an
+operator the command's answer cannot support is refused by name rather than
+answered wrongly. A command that only ever prints text, with no handler on any
+surface answering with data, reaches no pipe layer at all and publishes no
+operator: <code>show data cat</code> returns the bytes of one stored file, and wrapping
+them in a record would corrupt its one use.</p>
+<!-- source: cmd/ze/help_command.go -- operatorsFor, pathHasOnlyPlainLocalHandler -->
+<!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
 <h3 id="the-simple-way-set-a-default-once">The simple way: set a default once</h3>
 <p><code>set cli format &lt;name&gt;</code> in the interactive CLI picks a default so every
 command already displays that way, with no piping needed at all:</p>
@@ -108,7 +117,7 @@ also be set permanently through YANG config.</p>
 <!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat, validCLIFormats -->
 <!-- source: internal/component/command/pipe.go -- ze.cli.format env registration, configuredDefault -->
 <h3 id="piping-inline">Piping inline</h3>
-<p>Append <code>| &lt;operator&gt;</code> to any command, shell-like:</p>
+<p>Append <code>| &lt;operator&gt;</code> to a command that answers with data, shell-like:</p>
 <pre><code>show bgp peer list | table
 show bgp peer list | json compact
 show bgp rib | match established
@@ -119,94 +128,23 @@ or <code>raw</code>. Two together are rejected. Filter and display operators cha
 <p>The complete, current set is generated from the operator catalog:
 <a href="https://github.com/ze-software/ze/blob/main/docs/features/pipe-operators.generated.md" target="_blank" rel="noopener"><code>pipe-operators.generated.md</code></a>. It is the list to
 build a tool against, and <code>./le doc check verify</code> fails when it and the product
-disagree. The table below describes what each operator does for a reader.</p>
-<table>
-<thead>
-<tr>
-<th>Operator</th>
-<th>Kind</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>table</code></td>
-<td>format</td>
-<td>Box-drawing table rendering</td>
-</tr>
-<tr>
-<td><code>text</code></td>
-<td>format</td>
-<td>Space-aligned columns, no box-drawing</td>
-</tr>
-<tr>
-<td><code>json [compact]</code></td>
-<td>format</td>
-<td>Pretty (default) or compact JSON</td>
-</tr>
-<tr>
-<td><code>ndjson</code></td>
-<td>format</td>
-<td>One compact JSON object per line</td>
-</tr>
-<tr>
-<td><code>yaml</code></td>
-<td>format</td>
-<td>YAML output</td>
-</tr>
-<tr>
-<td><code>raw</code></td>
-<td>format</td>
-<td>The dispatcher's JSON, byte for byte. For a program that parses the answer</td>
-</tr>
-<tr>
-<td><code>match &lt;pattern&gt;</code></td>
-<td>filter</td>
-<td>Case-insensitive grep on output lines</td>
-</tr>
-<tr>
-<td><code>count</code></td>
-<td>filter</td>
-<td>Count items (JSON-aware: array length or map size)</td>
-</tr>
-<tr>
-<td><code>first &lt;n&gt;</code> / <code>last &lt;n&gt;</code></td>
-<td>filter</td>
-<td>Take first or last N items</td>
-</tr>
-<tr>
-<td><code>display &lt;field&gt;...</code></td>
-<td>filter</td>
-<td>Answer with these fields, in this order</td>
-</tr>
-<tr>
-<td><code>fill [alpha] [reverse]</code></td>
-<td>display</td>
-<td>Bring the remaining columns back, in a named order</td>
-</tr>
-<tr>
-<td><code>resolve</code></td>
-<td>display</td>
-<td>Add reverse DNS names for IP address values</td>
-</tr>
-<tr>
-<td><code>origin</code></td>
-<td>display</td>
-<td>Add ASN and network name for IP address values</td>
-</tr>
-<tr>
-<td><code>log</code></td>
-<td>display</td>
-<td>Append each update instead of replacing (monitor commands)</td>
-</tr>
-<tr>
-<td class="cell-no">✕</td>
-<td>display</td>
-<td>Disable paging (currently a no-op)</td>
-</tr>
-</tbody>
-</table>
-<!-- source: internal/component/command/pipe.go -- knownPipeOps, ApplyPipes, ValidatePipes -->
+disagree. That page carries every operator's name, class, argument, repetition
+and description, so this page does not list them again. A second copy is how
+five surfaces came to publish five different sets.</p>
+<p>Three of its columns are worth reading before you build against it:</p>
+<ul>
+<li><strong>Class</strong> says what the operator acts on. <code>acts on any answer</code> is owed by
+every command that reaches the pipe layer. <code>acts on rows</code> is owed only where
+the answer has rows, and is refused by name where it does not. <code>acts on a stream of updates</code> means something only while a command keeps answering.</li>
+<li><strong>Surface</strong> says where the operator runs. <code>save</code> is <code>local process only</code>,
+because a chain the daemon expands would write on the daemon's filesystem.</li>
+<li><strong>Repeated</strong> says what a second occurrence in one chain means: <code>applies again, in order</code> composes, <code>no effect</code> is idempotent, and <code>refused</code> is refused by
+name rather than silently answering the last one.</li>
+</ul>
+<p><code>resolve</code> and <code>origin</code> decorate a field the command DECLARES to hold an IP
+address, and are refused over a command that declares none.</p>
+<!-- source: internal/component/command/pipe_catalog.go -- pipeCatalog, RenderOperatorReference -->
+<!-- source: internal/component/command/pipe.go -- validateDeclaredShape, validateRepeats -->
 <p>A display operator changes how an answer is shown. A data operator changes what
 the answer holds. The two are independent, so a display mode never suppresses a
 data transform: <code>monitor traceroute | log</code> and <code>monitor ping | log</code> render
@@ -238,10 +176,12 @@ ze show bgp peer list | ze pipe yaml
 ze show bgp peer list | ze pipe first 5
 </code></pre>
 <p><code>ze pipe</code> reads stdin (up to 256 MB), applies the pipe chain given as
-arguments, and writes the result to stdout. It's the same operator table
-above, minus the display-only operators that only make sense inside a live
-session (<code>log</code>, <code>no-more</code>).</p>
-<p><code>ze pipe help</code> lists every operator, split into the two classes below.</p>
+arguments, and writes the result to stdout. It reads the same catalog. <code>| log</code>
+is refused there, by name, because it needs a command that keeps answering;
+<code>| no-more</code> is accepted and does nothing, because paging belongs to a live
+session. Standalone input carries no declaration, so <code>| resolve</code> and <code>| origin</code>
+walk every field whose value parses as an address rather than the declared ones.</p>
+<p><code>ze pipe help</code> lists every operator, split into the three classes below.</p>
 <!-- source: cmd/ze/ze_core_pipe.go -- runPipe, pipeUsage -->
 <h3 id="asking-the-product-ze-pipe-help-json">Asking the product: <code>ze pipe help --json</code></h3>
 <p>Do not hand-copy the operator list into a tool. <code>ze pipe help --json</code> answers
@@ -252,7 +192,7 @@ so it cannot fall behind:</p>
 <p>Each entry carries the operator's <code>name</code>, its <code>class</code>, the <code>shapes</code> of answer
 it acts on, whether it takes an <code>arg</code>, what a second occurrence in one chain
 means (<code>repeat</code>), and a one-line <code>description</code>.</p>
-<p>The two classes are the contract:</p>
+<p>The three classes are the contract:</p>
 <table>
 <thead>
 <tr>
@@ -268,6 +208,10 @@ means (<code>repeat</code>), and a one-line <code>description</code>.</p>
 <tr>
 <td><code>data</code></td>
 <td>acts on rows or fields, so a command owes it only where its answer has them</td>
+</tr>
+<tr>
+<td><code>stream</code></td>
+<td>acts on a SEQUENCE of answers, so it means something only where a command keeps answering. <code>log</code> is the one operator in it, and a one-shot command refuses it by name</td>
 </tr>
 </tbody>
 </table>
@@ -396,14 +340,16 @@ those three, and key order carries no meaning for a program.</p>
 <p>A column is never hidden. Ordering decides where a key renders, never whether
 it renders. A field you do not see in the order the command declared is still
 in the table, after the declared ones.</p>
-<p>Sixteen commands under <code>show bgp</code> declare an order today, and some commands under
-<code>show config</code>, <code>show data</code>, <code>show env</code>, <code>show schema</code> and <code>show yang</code> declare one
-too. Each declaration is an operator judgment about what leads, so a command
+<p>Commands under <code>show bgp</code> declare an order, and so do some commands under
+<code>show config</code>, <code>show data</code>, <code>show env</code>, <code>show schema</code> and <code>show yang</code>. Two
+channels write them: Go compiled into the daemon, and a plugin's startup
+message. Each declaration is an operator judgment about what leads, so a command
 takes one as somebody makes that judgment. <code>ze help command "&lt;path&gt;" --json</code>
-answers what one command declares.</p>
+answers what one command declares, and it reads the two channels together.</p>
 <!-- source: internal/component/command/column_order.go -- RegisterColumns, ColumnsForCommand -->
 <!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, bestColumnOrder -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerColumns -->
+<!-- source: internal/component/command/answer_shape.go -- RegisterPluginShapes -->
 <h3 id="choosing-the-columns-display-and-fill">Choosing the columns: <code>| display</code> and <code>| fill</code></h3>
 <p>A nineteen-column table answers many questions at once. <code>| display</code> cuts it to
 the question you asked:</p>
@@ -599,7 +545,7 @@ already produced. A command filter stops it being produced.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

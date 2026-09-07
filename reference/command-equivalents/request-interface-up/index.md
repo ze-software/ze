@@ -20,6 +20,8 @@ Bring an interface up.
 - Command pipes: none
 - Pipe aliases: none
 
+Only the administrative state changes. show interface reports the operational state, which a dummy, bridge or veth reports as unknown rather than up.
+
 ## Arguments
 
 | Name | Type | Required | Values |

@@ -20,6 +20,8 @@ List the subcommands the system verb accepts.
 - Command pipes: none
 - Pipe aliases: none
 
+The list carries the built-in commands first, then the commands the plugins registered, each written as 'name - description'. A plugin command marked hidden is left out. With no dispatcher, Ze answers a short fixed list instead.
+
 ## Arguments
 
 No command-specific arguments listed.

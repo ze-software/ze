@@ -12,6 +12,14 @@ ze config edit myconfig.conf        # Edit specific file
 
 The editor starts an ephemeral ze instance in the background for live YANG validation and completion suggestions.
 
+Three more surfaces reach the same editor against a running daemon. An SSH
+session opens in configuration mode. The web interface gives each authenticated
+user an editor of their own. The console of `ze start --cli` opens at the
+operational prompt, where `configure` enters configuration mode. A `commit` from
+any of the three reloads the daemon.
+<!-- source: cmd/ze/hub/session_editor.go -- newSessionEditor, attachedConsoleEditor -->
+<!-- source: internal/component/cli/model_keys.go -- handleEnter, the configure arm -->
+
 ## Editor Commands
 
 | Command | Description |
@@ -65,8 +73,16 @@ view, the annotated view, the search results, the blame view, `ze config show`,
 `ze config dump`, and `ze config diff`. `ze config diff` masks the COMPUTED diff,
 so a rotated credential still reports as changed and neither value is shown. The
 text output and the JSON output agree.
-<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, SecretKeys -->
+
+What a command says back is masked too. `ze config set` writes
+`set <path> /* SECRET-DATA */` rather than the password the operator typed, and
+so do its `--dry-run` line, the `set` status line of the SSH CLI editor, the
+adoption prompt of `ze config edit`, and both sides of a commit conflict. A
+refusal names the rule the value broke and not the value. The path stays in the
+clear, so the operator still reads which leaf was written.
+<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, SecretKeys, DisplayValueAtPath, DisplayMessageAtPath -->
 <!-- source: internal/component/config/cli/cmd_diff.go -- maskDiffSecrets -->
+<!-- source: internal/component/config/cli/cmd_set.go -- cmdSetImpl -->
 
 ### Commands run one at a time, in order
 
@@ -151,6 +167,33 @@ Tab completion is driven by registered YANG schemas. The editor suggests:
 - Valid config keys at the current level
 - Enum values for leaf nodes
 - Address family names from registered plugins
+- The keys of a list whose key is an enumeration, including the ones the config
+  does not hold yet, each with the help text the schema declares
+- Well-known values a plugin offers for one of its own leaves, such as the
+  transit-free ASNs on `bgp policy reject-asn ... via`
+<!-- source: internal/component/cli/completer.go -- valueCompletions, validateCompletions, listKeyCompletions -->
+
+**A suggestion is never a constraint.** A leaf that offers well-known values
+still accepts every value its YANG type admits, so an ASN outside the offered
+set is entered and committed with no warning.
+
+A menu row is the config key alone. The second message line above the prompt
+shows the summary of the selected key, which the YANG `description` statement
+declares.
+<!-- source: internal/component/cli/model_render.go -- renderDropdownBox, warningText -->
+
+Press `?` on a highlighted key to read its long explanation, in a box above the
+prompt. That text is the `ze:help` extension the schema declares, and it is
+often a paragraph. The message line holds one row, so the box is the only place
+the paragraph fits. A key that declares no `ze:help` says so on the message
+line, and its summary is not repeated in the box.
+<!-- source: internal/component/cli/model_keys.go -- revealCandidateExplanation, revealDeclared -->
+
+Tab on a complete config path reveals nothing more to read: `?` is the key that
+opens the explanation of a config key. Operational command help is reachable
+from configuration mode behind `run `, and the keys are in the
+[CLI guide](../cli/index.md#keys-that-reveal-help).
+<!-- source: internal/component/cli/model.go -- commandCompleterInput -->
 
 ## Commit Confirmed
 

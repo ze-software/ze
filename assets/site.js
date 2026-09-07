@@ -309,11 +309,32 @@ document.addEventListener("DOMContentLoaded", function () {
         var source = mount.getAttribute("data-header-src") || root + "assets/header.html";
 
         function renderFallback() {
-            mount.outerHTML =
-                '<header class="site-header"><nav class="nav" aria-label="Main navigation">' +
-                '<a class="brand" href="' + root + '#top" aria-label="Ze home">' +
-                '<img src="' + root + 'assets/ze.svg" alt="" width="32" height="32" />' +
-                "<span>Ze</span></a></nav></header>";
+            var header = document.createElement("header");
+            header.className = "site-header";
+
+            var nav = document.createElement("nav");
+            nav.className = "nav";
+            nav.setAttribute("aria-label", "Main navigation");
+
+            var brand = document.createElement("a");
+            brand.className = "brand";
+            brand.setAttribute("href", root + "#top");
+            brand.setAttribute("aria-label", "Ze home");
+
+            var logo = document.createElement("img");
+            logo.setAttribute("src", root + "assets/ze.svg");
+            logo.setAttribute("alt", "");
+            logo.setAttribute("width", "32");
+            logo.setAttribute("height", "32");
+
+            var name = document.createElement("span");
+            name.textContent = "Ze";
+
+            brand.appendChild(logo);
+            brand.appendChild(name);
+            nav.appendChild(brand);
+            header.appendChild(nav);
+            mount.parentNode.replaceChild(header, mount);
         }
 
         if (!window.fetch) {

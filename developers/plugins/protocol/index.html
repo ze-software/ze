@@ -390,8 +390,51 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 <td><code>[]string</code></td>
 <td>Exclusive runtime roles the plugin takes over</td>
 </tr>
+<tr>
+<td><code>failure-policy</code></td>
+<td><code>string</code></td>
+<td>What ze does when this plugin fails: <code>restart</code>, <code>ignore</code> or <code>fatal</code>. Omitting it means <code>ignore</code></td>
+</tr>
 </tbody>
 </table>
+<p><strong>The failure policy is what your plugin asks ze to do when your plugin fails.</strong>
+It is voluntary, and a plugin that omits it is carried on without. A value that
+is none of the three fails the whole registration, so ze never guesses.</p>
+<table>
+<thead>
+<tr>
+<th>You declare</th>
+<th>ze does</th>
+<th>May ze start your plugin again?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>restart</code></td>
+<td>starts the plugin again, bounded at 5 in 60 seconds and 20 in the life of the daemon</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td><code>ignore</code></td>
+<td>logs it and carries on without the plugin</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td><code>fatal</code></td>
+<td>stops ze</td>
+<td class="cell-no">✕</td>
+</tr>
+</tbody>
+</table>
+<p><code>fatal</code> is open to any plugin, whether ze ships it or you wrote it (owner
+directive, 2026-09-06). An operator who configures your plugin accepts its
+terms.</p>
+<p>Declaring anything other than <code>restart</code> also says your plugin must NOT be
+started again. An operator whose <code>plugin { external &lt;name&gt; }</code> block writes
+<code>respawn true</code> for such a plugin gets a daemon that refuses to start, with an
+error naming your plugin and the policy it declared. Declare <code>restart</code> when
+your plugin can come back from a crash, which usually means its state lives
+outside the process.</p>
 <p>Each <code>CommandDecl</code> has these fields:</p>
 <!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls, validateHelpDecls, registerPluginShapes -->
@@ -1136,7 +1179,7 @@ config-verify, etc.) and bye.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

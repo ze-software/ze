@@ -4,9 +4,9 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>Route Filters - Ze</title>
+        <title>Route Filters and Redistribution - Ze</title>
         <meta name="description" content="Ze documentation: guide/redistribution.md" />
-        <meta property="og:title" content="Route Filters - Ze" />
+        <meta property="og:title" content="Route Filters and Redistribution - Ze" />
         <meta property="og:description" content="Ze documentation: guide/redistribution.md" />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
@@ -14,7 +14,7 @@
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Route Filters - Ze" />
+        <meta name="twitter:title" content="Route Filters and Redistribution - Ze" />
         <meta name="twitter:description" content="Ze documentation: guide/redistribution.md" />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
@@ -46,32 +46,45 @@
             <section class="md-content reveal cat-routing">
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
-    <h1 id="route-filters">Route Filters</h1>
-    <p>Route filters let plugins act as route filters on import (ingress) and export
-(egress). Filters are configured per peer, group, or globally using named
-references in a <code>filter {}</code> config block. Named filter types are defined under
-<code>bgp { policy { } }</code>.</p>
+    <h1 id="route-filters-and-redistribution">Route Filters and Redistribution</h1>
+    <p>This page covers two things an operator writes for routes. Route FILTERS decide
+what a BGP session accepts and advertises. Route REDISTRIBUTION moves a route
+from one protocol into another. They are separate config roots and separate
+mechanisms. The filters come first, and
+<a href="#route-redistribution">Route Redistribution</a> is at the end.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
-<li><a href="#quick-start">Quick Start</a></li>
-<li><a href="#filter-types">Filter Types</a>
+<li><a href="#route-filters">Route Filters</a>
 <ol>
+<li><a href="#quick-start">Quick Start</a></li>
+<li><a href="#filter-types">Filter Types</a></li>
 <li><a href="#built-in-loop-detection">Built-in: loop-detection</a></li>
 <li><a href="#external-plugin-filters">External plugin filters</a></li>
-</ol></li>
 <li><a href="#how-it-works">How It Works</a></li>
 <li><a href="#deactivating-filters">Deactivating Filters</a></li>
 <li><a href="#chain-order">Chain Order</a></li>
-<li><a href="#filter-responses">Filter Responses</a>
-<ol>
+<li><a href="#filter-responses">Filter Responses</a></li>
 <li><a href="#conditioning-a-modifier-without-dropping-the-rest">Conditioning a modifier without dropping the rest</a></li>
 <li><a href="#filters-cannot-override-the-rfc-4271-egress-rules">Filters Cannot Override the RFC 4271 Egress Rules</a></li>
-</ol></li>
 <li><a href="#failure-handling">Failure Handling</a></li>
 <li><a href="#writing-a-filter-plugin">Writing a Filter Plugin</a></li>
+</ol></li>
+<li><a href="#route-redistribution">Route Redistribution</a>
+<ol>
+<li><a href="#sources-and-destinations">Sources and Destinations</a></li>
+<li><a href="#what-the-rules-wire-for-you">What the Rules Wire For You</a></li>
+<li><a href="#startup-order-does-not-decide-the-outcome">Startup Order Does Not Decide the Outcome</a></li>
+<li><a href="#when-redistribution-cannot-work">When Redistribution Cannot Work</a></li>
+<li><a href="#counters">Counters</a></li>
+</ol></li>
 </ol></nav>
+<h2 id="route-filters">Route Filters</h2>
+<p>Route filters let plugins act as route filters on import (ingress) and export
+(egress). Filters are configured per peer, group, or globally using named
+references in a <code>filter {}</code> config block. Named filter types are defined under
+<code>bgp { policy { } }</code>.</p>
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter container -->
-<h2 id="quick-start">Quick Start</h2>
+<h3 id="quick-start">Quick Start</h3>
 <pre><code>bgp {
     policy {
         loop-detection no-self-as {
@@ -90,7 +103,7 @@ references in a <code>filter {}</code> config block. Named filter types are defi
 }
 </code></pre>
 <!-- source: internal/component/bgp/reactor/filter/yang/ze-loop-detection.yang -- loop-detection type -->
-<h2 id="filter-types">Filter Types</h2>
+<h3 id="filter-types">Filter Types</h3>
 <p>Filter types are YANG lists under <code>bgp/policy</code>, each marked with <code>ze:filter</code>.
 Plugins add new filter types via YANG <code>augment</code>. Each list entry is a named
 filter instance referenced by name in peer <code>filter { import/export }</code> chains.</p>
@@ -125,7 +138,7 @@ detection (RFC 4271 Section 9) and cluster-list loop detection (RFC 4456 Section
 <h3 id="external-plugin-filters">External plugin filters</h3>
 <p>External plugins declare filters at startup using <code>&lt;plugin&gt;:&lt;filter&gt;</code> names.
 Example: <code>rpki:validate</code>, <code>community:scrub</code>.</p>
-<h2 id="how-it-works">How It Works</h2>
+<h3 id="how-it-works">How It Works</h3>
 <ol>
 <li>Filter types are defined in <code>bgp { policy { } }</code> as named instances.</li>
 <li>Per-peer <code>filter { import/export [ names ] }</code> references filter instances.</li>
@@ -135,7 +148,7 @@ Example: <code>rpki:validate</code>, <code>community:scrub</code>.</p>
 <li>Each filter responds accept, reject, or modify (delta-only).</li>
 </ol>
 <!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters, extractFilterChain -->
-<h2 id="deactivating-filters">Deactivating Filters</h2>
+<h3 id="deactivating-filters">Deactivating Filters</h3>
 <p>Default filters can be deactivated per-peer using the inline <code>inactive:</code> prefix:</p>
 <pre><code>bgp {
     peer special {
@@ -156,7 +169,7 @@ activate bgp peer special filter import no-self-as
 <!-- source: internal/component/config/parser_list.go -- stripInactiveMemberPrefix (inline inactive: normalization) -->
 <!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain builds []FilterRef with Inactive -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain skips FilterRef.Inactive -->
-<h2 id="chain-order">Chain Order</h2>
+<h3 id="chain-order">Chain Order</h3>
 <p>Chains are cumulative across config levels:</p>
 <table>
 <thead>
@@ -188,7 +201,7 @@ activate bgp peer special filter import no-self-as
 <pre><code>insert filter import reject-bogons before no-self-as
 insert filter import new-filter last
 </code></pre>
-<h2 id="filter-responses">Filter Responses</h2>
+<h3 id="filter-responses">Filter Responses</h3>
 <table>
 <thead>
 <tr>
@@ -246,7 +259,7 @@ a filter would have created on it (4.3 and 6.3). See
 <p>A modification that cannot be applied suppresses the route for that destination
 rather than forwarding it unmodified, and increments
 <code>ze_bgp_update_modify_failed_total{reason}</code>.</p>
-<h2 id="failure-handling">Failure Handling</h2>
+<h3 id="failure-handling">Failure Handling</h3>
 <p>Each filter declares its own failure mode at startup:</p>
 <table>
 <thead>
@@ -266,10 +279,228 @@ rather than forwarding it unmodified, and increments
 </tr>
 </tbody>
 </table>
-<h2 id="writing-a-filter-plugin">Writing a Filter Plugin</h2>
+<h3 id="writing-a-filter-plugin">Writing a Filter Plugin</h3>
 <p>A filter plugin is a normal ze plugin that includes <code>filters</code> in its stage 1
 <code>declare-registration</code>. See <a href="../plugins/">Plugin Guide</a> for general plugin
 development and <code>docs/architecture/api/process-protocol.md</code> for the wire protocol.</p>
+<h2 id="route-redistribution">Route Redistribution</h2>
+<p>Redistribution moves a route a protocol already holds into another protocol.
+The <code>redistribute</code> root is a separate config root from <code>bgp { filter }</code>, and
+nothing in this section changes what a BGP session accepts or advertises.</p>
+<pre><code>redistribute {
+    destination ospf {
+        import bgp {
+            family [ ipv6/unicast ];
+        }
+    }
+    destination isis {
+        import connected
+        import static
+    }
+}
+</code></pre>
+<p>A <code>destination &lt;protocol&gt;</code> block names the protocol that RECEIVES the routes.
+Each <code>import &lt;source&gt;</code> under it names where they come from. The optional
+<code>family</code> leaf-list narrows which address families that source contributes. An
+empty list imports every family.</p>
+<p>The optional <code>tag</code> leaf narrows the same rule by route tag. The route tag is the
+value the source protocol attached to the route, for example the <code>tag</code> leaf of a
+static route. A rule that names a tag imports the routes carrying exactly that
+value and rejects the others. A rule with no <code>tag</code> leaf imports every route from
+the source, whatever tag it carries.</p>
+<pre><code>redistribute {
+    destination ospf {
+        import static {
+            tag 4242;
+        }
+    }
+}
+</code></pre>
+<p>The value 0 is a tag like any other. A route with no tag carries 0, so <code>tag 0</code>
+imports the untagged routes alone. The filter runs for each route, not for each
+batch, so one source can feed two destinations with two different tag sets.</p>
+<p>That block is the whole configuration. It needs no <code>plugin</code> block and no
+<code>attach process</code> block. The orchestrator that dispatches the routes auto-loads
+because the <code>redistribute</code> root is present. The two peer bindings the rules
+depend on are derived from the rules (below).</p>
+<!-- source: internal/component/config/redistribute/yang/ze-redistribute-conf.yang -- redistribute container -->
+<!-- source: internal/component/config/loader_redistribute.go -- ExtractRedistributeRules -->
+<h3 id="sources-and-destinations">Sources and Destinations</h3>
+<p>A source is a name a component registers at startup, so which names this build
+accepts depends on which components it carries. No command prints the set. A
+name this build does not carry is refused at load, and <code>ze doctor</code> names the
+token first.</p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Registered by</th>
+<th>What it contributes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bgp</code>, <code>ibgp</code>, <code>ebgp</code></td>
+<td>the BGP engine</td>
+<td>the Loc-RIB's best paths, all sessions or internal or external only</td>
+</tr>
+<tr>
+<td><code>connected</code></td>
+<td>the interface component</td>
+<td>prefixes of configured interface addresses</td>
+</tr>
+<tr>
+<td><code>static</code></td>
+<td>the static plugin</td>
+<td>forward routes in the default table</td>
+</tr>
+<tr>
+<td><code>kernel</code></td>
+<td>the kernel plugin</td>
+<td>routes another program installed in the OS FIB</td>
+</tr>
+<tr>
+<td><code>isis</code>, <code>ospf</code></td>
+<td>the IGP plugins</td>
+<td>that protocol's SPF-selected routes</td>
+</tr>
+<tr>
+<td><code>as112</code>, <code>l2tp</code></td>
+<td>those plugins</td>
+<td>the covering prefixes and the per-session routes they own</td>
+</tr>
+<tr>
+<td><code>ipsec</code></td>
+<td>the IKE engine</td>
+<td>the remote traffic selector of each established Child SA</td>
+</tr>
+</tbody>
+</table>
+<p>A destination is the name of a protocol whose consumer registered: <code>bgp</code>, <code>ospf</code>
+and <code>isis</code> today.</p>
+<p><strong>A protocol is never redistributed into itself.</strong> <code>destination isis { import isis }</code> parses and moves nothing, at every guard: the config evaluator, the
+dispatch fan-out and the replay all ask one predicate.</p>
+<!-- source: internal/component/config/redistribute/registry.go -- RegisterSource, LookupSource -->
+<!-- source: internal/core/redistevents/registry.go -- WouldLoop, the one loop definition -->
+<h3 id="what-the-rules-wire-for-you">What the Rules Wire For You</h3>
+<p>A <code>redistribute</code> rule needs no <code>attach process</code> block. Ze derives the two it
+implies, and each one only when a rule implies it.</p>
+<table>
+<thead>
+<tr>
+<th>You write</th>
+<th>Ze grants every peer</th>
+<th>Because</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>import bgp</code> (or <code>ibgp</code>, <code>ebgp</code>)</td>
+<td><code>receive [ update state refresh ]</code> toward <code>bgp-rib</code></td>
+<td>the source is the daemon's own Loc-RIB, and a plugin sees a peer's UPDATEs only where that peer grants them</td>
+</tr>
+<tr>
+<td><code>destination bgp</code></td>
+<td><code>receive [ state ]</code> and <code>send [ update ]</code> toward <code>redistribute-orchestrator</code></td>
+<td>that plugin puts the route on the peer's wire, and <code>send</code> is the permission to do so</td>
+</tr>
+</tbody>
+</table>
+<p>Two things follow, and both are deliberate:</p>
+<ul>
+<li>A peer that already names one of those processes keeps its own binding,
+exactly as written. A narrower grant you typed stays narrow, and you never get
+a second binding for one process.</li>
+<li>A rule implies only its own binding. A router that only imports IS-IS into
+OSPF gains neither.</li>
+</ul>
+<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery, processNameFor -->
+<!-- source: internal/component/bgp/reactor/send_permission.go -- Peer.maySend -->
+<h3 id="startup-order-does-not-decide-the-outcome">Startup Order Does Not Decide the Outcome</h3>
+<p>A producer emits its routes once, when it has them. A destination protocol
+registers its consumer when its plugin starts. Nothing orders the two, so a
+consumer can register after the routes were already sent.</p>
+<p>When that happens the consumer asks for them again. Becoming registered fires a
+replay request, every producer re-emits its CURRENT set, and the answer is
+injected through that consumer alone.</p>
+<p>A replay reflects what the producer holds NOW rather than what it once sent. A
+route withdrawn before the consumer registered is therefore absent.</p>
+<p>The same mechanism covers a BGP peer that establishes after an injection, where
+the replay reaches that one peer.</p>
+<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- onPeerUp, onConsumerRegistered -->
+<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- watchConsumers -->
+<h3 id="when-redistribution-cannot-work">When Redistribution Cannot Work</h3>
+<p>The daemon REFUSES to start on a <code>redistribute</code> block it cannot turn into rules,
+and the error names what you typed:</p>
+<table>
+<thead>
+<tr>
+<th>The config says</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>import rip</code>, and no component registers <code>rip</code></td>
+<td>the load fails: <code>redistribute: unknown source "rip" under destination "ospf"</code></td>
+</tr>
+<tr>
+<td><code>family [ ipv9/unicast ]</code></td>
+<td>the load fails naming the family</td>
+</tr>
+<tr>
+<td><code>destination ospf { }</code> with no import</td>
+<td>the load fails: the destination imports nothing</td>
+</tr>
+</tbody>
+</table>
+<p>A refusal is deliberate. Ze used to warn once and carry on with redistribution
+disabled for the WHOLE file. One mistyped word silently stopped rules that were
+written correctly.</p>
+<p>One fault is not refusable, because no code can judge it at load time. It is a
+<code>destination</code> naming a protocol whose consumer never registers. <code>ze doctor</code>
+reports it, under <code>doctor-redistribute-unknown-destination</code>, together with an
+unknown source under <code>doctor-redistribute-unknown-source</code>.</p>
+<pre><code>ze doctor
+</code></pre>
+<!-- source: internal/component/doctor/checks_redistribute.go -- checkRedistributeRules -->
+<!-- source: internal/core/diagnostic/codes.go -- doctor-redistribute-unknown-source, doctor-redistribute-unknown-destination -->
+<h3 id="counters">Counters</h3>
+<table>
+<thead>
+<tr>
+<th>Counter</th>
+<th>What it counts</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_bgp_redistribute_events_received</code></td>
+<td>route-change batches the orchestrator received</td>
+</tr>
+<tr>
+<td><code>ze_bgp_redistribute_announcements</code></td>
+<td>accepted add entries dispatched to a consumer</td>
+</tr>
+<tr>
+<td><code>ze_bgp_redistribute_withdrawals</code></td>
+<td>accepted remove entries dispatched to a consumer</td>
+</tr>
+<tr>
+<td><code>ze_bgp_redistribute_filtered_protocol_total</code></td>
+<td>batches skipped by the loop guard</td>
+</tr>
+<tr>
+<td><code>ze_bgp_redistribute_filtered_rule_total</code></td>
+<td>entries the evaluator rejected</td>
+</tr>
+<tr>
+<td><code>ze_bgp_redistribute_replay_total{source}</code></td>
+<td>routes replayed, to a new peer or to a consumer that registered late</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- setMetricsRegistry -->
 
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
@@ -312,7 +543,7 @@ development and <code>docs/architecture/api/process-protocol.md</code> for the w
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

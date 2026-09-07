@@ -53,6 +53,7 @@
 <li><a href="#configuration">Configuration</a>
 <ol>
 <li><a href="#tls-is-on-by-default">TLS is on by default</a></li>
+<li><a href="#serve-your-own-certificate">Serve your own certificate</a></li>
 <li><a href="#optional-bearer-token">Optional bearer token</a></li>
 </ol></li>
 <li><a href="#web-ui">Web UI</a></li>
@@ -101,7 +102,12 @@
 <tr>
 <td><code>tls</code></td>
 <td><code>true</code></td>
-<td>Serve HTTPS. Certificates come from blob storage (<code>ze init</code>). Set <code>false</code> to serve plaintext.</td>
+<td>Serve HTTPS. Set <code>false</code> to serve plaintext.</td>
+</tr>
+<tr>
+<td><code>certificate</code></td>
+<td>(empty)</td>
+<td>Name of a <code>pki { certificate &lt;name&gt; }</code> entry to serve. Empty means a self-signed certificate from blob storage (<code>ze init</code>).</td>
 </tr>
 <tr>
 <td><code>token</code></td>
@@ -110,18 +116,81 @@
 </tr>
 </tbody>
 </table>
-<p>Environment variable overrides: <code>ze.looking-glass.listen=ip:port</code>, <code>ze.looking-glass.enabled=true</code>, <code>ze.looking-glass.tls=false</code>, <code>ze.looking-glass.token=&lt;token&gt;</code>.</p>
+<p>Environment variable overrides: <code>ze.looking-glass.listen=ip:port</code>, <code>ze.looking-glass.enabled=true</code>, <code>ze.looking-glass.tls=false</code>, <code>ze.looking-glass.token=&lt;token&gt;</code>, <code>ze.looking-glass.certificate=&lt;name&gt;</code>.</p>
 <h3 id="tls-is-on-by-default">TLS is on by default</h3>
 <p>The looking glass binds <code>0.0.0.0</code> and publishes route data and session state, so
 it serves HTTPS unless you turn TLS off. Two rules apply:</p>
 <ul>
 <li>Write <code>tls false</code> (or set <code>ze.looking-glass.tls=false</code>) to serve plaintext,
 for example behind a proxy that terminates TLS.</li>
-<li>Without blob storage there is no certificate. If you wrote <code>tls true</code>, Ze
-reports the error and does not start the looking glass. If you wrote nothing
-and took the default, Ze serves plaintext and prints a warning that names
-<code>ze init</code> as the remedy.</li>
+<li>With no <code>certificate</code> and no blob storage there is no self-signed certificate
+to serve. If you wrote <code>tls true</code>, Ze reports the error and does not start the
+looking glass. If you wrote nothing and took the default, Ze serves plaintext
+and prints a warning that names <code>ze init</code> as the remedy.</li>
 </ul>
+<h3 id="serve-your-own-certificate">Serve your own certificate</h3>
+<p>A visitor to a public looking glass has not installed your root, so a
+self-signed certificate gives them a browser warning. Set <code>certificate</code> to the
+name of a <code>pki { certificate &lt;name&gt; }</code> entry and the listener serves that leaf
+and every intermediate the entry holds:</p>
+<pre><code>environment {
+    looking-glass {
+        enabled     true
+        certificate lan
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Default</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>Fail closed</td>
+<td>A name the store does not hold, or an entry with no <code>private { key }</code>, refuses the start: Ze exits and names the missing certificate. A reload that names one is rejected as a whole, and the running looking glass keeps the chain it is serving. Ze never falls back to a self-signed certificate for a name you configured.</td>
+</tr>
+<tr>
+<td>Rotation</td>
+<td>Load new material under the same name and reload: the listener serves the new chain from the next handshake, with no rebind, so a viewer's open connection survives.</td>
+</tr>
+<tr>
+<td>TLS off</td>
+<td><code>tls false</code> serves no certificate, so the leaf is inert. Neither the start nor a reload reads the name.</td>
+</tr>
+<tr>
+<td>Plaintext by downgrade</td>
+<td>You took the <code>tls</code> default and have no blob store, so Ze dropped the looking glass to plaintext at start. A <code>certificate</code> name you add later changes nothing there. The reload is accepted and rotates nothing. Restart Ze to serve the named chain over TLS.</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td>The material comes from the <code>pki {}</code> container, so a named certificate serves on a deployment that never ran <code>ze init</code>. The blob store holds the self-signed certificate only.</td>
+</tr>
+<tr>
+<td>Name</td>
+<td>1 to 255 characters, <code>A-Z a-z 0-9 . _ -</code>. It is a store key, never a file path.</td>
+</tr>
+<tr>
+<td>Own leaf</td>
+<td>The looking glass and the web UI have separate <code>certificate</code> leaves, so each listener serves the certificate that matches its own hostname.</td>
+</tr>
+<tr>
+<td>Env override</td>
+<td><code>ze.looking-glass.certificate</code> takes precedence over the config file.</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/lg/yang/ze-lg-conf.yang -- leaf certificate -->
+<!-- source: cmd/ze/hub/service_tls.go -- listenerTLSMaterial (fail-closed selection) -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig, the looking-glass certificate startup gate -->
+<!-- source: cmd/ze/hub/main_reload.go -- lgCertificateName and the reload refusal -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- updateLGCertificate (rotation without rebind) -->
 <h3 id="optional-bearer-token">Optional bearer token</h3>
 <p>A looking glass is normally public and read-only, so <code>token</code> is off by default.
 Set it to require a bearer token on every route. Ze compares the token
@@ -173,7 +242,7 @@ set <code>tls false</code>). No authentication is required unless you set <code>
 </tr>
 </tbody>
 </table>
-<p>Navigation uses a single-page tab layout with HTMX fragment swapping. The real htmx.min.js (v4.0.0-beta6) is embedded, and the peers page also loads hx-sse.min.js, htmx 4's SSE extension.</p>
+<p>Navigation uses a single-page tab layout with HTMX fragment swapping. The real htmx.min.js (v4.0.0) is embedded, and the peers page also loads hx-sse.min.js, htmx 4's SSE extension.</p>
 <!-- source: internal/component/lg/handler_ui.go -- UI handlers -->
 <!-- source: internal/component/lg/handler_graph.go -- Graph handler -->
 <h2 id="birdwatcher-rest-api">Birdwatcher REST API</h2>
@@ -219,11 +288,18 @@ Adj-RIB-In and Adj-RIB-Out sizes, merged into <code>show bgp</code>:
 only accepted routes, so there is no distinct pre-policy received count here),
 and <code>routes_exported</code> is the Adj-RIB-Out size. <code>routes_filtered</code> is always <code>0</code>:
 Ze does not retain import-filtered routes (unlike BIRD's "import keep filtered"),
-so the <code>/routes/filtered/{name}</code> endpoint also returns an empty list. Route
-counts are only present when the <code>bgp-rib</code> plugin is loaded.</p>
+so the <code>/routes/filtered/{name}</code> endpoint also returns an empty list.</p>
+<p>Ze emits the four counts on every peer, whatever it knows. When it has no
+source, each count is <code>0</code> and <code>routes_counts_available</code> is <code>false</code>. That happens
+when the <code>bgp-rib</code> plugin is not loaded, and on every BMP-monitored peer. A
+client that must tell "no routes" from "unknown" reads
+<code>routes_counts_available</code>, never a count of <code>0</code> on its own. The normative
+statement is <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/birdwatcher-compat.md" target="_blank" rel="noopener">Birdwatcher compatibility</a>,
+Section 7.2.</p>
 <!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- fetchRibRouteCounts, mergeRibRouteCounts -->
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- status per-peer route-counts -->
 <!-- source: internal/component/lg/handler_api.go -- API handlers and birdwatcher transform -->
+<!-- source: internal/component/lg/handler_api.go -- routeCountsAvailable -->
 <h2 id="alice-lg-integration">Alice-LG Integration</h2>
 <p>To use Ze as a data source for <a href="https://github.com/alice-lg/alice-lg" target="_blank" rel="noopener">Alice-LG</a>, point Alice-LG's birdwatcher source configuration at the looking glass API:</p>
 <pre><code class="language-yaml">sources:
@@ -237,6 +313,7 @@ counts are only present when the <code>bgp-rib</code> plugin is loaded.</p>
 <ul>
 <li>Strict input validation on all query parameters (character allowlists, length limits).</li>
 <li><code>Content-Security-Policy</code>, <code>X-Frame-Options: DENY</code>, <code>X-Content-Type-Options: nosniff</code> headers.</li>
+<li><code>X-Ze-Version</code> names the exact build. Write <code>environment { hide-version true; }</code> to keep it off the looking glass and the web interface together.</li>
 <li>SSE connection limit (100 concurrent clients).</li>
 <li>All HTML output rendered through templ, which escapes every interpolated value. The two SVG graph builders stay in Go and escape their labels with <code>template.HTMLEscapeString</code>.</li>
 <li>The <code>Content-Security-Policy</code> is <code>default-src 'self'</code>, so no page carries an inline script or an inline event handler. A test refuses one in any <code>.templ</code> source of the package.</li>
@@ -244,7 +321,9 @@ counts are only present when the <code>bgp-rib</code> plugin is loaded.</p>
 </ul>
 <!-- source: internal/component/lg/markup_check_test.go -- TestTemplatesAvoidInlineScriptAndStyle, lgMarkupExempt -->
 <!-- source: internal/component/lg/layout.go -- renderGraphSVG label escaping -->
-<p>When TLS is enabled, the server uses TLS 1.2 minimum with the same certificate infrastructure as the web UI.</p>
+<p>When TLS is enabled, the server uses TLS 1.2 minimum. It reads its own
+<code>certificate</code> leaf, resolved against the same PKI store the web UI reads, and
+serves a self-signed certificate when that leaf is unset.</p>
 
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
@@ -287,7 +366,7 @@ counts are only present when the <code>bgp-rib</code> plugin is loaded.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

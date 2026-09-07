@@ -78,8 +78,8 @@ sudo apt-get install -y \
   jq \
   protobuf-compiler
 </code></pre>
-<p>Install Go 1.26. Pick the current 1.26 patch release from <a href="https://go.dev/dl/" target="_blank" rel="noopener">https://go.dev/dl/</a> if a newer patch exists.</p>
-<pre><code class="language-bash">GO_VERSION=1.26.0
+<p>Install Go 1.27, the version <code>go.mod</code> requires. Pick the current 1.27 patch release from <a href="https://go.dev/dl/" target="_blank" rel="noopener">https://go.dev/dl/</a> if a newer patch exists.</p>
+<pre><code class="language-bash">GO_VERSION=1.27.0
 GO_ARCH="$(dpkg --print-architecture)"
 case "$GO_ARCH" in
   amd64|arm64) ;;
@@ -310,7 +310,7 @@ sudo /usr/local/bin/ze uninstall local
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:49 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

@@ -19,6 +19,8 @@ Delete a named debug profile.
 - Command pipes: none
 - Pipe aliases: none
 
+It removes the stored slot and nothing else. The running daemon keeps whatever it is writing, so deleting the profile that is live does not turn its output off.
+
 ## Arguments
 
 No command-specific arguments listed.

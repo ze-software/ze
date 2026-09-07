@@ -20,6 +20,8 @@ Show the OSPFv3 (IPv6) per-area SPF run history.
 - Command pipes: none
 - Pipe aliases: none
 
+The history is read from the IPv6 unicast engine alone. Another address family is not covered here. A router that runs no OSPFv3 engine answers an empty list rather than an error. That reads the same as a router whose engine has run no SPF yet.
+
 ## Arguments
 
 No command-specific arguments listed.

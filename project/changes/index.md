@@ -2,6 +2,12 @@
 
 What shipped in Ze, newest first: the weekly updates, mined from git history and posted to Discord's `ze-news`. Each week lists the areas it touched; click a week for the full write-up. Ze is pre-release, so the configuration syntax can still change, and the [roadmap](../roadmap/) tracks the path to a stable release. For the landmark features on a timeline, see [Milestones](../milestones/).
 
+## [Week of 2026-08-31](2026-08-31/index.md)
+
+Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and most of the week went on fixing what it found. Three of them mattered: an authentication bypass on IKE logins, a redistribute block that discarded every route from every peer, and subscriber IPv6 that never worked at all.
+
+Areas: BGP, OSPF, Flowspec, Redistribution, ExaBGP Migration, Security, IPsec, RADIUS, AAA, L2TP, PPPoE, Interfaces, Firewall, CLI, Config, RFC Compliance, Quality Improvement
+
 ## [Week of 2026-08-24](2026-08-24/index.md)
 
 Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Around it, output formatting moved off flags and onto the pipe operators, and a TACACS+ authentication bypass was closed.

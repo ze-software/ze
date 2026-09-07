@@ -20,6 +20,8 @@ Show full detail for one interface.
 - Command pipes: none
 - Pipe aliases: none
 
+The answer is the whole record the backend holds for that interface, and the counters are part of it. An unknown name is reported as the backend's own error.
+
 ## Arguments
 
 | Name | Type | Required | Values |

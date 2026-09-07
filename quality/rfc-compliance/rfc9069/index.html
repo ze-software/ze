@@ -75,6 +75,8 @@
 .rfc-tape-both_polarities { background: var(--teal-chip); }
 .rfc-tape-single_polarity { background: var(--sky-chip); }
 .rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -113,19 +115,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>46.7%</strong><b>7 of 15 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>53.3%</strong><b>8 of 15 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 15 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 15 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>41.7%</strong><b>10 of 24 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>46.7%</strong><b>7 of 15 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>53.3%</strong><b>8 of 15 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>43.5%</strong><b>10 of 23 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>15</strong><b>of 15 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 15 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 15 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 4 shares marked as a part above are the whole of the 15 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 15 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -155,6 +160,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
 </tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -186,9 +203,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Gated MUST-level</td>
 <td>15</td>
 </tr>
-<tr><td>Obligations that bind Ze</td>
-<td>15</td>
-</tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
 </tr>
@@ -202,10 +216,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>24</td>
+<td>23</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>24</td>
+<td>23</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
@@ -227,7 +241,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Support for Local RIB in the BGP Monitoring Protocol (BMP): seven MUST-level requirements, all met (ze implements the Loc-RIB Instance Peer type). x-1 (per-peer V/L/A/O flags cleared), x-3 (empty sent/received OPEN messages), x-5 (Address field zero), x-6 (Peer AS zero), x-7 (Peer BGP ID set to the local router-id), x-2 (exactly one Loc-RIB Peer Up per RIB instance regardless of BGP-peer count), and x-4 (Loc-RIB monitoring start triggers a full-table replay) are each {single-polarity: positive}, bound to header-construction and emission tests in internal/component/bgp/plugins/bmp (including two new tests for x-2 and x-4). These are construction and emission invariants with no reject path.</p>
+<p>Enrolled: Support for Local RIB in the BGP Monitoring Protocol (BMP): fifteen MUST-level requirements, all met (ze implements the Loc-RIB Instance Peer type, on the sender side and the receiver side). The per-peer header carries Flags 0 (x-1), a zero Peer Address (x-5), the router&#39;s own 4-octet ASN as Peer AS (x-6), the local router-id as Peer BGP ID (x-7) and the install time of the routes it encapsulates or zero where that is unknown (5.1-1); both values come from `bgp router-id` and `bgp session asn local`, so they are known before any BGP peer comes up, which is the case Section 1.1 names. The Peer Up carries a fabricated OPEN repeated into the received field (x-3) advertising the 4-octet ASN capability and one address family per family the dump delivers (5.2-1), plus the VRF/Table Name TLV naming that Loc-RIB `global` and repeated on the Peer Down (5.2.1-1); the Peer Down uses reason code 6 (5.3-1). Route Monitoring conveys locally sourced routes under the Loc-RIB peer type (4.2-1) with 4-byte ASN encoding (5.4.1-1), one Peer Up per RIB instance per session (x-2), a full-table dump when monitoring starts (x-4), and a Peer Down / Peer Up bounce when a change alters what the session carries (6.1.3-1). The receiver reads the address families off a Peer Up OPEN, for every peer type including 3, and reports them per peer (6.1.1-1). Tests bound per requirement in rfc/requirements/rfc9069.md.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Supported</p>
@@ -292,7 +306,7 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <td>MUST</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9069-x-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L493" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestLocRIBSinglePeerUpPerInstance</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L482" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestLocRIBSinglePeerUpPerInstance</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the Loc-RIB Peer Up is emitted once per RIB instance per collector session, behind the one-shot senderSession.locRIBUpSent.CompareAndSwap taken by ensureLocRIBPeerUp and primeLocRIBPeerUp (internal/component/bgp/plugins/bmp/bmp_locrib.go), and best changes from any number of BGP peers pass through that same guard. Corrected 2026-09-01: this row named BMPPlugin.locRIBUp as the one-shot, which is set AFTER the announcement and records only that Loc-RIB monitoring has been announced at all -- it is what sendLocRIBPeerDown keys off, and it guards nothing, so &#34;one Peer Up per instance&#34; is a single count-equals-one assertion with no separate per-peer path to reject; TestLocRIBSinglePeerUpPerInstance drives two peers&#39; best changes and asserts exactly one Peer Up</p></td>
 </tr>
@@ -301,7 +315,7 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <td>MUST</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9069-x-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L426" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestHandleBestChangeEmitsPeerUpThenRM</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L415" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestHandleBestChangeEmitsPeerUpThenRM</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ensureLocRIBPeerUp and primeLocRIBPeerUp (internal/component/bgp/plugins/bmp/bmp_locrib.go) are the only two producers of a Loc-RIB Peer Up and each passes one fabricateLocRIBOpen result to BOTH fields, so there is no path that sends a different received OPEN to assert as a negative; the positive (both fields present, equal, and decoding as a BGP OPEN) is proven in TestHandleBestChangeEmitsPeerUpThenRM. Corrected 2026-08-31: this row declared &#34;zero-length OPEN messages&#34;, which RFC 9069 Section 5.2 requires the opposite of, and its test asserted the defect</p></td>
 </tr>
@@ -310,7 +324,7 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <td>MUST</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9069-x-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L592" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestStartLocRIBTriggersInitialDump</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L582" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestStartLocRIBTriggersInitialDump</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> startLocRIB emits exactly one replay-request to trigger the initial full-table dump, carrying a per-dump correlation token (startLocRIB and nextDumpToken, internal/component/bgp/plugins/bmp/bmp_locrib.go); the RIB walks its ENTIRE best-path table for any token (replayBestPaths, internal/component/bgp/plugins/rib/rib_bestchange.go) and echoes the token onto each batch, so the token addresses the answer without narrowing the dump. The trigger either fires or the subscription is absent, so there is no non-conformant &#34;dump without trigger&#34; input to reject; TestStartLocRIBTriggersInitialDump asserts one replay-request is emitted, that it carries a replay token, and that successive dumps carry DISTINCT tokens -- the property that lets a batch be attributed to the dump that asked for it</p></td>
 </tr>
@@ -337,18 +351,17 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <td>MUST</td>
 <td>5.2 - Peer Up Notification</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9069-5.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L331" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L319" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> fabricateLocRIBOpen (internal/component/bgp/plugins/bmp/bmp_locrib.go) builds the capability list from dumpFamilies, the same list the dump closes with End-of-RIB markers, so there is no second list that could advertise a family the dump never delivers and no divergent case to assert as a negative. The count is asserted as well as the membership, which is what &#34;Only include capabilities if they will be used for Loc-RIB monitoring messages&#34; forbids going past; proven in TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9069-x-6">RFC9069-x-6</code></td><td colspan="3"><span class="rfc-subject">Peer AS MUST be set to the primary router BGP autonomous system number for Loc-RIB (Peer Type 3) (Per-Peer Header). Corrected 2026-08-31: this row read &#34;Peer AS MUST be 0&#34;, which is what the RFC requires of the Peer ADDRESS (RFC9069-x-5) and the reverse of what it requires of this field. The value is the 4-octet ASN, read from the 4-octet ASN capability of a cached sent OPEN rather than from the two-octet My AS field an AS4 speaker fills with AS_TRANS. Proven positive by TestLocRIBPeerHeader, negative by TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven, and at the source by TestBgpIdentityPrefersTheFourOctetASNCapability</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9069-x-6">RFC9069-x-6</code></td><td colspan="3"><span class="rfc-subject">Peer AS MUST be set to the primary router BGP autonomous system number for Loc-RIB (Peer Type 3) (Per-Peer Header). Corrected 2026-08-31: this row read &#34;Peer AS MUST be 0&#34;, which is what the RFC requires of the Peer ADDRESS (RFC9069-x-5) and the reverse of what it requires of this field. The value is the 4-octet ASN, read from the `bgp session asn local` leaf rather than from a session that may not exist: an OPEN cache is empty until a peer comes up, which is the very case this RFC exists to serve, and an ASN read from the two-octet My AS field of an AS4 speaker is AS_TRANS rather than the router&#39;s. Proven positive by TestLocRIBPeerHeader and by TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity, which commits the leaf over the reload rail with the OPEN cache EMPTY, and negative by TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9069-x-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L76" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestLocRIBPeerHeader</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L1208" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L299" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestBgpIdentityPrefersTheFourOctetASNCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L1239" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L94" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven</code></a></span></div>
 </div></td>
 </tr>
@@ -357,7 +370,7 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <td>MUST</td>
 <td>5.3 - Peer Down Notification</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9069-5.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L1135" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L1161" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> sendLocRIBPeerDown (internal/component/bgp/plugins/bmp/bmp_locrib.go) is the only producer of a Loc-RIB Peer Down and it passes one constant reason, so there is no second Loc-RIB path to reject as a negative. The neighbouring risk -- reason 6 used for a peer the requirement does not cover -- is closed elsewhere: TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession requires a PeerTypeGlobal Peer Down to carry reason 5, and TestPeerDownReasonMapping requires every mapped BGP close reason to be one of 1 to 5. The positive (reason 6 on the Loc-RIB peer) is proven in TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo, over the plugin&#39;s own reload rail</p></td>
 </tr>
@@ -368,15 +381,15 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9069-x-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L82" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestLocRIBPeerHeader</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the Loc-RIB per-peer header sets Peer BGP ID to the local router-id (locRIBPeerHeader and BMPPlugin.localIdentity, internal/component/bgp/plugins/bmp/bmp_locrib.go) and ze has exactly one local router-id, so there is no non-conformant BGP-ID value to reject as a negative; the positive (Peer BGP ID == router-id) is proven in TestLocRIBPeerHeader and TestHandleBestChangeEmitsPeerUpThenRM</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the Loc-RIB per-peer header sets Peer BGP ID to the `bgp router-id` leaf (locRIBPeerHeader and BMPPlugin.localIdentity, internal/component/bgp/plugins/bmp/bmp_locrib.go) and ze has exactly one local router-id, so there is no non-conformant BGP-ID value to reject as a negative; a plugin that has been handed no configuration emits nothing rather than the zero identifier RFC 6286 forbids; the positive (Peer BGP ID == router-id) is proven in TestLocRIBPeerHeader and TestHandleBestChangeEmitsPeerUpThenRM</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9069-4.2-1">RFC9069-4.2-1</code></td><td colspan="3"><span class="rfc-subject">Locally sourced routes communicated by BMP are conveyed using the Loc-RIB Instance Peer Type (§4.2). Proven positive by TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType, which reads the Peer Up and the Route Monitoring one best change puts on the wire and requires Peer Type 3 on both, and negative by TestPeerHeaderFromEvent, where the header of a monitored BGP peer carries Peer Type 0: the type discriminates the Loc-RIB feed rather than being stamped on every message</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2 - Peer Flags</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9069-4.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L135" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L156" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestMonitoredPeerRouteMonitoringIsNotTheLocRIBPeerType</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L136" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L157" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestMonitoredPeerRouteMonitoringIsNotTheLocRIBPeerType</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9069-5.1-1">RFC9069-5.1-1</code></td><td colspan="3"><span class="rfc-subject">The Loc-RIB per-peer header Timestamp is the time the encapsulated routes were installed in the Loc-RIB, and zero where ze does not know it (§5.1). Ze knows it for an incremental best change, which the RIB delivers on the goroutine that installed it; a full-table replay, a Peer Up, a Peer Down and an End-of-RIB marker each carry zero, which the same paragraph defines: &#34;If zero, the time is unavailable.&#34; Proven positive by TestLocRIBIncrementalRouteMonitoringCarriesTheInstallTime, negative by TestLocRIBReplayAndPeerUpCarryNoTimestamp</span></td></tr>
@@ -384,8 +397,8 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <td>MUST</td>
 <td>5.1 - Per-Peer Header</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9069-5.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L87" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestLocRIBIncrementalRouteMonitoringCarriesTheInstallTime</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L111" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestLocRIBReplayAndPeerUpCarryNoTimestamp</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L88" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestLocRIBIncrementalRouteMonitoringCarriesTheInstallTime</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L112" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestLocRIBReplayAndPeerUpCarryNoTimestamp</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9069-5.2.1-1">RFC9069-5.2.1-1</code></td><td colspan="3"><span class="rfc-subject">The Loc-RIB Peer Up carries the VRF/Table Name Information TLV (type 3), whose UTF-8 value is &#34;global&#34; -- the name §5.2.1 fixes for the default Loc-RIB instance with a zero-filled distinguisher -- inside the 1-to-255-byte size bound, and the Loc-RIB Peer Down repeats that TLV after reason 6 (§5.2.1, §5.3, §8.3). Proven positive by TestLocRIBPeerUpAndPeerDownCarryTheGlobalTableName, which reads both messages of one session off the wire, and negative by TestMonitoredPeerUpCarriesNoTableNameTLV: a monitored BGP peer&#39;s Peer Up carries no such TLV, so the name is the Loc-RIB instance&#39;s rather than every peer&#39;s</span></td></tr>
@@ -393,8 +406,8 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <td>MUST</td>
 <td>5.2.1 - Peer Up Information</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9069-5.2.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L186" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestLocRIBPeerUpAndPeerDownCarryTheGlobalTableName</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L252" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestMonitoredPeerUpCarriesNoTableNameTLV</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L187" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestLocRIBPeerUpAndPeerDownCarryTheGlobalTableName</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L253" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestMonitoredPeerUpCarriesNoTableNameTLV</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9069-6.1.1-1">RFC9069-6.1.1-1</code></td><td colspan="3"><span class="rfc-subject">The BMP receiver processes the capabilities of a Peer Up&#39;s OPEN to know which address families that peer carries, and records the association where `show bmp peers` reports it (§6.1.1). Proven positive by TestReceiverRecordsThePeerUpAddressFamilies and negative by TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone: an OPEN advertising no Multiprotocol capability records no family, because a defaulted one would answer the association with an invention</span></td></tr>
@@ -402,8 +415,8 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <td>MUST</td>
 <td>6.1.1 - Multiple Loc-RIB Peers</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9069-6.1.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L284" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestReceiverRecordsThePeerUpAddressFamilies</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L317" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L285" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestReceiverRecordsThePeerUpAddressFamilies</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L318" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9069-6.1.3-1">RFC9069-6.1.3-1</code></td><td colspan="3"><span class="rfc-subject">A change that alters the behavior of an existing BMP session bounces it with a Peer Down / Peer Up sequence (§6.1.3). Ze bounces the peers inside the session and leaves the session up, which is the same answer RFC8671-7.2-1 records for the identical sentence in RFC 8671 §7.2; the Loc-RIB emulated peer is bounced by the pair of reload rails, a Peer Down when `loc-rib` goes off and a Peer Up when it comes on. Proven positive by TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession and negative by TestRFC8671UnrelatedBGPChangeBouncesNothing: the bounce is owed to a CHANGE, so a reload that moves no leaf deciding what the session carries bounces nothing</span></td></tr>
@@ -411,8 +424,8 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <td>MUST</td>
 <td>6.1.3 - Changes to Existing BMP Sessions</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9069-6.1.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L456" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestBehaviorChangeBouncesThePeersOfALocRIBSession</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L492" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestAConfigurationThatAltersNoBehaviorBouncesNothing</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L457" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestBehaviorChangeBouncesThePeersOfALocRIBSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L493" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestAConfigurationThatAltersNoBehaviorBouncesNothing</code></a></span></div>
 </div></td>
 </tr>
 </tbody>
@@ -447,7 +460,7 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L493" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestLocRIBSinglePeerUpPerInstance</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L482" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestLocRIBSinglePeerUpPerInstance</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -462,7 +475,7 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L426" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestHandleBestChangeEmitsPeerUpThenRM</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L415" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestHandleBestChangeEmitsPeerUpThenRM</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -477,7 +490,7 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L592" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestStartLocRIBTriggersInitialDump</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L582" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestStartLocRIBTriggersInitialDump</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -527,7 +540,7 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L331" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L319" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -535,17 +548,12 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 </table>
 </div>
 <h3><a href="#rfc9069-x-6"><code>RFC9069-x-6</code></a></h3>
-<p>Peer AS MUST be set to the primary router BGP autonomous system number for Loc-RIB (Peer Type 3) (Per-Peer Header). Corrected 2026-08-31: this row read &#34;Peer AS MUST be 0&#34;, which is what the RFC requires of the Peer ADDRESS (RFC9069-x-5) and the reverse of what it requires of this field. The value is the 4-octet ASN, read from the 4-octet ASN capability of a cached sent OPEN rather than from the two-octet My AS field an AS4 speaker fills with AS_TRANS. Proven positive by TestLocRIBPeerHeader, negative by TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven, and at the source by TestBgpIdentityPrefersTheFourOctetASNCapability</p>
+<p>Peer AS MUST be set to the primary router BGP autonomous system number for Loc-RIB (Peer Type 3) (Per-Peer Header). Corrected 2026-08-31: this row read &#34;Peer AS MUST be 0&#34;, which is what the RFC requires of the Peer ADDRESS (RFC9069-x-5) and the reverse of what it requires of this field. The value is the 4-octet ASN, read from the `bgp session asn local` leaf rather than from a session that may not exist: an OPEN cache is empty until a peer comes up, which is the very case this RFC exists to serve, and an ASN read from the two-octet My AS field of an AS4 speaker is AS_TRANS rather than the router&#39;s. Proven positive by TestLocRIBPeerHeader and by TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity, which commits the leaf over the reload rail with the OPEN cache EMPTY, and negative by TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L299" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestBgpIdentityPrefersTheFourOctetASNCapability</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_locrib_test.go#L94" title="internal/component/bgp/plugins/bmp/bmp_locrib_test.go" target="_blank" rel="noopener"><code>TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven</code></a></td>
 <td>unit/verify</td>
@@ -557,7 +565,7 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L1208" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L1239" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -572,7 +580,7 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L1135" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L1161" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -602,12 +610,12 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L156" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestMonitoredPeerRouteMonitoringIsNotTheLocRIBPeerType</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L157" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestMonitoredPeerRouteMonitoringIsNotTheLocRIBPeerType</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L135" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L136" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -622,12 +630,12 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L111" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestLocRIBReplayAndPeerUpCarryNoTimestamp</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L112" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestLocRIBReplayAndPeerUpCarryNoTimestamp</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L87" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestLocRIBIncrementalRouteMonitoringCarriesTheInstallTime</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L88" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestLocRIBIncrementalRouteMonitoringCarriesTheInstallTime</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -642,12 +650,12 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L252" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestMonitoredPeerUpCarriesNoTableNameTLV</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L253" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestMonitoredPeerUpCarriesNoTableNameTLV</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L186" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestLocRIBPeerUpAndPeerDownCarryTheGlobalTableName</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L187" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestLocRIBPeerUpAndPeerDownCarryTheGlobalTableName</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -662,12 +670,12 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L317" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L318" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L284" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestReceiverRecordsThePeerUpAddressFamilies</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L285" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestReceiverRecordsThePeerUpAddressFamilies</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -682,12 +690,12 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L492" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestAConfigurationThatAltersNoBehaviorBouncesNothing</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L493" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestAConfigurationThatAltersNoBehaviorBouncesNothing</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L456" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestBehaviorChangeBouncesThePeersOfALocRIBSession</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L457" title="internal/component/bgp/plugins/bmp/rfc9069_test.go" target="_blank" rel="noopener"><code>TestBehaviorChangeBouncesThePeersOfALocRIBSession</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1035,7 +1043,7 @@ Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

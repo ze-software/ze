@@ -138,7 +138,7 @@ device.</p>
 <td><code>tacacs.server &lt;ip&gt;.key</code></td>
 <td>string (<code>ze:sensitive</code>)</td>
 <td>required</td>
-<td>Shared secret, stored as <code>$9$</code> ciphertext</td>
+<td>Shared secret. A server with none disables the whole AAA bundle. See below: what that costs depends on when the bundle is built</td>
 </tr>
 <tr>
 <td><code>tacacs.timeout</code></td>
@@ -179,6 +179,52 @@ device.</p>
 </tbody>
 </table>
 <!-- source: internal/component/tacacs/yang/ze-tacacs-conf.yang -- system.authentication.tacacs -->
+<p>The key is not optional. RFC 8907 Section 4.5 builds the obfuscation pad from
+the shared secret. Section 10.5.2 says "TACACS+ clients MUST NOT set
+TAC_PLUS_UNENCRYPTED_FLAG", which is the only honest wire form for an
+unobfuscated body. A client with no secret therefore has no conformant packet to
+send.</p>
+<p>Two refusals follow, and neither one stops the daemon. The AAA build refuses a
+server declared without a key and names the address. The packet writer refuses
+one too. No path reaches the socket with a cleartext body under a header that
+claims otherwise.</p>
+<p>What a keyless server costs depends on what else the config declares.</p>
+<p><strong>The tacacs backend is dropped and the rest of the chain composes without it.</strong>
+A user who exists locally still logs in against the local backend, and the local
+authorization profiles still govern what they run. The daemon logs the drop at
+ERROR.</p>
+<table>
+<thead>
+<tr>
+<th>What the config has</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A local user as well</td>
+<td>that user logs in, and their profiles decide what they run</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td>nothing authenticates, and ssh is not started</td>
+</tr>
+</tbody>
+</table>
+<p>The chain order is unchanged. TACACS+ is asked first where it built, a reject
+stops the chain, and only a failure to ANSWER reaches the local account.</p>
+<p>A commit is REFUSED rather than dropped, and only while a chain is already
+running. The same error already in the file at boot is logged and startup
+continues. So <code>ze config validate</code> before a reboot.</p>
+<p>The <code>ze:sensitive</code> marking hides the key from <code>show</code> and from the web editor. It
+does NOT encrypt what the commit path writes. Ze decodes a <code>$9$</code> value you write
+by hand, and the editor stores a key as you typed it. Only <code>ze config dump</code>
+encodes on the way out, so a dump round-trips and the key stays hidden.</p>
+<!-- source: internal/component/tacacs/register.go -- tacacsBackend.Build -->
+<!-- source: cmd/ze/hub/main_reload.go -- the reload refusal -->
+<!-- source: cmd/ze/hub/main.go -- the boot warning, noBGPAAAWiring -->
+<!-- source: internal/component/ssh/ssh.go -- the LocalAuthenticator fallback -->
+<!-- source: internal/component/tacacs/packet.go -- MarshalInto, ErrNoSharedSecret -->
 <h2 id="authentication-flow">Authentication flow</h2>
 <ol>
 <li>SSH client connects with username + password.</li>
@@ -429,7 +475,7 @@ Local summary: <code>rfc/short/rfc8907.md</code>.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

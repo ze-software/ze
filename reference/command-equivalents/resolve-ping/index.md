@@ -20,6 +20,8 @@ Ping from the router with optional source binding.
 - Command pipes: none
 - Pipe aliases: none
 
+The target takes a hostname or an address, and it accepts a zone suffix such as fe80::1%eth0. The source binds a local address and takes the same zone suffix. The count runs from 1 to 100 and the payload size from 1 to 65507 bytes. 'show ping' declares no source leaf and puts no upper bound on its count.
+
 ## Arguments
 
 | Name | Type | Required | Values |

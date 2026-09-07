@@ -20,6 +20,8 @@ Set the MAC address on an interface.
 - Command pipes: none
 - Pipe aliases: none
 
+The address is written as xx:xx:xx:xx:xx:xx. Ze checks that form before it calls the backend, so a malformed address is refused with its own message.
+
 ## Arguments
 
 | Name | Type | Required | Values |

@@ -16,9 +16,9 @@ ze start --web 8443                              # Start daemon + web on port 84
 ze start --web 8443 --insecure-web               # No authentication (forces 127.0.0.1)
 ```
 
-When no certificate is configured, ze generates an ECDSA P-256 self-signed certificate automatically. The certificate includes SANs for localhost, 127.0.0.1, ::1, and the listen address.
+When no certificate is configured, ze generates an ECDSA P-256 self-signed certificate automatically. The certificate includes SANs for localhost, 127.0.0.1, ::1, and the listen address. `WebCertHosts` builds that list, and a listen address of `0.0.0.0` adds every non-loopback interface address of the machine.
 <!-- source: cmd/ze/ze_core_start.go -- cmdStart, flagStartWeb, flagStartInsecureWeb -->
-<!-- source: internal/core/selfcert/selfcert.go -- GenerateWebCertWithAddr, GenerateWebCertWithNames -->
+<!-- source: internal/core/selfcert/selfcert.go -- GenerateWebCertWithAddr, GenerateWebCertWithNames, WebCertHosts -->
 
 | Flag | Description |
 |------|-------------|
@@ -79,7 +79,10 @@ curl -k -u admin:password https://localhost:8443/show/bgp/?format=json
 ### Security Headers
 
 Every response carries `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'`, and HSTS (`max-age=63072000; includeSubDomains`). An authenticated response adds `Cache-Control: no-store` and `X-Ze-Version`.
+
+`X-Ze-Version` carries the release, the git commit, the Go version and the OS, which tells a client the exact build it speaks to. Write `environment { hide-version true; }` to keep it off every response of the web interface and the looking glass together. The default is false, so the banner stays until you hide it, and no other header changes. Ze sends no `Server` header at all.
 <!-- source: internal/component/web/auth.go -- setSecurityHeaders, addSecurityHeaders -->
+<!-- source: internal/core/version/version.go -- HTTPHeaderHidden -->
 
 `script-src 'self'` refuses an inline script and refuses `Function()`. No page therefore carries an inline event handler, and no htmx attribute uses a bracketed trigger filter, because htmx compiles such a filter into source and calls `Function()` on it. A test refuses both in any `.templ` source.
 <!-- source: internal/component/web/markup_contract_test.go -- TestNoTriggerFilterNeedsEval, TestSelfReplacingControlsCarryAStableID -->
@@ -96,9 +99,11 @@ apart.
 | The config tree, the diff, the compare view and the download | A secret leaf that holds a value reads as the placeholder. An unset secret stays empty, so the field still reads as unconfigured |
 | The commit diff | A rotated secret is named as a changed path. Neither the old value nor the new one is printed |
 | The web CLI bar and the terminal | `show` masks the same leaves. The verb needs no config authorization, so any authenticated session used to reach them |
+| The terminal's answer to `set` | The acknowledgement reads `set <leaf> /* SECRET-DATA */`, so the value never travels back in the response body |
 | Commit, load and upload | A tree carrying the placeholder in a secret leaf is refused. Restore the real value from the edit-authorized raw download, or set it through `plaintext-<name>` or `ze passwd` |
 
-<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, ChangedSecretPaths, RejectMaskedSecretLeaves -->
+<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, ChangedSecretPaths, DisplayValueAtPath, RejectMaskedSecretLeaves -->
+<!-- source: internal/component/web/cli_terminal.go -- executeTerminalSet -->
 
 ## Rendering
 
@@ -119,7 +124,7 @@ root is written into the generated Go, so a bare run rewrites every file and
 reds the check.
 
 The browser assets are vendored in `third_party/web/` and copied to each
-consumer by the same `./le repository generate` run. htmx 4.0.0-beta6 and its
+consumer by the same `./le repository generate` run. htmx 4.0.0 and its
 `hx-sse.min.js` extension serve the web interface, the looking glass and the
 chaos dashboard. `internal/le/webassets.Write` derives each page's asset set
 from its component graph, so a page loads only what it reaches.
@@ -237,6 +242,10 @@ Duplicate entry keys are rejected. Validation runs before the entry is created, 
 
 Navigating to a non-existent list entry (e.g., `/show/bgp/peer/london/` when `london` has not been created) redirects to the root view with an error notification.
 <!-- source: internal/component/web/fragment.go -- HandleFragment, isListEntryPath check -->
+
+A field check reads one value. A commit runs the whole-config validator, the same one `ze config validate` runs, over the config the commit is about to write. This includes the BGP peer pipeline, so a peer the daemon would refuse blocks the commit while the config is still on the screen. The refusal appears in the commit modal as `Commit failed:` with the validator's message, and nothing is written.
+<!-- source: internal/component/cli/editor_commit.go -- validateStagedTree -->
+<!-- source: internal/component/web/handler_config_commit.go -- handleCommitPost -->
 
 ### Notifications
 

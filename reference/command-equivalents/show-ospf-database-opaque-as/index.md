@@ -20,6 +20,8 @@ Show only AS-scope opaque-LSAs (Type 11, RFC 5250).
 - Command pipes: none
 - Pipe aliases: none
 
+RFC 5250 Section 3 floods link-state type-11 throughout the autonomous system. It takes the scope of an AS-external (type-5) LSA. A type-11 opaque LSA reaches every transit area. It is not flooded into a stub area or an NSSA. A router does not originate one into a connected stub area or NSSA. One received from a neighbor inside such an area is rejected.
+
 ## Arguments
 
 No command-specific arguments listed.

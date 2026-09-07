@@ -20,6 +20,8 @@ Show only Summary-LSAs (Type 3, inter-area network).
 - Command pipes: none
 - Pipe aliases: none
 
+RFC 2328 Section 12.4.3 states that an area border router originates a Summary-LSA. A Type 3 Summary-LSA describes a route to a network outside the area and inside the AS. Ze reads the per-area store for it.
+
 ## Arguments
 
 No command-specific arguments listed.

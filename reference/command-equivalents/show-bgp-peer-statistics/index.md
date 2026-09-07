@@ -20,6 +20,8 @@ Show UPDATE throughput for your peers.
 - Command pipes: none
 - Pipe aliases: none
 
+Each row carries the peer address, its ASN, the FSM state, and the session uptime. Six counters follow, for UPDATE, KEEPALIVE and End-of-RIB messages in each direction. Each rate is the cumulative counter divided by the uptime in seconds, so a session that is not established reports 0.
+
 ## Arguments
 
 | Name | Type | Required | Values |

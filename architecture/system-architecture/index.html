@@ -159,6 +159,13 @@ because <code>defaultDispatch</code> selects the personality with
 <code>registry.LookupRoot(binaryName())</code>, so the session name goes on the directory.
 The launcher carries the name into the process, and <code>refuseWrongBuildName</code>
 refuses to answer when the running binary is a different build.</p>
+<p><code>./le --update</code> moves the cache forward instead of stepping around it. It builds
+the working tree beside <code>bin/le</code> and renames the result into place, so a peer
+session executing the old binary keeps its inode. The launcher never rebuilds on
+its own, because one peer's unfinished source would then fail every call in every
+session. About one call in sixteen compares the binary with the build inputs,
+after the command has answered. It prints one stderr line when a file git holds
+unmodified is newer.</p>
 <!-- source: le -- the --name option; cmd/ze/le_build_name.go -- refuseWrongBuildName -->
 <p>Both personalities use the command registry and pipe engine. Their composition
 roots remain separate: a normal <code>ze</code> build imports no <code>internal/le</code> package,
@@ -285,11 +292,17 @@ fails <code>ze config validate</code> and it fails at boot, with the same messag
     # Third-party plugins
     external acme {
         run "/opt/acme/monitor-plugin";
-        respawn true;           # Restart if crashes
+        respawn true;           # Restart if it exits, if the plugin permits it
         timeout 60;             # Startup timeout
     }
 }
 </code></pre>
+<p>A plugin declares in its Stage-1 registration what its own failure means:
+<code>restart</code>, <code>ignore</code> or <code>fatal</code>. That declaration decides what ze does. The
+<code>respawn</code> leaf states what the operator expects, and it can only ask for less
+than the declaration permits: <code>respawn false</code> leaves a plugin stopped that would
+have been started again, and <code>respawn true</code> against a plugin that declares it
+must not be restarted stops ze at startup with an error naming both sides.</p>
 <h3 id="section-3-plugin-configuration">Section 3: Plugin Configuration</h3>
 <p>Configuration for each plugin. Routed by the hub to the appropriate process.</p>
 <pre><code># Routed to ze bgp (handles "bgp" container per ze-bgp-conf.yang)
@@ -369,7 +382,7 @@ acme {
 <pre><code>plugin {
     external my-plugin {
         run "/path/to/plugin";
-        respawn true;
+        respawn true;   # Only if the plugin declares failure-policy restart
     }
 }
 
@@ -447,7 +460,7 @@ pattern: how each component owns its CLI commands, YANG schema, and tests.</p>
 <pre><code class="language-bash"># Routed to ze bgp
 ze bgp peer list
 ze bgp peer upstream1 show
-ze bgp peer upstream1 update ...
+ze send bgp upstream1 update ...
 
 # Routed to ze rib
 ze rib show
@@ -902,7 +915,7 @@ declare done
 <p>Implementation: <code>internal/core/privilege/</code> -- calls <code>setgid</code> then <code>setuid</code> after <code>reactor.Start()</code> binds port 179.</p>
 <!-- source: internal/core/privilege/ -- privilege dropping -->
 <h3 id="plugin-tls-transport">Plugin TLS Transport</h3>
-<p>External plugins connect back to the engine via TLS. The engine binds TLS listeners (configured via <code>plugin { hub { server &lt;name&gt; { ip ...; port ...; secret ...; } } }</code>), forks child processes with <code>ZE_PLUGIN_HUB_HOST</code>/<code>ZE_PLUGIN_HUB_PORT</code>/<code>ZE_PLUGIN_HUB_TOKEN</code> env vars, and waits for authenticated connect-back. Each plugin uses a single bidirectional TLS connection with MuxConn for concurrent RPCs.</p>
+<p>External plugins connect back to the engine via TLS. The engine binds TLS listeners (configured via <code>plugin { hub { server &lt;name&gt; { ip ...; port ...; secret ...; } } }</code>), forks child processes with <code>ZE_PLUGIN_HUB_HOST</code>/<code>ZE_PLUGIN_HUB_PORT</code>/<code>ZE_PLUGIN_HUB_TOKEN</code>/<code>ZE_PLUGIN_CA_PEM</code> env vars, and waits for authenticated connect-back. <code>ZE_PLUGIN_CA_PEM</code> carries the certificate authority root that issued the listener's certificate, and the SDK validates the chain against it and nothing else; the full contract is in <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md" target="_blank" rel="noopener">Process Protocol</a>. Each plugin uses a single bidirectional TLS connection with MuxConn for concurrent RPCs.</p>
 <!-- source: internal/component/plugin/acceptor.go -- hub TLS listener -->
 <!-- source: pkg/plugin/rpc/ -- MuxConn for concurrent RPCs -->
 <h3 id="plugin-process-isolation">Plugin Process Isolation</h3>
@@ -969,7 +982,7 @@ $ kill -TERM $(pgrep -f "ze start config.conf")
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:20 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

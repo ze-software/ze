@@ -17,12 +17,13 @@ Ze includes an HTTPS web interface for configuration viewing, editing, and runti
 | Tab completion | Autocomplete candidates served via JSON endpoint |
 | Live updates | SSE notifications when another user commits config changes |
 | HTTPS only | TLS 1.2 minimum; auto-generated ECDSA P-256 self-signed certificate when no cert is provided |
-| PKI certificate | `environment.web.certificate` names a `pki {}` store entry to serve instead, sending the leaf and every stored intermediate. A configured name that does not resolve stops the listener; ze never falls back to self-signed for it. Rotates on reload without rebinding, so open SSE streams survive. See [TLS Certificates From the PKI Store](../../guides/configuration-model/index.md#tls-certificates-from-the-pki-store) |
+| PKI certificate | `environment.web.certificate` names a `pki {}` store entry to serve instead, sending the leaf and every stored intermediate. A configured name that does not resolve makes ze exit at start. ze never falls back to self-signed for it. Rotates on reload without rebinding, so open SSE streams survive. See [TLS Certificates From the PKI Store](../../guides/configuration-model/index.md#tls-certificates-from-the-pki-store) |
 | Security headers | HSTS, CSP, X-Frame-Options DENY, no-store cache on all authenticated responses |
+| Version banner | `X-Ze-Version` carries the build fingerprint. `environment { hide-version true; }` keeps it off the web interface and the looking glass together; the default sends it |
 | YANG decorators | Leaves with `ze:decorate` extension show enriched display text (e.g., ASN numbers annotated with organization name via Team Cymru DNS) |
 | Workbench UI (default) | RouterOS-style operator workbench (default since Phase 2); row-level related-tool buttons declared via `ze:related` YANG extension dispatch through the standard CommandDispatcher; CLI available as separate `/cli` tab |
 | templ rendering | Every page, panel, fragment and out-of-band swap is written in a `.templ` source and compiled to Go. No Go file in the package builds markup, so a renamed view-model field is a compile error instead of a blank panel |
-| htmx 4 | htmx 4.0.0-beta6 is embedded, with `hx-sse.min.js` for the streams. Each page loads only the assets its component graph reaches |
+| htmx 4 | htmx 4.0.0 is embedded, with `hx-sse.min.js` for the streams. Each page loads only the assets its component graph reaches |
 | Secret masking | No render path prints a value the schema marks `ze:sensitive` or `ze:bcrypt`. One predicate answers "does this leaf hold a secret", and both the display mask and the write guard read it |
 
 ## Browser Configuration Workflow
@@ -56,7 +57,7 @@ Expected result: Ze commits the browser user's isolated draft and the active YAN
 
 
 <!-- source: internal/component/web/server.go -- WebServer, TLS config, cert generation, UpdateTLSCertificate -->
-<!-- source: cmd/ze/hub/service_web.go -- webTLSMaterial: PKI store or self-signed, fail closed -->
+<!-- source: cmd/ze/hub/service_tls.go -- listenerTLSMaterial: PKI store or self-signed, fail closed -->
 <!-- source: internal/component/web/decorator.go -- Decorator registry and interface -->
 <!-- source: internal/component/web/decorator_asn.go -- ASN name decorator via Team Cymru DNS -->
 <!-- source: internal/component/web/auth.go -- SessionStore, authMiddleware, loginHandler -->

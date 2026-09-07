@@ -1,6 +1,6 @@
 # `show cache`
 
-List cached BGP UPDATE message IDs with their retain and consumer state.
+List the cached BGP UPDATE message IDs.
 
 ## Ze command
 
@@ -19,6 +19,8 @@ List cached BGP UPDATE message IDs with their retain and consumer state.
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
+
+The answer carries two keys, 'ids' and 'count'. An ID is listed while its entry is retained, or while that entry has not expired. The IDs come alone, with no retain flag and no consumer state beside them.
 
 ## Arguments
 

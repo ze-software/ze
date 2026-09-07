@@ -75,6 +75,8 @@
 .rfc-tape-both_polarities { background: var(--teal-chip); }
 .rfc-tape-single_polarity { background: var(--sky-chip); }
 .rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -113,19 +115,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>70.0%</strong><b>7 of 10 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>30.0%</strong><b>3 of 10 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 10 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 10 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 17 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>70.0%</strong><b>7 of 10 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>30.0%</strong><b>3 of 10 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>10.5%</strong><b>2 of 19 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>10</strong><b>of 13 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 10 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>10</strong><b>of 14 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 10 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 4 shares marked as a part above are the whole of the 10 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 10 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -156,6 +161,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
+</tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
@@ -181,12 +198,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>13</td>
+<td>14</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>10</td>
-</tr>
-<tr><td>Obligations that bind Ze</td>
 <td>10</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
@@ -202,16 +216,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>17</td>
+<td>20</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>17</td>
+<td>19</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7474.md</code></td>
@@ -287,7 +301,7 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L380" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestSetBootCountSeedsSequence</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L382" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestSetBootCountSeedsSequence</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the 64-bit composition (boot count in the high word, per-packet counter in the low word) is a numeric construction property with no violating input to feed a negative test</p></td>
 </tr>
@@ -296,7 +310,7 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L403" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthESNCounterWrapAdvancesBootCount</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L405" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthESNCounterWrapAdvancesBootCount</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a monotonic send-side counter increment has no observable violating case, since every sent crypto packet advances it (and bumps the boot word on wrap)</p></td>
 </tr>
@@ -305,7 +319,7 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L342" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestBootCountMonotonicAcrossRestart</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L344" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestBootCountMonotonicAcrossRestart</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> strict-increase preservation across restarts is a durability property with no violating input to feed; it is asserted positively across a simulated restart via the persisted boot count</p></td>
 </tr>
@@ -314,8 +328,8 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L128" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L133" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L130" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L135" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7474-2-6">RFC7474-2-6</code></td><td colspan="3"><span class="rfc-subject">Track the accepted-sequence high-water mark per neighbor and per OSPF packet type (allows out-of-order arrival across types, §2)</span></td></tr>
@@ -323,8 +337,8 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-2-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L164" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplayPerType</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L134" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L166" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplayPerType</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L136" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7474-3-1">RFC7474-3-1</code></td><td colspan="3"><span class="rfc-subject">Set the OSPF Authentication field per AuType 3: 24-bit reserved `0`, 8-bit Auth Data Len, 32-bit Key ID in the former sequence-number position (§3)</span></td></tr>
@@ -361,6 +375,15 @@ Same OSPF experimental status.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L174" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTrailer</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L320" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3RequiresProtocolIDSuffix</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7474-4-1">RFC7474-4-1</code></td><td colspan="3"><span class="rfc-subject">On receive, use a key only while &#34;the key validity interval as defined by AcceptLifetimeStart and AcceptLifetimeEnd&#34; includes the current time (§4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L445" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestVerifyRejectsOutsideAcceptLifetime</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L439" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestVerifyRejectsOutsideAcceptLifetime</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7474-4.1-1">RFC7474-4.1-1</code></td><td colspan="3"><span class="rfc-subject">On send, when multiple keys match, select the key with the most recent SendLifetimeStart to enable graceful rollover (§4.1)</span></td></tr>
@@ -427,7 +450,7 @@ Same OSPF experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L380" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestSetBootCountSeedsSequence</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L382" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestSetBootCountSeedsSequence</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -442,7 +465,7 @@ Same OSPF experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L403" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthESNCounterWrapAdvancesBootCount</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L405" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthESNCounterWrapAdvancesBootCount</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -457,7 +480,7 @@ Same OSPF experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L342" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestBootCountMonotonicAcrossRestart</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L344" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestBootCountMonotonicAcrossRestart</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -472,12 +495,12 @@ Same OSPF experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L133" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L135" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L128" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L130" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -492,12 +515,12 @@ Same OSPF experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L134" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L136" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L164" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplayPerType</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L166" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplayPerType</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -584,6 +607,26 @@ Same OSPF experimental status.
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc7474-4-1"><code>RFC7474-4-1</code></a></h3>
+<p>On receive, use a key only while &#34;the key validity interval as defined by AcceptLifetimeStart and AcceptLifetimeEnd&#34; includes the current time (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L439" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestVerifyRejectsOutsideAcceptLifetime</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L445" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestVerifyRejectsOutsideAcceptLifetime</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Extraction sign-off</h2>
 <p>No extraction sign-off exists for RFC 7474, so no reviewer has walked its text sentence by sentence.</p>
@@ -620,7 +663,7 @@ Same OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

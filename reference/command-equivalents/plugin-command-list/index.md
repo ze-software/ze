@@ -20,6 +20,8 @@ List every command a plugin registered, with its summary.
 - Command pipes: none
 - Pipe aliases: none
 
+Each row carries the command name and its summary, and nothing else. Use plugin command help for the explanation, the argument form and the source plugin.
+
 ## Arguments
 
 No command-specific arguments listed.

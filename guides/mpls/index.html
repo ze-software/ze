@@ -73,21 +73,28 @@ accept labeled packets:</p>
     }
 }
 </code></pre>
-<p>This sets <code>net.mpls.conf.eth0.input=1</code>. The global label-table size is governed
-by the <code>net.mpls.platform_labels</code> sysctl (configure it via the <code>sysctl {}</code>
-block; it defaults to off, which disables MPLS entirely).</p>
+<p>This sets <code>net.mpls.conf.eth0.input=1</code>. The global label-table size is the
+<code>net.mpls.platform_labels</code> sysctl. It defaults to 0, which disables MPLS
+entirely, so ze writes the full 20-bit space (1048575) once, immediately before
+it programs its first label. An operator value set in the <code>sysctl {}</code> block is
+never overwritten: only a table reading exactly 0 is repaired.</p>
 <p>The Linux kernel must supply MPLS forwarding, either through the <code>mpls_router</code>
 and <code>mpls_iptunnel</code> modules or built in with <code>CONFIG_MPLS_ROUTING</code> and
 <code>CONFIG_MPLS_IPTUNNEL</code>. ze's own appliance kernel builds both in, so it loads no
-module. <code>ze doctor</code> probes the capability rather than the module list, and it
-reads the probe's VALUE. It warns <code>doctor-mpls-unavailable</code> when
-<code>/proc/sys/net/mpls/platform_labels</code> does not exist, which is the one answer that
-covers both packagings. It warns <code>doctor-mpls-disabled</code> when the file exists and
-reads 0, because that is the kernel default and it disables MPLS entirely.</p>
-<p>The two codes are separate because the remedies are. An absent probe needs a
-module or a kernel rebuild. A zero probe needs neither, only a size, set through
-the <code>sysctl {}</code> block. A built-in kernel makes the second case the one an
-appliance boots in.</p>
+module. MPLS is an enrolled kernel capability: ze probes for the AF_MPLS table
+rather than for the module list, because a built-in kernel lists no module.</p>
+<p>When the configuration asks the kernel FIB to forward MPLS and
+<code>/proc/sys/net/mpls/platform_labels</code> does not exist, <code>ze doctor</code> reports
+<code>doctor-mpls-unavailable</code> at error severity, <code>ze</code> refuses to start, and
+<code>ze config validate</code> fails. There is no operator override. A daemon that
+advertises label forwarding it cannot perform blackholes the traffic it
+attracted.</p>
+<p>A probe ze could not read is a different answer. It reports
+<code>doctor-mpls-unknown</code> at warning severity and ze starts, because refusing on a
+question ze could not ask would stop a router whose kernel is fine.</p>
+<p>A VPP or P4 FIB backend is never judged on the kernel's AF_MPLS table. The
+<code>fib { kernel { } }</code> block is what activates the plugin that programs kernel
+labels, and it is that plugin that carries the requirement.</p>
 <h2 id="inspecting-the-forwarding-table">Inspecting the forwarding table</h2>
 <pre><code>ze show mpls forwarding              # all installed MPLS entries
 ze show mpls forwarding limit 500    # cap the response size
@@ -123,6 +130,15 @@ reservation -- see <a href="../rsvp-te/">RSVP-TE</a>.</li>
 <li><code>hello-interval</code> / <code>hello-hold-time</code> / <code>keepalive-time</code> -- optional soft-state
 timers (defaults 5s / 15s / 60s).</li>
 </ul>
+<p><code>keepalive-time</code> is the KeepAlive Time ze proposes in the Initialization message
+of each new session (RFC 5036 section 3.5.3). The two LSRs keep the lower of the
+two proposals. Ze then sends a KeepAlive every third of the negotiated value, and
+it closes the session when no PDU arrives inside three times that value. The
+proposal is exchanged one time, when the session starts, so a change to this leaf
+applies to the sessions that open after it and leaves an established session on
+the value it negotiated.</p>
+<!-- source: internal/plugins/ldp/session.go -- NewSession, SendInit -->
+<!-- source: internal/plugins/ldp/register.go -- sessionConfigForAdj -->
 <p>Inspect LDP state with <code>show ldp neighbor</code> (session state, transport address)
 and <code>show ldp binding</code> (FEC-to-label bindings). A label binding learned from a
 neighbor programs an ingress push entry in the kernel MPLS FIB toward that
@@ -173,7 +189,7 @@ neighbor.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:15 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

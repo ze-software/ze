@@ -94,18 +94,27 @@ xl2tpd in `test/interop-l2tp/scenarios/03-ze-lac-xl2tpd-lns`.
 
 ## Rejecting a malformed SCCRQ
 
-RFC 2661 Section 4.4.3 makes the Assigned Tunnel ID "a 2 octet non-zero
-unsigned integer". An SCCRQ that carries zero is a protocol error, and ze
-answers it with a StopCCN that carries Result Code 2 (general error, see the
-Error Code) and Error Code 3 (a field value out of range). The reply goes out
-with Tunnel ID 0, because the peer supplied no tunnel id ze can address it by,
-and no tunnel entry is created for it.
+RFC 2661 Section 6.1 makes five AVPs mandatory in an SCCRQ: Message Type,
+Protocol Version, Host Name, Framing Capabilities and Assigned Tunnel ID. An
+SCCRQ that omits one of them is a malformed control message under Section 7.1,
+and so is one whose value ze cannot read: a 3-octet Framing Capabilities AVP,
+an empty Host Name AVP, or an Assigned Tunnel ID of 0, which Section 4.4.3
+makes "a 2 octet non-zero unsigned integer".
+
+Ze answers each of these with a StopCCN that carries Result Code 2 (general
+error, see the Error Code), Error Code 3 (a field value out of range) and an
+Error Message that names the AVP, for example `SCCRQ missing Framing
+Capabilities AVP`. The reply goes out with Tunnel ID 0, because the peer
+supplied no tunnel id ze can address it by, and no tunnel entry is created for
+it.
 
 The reply is rate-bounded: one StopCCN per source-address slot per second, over
 a fixed 256-slot table. A spoofed SCCRQ flood therefore allocates nothing and
 draws at most 256 replies per second from the whole reactor. Every other
-malformed TunnelID=0 datagram keeps its silent drop.
-<!-- source: internal/component/l2tp/reactor.go -- answerZeroTunnelIDSCCRQ, sendUnassociatedStopCCN -->
+malformed TunnelID=0 datagram keeps its silent drop, an unrecognized mandatory
+vendor AVP and a message type that is not SCCRQ among them.
+<!-- source: internal/component/l2tp/reactor.go -- answerRefusedSCCRQ, sendUnassociatedStopCCN -->
+<!-- source: internal/component/l2tp/tunnel_fsm.go -- parseSCCRQ -->
 
 ## CLI commands
 
@@ -279,12 +288,54 @@ and 1.1).
 <!-- source: internal/component/l2tp/plugins/authradius/handler.go -- buildAuthAttrs, doRADIUS -->
 
 Every Accounting-Request carries Acct-Status-Type, Acct-Session-Id, Service-Type
-(Framed), Framed-Protocol (PPP), NAS-Port-Type (Virtual) and NAS-Port. User-Name
-is added when the session has one: a session the LNS never authenticated has no
-username, and RFC 2866 Section 5 forbids sending text of length zero.
-NAS-Port-Id is added when the operator configured a template. Stop and
-Interim-Update add Acct-Session-Time, the input and output octet and packet
-counters, and the RFC 2869 gigaword counters when a counter passes 2^32.
+(Framed), Framed-Protocol (PPP), NAS-Port-Type (Virtual), NAS-Port and
+Event-Timestamp. User-Name and Calling-Station-Id are added when the session has
+one: a session the LNS never authenticated has no username, a call whose peer
+sent no Calling Number AVP has no station id, and RFC 2866 Section 5 forbids
+sending text of length zero. NAS-Port-Id is added when the operator configured a
+template. Stop and Interim-Update add Acct-Session-Time, the input and output
+octet and packet counters, and the RFC 2869 gigaword counters when a counter
+passes 2^32.
+
+Event-Timestamp (type 55) is four octets of seconds since 1970-01-01 00:00 UTC,
+which RFC 2869 Section 5.3 defines. Calling-Station-Id (type 31) is the L2TP
+Calling Number AVP the peer sent, or the subscriber MAC address on the PPPoE
+relay path.
+
+Acct-Delay-Time (type 41) reports how many seconds ze has been trying to send
+that record, counted from its first attempt, which is what RFC 2866 Section 5.2
+asks for. It is zero on the first transmission and it is updated on every
+retransmission. RFC 2866 Section 4.1 makes that update change the Identifier
+and the Request Authenticator as well, so a server that sees a repeat of an
+accounting record sees a new Identifier. An Access-Request is unaffected: its
+retransmission is byte for byte the first packet, with the same Identifier,
+which is what RFC 2865 Section 2.5 requires.
+
+The Stop record adds Acct-Terminate-Cause (type 49), and no other record
+carries it. RFC 2866 Section 5.10: "This attribute indicates how the session was
+terminated, and can only be present in Accounting-Request records where the
+Acct-Status-Type is set to Stop." The value is one of that section's integers:
+User Request (1) when LCP reaches Closed or Stopped, Lost Carrier (2) for
+unanswered LCP echo probes and for a peer that stops answering at the tunnel
+level, Lost Service (3) for every session on a tunnel the peer ended, Idle
+Timeout (4) and Session Timeout (5) for the
+two RADIUS timers, Admin Reset (6) for an operator clear and for a RADIUS Disconnect-Request, Admin
+Reboot (7) for the sessions ze stops on shutdown, NAS Request (10) when the PPP
+driver stops a running session, and NAS Error (9) for a failure ze detected or a
+teardown it cannot attribute. Ze reports NAS Error rather than guessing a more
+specific cause.
+
+A subscriber hanging up reaches the record through the peer's Call-Disconnect-
+Notify. Ze reads that message's Result Code (RFC 2661 Section 4.4.2) and
+translates the two values RFC 2866 Section 5.10 also states: code 1, "Call
+disconnected due to loss of carrier", becomes Lost Carrier, and code 3, "Call
+disconnected for administrative reasons", becomes Admin Reset. The other ten
+codes describe a call the far end could not place, which no Section 5.10 cause
+states, so they become NAS Error rather than a guess.
+
+Each of these four attributes is sent unless the operator holds it back with
+`attributes exclude`, described below. There is no leaf that turns one on: the
+default is to send it.
 
 RFC 2866 Section 4.1 requires either NAS-IP-Address or NAS-Identifier in every
 Accounting-Request, and RFC 2865 Section 4.1 requires the same of every
@@ -300,6 +351,67 @@ four octets, so a session with no address yet, or one whose only assignment is
 IPv6, sends no attribute rather than a wrong one.
 <!-- source: internal/component/l2tp/plugins/authradius/acct.go -- buildAcctPacket -->
 <!-- source: internal/component/l2tp/plugins/authradius/nasidentity.go -- appendNASIdentity -->
+
+#### Holding an attribute back
+
+The four attributes above are sent by default, which is what a billing system
+usually wants. An operator whose server or billing pipeline does not want one of
+them writes an `attributes exclude` container beside `server`:
+
+```
+l2tp {
+    auth {
+        radius {
+            attributes {
+                exclude {
+                    calling-station-id {
+                        packet-type [ accounting-interim ];
+                    }
+                    acct-terminate-cause;
+                }
+            }
+        }
+    }
+}
+```
+
+Naming an attribute alone holds it back from every packet that would carry it.
+Adding a `packet-type` list holds it back from the record types named there and
+keeps it in the others.
+
+Six attributes can be held back, and each accepts only the record types Ze puts
+it in. A line naming any other record type is refused when the configuration is
+committed.
+
+| Attribute | Record types it accepts | What it feeds on the server |
+|-----------|------------------------|------------------------------|
+| `calling-station-id` (31) | the three accounting records | the line the subscriber called from, and the key FreeRADIUS matches its IP pool rows on |
+| `event-timestamp` (55) | the three accounting records | when the event happened on the NAS, where a server would otherwise use its own receive time |
+| `acct-delay-time` (41) | the three accounting records | how long Ze has been trying to send the record, which a server subtracts to recover the event time |
+| `acct-terminate-cause` (49) | `accounting-stop` | why the session ended, which billing and churn reports read |
+| `nas-port-id` (87) | the Access-Request and the three accounting records | the port text that joins one session's Access-Request to its accounting records |
+| `framed-ip-address` (8) | the three accounting records | the address the session was given, which address-to-subscriber lookups read |
+
+**Check the server before you hold Calling-Station-Id back.** FreeRADIUS is not
+uniform about its fallbacks. Its default accounting queries are defensive: they
+fall back to the server clock when Event-Timestamp is absent, and they default
+Acct-Terminate-Cause to `NAS-Reboot`, so a record without either is still
+stored. Its IP pool queries are not. `raddb/mods-config/sql/ippool/mysql/queries.conf`
+matches `AND callingstationid = '%{Calling-Station-Id}'` in `stop_clear`,
+`alive_update` and `start_update` with no fallback value, so a pool served by
+FreeRADIUS keeps leases that never expire once attribute 31 stops arriving.
+Acct-Delay-Time appears in no default query at all.
+
+Acct-Status-Type, Acct-Session-Id and the NAS identity cannot be held back, and
+the schema does not name them. RFC 2866 Section 5.13 counts the first two as
+"1  Exactly one instance of this attribute MUST be present", and its Note 1
+reads "An Accounting-Request MUST contain either a NAS-IP-Address or a
+NAS-Identifier (or both)". Ze offers no numeric form for the same reason: a number accepts
+a line that suppresses a mandatory attribute and gives the operator no
+diagnostic either way.
+
+<!-- source: internal/component/l2tp/plugins/authradius/exclude.go -- attributeExclusions, parseAttributeExclusions -->
+<!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- attributes container -->
 
 Three attributes an operator may look for are deliberately absent, because no
 runtime value exists for them: Framed-Interface-Id, Framed-IPv6-Prefix and
@@ -335,10 +447,15 @@ Access-Request and every accounting record of one session carry the same text
 and a billing system can join them. The text is resolved once per session, so a
 config reload does not move it mid-session.
 
-Three templates are refused when the config is committed: one naming a
+Four templates are refused when the config is committed: one naming a
 placeholder that does not exist, one longer than 253 characters (the largest
-value a RADIUS attribute can carry), and one using `{nas-id}` with no
-`nas-identifier` set. Unset sends no attribute.
+value a RADIUS attribute can carry), one using `{nas-id}` with no
+`nas-identifier` set, and one whose widest resolution passes 253 octets because
+the `nas-identifier` it expands is long. The last is a separate check because
+`{nas-id}` is nine characters that expand to a name the config does not bound.
+Unset sends no attribute.
+
+<!-- source: internal/component/l2tp/plugins/authradius/nasportid.go -- validateNASPortIDFormat, validateNASPortIDResolution -->
 
 `acct-interval` is the interim accounting cadence in seconds, and it has no
 default. RFC 2869 Section 2.1 states that a locally configured value on the NAS
@@ -475,6 +592,24 @@ The `l2tp-shaper` plugin applies TC (traffic control) rules on `pppN`
 interfaces. Session establishment uses the configured default rate.
 RADIUS CoA can update the rate dynamically after the session is up.
 
+A subscriber session is shaped in both directions, and each direction uses a
+different mechanism.
+
+| Direction | On the `pppN` interface | Mechanism | Config leaf |
+|-----------|------------------------|-----------|-------------|
+| Download, toward the subscriber | egress | the configured queueing discipline (`tbf` or `htb`) | `default-rate` |
+| Upload, from the subscriber | ingress hook | a token-bucket policer that drops traffic above the rate | `upload-rate` |
+
+The upload direction uses a policer because the ingress hook holds no queue. A
+queueing discipline shapes by delaying a packet, and there is nothing to delay
+into on that hook, so the enforcement available is to drop what exceeds the
+rate. The policer attaches at tc priority 200 on the shared `clsact` qdisc, so
+interface mirroring (priority 1) and flow-export sampling (priority 100) keep
+working on the same interface.
+
+A PPPoE subscriber gets the same pair of mechanisms. Both access types
+terminate on a `pppN`, so one implementation serves them both.
+
 Configured under the `l2tp` config tree:
 
 ```
@@ -488,14 +623,20 @@ l2tp {
 ```
 
 RADIUS `Filter-Id` can override the default shaping rate when it contains a
-parseable rate, otherwise Ze keeps the configured default rate. `Session-Timeout`
+parseable rate, otherwise Ze keeps the configured default rate. The forms
+`10mbit`, `20mbit/5mbit`, `rate:10mbit` and `rate:20mbit/5mbit` are accepted, at
+Access-Accept and in a CoA-Request alike. A MikroTik `Mikrotik-Rate-Limit` of
+`10M/5M` is read the same way. The two-value forms set the download rate and the
+upload rate separately. `Session-Timeout`
 and `Idle-Timeout` start per-session teardown timers.
 `Acct-Interim-Interval` sets the accounting update cadence, clamped to 60..3600
 seconds. It applies to a session whose deployment left `acct-interval` unset.
 RFC 2869 Section 2.1 gives a configured `acct-interval` precedence over it.
 RADIUS CoA rate updates do not tear down the session.
 
-<!-- source: internal/component/l2tp/plugins/shaper/ -->
+<!-- source: internal/component/l2tp/plugins/shaper/shaper.go -- applyTC, both directions -->
+<!-- source: internal/plugins/traffic/netlink/policer_linux.go -- the tc ingress policer -->
+<!-- source: internal/component/traffic/filterid_rate.go -- ParseFilterIDRate -->
 
 ## CQM (Call Quality Metrics)
 

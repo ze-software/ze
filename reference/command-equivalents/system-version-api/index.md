@@ -20,6 +20,8 @@ Show the IPC protocol version.
 - Command pipes: none
 - Pipe aliases: none
 
+The answer carries one version key. It holds the IPC protocol number that the daemon and its clients agree on, and it is not the ze software version.
+
 ## Arguments
 
 No command-specific arguments listed.

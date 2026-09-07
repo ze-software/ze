@@ -69,6 +69,7 @@
 <li><a href="#scripting">Scripting</a></li>
 <li><a href="#peer-health">Peer Health</a></li>
 </ol></li>
+<li><a href="#kernel-capability-refusal">Kernel Capability Refusal</a></li>
 <li><a href="#environment-variables">Environment Variables</a>
 <ol>
 <li><a href="#key-variables">Key Variables</a></li>
@@ -223,6 +224,79 @@ fi
 <pre><code class="language-bash">ze cli -c "show bgp peer list"  # brief peer list with state
 ze cli -c "show bgp"            # summary table with uptime and prefix counts
 </code></pre>
+<h2 id="kernel-capability-refusal">Kernel Capability Refusal</h2>
+<p>Ze refuses to start when the configuration uses a subsystem this kernel cannot
+carry. The refusal prints one line on stderr and exits 1.</p>
+<pre><code>error: kernel capability: ipsec: the kernel holds no CONFIG_XFRM_USER, which vpn ipsec requires: protocol not supported
+</code></pre>
+<p>Every failing subsystem is named, not the first one, so one repair cycle covers
+them all. <code>ze doctor</code> reports the same verdict before you start, and
+<code>ze config validate</code> fails on it.</p>
+<table>
+<thead>
+<tr>
+<th>Subsystem</th>
+<th>Kernel feature</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ipsec</code></td>
+<td><code>CONFIG_XFRM_USER</code>, and <code>CONFIG_INET_ESP</code> to carry the packets</td>
+<td>Run a kernel with both. Ze's appliance kernel builds them in</td>
+</tr>
+<tr>
+<td><code>mpls</code></td>
+<td><code>CONFIG_MPLS_ROUTING</code> and <code>CONFIG_MPLS_IPTUNNEL</code>, or the <code>mpls_router</code> module</td>
+<td>Load the module or run a kernel with both built in</td>
+</tr>
+</tbody>
+</table>
+<p>There is no override. A NOS that half-works on a kernel missing a required
+feature is the hazard this removes, and an override is what an operator reaches
+for under pressure.</p>
+<p>Three answers are possible and only one refuses:</p>
+<table>
+<thead>
+<tr>
+<th><code>ze doctor</code> reports</th>
+<th>Severity</th>
+<th><code>ze</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>nothing</td>
+<td>-</td>
+<td>starts</td>
+</tr>
+<tr>
+<td><code>doctor-&lt;subsystem&gt;-unavailable</code></td>
+<td>error</td>
+<td>refuses, exit 1</td>
+</tr>
+<tr>
+<td><code>doctor-&lt;subsystem&gt;-unknown</code></td>
+<td>warning</td>
+<td>starts</td>
+</tr>
+</tbody>
+</table>
+<p>The third answer means ze could not reach the probe's evidence, most often
+because the process lacked a privilege. No kernel rebuild fixes that, so ze warns
+and starts. Read the reason in the message: <code>ze explain doctor-ipsec-xfrm-unknown</code>
+carries the rest.</p>
+<p>A configuration that does not use the subsystem is never probed and never
+reported. An empty <code>vpn { ipsec { } }</code> block installs no Security Association, so
+it is not IPsec in use.</p>
+<p>A reload is refused the same way, and a refused reload leaves the running
+configuration serving. The operator sees the refusal through <code>ze config commit</code>.</p>
+<p><code>ze config validate</code> answers about the host running the command. A config written
+for another machine and validated on a workstation is judged against the
+workstation.</p>
+<!-- source: internal/component/kernelcap/kernelcap.go -- Refuse, Evaluate -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig, the kernel capability refusal -->
 <h2 id="environment-variables">Environment Variables</h2>
 <p>Ze environment variables use dot notation (<code>ze.log.bgp</code>) and are case-insensitive. All forms are equivalent: <code>ze.log.bgp</code>, <code>ZE_LOG_BGP</code>, <code>ze_log_bgp</code>.</p>
 <p>List all registered variables:</p>
@@ -610,7 +684,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

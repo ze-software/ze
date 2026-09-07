@@ -64,6 +64,7 @@
 <li><a href="#eap-method-negotiation">EAP method negotiation</a></li>
 <li><a href="#eap-md5-challenge">EAP MD5-Challenge</a></li>
 <li><a href="#eap-tls-with-tls-13">EAP-TLS with TLS 1.3</a></li>
+<li><a href="#eap-tls-13-needs-a-certificate-revocation-list">EAP-TLS 1.3 needs a certificate revocation list</a></li>
 <li><a href="#eap-tls-with-tls-12-needs-rfc-7627">EAP-TLS with TLS 1.2 needs RFC 7627</a></li>
 <li><a href="#denial-of-service-protection">Denial-of-service protection</a></li>
 <li><a href="#diffie-hellman-group-correction">Diffie-Hellman group correction</a></li>
@@ -72,9 +73,13 @@
 <ol>
 <li><a href="#spd-ordering">SPD ordering</a></li>
 </ol></li>
+<li><a href="#security-policy-database-entries">Security Policy Database entries</a></li>
 <li><a href="#both-esp-wire-forms">Both ESP wire forms</a></li>
 <li><a href="#traffic-selectors-and-narrowing">Traffic selectors and narrowing</a></li>
-<li><a href="#transport-mode">Transport mode</a></li>
+<li><a href="#transport-mode">Transport mode</a>
+<ol>
+<li><a href="#transport-mode-behind-a-nat">Transport mode behind a NAT</a></li>
+</ol></li>
 <li><a href="#pki-certificate-store">PKI certificate store</a></li>
 <li><a href="#xfrm-interfaces">XFRM interfaces</a></li>
 <li><a href="#reading-the-kernel-dataplane">Reading the kernel dataplane</a></li>
@@ -110,7 +115,7 @@
 <td>UDP transport with NAT-T keepalives and port 4500 encapsulation</td>
 </tr>
 <tr>
-<td><code>internal/component/ike/eap</code></td>
+<td><code>internal/core/eap</code></td>
 <td>EAP-MSCHAPv2, EAP-TLS and EAP MD5-Challenge authentication</td>
 </tr>
 <tr>
@@ -313,7 +318,7 @@ restart instead of waiting for Dead Peer Detection.</p>
 <p>For a road-warrior EAP server, set <code>authentication { mode eap-mschapv2 }</code>, <code>eap-tls</code> or <code>eap-md5</code>, then reference a device <code>certificate</code> and <code>ca-certificate</code> from the PKI store. Configure the client as a <code>site-to-site</code> peer. Read the EAP MD5-Challenge section below before you select <code>eap-md5</code>.</p>
 <p>The <code>remote-access</code> container is not wired yet. It parses, and no session reads
 it, so a <code>pool</code> assigns no address and an <code>eap-user</code> list authenticates nobody.
-<code>plan/spec-ipsec-remote-access.md</code> owns the work.</p>
+<code>plan/immediate/spec-ipsec-remote-access.md</code> owns the work.</p>
 <!-- source: internal/component/ike/engine/register.go -- runEngine discards the pool it builds from RemoteAccess -->
 <p>Every EAP mode and X.509 needs a <code>ca-certificate</code>. The daemon refuses a remote
 certificate it cannot chain to that anchor. A certificate with no trust anchor
@@ -538,7 +543,7 @@ sends no such payload, and Ze drops one from a peer that sends it anyway.</p>
 <p>The EAP peer validates the authenticator's certificate chain against that trust
 anchor. EAP-TLS has no server hostname, so the check validates the chain without
 DNS-name matching.</p>
-<!-- source: internal/component/ike/eap/peer.go -- verifyServerChain, startTLSClient -->
+<!-- source: internal/core/eap/peer.go -- verifyServerChain, startTLSClient -->
 <h2 id="eap-method-negotiation">EAP method negotiation</h2>
 <p>The far end chooses the EAP method, and <code>authentication { mode ... }</code> sets the one
 Ze runs. When the far end asks for a different authentication method, Ze answers
@@ -554,7 +559,7 @@ packet, so read it as a claim.</p>
 <p>When Ze is the EAP server and the client refuses the offered method, the
 <code>ike: EAP authentication failed</code> line names the types the client asked for and
 the type Ze offered.</p>
-<!-- source: internal/component/ike/eap/peer.go -- handleRequest, nakResponse, notificationResponse -->
+<!-- source: internal/core/eap/peer.go -- handleRequest, nakResponse, notificationResponse -->
 <!-- source: internal/component/ike/engine/fsm.go -- handleEAPResponse -->
 <!-- source: internal/component/ike/engine/responder_eap.go -- the EAP authentication failed line -->
 <h2 id="eap-md5-challenge">EAP MD5-Challenge</h2>
@@ -603,8 +608,8 @@ RFC 7296 Section 2.16 requires one whichever EAP method runs. So <code>eap-md5</
 the same <code>certificate</code> and <code>ca-certificate</code> every other EAP mode needs. Select it
 when the client runs no other method, and prefer <code>eap-tls</code> or <code>eap-mschapv2</code>
 everywhere else.</p>
-<!-- source: internal/component/ike/eap/eap_md5challenge.go -- md5ChallengeMethod, md5ChallengeResponse -->
-<!-- source: internal/component/ike/eap/peer.go -- handleMD5ChallengeRequest -->
+<!-- source: internal/core/eap/eap_md5challenge.go -- md5ChallengeMethod, md5ChallengeResponse -->
+<!-- source: internal/core/eap/peer.go -- handleMD5ChallengeRequest -->
 <!-- source: internal/component/ike/engine/eap_auth.go -- eapMethodType, warnKeylessEAPModes, eapAuthSecret -->
 <h2 id="eap-tls-with-tls-13">EAP-TLS with TLS 1.3</h2>
 <p>RFC 9190 Section 2.5 requires an encrypted TLS record that carries application data
@@ -618,7 +623,63 @@ before, because the version test reads the negotiated version.</p>
 <p>Ze issues no TLS session ticket. It builds one TLS configuration for each EAP session, and
 Go keys ticket encryption on that instance. No other session can redeem a ticket minted in
 one. EAP-TLS session resumption is therefore not available.</p>
-<!-- source: internal/component/ike/eap/eap_tls.go -- indicateSuccess, newTLSMethod -->
+<!-- source: internal/core/eap/eap_tls.go -- indicateSuccess, newTLSMethod -->
+<h2 id="eap-tls-13-needs-a-certificate-revocation-list">EAP-TLS 1.3 needs a certificate revocation list</h2>
+<p>RFC 9190 Section 5.4 says that "when EAP-TLS is used with TLS 1.3, the revocation status of
+all the certificates in the certificate chains MUST be checked (except the trust anchor)".
+Ze checks it on both roles: the authenticator over the client's chain, and the peer over
+the authenticator's chain.</p>
+<p>The revocation lists come from the <code>pki ca</code> the peer validates against, in a <code>crl</code>
+leaf-list. Each value is an <code>X509 CRL</code> PEM document or base64-encoded DER, and one CA can
+hold several, which is what a segmented CRL or a rollover needs. A list this CA did not
+sign is refused at commit, because it cannot answer for the certificates this CA issued.</p>
+<pre><code class="language-text">pki {
+    ca my-ca {
+        certificate "-----BEGIN CERTIFICATE-----...";
+        crl "-----BEGIN X509 CRL-----...";
+    }
+}
+</code></pre>
+<p>A CA with NO list and a list that revokes NOTHING are different answers, and the difference
+decides whether a session establishes:</p>
+<table>
+<thead>
+<tr>
+<th>What the CA holds</th>
+<th>TLS 1.3</th>
+<th>TLS 1.2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A current list, and the chain is not on it</td>
+<td>The session establishes</td>
+<td>The session establishes</td>
+</tr>
+<tr>
+<td>A current list naming a certificate on the chain</td>
+<td>Ze refuses, naming the certificate, its serial number and the CA that withdrew it</td>
+<td>The same</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td>Ze refuses: nothing can answer the question Section 5.4 makes mandatory</td>
+<td>The session establishes</td>
+</tr>
+<tr>
+<td>A list whose <code>nextUpdate</code> has passed</td>
+<td>Ze refuses: an expired list says nothing about the present</td>
+<td>The session establishes</td>
+</tr>
+</tbody>
+</table>
+<p>TLS 1.2 is governed by RFC 5216 Section 5.4 instead, which asks only that an implementation
+"MUST support the use of Certificate Revocation Lists (CRLs)". So a TLS 1.2 peer with no
+list configured still authenticates, and the same peer on TLS 1.3 does not.</p>
+<p>Publish a fresh list before the <code>nextUpdate</code> of the one in the config passes. An expired
+list refuses the same peers a missing one does.</p>
+<!-- source: internal/core/eap/revocation.go -- checkChainRevocation, crlSet.currentListFrom -->
+<!-- source: internal/component/pki/store.go -- CACertEntry.CRLPEM -->
 <h2 id="eap-tls-with-tls-12-needs-rfc-7627">EAP-TLS with TLS 1.2 needs RFC 7627</h2>
 <p>RFC 5216 Section 2.3 derives the EAP-TLS MSK from a TLS key material export, and Go
 refuses that export on a TLS 1.2 session that did not negotiate the RFC 7627 extended
@@ -656,7 +717,7 @@ is what <code>test/interop-ipsec/scenarios/eap-tls13</code> runs.</p>
 environment. Go 1.27 removed the <code>tlsunsafeekm</code> GODEBUG setting that once lifted it. A
 removed setting carrying its old value is a fatal error that the Go runtime raises before
 the daemon starts, so setting it stops ze rather than reaching the peer.</p>
-<!-- source: internal/component/ike/eap/eap_tls.go -- exportEAPTLSMSK, eapTLS12ExportRefused -->
+<!-- source: internal/core/eap/eap_tls.go -- exportEAPTLSMSK, eapTLS12ExportRefused -->
 <h2 id="denial-of-service-protection">Denial-of-service protection</h2>
 <p>RFC 7296 Section 2.6 names two attacks on an IKE responder: state and CPU exhaustion
 from initiation requests with forged source addresses. The answer is a COOKIE. Ze
@@ -755,6 +816,114 @@ renegotiate. Ze refuses such a value at commit.</p>
 <!-- source: internal/component/ike/engine/child.go -- childPolicyParams -->
 <!-- source: internal/component/ike/ipsec/validate.go -- ValidatePolicyOrder -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- PriorityIKEBypass, PriorityChildSA -->
+<h2 id="security-policy-database-entries">Security Policy Database entries</h2>
+<p>RFC 4301 Section 4.4.1 gives the Security Policy Database three dispositions:
+"PROTECT, BYPASS, or DISCARD". A site-to-site peer produces the PROTECT
+entries, because a protect entry names an ESP transform and a peer to negotiate
+keys with. The other two name neither, so no negotiation can produce them and
+they are written directly:</p>
+<pre><code>set vpn ipsec policy drop-guest action discard
+set vpn ipsec policy drop-guest local prefix 10.0.0.0/24
+set vpn ipsec policy drop-guest remote prefix 192.168.99.0/24
+set vpn ipsec policy drop-guest order 800
+</code></pre>
+<p>Section 7.4 makes the discard disposition an obligation: "All implementations
+MUST support DISCARDing of fragments using the normal SPD packet classification
+mechanisms." The list above is the management interface Section 4.4.1 requires
+for it.</p>
+<table>
+<thead>
+<tr>
+<th>Leaf</th>
+<th>Values</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>action</code></td>
+<td><code>bypass</code>, <code>discard</code></td>
+<td>none, required</td>
+<td>What the entry does with matching traffic</td>
+</tr>
+<tr>
+<td><code>order</code></td>
+<td>101 to 2147483647</td>
+<td>1000</td>
+<td>Rank, lowest searched first</td>
+</tr>
+<tr>
+<td><code>direction</code></td>
+<td><code>out</code>, <code>in</code>, <code>both</code></td>
+<td><code>both</code></td>
+<td>Which half of the database the entry joins</td>
+</tr>
+<tr>
+<td><code>protocol</code></td>
+<td>0 to 255</td>
+<td>0 (any)</td>
+<td>Next-layer protocol selector</td>
+</tr>
+<tr>
+<td><code>local prefix</code></td>
+<td>CIDR</td>
+<td>none, required</td>
+<td>Ze's own side of the boundary</td>
+</tr>
+<tr>
+<td><code>local port</code></td>
+<td>1 to 65535, or <code>any</code></td>
+<td><code>any</code></td>
+<td>Local port selector</td>
+</tr>
+<tr>
+<td><code>remote prefix</code></td>
+<td>CIDR</td>
+<td>none, required</td>
+<td>The far side of the boundary</td>
+</tr>
+<tr>
+<td><code>remote port</code></td>
+<td>1 to 65535, or <code>any</code></td>
+<td><code>any</code></td>
+<td>Remote port selector</td>
+</tr>
+</tbody>
+</table>
+<p><code>both</code> installs a mirrored pair, one entry in each direction: the outbound entry
+keeps local and remote as written, and the inbound entry swaps them, because the
+local side of a flow is the destination of an inbound packet.</p>
+<p>The default order of 1000 sits between the IKE control-plane bypass at 100 and a
+peer's default rank of 2000, so an entry written with no order outranks the
+tunnels and carves its hole out of them. Raise it above 2000 to let a tunnel
+win instead. An order at or below 100 is refused at commit, for the reason
+<code>policy-priority</code> states above.</p>
+<p>Four rules are refused at commit rather than approximated at install time,
+because a widened selector fails in both directions: a widened bypass passes
+protected traffic in the clear, and a widened discard black-holes traffic the
+operator meant to carry.</p>
+<ul>
+<li>Both prefixes are required, and they must share an address family. One kernel
+policy selector carries one family.</li>
+<li>A port other than <code>any</code> needs <code>protocol</code> to name a transport that has ports:
+6 (TCP), 17 (UDP) or 132 (SCTP).</li>
+<li>A port range is not accepted. The kernel selector carries a port and a mask,
+which expresses every port or one exact port and nothing between them.</li>
+<li><code>action</code> has no default. A bypass written where a discard was meant passes
+exactly the traffic the entry exists to stop.</li>
+</ul>
+<p>On Linux a discard entry is an XFRM policy with action <code>block</code> and a bypass is
+<code>allow</code> with no template. On VPP they are <code>IPSEC_API_SPD_ACTION_DISCARD</code> and
+<code>IPSEC_API_SPD_ACTION_BYPASS</code>. <code>show vpn ipsec dataplane</code> reports the
+disposition of every installed policy, including one another daemon installed.</p>
+<p>Ze installs these entries when the configuration is applied and removes them
+when the entry leaves the configuration or the engine stops. They need no peer,
+no key and no negotiation, so they are in force whether or not any tunnel is up.</p>
+<!-- source: internal/component/ike/ipsec/spd_policy.go -- SPDPolicy, parseSPDPolicy, ValidateSPDPolicies -->
+<!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, installSPDPolicies -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmPolicyAction -->
+<!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppSPDAction -->
 <h2 id="both-esp-wire-forms">Both ESP wire forms</h2>
 <p>RFC 7296 Section 2.23 requires a device that supports NAT traversal to receive
 UDP-encapsulated ESP and bare ESP at any time. One Linux XFRM state serves one form. A
@@ -873,6 +1042,32 @@ allowed when they share that one address, for example to negotiate several ports
 instead, which is what Section 1.3.1 asks of an initiator. It defaults to false, so a peer
 without transport mode keeps a working tunnel.</p>
 <!-- source: internal/component/ike/engine/transport_mode.go -- recordInitiatorTransportMode -->
+<h3 id="transport-mode-behind-a-nat">Transport mode behind a NAT</h3>
+<p>Transport mode works across an address-translating NAT, on both roles, and it needs no
+extra configuration. Write the addresses each end's own stack holds in <code>local-address</code>,
+<code>local-id</code> and the local half of every <code>traffic-selector</code>, and write the address you DIAL
+in <code>remote-address</code>, <code>remote-id</code> and the remote half. A <code>respond</code> peer writes the address
+it SEES the far end at, which is the translated one, because Ze accepts an unsolicited
+IKE_SA_INIT only from the configured <code>remote-address</code>.</p>
+<p>Ze then substitutes the selector addresses for you. RFC 7296 Section 2.23.1 requires it:
+the peer answers in the addresses ITS stack sees, and those exist on neither node. Ze
+replaces them with the addresses it observed, so the policy it programs matches the packets
+its own kernel handles. This is the one place where the selectors on the wire and the
+selectors in <code>show vpn ipsec sa</code> differ, and the command reports what was programmed.</p>
+<p><code>show vpn ipsec sa</code> names which side is translated. <code>nat-detected</code> says a NAT is on the
+path, <code>behind-nat</code> says this node's own address was translated, and <code>peer-behind-nat</code> says
+the far end's was. Both can be true at once. A transport tunnel that does not come up
+behind a NAT is diagnosed with those three fields first: all false means the peer sent no
+NAT_DETECTION notification, which no conforming IKEv2 implementation omits.</p>
+<p>The command shows both selector pairs, so you can see the substitution rather than infer
+it. <code>original-tsi</code> and <code>original-tsr</code> are the addresses the peer put on the wire, and
+<code>ts-local</code> and <code>ts-remote</code> inside <code>child-sa</code> are the addresses the kernel programs. On a
+tunnel-mode peer, and on any peer that never negotiated transport mode, the two original
+fields are null.</p>
+<p>Tunnel mode across the same NAT is unaffected. Section 2.23.1 governs transport mode alone,
+so a tunnel-mode Child SA negotiates the selectors you configured, untouched.</p>
+<!-- source: internal/component/ike/engine/ts_nat_substitute.go -- substituteResponderSelectors, substituteInitiatorSelectors -->
+<!-- source: internal/component/ike/cmd/show_ipsec.go -- saToMap -->
 <p>The VPP dataplane backend does not implement transport mode. It refuses a transport-mode
 install with a clear error rather than programming a tunnel-mode entry and reporting
 success. The SA path and the policy path each refuse it on their own.</p>
@@ -889,7 +1084,7 @@ through it. Use the XFRM backend, which is the default and the production path.<
 <!-- source: internal/component/ike/engine/child.go -- childPolicyParams -->
 <!-- source: internal/component/ike/engine/testport.go -- ikeDataplaneName -->
 <h2 id="pki-certificate-store">PKI certificate store</h2>
-<p>The <code>pki { }</code> block stores X.509 certificates, private keys, and CA certificates. Certificates are loaded from PEM files and validated at commit time. The PKI store also serves TLS certificates for the web UI and gRPC API.</p>
+<p>The <code>pki { }</code> block stores X.509 certificates, private keys, CA certificates, and the certificate revocation lists each CA published. Certificates are loaded from PEM files and validated at commit time. The PKI store also serves TLS certificates for the web UI and gRPC API.</p>
 <p>Health monitoring reports certificate expiry as a warning at 30 days and an error after expiry. Prometheus exposes <code>ze_pki_certificate_expiry_seconds</code> and <code>ze_pki_certificate_valid</code>.</p>
 <h2 id="xfrm-interfaces">XFRM interfaces</h2>
 <p>XFRM interfaces provide route-based IPsec. Traffic routed through the XFRM interface is encrypted, and incoming traffic is decrypted before it appears on the interface. The generated <a href="https://ze-software.net/reference/configuration/#xfrm-interfaces">configuration reference</a> documents the interface surface.</p>
@@ -937,13 +1132,23 @@ nobody asked the kernel. Zero says the SA carried nothing.</p>
 hold reports <code>degraded</code> and names the peer. A dataplane that cannot be read is not drift,
 so it never turns the status green on a question nobody asked.</p>
 <!-- source: internal/component/ike/engine/health_drift.go -- driftingPeers, driftDetail -->
-<p><code>ze doctor</code> reports <code>doctor-ipsec-xfrm-unavailable</code> as a warning when <code>vpn ipsec</code> is
-configured and the kernel XFRM dataplane does not answer. The two causes need different
-action: a kernel without CONFIG_XFRM_USER and CONFIG_INET_ESP, or a process without
-CAP_NET_ADMIN. <code>doctor-ipsec-udp-encap</code> is an error, and it covers a NAT-T socket that
-would not bind as well as one the kernel will not decapsulate through. Both leave a tunnel
-that establishes and carries no traffic.</p>
-<!-- source: internal/component/ike/engine/doctor_xfrm.go -- checkXFRMReachable -->
+<p>IPsec is an enrolled kernel capability. When the configuration installs a Security
+Association and the kernel holds no XFRM dataplane, <code>ze doctor</code> reports
+<code>doctor-ipsec-xfrm-unavailable</code> as an ERROR, <code>ze</code> refuses to start with the same message
+and exit 1, and <code>ze config validate</code> fails. There is no override: a daemon that negotiates
+a tunnel and encrypts nothing is the hazard this removes.</p>
+<p>The probe opens the XFRM netlink socket, which needs no CAP_NET_ADMIN, and it reports
+absence only for the errno that means the kernel carries no XFRM protocol. Every other
+failure, a permission denial included, is <code>doctor-ipsec-xfrm-unknown</code> at warning severity
+and ze still starts: no kernel rebuild fixes a privilege fault.</p>
+<p>An empty <code>vpn { ipsec { } }</code> block installs no Security Association, so it is not IPsec in
+use. It gates nothing, warns about no kernel module, and binds no IKE listener.</p>
+<p><code>doctor-ipsec-udp-encap</code> is an error, and it covers a NAT-T socket that would not bind as
+well as one the kernel will not decapsulate through. Both leave a tunnel that establishes
+and carries no traffic.</p>
+<!-- source: internal/component/ike/engine/kernelcap_linux.go -- the ipsec enrolment -->
+<!-- source: internal/component/kernelcap/kernelcap.go -- Evaluate, Refuse -->
+<!-- source: internal/component/kernelcap/predicate.go -- IPsecInUse -->
 <!-- source: internal/component/ike/engine/udpencap.go -- checkIPsecUDPEncap, udpEncapReady -->
 <h2 id="cli">CLI</h2>
 <table>
@@ -1120,7 +1325,7 @@ ungated.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 21:01 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

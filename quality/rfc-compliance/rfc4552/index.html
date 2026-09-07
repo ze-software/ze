@@ -45,7 +45,7 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">Experimental</span>
+    <span class="journey-eyebrow">Partial</span>
     <h1 id="rfc-detail-title">RFC 4552 - Authentication/Confidentiality for OSPFv3</h1>
     <p>Every requirement this repository extracted from RFC 4552, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
 </div>
@@ -75,6 +75,8 @@
 .rfc-tape-both_polarities { background: var(--teal-chip); }
 .rfc-tape-single_polarity { background: var(--sky-chip); }
 .rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -113,23 +115,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>20.0%</strong><b>4 of 20 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>55.0%</strong><b>11 of 20 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 20 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>14.8%</strong><b>4 of 27 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>40.7%</strong><b>11 of 27 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 27 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 19 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>27</strong><b>of 38 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>7</strong><b>of 27 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 27 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>3.7%</strong><b>1 of 27 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>22.2%</strong><b>6 of 27 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 27 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>25.0%</strong><b>5 of 20 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>18.5%</strong><b>5 of 27 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 4 shares marked as a part above are the whole of the 20 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 27 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -160,6 +165,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
+</tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
@@ -179,7 +196,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Public status</td>
-<td>Experimental</td>
+<td>Partial</td>
 </tr>
 <tr><td>Enrolment</td>
 <td>Enrolled</td>
@@ -190,11 +207,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Gated MUST-level</td>
 <td>27</td>
 </tr>
-<tr><td>Obligations that bind Ze</td>
-<td>20</td>
-</tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>7</td>
+<td>1</td>
 </tr>
 <tr><td>Declared gaps</td>
 <td>5</td>
@@ -231,14 +245,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Authentication/Confidentiality for OSPFv3 (RFC 4552): OSPFv3 IPsec SA/policy installer over kernel XFRM. 4 MET (authentication support, confidentiality via ESP not AH, stream-cipher prohibition, hexadecimal key configuration) + 11 single-polarity positive (transport-mode SA + policies, per-interface SPD selection, source/dest/proto/direction selectors, inbound interface tagging, manual keying, shared inbound/outbound SA, IPsec barrier around all OSPF, protect + bypass SPD rules) + 5 gap (virtual-link IPsec: distinct SA, source/destination LA-bit selection, transit-area SPD rules) + 7 not-applicable (per-packet AH/ESP discard/encap and multi-SA storage delegated to kernel XFRM)</p>
+<p>Enrolled: Authentication/Confidentiality for OSPFv3 (RFC 4552): OSPFv3 IPsec SA/policy installer over kernel XFRM. 4 MET (authentication support, confidentiality via ESP not AH, stream-cipher prohibition, hexadecimal key configuration) + 11 single-polarity positive (transport-mode SA + policies, per-interface SPD selection, source/dest/proto/direction selectors, inbound interface tagging, manual keying, shared inbound/outbound SA, IPsec barrier around all OSPF, protect + bypass SPD rules) + 5 gap (virtual-link IPsec: distinct SA, source/destination LA-bit selection, transit-area SPD rules) + 6 lower-layer (per-packet AH/ESP discard, ESP encapsulation and multi-SA storage performed by Linux XFRM on the state ze installs) + 1 not-applicable (the §6 clause that imports RFC 4305 algorithm keyword levels)</p>
 </section>
 <section><h2>What the public ledger says</h2>
-<p><strong>Status:</strong> Experimental</p>
-<p><strong>What the ledger says is covered:</strong></p>
-Manual AH/ESP IPsec config for OSPFv3 IPv6 interfaces, XFRM readiness check, SA and policy lifecycle.
+<p><strong>Status:</strong> Partial</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA and policy lifecycle over kernel XFRM, the XFRM readiness check, and the kernel drop counters. Proven against FRR ospf6d by the interop scenarios ospf-ipsec-frr and ospf-ipsec-ah-frr, which take the adjacency to Full and then read the installed transport-mode SA and policy on both peers.
+</details>
 <p><strong>What the ledger says remains:</strong></p>
-Manual keying only; feature remains under OSPF experimental status.
+<p>Virtual-link IPsec is unimplemented, which is five MUSTs across §9 and §11.</p>
+<p class="rfc-prose"><strong>Manual keying only:</strong> no rekey procedure, so a key change drops the adjacency.</p>
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -291,8 +307,8 @@ Manual keying only; feature remains under OSPF experimental status.
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4552-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L48" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestParseOSPFIPsecConfig</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L104" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L49" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestParseOSPFIPsecConfig</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L105" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-3-2">RFC4552-3-2</code></td><td colspan="3"><span class="rfc-subject">In order to provide authentication to OSPFv3, implementations MUST support ESP (§3)</span></td></tr>
@@ -311,7 +327,7 @@ Manual keying only; feature remains under OSPF experimental status.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4552-3-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the per-packet silent discard of unprotected inbound OSPFv3 is done by the kernel XFRM inbound require-policy; ze installs that policy (buildIPsecPolicies SADirIn, ipsec_install.go) and only samples the drop counters (readXfrmDropsPlatform, ipsec_drops_linux.go:32), never inspecting or dropping a packet</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies installs the inbound require-policy (SADirIn, transport mode, upper-protocol 89, scoped to the arrival ifindex), and Linux XFRM discards an OSPFv3 packet that arrives on that interface without the required AH or ESP transform. Ze only samples the resulting counters (readXfrmDropsPlatform, ipsec_drops_linux.go)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-3-5">RFC4552-3-5</code></td><td colspan="3"><span class="rfc-subject">When OSPFv3 authentication is enabled, OSPFv3 packets that fail the authentication checks MUST be silently discarded (§3)</span></td></tr>
 <tr><td></td>
@@ -320,15 +336,15 @@ Manual keying only; feature remains under OSPF experimental status.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4552-3-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the discard of an OSPFv3 packet that fails the integrity check is performed by the kernel XFRM transform; ze reads the resulting XfrmInIntegFailures/XfrmInStateProtoError counters (ipsec_drops_linux.go:24-30) but never verifies or drops a packet itself</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs the integrity transform and its truncation length, and Linux XFRM discards a packet whose ICV does not verify. Ze holds no verifying branch of its own and reads only the XfrmInIntegFailures/XfrmInStateProtoError counters</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-4-2">RFC4552-4-2</code></td><td colspan="3"><span class="rfc-subject">If confidentiality is provided, ESP MUST be used (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4552-4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L202" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPConfidentialityValid</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L87" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecAHWithEncryptionRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L203" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPConfidentialityValid</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L88" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecAHWithEncryptionRejected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-4-3">RFC4552-4-3</code></td><td colspan="3"><span class="rfc-subject">When OSPFv3 confidentiality is enabled, OSPFv3 packets that are not protected with ESP MUST be silently discarded (§4)</span></td></tr>
@@ -338,7 +354,7 @@ Manual keying only; feature remains under OSPF experimental status.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4552-4-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> an unprotected packet on a confidentiality-enabled interface is dropped by the kernel XFRM inbound require-policy (buildIPsecPolicies SADirIn, ipsec_install.go), not by ze</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies installs the inbound require-policy on a confidentiality-enabled interface, and Linux XFRM discards an OSPFv3 packet that arrives there without the required ESP transform</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-4-4">RFC4552-4-4</code></td><td colspan="3"><span class="rfc-subject">When OSPFv3 confidentiality is enabled, OSPFv3 packets that fail the confidentiality checks MUST be silently discarded (§4)</span></td></tr>
 <tr><td></td>
@@ -347,7 +363,7 @@ Manual keying only; feature remains under OSPF experimental status.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4552-4-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> an ESP packet that fails decryption/integrity is dropped by the kernel XFRM transform; ze surfaces the drop via the XFRM counters (ipsec_drops_linux.go:32) but never decrypts or discards a packet</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs the ESP encryption transform beside the integrity one, and Linux XFRM discards a packet whose decryption or integrity check fails</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-6-1">RFC4552-6-1</code></td><td colspan="3"><span class="rfc-subject">IPsec in transport mode MUST be supported (§6)</span></td></tr>
 <tr><td></td>
@@ -399,8 +415,8 @@ Manual keying only; feature remains under OSPF experimental status.
 <td>MUST NOT</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4552-6-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L204" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPConfidentialityValid</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L223" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecStreamCipherRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L205" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPConfidentialityValid</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L224" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecStreamCipherRejected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-6-7">RFC4552-6-7</code></td><td colspan="3"><span class="rfc-subject">The algorithm key words (MUST, MUST NOT, REQUIRED, SHOULD, SHOULD NOT) that appear in RFC 4305 [N6] are to be interpreted per RFC 2119 for OSPFv3 support as well, except when in conflict with the stream-cipher prohibition (§6)</span></td></tr>
@@ -410,7 +426,7 @@ Manual keying only; feature remains under OSPF experimental status.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4552-6-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> an interpretation clause importing RFC 4305 [N6] algorithm keywords; RFC 4552 defines no independent behavior here. The concrete algorithm conformance lives in the config enums (ipsecAuthKeyLen/ipsecEncKeyLen, config.go:106-117) and the stream-cipher carve-out is RFC4552-6-6</p></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> an interpretation clause importing RFC 4305 [N6] algorithm keywords; RFC 4552 defines no independent behavior here. The concrete algorithm conformance lives in the config enums (ipsecAuthKeyLen and ipsecEncKeyLen, internal/plugins/ospf/config.go) and the stream-cipher carve-out is RFC4552-6-6</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-6-9">RFC4552-6-9</code></td><td colspan="3"><span class="rfc-subject">IP encapsulation of ESP packets MUST be supported (§6)</span></td></tr>
 <tr><td></td>
@@ -419,7 +435,7 @@ Manual keying only; feature remains under OSPF experimental status.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4552-6-9">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the IP encapsulation of ESP packets is the per-packet ESP framing performed by the kernel XFRM transform (internal/component/ike/dataplane/xfrm_linux.go); ze installs the ESP SA but never builds an ESP header</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the transport-mode ESP SA and asks for no UDP encapsulation, so xfrmStateFromParams writes no Encap, and Linux XFRM carries every ESP packet directly in IP</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-6-11">RFC4552-6-11</code></td><td colspan="3"><span class="rfc-subject">The IPsec implementation MUST support the establishment and maintenance of multiple SAs with the same selectors between a given sender and receiver (§6)</span></td></tr>
 <tr><td></td>
@@ -428,7 +444,7 @@ Manual keying only; feature remains under OSPF experimental status.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4552-6-11">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> multiple SAs with the same selectors between two peers is a kernel SAD capability (states keyed by SPI); ze installs one SA per interface with a distinct SPI (buildIPsecSA, ipsec_install.go) and delegates SA storage to the kernel XFRM</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams writes each state with its own SPI, and Linux XFRM keys the SAD by destination, SPI and protocol, so several SAs carrying one selector set coexist between a given sender and receiver</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-7-1">RFC4552-7-1</code></td><td colspan="3"><span class="rfc-subject">The implementations MUST use manually configured keys with the same SA parameters (SPI, keys, etc.) for both inbound and outbound SAs (§7)</span></td></tr>
 <tr><td></td>
@@ -516,8 +532,8 @@ Manual keying only; feature remains under OSPF experimental status.
 <td>MUST</td>
 <td>12</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4552-12-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L42" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestParseOSPFIPsecConfig</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L237" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecNonHexKeyRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L43" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestParseOSPFIPsecConfig</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L238" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecNonHexKeyRejected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-4-1">RFC4552-4-1</code></td><td colspan="3"><span class="rfc-subject">Implementations conforming to this specification SHOULD support confidentiality for OSPFv3 (§4)</span></td></tr>
@@ -630,31 +646,31 @@ Manual keying only; feature remains under OSPF experimental status.
 <tbody>
 <tr><td><a href="#rfc4552-3-4"><code>RFC4552-3-4</code></a> When OSPFv3 authentication is enabled, OSPFv3 packets that are not protected with AH or ESP MUST be silently discarded (§3)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: the per-packet silent discard of unprotected inbound OSPFv3 is done by the kernel XFRM inbound require-policy; ze installs that policy (buildIPsecPolicies SADirIn, ipsec_install.go) and only samples the drop counters (readXfrmDropsPlatform, ipsec_drops_linux.go:32), never inspecting or dropping a packet</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies installs the inbound require-policy (SADirIn, transport mode, upper-protocol 89, scoped to the arrival ifindex), and Linux XFRM discards an OSPFv3 packet that arrives on that interface without the required AH or ESP transform. Ze only samples the resulting counters (readXfrmDropsPlatform, ipsec_drops_linux.go)</td>
 </tr>
 <tr><td><a href="#rfc4552-3-5"><code>RFC4552-3-5</code></a> When OSPFv3 authentication is enabled, OSPFv3 packets that fail the authentication checks MUST be silently discarded (§3)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: the discard of an OSPFv3 packet that fails the integrity check is performed by the kernel XFRM transform; ze reads the resulting XfrmInIntegFailures/XfrmInStateProtoError counters (ipsec_drops_linux.go:24-30) but never verifies or drops a packet itself</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs the integrity transform and its truncation length, and Linux XFRM discards a packet whose ICV does not verify. Ze holds no verifying branch of its own and reads only the XfrmInIntegFailures/XfrmInStateProtoError counters</td>
 </tr>
 <tr><td><a href="#rfc4552-4-3"><code>RFC4552-4-3</code></a> When OSPFv3 confidentiality is enabled, OSPFv3 packets that are not protected with ESP MUST be silently discarded (§4)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: an unprotected packet on a confidentiality-enabled interface is dropped by the kernel XFRM inbound require-policy (buildIPsecPolicies SADirIn, ipsec_install.go), not by ze</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies installs the inbound require-policy on a confidentiality-enabled interface, and Linux XFRM discards an OSPFv3 packet that arrives there without the required ESP transform</td>
 </tr>
 <tr><td><a href="#rfc4552-4-4"><code>RFC4552-4-4</code></a> When OSPFv3 confidentiality is enabled, OSPFv3 packets that fail the confidentiality checks MUST be silently discarded (§4)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: an ESP packet that fails decryption/integrity is dropped by the kernel XFRM transform; ze surfaces the drop via the XFRM counters (ipsec_drops_linux.go:32) but never decrypts or discards a packet</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs the ESP encryption transform beside the integrity one, and Linux XFRM discards a packet whose decryption or integrity check fails</td>
 </tr>
 <tr><td><a href="#rfc4552-6-7"><code>RFC4552-6-7</code></a> The algorithm key words (MUST, MUST NOT, REQUIRED, SHOULD, SHOULD NOT) that appear in RFC 4305 [N6] are to be interpreted per RFC 2119 for OSPFv3 support as well, except when in conflict with the stream-cipher prohibition (§6)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: an interpretation clause importing RFC 4305 [N6] algorithm keywords; RFC 4552 defines no independent behavior here. The concrete algorithm conformance lives in the config enums (ipsecAuthKeyLen/ipsecEncKeyLen, config.go:106-117) and the stream-cipher carve-out is RFC4552-6-6</td>
+<td>no test carries this requirement id; annotated {not-applicable}: an interpretation clause importing RFC 4305 [N6] algorithm keywords; RFC 4552 defines no independent behavior here. The concrete algorithm conformance lives in the config enums (ipsecAuthKeyLen and ipsecEncKeyLen, internal/plugins/ospf/config.go) and the stream-cipher carve-out is RFC4552-6-6</td>
 </tr>
 <tr><td><a href="#rfc4552-6-9"><code>RFC4552-6-9</code></a> IP encapsulation of ESP packets MUST be supported (§6)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: the IP encapsulation of ESP packets is the per-packet ESP framing performed by the kernel XFRM transform (internal/component/ike/dataplane/xfrm_linux.go); ze installs the ESP SA but never builds an ESP header</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the transport-mode ESP SA and asks for no UDP encapsulation, so xfrmStateFromParams writes no Encap, and Linux XFRM carries every ESP packet directly in IP</td>
 </tr>
 <tr><td><a href="#rfc4552-6-11"><code>RFC4552-6-11</code></a> The IPsec implementation MUST support the establishment and maintenance of multiple SAs with the same selectors between a given sender and receiver (§6)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: multiple SAs with the same selectors between two peers is a kernel SAD capability (states keyed by SPI); ze installs one SA per interface with a distinct SPI (buildIPsecSA, ipsec_install.go) and delegates SA storage to the kernel XFRM</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams writes each state with its own SPI, and Linux XFRM keys the SAD by destination, SPI and protocol, so several SAs carrying one selector set coexist between a given sender and receiver</td>
 </tr>
 <tr><td><a href="#rfc4552-9-1"><code>RFC4552-9-1</code></a> A different SA than the SA of the underlying interface MUST be provided for virtual links (§9)</td>
 <td>{gap}, no test</td>
@@ -705,12 +721,12 @@ Manual keying only; feature remains under OSPF experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L104" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L105" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L48" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestParseOSPFIPsecConfig</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L49" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestParseOSPFIPsecConfig</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -748,12 +764,12 @@ Manual keying only; feature remains under OSPF experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L87" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecAHWithEncryptionRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L88" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecAHWithEncryptionRejected</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L202" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPConfidentialityValid</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L203" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPConfidentialityValid</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -851,12 +867,12 @@ Manual keying only; feature remains under OSPF experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L223" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecStreamCipherRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L224" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecStreamCipherRejected</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L204" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPConfidentialityValid</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L205" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPConfidentialityValid</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -963,12 +979,12 @@ Manual keying only; feature remains under OSPF experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L237" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecNonHexKeyRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L238" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecNonHexKeyRejected</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L42" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestParseOSPFIPsecConfig</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L43" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestParseOSPFIPsecConfig</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1011,7 +1027,7 @@ Manual keying only; feature remains under OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

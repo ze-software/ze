@@ -20,6 +20,8 @@ Show the ze software version.
 - Command pipes: none
 - Pipe aliases: none
 
+The answer carries a version key and a build-date key. Both come from the values the build stamped into the binary, so a daemon that was never rebuilt reports the same pair after a restart.
+
 ## Arguments
 
 No command-specific arguments listed.

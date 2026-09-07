@@ -131,6 +131,11 @@ ze doctor
 <h2 id="dynamic-peer-groups">Dynamic peer groups</h2>
 <p>A group with <code>connection { remote { ip dynamic } }</code> accepts a session from any address in its ranges. Use it for an IXP route server or any fabric where the members are not known when you write the configuration.</p>
 <pre><code class="language-text">bgp {
+    policy {
+        reject-asn NO-TRANSIT {
+            indirect [ 174 701 3356 ]
+        }
+    }
     group ix {
         connection {
             remote {
@@ -153,6 +158,10 @@ ze doctor
             }
         }
         role { import rs }
+        filter {
+            import [ NO-TRANSIT ]
+            export [ NO-TRANSIT ]
+        }
         attach process rs {
             receive [ update-received state open-received refresh ]
             send [ update ]
@@ -160,6 +169,20 @@ ze doctor
     }
 }
 </code></pre>
+<p>The <code>role { import rs }</code> leaf is what makes the two <code>filter</code> chains mandatory. A
+declared RFC 9234 role obliges the bound chains to name a filter that can refuse a
+path through a transit provider, and <code>rs</code> binds both. To run a session without the
+check, name the filter with the <code>inactive:</code> member prefix. The chain records the
+decision, and the filter never executes:</p>
+<pre><code>filter {
+    import [ inactive:NO-TRANSIT ]
+    export [ inactive:NO-TRANSIT ]
+}
+</code></pre>
+<p>The prefix goes on the member, inside the brackets. A separate <code>inactive: import NO-TRANSIT</code> statement deactivates a member the chain already carries; where the
+chain carries none, it deactivates the whole leaf, which leaves no chain and Ze
+refuses the config. See <a href="https://github.com/ze-software/ze/blob/main/docs/guide/config-deactivate.md" target="_blank" rel="noopener">config-deactivate.md</a> for both
+forms, and <a href="../bgp-role/">bgp-role.md</a> for the roles that bind.</p>
 <p><code>ip dynamic</code> is valid at group level only. A peer that states it is refused. Two more statements are required, and the configuration is refused without them: at least one <code>range</code>, and an explicit <code>connect false</code>. Ze only accepts on a dynamic group and never dials one, so an absent <code>connect</code> leaf, which YANG defaults to true, is refused rather than corrected.</p>
 <table>
 <thead>
@@ -433,7 +456,7 @@ ze cli -c "show bgp rib status"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

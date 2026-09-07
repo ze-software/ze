@@ -20,6 +20,8 @@ Tell the daemon this session is disconnecting.
 - Command pipes: none
 - Pipe aliases: none
 
+The daemon answers goodbye. It holds no per-client state today, so the command frees nothing and is a courtesy.
+
 ## Arguments
 
 No command-specific arguments listed.

@@ -96,6 +96,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `bgp-rpki` | `rpki` | `bgp` prefix redundant |
 | `bgp-persist` | `persist` | `bgp` prefix redundant |
 | `bgp-role` | `role` | `bgp` prefix redundant |
+| `bgp-filter-path-asn` | `filter_path_asn` | The package name. The `bgp` prefix is redundant on a BGP filter, and the hyphen-stripped `bgpfilterpathasn` cannot be read |
 
 ### Full Inventory
 
@@ -111,6 +112,12 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_attr_pool_dedup_hits_total` | GaugeVec | pool | bgp-rib |
 | `ze_attr_pool_slots_used` | GaugeVec | pool | bgp-rib |
 | `ze_bgp_attr_mod_remove_buffer_refused_total` | CounterVec | attribute | bgp reactor (filterapi) |
+| `ze_bgp_redistribute_events_received` | Counter | | redistribute-orchestrator |
+| `ze_bgp_redistribute_announcements` | Counter | | redistribute-orchestrator |
+| `ze_bgp_redistribute_withdrawals` | Counter | | redistribute-orchestrator |
+| `ze_bgp_redistribute_filtered_protocol_total` | Counter | | redistribute-orchestrator |
+| `ze_bgp_redistribute_filtered_rule_total` | Counter | | redistribute-orchestrator |
+| `ze_bgp_redistribute_replay_total` | CounterVec | source | redistribute-orchestrator |
 | `ze_gr_active_peers` | Gauge | | bgp-gr |
 | `ze_gr_stale_routes` | GaugeVec | peer | bgp-gr |
 | `ze_gr_timer_expired_total` | CounterVec | peer | bgp-gr |
@@ -130,6 +137,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_rpki_validation_outcomes_total` | CounterVec | result | bgp-rpki |
 | `ze_role_route_rejects_total` | CounterVec | reason | bgp-role |
 | `ze_role_route_suppressions_total` | CounterVec | reason | bgp-role |
+| `ze_filter_path_asn_rejects_total` | CounterVec | direction, position, reason | bgp-filter-path-asn |
 | `ze_persist_routes_stored` | Gauge | | bgp-persist |
 | `ze_persist_peers_tracked` | Gauge | | bgp-persist |
 | `ze_persist_route_replays_total` | Counter | | bgp-persist |
@@ -206,6 +214,9 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_iface_link_events_coalesced_total` | CounterVec | name | iface (link event queue) |
 | `ze_iface_carrier_resyncs_total` | CounterVec | name | iface (carrier resync) |
 | `ze_iface_resolver_events_dropped_total` | CounterVec | name | iface (resolver fan-out) |
+| `ze_iface_link_worker_blocked_total` | CounterVec | name | iface (link event worker) |
+| `ze_iface_link_events_queued_while_blocked_total` | CounterVec | name | iface (link event queue) |
+| `ze_iface_config_apply_started_total` | Counter | | iface (config apply) |
 | `ze_iface_ra_sent_total` | CounterVec | interface | iface-ra |
 | `ze_iface_ra_solicited_total` | CounterVec | interface | iface-ra |
 
@@ -322,6 +333,19 @@ injections whose LSP re-origination failed; and
 redistribution drove, by level. Exporting IS-IS routes *out* to BGP uses the
 generic `redistribute-orchestrator` counters, not an IS-IS-specific series.
 
+The six `redistribute-orchestrator` series track the generic dispatch every
+protocol shares. `ze_bgp_redistribute_events_received` counts route-change
+batches taken off the bus. `_announcements` and `_withdrawals` count the entries
+dispatched to a consumer. `_filtered_protocol_total` counts batches the loop
+guard skipped, and `_filtered_rule_total` counts entries the evaluator rejected.
+
+`ze_bgp_redistribute_replay_total{source}` counts routes replayed to a party
+that arrived after a producer emitted. That party is either a BGP peer whose
+session just established, or a destination protocol's consumer that just
+registered. One counter serves both, labeled by the producing source rather than
+by which of the two triggered it.
+<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- setMetricsRegistry -->
+
 The four `isis (spf)` series track the shortest-path computation and its Loc-RIB
 install: `ze_isis_spf_runs_total{level}` counts Dijkstra runs per level,
 `ze_isis_spf_duration_seconds{level}` is a histogram of each run's wall-clock
@@ -393,15 +417,24 @@ with state machines, caches, or I/O operations benefit from metrics.
 | Plugins with route state (rib, sysrib, persist) | NLRI codecs (bgp-nlri-*) |
 | Plugins with external I/O (fib-kernel, rpki) | Pure capability-only plugins |
 | Plugins with timers/state machines (gr, watchdog) | Format/encoding plugins |
-| Plugins that drop or withhold routes (bgp-role) | |
+| Plugins that drop or withhold routes (bgp-role, bgp-filter-path-asn) | |
 
 A plugin that can refuse a route needs metrics even if it holds no state: a
 suppression is invisible to the operator otherwise. `bgp-role` was once listed
 as capability-only, but it filters every UPDATE on ingress and egress, so each
 of its refusal paths carries a reason-labeled counter.
 
+A route filter is the same case. `bgp-filter-path-asn` refuses a route whose
+AS_PATH carries a listed ASN, and it also refuses one fail-closed when the named
+list is unknown or no config has arrived yet. Its counter separates the three
+with a `reason` label and says where in the path the match was with a `position`
+label, so an operator reads which rule is eating the routes rather than only how
+many. The peer is in the log line: a peer address in a label would grow the
+series count with the session count.
+
 <!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop -->
 <!-- source: internal/component/bgp/plugins/role/otc.go -- OTCIngressFilter, OTCEgressFilter -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/metrics.go -- recordReject -->
 
 ## Reference Implementation
 

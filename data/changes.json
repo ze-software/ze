@@ -1,5 +1,97 @@
 [
   {
+    "slug": "2026-08-31",
+    "intro": "Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and most of the week went on fixing what it found. Three of them mattered: an authentication bypass on IKE logins, a redistribute block that discarded every route from every peer, and subscriber IPv6 that never worked at all.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "OSPF",
+        "category": "routing",
+        "key": "OSPF"
+      },
+      {
+        "label": "Flowspec",
+        "category": "routing",
+        "key": "Flowspec"
+      },
+      {
+        "label": "Redistribution",
+        "category": "routing",
+        "key": "Redistribution"
+      },
+      {
+        "label": "ExaBGP Migration",
+        "category": "automate",
+        "key": "ExaBGP Migration"
+      },
+      {
+        "label": "Security",
+        "category": "secure",
+        "key": "Security"
+      },
+      {
+        "label": "IPsec",
+        "category": "secure",
+        "key": "IPsec"
+      },
+      {
+        "label": "RADIUS",
+        "category": "services",
+        "key": "RADIUS"
+      },
+      {
+        "label": "AAA",
+        "category": "secure",
+        "key": "AAA"
+      },
+      {
+        "label": "L2TP",
+        "category": "services",
+        "key": "L2TP"
+      },
+      {
+        "label": "PPPoE",
+        "category": "services",
+        "key": "PPPoE"
+      },
+      {
+        "label": "Interfaces",
+        "category": "platform",
+        "key": "Interfaces"
+      },
+      {
+        "label": "Firewall",
+        "category": "secure",
+        "key": "Firewall"
+      },
+      {
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
+      },
+      {
+        "label": "Config",
+        "category": "operate",
+        "key": "Config"
+      },
+      {
+        "label": "RFC Compliance",
+        "category": "meta",
+        "key": "RFC Compliance"
+      },
+      {
+        "label": "Quality Improvement",
+        "category": "platform",
+        "key": "Quality Improvement"
+      }
+    ]
+  },
+  {
     "slug": "2026-08-24",
     "intro": "Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Around it, output formatting moved off flags and onto the pipe operators, and a TACACS+ authentication bypass was closed.",
     "is_draft": false,

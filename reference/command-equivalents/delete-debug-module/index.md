@@ -19,6 +19,8 @@ Disable debug for a subsystem, or remove one of its flags/scopes.
 - Command pipes: none
 - Pipe aliases: none
 
+The module name alone removes the whole module. Naming a flag or a scope removes that one and leaves the module enabled. Deleting a module the profile does not hold succeeds and changes nothing, so a repeated command is safe.
+
 ## Arguments
 
 No command-specific arguments listed.

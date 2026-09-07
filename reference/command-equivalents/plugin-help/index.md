@@ -20,6 +20,8 @@ List the subcommands the plugin verb accepts.
 - Command pipes: none
 - Pipe aliases: none
 
+The answer is the two words session and command. It is a constant of the daemon, so it does not grow when a plugin registers a command.
+
 ## Arguments
 
 No command-specific arguments listed.

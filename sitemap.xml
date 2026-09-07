@@ -553,6 +553,9 @@
     <loc>https://ze-software.net/project/changes/2026-08-24/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/project/changes/2026-08-31/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/project/history/</loc>
   </url>
   <url>
@@ -713,6 +716,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc3209/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc3579/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc3623/</loc>
@@ -1192,15 +1198,6 @@
     <loc>https://ze-software.net/reference/command-equivalents/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/announce-blackhole/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/announce-flowspec/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/announce-unicast/</loc>
-  </url>
-  <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-bgp-rib-in/</loc>
   </url>
   <url>
@@ -1217,6 +1214,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-dns-cache/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-firewall-domain-group/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-firewall-irr-as-set/</loc>
@@ -1262,6 +1262,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-vrrp-statistics/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/create-bgp-peer/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/create-interface-address/</loc>
@@ -1363,30 +1366,6 @@
     <loc>https://ze-software.net/reference/command-equivalents/monitor-vpn-ipsec/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/peer-announce-blackhole/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/peer-announce-flowspec/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/peer-announce-unicast/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/peer-raw/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/peer-update/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/peer-withdraw-all/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/peer-withdraw-id/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/peer-withdraw-tag/</loc>
-  </url>
-  <url>
     <loc>https://ze-software.net/reference/command-equivalents/plugin-ack/</loc>
   </url>
   <url>
@@ -1427,9 +1406,6 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-cache-expire/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/request-cache-forward/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-cache-release/</loc>
@@ -1549,6 +1525,33 @@
     <loc>https://ze-software.net/reference/command-equivalents/resolve-traceroute/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/send-bgp-blackhole/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/send-bgp-cached/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/send-bgp-flowspec/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/send-bgp-raw/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/send-bgp-unicast/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/send-bgp-update/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/send-bgp-withdraw-all/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/send-bgp-withdraw-id/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/send-bgp-withdraw-tag/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/set-debug-active-name/</loc>
   </url>
   <url>
@@ -1634,6 +1637,15 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-bgp-peer-statistics/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-reject-asn-known-transit-free/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-reject-asn-name/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-reject-asn/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-bgp-rib-best-status/</loc>
@@ -1775,6 +1787,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-event-recent/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-firewall-domain-group/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-firewall-group/</loc>
@@ -2125,6 +2140,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-pki-certificates/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-pki-local-ca-pem/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-plugins/</loc>
   </url>
   <url>
@@ -2159,6 +2177,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-reload-status/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-resolve-rir/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-route-lookup/</loc>
@@ -2380,6 +2401,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/update-bgp-peer-prefix/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/update-firewall-domain-group/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/update-firewall-irr-all/</loc>
   </url>
   <url>
@@ -2387,6 +2411,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/update-firewall-irr-asn/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/update-resolve-rir/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/update-serve/</loc>
@@ -2408,15 +2435,6 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/validate-config/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/withdraw-all/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/withdraw-id/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/withdraw-tag/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/configuration/</loc>
@@ -2485,6 +2503,9 @@
     <loc>https://ze-software.net/reference/plugins/bgp-filter-modify/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/plugins/bgp-filter-path-asn/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/plugins/bgp-filter-prefix/</loc>
   </url>
   <url>
@@ -2534,9 +2555,6 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/bgp-persist/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/plugins/bgp-redistribute/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/bgp-rib/</loc>
@@ -2608,6 +2626,9 @@
     <loc>https://ze-software.net/reference/plugins/fib-vpp/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/plugins/firewall-domain/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/plugins/firewall-irr/</loc>
   </url>
   <url>
@@ -2621,12 +2642,6 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/geodns/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/plugins/iface-dhcp/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/plugins/iface-ra/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/ike/</loc>
@@ -2660,9 +2675,6 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/loop/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/plugins/memlock/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/mrt/</loc>

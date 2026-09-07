@@ -340,7 +340,7 @@ Plugins that handle address families register encode/decode handlers:
 ```go
 // Encode NLRI from text arguments to hex
 p.OnEncodeNLRI(func(family string, args []string) (string, error) {
-    // args: component keywords (e.g., ["destination", "10.0.0.0/24"])
+    // args: component keywords (e.g., ["destination-ipv4", "10.0.0.0/24"])
     hex, err := encodeFlowSpec(family, args)
     return hex, err
 })
@@ -444,7 +444,7 @@ err = p.UnsubscribeEvents(ctx)
 Request NLRI encoding/decoding from the engine via the plugin registry.
 
 ```go
-hex, err := p.EncodeNLRI(ctx, "ipv4/flow", []string{"destination", "10.0.0.0/24"})
+hex, err := p.EncodeNLRI(ctx, "ipv4/flow", []string{"destination-ipv4", "10.0.0.0/24"})
 json, err := p.DecodeNLRI(ctx, "ipv4/flow", "0701180A0000")
 ```
 

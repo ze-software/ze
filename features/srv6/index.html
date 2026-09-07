@@ -62,7 +62,10 @@ Operates as an ingress PE: consumes received SRv6 SIDs but does not originate th
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#configuration">Configuration</a></li>
-<li><a href="#data-flow">Data Flow</a></li>
+<li><a href="#data-flow">Data Flow</a>
+<ol>
+<li><a href="#the-api-and-readvertise-announce-rail">The API and readvertise announce rail</a></li>
+</ol></li>
 <li><a href="#transposition-vpnevpn">Transposition (VPN/EVPN)</a></li>
 <li><a href="#fib-backends">FIB Backends</a>
 <ol>
@@ -114,7 +117,7 @@ Operates as an ingress PE: consumes received SRv6 SIDs but does not originate th
 </tr>
 <tr>
 <td>EBGP propagation</td>
-<td>PrefixSID removed from every UPDATE sent to an EBGP peer unless <code>propagate-srv6-prefix-sid</code> is set</td>
+<td>PrefixSID removed on every rail that writes an UPDATE unless <code>propagate-srv6-prefix-sid</code> is set: the two forward rails, the two origination rails, and the API/readvertise announce rail</td>
 </tr>
 <tr>
 <td>Validation</td>
@@ -220,6 +223,18 @@ prefixSIDAllowedTo(isIBGP, propagate-srv6-prefix-sid)
 Forward rails:     applyFactsPrefixSID records an attribute suppression
 Origination rails: the configured PrefixSID and any raw attribute 40 are dropped
 </code></pre>
+<!-- source: internal/component/bgp/reactor/forward_prefix_sid.go -- prefixSIDAllowedTo -->
+<h3 id="the-api-and-readvertise-announce-rail">The API and readvertise announce rail</h3>
+<p>The fifth rail asks the same question at the same site.
+<code>buildBatchAnnounceUpdate</code> (<code>internal/component/bgp/reactor/reactor_api_batch.go</code>)
+copies the caller's attribute block verbatim, so "say nothing" would emit
+attribute 40; it drops the code when <code>prefixSIDAllowedTo</code> answers no, beside the
+RFC 4271 Section 5.1.5 LOCAL_PREF drop. The destination's leaf joins
+<code>announceBuildKey</code>, so two peers of one update group that answer differently no
+longer share a built UPDATE. The rail carries an API announce, a grouped
+announce, and the RFC 9494 stale readvertise (<code>sendStaleReadvertise</code>), which
+replays a stored received block.</p>
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- buildBatchAnnounceUpdate -->
 <h2 id="transposition-vpnevpn">Transposition (VPN/EVPN)</h2>
 <p>For SAFI 128 (VPN) and SAFI 70 (EVPN), RFC 9252 Section 3.2.1 specifies that
 part of the SRv6 SID function bits are encoded in the MPLS label field of the
@@ -280,7 +295,7 @@ the VPP dispatch logic.</p>
 <tr>
 <td>Propagation to other ASes explicitly configured</td>
 <td>8</td>
-<td>Implemented (<code>propagate-srv6-prefix-sid</code>)</td>
+<td>Implemented (<code>propagate-srv6-prefix-sid</code>): every rail that writes an UPDATE asks</td>
 </tr>
 <tr>
 <td>Malformed attribute: attribute-discard</td>
@@ -407,7 +422,7 @@ MPLS encap is used (kernel backend). VPP dispatches SRv6 first.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

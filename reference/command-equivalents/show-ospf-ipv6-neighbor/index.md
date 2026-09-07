@@ -1,6 +1,6 @@
 # `show ospf ipv6 neighbor`
 
-Show OSPFv3 (IPv6) neighbors: the link-local address as identity, adjacency state, DR/BDR by Router ID, and dead time.
+Show the OSPFv3 (IPv6) neighbors.
 
 ## Ze command
 
@@ -19,6 +19,8 @@ Show OSPFv3 (IPv6) neighbors: the link-local address as identity, adjacency stat
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
+
+Each neighbor carries the link-local address as its identity, the adjacency state, the DR and BDR by Router ID, and the dead time.
 
 ## Arguments
 

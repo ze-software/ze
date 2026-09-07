@@ -55,6 +55,25 @@ assignment order. The first profile with a matching entry wins. If no
 profile has a matching entry, the first profile's `default-action`
 applies.
 
+### What happens when a backend will not build
+
+The rules above assume a chain. Where a BACKEND failed to build, it is dropped
+and the chain composes from the rest.
+
+These rules then still apply. The first authorizer any surviving backend
+contributed decides. Where the local backend survived, that is the local RBAC
+store this page describes.
+
+A TACACS+ server declared with no shared secret puts a daemon in that state. So
+does any other error while the chain is built.
+
+Where EVERY backend failed there is no chain, and then **every command is
+refused.** Nothing was installed to consult, and no session exists to ask: ssh
+is not started either, because nothing can authenticate.
+
+<!-- source: internal/component/aaa/types.go -- backendRegistry.Build -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAAABundleAuthorizer -->
+
 ## Matching rules
 
 ### Prefix matching (default)

@@ -291,6 +291,11 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td><code>role</code></td>
 <td><code>bgp</code> prefix redundant</td>
 </tr>
+<tr>
+<td><code>bgp-filter-path-asn</code></td>
+<td><code>filter_path_asn</code></td>
+<td>The package name. The <code>bgp</code> prefix is redundant on a BGP filter, and the hyphen-stripped <code>bgpfilterpathasn</code> cannot be read</td>
+</tr>
 </tbody>
 </table>
 <h3 id="full-inventory">Full Inventory</h3>
@@ -363,6 +368,42 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td>CounterVec</td>
 <td>attribute</td>
 <td>bgp reactor (filterapi)</td>
+</tr>
+<tr>
+<td><code>ze_bgp_redistribute_events_received</code></td>
+<td>Counter</td>
+<td></td>
+<td>redistribute-orchestrator</td>
+</tr>
+<tr>
+<td><code>ze_bgp_redistribute_announcements</code></td>
+<td>Counter</td>
+<td></td>
+<td>redistribute-orchestrator</td>
+</tr>
+<tr>
+<td><code>ze_bgp_redistribute_withdrawals</code></td>
+<td>Counter</td>
+<td></td>
+<td>redistribute-orchestrator</td>
+</tr>
+<tr>
+<td><code>ze_bgp_redistribute_filtered_protocol_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>redistribute-orchestrator</td>
+</tr>
+<tr>
+<td><code>ze_bgp_redistribute_filtered_rule_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>redistribute-orchestrator</td>
+</tr>
+<tr>
+<td><code>ze_bgp_redistribute_replay_total</code></td>
+<td>CounterVec</td>
+<td>source</td>
+<td>redistribute-orchestrator</td>
 </tr>
 <tr>
 <td><code>ze_gr_active_peers</code></td>
@@ -477,6 +518,12 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td>CounterVec</td>
 <td>reason</td>
 <td>bgp-role</td>
+</tr>
+<tr>
+<td><code>ze_filter_path_asn_rejects_total</code></td>
+<td>CounterVec</td>
+<td>direction, position, reason</td>
+<td>bgp-filter-path-asn</td>
 </tr>
 <tr>
 <td><code>ze_persist_routes_stored</code></td>
@@ -935,6 +982,24 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td>iface (resolver fan-out)</td>
 </tr>
 <tr>
+<td><code>ze_iface_link_worker_blocked_total</code></td>
+<td>CounterVec</td>
+<td>name</td>
+<td>iface (link event worker)</td>
+</tr>
+<tr>
+<td><code>ze_iface_link_events_queued_while_blocked_total</code></td>
+<td>CounterVec</td>
+<td>name</td>
+<td>iface (link event queue)</td>
+</tr>
+<tr>
+<td><code>ze_iface_config_apply_started_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>iface (config apply)</td>
+</tr>
+<tr>
 <td><code>ze_iface_ra_sent_total</code></td>
 <td>CounterVec</td>
 <td>interface</td>
@@ -1046,6 +1111,17 @@ injections whose LSP re-origination failed; and
 <code>ze_isis_lsp_reoriginations_total{level}</code> counts the own-LSP re-originations that
 redistribution drove, by level. Exporting IS-IS routes <em>out</em> to BGP uses the
 generic <code>redistribute-orchestrator</code> counters, not an IS-IS-specific series.</p>
+<p>The six <code>redistribute-orchestrator</code> series track the generic dispatch every
+protocol shares. <code>ze_bgp_redistribute_events_received</code> counts route-change
+batches taken off the bus. <code>_announcements</code> and <code>_withdrawals</code> count the entries
+dispatched to a consumer. <code>_filtered_protocol_total</code> counts batches the loop
+guard skipped, and <code>_filtered_rule_total</code> counts entries the evaluator rejected.</p>
+<p><code>ze_bgp_redistribute_replay_total{source}</code> counts routes replayed to a party
+that arrived after a producer emitted. That party is either a BGP peer whose
+session just established, or a destination protocol's consumer that just
+registered. One counter serves both, labeled by the producing source rather than
+by which of the two triggered it.</p>
+<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- setMetricsRegistry -->
 <p>The four <code>isis (spf)</code> series track the shortest-path computation and its Loc-RIB
 install: <code>ze_isis_spf_runs_total{level}</code> counts Dijkstra runs per level,
 <code>ze_isis_spf_duration_seconds{level}</code> is a histogram of each run's wall-clock
@@ -1121,7 +1197,7 @@ with state machines, caches, or I/O operations benefit from metrics.</p>
 <td>Format/encoding plugins</td>
 </tr>
 <tr>
-<td>Plugins that drop or withhold routes (bgp-role)</td>
+<td>Plugins that drop or withhold routes (bgp-role, bgp-filter-path-asn)</td>
 <td></td>
 </tr>
 </tbody>
@@ -1130,8 +1206,16 @@ with state machines, caches, or I/O operations benefit from metrics.</p>
 suppression is invisible to the operator otherwise. <code>bgp-role</code> was once listed
 as capability-only, but it filters every UPDATE on ingress and egress, so each
 of its refusal paths carries a reason-labeled counter.</p>
+<p>A route filter is the same case. <code>bgp-filter-path-asn</code> refuses a route whose
+AS_PATH carries a listed ASN, and it also refuses one fail-closed when the named
+list is unknown or no config has arrived yet. Its counter separates the three
+with a <code>reason</code> label and says where in the path the match was with a <code>position</code>
+label, so an operator reads which rule is eating the routes rather than only how
+many. The peer is in the log line: a peer address in a label would grow the
+series count with the session count.</p>
 <!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop -->
 <!-- source: internal/component/bgp/plugins/role/otc.go -- OTCIngressFilter, OTCEgressFilter -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/metrics.go -- recordReject -->
 <h2 id="reference-implementation">Reference Implementation</h2>
 <p>The bgp-rib plugin (<code>internal/component/bgp/plugins/rib/</code>) is the reference
 implementation. It demonstrates all aspects: registration callback, metrics struct,
@@ -1146,7 +1230,7 @@ atomic pointer, periodic update loop, and per-peer label cleanup.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

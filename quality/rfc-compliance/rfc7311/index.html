@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7311 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7311: The Accumulated IGP Metric Attribute for BGP. 4 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 7311: The Accumulated IGP Metric Attribute for BGP. 5 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 7311 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7311: The Accumulated IGP Metric Attribute for BGP. 4 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 7311: The Accumulated IGP Metric Attribute for BGP. 5 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7311 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7311: The Accumulated IGP Metric Attribute for BGP. 4 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 7311: The Accumulated IGP Metric Attribute for BGP. 5 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -75,6 +75,8 @@
 .rfc-tape-both_polarities { background: var(--teal-chip); }
 .rfc-tape-single_polarity { background: var(--sky-chip); }
 .rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -113,23 +115,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>75.0%</strong><b>3 of 4 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 4 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 6 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>80.0%</strong><b>4 of 5 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>40.0%</strong><b>4 of 10 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>4</strong><b>of 8 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 4 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>5</strong><b>of 9 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 5 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>25.0%</strong><b>1 of 4 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>20.0%</strong><b>1 of 5 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 4 shares marked as a part above are the whole of the 4 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -160,6 +165,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
+</tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
@@ -185,13 +202,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>8</td>
+<td>9</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>4</td>
-</tr>
-<tr><td>Obligations that bind Ze</td>
-<td>4</td>
+<td>5</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -206,16 +220,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>6</td>
+<td>10</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>6</td>
+<td>10</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>4</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7311.md</code></td>
@@ -231,17 +245,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: The Accumulated IGP Metric Attribute for BGP (AIGP, code 26): four MUST-level requirements. Three over the codec (internal/core/bgp/attribute/aigp.go) are tested with both polarities in aigp_test.go: RFC7311-3-1 (type-1 TLV MUST have length 11) via TestParseAIGP (valid length-11 metric accepted) and TestParseAIGPMalformedMetricWrongLength (length 8 rejected, aigp.go:118); RFC7311-3-2 (total attribute length consistent with contained TLVs) via TestParseAIGPMultipleTLVs (two TLVs summing to the total) and TestParseAIGPMalformedTruncatedValue (declared TLV overruns the buffer -&gt; error, aigp.go:111); RFC7311-3-3 (unknown TLV types preserved not discarded) via TestParseAIGPMultipleTLVs (unknown type-2 retained with exact data while type-1 still interpreted) and TestAIGPWriteToMultipleTLVs (unknown TLV survives the WriteTo re-encode round-trip). RFC7311-3.2-1 (MUST NOT propagate AIGP to a different-administrative-domain eBGP peer) is {gap}: Ze forwards received attributes verbatim (forward_context.go:11) with no AIGP admin-domain strip and the AIGP plugin is a stub, so received AIGP leaks to eBGP; disclosed in the docs/features/rfc-status.md RFC 7311 row (Partial). The 3-4/3.2-2/3.2-3 SHOULDs and 3.1-1 MAY are not gated.</p>
+<p>Enrolled: The Accumulated IGP Metric Attribute for BGP (AIGP, code 26): four MUST-level requirements. Three over the codec (internal/core/bgp/attribute/aigp.go) are tested with both polarities in aigp_test.go: RFC7311-3-1 (type-1 TLV MUST have length 11) via TestParseAIGP (valid length-11 metric accepted) and TestParseAIGPMalformedMetricWrongLength (length 8 rejected, aigp.go:118); RFC7311-3-2 (total attribute length consistent with contained TLVs) via TestParseAIGPMultipleTLVs (two TLVs summing to the total) and TestParseAIGPMalformedTruncatedValue (declared TLV overruns the buffer -&gt; error, aigp.go:111); RFC7311-3-3 (unknown TLV types preserved not discarded) via TestParseAIGPMultipleTLVs (unknown type-2 retained with exact data while type-1 still interpreted) and TestAIGPWriteToMultipleTLVs (unknown TLV survives the WriteTo re-encode round-trip). RFC7311-3.2-4 (a received AIGP with the transitive bit set is malformed and is discarded) is gated with both polarities by TestRFC7606AIGPTransitiveIsDiscarded and TestRFC7606AIGPNonTransitiveIsKept (internal/component/bgp/message/rfc7606_aigp_test.go) at validateAttributeFlags (internal/component/bgp/message/rfc7606.go), which answers attribute discard on attribute code 26 inside the RFC 7606 walk, and again by TestRFC7311AIGPTransitiveDiscardedOnReceive and TestRFC7311AIGPNonTransitiveKeptOnReceive (internal/component/bgp/reactor/rfc7311_aigp_receive_test.go) over enforceRFC7606, the receive path a peer&#39;s UPDATE takes, where the malformed AIGP leaves one ATTR_TOMBSTONE and the route&#39;s own attributes ride on. RFC7311-3.2-1 (MUST NOT propagate AIGP to a different-administrative-domain eBGP peer) is {gap}: Ze forwards received attributes verbatim (forward_context.go:11) with no AIGP admin-domain strip and the AIGP plugin is a stub, so received AIGP leaks to eBGP; disclosed in the docs/features/rfc-status.md RFC 7311 row (Partial). The 3-4/3.2-2/3.2-3 SHOULDs and 3.1-1 MAY are not gated.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
-<p><strong>What the ledger says is covered:</strong></p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
 <ul class="rfc-prose">
 <li>AIGP wire encoding, decoding, JSON, and set/increment/decrement filters</li>
-<li>TLV validation (type-1 length 11, total-length consistency, unknown-TLV preservation) gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc7311.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc7311.md</code></a>.</li>
+<li>TLV validation (type-1 length 11, total-length consistency, unknown-TLV preservation) gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc7311.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc7311.md</code></a>. Ze sends the attribute optional and non-transitive (flags 0x80), and discards a received AIGP whose transitive bit is set (§3.2) with the rest of the UPDATE processed.</li>
 </ul>
+</details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-AIGP is not consumed by best-path selection, and Ze does not strip AIGP at the eBGP administrative-domain boundary (§3.2 MUST NOT): received AIGP is forwarded verbatim as an optional-transitive attribute, removable only by explicit operator policy. Gated as a gap in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc7311.md" target="_blank" rel="noopener"><code>rfc/short/rfc7311.md</code></a>.
+AIGP is not consumed by best-path selection, and Ze does not strip AIGP at the eBGP administrative-domain boundary (§3.2 MUST NOT): received AIGP is forwarded verbatim, removable only by explicit operator policy. Gated as a gap in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc7311.md" target="_blank" rel="noopener"><code>rfc/short/rfc7311.md</code></a>.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -250,7 +265,7 @@ AIGP is not consumed by best-path selection, and Ze does not strip AIGP at the e
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>3</strong></td>
+<td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
@@ -269,11 +284,11 @@ AIGP is not consumed by best-path selection, and Ze does not strip AIGP at the e
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>4</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>5</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (3):</strong> <a href="#rfc7311-3-1"><code>RFC7311-3-1</code></a>, <a href="#rfc7311-3-2"><code>RFC7311-3-2</code></a>, <a href="#rfc7311-3-3"><code>RFC7311-3-3</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc7311-3-1"><code>RFC7311-3-1</code></a>, <a href="#rfc7311-3-2"><code>RFC7311-3-2</code></a>, <a href="#rfc7311-3-3"><code>RFC7311-3-3</code></a>, <a href="#rfc7311-3.2-4"><code>RFC7311-3.2-4</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#rfc7311-3.2-1"><code>RFC7311-3.2-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
@@ -308,6 +323,17 @@ AIGP is not consumed by best-path selection, and Ze does not strip AIGP at the e
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/aigp_test.go#L142" title="internal/core/bgp/attribute/aigp_test.go" target="_blank" rel="noopener"><code>TestAIGPWriteToMultipleTLVs</code></a></span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7311-3.2-4">RFC7311-3.2-4</code></td><td colspan="3"><span class="rfc-subject">A received path attribute carrying the AIGP codepoint with the transitive bit set is a malformed AIGP attribute and MUST be discarded (§3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7311-3.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_receive_test.go#L103" title="internal/component/bgp/reactor/rfc7311_aigp_receive_test.go" target="_blank" rel="noopener"><code>TestRFC7311AIGPNonTransitiveKeptOnReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_aigp_test.go#L104" title="internal/component/bgp/message/rfc7606_aigp_test.go" target="_blank" rel="noopener"><code>TestRFC7606AIGPNonTransitiveIsKept</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_receive_test.go#L60" title="internal/component/bgp/reactor/rfc7311_aigp_receive_test.go" target="_blank" rel="noopener"><code>TestRFC7311AIGPTransitiveDiscardedOnReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_aigp_test.go#L68" title="internal/component/bgp/message/rfc7606_aigp_test.go" target="_blank" rel="noopener"><code>TestRFC7606AIGPTransitiveIsDiscarded</code></a></span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7311-3.2-1">RFC7311-3.2-1</code></td><td colspan="3"><span class="rfc-subject">AIGP attribute MUST NOT be attached to or propagated to a route advertised to a peer in a different administrative domain (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
@@ -315,7 +341,7 @@ AIGP is not consumed by best-path selection, and Ze does not strip AIGP at the e
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7311-3.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze does not strip the AIGP attribute at the eBGP administrative-domain boundary. AIGP is an optional-transitive attribute (internal/core/bgp/attribute/aigp.go:37) and Ze forwards received route attributes largely verbatim (internal/component/bgp/reactor/forward_context.go:11 reuses the source context with only AS_PATH/AGGREGATOR ASN-width rewrite and the eBGP local-AS prepend), with no AIGP-specific removal for a peer in a different administrative domain. The AIGP plugin is an explicit stub (internal/component/bgp/plugins/aigp/aigp.go:7-8 &#34;Full AIGP processing will be added when the spec-aigp work is implemented&#34;). AIGP can be removed only by an explicit operator remove-attribute policy, not automatically at the domain boundary, so a received AIGP would leak to a different-domain eBGP peer. Disclosed in docs/features/rfc-status.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze does not strip the AIGP attribute at the eBGP administrative-domain boundary. AIGP is an optional NON-transitive attribute (RFC 7311 Section 3; internal/core/bgp/attribute/aigp.go, AIGP.Flags) and Ze forwards received route attributes largely verbatim (internal/component/bgp/reactor/forward_context.go:11 reuses the source context with only AS_PATH/AGGREGATOR ASN-width rewrite and the eBGP local-AS prepend), with no AIGP-specific removal for a peer in a different administrative domain. The AIGP plugin is an explicit stub (internal/component/bgp/plugins/aigp/aigp.go:7-8 &#34;Full AIGP processing will be added when the spec-aigp work is implemented&#34;). AIGP can be removed only by an explicit operator remove-attribute policy, not automatically at the domain boundary, so a received AIGP would leak to a different-domain eBGP peer. Disclosed in docs/features/rfc-status.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7311-3-4">RFC7311-3-4</code></td><td colspan="3"><span class="rfc-subject">Unknown TLV types SHOULD be preserved and propagated unchanged (§3)</span></td></tr>
 <tr><td></td>
@@ -364,7 +390,7 @@ AIGP is not consumed by best-path selection, and Ze does not strip AIGP at the e
 <tbody>
 <tr><td><a href="#rfc7311-3.2-1"><code>RFC7311-3.2-1</code></a> AIGP attribute MUST NOT be attached to or propagated to a route advertised to a peer in a different administrative domain (§3.2)</td>
 <td>{gap}, no test</td>
-<td>Ze does not strip the AIGP attribute at the eBGP administrative-domain boundary. AIGP is an optional-transitive attribute (internal/core/bgp/attribute/aigp.go:37) and Ze forwards received route attributes largely verbatim (internal/component/bgp/reactor/forward_context.go:11 reuses the source context with only AS_PATH/AGGREGATOR ASN-width rewrite and the eBGP local-AS prepend), with no AIGP-specific removal for a peer in a different administrative domain. The AIGP plugin is an explicit stub (internal/component/bgp/plugins/aigp/aigp.go:7-8 &#34;Full AIGP processing will be added when the spec-aigp work is implemented&#34;). AIGP can be removed only by an explicit operator remove-attribute policy, not automatically at the domain boundary, so a received AIGP would leak to a different-domain eBGP peer. Disclosed in docs/features/rfc-status.md</td>
+<td>Ze does not strip the AIGP attribute at the eBGP administrative-domain boundary. AIGP is an optional NON-transitive attribute (RFC 7311 Section 3; internal/core/bgp/attribute/aigp.go, AIGP.Flags) and Ze forwards received route attributes largely verbatim (internal/component/bgp/reactor/forward_context.go:11 reuses the source context with only AS_PATH/AGGREGATOR ASN-width rewrite and the eBGP local-AS prepend), with no AIGP-specific removal for a peer in a different administrative domain. The AIGP plugin is an explicit stub (internal/component/bgp/plugins/aigp/aigp.go:7-8 &#34;Full AIGP processing will be added when the spec-aigp work is implemented&#34;). AIGP can be removed only by an explicit operator remove-attribute policy, not automatically at the domain boundary, so a received AIGP would leak to a different-domain eBGP peer. Disclosed in docs/features/rfc-status.md</td>
 </tr>
 </tbody>
 </table>
@@ -432,6 +458,36 @@ AIGP is not consumed by best-path selection, and Ze does not strip AIGP at the e
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc7311-3.2-4"><code>RFC7311-3.2-4</code></a></h3>
+<p>A received path attribute carrying the AIGP codepoint with the transitive bit set is a malformed AIGP attribute and MUST be discarded (§3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_aigp_test.go#L68" title="internal/component/bgp/message/rfc7606_aigp_test.go" target="_blank" rel="noopener"><code>TestRFC7606AIGPTransitiveIsDiscarded</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_receive_test.go#L60" title="internal/component/bgp/reactor/rfc7311_aigp_receive_test.go" target="_blank" rel="noopener"><code>TestRFC7311AIGPTransitiveDiscardedOnReceive</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_aigp_test.go#L104" title="internal/component/bgp/message/rfc7606_aigp_test.go" target="_blank" rel="noopener"><code>TestRFC7606AIGPNonTransitiveIsKept</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_receive_test.go#L103" title="internal/component/bgp/reactor/rfc7311_aigp_receive_test.go" target="_blank" rel="noopener"><code>TestRFC7311AIGPNonTransitiveKeptOnReceive</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7311-3.2-1"><code>RFC7311-3.2-1</code></a></h3>
 <p>AIGP attribute MUST NOT be attached to or propagated to a route advertised to a peer in a different administrative domain (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -472,7 +528,7 @@ AIGP is not consumed by best-path selection, and Ze does not strip AIGP at the e
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

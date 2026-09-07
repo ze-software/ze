@@ -20,6 +20,8 @@ Show only link-local opaque-LSAs (Type 9, RFC 5250).
 - Command pipes: none
 - Pipe aliases: none
 
+RFC 5250 Section 3 gives link-state type-9 a link-local scope. A type-9 opaque LSA is not flooded beyond the local subnetwork. This view is therefore per link. No other link holds an LSA listed here, and no router past the local segment holds one.
+
 ## Arguments
 
 No command-specific arguments listed.

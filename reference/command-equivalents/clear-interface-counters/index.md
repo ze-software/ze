@@ -20,6 +20,8 @@ Zero the Rx/Tx counters for every managed interface.
 - Command pipes: none
 - Pipe aliases: none
 
+One call resets every interface the backend manages, and the answer reports the scope as all. Nothing else about the interfaces changes.
+
 ## Arguments
 
 No command-specific arguments listed.

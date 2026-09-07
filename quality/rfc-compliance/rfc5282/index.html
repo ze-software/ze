@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5282 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5282: Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol. 19 gated MUST-level requirements, 0 declared gaps, 18 with no test." />
+        <meta name="description" content="RFC 5282: Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol. 19 gated MUST-level requirements, 0 declared gaps, 4 with no test." />
         <meta property="og:title" content="RFC 5282 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5282: Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol. 19 gated MUST-level requirements, 0 declared gaps, 18 with no test." />
+        <meta property="og:description" content="RFC 5282: Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol. 19 gated MUST-level requirements, 0 declared gaps, 4 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5282 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5282: Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol. 19 gated MUST-level requirements, 0 declared gaps, 18 with no test." />
+        <meta name="twitter:description" content="RFC 5282: Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol. 19 gated MUST-level requirements, 0 declared gaps, 4 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -75,6 +75,8 @@
 .rfc-tape-both_polarities { background: var(--teal-chip); }
 .rfc-tape-single_polarity { background: var(--sky-chip); }
 .rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -113,23 +115,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>5.3%</strong><b>1 of 19 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 19 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 19 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 2 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>78.9%</strong><b>15 of 19 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>30 of 30 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>19</strong><b>of 30 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 19 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 19 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>94.7%</strong><b>18 of 19 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>21.1%</strong><b>4 of 19 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 4 shares marked as a part above are the whole of the 19 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 19 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -159,6 +164,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
 </tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -190,9 +207,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Gated MUST-level</td>
 <td>19</td>
 </tr>
-<tr><td>Obligations that bind Ze</td>
-<td>19</td>
-</tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
 </tr>
@@ -200,22 +214,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>18</td>
+<td>4</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>2</td>
+<td>30</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>2</td>
+<td>30</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>30</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5282.md</code></td>
@@ -231,14 +245,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Using AEAD Algorithms with the IKEv2 Encrypted Payload (RFC 5282): ze speaks one AEAD cipher for the IKE SA, ENCR_AES_GCM_16 (Transform ID 20) at 128 and 256 bits. buildSKMessageAEADWithMsgID (engine/auth.go) seals an 8-octet IV, a salt-then-IV 12-octet nonce and the IKE-header-through-SK-generic-header associated data; decryptSKPayload and crypto.DecryptIKEAEAD (crypto/cipher.go) open it. encKeyMaterialLen (crypto/keys.go) gives SK_ei and SK_er the RFC 4106 KEYMAT layout (cipher key then 4-octet salt) and leaves SK_ai and SK_ar at zero octets. No AES CCM: aeadSaltBytes holds one entry and specifiedEncryption (crypto/proposal.go) accepts no CCM transform off the wire. 19 gated rows, none tested and none annotated at enrolment -- the coverage backlog is reported rather than annotated away, because ai/rules/rfc-compliance.md reserves gap and not-applicable for an owner answer.</p>
+<p>Enrolled: Using AEAD Algorithms with the IKEv2 Encrypted Payload (RFC 5282): ze speaks one AEAD cipher for the IKE SA, ENCR_AES_GCM_16 (Transform ID 20) at 128 and 256 bits. buildSKMessageAEADWithMsgID (engine/auth.go) seals an 8-octet IV, a salt-then-IV 12-octet nonce and the IKE-header-through-SK-generic-header associated data; decryptSKPayload and crypto.DecryptIKEAEAD (crypto/cipher.go) open it. encKeyMaterialLen (crypto/keys.go) gives SK_ei and SK_er the RFC 4106 KEYMAT layout (cipher key then 4-octet salt) and leaves SK_ai and SK_ar at zero octets. No AES CCM: aeadSaltBytes holds one entry and specifiedEncryption (crypto/proposal.go) accepts no CCM transform off the wire. Of the 19 gated rows, every row that binds an AES GCM implementation now carries a both-polarity tagged test and a discrimination record. The AES CCM rows (RFC5282-3.2-3, RFC5282-3.2-4, RFC5282-4-3, RFC5282-4-4) carry neither test nor annotation: ze implements no AES CCM, so no code produces the behavior, and ai/rules/rfc-compliance.md reserves gap, not-applicable and feature-declined for an owner answer.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Supported</p>
-<p><strong>What the ledger says is covered:</strong></p>
-AES-GCM IKEv2 AEAD encryption and decryption framing.
-<p><strong>What the ledger says remains:</strong></p>
-No tracked gap in current source anchors.
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+AES-GCM IKEv2 AEAD encryption and decryption framing: the eight-octet IV, the salt-then-IV twelve-octet nonce, the full-length sixteen-octet ICV, the associated data from the fixed header through the Encrypted payload&#39;s own generic header, any Padding up to 255 octets on receipt, the KEYMAT layout of SK_ei and SK_er, and the negotiation rules that carry the Key Length attribute and refuse an integrity transform.
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+AES CCM is not implemented. specifiedEncryption (crypto/proposal.go) accepts no CCM transform off the wire and aeadSaltBytes (crypto/transform.go) holds one entry, so the AES CCM rows of the checklist name behavior no layer performs and carry no test. Whether they are conformance debt or an optional feature ze declined is an owner answer, not this summary&#39;s.
+</details>
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -246,7 +262,7 @@ No tracked gap in current source anchors.
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>1</strong></td>
+<td><strong>15</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
@@ -258,7 +274,7 @@ No tracked gap in current source anchors.
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>18</strong></td>
+<td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -269,8 +285,8 @@ No tracked gap in current source anchors.
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (1):</strong> <a href="#rfc5282-8-2"><code>RFC5282-8-2</code></a></p>
-<p class="rfc-id-list"><strong>No test and no annotation (18):</strong> <a href="#rfc5282-3-1"><code>RFC5282-3-1</code></a>, <a href="#rfc5282-3.1-1"><code>RFC5282-3.1-1</code></a>, <a href="#rfc5282-3.1-2"><code>RFC5282-3.1-2</code></a>, <a href="#rfc5282-3.2-1"><code>RFC5282-3.2-1</code></a>, <a href="#rfc5282-3.2-2"><code>RFC5282-3.2-2</code></a>, <a href="#rfc5282-3.2-3"><code>RFC5282-3.2-3</code></a>, <a href="#rfc5282-3.2-4"><code>RFC5282-3.2-4</code></a>, <a href="#rfc5282-4-1"><code>RFC5282-4-1</code></a>, <a href="#rfc5282-4-2"><code>RFC5282-4-2</code></a>, <a href="#rfc5282-4-3"><code>RFC5282-4-3</code></a>, <a href="#rfc5282-4-4"><code>RFC5282-4-4</code></a>, <a href="#rfc5282-5.1-1"><code>RFC5282-5.1-1</code></a>, <a href="#rfc5282-5.1-2"><code>RFC5282-5.1-2</code></a>, <a href="#rfc5282-7.1-1"><code>RFC5282-7.1-1</code></a>, <a href="#rfc5282-7.1-2"><code>RFC5282-7.1-2</code></a>, <a href="#rfc5282-7.3-1"><code>RFC5282-7.3-1</code></a>, <a href="#rfc5282-7.3-2"><code>RFC5282-7.3-2</code></a>, <a href="#rfc5282-8-1"><code>RFC5282-8-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (15):</strong> <a href="#rfc5282-3-1"><code>RFC5282-3-1</code></a>, <a href="#rfc5282-3.1-1"><code>RFC5282-3.1-1</code></a>, <a href="#rfc5282-3.1-2"><code>RFC5282-3.1-2</code></a>, <a href="#rfc5282-3.2-1"><code>RFC5282-3.2-1</code></a>, <a href="#rfc5282-3.2-2"><code>RFC5282-3.2-2</code></a>, <a href="#rfc5282-4-1"><code>RFC5282-4-1</code></a>, <a href="#rfc5282-4-2"><code>RFC5282-4-2</code></a>, <a href="#rfc5282-5.1-1"><code>RFC5282-5.1-1</code></a>, <a href="#rfc5282-5.1-2"><code>RFC5282-5.1-2</code></a>, <a href="#rfc5282-7.1-1"><code>RFC5282-7.1-1</code></a>, <a href="#rfc5282-7.1-2"><code>RFC5282-7.1-2</code></a>, <a href="#rfc5282-7.3-1"><code>RFC5282-7.3-1</code></a>, <a href="#rfc5282-7.3-2"><code>RFC5282-7.3-2</code></a>, <a href="#rfc5282-8-1"><code>RFC5282-8-1</code></a>, <a href="#rfc5282-8-2"><code>RFC5282-8-2</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (4):</strong> <a href="#rfc5282-3.2-3"><code>RFC5282-3.2-3</code></a>, <a href="#rfc5282-3.2-4"><code>RFC5282-3.2-4</code></a>, <a href="#rfc5282-4-3"><code>RFC5282-4-3</code></a>, <a href="#rfc5282-4-4"><code>RFC5282-4-4</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -282,8 +298,8 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5282-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L255" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADReceiveAcceptsAnyPaddingTo255</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L291" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADReceiveRefusesATruncatedInnerPayload</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-3.1-1">RFC5282-3.1-1</code></td><td colspan="3"><span class="rfc-subject">The Initialization Vector MUST be eight octets (§3.1)</span></td></tr>
@@ -291,8 +307,8 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5282-3.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L314" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADSendIVIsEightOctets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L358" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADReceiveRefusesAnIVThatIsNotEightOctets</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-3.1-2">RFC5282-3.1-2</code></td><td colspan="3"><span class="rfc-subject">The IV MUST be chosen by the encryptor in a manner that ensures the same IV value is used only once for a given key (§3.1)</span></td></tr>
@@ -300,8 +316,8 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5282-3.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L381" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADSendIVIsUniquePerKey</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L413" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADSendIVDoesNotRepeatForARepeatedMessage</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-3.2-1">RFC5282-3.2-1</code></td><td colspan="3"><span class="rfc-subject">AES GCM implementations MUST support a full-length 16 octet ICV (§3.2)</span></td></tr>
@@ -309,8 +325,8 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5282-3.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L440" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADSendICVIsSixteenOctets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L467" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADReceiveRefusesADamagedICV</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-3.2-2">RFC5282-3.2-2</code></td><td colspan="3"><span class="rfc-subject">AES GCM implementations MUST NOT support ICV lengths other than 16, 8 and 12 octets (§3.2)</span></td></tr>
@@ -318,8 +334,8 @@ No tracked gap in current source anchors.
 <td>MUST NOT</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5282-3.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L53" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADRefusesAForbiddenICVLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L81" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADOpensTheFullLengthICV</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-3.2-3">RFC5282-3.2-3</code></td><td colspan="3"><span class="rfc-subject">AES CCM implementations MUST support ICV sizes of 8 octets and 16 octets (§3.2)</span></td></tr>
@@ -345,8 +361,8 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5282-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L496" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADNonceIsSaltThenIV</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L519" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADRefusesAReversedNonce</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-4-2">RFC5282-4-2</code></td><td colspan="3"><span class="rfc-subject">For AES GCM a 12 octet nonce MUST be used (§4)</span></td></tr>
@@ -354,8 +370,8 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5282-4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L537" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADNonceIsTwelveOctets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L564" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADRefusesANonceThatIsNotTwelveOctets</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-4-3">RFC5282-4-3</code></td><td colspan="3"><span class="rfc-subject">For AES CCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4)</span></td></tr>
@@ -381,8 +397,8 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5282-5.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L585" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADAssociatedDataCoversAnInterveningPayload</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L617" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADRefusesAnAlteredInterveningPayload</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-5.1-2">RFC5282-5.1-2</code></td><td colspan="3"><span class="rfc-subject">The Initialization Vector and Ciphertext fields MUST NOT be included in the associated data (§5.1)</span></td></tr>
@@ -390,8 +406,8 @@ No tracked gap in current source anchors.
 <td>MUST NOT</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5282-5.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L641" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADAssociatedDataExcludesTheIVAndCiphertext</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L662" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADRefusesAssociatedDataCoveringTheIV</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-7.1-1">RFC5282-7.1-1</code></td><td colspan="3"><span class="rfc-subject">With an AEAD cipher the SK_ai and SK_ar integrity keys are unused, and each MUST be treated as having a size of zero octets (§7.1)</span></td></tr>
@@ -399,8 +415,8 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5282-7.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L123" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADIntegrityKeysAreZeroOctets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L153" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282NonAEADIntegrityKeysAreDerived</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-7.1-2">RFC5282-7.1-2</code></td><td colspan="3"><span class="rfc-subject">Each of SK_ei and SK_er MUST have the size and format of the KEYMAT for the AES key size in use, the cipher key followed by the salt (§7.1)</span></td></tr>
@@ -408,8 +424,8 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5282-7.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L169" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADEncryptionKeysCarryTheirSalt</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L230" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282NonAEADEncryptionKeysCarryNoSalt</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-7.3-1">RFC5282-7.3-1</code></td><td colspan="3"><span class="rfc-subject">The Key Length attribute MUST be specified whenever an AES GCM or AES CCM encryption transform identifier is used (§7.3)</span></td></tr>
@@ -417,8 +433,8 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>7.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5282-7.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L677" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADProposalCarriesTheKeyLengthAttribute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L258" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADOfferWithoutAKeyLengthIsRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-7.3-2">RFC5282-7.3-2</code></td><td colspan="3"><span class="rfc-subject">The Key Length attribute MUST have a value of 128, 192, or 256 (§7.3)</span></td></tr>
@@ -426,8 +442,8 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>7.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5282-7.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L277" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADKeyLengthAcceptsTheThreeValues</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L297" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADKeyLengthRefusesEveryOtherValue</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-8-1">RFC5282-8-1</code></td><td colspan="3"><span class="rfc-subject">When an authenticated encryption algorithm is selected as the encryption algorithm for any SA, an integrity algorithm MUST NOT be selected for that SA (§8)</span></td></tr>
@@ -435,8 +451,8 @@ No tracked gap in current source anchors.
 <td>MUST NOT</td>
 <td>8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5282-8-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L739" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L773" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADOfferWithIntegrityIsRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-8-2">RFC5282-8-2</code></td><td colspan="3"><span class="rfc-subject">If all of the encryption algorithms in a proposal are authenticated encryption algorithms, the proposal MUST NOT propose any integrity transforms (§8)</span></td></tr>
@@ -556,26 +572,6 @@ No tracked gap in current source anchors.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc5282-3-1"><code>RFC5282-3-1</code></a> The recipient MUST accept any amount of Padding up to 255 octets (§3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5282-3.1-1"><code>RFC5282-3.1-1</code></a> The Initialization Vector MUST be eight octets (§3.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5282-3.1-2"><code>RFC5282-3.1-2</code></a> The IV MUST be chosen by the encryptor in a manner that ensures the same IV value is used only once for a given key (§3.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5282-3.2-1"><code>RFC5282-3.2-1</code></a> AES GCM implementations MUST support a full-length 16 octet ICV (§3.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5282-3.2-2"><code>RFC5282-3.2-2</code></a> AES GCM implementations MUST NOT support ICV lengths other than 16, 8 and 12 octets (§3.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
 <tr><td><a href="#rfc5282-3.2-3"><code>RFC5282-3.2-3</code></a> AES CCM implementations MUST support ICV sizes of 8 octets and 16 octets (§3.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
@@ -584,47 +580,11 @@ No tracked gap in current source anchors.
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc5282-4-1"><code>RFC5282-4-1</code></a> For AES GCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5282-4-2"><code>RFC5282-4-2</code></a> For AES GCM a 12 octet nonce MUST be used (§4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
 <tr><td><a href="#rfc5282-4-3"><code>RFC5282-4-3</code></a> For AES CCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
 <tr><td><a href="#rfc5282-4-4"><code>RFC5282-4-4</code></a> For AES CCM an 11 octet nonce MUST be used (§4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5282-5.1-1"><code>RFC5282-5.1-1</code></a> The associated data MUST consist of the message from the first octet of the Fixed IKE Header through the last octet of the Encrypted Payload&#39;s Payload Header, including any payloads between them (§5.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5282-5.1-2"><code>RFC5282-5.1-2</code></a> The Initialization Vector and Ciphertext fields MUST NOT be included in the associated data (§5.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5282-7.1-1"><code>RFC5282-7.1-1</code></a> With an AEAD cipher the SK_ai and SK_ar integrity keys are unused, and each MUST be treated as having a size of zero octets (§7.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5282-7.1-2"><code>RFC5282-7.1-2</code></a> Each of SK_ei and SK_er MUST have the size and format of the KEYMAT for the AES key size in use, the cipher key followed by the salt (§7.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5282-7.3-1"><code>RFC5282-7.3-1</code></a> The Key Length attribute MUST be specified whenever an AES GCM or AES CCM encryption transform identifier is used (§7.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5282-7.3-2"><code>RFC5282-7.3-2</code></a> The Key Length attribute MUST have a value of 128, 192, or 256 (§7.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5282-8-1"><code>RFC5282-8-1</code></a> When an authenticated encryption algorithm is selected as the encryption algorithm for any SA, an integrity algorithm MUST NOT be selected for that SA (§8)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
@@ -637,23 +597,103 @@ No tracked gap in current source anchors.
 <h3><a href="#rfc5282-3-1"><code>RFC5282-3-1</code></a></h3>
 <p>The recipient MUST accept any amount of Padding up to 255 octets (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5282-3-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L291" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADReceiveRefusesATruncatedInnerPayload</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L255" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADReceiveAcceptsAnyPaddingTo255</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5282-3.1-1"><code>RFC5282-3.1-1</code></a></h3>
 <p>The Initialization Vector MUST be eight octets (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5282-3.1-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L358" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADReceiveRefusesAnIVThatIsNotEightOctets</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L314" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADSendIVIsEightOctets</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5282-3.1-2"><code>RFC5282-3.1-2</code></a></h3>
 <p>The IV MUST be chosen by the encryptor in a manner that ensures the same IV value is used only once for a given key (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5282-3.1-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L413" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADSendIVDoesNotRepeatForARepeatedMessage</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L381" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADSendIVIsUniquePerKey</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5282-3.2-1"><code>RFC5282-3.2-1</code></a></h3>
 <p>AES GCM implementations MUST support a full-length 16 octet ICV (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5282-3.2-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L467" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADReceiveRefusesADamagedICV</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L440" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADSendICVIsSixteenOctets</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5282-3.2-2"><code>RFC5282-3.2-2</code></a></h3>
 <p>AES GCM implementations MUST NOT support ICV lengths other than 16, 8 and 12 octets (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5282-3.2-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L81" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADOpensTheFullLengthICV</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L53" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADRefusesAForbiddenICVLength</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5282-3.2-3"><code>RFC5282-3.2-3</code></a></h3>
 <p>AES CCM implementations MUST support ICV sizes of 8 octets and 16 octets (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -665,11 +705,43 @@ No tracked gap in current source anchors.
 <h3><a href="#rfc5282-4-1"><code>RFC5282-4-1</code></a></h3>
 <p>For AES GCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5282-4-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L519" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADRefusesAReversedNonce</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L496" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADNonceIsSaltThenIV</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5282-4-2"><code>RFC5282-4-2</code></a></h3>
 <p>For AES GCM a 12 octet nonce MUST be used (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5282-4-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L564" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADRefusesANonceThatIsNotTwelveOctets</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L537" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADNonceIsTwelveOctets</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5282-4-3"><code>RFC5282-4-3</code></a></h3>
 <p>For AES CCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -681,31 +753,143 @@ No tracked gap in current source anchors.
 <h3><a href="#rfc5282-5.1-1"><code>RFC5282-5.1-1</code></a></h3>
 <p>The associated data MUST consist of the message from the first octet of the Fixed IKE Header through the last octet of the Encrypted Payload&#39;s Payload Header, including any payloads between them (§5.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5282-5.1-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L617" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADRefusesAnAlteredInterveningPayload</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L585" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADAssociatedDataCoversAnInterveningPayload</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5282-5.1-2"><code>RFC5282-5.1-2</code></a></h3>
 <p>The Initialization Vector and Ciphertext fields MUST NOT be included in the associated data (§5.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5282-5.1-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L662" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADRefusesAssociatedDataCoveringTheIV</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L641" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADAssociatedDataExcludesTheIVAndCiphertext</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5282-7.1-1"><code>RFC5282-7.1-1</code></a></h3>
 <p>With an AEAD cipher the SK_ai and SK_ar integrity keys are unused, and each MUST be treated as having a size of zero octets (§7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5282-7.1-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L153" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282NonAEADIntegrityKeysAreDerived</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L123" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADIntegrityKeysAreZeroOctets</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5282-7.1-2"><code>RFC5282-7.1-2</code></a></h3>
 <p>Each of SK_ei and SK_er MUST have the size and format of the KEYMAT for the AES key size in use, the cipher key followed by the salt (§7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5282-7.1-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L230" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282NonAEADEncryptionKeysCarryNoSalt</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L169" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADEncryptionKeysCarryTheirSalt</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5282-7.3-1"><code>RFC5282-7.3-1</code></a></h3>
 <p>The Key Length attribute MUST be specified whenever an AES GCM or AES CCM encryption transform identifier is used (§7.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5282-7.3-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L258" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADOfferWithoutAKeyLengthIsRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L677" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADProposalCarriesTheKeyLengthAttribute</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5282-7.3-2"><code>RFC5282-7.3-2</code></a></h3>
 <p>The Key Length attribute MUST have a value of 128, 192, or 256 (§7.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5282-7.3-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L297" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADKeyLengthRefusesEveryOtherValue</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L277" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADKeyLengthAcceptsTheThreeValues</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5282-8-1"><code>RFC5282-8-1</code></a></h3>
 <p>When an authenticated encryption algorithm is selected as the encryption algorithm for any SA, an integrity algorithm MUST NOT be selected for that SA (§8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5282-8-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L773" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADOfferWithIntegrityIsRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L739" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5282-8-2"><code>RFC5282-8-2</code></a></h3>
 <p>If all of the encryption algorithms in a proposal are authenticated encryption algorithms, the proposal MUST NOT propose any integrity transforms (§8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -716,12 +900,12 @@ No tracked gap in current source anchors.
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_proposal_test.go#L74" title="internal/component/ike/engine/rfc5282_aead_proposal_test.go" target="_blank" rel="noopener"><code>TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_proposal_test.go#L37" title="internal/component/ike/engine/rfc5282_aead_proposal_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADIKEProposalCarriesNoIntegrityTransform</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1057,7 +1241,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

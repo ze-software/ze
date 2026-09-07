@@ -56,6 +56,7 @@
 <li><a href="#inheritance">Inheritance</a></li>
 <li><a href="#peer-settings">Peer Settings</a></li>
 <li><a href="#as-migration-local-as">AS Migration (local-as)</a></li>
+<li><a href="#internal-as-migration-rfc-7705-section-42">Internal AS Migration (RFC 7705 Section 4.2)</a></li>
 <li><a href="#blackhole-honoring-rfc-7999">Blackhole Honoring (RFC 7999)</a>
 <ol>
 <li><a href="#announcing-a-blackhole-to-a-peer">Announcing a blackhole to a peer</a></li>
@@ -73,8 +74,10 @@
 </ol></li>
 <li><a href="#protocol-event-capture">Protocol Event Capture</a></li>
 <li><a href="#peeringdb-prefix-data">PeeringDB Prefix Data</a></li>
+<li><a href="#rir-delegation-sources">RIR Delegation Sources</a></li>
 </ol></li>
 <li><a href="#hardware-tuning">Hardware Tuning</a></li>
+<li><a href="#kernel-crash-capture">Kernel Crash Capture</a></li>
 <li><a href="#process-bindings">Process Bindings</a></li>
 <li><a href="#route-filters">Route Filters</a></li>
 <li><a href="#cross-protocol-redistribute">Cross-Protocol Redistribute</a>
@@ -82,6 +85,7 @@
 <li><a href="#prefix-list-filter">Prefix-List Filter</a></li>
 <li><a href="#irr-prefix-list-filter">IRR Prefix-List Filter</a></li>
 <li><a href="#as-path-filter">AS-Path Filter</a></li>
+<li><a href="#reject-asn-filter">Reject-ASN Filter</a></li>
 <li><a href="#community-match-filter">Community Match Filter</a></li>
 <li><a href="#route-attribute-modifier">Route Attribute Modifier</a></li>
 </ol></li>
@@ -405,6 +409,12 @@ Router ID, <code>always</code>, or <code>never</code>), <code>stability-interval
 seconds, <code>0..65535</code>, default 40), and <code>default-originate</code> (originate a Type 7
 default into the NSSA). In <code>address-family ipv6</code>, the area entry currently
 selects only <code>area-type</code>.</p>
+<p><code>default-originate</code> is an internal-router leaf. An NSSA border router originates
+the default RFC 3101 requires whatever the leaf says, so setting it there changes
+nothing, and it is inert in an area that also sets <code>no-summary true</code> because RFC
+3101 section 1.3 makes an internal router's Type 7 default and the no-summary
+option mutually exclusive. The two leaves together validate and load; the area
+takes its default from the border router's summary-LSA.</p>
 <pre><code>ospf {
     router-id 10.0.0.1
     areas {
@@ -413,12 +423,10 @@ selects only <code>area-type</code>.</p>
         }
         area 0.0.0.9 {
             area-type nssa
-            no-summary true
             default-cost 20
             nssa {
                 translate-role candidate
                 stability-interval 40
-                default-originate true
             }
         }
     }
@@ -496,7 +504,9 @@ is one of <code>simple</code>, <code>md5</code>, or <code>hmac-sha-1/256/384/512
 <!-- source: internal/plugins/ospf/auth_keystore.go -- configure, decodeSecret -->
 <p>Redistribution and default-route origination make the router an ASBR. The <code>ospf</code>
 container sets the per-source external metric, metric-type (<code>type-1</code>/<code>type-2</code>),
-and route tag, and configures <code>default-information originate</code>. The shared
+and route tag, and configures <code>default-information originate</code>. A redistributed
+route that carries its own tag, such as a static route with a <code>tag</code> leaf,
+overrides the per-source tag; a route with no tag takes the per-source value. The shared
 top-level <code>redistribute</code> block enrols the actual route flow: <code>destination ospf</code>
 imports routes as OSPFv2 Type 5 LSAs for IPv4, OSPFv3 AS-External-LSAs for
 normal IPv6 areas, or OSPFv3 NSSA-LSAs for attached IPv6 NSSA areas.
@@ -640,8 +650,13 @@ delivered to a new peer.</p>
 <td class="cell-no">✕</td>
 </tr>
 <tr>
-<td><code>port</code></td>
-<td>TCP port</td>
+<td><code>remote { port }</code></td>
+<td>Port Ze dials to reach the peer</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td><code>local { port }</code></td>
+<td>Port Ze listens on for this peer, on a listener of its own. Ze binds no source port on an outbound connection, so the value applies to the listener alone</td>
 <td class="cell-no">✕</td>
 </tr>
 <tr>
@@ -666,7 +681,7 @@ delivered to a new peer.</p>
 </tr>
 <tr>
 <td><code>rs-fast-path</code></td>
-<td>Enable reactor-native RS forwarding (bypasses plugin dispatch for UPDATE forwarding)</td>
+<td>Enable reactor-native RS forwarding (bypasses plugin dispatch for UPDATE forwarding). A destination peer that carries an ACTIVE export filter is excluded from this path, and the <code>bgp-rs</code> plugin relays to it instead, so both peers must name that plugin in an <code>attach process</code> block or the peer receives nothing</td>
 <td class="cell-no">✕</td>
 </tr>
 <tr>
@@ -725,9 +740,80 @@ question.</p>
 </tbody>
 </table>
 <p>Set both and the outbound result is <code>replace-as</code>.</p>
-<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- secondaryPrependAS -->
+<p>The table holds for every route this peer receives, whether Ze learned it from
+another neighbor or originated it itself. The two paths build the AS_PATH in
+different places and both read the same rule.</p>
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- secondaryPrependAS, localASPrependFor -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- announceASPathASNs, buildBatchASPathAttr -->
 <!-- source: internal/component/bgp/reactor/config.go -- parsePeerSettings, local-options -->
 <!-- source: test/plugin/bgp-local-as-options.ci -- the AS_PATH each option puts on the wire -->
+<h2 id="internal-as-migration-rfc-7705-section-42">Internal AS Migration (RFC 7705 Section 4.2)</h2>
+<p>The leaves above move an EXTERNAL session onto a legacy AS. <code>migration</code> does the
+same job for an INTERNAL one, and it works differently: it does not change the
+AS_PATH at all. It lets one iBGP session run under either of two AS numbers
+while a router is renumbered, so the sessions to that router do not all have to
+be reconfigured in one maintenance window.</p>
+<pre><code>bgp {
+    session {
+        asn { local 64500; }         // the ASN the router keeps
+    }
+    group route-reflector-clients {
+        session {
+            asn {
+                migration 64510      // the ASN being retired
+            }
+        }
+        peer already-renumbered {
+            session { asn { remote 64500; } }
+        }
+        peer still-on-the-legacy-asn {
+            session { asn { remote 64510; } }
+        }
+    }
+}
+</code></pre>
+<p>The leaf sits in the same container as <code>local</code> and <code>remote</code>, so a group states
+it once and every peer in the group inherits it. A peer that states its own
+<code>migration</code> replaces the group's value rather than adding to it.</p>
+<p>Three behaviors follow, and each is the RFC's:</p>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Answer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Which OPEN does Ze accept?</td>
+<td>One whose My Autonomous System carries the local ASN or the <code>migration</code> ASN. Any other AS is refused with OPEN Message Error subcode 2, Bad Peer AS</td>
+</tr>
+<tr>
+<td>Which OPEN does Ze send?</td>
+<td>The local ASN first. Ze opens with the <code>migration</code> ASN only after the peer answers Bad Peer AS, which is what stops two speakers that both run the mechanism from deadlocking on each other</td>
+</tr>
+<tr>
+<td>How is the session treated?</td>
+<td>As native iBGP whichever ASN won: no eBGP AS_PATH prepend, the RFC 4456 reflection rules, and the RFC 7606 internal branch</td>
+</tr>
+</tbody>
+</table>
+<p><code>remote</code> must name the local ASN or the <code>migration</code> ASN. Ze refuses a config
+where it names a third AS, because RFC 7705 Section 4.2 describes an internal
+session and a third AS describes an external peer. Ze also refuses a <code>migration</code>
+equal to <code>local</code>, which reads as the mechanism being on while widening nothing.</p>
+<p>Remove the leaf when the migration ends. RFC 7705 Section 5 asks for exactly
+that: the mechanism is meant for days to months, not indefinitely.</p>
+<p><strong>Setting <code>migration</code> tightens one behavior for every peer, not just this one.</strong>
+Ze now compares the AS a peer advertises against the AS it is configured for, on
+every session. A peer whose <code>remote</code> was mistyped used to establish anyway and
+now receives Bad Peer AS. That is what makes "accept either ASN" mean something,
+and it is a change an operator with a wrong <code>remote</code> will notice. A dynamic
+group states no <code>remote</code>, so its members are exempt until they configure
+<code>migration</code>, which supplies two ASNs to check against.</p>
+<!-- source: internal/component/bgp/reactor/session_as_migration.go -- peerASAccepted, isIBGPWith, openLocalAS, setMigrationAS -->
+<!-- source: internal/component/bgp/reactor/session_open_as.go -- validateOpenPeerAS -->
+<!-- source: internal/component/bgp/reactor/config.go -- parsePeerSettings, migration -->
 <h2 id="blackhole-honoring-rfc-7999">Blackhole Honoring (RFC 7999)</h2>
 <p>A peer can ask Ze to discard the traffic for a prefix. It does this by tagging
 the announcement with the BLACKHOLE community, 65535:666. Ze installs a discard
@@ -847,18 +933,18 @@ one <code>blackhole</code> container for all of its members:</p>
 BLACKHOLE community to. RFC 7999 Section 3.1 requires the two networks to agree
 on use of the community before it is advertised, and naming it on the peer is
 Ze's half of that agreement.</p>
-<p><code>announce blackhole &lt;prefix&gt;</code> reaches only the sessions whose resolved list holds
+<p><code>send bgp &lt;sel&gt; blackhole &lt;prefix&gt;</code> reaches only the sessions whose resolved list holds
 65535:666, under either spelling, which includes a session configured with
 <code>prefixes</code> alone. A peer with no <code>blackhole</code> block, or one that named only
 its own value such as <code>65001:666</code>, is left OUT of the announcement. It is not
 sent the prefix untagged: an ordinary announcement of a host route under attack
 attracts the traffic the operator asked to have discarded. When no selected peer
 has agreed, the command fails and names the peers that have not.</p>
-<p><code>announce unicast &lt;prefix&gt; community 65535:666</code> meets the same gate, because the
+<p><code>send bgp &lt;sel&gt; unicast &lt;prefix&gt; community 65535:666</code> meets the same gate, because the
 obligation is about the community rather than the verb. Any other community is
 untouched.</p>
 <p>To advertise your own RTBH value to a peer, name that value on the announcement:</p>
-<pre><code>announce unicast 192.0.2.1/32 community 65001:666
+<pre><code>send bgp * unicast 192.0.2.1/32 community 65001:666
 </code></pre>
 <h3 id="a-blackhole-on-a-community-ze-does-not-read">A blackhole on a community Ze does not read</h3>
 <p>The knob above answers the standard case. For anything else, a policy modifier
@@ -1122,13 +1208,16 @@ same UPDATE whole, and both send the same NOTIFICATION under <code>teardown true
 proportion to what the peer sends, bounded by <code>maximum</code> when one is configured.
 <code>offered</code> keeps a number.</p>
 <blockquote>
-<p><strong><code>offered</code> can be driven below the routes Ze holds.</strong> A withdrawal for a
-prefix the peer never announced still lowers the count, so a peer sending N of
-them frees N slots that Ze is still using and the Adj-RIB-In can then pass the
-maximum. <code>installed</code> is immune: a withdrawal of a prefix that is not in the set
-removes nothing. This is recorded in
-<code>plan/deferrals/fixit-bgp-per-family-prefix-enforcement.md</code> and is not yet
-fixed.</p>
+<p><strong><code>offered</code> counts announcements minus withdrawals, not what the peer holds.</strong>
+A withdrawal for a prefix the peer never announced still lowers the count, so a
+peer sending N of them frees N slots Ze is still using, and the Adj-RIB-In can
+then pass the maximum. Ze accepts this: RFC 4271 Section 9 scopes the receiver's
+obligation to previously advertised routes, so a withdrawal naming anything else
+removes nothing and the RFC prescribes no counting rule for it (owner ruling,
+2026-09-03, recorded above <code>applyPrefixDelta</code>). State <code>count installed</code> for the
+family when the maximum must bound the RIB against a peer that breaks that rule:
+it counts a set, so a withdrawal of something the set does not hold moves
+nothing.</p>
 </blockquote>
 <h4 id="after-a-prefix-teardown-the-peer-stays-down">After a prefix teardown, the peer stays down</h4>
 <p>A session stopped by a prefix limit does not come back on its own. The peer
@@ -1248,6 +1337,43 @@ dump.</p>
 <p>Use <code>resolve peeringdb max-prefix &lt;asn&gt;</code> to look up prefix limits, then apply them via the config editor.</p>
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- prefix limit enforcement; internal/component/bgp/yang/ze-bgp-conf.yang -- prefix config -->
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- peeringdb config -->
+<h3 id="rir-delegation-sources">RIR Delegation Sources</h3>
+<p><code>update resolve rir</code> refreshes the ASN-to-registry table from the five registry
+delegation files. Name a URL per registry to read a mirror instead:</p>
+<pre><code>system {
+    rir {
+        delegation-source ripencc { url "https://mirror.example.com/delegated-ripencc-extended-latest"; }
+        delegation-source arin { url "https://mirror.example.com/delegated-arin-extended-latest"; }
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>delegation-source &lt;registry&gt;</code></td>
+<td>the registry's own file</td>
+<td>One block per registry, keyed by <code>ripencc</code>, <code>arin</code>, <code>apnic</code>, <code>afrinic</code> or <code>lacnic</code>.</td>
+</tr>
+<tr>
+<td><code>url</code></td>
+<td>none</td>
+<td>Where that registry's delegation file is read from. HTTPS, or plain HTTP when the host is the router itself.</td>
+</tr>
+</tbody>
+</table>
+<p>A registry with no block is read from the file it publishes, so mirroring one
+blocked registry takes one block rather than five. The sources are read when
+<code>update resolve rir</code> runs, so a block committed after startup needs no restart,
+and the stored table records the URLs that run read.</p>
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system/rir/delegation-source -->
+<!-- source: internal/component/config/validators.go -- ValidateFetchURL -->
 <h2 id="hardware-tuning">Hardware Tuning</h2>
 <p>Ze can apply hardware tuning at startup and on config commit. Tuning operations are Linux-only and require root or <code>CAP_SYS_ADMIN</code>.</p>
 <pre><code>system {
@@ -1296,6 +1422,65 @@ dump.</p>
 <p>Tuning is idempotent: only changed parameters are written. Write failures are reported but do not block the config commit. On non-Linux platforms the tuning block is accepted but no operations are applied.</p>
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- tuning config -->
 <!-- source: internal/component/host/tuning.go -- ApplyTuning engine -->
+<h2 id="kernel-crash-capture">Kernel Crash Capture</h2>
+<p>A Go panic is already captured and listed by <code>show crashes</code>. A kernel panic is
+the uncovered case: the running kernel is gone, the appliance root is read-only
+SquashFS, and there is no shell to run a post-mortem from. The operator gets a
+reboot and no evidence.</p>
+<p>This block asks the kernel to write its own panic message and backtrace into a
+reserved memory region that a warm reboot does not clear. Ze reads the record on
+the next healthy boot and stores it as an ordinary crash report.</p>
+<pre><code>system {
+    crash-dump {
+        enabled true;
+        reserve 16;
+        memory-image {
+            enabled false;
+            reserve 256;
+        }
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>crash-dump/enabled</code></td>
+<td>Store the kernel panic record as a crash report at the next boot (default <code>false</code>)</td>
+</tr>
+<tr>
+<td><code>crash-dump/reserve</code></td>
+<td>Memory the kernel reserves for the record, in megabytes, 4 to 256 (default 16)</td>
+</tr>
+<tr>
+<td><code>crash-dump/memory-image/enabled</code></td>
+<td>Also capture a full memory image (default <code>false</code>, amd64 only)</td>
+</tr>
+<tr>
+<td><code>crash-dump/memory-image/reserve</code></td>
+<td>Memory reserved for the capture kernel, in megabytes, 64 to 1024 (default 256)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The commit records intent. The next boot arms it.</strong> The reservation is a kernel
+boot argument, so this block on its own changes nothing about the running
+kernel. Build the appliance image with <code>image.crash-dump</code> set (see
+<code>docs/guide/appliance.md</code>) and reboot. Until then <code>show crashes</code> reports
+<code>configured: true</code> and <code>armed: false</code> with the reason, and <code>ze doctor</code> raises
+<code>doctor-crash-capture-unarmed</code>.</p>
+<p><code>memory-image</code> is refused at commit on any architecture other than amd64,
+because the image is written by a kexec-staged capture kernel that Ze stages
+nowhere else. Where the architecture allows it, the readiness block reports it
+as unarmed with the shortfall in bytes until the crash directory has room for an
+image sized to the target's RAM.</p>
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- crash-dump config -->
+<!-- source: internal/component/config/system/crashdump.go -- extraction and the intent it produces -->
+<!-- source: internal/component/config/validators.go -- crashMemoryImageValidator, the architecture refusal -->
 <h2 id="process-bindings">Process Bindings</h2>
 <p>A peer attaches a program in an <code>attach process</code> block. The block names a
 plugin and states the relationship in two directions: <code>receive</code> is what the
@@ -1402,12 +1587,13 @@ config block governs both behaviors. The producer side (per-protocol route-
 change events) lives in each protocol component; the orchestrator
 (<code>redistribute-orchestrator</code>) enumerates non-consumer producers at startup and subscribes.</p>
 <p>The orchestrator auto-loads when <code>redistribute {}</code> is present in the
-config (it claims <code>ConfigRoots: ["redistribute"]</code>). No <code>plugin { external redistribute-orchestrator { ... } }</code> block is required. The intra-BGP
-IngressFilter rides the registry's filter chain at init time and needs no
-plugin spin-up.</p>
+config (it claims <code>ConfigRoots: ["redistribute"]</code>). No <code>plugin { external redistribute-orchestrator { ... } }</code> block is required. No ingress filter reads
+the <code>redistribute</code> block: a rule states which routes move BETWEEN protocols, and
+gating BGP's own Adj-RIB-In on one dropped every received route, so the
+<code>bgp-redistribute</code> ingress plugin was removed.</p>
 <!-- source: internal/component/config/redistribute/evaluator.go -- shared Global evaluator -->
 <!-- source: internal/component/config/redistribute/consumer.go -- consumer registry -->
-<!-- source: internal/component/bgp/plugins/redistribute_ingress/filter.go -- ingress ACL consumer -->
+<!-- source: internal/component/plugin/all/ingress_redistribution_test.go -- no registered ingress filter drops an UPDATE for the redistribute block -->
 <!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- orchestrator -->
 <h3 id="prefix-list-filter">Prefix-List Filter</h3>
 <p>Named prefix-list filters live under <code>bgp { policy { prefix-list NAME { ... } } }</code>
@@ -1603,6 +1789,103 @@ using Go RE2 (linear time, inherently ReDoS-safe). Use <code>[0-9]</code> instea
 </code></pre>
 <!-- source: internal/component/bgp/plugins/filter_aspath/yang/ze-filter-aspath.yang -- as-path-list YANG container -->
 <!-- source: internal/component/bgp/plugins/filter_aspath/config.go -- parseAsPathLists -->
+<h3 id="reject-asn-filter">Reject-ASN Filter</h3>
+<p>Named reject-asn lists live under <code>bgp { policy { reject-asn NAME { ... } } }</code>.
+A list names the ASNs that must not appear in the AS_PATH of a route exchanged
+with a peer, and the keyword each ASN is written under says where in the path it
+is unacceptable. A route matching any of them is rejected and the session stays
+up.</p>
+<pre><code>bgp {
+    policy {
+        reject-asn NO-TRANSIT {
+            indirect [ 174 3356 ]
+            origin [ 65535 ]
+        }
+        reject-asn SHAPES {
+            regex [ "^3356 174 " ]
+        }
+    }
+
+    peer peer-a {
+        filter {
+            import [ NO-TRANSIT ]
+            export [ NO-TRANSIT ]
+        }
+    }
+}
+</code></pre>
+<p>A list carries seven keywords.</p>
+<table>
+<thead>
+<tr>
+<th>Keyword</th>
+<th>Rejects the ASN where it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>direct</code></td>
+<td>the peer you are talking to, prepends collapsed</td>
+</tr>
+<tr>
+<td><code>indirect</code></td>
+<td>anywhere it is NOT that peer: transit plus origin</td>
+</tr>
+<tr>
+<td><code>transit</code></td>
+<td>past the peer and not the last</td>
+</tr>
+<tr>
+<td><code>origin</code></td>
+<td>the last: it announced the route</td>
+</tr>
+<tr>
+<td><code>anywhere</code></td>
+<td>at any position</td>
+</tr>
+<tr>
+<td><code>nth &lt;n&gt;</code></td>
+<td>at collapsed position n, counted from you, 1-based</td>
+</tr>
+<tr>
+<td><code>regex</code></td>
+<td>matched by a Go RE2 pattern over the whole space-separated AS-path string</td>
+</tr>
+</tbody>
+</table>
+<p>Six of them are plain leaf-lists. <code>nth</code> takes a number, so it is written
+<code>nth 2 [ 3491 ];</code>. The ASN leaf-lists are <code>uint32</code> and an <code>nth</code> index is bounded
+1..255, so a word written where a number belongs and an index outside the range
+are both refused by the schema. Also refused at load: a list that names nothing
+at all, an <code>nth</code> entry with no ASN, a pattern that does not compile, and a
+pattern longer than 512 characters.</p>
+<p><code>nth</code> counts RUNS, not tokens: a run of consecutive identical ASNs advances the
+count once, wherever it sits. Otherwise a peer could move your rule by
+prepending.</p>
+<p><code>direct</code> means the peer that SENT the route, prepends collapsed, and not the
+first ASN in the path. <code>nth 1</code> is the positional question instead: in
+<code>[3356 65001]</code> from AS65001, 3356 is at <code>nth 1</code> and is not <code>direct</code>. <code>indirect</code>
+is the everyday choice: reject a route you reached THROUGH one of these ASNs,
+while peering with one of them directly stays fine. An export chain is told the
+destination peer rather than the sender, so nothing is <code>direct</code> there and
+<code>indirect</code> covers the whole path.</p>
+<p>The same ASN under two keywords unions rather than replacing, so <code>indirect</code> plus
+<code>direct</code> is <code>anywhere</code>. A chain names a list by its bare name, or as
+<code>reject-asn:NAME</code>, or as <code>bgp-filter-path-asn:NAME</code>.</p>
+<p>In the config editor, Tab inside a <code>reject-asn</code> list offers all seven keywords
+with what each one covers, and Tab on any ASN leaf-list offers the well-known
+transit-free ASNs with their network names. <strong>Both are suggestions and neither is a constraint:</strong> every
+uint32 is accepted, including an ASN Ze has never heard of. Ze ships no ASN set
+that any filter reads, so a network dropped from that list keeps working and a
+network added to it changes nothing until you type the number.</p>
+<p>To get the well-known set into a config without typing 15 numbers, run
+<code>show bgp reject-asn known transit-free</code>. It prints one <code>indirect [ ... ];</code> line to
+paste inside a <code>reject-asn</code> list, with the sources and the curated date as
+comments. <code>show bgp reject-asn</code> then lists what each configured list holds, with
+the network name for each ASN it recognizes.</p>
+<!-- source: internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn.yang -- reject-asn YANG container -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/config.go -- parseRejectASNLists, positionsByKey -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/curated.go -- curatedTransitFree -->
 <h3 id="community-match-filter">Community Match Filter</h3>
 <p>Named community-match filters live under <code>bgp { policy { community-match NAME { ... } } }</code>.
 Each entry checks for presence of a specific community value in the route's
@@ -1704,6 +1987,24 @@ leaves the pipe.</p>
 </tr>
 </tbody>
 </table>
+<p><code>increment</code> and <code>decrement</code> compute from the value the route carries. When the
+route carries none, they start from <code>bgp { defaults { attribute { } } }</code>:</p>
+<pre><code>bgp {
+    defaults {
+        attribute {
+            med              0;
+            local-preference 100;
+        }
+    }
+}
+</code></pre>
+<p>Those are the values without the block, and each leaf takes 0 to 4294967295.
+They govern this arithmetic alone. A changed <code>med</code> does not move the Decision
+Process, which compares an absent MULTI_EXIT_DISC as 0 whatever the leaf holds.
+There is no <code>aigp</code> leaf, because RFC 7311 Section 4.1 removes a route with no
+AIGP TLV from consideration rather than scoring it. The full table is
+<a href="../plugins/#route-attribute-modifier-bgp-filter-modify">Route Attribute Modifier</a>.</p>
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- container defaults -->
 <p><code>del { med; }</code> is the mechanism RFC 4271 Section 5.1.4 requires a speaker to
 implement. It takes effect on an <code>import</code> chain only. That section requires the
 removal before Decision Process phases 1 and 2, and the import chain is the only
@@ -1860,21 +2161,24 @@ feature set; this release wires the component, config, and circuits.</p>
 TLS, and other certificate-based features.</p>
 <pre><code>pki {
     ca &lt;name&gt; {
-        certificate &lt;base64-DER&gt;
+        certificate "&lt;PEM or base64-DER&gt;"
     }
     certificate &lt;name&gt; {
-        certificate &lt;base64-DER&gt;
-        intermediate &lt;base64-DER&gt;        # optional intermediate CA
+        certificate  "&lt;PEM or base64-DER&gt;"
+        intermediate "&lt;PEM or base64-DER&gt;"   # optional intermediate CA
         private {
-            key $9$...                   # auto-encoded via ze:sensitive
+            key $9$...                       # auto-encoded via ze:sensitive
         }
     }
 }
 </code></pre>
+<p>Each value is a PEM document, quoted so its line breaks are kept, or the same
+material as base64-encoded DER on one line. Paste what a tool prints: a value
+that opens <code>-----BEGIN</code> is read as PEM.</p>
 <p>CA certificates are trusted roots for chain validation. Device certificates
 include the certificate itself and optionally a private key (PKCS8, SEC1/ECDSA,
-or PKCS1/RSA in base64-encoded DER). Private keys use <code>$9$</code> sensitive encoding
-and are never shown in CLI output.</p>
+or PKCS1/RSA). Private keys use <code>$9$</code> sensitive encoding and are never shown in
+CLI output.</p>
 <p>Chain validation runs at config load: device certificates must chain to a loaded
 CA. Expired certificates are rejected with a descriptive error.</p>
 <!-- source: internal/component/pki/yang/ze-pki-conf.yang -- PKI YANG schema -->
@@ -2097,19 +2401,58 @@ hardware-assigned one); when set it must be unique within each type. <code>mac {
 NIC can be matched by its permanent MAC and have its operational MAC overridden at the same
 time. Names are descriptive labels chosen by the operator; <code>mac { address }</code> ties the named
 config entry to a specific operational hardware address.</p>
+<p>An override is applied to whichever device the entry resolves to, on every apply. So an
+entry that carries <code>mac { address }</code> and reaches its device <strong>by name</strong> writes that address
+onto a different NIC the first time the kernel gives the name to another port. <code>ze doctor</code>
+reports that shape as <code>doctor-iface-mac-override-by-name</code>, at warning severity. Adding
+<code>mac { match }</code> against the NIC's permanent address clears it: the override then follows
+the NIC it was written for. Discovery writes no override on an ethernet for this reason.</p>
+<!-- source: internal/component/doctor/checks_linux.go -- macOverrideBoundByName -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfig, SetMACAddress -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- unique "mac/address", container mac -->
 <h3 id="discovery-during-init">Discovery During Init</h3>
 <p>Running <code>ze init</code> discovers OS interfaces via netlink (Linux) or stdlib (other platforms)
 and writes initial config to <code>ze.conf</code>. Each discovered interface gets an entry named
-after its OS name, with <code>mac { address }</code> populated and the <code>os-name</code> selector recording
-the original OS device name (so renaming the config entry still maps back to the kernel
-device). Loopback appears as an empty <code>loopback { }</code> container.</p>
+after its OS name, carrying one selector that binds it back to the device:</p>
+<table>
+<thead>
+<tr>
+<th>Discovered kind</th>
+<th>Selector written</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ethernet reporting a factory address</td>
+<td><code>mac { match &lt;permanent MAC&gt; }</code></td>
+</tr>
+<tr>
+<td>Ethernet reporting none</td>
+<td><code>os-name &lt;OS device name&gt;</code></td>
+</tr>
+<tr>
+<td>Bridge, veth, dummy</td>
+<td><code>mac { address &lt;MAC&gt; }</code> and <code>os-name &lt;OS device name&gt;</code></td>
+</tr>
+</tbody>
+</table>
+<p>Loopback appears as an empty <code>loopback { }</code> container.</p>
+<p>A discovered ethernet gets <strong>no</strong> <code>mac { address }</code> override. That leaf imposes an address
+on whatever device the entry resolves to, so an entry that binds by name and carries one
+writes this NIC's address onto a different NIC the first time the kernel gives the name to
+another port. Writing the factory address back also does nothing in the healthy case,
+because it is the address the NIC already has. The created kinds keep the override: there
+it is an instruction, and it pins the kernel's random choice across a recreate.</p>
+<p>The same selectors are written by the appliance's first boot, which merges the config
+template with its own on-device discovery.</p>
 <p>The <code>--seed</code> flag skips this discovery entirely: an appliance-image seed database must not
 bake the build host's interfaces into the active config (they belong to the wrong machine
 and would shadow the appliance's first-boot template). The appliance discovers its own
 interfaces at first boot instead.</p>
 <!-- source: internal/plugins/init/main.go -- runInit interface discovery, seedFlag -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
+<!-- source: internal/component/iface/emit.go -- matchMACFor, emitSelectorBlock, emitSelectorSet -->
+<!-- source: cmd/ze/ze_core_start.go -- bootstrapConfigFromTemplate, bootstrapFromDiscovery -->
 <h3 id="example">Example</h3>
 <pre><code>interface {
     ethernet uplink {
@@ -2245,8 +2588,27 @@ restored.</p>
 <p>The leaf defaults to 254. A default route ze learns from the network (a DHCP lease,
 a PPPoE session) is installed at that metric, so it ranks below a static route and
 below every route a routing protocol produces. The number matches the order
-<code>rib admin-distance</code> uses for protocols: connected 0, static 10, ebgp 20, ospf 110,
-isis 115, ibgp 200. It is also the administrative distance a Cisco IOS DHCP client
+<code>rib distance</code> uses for protocols: connected 0, static 10, ebgp 20, ospf 110,
+isis 115, ibgp 200. Those six are declared in one place and every protocol reads
+its own from there:</p>
+<pre><code>rib {
+    distance {
+        connected 0;
+        static 10;
+        ebgp 20;
+        ospf 110;
+        isis 115;
+        ibgp 200;
+    }
+}
+</code></pre>
+<p>The block is optional and the values above apply whether or not you write it.
+Administrative distance ranks one protocol against another for the same prefix,
+and the lower value wins; it is not an IGP metric and not the IGP distance to a
+next hop. Only <code>connected</code> accepts 0, because 0 is the best possible value and a
+protocol set to it would beat a directly connected route. <code>admin-distance</code> was
+the former spelling, and a config still using it is refused with a message
+naming the replacement. It is also the administrative distance a Cisco IOS DHCP client
 gives the default route it learns, which is the same ranking decision on another
 vendor. That distance is not a Linux metric, and ze does not read it: 254 is the
 metric ze writes to the kernel.
@@ -3171,6 +3533,7 @@ is unavailable.</p>
 <h2 id="environment-block">Environment Block</h2>
 <p>Global settings outside BGP:</p>
 <pre><code>environment {
+    hide-version true;     # keep X-Ze-Version off every HTTP response
     tcp {
         attempts 3;        # connection retry attempts
     }
@@ -3186,6 +3549,13 @@ is unavailable.</p>
     }
 }
 </code></pre>
+<p>The <code>hide-version</code> leaf keeps the <code>X-Ze-Version</code> response header off the web
+interface and the looking glass together. The header names the release, the git
+commit, the Go version and the OS, so it tells a client the exact build it
+speaks to. The default is <code>false</code>: the banner stays until you hide it, and a
+tool that reads it continues to operate. Ze reads the leaf at startup, so a new
+value applies at the next daemon start. No other header changes, and Ze sends no
+<code>Server</code> header at all.</p>
 <p>The <code>cli { format { default } }</code> leaf controls the output format when no explicit
 pipe operator is specified. The default is <code>text</code>. Override per-session with
 <code>set cli format &lt;value&gt;</code> in operational mode; explicit pipe operators always win.</p>
@@ -3196,28 +3566,35 @@ output to <code>$XDG_DATA_HOME/ze/transcripts/</code> (defaults to
 timestamp, username, and remote host. Transcript writes are best-effort and
 never block CLI operation. Default is <code>disabled</code>.</p>
 <!-- source: internal/component/config/environment.go -- environment block parsing; internal/core/slogutil/slogutil.go -- log level config -->
+<!-- source: internal/core/version/version.go -- HTTPHeaderHidden, the leaf both HTTP servers read -->
 <!-- source: internal/component/command/pipe.go -- configuredDefault -->
 <!-- source: internal/component/cli/transcript.go -- TranscriptWriter, TranscriptEnabled -->
 <h3 id="tls-certificates-from-the-pki-store">TLS Certificates From the PKI Store</h3>
-<p>Three TLS listeners can serve a certificate held in the <code>pki {}</code> store instead
-of a self-signed one: the web/API HTTPS listener, and the DoT/DoH listeners of
-the as112 and geodns services. Each has a <code>certificate</code> leaf that names a
-<code>pki { certificate &lt;name&gt; }</code> entry.</p>
+<p>Four TLS listeners can serve a certificate held in the <code>pki {}</code> store instead
+of a self-signed one: the web/API HTTPS listener, the looking glass, and the
+DoT/DoH listeners of the as112 and geodns services. Each has a <code>certificate</code>
+leaf that names a <code>pki { certificate &lt;name&gt; }</code> entry. The web listener and the
+looking glass have one leaf each, so each serves the certificate that matches
+its own hostname.</p>
 <pre><code>pki {
     ca corp-ca {
-        certificate &lt;base64-DER&gt;;
+        certificate "&lt;PEM or base64-DER&gt;";
     }
     certificate lan {
-        certificate &lt;base64-DER&gt;;
-        intermediate &lt;base64-DER&gt;;
+        certificate  "&lt;PEM or base64-DER&gt;";
+        intermediate "&lt;PEM or base64-DER&gt;";
         private {
-            key &lt;base64-DER&gt;;
+            key "&lt;PEM or base64-DER&gt;";
         }
     }
 }
 
 environment {
     web {
+        enabled true;
+        certificate lan;
+    }
+    looking-glass {
         enabled true;
         certificate lan;
     }
@@ -3250,7 +3627,11 @@ no intermediate serves the leaf alone.</p>
 </tr>
 <tr>
 <td>Fail closed</td>
-<td>A <code>certificate</code> that names no store entry, or names one with no <code>private { key }</code>, stops the listener. ze never falls back to a self-signed certificate for a name the operator configured. Web: the daemon refuses to start, and a reload naming a bad certificate is rejected. DoT/DoH: the secure listeners do not start, the error is logged, and cleartext DNS is unaffected.</td>
+<td>A <code>certificate</code> that names no store entry, or names one with no <code>private { key }</code>, stops the listener. ze never falls back to a self-signed certificate for a name the operator configured. Web and looking glass: the daemon refuses to start, and a reload naming a bad certificate is rejected. DoT/DoH: the secure listeners do not start, the error is logged, and cleartext DNS is unaffected.</td>
+</tr>
+<tr>
+<td>Plaintext</td>
+<td>A listener with TLS off presents no certificate, so its <code>certificate</code> leaf is inert. <code>looking-glass { tls false }</code> with a <code>certificate</code> starts and reloads with the name unread, rather than failing over a name nothing serves.</td>
 </tr>
 <tr>
 <td>Mutually exclusive</td>
@@ -3262,7 +3643,7 @@ no intermediate serves the leaf alone.</p>
 </tr>
 <tr>
 <td>Rotation</td>
-<td>Changing the referenced certificate's material and reloading rotates it live. The web listener serves the new chain from the next handshake without rebinding, so open SSE streams survive. DoT/DoH rebind, because their listener signature folds in the certificate fingerprint.</td>
+<td>Changing the referenced certificate's material and reloading rotates it live. The web listener and the looking glass serve the new chain from the next handshake without rebinding, so an open SSE stream and a viewer's open connection both survive. DoT/DoH rebind, because their listener signature folds in the certificate fingerprint.</td>
 </tr>
 <tr>
 <td>One commit</td>
@@ -3270,7 +3651,11 @@ no intermediate serves the leaf alone.</p>
 </tr>
 <tr>
 <td>Env override</td>
-<td><code>ze.web.certificate</code> sets the web certificate and takes precedence over the config file.</td>
+<td><code>ze.web.certificate</code> and <code>ze.looking-glass.certificate</code> set their listener's certificate and take precedence over the config file.</td>
+</tr>
+<tr>
+<td>Blob storage</td>
+<td>A named certificate comes from the <code>pki {}</code> container, so the looking glass serves one on a deployment that never ran <code>ze init</code>. Its blob store holds the self-signed certificate only. The web server needs blob storage whatever it serves, because its credentials and config live there.</td>
 </tr>
 <tr>
 <td>Pre-flight</td>
@@ -3281,8 +3666,9 @@ no intermediate serves the leaf alone.</p>
 <p>An external geodns plugin process cannot read the in-process store: a
 <code>certificate</code> reference there fails loudly and the secure listeners stay down.</p>
 <!-- source: internal/component/pki/tls.go -- ServerTLSMaterial, CheckCertReference -->
-<!-- source: cmd/ze/hub/service_web.go -- webTLSMaterial (fail-closed selection) -->
-<!-- source: cmd/ze/hub/listener_migrate.go -- updateWebCertificate (rotation seam) -->
+<!-- source: cmd/ze/hub/service_tls.go -- listenerTLSMaterial (fail-closed selection, both listeners) -->
+<!-- source: internal/component/lg/yang/ze-lg-conf.yang -- leaf certificate -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- updateWebCertificate, updateLGCertificate (one rotation seam per listener) -->
 <!-- source: internal/core/dnsserver/secure.go -- SecureConfig.Certificate, buildSecureTLS resolver branch -->
 <h3 id="named-listeners">Named Listeners</h3>
 <p>Every service that accepts inbound connections models its listen endpoints
@@ -3700,7 +4086,7 @@ offset exceeds the cap are rejected and logged.</p>
 </tr>
 <tr>
 <td><code>subnet &lt;prefix&gt;</code></td>
-<td>list</td>
+<td>IPv4 prefix</td>
 <td>(none)</td>
 <td>Subnet with address pool and options.</td>
 </tr>
@@ -3712,13 +4098,13 @@ offset exceeds the cap are rejected and logged.</p>
 </tr>
 <tr>
 <td><code>range &lt;name&gt;.start</code></td>
-<td>string</td>
+<td>IPv4 address</td>
 <td>(none)</td>
 <td>First allocatable address.</td>
 </tr>
 <tr>
 <td><code>range &lt;name&gt;.stop</code></td>
-<td>string</td>
+<td>IPv4 address</td>
 <td>(none)</td>
 <td>Last allocatable address.</td>
 </tr>
@@ -3730,13 +4116,13 @@ offset exceeds the cap are rejected and logged.</p>
 </tr>
 <tr>
 <td><code>default-router</code></td>
-<td>string</td>
+<td>IPv4 address</td>
 <td>(none)</td>
 <td>Default gateway (option 3).</td>
 </tr>
 <tr>
 <td><code>dns-server</code></td>
-<td>leaf-list</td>
+<td>leaf-list of IPv4 address</td>
 <td>(none)</td>
 <td>DNS servers (option 6).</td>
 </tr>
@@ -3754,6 +4140,8 @@ offset exceeds the cap are rejected and logged.</p>
 </tr>
 </tbody>
 </table>
+<p>This server speaks DHCPv4. Every address and prefix above must be IPv4, and an
+IPv6 value is refused when the config is validated.</p>
 <p>Multiple named ranges allow disjoint address pools within a single subnet.
 Ranges must not overlap and are allocated in order (first range fills before
 the second is used). Up to 10 ranges per subnet are supported.</p>
@@ -3801,7 +4189,7 @@ architecture from option 93, and responds with the appropriate bootfile.</p>
 </tr>
 <tr>
 <td><code>pxe.tftp-server</code></td>
-<td>string</td>
+<td>IPv4 address</td>
 <td>(none)</td>
 <td>TFTP server IP for PXE boot (option 66, siaddr). Required when enabled.</td>
 </tr>
@@ -4234,15 +4622,32 @@ connections to a remote hub (managed mode).</p>
             host 10.0.0.1;
             port 1791;
             secret "per-client-token-min-32-chars!!!";
-            source-address 198.51.100.1;  // optional: bind outbound hub TLS to this local IP
+            source-address 198.51.100.1;  # optional: bind outbound hub TLS to this local IP
+            ca central-hub-root;          # optional: pki ca entry holding the hub's issuing root
         }
     }
 }
 </code></pre>
 <p>Every ze instance has at least one <code>server</code> block (for local plugins and SSH).
 Secrets must be at least 32 characters. See <a href="../fleet-config/">Fleet Configuration</a> for details.</p>
+<p><code>ca</code> names a <code>pki ca</code> entry, and that entry holds the certificate authority root
+of the hub this client connects to. The client validates the hub's certificate
+chain against that root and refuses any other chain, so it sends its secret to
+no hub it did not authenticate. Run <code>ze show pki local-ca pem</code> on the hub, paste
+what it prints into a <code>pki { ca &lt;name&gt; { certificate "..."; } }</code> block here, and
+name that block from <code>ca</code>. The <code>certificate</code> leaf takes the PEM document as it
+stands, headers and line breaks included, so nothing is edited by hand. Base64
+DER is read too, so a config written before this is unchanged.
+Leave <code>ca</code> unset when a public CA issued the hub certificate:
+the system CA pool is the default. A hub that presents a new certificate after a
+restart still validates, because the anchor is the issuer.</p>
+<p>The <code>certificate-fingerprint</code> leaf this replaces is retired. A config still
+carrying it is refused, and the error names <code>ca &lt;pki-ca-name&gt;</code> as the spelling
+to write instead.</p>
 <!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -- hub YANG schema -->
 <!-- source: internal/component/config/loader_extract.go -- ExtractHubConfig -->
+<!-- source: internal/component/managed/tls.go -- clientTLSConfig -->
+<!-- source: internal/component/config/retired.go -- retiredKeywords -->
 <h2 id="outbound-source-address">Outbound Source Address</h2>
 <p>Operators who deploy Ze behind loopback or management interfaces can pin the
 local source address of a service's outbound connections. When <code>source-address</code>
@@ -4456,7 +4861,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 15:47 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,6 +1,6 @@
 # `show plugins`
 
-Every plugin compiled into this binary, with its families, RFCs, capability codes and the setup outcome its own init() recorded.
+Every plugin compiled into this binary, with its setup outcome.
 
 ## Ze command
 
@@ -18,6 +18,8 @@ Every plugin compiled into this binary, with its families, RFCs, capability code
 - Pipes, local process only: none
 - Command pipes: none
 - Pipe aliases: none
+
+One row is written for each plugin the binary links. The row names the families it registers, the RFCs it implements and the capability codes it negotiates, beside the outcome its own init() recorded and the reason for it.
 
 ## Arguments
 

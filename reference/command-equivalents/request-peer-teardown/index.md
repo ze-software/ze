@@ -20,6 +20,8 @@ Tear down a peer session.
 - Command pipes: none
 - Pipe aliases: none
 
+The subcode is the NOTIFICATION subcode for error code 6 and it takes 0 to 255. Ze sends an RFC 8203 shutdown communication message with subcode 2, administrative shutdown, and with subcode 4, administrative reset, and with no other subcode. The message follows the subcode on the command line, and the answer echoes the truncated text that went on the wire.
+
 ## Arguments
 
 | Name | Type | Required | Values |

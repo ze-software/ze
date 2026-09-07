@@ -215,11 +215,11 @@ sudo systemctl reload ze.service
 <p>The reflector only reflects FlowSpec it <em>receives</em>, so originate the test rule from a peer that announces toward the reflector, not from the reflector itself. The rule below matches TCP traffic to <code>10.0.0.0/8</code> with destination port 80.</p>
 <p>If the source peer (<code>mitigation-upstream</code>, <code>10.0.0.2</code>) is itself a Ze node, announce toward the reflector (<code>10.0.0.1</code>) with the required <code>peer &lt;selector&gt;</code> prefix:</p>
 <pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
-/usr/local/bin/ze cli -c "peer 10.0.0.1 update text extended-community discard nlri ipv4/flow add destination-ipv4 10.0.0.0/8 protocol tcp destination-port =80"
+/usr/local/bin/ze cli -c "send bgp 10.0.0.1 update text extended-community discard nlri ipv4/flow add destination-ipv4 10.0.0.0/8 protocol tcp destination-port =80"
 </code></pre>
 <p>The <code>peer &lt;selector&gt;</code> prefix is required; the update command does not dispatch without it. On a non-Ze source, use that router's FlowSpec origination syntax instead.</p>
 <p>Withdraw it with the same match components:</p>
-<pre><code class="language-bash">/usr/local/bin/ze cli -c "peer 10.0.0.1 update text nlri ipv4/flow del destination 10.0.0.0/8 protocol tcp destination-port =80"
+<pre><code class="language-bash">/usr/local/bin/ze cli -c "send bgp 10.0.0.1 update text nlri ipv4/flow del destination-ipv4 10.0.0.0/8 protocol tcp destination-port =80"
 </code></pre>
 <p>Then confirm <code>edge-a</code> and <code>edge-b</code> received the reflected rule with <code>show rr peers</code> or the client's own FlowSpec table.</p>
 <p>The <code>bgp-rr</code> plugin forwards cached UPDATEs and the reactor applies the route-reflection rules, including source exclusion, client to all, non-client to clients only, <code>ORIGINATOR_ID</code>, <code>CLUSTER_LIST</code>, and next-hop policy.</p>
@@ -307,7 +307,7 @@ address-family ipv4 flowspec
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

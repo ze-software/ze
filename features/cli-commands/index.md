@@ -52,12 +52,19 @@ included, and mandatory definitions are offered a token before optional ones. A
 missing`, and an optional string can no longer starve a required argument of its
 value. One spare token becomes the peer selector when the command declares that
 it requires one, no selector arrived out of band, and exactly one token is spare,
-which is what makes `delete bgp peer 127.0.0.1` work.
+which is what makes `delete bgp peer 127.0.0.1` work, and
+`create bgp peer 127.0.0.1 asn 65001` with it: the keyword-value pairs are
+consumed first, so the address is the one token left over.
+
+A SECOND fault in the tail leaves more than one spare token, so the selector is
+never bound and the answer says the command "requires a selector" over a line
+that gave one. The row is in
+`plan/journal/earlier-guard-hides-the-better-error.md`.
 
 A value that sits BETWEEN two keywords reaches the leaf the model anchored to
 the first of them. A leaf declared on a grouping container carries that
 container's name. That name is the word the operator types the value after, so
-`peer <selector> announce unicast <prefix>` binds the selector and leaves the
+`send bgp <selector> unicast <prefix>` binds the selector and leaves the
 prefix to the handler. The shape-based fallback stays for a command that
 anchors nothing, and both refuse ambiguity: two candidates name none.
 <!-- source: internal/component/plugin/server/command.go -- positionalDef, matchCommandTokens, anchoredDef, implicitSelectorDef -->
@@ -80,7 +87,7 @@ runtime cannot disagree. `| resolve` and `| origin` are listed only where the
 command declares a field that holds an address.
 
 Every `show bgp` command declares one. Go compiled into the daemon declares
-sixteen paths. A plugin process declares the other eleven in its startup
+nineteen paths. A plugin process declares the other eleven in its startup
 message: six under `show bgp rpki`, two under `show bgp rs`, two under
 `show bgp adj-rib-in`, and `show bgp healthcheck`. An undeclared command still
 refuses what it cannot support, from the answer it has in hand, after it runs.

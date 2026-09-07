@@ -159,19 +159,27 @@ own Path Identifier, assigned so that (prefix, identifier) uniquely names a path
 advertised to a neighbor. Both forward rails do that instead of relaying the
 identifier the source chose.
 
-The key is the path at ingress: the source that sent it and the identifier that
-source used. A withdrawn route carries no path attributes, so an
+The key is the path at ingress, and how much of the path it holds follows what
+the source framed. A source that negotiated no ADD-PATH names a path by its
+prefix alone and sends every one of them under identifier 0, so ze holds one
+identifier for that source's whole session. A source that negotiated ADD-PATH
+names a path by (prefix, identifier), so ze holds one entry per family, received
+identifier and prefix. A withdrawn route carries no path attributes, so an
 attribute-derived identifier could not be recomputed when the path leaves; the
 ingress key can. The same key makes a re-announcement with changed attributes
-replace rather than duplicate. Identifiers are released at peer removal, not at
-session down, so a reconnecting peer re-announces under the identifiers its
-destinations already hold. Zero is minted and accepted like any other value
-(RFC 7911 Section 3).
+replace rather than duplicate.
+
+An identifier of the first kind is released only when the peer is removed. One of
+the second kind is released when ze has relayed that pair's withdraw, at the
+point the recent-update cache evicts the UPDATE that carried it. Neither is
+released at session down, so a reconnecting peer re-announces under the
+identifiers its destinations already hold. Zero is minted and accepted like any
+other value (RFC 7911 Section 3).
 
 Regeneration runs whenever either side of the forward frames identifiers. A
 session where neither side negotiated ADD-PATH keeps its zero-copy forward.
 
-<!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdPathIDs -->
+<!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdPathIDs, fwdPathIDTable.generatePath, fwdReleaseWithdrawnPathIDs -->
 
 ### Protocol event capture and replay
 

@@ -5,7 +5,14 @@
         <link>https://ze-software.net/project/changes/</link>
         <description>What shipped in Ze each week, in Zeledon's voice, mined from git history.</description>
         <language>en</language>
-        <lastBuildDate>Mon, 24 Aug 2026 00:00:00 +0000</lastBuildDate>
+        <lastBuildDate>Mon, 31 Aug 2026 00:00:00 +0000</lastBuildDate>
+        <item>
+            <title>Week of 2026-08-31</title>
+            <link>https://ze-software.net/project/changes/2026-08-31/</link>
+            <guid isPermaLink="true">https://ze-software.net/project/changes/2026-08-31/</guid>
+            <pubDate>Mon, 31 Aug 2026 00:00:00 +0000</pubDate>
+            <description>Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and most of the week went on fixing what it found. Three of them mattered: an authentication bypass on IKE logins, a redistribute block that discarded every route from every peer, and subscriber IPv6 that never worked at all.</description>
+        </item>
         <item>
             <title>Week of 2026-08-24</title>
             <link>https://ze-software.net/project/changes/2026-08-24/</link>

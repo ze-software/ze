@@ -1,7 +1,7 @@
 # CLI Reference
 
-Ze provides an interactive CLI and single-command execution for runtime queries and control. All CLI access goes through the daemon's SSH server.
-<!-- source: internal/component/cli/client/main.go -- Run -->
+Ze provides an interactive CLI and single-command execution for runtime queries and control. `ze cli` reaches the daemon through its SSH server. `ze start --cli` attaches a console to the daemon it starts, in the same process.
+<!-- source: internal/component/cli/client/main.go -- Run, RunAttached -->
 
 ## Usage
 
@@ -10,6 +10,7 @@ ze cli                              # Interactive CLI with tab completion
 ze cli -c "show bgp peer list"              # Execute single command and exit
 ze show bgp peer upstream1 detail           # Read-only query (safe for scripts)
 ze cli -c "request peer upstream1 teardown 2" # One-shot command (full access)
+ze start --cli                              # Start the daemon and attach a console
 ```
 
 ### Modes
@@ -19,6 +20,24 @@ ze cli -c "request peer upstream1 teardown 2" # One-shot command (full access)
 | `ze cli` | Interactive, full | Exploring, monitoring, operating |
 | `ze show <cmd>` | Read-only | Scripting, monitoring dashboards |
 | `ze cli -c <cmd>` | Full | Automation, route injection |
+| `ze start --cli` | Interactive, full | Running the daemon and operating it from one terminal |
+
+### The attached console
+
+`ze start --cli` starts the daemon and attaches an interactive console to it.
+The console dispatches each command in the daemon process, so it needs no SSH
+server and it works in a build with SSH compiled out.
+
+The console opens at the operational prompt. Type `configure` to reach
+configuration mode, and `commit` there reloads the running daemon, as it does
+over SSH. Type `exit`, or press Ctrl-D, to detach the console and leave the
+daemon running.
+
+The console authenticates nobody, so it names the change author from the `USER`
+environment variable, and `unknown` when that variable is empty. The name is
+what `show | blame` reports for the changes the console commits.
+<!-- source: internal/component/cli/client/main.go -- RunAttached, newAttachedModel -->
+<!-- source: cmd/ze/hub/session_editor.go -- attachedConsoleEditor, attachedConsoleUser -->
 
 ## Peer Commands
 
@@ -40,8 +59,8 @@ ze cli -c "request peer upstream1 teardown 2" # One-shot command (full access)
 
 | Command | Description |
 |---------|-------------|
-| `peer <sel> update text <attrs> nlri <family> <op> <prefix>` | Text-format UPDATE |
-| `peer <sel> update hex <hex>` | Hex-format UPDATE |
+| `send bgp <sel> update text <attrs> nlri <family> <op> <prefix>` | Text-format UPDATE |
+| `send bgp <sel> update hex <hex>` | Hex-format UPDATE |
 | `show bgp rib received [peer <selector>] [family <family>]` | Show Adj-RIB-In |
 | `show bgp rib advertised [peer <selector>] [family <family>]` | Show Adj-RIB-Out |
 | `clear bgp rib in [peer]` | Clear Adj-RIB-In |
@@ -58,7 +77,7 @@ See [Route Injection guide](../route-injection/index.md) for UPDATE syntax detai
 | `request cache retain <id>` | Prevent cache eviction |
 | `request cache release <id>` | Release a cached message |
 | `request cache expire <id>` | Remove a cached message immediately |
-| `request cache forward <id> <peer>` | Forward a cached message to a peer |
+| `send bgp <peer> cached <id>` | Forward a cached message to a peer |
 <!-- source: internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang -- module ze-cli-cache-cmd -->
 
 ## Event Subscription
@@ -100,6 +119,31 @@ through a pipe alias the plugin declares. It resolves over `ze cli -c "..."` and
 over ssh, and NOT inside `ze cli` with no command argument
 (`docs/guide/rpki.md`).
 
+## Resolution Commands
+
+| Command | Description |
+|---------|-------------|
+| `show resolve rir <asn>` | Which Regional Internet Registry holds an AS number, and its whois host |
+| `update resolve rir` | Refresh the RIR delegation table from the five registry delegation files |
+<!-- source: internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang -- show > resolve > rir, update > resolve > rir -->
+
+The lookup reads a table the binary ships as embedded data, so it answers with
+no network. `update resolve rir` stores a fresh table under
+`meta/rir/delegation`, and the lookup prefers that copy while its generation
+date is later than the shipped table's. The refresh is all or nothing: a
+registry that does not answer leaves the previous table in place and the error
+names the file it could not read. The same lookup runs on the host with no
+daemon, as `ze resolve rir <asn>`.
+
+An appliance behind a mirror names where each file is read from, under
+`system/rir`, one `delegation-source` block per registry. A registry with no
+block is read from the file it publishes, so mirroring one blocked registry
+takes one block. A mirror is HTTPS, or plain HTTP when it runs on the router
+itself.
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system/rir/delegation-source -->
+<!-- source: internal/component/resolve/irr/stored.go -- preferStoredDelegation -->
+<!-- source: internal/component/resolve/cmd/rir.go -- handleRIRASN, handleRIRRefresh -->
+
 ## Daemon Control
 
 | Command | Description |
@@ -139,3 +183,38 @@ In `ze cli` interactive mode:
   <!-- source: cmd/ze/help_command.go -- operatorsFor, collectCommands -->
 - **History** persisted across sessions
 - **Ctrl-C** cancels current command, **Ctrl-D** exits
+
+### Keys that reveal help
+
+Every command declares two help texts: a one-line summary and a long
+explanation. Tab and `?` reach both, so an operator reads what a command does
+and stays at the prompt. Two message lines sit above the prompt, and the second
+one carries the summary.
+
+| Key | What it does |
+|-----|--------------|
+| Tab, with more to complete | Completes the command. Two candidates or more open the menu |
+| Up or Down | Moves the selection in the menu. The second message line shows the selected command's summary |
+| Tab, with nothing left to complete | Shows the command's long explanation in a box above the prompt |
+| Tab, on a command that declares no explanation | The second message line reads `<command>: no explanation is declared` |
+| `?`, with a candidate highlighted | Shows that candidate's long explanation, in the box Tab uses. The menu stays open under it |
+| `?`, on a config key in configuration mode | Shows that key's whole YANG description in the box. A description is often a paragraph, and the message line holds one row |
+| `?`, on a candidate that declares no text | The second message line reads `<command>: no explanation is declared` |
+| `?`, with no candidate highlighted | Completes, as Tab does |
+| Enter, with the menu open | Puts the selected command in the input |
+| Enter, with the explanation on the screen | Runs the command as typed |
+| Escape, with the explanation on the screen | Removes the explanation. The typed command stays, and so does a menu under it |
+| Escape, with the menu open | Closes the menu |
+| Escape, with nothing revealed | Clears the typed command. An empty input asks to quit |
+| Any text key, or Backspace | Removes the menu or the explanation. The key still reaches the input |
+<!-- source: internal/component/cli/model_keys.go -- handleTab, revealExplanation, revealCandidateExplanation, handleEnter -->
+<!-- source: internal/component/cli/model_render.go -- warningText -->
+
+Escape removes one thing for each press. The explanation goes first, and the
+typed command stays until the next press.
+<!-- source: internal/component/cli/model_keys.go -- handleKeyMsg, the Escape descent -->
+
+A menu row is the command name alone. The summary has the second message line to
+itself, so no width cuts it. Ze invents no explanation: a command that declares
+none says so.
+<!-- source: internal/component/cli/model_render.go -- renderDropdownBox, renderExplanationBox -->

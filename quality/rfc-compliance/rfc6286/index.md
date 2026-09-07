@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 75.0% | 3 of 4 binding obligations | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 25.0% | 1 of 4 binding obligations | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 4 binding obligations | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 4 binding obligations | no test carries the requirement id, whether or not a gap states why |
+| Tested both ways | 75.0% | 3 of 4 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 25.0% | 1 of 4 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| No test at all | 0.0% | 0 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Proven by a recorded break | 0.0% | 0 of 12 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -23,9 +23,12 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 4 | of 5 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 4 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below |
+| Out of scope | 0 | of 4 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 4 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 4 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 4 shares marked as a part above are the whole of the 4 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -37,6 +40,9 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
@@ -48,7 +54,6 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Enrolled |
 | Requirements | 5 |
 | Gated MUST-level | 4 |
-| Obligations that bind Ze | 4 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Gated with no test | 0 |
@@ -98,7 +103,7 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC6286-2.1-1` | The BGP Identifier is a 4-octet, unsigned, NON-ZERO integer whose value is determined on startup and is the same for every local interface and every BGP peer (Section 2.1) | MUST | 2.1 - Definition of the BGP Identifier | **positive:** `unit/verify` [`TestParsePeerFromTreeInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L126). **negative:** no negative test. **{single-polarity}:** the definition's other two properties are structural and have no failure mode a negative test could exercise -- the wire field is a uint32 (internal/component/bgp/message/open.go:55), and the value is read once at config load into reactor.Config.RouterID and used for every peer and every OPEN (internal/component/bgp/reactor/session_negotiate.go:160). The non-zero half IS enforced and tested: parseRouterID (internal/component/bgp/reactor/config.go) rejects 0.0.0.0 for both the global leaf and a per-peer override |
+| `RFC6286-2.1-1` | The BGP Identifier is a 4-octet, unsigned, NON-ZERO integer whose value is determined on startup and is the same for every local interface and every BGP peer (Section 2.1) | MUST | 2.1 - Definition of the BGP Identifier | **positive:** `unit/verify` [`TestParsePeerFromTreeInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L128). **negative:** no negative test. **{single-polarity}:** the definition's other two properties are structural and have no failure mode a negative test could exercise -- the wire field is a uint32 (internal/component/bgp/message/open.go:55), and the value is read once at config load into reactor.Config.RouterID and used for every peer and every OPEN (internal/component/bgp/reactor/session_negotiate.go:160). The non-zero half IS enforced and tested: parseRouterID (internal/component/bgp/reactor/config.go) rejects 0.0.0.0 for both the global leaf and a per-peer override |
 | `RFC6286-2.1-2` | The BGP Identifier should be unique within an AS (Section 2.1) | SHOULD | 2.1 - Definition of the BGP Identifier | **positive:** `unit/verify` [`TestRouterIDClaimConcurrentOnlyOneWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/routerid_unique_test.go#L453). **negative:** no negative test. **{single-polarity}:** the negative case -- ze accepting a duplicate -- is the operator-selected `bgp/session/allow-shared-router-id true` path, which is conformant precisely because the requirement is a lowercase "should", so there is no violation for a negative test to catch. Enforcement is proven by TestRouterIDClaimConcurrentOnlyOneWins and the TestRouterIDConflict* family; the opt-out by TestValidateOpenAllowSharedRouterID |
 | `RFC6286-2.2-1` | An OPEN whose BGP Identifier field is zero is rejected with Error Subcode "Bad BGP Identifier" (Section 2.2) | MUST | 2.2 - Open Message Error Handling | **positive:** `unit/verify` [`TestHandleOpenRejectsBadBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L95). **positive:** `unit/verify` [`TestOpenValidateBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L445). **positive:** `unit/verify` [`TestProcessOpenRejectsBadBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L153). **negative:** `unit/verify` [`TestOpenValidateBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L447) |
 | `RFC6286-2.2-2` | An OPEN whose BGP Identifier equals the local BGP Identifier AND comes from an internal peer is rejected with Error Subcode "Bad BGP Identifier"; the same identifier from an EXTERNAL peer is not rejected (Section 2.2) | MUST | 2.2 - Open Message Error Handling | **positive:** `unit/verify` [`TestHandleOpenRejectsBadBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L97). **positive:** `unit/verify` [`TestOpenValidateBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L449). **negative:** `unit/verify` [`TestHandleOpenRejectsBadBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L99). **negative:** `unit/verify` [`TestOpenValidateBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L451) |
@@ -120,7 +125,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestParsePeerFromTreeInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L126) | unit/verify | unproven |
+| positive | [`TestParsePeerFromTreeInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L128) | unit/verify | unproven |
 
 ### [`RFC6286-2.1-2`](#rfc6286-2.1-2)
 

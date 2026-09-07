@@ -97,7 +97,10 @@
 <li><a href="#log-commands-ze">Log Commands (Ze)</a></li>
 <li><a href="#metrics-commands-ze">Metrics Commands (Ze)</a></li>
 <li><a href="#peer-selectors">Peer Selectors</a></li>
-<li><a href="#route-commands-update-text">Route Commands (update text)</a></li>
+<li><a href="#route-commands-update-text">Route Commands (update text)</a>
+<ol>
+<li><a href="#a-withdrawal-can-be-answered-with-the-peers-it-was-withheld-from">A withdrawal can be answered with the peers it was withheld from</a></li>
+</ol></li>
 <li><a href="#route-commands-update-cursor">Route Commands (update cursor)</a></li>
 <li><a href="#removed-commands-use-update-text-instead">Removed Commands (use update text instead)</a></li>
 <li><a href="#watchdog-commands">Watchdog Commands</a></li>
@@ -105,7 +108,7 @@
 <ol>
 <li><a href="#inter-plugin-rib-commands-grllgr">Inter-Plugin RIB Commands (GR/LLGR)</a></li>
 </ol></li>
-<li><a href="#group-commands-batching">Group Commands (Batching)</a></li>
+<li><a href="#named-commits-batching">Named Commits (Batching)</a></li>
 </ol></li>
 <li><a href="#action-first-syntax-legacy">Action-First Syntax (Legacy)</a>
 <ol>
@@ -228,7 +231,7 @@ identity is injected only by trusted transport wiring.</p>
 <tr>
 <td>Forward command</td>
 <td>Not available</td>
-<td><code>request cache forward &lt;id&gt; &lt;selector&gt;</code> for route reflection</td>
+<td><code>send bgp &lt;selector&gt; cached &lt;id&gt;</code> for route reflection</td>
 </tr>
 </tbody>
 </table>
@@ -255,6 +258,11 @@ The action verb determines the command's behavior; the module implements it.</p>
 <td><code>set</code></td>
 <td>Create or modify</td>
 <td><code>set bgp peer X ...</code></td>
+</tr>
+<tr>
+<td><code>create</code></td>
+<td>Add to the running daemon</td>
+<td><code>create bgp peer X asn 65001</code></td>
 </tr>
 <tr>
 <td><code>delete</code></td>
@@ -392,7 +400,12 @@ so the fallback never shadows the daemon. Because <code>cmdutil.RunCommand</code
 absent from the CLI binary's tree before reaching the daemon path, it makes an exception
 for paths that have a registered fallback, routing them through so the fallback is
 reachable. Output is identical to the daemon RPC (both read the same detection library
-/ crash files), so online and offline results match.</p>
+/ crash files), so online and offline results match. <code>show crashes</code> holds that
+identity to one call on each side: both build their rows from
+<code>crashlog.CrashListFields</code> and their readiness block from <code>crashes.Readiness</code>, so
+the answer cannot vary with the health of the box being diagnosed.</p>
+<!-- source: internal/core/crashlog/list.go -- CrashListFields, the one row builder -->
+<!-- source: internal/plugins/crashes/readiness.go -- Readiness, the one readiness answer -->
 <!-- source: internal/component/command/registry/registry.go -- RegisterOfflineFallback, LookupOfflineFallback -->
 <!-- source: cmd/ze/internal/cmdutil/cmdutil.go -- RunCommand offline-fallback routing -->
 <!-- source: internal/component/cli/client/main.go -- runOfflineFallback (invoked on daemon-unreachable) -->
@@ -401,6 +414,17 @@ reachable. Output is identical to the daemon RPC (both read the same detection l
 <code>init()</code> filled in this process, so the answer exists before <code>main()</code> does. It
 registers with <code>cmdregistry.MustRegisterLocalData(path, handler, meta, command.RenderLocalAnswer)</code> and returns DATA, which is what lets <code>| json</code>,
 <code>| yaml</code> and <code>| table</code> be three renderings of one payload.</p>
+<p>The handler returns a payload AND an exit code, and the two are independent. The
+code carries the verdict, the payload carries the evidence, and <code>validate config</code>
+is the command that needs both: it answers the diagnostics of a configuration it
+rejects and exits 1. The answer therefore goes to stdout whatever the code is,
+because a payload on stderr is a payload no pipe operator can reach. A handler
+with nothing to say writes its reason to stderr itself and returns a nil payload,
+which prints nothing. The one local result stdout never sees is a pipe error,
+which is a diagnostic about the operator's own chain rather than an answer to
+their question.</p>
+<!-- source: internal/component/cli/client/main.go -- emitLocalResult -->
+<!-- source: internal/component/command/registry/registry.go -- LocalDataHandler -->
 <p>This differs from the offline fallback above: a fallback is a second answer for
 a command the daemon normally serves, tried only after the connection fails. A
 local-data command has no daemon side at all, registers no RPC, and therefore
@@ -564,6 +588,21 @@ the bus from buggy or malicious producers.</p>
 <td>JSON array of RR peer states (proxy to RR plugin)</td>
 </tr>
 <tr>
+<td><code>ze-show:reject-asn</code></td>
+<td><code>forwardShowRejectASN</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/plugins/filter_path_asn/register_command.go</code></span></span></td>
+<td><code>{"lists": [{"name": "...", "import-peers": N, "export-peers": N, "entries": [{"asn": N, "positions": ["transit", "origin"], "network": "..."}], "patterns": ["..."]}]}</code> (proxy to the reject-asn filter plugin). <code>network</code> is written for every ASN and is EMPTY for one the curated table does not hold</td>
+</tr>
+<tr>
+<td><code>ze-show:reject-asn-name</code> (selector: <code>name</code>)</td>
+<td><code>forwardShowRejectASNName</code> in the same file</td>
+<td>One list record, the same shape as a row of <code>lists</code>. The value after the <code>name</code> keyword arrives as a SELECTOR rather than a positional, because <code>name</code> is both the last token of the path and the leaf under it, so the forwarder reads <code>ctx.Selector("name")</code></td>
+</tr>
+<tr>
+<td><code>ze-show:reject-asn-known-transit-free</code></td>
+<td><code>forwardShowRejectASNTransitFree</code> in the same file</td>
+<td><code>{"curated": "YYYY-MM-DD", "sources": [...], "networks": [{"asn": N, "name": "...", "contested": bool}], "block": ["# ...", "indirect [ ... ];"]}</code>. <code>block</code> is an array of config LINES an operator pastes</td>
+</tr>
+<tr>
 <td><code>ze-show:system-sockets</code></td>
 <td><code>handleShowSystemSockets</code> in <code>sockets_linux.go</code></td>
 <td><code>{"sockets": [...], "count": N}</code> (Linux only)</td>
@@ -632,6 +671,16 @@ the bus from buggy or malicious producers.</p>
 <td><code>ze-clear:dns-cache-record</code></td>
 <td><code>handleClearDNSCacheRecord</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/resolve/cmd/dns.go</code></span></span></td>
 <td><code>{"action": "delete-entry", "name": "...", "removed": N}</code> or <code>{"action": "delete-entry", "name": "...", "type": "...", "found": bool}</code></td>
+</tr>
+<tr>
+<td><code>ze-show:resolve-rir</code> (args: <code>&lt;asn&gt;</code>)</td>
+<td><code>handleRIRASN</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/resolve/cmd/rir.go</code></span></span></td>
+<td><code>{"asn": N, "registry": "ARIN", "whois": "whois.arin.net", "range-start": N, "range-end": N}</code>. Two distinct errors: <code>AS&lt;n&gt; is in no delegated range</code> for a table that was read, <code>RIR delegation table unreadable: ...</code> for one that was not</td>
+</tr>
+<tr>
+<td><code>ze-update:resolve-rir</code> (no args)</td>
+<td><code>handleRIRRefresh</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/resolve/cmd/rir.go</code></span></span></td>
+<td><code>{"key": "meta/rir/delegation", "ranges": N, "generated": "YYYY-MM-DD"}</code>. <code>ranges</code> is how many ranges the stored table holds and <code>generated</code> is the date it stored. All or nothing: a fetch that failed, a parse that refused, a run that read no ASN record, and a write that stored nothing each answer an error and change no stored table</td>
 </tr>
 <tr>
 <td><code>ze-show:system-profile</code></td>
@@ -736,7 +785,7 @@ the bus from buggy or malicious producers.</p>
 <tr>
 <td><code>ze-show:anomaly</code> (no args)</td>
 <td><code>handleShowAnomaly</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/anomaly/detect/show.go</code></span></span></td>
-<td>Recent behavioral anomaly incidents (report-only): <code>{"enabled": bool, "incidents": [{entity, cohort, score, severity, at, fired-features: [{name, z}]}]}</code>. Bounded recent-incident ring; empty until an entity's correlated deviation confirms. <code>enabled</code> is false when the detector is not running. The <code>anomaly/shape</code> responder consumes the underlying <code>anomaly-detect</code> events; this command is the read-only view.</td>
+<td>Recent behavioral anomaly incidents (report-only): <code>{"enabled": bool, "incidents": [{entity, entity-kind, cohort, score, severity, at, fired-features: [{name, z}]}]}</code>. <code>entity-kind</code> is <code>source</code>, <code>dest</code> or <code>port</code>. A source or dest row names its subject in <code>entity</code> as a prefix; a port row carries <code>port</code> and <code>proto</code> as two more fields and renders <code>entity</code> as <code>proto/port</code>, because a port is not an address. Bounded recent-incident ring; empty until an entity's correlated deviation confirms. <code>enabled</code> is false when the detector is not running. The <code>anomaly/shape</code> responder consumes the underlying <code>anomaly-detect</code> events; this command is the read-only view.</td>
 </tr>
 <tr>
 <td><code>ze-show:anomaly-observe</code> (no args)</td>
@@ -1185,6 +1234,7 @@ show bgp peer &lt;selector&gt; capabilities # Show specific peer capabilities
 show bgp peer &lt;selector&gt; statistics   # Show specific peer statistics
 show bgp peer &lt;selector&gt; history      # Show FSM transition history
 request peer &lt;selector&gt; teardown [&lt;cease-subcode&gt;]  # Disconnect peer
+create bgp peer &lt;address&gt; asn &lt;asn&gt; [...]  # Add a peer to the running daemon
 delete bgp peer &lt;name&gt;             # Remove dynamic peer
 request peer &lt;sel&gt; flush           # Wait for forward pool to drain (barrier)
 </code></pre>
@@ -1197,14 +1247,14 @@ git-recovery route. What survives of the cache pattern is in its "BGP engine:
 wire encoding and RIB" &gt; Load-bearing invariants: cache <code>Ack</code> and <code>Retain</code>
 are independent refcount axes, and engine cache ack is cumulative.</p>
 </blockquote>
-<pre><code>request cache forward &lt;id&gt; &lt;sel&gt;    # Forward cached UPDATE to peers
+<pre><code>send bgp &lt;sel&gt; cached &lt;id&gt;          # Forward cached UPDATE to peers
 request cache retain &lt;id&gt;           # Prevent eviction
 request cache release &lt;id&gt;          # Allow eviction (reset TTL)
 request cache expire &lt;id&gt;           # Remove immediately
 show cache                          # List cached message IDs
 
 # Batch variants (comma-separated IDs, max 1000):
-request cache forward &lt;id1&gt;,&lt;id2&gt;,...,&lt;idN&gt; &lt;sel&gt;  # Batch forward
+send bgp &lt;sel&gt; cached &lt;id1&gt;,&lt;id2&gt;,...,&lt;idN&gt;        # Batch forward
 request cache release &lt;id1&gt;,&lt;id2&gt;,...,&lt;idN&gt;        # Batch release
 </code></pre>
 <p>The cache commands enable route reflection via API:</p>
@@ -1212,12 +1262,12 @@ request cache release &lt;id1&gt;,&lt;id2&gt;,...,&lt;idN&gt;        # Batch rel
 <li>Received UPDATEs are assigned a unique msg-id (per-UPDATE, not per-NLRI)</li>
 <li>API outputs UPDATE info with msg-id</li>
 <li>External process decides routing</li>
-<li>The <code>request cache forward</code> command references msg-id (zero-copy when contexts match)</li>
+<li>The <code>send bgp &lt;sel&gt; cached &lt;id&gt;</code> command references msg-id (zero-copy when contexts match)</li>
 <li>Cache entries expire after configurable TTL (default 60s) unless retained</li>
 </ol>
 <!-- source: internal/component/bgp/reactor/reactor.go -- cache forward -->
 <h4 id="fast-path-typed-sdk-rs-fastpath-3">Fast-path typed SDK (rs-fastpath-3)</h4>
-<p>The text-RPC <code>request cache forward &lt;id&gt; &lt;sel&gt;</code> path tokenises, parses, and walks the command registry on every call. Plugins that forward many cached UPDATEs per second (route server, future route reflector) use a typed SDK pair instead:</p>
+<p>The text-RPC <code>send bgp &lt;sel&gt; cached &lt;id&gt;</code> path tokenises, parses, and walks the command registry on every call. Plugins that forward many cached UPDATEs per second (route server, future route reflector) use a typed SDK pair instead:</p>
 <pre><code class="language-go">Plugin.ForwardCached(ctx, ids []uint64, destinations []netip.AddrPort) error
 Plugin.ReleaseCached(ctx, ids []uint64) error
 </code></pre>
@@ -1251,7 +1301,7 @@ peer !upstream1           # All peers EXCEPT this one (for route reflection)
 <!-- source: internal/core/selector/selector.go -- Selector -->
 <p>The <code>!&lt;ip&gt;</code> negated selector is useful for route reflection:</p>
 <pre><code># Forward update to all peers except the source
-request cache forward 12345 !upstream1
+send bgp !upstream1 cached 12345
 </code></pre>
 <blockquote>
 <p><strong>Note:</strong> Filter selectors (<code>[local-as ...]</code>, <code>[peer-as ...]</code>) from ExaBGP multi-session
@@ -1262,43 +1312,59 @@ draft are not supported — the draft never became an RFC.</p>
 (no <code>set</code> keyword) and keyword aliases (short forms accepted, see Keyword Aliases below):</p>
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- ParseUpdateText -->
 <pre><code class="language-bash"># Announce routes (flat attributes, no 'set')
-peer &lt;selector&gt; update text next &lt;ip&gt; [attributes...] nlri &lt;family&gt; add prefix &lt;prefix&gt;...
+send bgp &lt;selector&gt; update text next &lt;ip&gt; [attributes...] nlri &lt;family&gt; add prefix &lt;prefix&gt;...
 
 # Withdraw routes
-peer &lt;selector&gt; update text nlri &lt;family&gt; del prefix &lt;prefix&gt;...
+send bgp &lt;selector&gt; update text nlri &lt;family&gt; del prefix &lt;prefix&gt;...
 
 # End-of-RIB marker (RFC 4724)
-peer &lt;selector&gt; update text nlri &lt;family&gt; eor
+send bgp &lt;selector&gt; update text nlri &lt;family&gt; eor
 
 # VPLS (L2VPN/VPLS)
-peer &lt;selector&gt; update text nlri l2vpn/vpls add rd &lt;rd&gt; ve-id &lt;n&gt; ve-block-offset &lt;n&gt; ve-block-size &lt;n&gt; label-base &lt;n&gt;
+send bgp &lt;selector&gt; update text nlri l2vpn/vpls add rd &lt;rd&gt; ve-id &lt;n&gt; ve-block-offset &lt;n&gt; ve-block-size &lt;n&gt; label-base &lt;n&gt;
 
 # EVPN (L2VPN/EVPN)
-peer &lt;selector&gt; update text nlri l2vpn/evpn add mac-ip rd &lt;rd&gt; mac &lt;mac&gt; [ip &lt;ip&gt;] label &lt;n&gt;
-peer &lt;selector&gt; update text nlri l2vpn/evpn add ip-prefix rd &lt;rd&gt; prefix &lt;prefix&gt; label &lt;n&gt;
-peer &lt;selector&gt; update text nlri l2vpn/evpn add multicast rd &lt;rd&gt; ip &lt;ip&gt;
+send bgp &lt;selector&gt; update text nlri l2vpn/evpn add mac-ip rd &lt;rd&gt; mac &lt;mac&gt; [ip &lt;ip&gt;] label &lt;n&gt;
+send bgp &lt;selector&gt; update text nlri l2vpn/evpn add ip-prefix rd &lt;rd&gt; prefix &lt;prefix&gt; label &lt;n&gt;
+send bgp &lt;selector&gt; update text nlri l2vpn/evpn add multicast rd &lt;rd&gt; ip &lt;ip&gt;
 </code></pre>
+<h4 id="a-withdrawal-can-be-answered-with-the-peers-it-was-withheld-from">A withdrawal can be answered with the peers it was withheld from</h4>
+<p><code>send bgp &lt;selector&gt; update text ... nlri &lt;family&gt; del ...</code> names no route to a
+peer whose session has advertised nothing, because RFC 4271 Section 4.3
+identifies a withdrawn route in the context of the connection it was previously
+advertised on. Such a peer is written the withdrawal's path attributes with no
+route in them, or nothing at all where the family's withdrawal carries no
+attributes of its own (<code>docs/architecture/update-building.md</code>, "A Withdrawal
+Names a Route This Connection Advertised"). The command still answers <code>done</code>,
+and the peers it withheld the routes from are named in the response's
+<code>warnings</code>:</p>
+<pre><code>withdraw ipv4/unicast: withdrawal withheld: this session has advertised no route to the peer: ipv4/unicast, peers 192.0.2.10
+</code></pre>
+<p>Once the session has carried one UPDATE that makes any destination reachable,
+every later withdrawal is written, whether or not the peer holds the route named.</p>
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- handleUpdateText -->
+<!-- source: internal/component/bgp/route/route.go -- ErrWithdrawWithheld -->
 <h3 id="route-commands-update-cursor">Route Commands (update cursor)</h3>
 <p>Stateful cursor mode for efficient replay of stored routes on reconnect. The engine
 maintains attribute state per (plugin, peer) pair. Subsequent commands send only
 changed attributes (delta encoding), reducing per-call overhead.</p>
 <!-- source: internal/component/bgp/plugins/cmd/update/cursor.go -- handleUpdateCursor -->
 <pre><code class="language-bash"># First command: establish full attribute state + announce NLRIs
-peer &lt;selector&gt; update cursor origin igp as-path [65001] med 100 \
+send bgp &lt;selector&gt; update cursor origin igp as-path [65001] med 100 \
   next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24
 
 # Delta: only changed attributes, rest inherited from cursor
-peer &lt;selector&gt; update cursor as-path [65001 65003] \
+send bgp &lt;selector&gt; update cursor as-path [65001 65003] \
   nlri ipv4/unicast add 10.1.0.0/24
 
 # NLRIs only (all attributes inherited)
-peer &lt;selector&gt; update cursor nlri ipv4/unicast add 10.2.0.0/24
+send bgp &lt;selector&gt; update cursor nlri ipv4/unicast add 10.2.0.0/24
 
 # Remove an attribute from cursor
-peer &lt;selector&gt; update cursor del med nlri ipv4/unicast add 10.3.0.0/24
+send bgp &lt;selector&gt; update cursor del med nlri ipv4/unicast add 10.3.0.0/24
 
 # Clear cursor state (call after replay completes)
-peer &lt;selector&gt; update cursor done
+send bgp &lt;selector&gt; update cursor done
 </code></pre>
 <p>Cursor mode supports announce-only (<code>nlri &lt;family&gt; add</code>). Withdrawals are not
 supported because replay re-sends stored routes, never withdrawals.</p>
@@ -1376,7 +1442,13 @@ request bgp rib inject &lt;peer&gt; &lt;family&gt; &lt;prefix&gt; [attrs] # Inse
 request bgp rib withdraw &lt;peer&gt; &lt;family&gt; &lt;prefix&gt;       # Remove route from Adj-RIB-In
 show bgp rib rpf &lt;family&gt; &lt;source-addr&gt;      # RPF lookup (longest-prefix-match in Loc-RIB)
 </code></pre>
-<p>Generic pipes such as <code>match</code>, <code>json</code>, <code>ndjson</code>, <code>table</code>, <code>text</code>, <code>yaml</code>, <code>raw</code>, <code>resolve</code>, <code>origin</code>, <code>log</code>, <code>no-more</code>, <code>display</code>, and <code>fill</code> apply to the answer the command produced. The DAEMON runs them, on every surface. <code>execMiddleware</code> splits the chain off an SSH exec command and applies it. <code>ze cli</code> sends the chain intact and prints what comes back. Only the daemon holds the configuration, so only the daemon can honor <code>environment cli format default</code>.</p>
+<p>Generic pipes apply to the answer the command produced. The operator language has exactly one statement, <code>pipeCatalog</code>, and <a href="https://github.com/ze-software/ze/blob/main/docs/features/pipe-operators.generated.md" target="_blank" rel="noopener"><code>docs/features/pipe-operators.generated.md</code></a> is that table published; naming the operators here again is the drift this catalog exists to end. What a given command owes is published per command by <code>ze help command --json</code>, derived from the shape it declares, and an operator the shape cannot support is refused by name before the command runs.</p>
+<p>For a command the daemon serves, the DAEMON runs the chain. <code>execMiddleware</code> splits it off an SSH exec command and applies it, and <code>ze cli -c</code> sends the chain intact and prints what comes back. Only the daemon holds the configuration, so only the daemon can honor <code>environment cli format default</code>. A command the client serves in its own process through <code>RegisterLocalData</code> is the exception: <code>ServeLocal</code> runs the same chain over the local payload, before any daemon is contacted. <code>| save</code> is refused on every chain the daemon expands, because the file would be written on the daemon's filesystem with the daemon's privileges.</p>
+<!-- source: internal/component/command/pipe_catalog.go -- pipeCatalog -->
+<!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
+<!-- source: internal/component/command/pipe_save.go -- validateSaveOps -->
+<!-- source: internal/component/command/local_data.go -- ServeLocal -->
+<!-- source: cmd/ze/help_command.go -- operatorsFor -->
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
 <!-- source: internal/component/cli/client/main.go -- Execute, commandWithFormat -->
 <!-- source: internal/component/cli/client/answer.go -- daemonOutput, newDaemonOutput -->
@@ -1393,12 +1465,58 @@ request bgp rib purge-stale &lt;peer&gt; [family]             # Purge stale rout
 request bgp rib attach-community &lt;peer&gt; &lt;family&gt; &lt;hex&gt;  # Attach community to stale routes in family
 request bgp rib delete-with-community &lt;peer&gt; &lt;family&gt; &lt;hex&gt;  # Delete routes carrying community in family
 </code></pre>
-<h3 id="group-commands-batching">Group Commands (Batching)</h3>
-<pre><code>group start [attributes ...]     # Start batch with shared attributes
-peer &lt;selector&gt; update text ...
-peer &lt;selector&gt; update text ...
-group end                         # End batch, send all
+<h3 id="named-commits-batching">Named Commits (Batching)</h3>
+<p>A named commit holds withdrawals and flushes them to every peer the selector
+matches. There is no <code>group start</code> or <code>group end</code>: this page published that pair
+until 2026-09-05 and no handler ever answered either spelling.</p>
+<pre><code>request commit start &lt;name&gt;                      # Open a named commit
+request commit withdraw &lt;name&gt; route &lt;prefix&gt;    # Queue one withdrawal
+request commit show &lt;name&gt;                       # What the commit holds
+request commit end &lt;name&gt;                        # Flush it
+request commit eor &lt;name&gt;                        # Flush it, then End-of-RIB
+request commit rollback &lt;name&gt;                   # Discard the queue
 </code></pre>
+<p>A named commit cannot carry an ANNOUNCEMENT. <code>(*Transaction).QueueAnnounce</code> has
+no non-test caller, so nothing queues one, and <code>send bgp &lt;selector&gt; update ...</code>
+announces immediately whether a commit is open or not
+(<code>plan/journal/unwired-feature.md</code>, 2026-09-05).</p>
+<p><code>end</code> and <code>eor</code> answer what each peer took:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>What it states</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>routes-queued</code>, <code>withdrawals-queued</code></td>
+<td>What the commit HELD, offered to each matched peer</td>
+</tr>
+<tr>
+<td><code>routes-announced</code>, <code>routes-withdrawn</code>, <code>updates-sent</code>, <code>eor-sent</code></td>
+<td>What LEFT, summed over the peer rows</td>
+</tr>
+<tr>
+<td><code>eor-requested</code></td>
+<td>The operator asked for an End-of-RIB, which is a different fact from one being sent</td>
+</tr>
+<tr>
+<td><code>peers</code></td>
+<td>One row per matched peer, keyed by address, carrying <code>name</code>, <code>state</code>, that peer's four counters, and <code>reasons</code></td>
+</tr>
+</tbody>
+</table>
+<p>A <code>reasons</code> entry appears exactly when that peer took less than the commit
+offered it, and the vocabulary is closed: <code>not-established</code>, <code>announce-refused</code>,
+<code>routes-dropped</code>, <code>withdraw-refused</code>, <code>send-failed</code>, <code>eor-refused</code>. Any such peer
+makes the command answer <code>error</code>, and the error sentence names each one, because
+an error answer's payload is dropped in transit and the sentence is all a plugin
+receives. This rail drops the work for a peer with no established session rather
+than queueing it, so undelivered means dropped and <code>done</code> would be untrue.</p>
+<!-- source: internal/component/bgp/plugins/cmd/commit/commit.go -- handleNamedCommitEnd, peerRows, shortfallSentence -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- SendRoutes, commitToPeer -->
+<!-- source: internal/component/bgp/types/types.go -- TransactionResult, PeerCommitResult -->
 <!-- source: internal/component/bgp/transaction/commit_manager.go -- CommitManager -->
 <hr>
 <h2 id="action-first-syntax-legacy">Action-First Syntax (Legacy)</h2>
@@ -1882,12 +2000,12 @@ UPDATE processing. This is a callback RPC (engine to plugin), not a user command
 <tr>
 <td><code>peer</code></td>
 <td>string</td>
-<td>Peer IP address</td>
+<td>The peer that SENT the route on import, the DESTINATION peer on export</td>
 </tr>
 <tr>
 <td><code>peer-as</code></td>
 <td>uint32</td>
-<td>Peer ASN</td>
+<td>That peer's ASN, with the same meaning as <code>peer</code></td>
 </tr>
 <tr>
 <td><code>update</code></td>
@@ -1898,6 +2016,19 @@ UPDATE processing. This is a callback RPC (engine to plugin), not a user command
 </table>
 <p>Response: <code>{"action":"accept"}</code>, <code>{"action":"reject"}</code>, or
 <code>{"action":"modify","update":"&lt;delta&gt;"}</code> with only changed fields.</p>
+<p><strong><code>peer</code> and <code>peer-as</code> change meaning with the direction, and the callback says
+so only through <code>direction</code>.</strong> The import chain passes the sending peer
+(<code>runIngressPolicyChain</code>) and the export chain passes the destination
+(<code>runEgressPolicyChainASN4</code>), both through <code>PolicyFilterChain</code>. A filter that
+reads the ASN as "who sent me this" is wrong on export, where nothing in the
+callback names the sender at all.</p>
+<p><strong>A filter's declared <code>Direction</code> does not gate dispatch.</strong> <code>FilterDecl.Direction</code>
+is carried to <code>plugin.FilterRegistration.Direction</code> and read by nothing in the
+engine, so a filter is called on whichever chain the operator's config names it
+in. Direction lives on the config attachment point, and a filter that must act on
+one direction only tests <code>direction</code> itself.</p>
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- runIngressPolicyChain, runEgressPolicyChainASN4 -->
+<!-- source: internal/component/plugin/server/startup.go -- the one writer of FilterRegistration.Direction -->
 <!-- source: internal/component/plugin/server/server.go -- CallFilterUpdate builds the filter-update request -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilterUpdate handles it plugin-side -->
 <hr>
@@ -2005,8 +2136,12 @@ schema and one that does not therefore answer one document for the same data.</p
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, WriteDocumentAnswer -->
 <!-- source: internal/component/plugin/server/command.go -- routeToProcess, pluginAnswerRows -->
 <p>The value a built payload carries is unchanged, byte for byte. Only the frame
-around it changed, and it changed for every peer. Nothing declares an answer
-shape, so there is one frame and every reader knows it before the first line.</p>
+around it changed, and it changed for every peer. No declaration selects the
+frame: <code>CommandDecl.Shape</code> states what the ANSWER holds, for the pipe layer to
+publish and to refuse against, and the walk length alone decides which frame
+carries it. So there is one frame and every reader knows it before the first
+line.</p>
+<!-- source: pkg/plugin/rpc/types.go -- CommandDecl.Shape -->
 <p>The rows are pulled as the operator's rendering writes them, so the engine never
 holds the whole collection for a walk that streams. A row wider than one wire
 message is rejected and the walk continues. That row reaches the operator under
@@ -2043,7 +2178,7 @@ message is rejected and the walk continues. That row reaches the operator under
 <p><strong>Note:</strong> This tree shows the <strong>internal noun-first dispatch structure</strong>, not
 the user-facing grammar. User-facing commands are verb-first
 (<code>show</code>/<code>request</code>/<code>clear</code>/<code>update</code>/<code>monitor</code> roots, e.g. <code>show bgp peer &lt;sel&gt; detail</code>,
-<code>request cache forward</code>, <code>clear bgp rib in</code>); the noun-first RPCs below remain
+<code>send bgp &lt;sel&gt; cached &lt;id&gt;</code>, <code>clear bgp rib in</code>); the noun-first RPCs below remain
 only for internal dispatch. Nodes such as <code>peer/&lt;selector&gt;/announce</code> and
 <code>peer/&lt;selector&gt;/withdraw</code> reflect removed verbs (see "Removed Commands").</p>
 </blockquote>
@@ -2132,6 +2267,16 @@ suggestions; keyword leaf names appear as completable tokens.</li>
 between tokenize and handler call (two-phase: keyword extraction, then
 positional matching).</li>
 </ol>
+<p>A command carries more grammar than its ArgDefs hold. A modifier group states a
+keyword and a value the HANDLER parses, so the dispatcher meets tokens that
+belong to no definition of its own, and it MUST NOT read one of them as a bad
+value. <code>validateCommandArgs</code> counts the tokens it could not place against the
+definitions still open. As many tokens as open definitions, or fewer: each token
+can be attributed to a definition, so the first one is refused by that
+definition's own message (<code>invalid value "not-an-ip", does not match expected pattern</code>). More tokens than open definitions: at least one token is a value for
+nothing, so a missing mandatory argument is reported instead
+(<code>show policy test peer test-peer update &lt;hex&gt;</code> answers <code>required argument missing: direction</code>, and not a complaint about the <code>update</code> keyword the handler
+reads).</p>
 <p>A leaf's own <code>description</code> reaches no surface. <code>argDefFor</code>
 (<code>config/yang/command.go</code>) reads the leaf's <code>type</code> and its <code>mandatory</code>
 statement, and <code>command.ArgDef</code> carries no description field. State what an
@@ -2188,6 +2333,12 @@ reflects plugins that a later reload adds or removes.</li>
 <li><strong>Shell completion</strong> (<code>ze completion words</code>) runs in a standalone CLI process
 with no daemon, so it stays YANG-only; the daemon's <code>system command complete</code>
 RPC completes plugin commands directly from the registry (<code>Registry().Complete</code>).</li>
+<li><strong>The attached console</strong> of <code>ze start --cli</code> asks the daemon for
+<code>system command list</code> at attach time. It filters the compiled RPC list against
+that answer, then injects each non-hidden plugin command
+(<code>buildRuntimeTreeFromDispatch</code>, <code>injectPluginCommands</code>). Both help texts
+travel on that answer, so the tree carries the summary and the explanation. A
+plugin a later reload adds is absent until the operator attaches again.</li>
 </ul>
 <p><code>Hidden</code> commands still dispatch when typed in full. They never appear in
 completion, in help, in the MCP <code>tools/list</code> result, or in the API command list. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
@@ -2197,6 +2348,7 @@ every hidden plugin command.</p>
 <!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta hidden plugin command skip -->
 <!-- source: internal/component/command/node.go -- MergeCommandPaths, CommandEntry -->
 <!-- source: cmd/ze/hub/session_factory.go -- mergePluginCommands (SSH per-session) -->
+<!-- source: internal/component/cli/client/main.go -- newAttachedModel, buildRuntimeTreeFromDispatch -->
 <!-- source: cmd/ze/hub/web_completer.go -- pluginAwareCommandCompleter (web live overlay) -->
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 <!-- source: internal/component/plugin/server/startup.go -- signalStartupComplete, WaitForStartupComplete -->
@@ -2253,7 +2405,7 @@ func ParseSelector(s string) (*Selector, error) {
 <h3 id="command-registry">Command Registry</h3>
 <pre><code class="language-go">var Commands = []CommandInfo{
     {"daemon shutdown", false, nil},
-    {"peer * update text", true, []string{"next", "origin", ...}},
+    {"send bgp * update text", true, []string{"next", "origin", ...}},
     // ...
 }
 </code></pre>
@@ -2284,9 +2436,8 @@ same pair, in the declaration form their own registration uses.</p>
 </tbody>
 </table>
 <p>Neither is derived from the other, and no reader shortens either one to guess
-at the other. The summary is authored short because it is a summary. One reader
-clamps it, and it answers a display constraint: the interactive completion pane
-cuts the summary to the width its terminal gives it.</p>
+at the other. The summary is authored short because it is a summary. No reader
+cuts it: every surface prints the summary whole.</p>
 <p><code>mergeYANGEntry</code> (<code>internal/component/config/yang/command.go</code>) writes both, and
 <code>mergeHelpText</code> decides each field on its own when several modules contribute
 one command path. A collision leaves the first value in place and logs
@@ -2318,6 +2469,16 @@ refusal on a declared text are in
 <code>docs/architecture/api/process-protocol.md</code>.</p>
 <p><code>command help "&lt;name&gt;"</code> answers with both, under the <code>description</code> and
 <code>long-help</code> keys, for a builtin and for a plugin command alike.</p>
+<p><code>system command list</code> carries both texts on every row too. The <code>help</code> key holds
+the summary, and <code>long-help</code> holds the explanation. That answer is the only
+place the ATTACHED console of <code>ze start --cli</code> reads either text from. An
+explanation that does not travel here is one its <code>?</code> key cannot print.
+<code>commandRows</code> fills the pair for a builtin and for a registered plugin command
+alike. A command that declares no explanation yields a row with no <code>long-help</code>
+key.</p>
+<p>On the client, <code>applyCommandText</code> writes the pair onto the node the row names,
+in ONE walk. <code>injectPluginCommands</code> carries the pair into a node the tree does
+not yet hold.</p>
 <p>An OFFLINE LOCAL command carries the same two texts in a <code>registry.Meta</code>,
 declared beside its handler in Go rather than in a YANG module. <code>Description</code> is
 the summary and <code>LongHelp</code> is the explanation, and the same empty-is-unwritten
@@ -2329,9 +2490,8 @@ this third corpus to the same seven rules, reading the registrations this binary
 links from the registry and the four <code>cmd/ze</code> declares in <code>package main</code> from
 its source, which is the only way to read a package Go forbids importing.</p>
 <h4 id="which-surface-renders-which-field">Which surface renders which field</h4>
-<p>Every surface that shows a command on ONE line reads the summary. Every one of
-them prints it whole, except the interactive completion pane, which has a
-terminal width to fit. Only a surface that shows ONE command reads the long
+<p>Every surface that shows a command on ONE line reads the summary, and every one
+of them prints it whole. Only a surface that shows ONE command reads the long
 explanation: the help page in the terminal, and the two published detail
 surfaces.</p>
 <table>
@@ -2361,12 +2521,17 @@ surfaces.</p>
 <tr>
 <td>The interactive completion pane</td>
 <td><code>internal/component/cli</code> <code>Model.renderDropdownBox</code></td>
-<td><code>Description</code>, cut to the column the terminal width leaves and closed with <code>...</code>. This is the one clamp the code keeps, because it answers a display constraint rather than guessing at a shorter text</td>
+<td>nothing. A menu row is the command name alone, and a name wider than the box is clamped to the frame</td>
 </tr>
 <tr>
-<td>The interactive completion hint</td>
-<td><code>internal/component/cli</code> <code>Model.handleKeyMsg</code> (the <code>?</code> key), <code>Model.updateCompletions</code></td>
-<td><code>Description</code>, whole</td>
+<td>The interactive message line</td>
+<td><code>internal/component/cli</code> <code>Model.warningText</code>, <code>Model.handleKeyMsg</code> (the <code>?</code> key), <code>Model.updateCompletions</code></td>
+<td><code>Description</code>, whole, for the candidate the menu has selected</td>
+</tr>
+<tr>
+<td>The interactive explanation box, which the <code>?</code> key opens</td>
+<td><code>internal/component/cli</code> <code>Model.renderExplanationBox</code>, answered by <code>command.TreeCompleter.Explain</code></td>
+<td><code>Help</code>, whole. The attached console reads it from the <code>long-help</code> key of <code>system command list</code></td>
 </tr>
 <tr>
 <td>A shell-completion record</td>
@@ -2448,11 +2613,11 @@ mapping is one to one: <code>summary</code> is short and <code>description</code
 that declares no explanation carries NO <code>description</code> key, never an empty one.</p>
 <p>The shell-completion record is <code>name</code>, tab, <code>description</code>, newline. A summary
 carrying a tab or a newline is FOLDED to single spaces there, never cut.
-Folding answers the format's one-line constraint and loses no word. The TUI
-completion pane folds for the same reason, and clamps to the column width its
-terminal gives it. That clamp is the only cut any surface makes, and it answers
-a display constraint. No surface cuts at a sentence, at a newline, or at a fixed
-character count to guess a shorter text.</p>
+Folding answers the format's one-line constraint and loses no word.</p>
+<p>NO surface cuts a summary. The TUI completion pane held the last cut in Ze, and
+it went with the description column that sized it. A menu row is the command
+name alone. The selected candidate's summary is on message line 2, whole
+(<code>docs/architecture/cli/error-surface.md</code>).</p>
 <!-- source: internal/component/command/help.go -- HelpEntries, describeChildren -->
 <!-- source: internal/component/plugin/server/schema.go -- RegisteredRPC, RegisterRPCs -->
 <!-- source: internal/component/aihelp/aihelp.go -- RPC, Build -->
@@ -2461,7 +2626,7 @@ character count to guess a shorter text.</p>
 <!-- source: internal/component/command/registry/registry.go -- Meta, ListLocal -->
 <!-- source: cmd/ze/command_help_page.go -- commandHelpPage -->
 <!-- source: internal/plugins/completion/words.go -- writeCompletionRecord -->
-<!-- source: internal/component/cli/model_render.go -- (Model).renderDropdownBox -->
+<!-- source: internal/component/cli/model_render.go -- (Model).renderDropdownBox, (Model).warningText -->
 <!-- source: internal/component/web/handler_admin.go -- buildAdminFragmentData, CommandFormData -->
 <!-- source: internal/component/web/cli.go -- HandleCLICompleteWithCommandCompleter -->
 <!-- source: internal/component/mcp/tools.go -- CommandInfo, buildToolDef, commandText -->
@@ -2583,6 +2748,15 @@ shape cannot support, by name, before dispatch. A command declaring <code>doc</c
 answers <code>count cannot apply here: this command answers one document, and count acts on rows</code>. The answer's own shape refuses as well, at apply time, and that
 half covers every command including the ones that declare nothing. The
 declaration is what makes the published catalog true, because <code>ze help command --json</code> lists a declared command's operators from its shape.</p>
+<p>An answer HAS rows in two spellings, and the second is what makes an identity
+readable. A LIST is rows. A MAP whose values share one shape is rows keyed by
+identity, and the key names each row: <code>show bgp peer list</code> maps a peer address
+to that peer's record, and <code>show bgp adj-rib-in</code> maps a peer address to that
+peer's routes. A row operator keeps the spelling it was given, so
+<code>show bgp adj-rib-in | first 1</code> answers one peer's routes under that peer's
+address. A map that mixes an object with a list under different keys is one
+document, because its keys are field names rather than identities.</p>
+<!-- source: internal/component/command/answer_shape.go -- rowSet, identityValuesShareOneShape, selectRows -->
 <p>Both halves of that message are derived, because one operator needs more than
 rows. <code>| fill</code> brings back the columns a command declared. So it acts on <code>tab</code>
 alone, and it means nothing over a <code>map</code> answer whose rows carry their own keys.
@@ -2605,7 +2779,7 @@ as an address.</p>
 <!-- source: internal/component/command/pipe_resolve.go -- resolveJSON, addressFieldSelected -->
 <!-- source: internal/component/command/pipe_origin.go -- originJSON -->
 <p>Every <code>show bgp</code> command declares a shape, and two channels write them. Go
-compiled into the daemon declares sixteen paths. Nine of those name an address
+compiled into the daemon declares nineteen paths. Nine of those name an address
 field. <code>show bgp rib</code> and <code>show bgp irr</code> are served by a plugin process, and an
 in-core shim declares for them. Scope is therefore the registration site rather
 than the process boundary.</p>
@@ -3426,7 +3600,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 15:47 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

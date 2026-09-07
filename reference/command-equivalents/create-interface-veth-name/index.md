@@ -20,6 +20,8 @@ Create a veth pair (two linked virtual Ethernet interfaces).
 - Command pipes: none
 - Pipe aliases: none
 
+The peer name is the second value and is required. A second create of the same name changes nothing and reports that the pair is present.
+
 ## Arguments
 
 | Name | Type | Required | Values |

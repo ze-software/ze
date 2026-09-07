@@ -20,6 +20,8 @@ Gracefully shutdown: drain connections, close peers, exit.
 - Command pipes: none
 - Pipe aliases: none
 
+Ze writes the accepted answer first and stops after, so teardown cannot close the requesting connection under its own reply. The answer message is 'shutdown initiated'. A daemon with no reactor uses the same signal-based teardown that SIGTERM triggers.
+
 ## Arguments
 
 No command-specific arguments listed.

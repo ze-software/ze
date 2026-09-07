@@ -1,6 +1,6 @@
 # `request as112 healthcheck`
 
-One-shot authoritative query against an anycast service address (or the given target), exit 0 iff the expected AS112 answer comes back.
+Send one authoritative query and check the AS112 answer.
 
 ## Ze command
 
@@ -20,7 +20,7 @@ One-shot authoritative query against an anycast service address (or the given ta
 - Command pipes: none
 - Pipe aliases: none
 
-Finding M4: the tool a healthcheck probe calls, since dig is not on the gokrazy appliance and 'ze resolve dns' cannot target a specific server.
+The query goes to an anycast service address, or to the given target. The exit code is 0 only when the expected AS112 answer comes back. Finding M4: the tool a healthcheck probe calls, since dig is not on the gokrazy appliance and 'ze resolve dns' cannot target a specific server.
 
 ## Arguments
 

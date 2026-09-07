@@ -143,10 +143,19 @@ Pick a real command the profile denies when you write your own check. A command 
 
 ### How authorization decides
 
-Once you define any `system.authorization` profile, authorization is in use and it fails closed:
+Once you define any `system.authorization` profile, authorization is in use and it fails closed for a user the profiles do not cover:
 
 - A user who authenticates but resolves **no applicable profile** is **denied every command**, not granted access. Assign every account a profile. A profile reaches an account either through `system.authentication.user <name> profile ...` (local users) or through the TACACS+/RADIUS priv-level mapping (remote users).
 - A box that defines **no** `system.authorization` profile at all stays fully permissive: with authorization unconfigured there is nothing to enforce.
+
+There is a third state, and it is the one to plan for.
+
+- When a backend cannot be BUILT, it is dropped and the chain composes without it. A TACACS+ server declared with no shared secret does this. The local backend then answers the login. The profiles above govern the command, so a box with local profiles keeps working to its own rules.
+- When EVERY backend fails to build there is no chain. Nothing authenticates, ssh is not started, and every command is refused.
+
+So local profiles are what carry a box through a broken central server. A box that leaves authorization to TACACS+ or RADIUS and declares none of its own has nothing to fall back to. That is the reason this guide has you define them.
+
+`docs/architecture/aaa-tacacs.md` carries the mechanism.
 
 The daemon log states which rule decided, so you can tell "denied by profile" from "denied because no profile applied":
 

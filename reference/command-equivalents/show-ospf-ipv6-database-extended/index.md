@@ -1,6 +1,6 @@
 # `show ospf ipv6 database extended`
 
-Show the RFC 8362 extended OSPFv3 LSAs (E-Router / E-Network / E-Inter-Area / E-AS-External / E-Link / E-Intra-Area-Prefix) decoded into named TLVs.
+Show the extended OSPFv3 LSAs (RFC 8362).
 
 ## Ze command
 
@@ -19,6 +19,8 @@ Show the RFC 8362 extended OSPFv3 LSAs (E-Router / E-Network / E-Inter-Area / E-
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
+
+Covers E-Router, E-Network, E-Inter-Area, E-AS-External, E-Link and E-Intra-Area-Prefix. Each LSA decodes into named TLVs.
 
 ## Arguments
 

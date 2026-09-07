@@ -1,6 +1,6 @@
 # `show debug profile`
 
-Show stored debug profiles (list, 'name <name>' for one, add 'module <prefix>' to filter).
+Show stored debug profiles, one by name, or one filtered to a module subtree.
 
 ## Ze command
 
@@ -18,6 +18,8 @@ Show stored debug profiles (list, 'name <name>' for one, add 'module <prefix>' t
 - Pipes, local process only: none
 - Command pipes: none
 - Pipe aliases: none
+
+With no argument it lists the profile names. `name <name>` prints that profile as a table of module, level, flags and scopes. Adding `module <prefix>` keeps the rows under one subsystem subtree. Any other trailing word is refused rather than ignored.
 
 ## Arguments
 

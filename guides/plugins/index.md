@@ -66,6 +66,45 @@ plugin {
 | `internal` | `use` | Name of a built-in plugin to run in-process |
 | `external` | `run` | Command to start an external plugin process |
 | `external` | `encoder` | Wire encoding: `json` (default) or `text` |
+| `external` | `respawn` | What you expect when the process exits. Read the section below before you write it |
+| `external` | `timeout` | Startup stall timeout for this plugin |
+
+## When a Plugin Fails
+
+**The plugin decides, not the configuration.** Every plugin tells ze at startup
+what its own failure means, and ze does that.
+
+| The plugin declares | What ze does when it fails |
+|---------------------|----------------------------|
+| `restart` | starts the plugin again, up to 5 times in 60 seconds and 20 in the life of the daemon |
+| `ignore` | logs it and carries on without the plugin |
+| `fatal` | stops ze |
+| nothing | logs it and carries on, the same as `ignore` |
+
+`fatal` is open to any plugin, including one you wrote or one you downloaded.
+Running a plugin is accepting its terms. If you disagree with a plugin's policy,
+do not configure it, or change its code.
+
+The `respawn` leaf states what YOU expect. It can ask for less than the plugin
+permits and never for more:
+
+| You write | The plugin declares | Result |
+|-----------|---------------------|--------|
+| nothing | anything | the plugin's declaration decides |
+| `respawn false` | `restart` | the plugin is left stopped when it exits |
+| `respawn true` | `restart` | the plugin is started again, which it already was |
+| `respawn true` | `ignore`, `fatal`, or nothing | **ze does not start.** The error names the plugin and the policy it declared |
+
+The last row is deliberate. Honoring the leaf would restart a plugin whose
+author forbade it, and honoring the declaration would leave what you wrote with
+no effect. Ze picks neither in silence: remove the leaf, or run a plugin that
+declares `restart`.
+
+The leaf is spelled the way ExaBGP spells it, because an ExaBGP process block
+carries the same option and a migrated configuration keeps working.
+
+Past the restart bound the plugin is disabled, `show health` reports
+`plugin-down` for it, and ze carries on.
 
 ## Binding Plugins to Peers
 
@@ -244,7 +283,7 @@ address each one connected from.
 ### The send permission
 
 `send` is a permission, and ze enforces it on the peers a command resolves to.
-A program that issues `peer * update ...` reaches the peers that attach it with
+A program that issues `send bgp * update ...` reaches the peers that attach it with
 `send [ update ]`, and no others. A peer the program is not attached to is
 dropped from the command, and ze writes one WARN naming the peer, the process
 and the message type. When the selector names ONLY peers that refuse it, the
@@ -258,7 +297,7 @@ bgp-route-refresh among them:
 |------|---------|----------|
 | `update` | originating routes toward the peer | `update text ... add`, `update text ... del`, an End-of-RIB marker, a named commit |
 | `refresh` | asking the peer to re-advertise | `peer <sel> refresh`, `borr`, `eorr`, `clear soft` |
-| `raw` | writing a whole BGP message the program built itself | `peer <sel> raw ...` |
+| `raw` | writing a whole BGP message the program built itself | `send bgp <sel> raw ...` |
 
 `raw` is the widest of the three, because the bytes can be any BGP message, an
 OPEN or a NOTIFICATION included. `send [ update ]` does not imply it.
@@ -518,14 +557,17 @@ Bus topics in the sysctl pipeline:
 ### Route Filters
 
 Plugins can declare named filters at stage 1 for import and/or export filtering.
-Each filter specifies which attributes it needs, and the engine sends only those
-attributes as text for each UPDATE. Filters respond accept, reject, or modify
-(delta-only). See [Route Filters](../redistribution/index.md) for configuration.
+A filter declares which attributes it reads. That declaration does not narrow
+what it receives. The engine builds one subject for the whole chain, and the
+subject names every attribute the UPDATE carries. See
+[The Attribute Names in the Filter Text Protocol](https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md)
+for the names and their value shapes. Filters respond accept, reject, or modify
+(delta-only). See [Route Filters and Redistribution](../redistribution/index.md) for configuration.
 
 A single plugin can offer multiple named filters. Config references them as
 `<plugin>:<filter>` (e.g., `rpki:validate`, `community:scrub`).
 
-| Category | Behaviour | Example |
+| Category | Behavior | Example |
 |----------|----------|---------|
 | Mandatory | Always on, cannot be overridden | `rfc:otc` |
 | Default | On by default, overridable per-peer | `rfc:no-self-as` |
@@ -569,25 +611,41 @@ The orchestrator **auto-loads** when `redistribute {}` appears in the
 config. No `plugin { internal redistribute-orchestrator { use redistribute-orchestrator; } }`
 block is required.
 
+The rules need no `attach process` plumbing either. Ze derives two bindings from
+the `redistribute` root, and they are the only bindings in the delivery index Ze
+writes for you. A peer whose config already names the process keeps its own
+binding unchanged.
+
+| The rule | The derived binding |
+|----------|---------------------|
+| `import bgp` | `receive [ update state refresh ]` toward `bgp-rib`, because the Loc-RIB is the source and a plugin sees a peer's UPDATEs only through a grant |
+| `destination bgp` | `receive [ state ]` and `send [ update ]` toward `redistribute-orchestrator`, because that plugin puts the route on the peer's wire |
+
+<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
+
 Reactor per-peer NEXT_HOP substitution applies: when the producer leaves
 `NextHop` zero, the reactor stamps each peer's local session address as the
 NEXT_HOP. Producers that have an explicit address pass it through verbatim.
 
-**Late-join replay:** a route injected by a source into `destination bgp` also
-reaches a BGP peer that establishes AFTER the injection. On a peer's down->up
-edge the orchestrator emits a `redistevents.ReplayRequest` carrying an opaque
-`ReplayID` token; each producer re-emits its current set with the token echoed,
-and the orchestrator targets only the newly-established peer. Producers stay
-peer-agnostic; the orchestrator holds the `ReplayID -> peer` mapping. Out-of-process
-producers re-emit asynchronously, so the mapping is held for a TTL. This closes the
-gap for dynamic/inbound peers not present in the reactor map at injection time.
+**Late-join replay:** a producer emits once, so whoever arrives after that emit
+holds nothing. Two arrivals are late, and each fires a replay request carrying an
+opaque `ReplayID` token that every producer echoes on a re-emit of its CURRENT
+set. Producers stay target-agnostic: the orchestrator alone holds the
+`ReplayID -> target` mapping, and it holds it for a TTL because an
+out-of-process producer re-emits asynchronously.
+
+| The late arrival | What the replay reaches |
+|------------------|-------------------------|
+| a BGP peer's down-to-up edge | that ONE peer, through the BGP consumer. This closes the gap for a dynamic or inbound peer not in the reactor map at injection time |
+| a destination protocol's consumer becoming registered | that ONE consumer, with the ordinary all-peers fan-out. Nothing orders the plugin startup tiers, so a producer can emit before the consumer exists |
 
 Counters: `ze_bgp_redistribute_events_received`, `_announcements`,
 `_withdrawals`, `_filtered_protocol_total`, `_filtered_rule_total`,
-`ze_bgp_redistribute_replay_total{source}` (routes replayed to a newly-established peer).
+`ze_bgp_redistribute_replay_total{source}` (routes replayed, to a newly
+established peer or to a consumer that registered late).
 
-<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- consumer plugin -->
-<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- late-join replay-on-peer-up -->
+<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- consumer plugin, watchConsumers -->
+<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- onPeerUp, onConsumerRegistered -->
 <!-- source: internal/core/redistevents/registry.go -- ProtocolID + producer registration -->
 
 ### Prefix-List Filter (`bgp-filter-prefix`)
@@ -625,17 +683,132 @@ rewriting the attribute value directly.
 
 `bgp-filter-aspath` matches the UPDATE's AS-path against ordered regex
 entries defined in `bgp { policy { as-path-list NAME { entry REGEX { action
-accept|reject; } } } }`. The AS-path is converted to a space-separated
-decimal string (e.g., `"65001 65002 65003"`) and each entry's regex is
-matched using Go's RE2 engine (linear time, inherently ReDoS-safe). First
+accept|reject; } } } }`. Each entry's regex is matched against the AS-path
+string using Go's RE2 engine (linear time, inherently ReDoS-safe). First
 match wins; no match is implicit deny.
 
 Chain references: `bgp-filter-aspath:NAME`, `as-path-list:NAME`, or bare
 `NAME`. Config authors should use `[0-9]` instead of `\d` in regex strings
 because ze's config parser interprets backslash as an escape character.
 
+**The AS-path string every filter matches against.** One reader produces it,
+`filtertext.ASPath`, and every AS-path filter takes it from there. It is the
+space-separated decimal ASNs with no brackets, for example `65001 65002 65003`.
+Two properties of it are load-bearing for a pattern you write:
+
+- **Every segment type is flattened into one list with no marker.**
+  AS_SEQUENCE, AS_SET, AS_CONFED_SEQUENCE and AS_CONFED_SET all contribute
+  their ASNs in order. A pattern therefore cannot ask which segment an ASN came
+  from, and an ASN inside an AS_SET is matched like any other.
+- **It is the path the route traversed, not the AS_PATH attribute as encoded.**
+  A peer that did not negotiate the four-octet AS capability puts AS_TRANS
+  (23456) in AS_PATH wherever a four-octet AS number belongs and sends the real
+  numbers in AS4_PATH. The reactor reconstructs one path from the two before any
+  filter sees the text (RFC 6793 Section 4.2.3), so a pattern and a hop count
+  read the real AS numbers and never AS_TRANS.
+- **A route with no AS_PATH gives the empty string**, and a route with one ASN
+  gives that ASN alone. The producer writes one ASN unbracketed (`as-path
+  65001`) and several in brackets (`as-path [65001 65002]`), and the reader
+  strips the brackets, so a pattern never sees one. A plugin that rewrites the
+  AS path can pad the inside of the brackets, `as-path [ 65001 65002 ]`, and the
+  reader trims that padding too. A pattern and a hop count therefore read the
+  same list whether the path came off the wire or out of a plugin.
+
 <!-- source: internal/component/bgp/plugins/filter_aspath/filter_aspath.go -- handleFilterUpdate -->
-<!-- source: internal/component/bgp/plugins/filter_aspath/match.go -- evaluateASPath, extractASPathField -->
+<!-- source: internal/component/bgp/plugins/filter_aspath/match.go -- evaluateASPath -->
+<!-- source: internal/component/bgp/filtertext/aspath.go -- ASPath -->
+<!-- source: internal/core/bgp/attribute/text_append.go -- AppendText -->
+<!-- source: internal/component/bgp/reactor/filter_format.go -- asPathForFilter -->
+
+### Reject-ASN Filter (`bgp-filter-path-asn`)
+
+`bgp-filter-path-asn` drops a route whose AS_PATH carries a listed ASN at a
+listed position, and leaves the session up. It is the cheap answer to a peer
+leaking its transit, which the max-prefix limit otherwise stops by dropping the
+whole session.
+
+```
+bgp {
+    policy {
+        reject-asn NO-TRANSIT {
+            indirect [ 174 3356 ]
+        }
+    }
+    peer peer-a {
+        filter {
+            import [ NO-TRANSIT ]
+            export [ NO-TRANSIT ]
+        }
+    }
+}
+```
+
+A list is an unordered reject SET. A route matching any leaf-list is rejected,
+and there is no first-match-wins, which is what keeps the type different from
+`as-path-list`. Both types stay and can sit in one chain.
+
+A list carries seven keywords, and the one an ASN is written under says WHERE in
+the path it is unacceptable.
+
+| Keyword | Rejects the ASN when it is |
+|---------|---------------------------|
+| `direct` | the peer you are talking to, prepends collapsed |
+| `indirect` | anywhere it is NOT that peer: `transit` or `origin` |
+| `transit` | between the peer and the route's origin |
+| `origin` | the last ASN of the path |
+| `anywhere` | anywhere in the path |
+| `nth <n>` | at collapsed position n, counted from you, 1-based |
+| `regex` | not an ASN at all. The values are Go RE2 patterns matched against the whole AS-path string |
+
+Six are plain leaf-lists. `nth` takes a number, so it is written
+`nth 2 [ 3491 ];`, and it counts RUNS rather than tokens: a run of consecutive
+identical ASNs advances the count once, so a peer cannot move your rule by
+prepending.
+
+`indirect` is the everyday keyword, and it is worth the sentence it says: do not
+give me anything you reached through a transit provider, and peering with that
+provider directly is still fine. `direct` is the sending PEER's ASN, not the
+first ASN in the path: a path `[3356 65001]` from AS65001 carries 3356 at index
+zero and is still a leak, which is the route-server case RFC 7454 Section 9
+names. `nth 1` asks the positional question instead, and catches that same 3356.
+
+On an export chain the filter is told the DESTINATION peer, not who sent the
+route, so nothing is `direct` there and `indirect` covers the whole path. That is
+the export half of RFC 7454 Section 9: do not advertise a path through your
+upstream to a peer you do not sell transit to.
+
+The same ASN written under two keywords unions, so `indirect` plus `direct` is
+`anywhere`.
+A list that names nothing at all, whether its leaf-lists are absent or written
+empty, is REFUSED at load: an empty reject set accepts every route while reading
+in the config file like a safety filter. So is an `nth` entry with no ASN. A
+pattern that does not compile and one longer than 512 characters are refused too,
+naming the list. The ASN leaf-lists are `uint32`, an `nth` index is bounded
+1..255, and the keywords are the schema's own, so a word where a number belongs
+and a keyword nobody declared are both refused by the config parser.
+
+Every reject logs the offending ASN or pattern, the position it matched at, the
+list, the peer and the direction.
+
+Chain references: bare `NAME`, `reject-asn:NAME`, or `bgp-filter-path-asn:NAME`.
+
+Every reject also increments `ze_filter_path_asn_rejects_total`, labeled with
+the direction, the position that matched and the reason. The peer stays in the
+log line: a peer address in a label would grow the series count with the session
+count.
+
+Ze ships no ASN set. The operator lists the ASNs, and the list means exactly
+what it says. `show bgp reject-asn known transit-free` prints the well-known
+transit-free ASNs as a `indirect [ ... ];` block to paste, with the sources and the
+curated date as comments, and after the paste the config holds the numbers.
+`show bgp reject-asn` lists what each list holds, and
+`show bgp reject-asn name <name>` answers for one of them.
+
+<!-- source: internal/component/bgp/plugins/filter_path_asn/filter_path_asn.go -- handleFilterUpdate, senderOf -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/command.go -- showRejectASN, showKnownTransitFree -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/metrics.go -- recordReject -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/config.go -- positionsByKey, parseRejectASNLists -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/match.go -- matchPositions, matchPattern -->
 
 ### Community Match Filter (`bgp-filter-community-match`)
 
@@ -670,6 +843,29 @@ next-hop 10.0.0.1; as-path-prepend 3; }`. Only present leaves are applied.
 or `decrement { med 30; }`. Supported attributes: local-preference, med, aigp.
 Increment saturates at uint32 max (4294967295). Decrement floors at 0.
 Set and increment/decrement for the same attribute are mutually exclusive.
+
+The arithmetic reads the attribute the route carries. When the route carries
+none, `med` and `local-preference` start from a declared default and `aigp` is
+left alone:
+
+| Attribute | Absent on the route | Why |
+|-----------|--------------------|-----|
+| `med` | starts from 0, and the result is written, so a route that had no metric gains one | RFC 4271 Section 9.1.2.2 names 0 as the value of an absent MULTI_EXIT_DISC |
+| `local-preference` | starts from 100 | RFC 4271 Section 9.1.1 leaves the value to local policy. 100 is the value FRR and BIRD use |
+| `aigp` | nothing is written, and the route keeps no AIGP attribute | RFC 7311 Section 4.1 removes a route with no AIGP TLV from consideration rather than scoring it, and Section 3.4.1 forbids adding the attribute outside the AIGP administrative domain |
+
+The first two values are configurable, and the table shows what they are when
+nothing is written: `bgp { defaults { attribute { med 0; local-preference 100;
+} } }`. Both leaves take 0 to 4294967295. They govern this arithmetic alone, so
+a changed `med` does NOT move the Decision Process, which compares an absent
+MULTI_EXIT_DISC as 0 whatever the leaf holds. There is no `aigp` leaf, for the
+reason the third row gives.
+
+`decrement { med 30; }` on a route that carried no metric therefore leaves
+`med 0` on the route. An RFC-default receiver reads an absent MED and a MED of 0
+the same way, so this changes nothing for it. A receiver configured to treat a
+missing MED as the worst value reads them differently, and for that peer the
+route is promoted.
 
 **Community Add/Remove**: `set { community-add [ 65000:200 ]; community-remove
 [ 65000:100 ]; large-community-add [ 65000:100:200 ]; }`. Adds or removes
@@ -827,8 +1023,11 @@ plugin {
 
 External plugins communicate with Ze through the same newline-framed YANG RPC
 protocol as internal plugins: `#<id> <verb> [json]`. External processes connect
-to the plugin hub over TLS with the `ZE_PLUGIN_HUB_*` environment supplied by
-the engine. The Go SDK in `pkg/plugin/sdk` is the reference implementation. A
+to the plugin hub over TLS with the `ZE_PLUGIN_*` environment supplied by the
+engine. That environment carries the hub address, a per-plugin token, and in
+`ZE_PLUGIN_CA_PEM` the certificate authority root that issued the hub's
+certificate. A plugin validates the hub's chain against that root and dials no
+hub without it. The Go SDK in `pkg/plugin/sdk` is the reference implementation. A
 plugin written in another language implements the same documented wire
 protocol; no first-party Python launcher or helper is required.
 
@@ -987,18 +1186,18 @@ Plugins can declare dependencies on other plugins. The engine starts plugins in 
 
 Dependencies are declared in the plugin's registration, not in config. The engine resolves them automatically. Two kinds:
 
-| Kind | Field | Behaviour if missing |
+| Kind | Field | Behavior if missing |
 |------|-------|----------------------|
 | Hard | `Dependencies` | Startup fails with `ErrMissingDependency`. |
 | Optional | `OptionalDependencies` | Silently skipped. Plugin owner handles runtime absence (typically a one-shot WARN + feature disabled). |
 
-`bgp-rs` uses `bgp-adj-rib-in` optionally: when both are loaded, replay-on-peer-up works; when `bgp-adj-rib-in` is absent, forwarding still works and a single WARN log announces that replay is disabled. `bgp-rs` forwards via the typed `Plugin.ForwardCached` / `ReleaseCached` fast path (rs-fastpath-3) instead of the legacy text-RPC `bgp cache forward <id> <sel>` pipeline. See [architecture/api/commands](../../architecture/api/commands/index.md#fast-path-typed-sdk-rs-fastpath-3) for the full SDK surface.
+`bgp-rs` uses `bgp-adj-rib-in` optionally: when both are loaded, replay-on-peer-up works; when `bgp-adj-rib-in` is absent, forwarding still works and a single WARN log announces that replay is disabled. `bgp-rs` forwards via the typed `Plugin.ForwardCached` / `ReleaseCached` fast path (rs-fastpath-3) instead of the legacy text-RPC `send bgp <sel> cached <id>` pipeline. See [architecture/api/commands](../../architecture/api/commands/index.md#fast-path-typed-sdk-rs-fastpath-3) for the full SDK surface.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.Dependencies + Registration.OptionalDependencies -->
 <!-- source: internal/component/bgp/plugins/rs/server_forward.go -- flushBatch via Plugin.ForwardCached -->
 
 ## Exclusive Roles
 
-When two plugins both implement a behaviour but only one should run it, the plugin that takes over declares the role in its static registration (`Claims`), and the other stands down. The engine unions the claims of every plugin in the startup set and delivers the union on each plugin's Stage-2 configure callback; the standing-down plugin reads it with `sdk.Plugin.ClaimActive(role)` from its `OnConfigure` handler.
+When two plugins both implement a behavior but only one should run it, the plugin that takes over declares the role in its static registration (`Claims`), and the other stands down. The engine unions the claims of every plugin in the startup set and delivers the union on each plugin's Stage-2 configure callback; the standing-down plugin reads it with `sdk.Plugin.ClaimActive(role)` from its `OnConfigure` handler.
 
 Stage 2 is part of the sequential handshake, so the decision is recorded before any plugin sends Stage-5 ready and therefore before the engine starts peers. A handler reading it during a runtime event always sees the final answer.
 
@@ -1010,7 +1209,7 @@ Stage 2 is part of the sequential handshake, so the decision is recorded before 
 
 A claim says a role has an owner in this daemon. It cannot say the owner will act on a given peer, because Stage 2 runs before any session exists. Two things make the claim wrong for one peer, and the plugin that stood down can see neither: the claimant takes no delivery of that peer's events, because the peer's `attach process` blocks do not name it, or the claimant never reached Running at all.
 
-So the engine RETRACTS the claim, per event, for the peers it does not cover. Each peer-scoped event carries the claimed roles that no process being fed this event holds: `StructuredEvent.UnheldRoles` for a plugin on the direct bridge, and the `unheld-roles` member of the state event for a JSON one. A plugin that stood a role down MUST run its own default behaviour for an event that names it, because nothing else will. The list is absent whenever every claim holds, which is the common case and costs no bytes.
+So the engine RETRACTS the claim, per event, for the peers it does not cover. Each peer-scoped event carries the claimed roles that no process being fed this event holds: `StructuredEvent.UnheldRoles` for a plugin on the direct bridge, and the `unheld-roles` member of the state event for a JSON one. A plugin that stood a role down MUST run its own default behavior for an event that names it, because nothing else will. The list is absent whenever every claim holds, which is the common case and costs no bytes.
 
 `bgp-adj-rib-in` reads it at peer-up: it replays a peer that `bgp-rs` is not fed, and stands down for the peers `bgp-rs` drives. Without the retraction such a peer was served by nobody, because `bgp-rs` replays and forwards only peers it takes `state` delivery of.
 <!-- source: internal/component/plugin/server/startup_claims.go -- (*Server).UnheldRoles -->
@@ -1020,9 +1219,29 @@ So the engine RETRACTS the claim, per event, for the peers it does not cover. Ea
 
 A plugin that decides on the peer-up event whether a peer may receive traffic declares `PeerUpBarrier: true`. The engine then holds that peer's initial-sync End-of-RIB until every barrier-declaring plugin subscribed to state events has taken delivery of the peer-up event, so "End-of-RIB sent" means "every barrier plugin has registered this peer".
 
-`bgp-rs` declares it: it registers the peer as a forward target on that event, and an UPDATE arriving before that is forwarded nowhere. The wait is bounded and never blocks establishment. A plugin that does not acknowledge only delays the End-of-RIB to the timeout, which logs a WARN naming the peer and the shortfall. The expected count is taken over the plugins the event is actually delivered to, so declaring the field without subscribing to state events does not stall anything. It is a separate counter from the API-sync wait, which counts plugins that send routes: merging them would let a route sender's signal satisfy a registrar's obligation.
+`bgp-rs` declares it: it registers the peer as a forward target on that event, and an UPDATE arriving before that is forwarded nowhere. The wait is bounded and never blocks establishment. A plugin that does not acknowledge only delays the End-of-RIB to the timeout, which logs a WARN naming the peer and the shortfall. The expected count is taken over the plugins the event is actually delivered to, so declaring the field without subscribing to state events does not stall anything. It is separate from the session-ready wait below: merging them would let a route sender's report satisfy a registrar's obligation.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.PeerUpBarrier -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- waitPeerUpBarrier before End-of-RIB -->
+
+## Session-Ready Report
+
+A plugin whose routes belong to a peer's INITIAL routing update declares `SignalsSessionReady: true` and dispatches `request peer <addr> plugin session ready` once those routes are out. The engine holds that peer's End-of-RIB until the report arrives, so the marker means the initial routing update completed (RFC 4724 Section 4).
+
+The declaration is voluntary. It says WHEN your routes belong, not what you may send, so a plugin that pushes routes on its own schedule declares nothing and is never waited for, and binding it with `send [ update ]` costs the peer no delay.
+
+An external plugin has the same declaration under a different name. It is registered nowhere in this tree, so it declares `signals-session-ready` in its Stage-1 `declare-registration` instead, and the engine reads it off the running process. Declaring nothing stays the default there too.
+
+The name you are waited for under is the one the operator wrote in `attach process <name>`, whatever your plugin is called. `plugin { internal rs { use bgp-rs } }` runs the process as `rs`, and the engine resolves that alias back to the `bgp-rs` registration before it asks whether you declared. Your report carries the process name, so it is credited to `rs` as well. The spelling of the implementation does not change the answer: `use bgp-rs`, `use ze.bgp-rs`, `run ze.bgp-rs` and `run ze plugin bgp-rs` all reach the same registration, because one function (`plugin.RegistryNames`) answers which registry row a process configuration names and every caller derives from it.
+
+Three facts have to hold before a peer waits for your process, and each one is something you can check in your own config. The peer grants the route-push rail, with `send [ update ]` or `send [ raw ]`. The plugin declares the field. The peer grants `receive [ state ]`, because the report answers the peer-up event: a process the peer never tells about the session cannot push into that session's initial update, so it is not waited for. A binding with `send [ update ]` and no `receive [ state ]` is therefore free of the wait rather than stalled by it.
+
+Report once per establishment, from your peer-up handler, and report even when you had nothing to replay: the barrier cannot tell "finished with nothing to send" from "still working". A process that never reports only delays that peer's End-of-RIB to `apiSyncTimeout` (2s), which logs a WARN naming the peer and the silent processes.
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.SignalsSessionReady -->
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput.SignalsSessionReady -->
+<!-- source: internal/component/plugin/server/events.go -- (*Server).declaresSessionReady -->
+<!-- source: internal/component/plugin/resolve.go -- RegistryNames -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters -->
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer.waitForAPISync -->
 
 ## Startup Timing
 

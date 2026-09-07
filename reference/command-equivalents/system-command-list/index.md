@@ -20,6 +20,8 @@ List every command the daemon knows.
 - Command pipes: none
 - Pipe aliases: none
 
+The rows carry the built-in commands first, then the commands the plugins registered. Each row carries the command name, its summary and its long explanation. Add the word verbose to put the source of each row beside it.
+
 ## Arguments
 
 No command-specific arguments listed.

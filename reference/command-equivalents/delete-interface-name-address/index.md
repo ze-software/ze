@@ -20,6 +20,8 @@ Remove an IP address from an interface.
 - Command pipes: none
 - Pipe aliases: none
 
+Give the address in the same CIDR form it was added with. The interface stays, and only that address goes.
+
 ## Arguments
 
 | Name | Type | Required | Values |

@@ -20,6 +20,8 @@ Wait until all queued updates for a peer are sent.
 - Command pipes: none
 - Pipe aliases: none
 
+The command returns once the forward pool has drained, so a test asserts on what the peer received without a fixed sleep. A selector of '*' flushes every peer. The wait is bounded at 30 seconds.
+
 ## Arguments
 
 | Name | Type | Required | Values |

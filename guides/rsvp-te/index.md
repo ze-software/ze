@@ -15,7 +15,9 @@ requires `CAP_NET_RAW`.
 
 ```
 rsvp-te {
-    router-id 10.0.0.1
+    router-id          10.0.0.1
+    refresh-period     30
+    refresh-multiplier 3
 
     interface eth0 {
         max-bandwidth            10e9
@@ -50,6 +52,14 @@ rsvp-te {
 
 - `router-id` -- this LSR's address; also the raw-socket source and the SESSION
   extended-tunnel-id.
+- `refresh-period` -- how often ze re-sends PATH and RESV, 1 to 65535 seconds,
+  default 30. Ze advertises this value in TIME_VALUES, and a neighbor derives the
+  lifetime of the state ze created from it (RFC 2205 Section 3.7).
+- `refresh-multiplier` -- how many missed refreshes expire state, 1 to 255,
+  default 3. State expires when its last refresh is older than the period
+  multiplied by this number, which is 90 seconds at the defaults. Expiry releases
+  the reserved bandwidth, the MPLS forwarding entry and the label, then sends an
+  `lsp-down` event.
 - `interface` -- per-link `max-bandwidth` / `max-reservable-bandwidth` used by
   admission control. `address` (the local link prefix, e.g. `10.0.0.4/30`) lets
   admission map an LSP to this interface when more than one is configured: the
@@ -69,6 +79,26 @@ rsvp-te {
   Repair) to a `merge-point` along an `explicit-route` that avoids the protected
   resource. ze has no IGP/CSPF, so bypass paths are explicit. `node-protection
   true` marks a bypass that merges at a next-next hop (for node protection).
+
+### What a commit changes
+
+A `commit` applies the rsvp-te block to the running daemon. `refresh-period` and
+`refresh-multiplier` take effect on the next refresh tick, so the new cadence and
+the new expiry deadline start within one old period. An interface you remove stops
+being serviced at the commit: it leaves `show rsvp-te interface` and its
+reservation records are dropped. The LSPs that reserved bandwidth on that link
+stay up, because a withdrawn bandwidth declaration is not a teardown request
+(RFC 2205 Section 2.4). An interface removed and added back accounts from zero
+until those LSPs drain.
+
+Tunnels and bypasses reconcile the same way: an added tunnel signals, a changed
+explicit route reroutes make-before-break, and a removed tunnel is torn down.
+
+`router-id` is the one leaf a commit does not change. The engine keeps the
+running value and logs a warning, because the LSP keys and the message encoders
+are built from it. Restart ze to change it.
+
+<!-- source: internal/plugins/rsvpte/register.go -- reconcileInterfaces, refreshTick, the OnConfigApply hook -->
 
 ## How signaling works
 

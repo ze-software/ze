@@ -20,6 +20,8 @@ Answer a health check with the daemon process id.
 - Command pipes: none
 - Pipe aliases: none
 
+The answer carries the process id of the daemon process, not of the plugin that asked. The command takes no argument and never fails.
+
 ## Arguments
 
 No command-specific arguments listed.

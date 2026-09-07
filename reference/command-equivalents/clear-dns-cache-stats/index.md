@@ -20,6 +20,8 @@ Reset DNS cache hit, miss, eviction, and expiry counters without removing cached
 - Command pipes: none
 - Pipe aliases: none
 
+The cached entries stay, so the next lookup is still served from the cache. Only the hit, miss, eviction and expiry counters go to zero.
+
 ## Arguments
 
 No command-specific arguments listed.

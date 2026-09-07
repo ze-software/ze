@@ -1,6 +1,6 @@
 # Plugin catalog
 
-91 runtime plugins generated from `data/plugin-registry.json`. 69 runtime plugins declare configuration roots and 71 ship YANG modules.
+89 runtime plugins generated from `data/plugin-registry.json`. 71 runtime plugins declare configuration roots and 73 ship YANG modules.
 
 The HTML page includes browser-side search across name, purpose, config roots, dependencies, YANG files, and source directories. Clicking a plugin opens its generated local detail page.
 
@@ -61,6 +61,7 @@ Generated group for registry entries mapped to the BGP Filter area. Config roots
 | [`bgp-filter-family`](bgp-filter-family/index.md) | Named address-family policy filter: remove a family's NLRI or tear down the session | `bgp` | `bgp` | `internal/component/bgp/plugins/filter_family` |
 | [`bgp-filter-irr`](bgp-filter-irr/index.md) | IRR-based prefix-list filter for eBGP peers | `bgp` | `bgp` | `internal/component/bgp/plugins/filter_irr` |
 | [`bgp-filter-modify`](bgp-filter-modify/index.md) | Named route attribute modifier (set local-preference, med, origin, next-hop) | `bgp` | `bgp` | `internal/component/bgp/plugins/filter_modify` |
+| [`bgp-filter-path-asn`](bgp-filter-path-asn/index.md) | Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position | `bgp` | `bgp` | `internal/component/bgp/plugins/filter_path_asn` |
 | [`bgp-filter-prefix`](bgp-filter-prefix/index.md) | Named prefix-list filter (CIDR + ge/le + accept/reject) | `bgp` | `bgp` | `internal/component/bgp/plugins/filter_prefix` |
 | [`bgp-filter-remove-private-as`](bgp-filter-remove-private-as/index.md) | Named AS-path action filter that removes RFC 6996 Private Use ASNs | `bgp` | `bgp` | `internal/component/bgp/plugins/filter_remove_private_as` |
 | [`loop`](loop/index.md) | Route loop detection (RFC 4271 S9, RFC 4456 S8) | None | None | `internal/component/bgp/reactor/filter` |
@@ -88,7 +89,6 @@ Generated group for registry entries mapped to the BGP Redistribute area. Config
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`bgp-redistribute`](bgp-redistribute/index.md) | Route redistribution ingress filter with loop prevention and family filtering | None | `bgp` | `internal/component/bgp/plugins/redistribute_ingress` |
 | [`redistribute-orchestrator`](redistribute-orchestrator/index.md) | Redistribute orchestrator: dispatches protocol route events to registered consumers | `redistribute` | `bgp` | `internal/component/bgp/plugins/redistribute_egress` |
 
 ## Class of Service
@@ -160,6 +160,7 @@ Generated group for registry entries mapped to the Firewall area. Config roots: 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
 | [`firewall`](firewall/index.md) | Packet filter and NAT rules (nftables on Linux) | `firewall` | None | `internal/component/firewall` |
+| [`firewall-domain`](firewall-domain/index.md) | DNS-sourced address groups for firewall rules | `firewall` | `firewall` | `internal/component/firewall/plugins/domain` |
 | [`firewall-irr`](firewall-irr/index.md) | IRR-based prefix-list filtering for firewall rules | `firewall` | `firewall` | `internal/component/firewall/plugins/irr` |
 
 ## Flow Export
@@ -188,12 +189,10 @@ Generated group for registry entries mapped to the IS-IS area. Config roots: `is
 
 ## Interface
 
-Generated group for registry entries mapped to the Interface area. Config roots: `interface`. Source area: `internal/component/iface`, `internal/plugins/iface`, `internal/plugins/vrrp`.
+Generated group for registry entries mapped to the Interface area. Config roots: `interface`. Source area: `internal/component/iface`, `internal/plugins/vrrp`.
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`iface-dhcp`](iface-dhcp/index.md) | DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal | None | `interface` | `internal/plugins/iface/dhcp` |
-| [`iface-ra`](iface-ra/index.md) | Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861) | None | `interface` | `internal/plugins/iface/ra` |
 | [`interface`](interface/index.md) | OS network interface monitoring and management | `interface` | `sysctl` | `internal/component/iface` |
 | [`vrrp`](vrrp/index.md) | Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy | `interface` | `interface` | `internal/plugins/vrrp` |
 
@@ -231,14 +230,6 @@ Generated group for registry entries mapped to the MRT area. Config roots: `mrt`
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
 | [`mrt`](mrt/index.md) | MRT routing information export (RFC 6396) | `mrt` | None | `internal/plugins/mrt` |
-
-## Memlock
-
-Generated group for registry entries mapped to the Memlock area. Source area: `internal/plugins/memlock`.
-
-| Plugin | Used for | Config | Depends on | Source path |
-|--------|----------|--------|------------|-------------|
-| [`memlock`](memlock/index.md) | Memory lock: keep the running executable resident under memory pressure | None | None | `internal/plugins/memlock` |
 
 ## OSPF
 
@@ -298,7 +289,7 @@ Generated group for registry entries mapped to the Static area. Config roots: `s
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`static`](static/index.md) | Static routes: config-driven kernel/VPP route programming with ECMP | `static` | `routing-table` | `internal/plugins/static` |
+| [`static`](static/index.md) | Static routes: config-driven kernel/VPP route programming with ECMP | `static` | `routing-table`, `rib` | `internal/plugins/static` |
 
 ## Sysctl
 

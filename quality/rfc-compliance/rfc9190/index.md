@@ -10,9 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 3.9% | 2 of 51 binding obligations | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 51 binding obligations | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| Proven by a recorded break | 0.0% | 0 of 8 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 5.9% | 3 of 51 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 51 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Proven by a recorded break | 47.1% | 8 of 17 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -21,7 +21,10 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | MUSTs declared | 51 | of 94 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (backlog), so every share below reads what the summary records rather than what the gate enforces |
-| Out of scope | 0 | of 51 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below |
+| Out of scope | 0 | of 51 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 51 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 51 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 51 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -29,10 +32,10 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| One polarity, unexcused | 2.0% | 1 of 51 binding obligations | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 94.1% | 48 of 51 binding obligations | no test carries the requirement id, whether or not a gap states why |
+| One polarity, unexcused | 2.0% | 1 of 51 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| No test at all | 92.2% | 47 of 51 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 4 shares marked as a part above are the whole of the 51 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 51 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -44,6 +47,9 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | bad | green at zero, RED above it: half a proof with no reason for the other half |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
@@ -55,22 +61,21 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Not enrolled (backlog) |
 | Requirements | 94 |
 | Gated MUST-level | 51 |
-| Obligations that bind Ze | 51 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
-| Gated with no test | 48 |
+| Gated with no test | 47 |
 | Nightly-only evidence | 0 |
-| Test tags | 8 |
-| Tagged units | 8 |
+| Test tags | 17 |
+| Tagged units | 17 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 8 |
 | Summary | `rfc/short/rfc9190.md` |
 | Requirement shard | `rfc/requirements/rfc9190.md` |
 | RFC text | `rfc/full/rfc9190.txt` |
 
 ## Enrolment
 
-Not enrolled (backlog, the requirements have not been extracted from the document yet; this is work owed rather than a decision): EAP-TLS 1.3: Using EAP with TLS 1.3. Summary written 2026-08-01 and it declares 51 MUST-level obligations over 19 sections. It is NOT enrolled because 49 of them are not yet proven by a tagged test, and the two routes to enrolment are both closed to an implementer: proving all 51 in both polarities is spec-sized work, and annotating the remainder is a conformance judgement ai/rules/rfc-compliance.md reserves to the owner. What Ze does implement today is the Section 2.3 key derivation and the Section 2.5 protected success result indication. exportEAPTLSMSK (internal/component/ike/eap/eap_tls.go) selects the exporter label EXPORTER_EAP_TLS_Key_Material, the Type-Code context and the 128-octet length whenever the negotiated version is TLS 1.3, and test/interop-ipsec/scenarios/eap-tls13 exercises that path against strongSwan. tlsMethod.indicateSuccess (same file, added 2026-08-12) writes the encrypted TLS record carrying application data 0x00 in the round that completes the handshake, so RFC9190-2.5-1 and RFC9190-2.5-2 now carry both polarities; test/interop-ipsec/scenarios/responder-eap-tls13 proves it with Ze in the EAP-TLS SERVER role, and with the write reverted strongSwan logs missing protected success indication for EAP-TLS with TLS 1.3 and the SA never establishes. PeerSession.handleTLSRequest still does not CONSUME the indication: it answers the record with the no-data EAP-Response Section 2.5 step 4 asks for, but never decrypts it, so a Ze peer cannot tell a server that sent one from a server that did not. The published RFC states no peer-side obligation and errata 7577, which proposes one, is Reported rather than Verified. Escalated for a scoping ruling rather than decided, per the same route rfc1035 and rfc5301 took.
+Not enrolled (backlog, the requirements have not been extracted from the document yet; this is work owed rather than a decision): EAP-TLS 1.3: Using EAP with TLS 1.3. Summary written 2026-08-01 and it declares 51 MUST-level obligations over 19 sections. It is NOT enrolled because 49 of them are not yet proven by a tagged test, and the two routes to enrolment are both closed to an implementer: proving all 51 in both polarities is spec-sized work, and annotating the remainder is a conformance judgement ai/rules/rfc-compliance.md reserves to the owner. What Ze does implement today is the Section 2.3 key derivation and the Section 2.5 protected success result indication. exportEAPTLSMSK (internal/core/eap/eap_tls.go) selects the exporter label EXPORTER_EAP_TLS_Key_Material, the Type-Code context and the 128-octet length whenever the negotiated version is TLS 1.3, and test/interop-ipsec/scenarios/eap-tls13 exercises that path against strongSwan. tlsMethod.indicateSuccess (same file, added 2026-08-12) writes the encrypted TLS record carrying application data 0x00 in the round that completes the handshake, so RFC9190-2.5-1 and RFC9190-2.5-2 now carry both polarities; test/interop-ipsec/scenarios/responder-eap-tls13 proves it with Ze in the EAP-TLS SERVER role, and with the write reverted strongSwan logs missing protected success indication for EAP-TLS with TLS 1.3 and the SA never establishes. PeerSession.handleTLSRequest still does not CONSUME the indication: it answers the record with the no-data EAP-Response Section 2.5 step 4 asks for, but never decrypts it, so a Ze peer cannot tell a server that sent one from a server that did not. The published RFC states no peer-side obligation and errata 7577, which proposes one, is Reported rather than Verified. Escalated for a scoping ruling rather than decided, per the same route rfc1035 and rfc5301 took. SECTION 5.4 IS PARTLY BUILT as of 2026-09-05. RFC9190-5.4-1 is implemented and proven in both polarities on BOTH roles: checkChainRevocation (internal/core/eap/revocation.go) walks every certificate on each verified chain except the trust anchor, asks the configured certificate revocation lists about it, and refuses the session when a list names it, when no current list covers its issuer, or when the only list has passed its nextUpdate. The authenticator runs it from tls.Config.VerifyConnection (newTLSMethod, internal/core/eap/eap_tls.go) over the chain crypto/tls built from ClientCAs, and the peer runs it from serverChainCheck.verifyConnection (internal/core/eap/peer.go) over the chain serverChainCheck.verifyPeerCertificate built. The lists reach both roles from the pki ca crl leaf-list through CACertEntry.CRLPEM, and a CA holding none answers nil, which is what makes a TLS 1.3 session refuse rather than complete unchecked. RFC 5216 Section 5.4 governs TLS 1.2, and it asks only that the implementation MUST support CRLs, so a TLS 1.2 session with no list still completes; TestEAPTLS12CompletesWithNoRevocationList pins that scope. test/interop-ipsec/scenarios/responder-eap-tls13-revoked-client proves it against strongSwan with Ze in the EAP-TLS SERVER role: it is responder-eap-tls13 with one file changed, the CRL naming the strongSwan client certificate's serial number, and it asserts Ze logs the revocation and neither end installs an XFRM SA. RFC9190-5.4-2 (server OCSP stapling), 5.4-3 (peer status-request enforcement), 5.4-4 and 5.4-5 (the post-authentication check over a secure transport) are NOT built, and each is a gap rather than an exclusion: Ze fills the role every one of them addresses.
 
 ## What the public ledger says
 
@@ -80,18 +85,18 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 2 | one part of the gated population |
+| Positive and negative tests | 3 | one part of the gated population |
 | Annotated instead of tested | 0 | one part of the gated population |
 | One polarity only | 1 | one part of the gated population |
-| No test and no annotation | 48 | one part of the gated population |
+| No test and no annotation | 47 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | **Gated MUST-level requirements** | **51** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (2):** [`RFC9190-2.5-1`](#rfc9190-2.5-1), [`RFC9190-2.5-2`](#rfc9190-2.5-2)
+**Positive and negative tests (3):** [`RFC9190-2.5-1`](#rfc9190-2.5-1), [`RFC9190-2.5-2`](#rfc9190-2.5-2), [`RFC9190-5.4-1`](#rfc9190-5.4-1)
 
 **One polarity only (1):** [`RFC9190-2.3-1`](#rfc9190-2.3-1)
 
-**No test and no annotation (48):** [`RFC9190-2.1-2`](#rfc9190-2.1-2), [`RFC9190-2.1-3`](#rfc9190-2.1-3), [`RFC9190-2.1-4`](#rfc9190-2.1-4), [`RFC9190-2.1-5`](#rfc9190-2.1-5), [`RFC9190-2.1-6`](#rfc9190-2.1-6), [`RFC9190-2.1-7`](#rfc9190-2.1-7), [`RFC9190-2.1-8`](#rfc9190-2.1-8), [`RFC9190-2.1.1-1`](#rfc9190-2.1.1-1), [`RFC9190-2.1.1-2`](#rfc9190-2.1.1-2), [`RFC9190-2.1.2-1`](#rfc9190-2.1.2-1), [`RFC9190-2.1.2-2`](#rfc9190-2.1.2-2), [`RFC9190-2.1.2-3`](#rfc9190-2.1.2-3), [`RFC9190-2.1.2-4`](#rfc9190-2.1.2-4), [`RFC9190-2.1.3-1`](#rfc9190-2.1.3-1), [`RFC9190-2.1.3-2`](#rfc9190-2.1.3-2), [`RFC9190-2.1.4-1`](#rfc9190-2.1.4-1), [`RFC9190-2.1.4-2`](#rfc9190-2.1.4-2), [`RFC9190-2.1.4-3`](#rfc9190-2.1.4-3), [`RFC9190-2.1.8-1`](#rfc9190-2.1.8-1), [`RFC9190-2.1.8-2`](#rfc9190-2.1.8-2), [`RFC9190-2.1.8-3`](#rfc9190-2.1.8-3), [`RFC9190-2.1.8-4`](#rfc9190-2.1.8-4), [`RFC9190-2.1.9-1`](#rfc9190-2.1.9-1), [`RFC9190-2.1.9-2`](#rfc9190-2.1.9-2), [`RFC9190-2.2-1`](#rfc9190-2.2-1), [`RFC9190-2.3-2`](#rfc9190-2.3-2), [`RFC9190-2.3-3`](#rfc9190-2.3-3), [`RFC9190-2.4-1`](#rfc9190-2.4-1), [`RFC9190-2.4-2`](#rfc9190-2.4-2), [`RFC9190-5.4-1`](#rfc9190-5.4-1), [`RFC9190-5.4-2`](#rfc9190-5.4-2), [`RFC9190-5.4-3`](#rfc9190-5.4-3), [`RFC9190-5.4-4`](#rfc9190-5.4-4), [`RFC9190-5.4-5`](#rfc9190-5.4-5), [`RFC9190-5.6-1`](#rfc9190-5.6-1), [`RFC9190-5.6-2`](#rfc9190-5.6-2), [`RFC9190-5.6-3`](#rfc9190-5.6-3), [`RFC9190-5.6-4`](#rfc9190-5.6-4), [`RFC9190-5.7-1`](#rfc9190-5.7-1), [`RFC9190-5.7-2`](#rfc9190-5.7-2), [`RFC9190-5.7-3`](#rfc9190-5.7-3), [`RFC9190-5.7-4`](#rfc9190-5.7-4), [`RFC9190-5.7-5`](#rfc9190-5.7-5), [`RFC9190-5.7-6`](#rfc9190-5.7-6), [`RFC9190-5.8-1`](#rfc9190-5.8-1), [`RFC9190-5.8-2`](#rfc9190-5.8-2), [`RFC9190-5.8-3`](#rfc9190-5.8-3), [`RFC9190-5.10-1`](#rfc9190-5.10-1)
+**No test and no annotation (47):** [`RFC9190-2.1-2`](#rfc9190-2.1-2), [`RFC9190-2.1-3`](#rfc9190-2.1-3), [`RFC9190-2.1-4`](#rfc9190-2.1-4), [`RFC9190-2.1-5`](#rfc9190-2.1-5), [`RFC9190-2.1-6`](#rfc9190-2.1-6), [`RFC9190-2.1-7`](#rfc9190-2.1-7), [`RFC9190-2.1-8`](#rfc9190-2.1-8), [`RFC9190-2.1.1-1`](#rfc9190-2.1.1-1), [`RFC9190-2.1.1-2`](#rfc9190-2.1.1-2), [`RFC9190-2.1.2-1`](#rfc9190-2.1.2-1), [`RFC9190-2.1.2-2`](#rfc9190-2.1.2-2), [`RFC9190-2.1.2-3`](#rfc9190-2.1.2-3), [`RFC9190-2.1.2-4`](#rfc9190-2.1.2-4), [`RFC9190-2.1.3-1`](#rfc9190-2.1.3-1), [`RFC9190-2.1.3-2`](#rfc9190-2.1.3-2), [`RFC9190-2.1.4-1`](#rfc9190-2.1.4-1), [`RFC9190-2.1.4-2`](#rfc9190-2.1.4-2), [`RFC9190-2.1.4-3`](#rfc9190-2.1.4-3), [`RFC9190-2.1.8-1`](#rfc9190-2.1.8-1), [`RFC9190-2.1.8-2`](#rfc9190-2.1.8-2), [`RFC9190-2.1.8-3`](#rfc9190-2.1.8-3), [`RFC9190-2.1.8-4`](#rfc9190-2.1.8-4), [`RFC9190-2.1.9-1`](#rfc9190-2.1.9-1), [`RFC9190-2.1.9-2`](#rfc9190-2.1.9-2), [`RFC9190-2.2-1`](#rfc9190-2.2-1), [`RFC9190-2.3-2`](#rfc9190-2.3-2), [`RFC9190-2.3-3`](#rfc9190-2.3-3), [`RFC9190-2.4-1`](#rfc9190-2.4-1), [`RFC9190-2.4-2`](#rfc9190-2.4-2), [`RFC9190-5.4-2`](#rfc9190-5.4-2), [`RFC9190-5.4-3`](#rfc9190-5.4-3), [`RFC9190-5.4-4`](#rfc9190-5.4-4), [`RFC9190-5.4-5`](#rfc9190-5.4-5), [`RFC9190-5.6-1`](#rfc9190-5.6-1), [`RFC9190-5.6-2`](#rfc9190-5.6-2), [`RFC9190-5.6-3`](#rfc9190-5.6-3), [`RFC9190-5.6-4`](#rfc9190-5.6-4), [`RFC9190-5.7-1`](#rfc9190-5.7-1), [`RFC9190-5.7-2`](#rfc9190-5.7-2), [`RFC9190-5.7-3`](#rfc9190-5.7-3), [`RFC9190-5.7-4`](#rfc9190-5.7-4), [`RFC9190-5.7-5`](#rfc9190-5.7-5), [`RFC9190-5.7-6`](#rfc9190-5.7-6), [`RFC9190-5.8-1`](#rfc9190-5.8-1), [`RFC9190-5.8-2`](#rfc9190-5.8-2), [`RFC9190-5.8-3`](#rfc9190-5.8-3), [`RFC9190-5.10-1`](#rfc9190-5.10-1)
 
 ## Requirements
 
@@ -122,14 +127,14 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | `RFC9190-2.1.9-1` | Implementations MUST NOT set the L bit in unfragmented messages (§2.1.9) | MUST NOT | 2.1.9 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-2.1.9-2` | Implementations MUST accept unfragmented messages with and without the L bit set (§2.1.9) | MUST | 2.1.9 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-2.2-1` | Unauthenticated information MUST NOT be used for accounting purposes or to give authorization (§2.2) | MUST NOT | 2.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9190-2.3-1` | The Key_Material and Method-Id SHALL be derived from the exporter_secret using the TLS exporter interface (§2.3) | SHALL | 2.3 | **positive:** `unit/verify` [`TestRFC9190MSKIsTheExportUnderTheRFCLabel`](https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc5216_msk_label_test.go#L159). **negative:** no negative test |
+| `RFC9190-2.3-1` | The Key_Material and Method-Id SHALL be derived from the exporter_secret using the TLS exporter interface (§2.3) | SHALL | 2.3 | **positive:** `unit/verify` [`TestRFC9190MSKIsTheExportUnderTheRFCLabel`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L158). **negative:** no negative test |
 | `RFC9190-2.3-2` | The key derivation MUST use the length values given in the section, 128 octets for Key_Material and 64 octets for Method-Id (§2.3) | MUST | 2.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-2.3-3` | An implementation that intends to use only a part of the TLS-Exporter output MUST ask for the full output and then only use the desired part (§2.3) | MUST | 2.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-2.4-1` | EAP-TLS peers and EAP-TLS servers MUST comply with the compliance requirements defined in Section 9 of RFC 8446 (§2.4) | MUST | 2.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-2.4-2` | In EAP-TLS with TLS 1.3, only cipher suites with confidentiality SHALL be supported (§2.4) | SHALL | 2.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9190-2.5-1` | The protected success result indication procedure MUST be followed: after processing the client Finished and sending its last handshake message, the server sends an encrypted TLS record with application data 0x00, then sends no further EAP-Request and may only send EAP-Success (§2.5) | MUST | 2.5 | **positive:** `unit/verify` [`TestEAPTLS13SendsProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L167). **negative:** `unit/verify` [`TestEAPTLS12SendsNoProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L298). **negative:** `unit/verify` [`TestEAPTLS13RefusedClientGetsNoSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L264). **positive:** `interop/nightly` [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L253). **negative:** `interop/nightly` [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L259) |
-| `RFC9190-2.5-2` | The EAP-TLS server MUST NOT send an encrypted TLS record with application data 0x00 before it has successfully processed the client Finished and sent its last handshake message (§2.5) | MUST NOT | 2.5 | **positive:** `unit/verify` [`TestEAPTLS13SendsProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L175). **negative:** `unit/verify` [`TestEAPTLS13RefusedClientGetsNoSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L258) |
-| `RFC9190-5.4-1` | When EAP-TLS is used with TLS 1.3, the revocation status of all the certificates in the certificate chains MUST be checked, except the trust anchor (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9190-2.5-1` | The protected success result indication procedure MUST be followed: after processing the client Finished and sending its last handshake message, the server sends an encrypted TLS record with application data 0x00, then sends no further EAP-Request and may only send EAP-Success (§2.5) | MUST | 2.5 | **positive:** `unit/verify` [`TestEAPTLS13SendsProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L167). **negative:** `unit/verify` [`TestEAPTLS12SendsNoProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L300). **negative:** `unit/verify` [`TestEAPTLS13RefusedClientGetsNoSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L265). **positive:** `interop/nightly` [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L258). **negative:** `interop/nightly` [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L264) |
+| `RFC9190-2.5-2` | The EAP-TLS server MUST NOT send an encrypted TLS record with application data 0x00 before it has successfully processed the client Finished and sent its last handshake message (§2.5) | MUST NOT | 2.5 | **positive:** `unit/verify` [`TestEAPTLS13SendsProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L175). **negative:** `unit/verify` [`TestEAPTLS13RefusedClientGetsNoSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L259) |
+| `RFC9190-5.4-1` | When EAP-TLS is used with TLS 1.3, the revocation status of all the certificates in the certificate chains MUST be checked, except the trust anchor (§5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestEAPTLS13ExceptsTheTrustAnchorFromRevocation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L217). **positive:** `unit/verify` [`TestEAPTLS13RefusesARevokedClientCertificate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L52). **positive:** `unit/verify` [`TestEAPTLS13RefusesARevokedIntermediate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L115). **positive:** `unit/verify` [`TestEAPTLS13RefusesARevokedServerCertificate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L81). **positive:** `unit/verify` [`TestEAPTLS13RefusesAStaleRevocationList`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L188). **positive:** `unit/verify` [`TestEAPTLS13RefusesAnUncheckableChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L159). **negative:** `unit/verify` [`TestEAPTLS12CompletesWithNoRevocationList`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L276). **negative:** `unit/verify` [`TestEAPTLS13CompletesWithAnUnrevokedChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L250). **positive:** `interop/nightly` [`checkResponderEAPTLS13RevokedClient`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L301) |
 | `RFC9190-5.4-2` | EAP-TLS servers supporting TLS 1.3 MUST implement Certificate Status Requests, that is OCSP stapling (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-5.4-3` | An EAP-TLS peer using Certificate Status Requests MUST treat a CertificateEntry without a valid CertificateStatus extension as invalid, except the trust anchor, and abort the handshake with an appropriate alert (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-5.4-4` | EAP-TLS peer implementations MUST also support checking for certificate revocation after authentication completes and network connectivity is available (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test |
@@ -225,7 +230,6 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | [`RFC9190-2.3-3`](#rfc9190-2.3-3) An implementation that intends to use only a part of the TLS-Exporter output MUST ask for the full output and then only use the desired part (§2.3) | no test | no test carries this requirement id |
 | [`RFC9190-2.4-1`](#rfc9190-2.4-1) EAP-TLS peers and EAP-TLS servers MUST comply with the compliance requirements defined in Section 9 of RFC 8446 (§2.4) | no test | no test carries this requirement id |
 | [`RFC9190-2.4-2`](#rfc9190-2.4-2) In EAP-TLS with TLS 1.3, only cipher suites with confidentiality SHALL be supported (§2.4) | no test | no test carries this requirement id |
-| [`RFC9190-5.4-1`](#rfc9190-5.4-1) When EAP-TLS is used with TLS 1.3, the revocation status of all the certificates in the certificate chains MUST be checked, except the trust anchor (§5.4) | no test | no test carries this requirement id |
 | [`RFC9190-5.4-2`](#rfc9190-5.4-2) EAP-TLS servers supporting TLS 1.3 MUST implement Certificate Status Requests, that is OCSP stapling (§5.4) | no test | no test carries this requirement id |
 | [`RFC9190-5.4-3`](#rfc9190-5.4-3) An EAP-TLS peer using Certificate Status Requests MUST treat a CertificateEntry without a valid CertificateStatus extension as invalid, except the trust anchor, and abort the handshake with an appropriate alert (§5.4) | no test | no test carries this requirement id |
 | [`RFC9190-5.4-4`](#rfc9190-5.4-4) EAP-TLS peer implementations MUST also support checking for certificate revocation after authentication completes and network connectivity is available (§5.4) | no test | no test carries this requirement id |
@@ -457,7 +461,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC9190MSKIsTheExportUnderTheRFCLabel`](https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc5216_msk_label_test.go#L159) | unit/verify | unproven |
+| positive | [`TestRFC9190MSKIsTheExportUnderTheRFCLabel`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L158) | unit/verify | unproven |
 
 ### [`RFC9190-2.3-2`](#rfc9190-2.3-2)
 
@@ -499,11 +503,11 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestEAPTLS12SendsNoProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L298) | unit/verify | unproven |
-| negative | [`TestEAPTLS13RefusedClientGetsNoSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L264) | unit/verify | unproven |
-| negative | [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L259) | interop/nightly | unproven |
-| positive | [`TestEAPTLS13SendsProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L167) | unit/verify | unproven |
-| positive | [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L253) | interop/nightly | unproven |
+| negative | [`TestEAPTLS12SendsNoProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L300) | unit/verify | unproven |
+| negative | [`TestEAPTLS13RefusedClientGetsNoSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L265) | unit/verify | unproven |
+| negative | [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L264) | interop/nightly | unproven |
+| positive | [`TestEAPTLS13SendsProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L167) | unit/verify | unproven |
+| positive | [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L258) | interop/nightly | unproven |
 
 ### [`RFC9190-2.5-2`](#rfc9190-2.5-2)
 
@@ -513,8 +517,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestEAPTLS13RefusedClientGetsNoSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L258) | unit/verify | unproven |
-| positive | [`TestEAPTLS13SendsProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L175) | unit/verify | unproven |
+| negative | [`TestEAPTLS13RefusedClientGetsNoSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L259) | unit/verify | unproven |
+| positive | [`TestEAPTLS13SendsProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L175) | unit/verify | unproven |
 
 ### [`RFC9190-5.4-1`](#rfc9190-5.4-1)
 
@@ -522,7 +526,17 @@ When EAP-TLS is used with TLS 1.3, the revocation status of all the certificates
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9190-5.4-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestEAPTLS12CompletesWithNoRevocationList`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L276) | unit/verify | revert, verified |
+| negative | [`TestEAPTLS13CompletesWithAnUnrevokedChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L250) | unit/verify | revert, verified |
+| positive | [`TestEAPTLS13ExceptsTheTrustAnchorFromRevocation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L217) | unit/verify | revert, verified |
+| positive | [`TestEAPTLS13RefusesARevokedClientCertificate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L52) | unit/verify | revert, verified |
+| positive | [`TestEAPTLS13RefusesARevokedIntermediate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L115) | unit/verify | revert, verified |
+| positive | [`TestEAPTLS13RefusesARevokedServerCertificate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L81) | unit/verify | revert, verified |
+| positive | [`TestEAPTLS13RefusesAStaleRevocationList`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L188) | unit/verify | revert, verified |
+| positive | [`TestEAPTLS13RefusesAnUncheckableChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L159) | unit/verify | revert, verified |
+| positive | [`checkResponderEAPTLS13RevokedClient`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L301) | interop/nightly | unproven |
 
 ### [`RFC9190-5.4-2`](#rfc9190-5.4-2)
 

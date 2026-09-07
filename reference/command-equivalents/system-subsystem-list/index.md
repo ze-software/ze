@@ -20,6 +20,8 @@ List the subsystems registered in the daemon.
 - Command pipes: none
 - Pipe aliases: none
 
+Each row carries the process name, its stage, a running flag and a command count. The command count comes from the dispatcher registry, which is what counts the commands the process actually registered.
+
 ## Arguments
 
 No command-specific arguments listed.

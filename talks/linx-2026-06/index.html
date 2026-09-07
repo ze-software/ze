@@ -359,7 +359,7 @@
                     }
                     continue;
                 }
-                if (/^<!--.*-->$/.test(line)) continue;
+                if (/^<!--[\s\S]*-->$/.test(line)) continue;
 
                 if (line.indexOf('> ') === 0 || line === '>') {
                     closeList(); flushTable();

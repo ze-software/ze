@@ -10,9 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 50.0% | 7 of 14 binding obligations | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 14 binding obligations | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 14 binding obligations | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tested both ways | 50.0% | 7 of 14 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 14 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 14 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 0.0% | 0 of 14 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -22,7 +22,10 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 14 | of 18 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 14 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below |
+| Out of scope | 0 | of 14 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 14 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 14 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 14 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -30,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 50.0% | 7 of 14 binding obligations | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 50.0% | 7 of 14 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 4 shares marked as a part above are the whole of the 14 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -44,6 +47,9 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
@@ -55,7 +61,6 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Enrolled |
 | Requirements | 18 |
 | Gated MUST-level | 14 |
-| Obligations that bind Ze | 14 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 7 |
 | Gated with no test | 0 |
@@ -107,20 +112,20 @@ Seven MUST gaps gated in [`rfc/short/rfc5036.md`](https://github.com/ze-software
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5036-x-1` | Version field in PDU header must be 1 (Wire Format) | MUST | x | **positive:** `unit/verify` [`TestRFC5036PDUVersionOneAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L120). **negative:** `unit/verify` [`TestRFC5036PDUVersionOtherRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L147) |
-| `RFC5036-x-2` | Reserved bits in Common Hello Parameters TLV must be zero (Discovery) | MUST | x | **positive:** `unit/verify` [`TestRFC5036HelloReservedBitsZeroOnTransmit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L172). **negative:** `unit/verify` [`TestRFC5036HelloReservedBitsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L194) |
-| `RFC5036-x-3` | Protocol Version in Common Session Parameters must be 1 (Sessions) | MUST | x | **positive:** `unit/verify` [`TestRFC5036InitProtocolVersionOne`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L217). **negative:** `unit/verify` [`TestRFC5036InitProtocolVersionOtherRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L251) |
-| `RFC5036-2.5.1-1` | An LSR MUST send the Initialization message to start a session (§2.5.1) | MUST | 2.5.1 | **positive:** `unit/verify` [`TestRFC5036SessionSendsInitializationFirst`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L276). **negative:** `unit/verify` [`TestRFC5036SessionNotOperationalWithoutOwnInit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L299) |
-| `RFC5036-2.5.3-1` | An LSR MUST periodically send KeepAlive messages on established sessions (§2.5.3) | MUST | 2.5.3 | **positive:** `unit/verify` [`TestRFC5036KeepalivesSentPeriodically`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L387). **negative:** `unit/verify` [`TestRFC5036KeepalivesNotSentContinuously`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L413) |
-| `RFC5036-2.6.1.2-1` | An LSR MUST send a Label Withdraw message when a previously advertised binding is no longer valid (§2.6.1.2) | MUST | 2.6.1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the encoder and sender exist (internal/plugins/ldp/session.go:289 SendLabelWithdraw, internal/plugins/ldp/wire.go:499 EncodeLabelWithdraw) but nothing invokes them -- a local binding is created once in OnStarted (internal/plugins/ldp/register.go:318) and released only by RemovePop at engine exit (internal/plugins/ldp/register.go:377), so no Label Withdraw ever reaches the wire |
-| `RFC5036-2.6.1.3-1` | An LSR MUST send a Label Release message when it no longer needs a label (§2.6.1.3) | MUST | 2.6.1.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the withdraw handler drops the binding and reconciles forwarding without replying (internal/plugins/ldp/register.go:803 the onWithdraw callback, internal/plugins/ldp/fib.go:48 withdrawRemoteBinding); MsgTypeLabelRelease has no encoder and an inbound one is discarded at internal/plugins/ldp/session.go:426 |
-| `RFC5036-2.5.1-2` | An LSR MUST accept the lower of the two proposed KeepAlive Timer values during negotiation (§2.5.1) | MUST | 2.5.1 | **positive:** `unit/verify` [`TestRFC5036KeepaliveNegotiationAdoptsLower`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L332). **negative:** `unit/verify` [`TestRFC5036KeepaliveNegotiationRefusesHigher`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L348) |
-| `RFC5036-2.5.1-3` | An LSR MUST respond to a received Initialization with a KeepAlive message if parameters are acceptable (§2.5.1) | MUST | 2.5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** handleInit (internal/plugins/ldp/session.go:467) applies the negotiated parameters and advances the FSM without emitting anything; the only establishment KeepAlive is the unconditional one at internal/plugins/ldp/register.go:740, sent right after ze's own Initialization and before the peer's arrives, so no KeepAlive is conditioned on receiving and accepting an Initialization |
-| `RFC5036-3.5.2-1` | A Common Hello Parameters Hold Time of 0 means use the default hold time -- 15 seconds for Link Hellos, 45 seconds for Targeted Hellos -- and the adjacency is kept, not removed (§3.5.2) | MUST | 3.5.2 | **positive:** `unit/verify` [`TestRFC5036HelloHoldTimeZeroUsesDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L452). **negative:** `unit/verify` [`TestRFC5036HelloHoldTimeNonZeroNotDefaulted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L492) |
-| `RFC5036-2.5.1-4` | The LSR MUST check that the LSR ID matches what was expected in the Initialization (§2.5.1) | MUST | 2.5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** handleInit overwrites the expected peer LSR ID with whatever the PDU header carried (internal/plugins/ldp/session.go:471 `s.peerLSRID = peerLSRID`) instead of comparing it to the value learned from the Hello, and the Receiver LSR ID decoded from the Common Session Parameters TLV (internal/plugins/ldp/wire.go:338) is never compared to the local LSR ID |
-| `RFC5036-2.5.3-2` | An LSR MUST send a Notification message for fatal errors that require session teardown (§2.5.3) | MUST | 2.5.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the fatal-error path returns the error and closes the connection with no Notification (internal/plugins/ldp/session.go:334 keepalive expiry, internal/plugins/ldp/session.go:352 decode failure, internal/plugins/ldp/register.go:840 the session-ended log); wire.go has no Notification or Status TLV encoder |
+| `RFC5036-x-1` | Version field in PDU header must be 1 (Wire Format) | MUST | x | **positive:** `unit/verify` [`TestRFC5036PDUVersionOneAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L123). **negative:** `unit/verify` [`TestRFC5036PDUVersionOtherRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L150) |
+| `RFC5036-x-2` | Reserved bits in Common Hello Parameters TLV must be zero (Discovery) | MUST | x | **positive:** `unit/verify` [`TestRFC5036HelloReservedBitsZeroOnTransmit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L175). **negative:** `unit/verify` [`TestRFC5036HelloReservedBitsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L197) |
+| `RFC5036-x-3` | Protocol Version in Common Session Parameters must be 1 (Sessions) | MUST | x | **positive:** `unit/verify` [`TestRFC5036InitProtocolVersionOne`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L220). **negative:** `unit/verify` [`TestRFC5036InitProtocolVersionOtherRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L254) |
+| `RFC5036-2.5.1-1` | An LSR MUST send the Initialization message to start a session (§2.5.1) | MUST | 2.5.1 | **positive:** `unit/verify` [`TestRFC5036SessionSendsInitializationFirst`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L279). **negative:** `unit/verify` [`TestRFC5036SessionNotOperationalWithoutOwnInit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L302) |
+| `RFC5036-2.5.3-1` | An LSR MUST periodically send KeepAlive messages on established sessions (§2.5.3) | MUST | 2.5.3 | **positive:** `unit/verify` [`TestRFC5036KeepalivesSentPeriodically`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L390). **negative:** `unit/verify` [`TestRFC5036KeepalivesNotSentContinuously`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L416) |
+| `RFC5036-2.6.1.2-1` | An LSR MUST send a Label Withdraw message when a previously advertised binding is no longer valid (§2.6.1.2) | MUST | 2.6.1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the encoder and sender exist (internal/plugins/ldp/session.go:326 SendLabelWithdraw, internal/plugins/ldp/wire.go:499 EncodeLabelWithdraw) but nothing invokes them -- a local binding is created once in OnStarted (internal/plugins/ldp/register.go:312) and released only by RemovePop at engine exit (internal/plugins/ldp/register.go:380), so no Label Withdraw ever reaches the wire |
+| `RFC5036-2.6.1.3-1` | An LSR MUST send a Label Release message when it no longer needs a label (§2.6.1.3) | MUST | 2.6.1.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the withdraw handler drops the binding and reconciles forwarding without replying (internal/plugins/ldp/register.go:821 the onWithdraw callback, internal/plugins/ldp/fib.go:48 withdrawRemoteBinding); MsgTypeLabelRelease has no encoder and an inbound one is discarded at internal/plugins/ldp/session.go:463 |
+| `RFC5036-2.5.1-2` | An LSR MUST accept the lower of the two proposed KeepAlive Timer values during negotiation (§2.5.1) | MUST | 2.5.1 | **positive:** `unit/verify` [`TestRFC5036KeepaliveNegotiationAdoptsLower`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L335). **negative:** `unit/verify` [`TestRFC5036KeepaliveNegotiationRefusesHigher`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L351) |
+| `RFC5036-2.5.1-3` | An LSR MUST respond to a received Initialization with a KeepAlive message if parameters are acceptable (§2.5.1) | MUST | 2.5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** handleInit (internal/plugins/ldp/session.go:504) applies the negotiated parameters and advances the FSM without emitting anything; the only establishment KeepAlive is the unconditional one at internal/plugins/ldp/register.go:758, sent right after ze's own Initialization and before the peer's arrives, so no KeepAlive is conditioned on receiving and accepting an Initialization |
+| `RFC5036-3.5.2-1` | A Common Hello Parameters Hold Time of 0 means use the default hold time -- 15 seconds for Link Hellos, 45 seconds for Targeted Hellos -- and the adjacency is kept, not removed (§3.5.2) | MUST | 3.5.2 | **positive:** `unit/verify` [`TestRFC5036HelloHoldTimeZeroUsesDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L455). **negative:** `unit/verify` [`TestRFC5036HelloHoldTimeNonZeroNotDefaulted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L495) |
+| `RFC5036-2.5.1-4` | The LSR MUST check that the LSR ID matches what was expected in the Initialization (§2.5.1) | MUST | 2.5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** handleInit overwrites the expected peer LSR ID with whatever the PDU header carried (internal/plugins/ldp/session.go:508 `s.peerLSRID = peerLSRID`) instead of comparing it to the value learned from the Hello, and the Receiver LSR ID decoded from the Common Session Parameters TLV (internal/plugins/ldp/wire.go:338) is never compared to the local LSR ID |
+| `RFC5036-2.5.3-2` | An LSR MUST send a Notification message for fatal errors that require session teardown (§2.5.3) | MUST | 2.5.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the fatal-error path returns the error and closes the connection with no Notification (internal/plugins/ldp/session.go:371 keepalive expiry, internal/plugins/ldp/session.go:391 decode failure, internal/plugins/ldp/register.go:859 the session-ended log); wire.go has no Notification or Status TLV encoder |
 | `RFC5036-2.7-1` | An LSR MUST NOT send labeled packets on a link until MPLS forwarding has been enabled on that interface (§2.7) | MUST NOT | 2.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ProgramPush (internal/plugins/ldp/fib.go:128) emits the label-imposition entry for every accepted binding with no check that MPLS forwarding is enabled on the outgoing interface; enabling it is operator config carried by iface (internal/component/iface/config_sysctl.go:71 net.mpls.conf.<iface>.input) and LDP reads no such state |
-| `RFC5036-3.5.1-1` | An LSR MUST NOT process any further messages after sending a fatal Notification (§3.5.1) | MUST NOT | 3.5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the halt half holds -- processMessages returns on the first decode failure (internal/plugins/ldp/session.go:360) and ReadLoop propagates it (internal/plugins/ldp/session.go:352) -- but ze sends no fatal Notification to halt after, so the obligation's trigger has no producer; it is unmet for the same reason as RFC5036-2.5.3-2 |
+| `RFC5036-3.5.1-1` | An LSR MUST NOT process any further messages after sending a fatal Notification (§3.5.1) | MUST NOT | 3.5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the halt half holds -- processMessages returns on the first decode failure (internal/plugins/ldp/session.go:397) and ReadLoop propagates it (internal/plugins/ldp/session.go:391) -- but ze sends no fatal Notification to halt after, so the obligation's trigger has no producer; it is unmet for the same reason as RFC5036-2.5.3-2 |
 | `RFC5036-2.9-1` | An LSR SHOULD use TCP MD5 Authentication for session protection (§2.9) | SHOULD | 2.9 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5036-2.6.1.1-1` | An LSR SHOULD advertise labels for all FECs in downstream unsolicited mode (§2.6.1.1) | SHOULD | 2.6.1.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5036-2.8-1` | An LSR MAY use loop detection mechanisms (hop count, path vector) (§2.8) | MAY | 2.8 | **positive:** no positive test. **negative:** no negative test |
@@ -130,13 +135,13 @@ Seven MUST gaps gated in [`rfc/short/rfc5036.md`](https://github.com/ze-software
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC5036-2.6.1.2-1`](#rfc5036-2.6.1.2-1) An LSR MUST send a Label Withdraw message when a previously advertised binding is no longer valid (§2.6.1.2) | {gap}, no test | the encoder and sender exist (internal/plugins/ldp/session.go:289 SendLabelWithdraw, internal/plugins/ldp/wire.go:499 EncodeLabelWithdraw) but nothing invokes them -- a local binding is created once in OnStarted (internal/plugins/ldp/register.go:318) and released only by RemovePop at engine exit (internal/plugins/ldp/register.go:377), so no Label Withdraw ever reaches the wire |
-| [`RFC5036-2.6.1.3-1`](#rfc5036-2.6.1.3-1) An LSR MUST send a Label Release message when it no longer needs a label (§2.6.1.3) | {gap}, no test | the withdraw handler drops the binding and reconciles forwarding without replying (internal/plugins/ldp/register.go:803 the onWithdraw callback, internal/plugins/ldp/fib.go:48 withdrawRemoteBinding); MsgTypeLabelRelease has no encoder and an inbound one is discarded at internal/plugins/ldp/session.go:426 |
-| [`RFC5036-2.5.1-3`](#rfc5036-2.5.1-3) An LSR MUST respond to a received Initialization with a KeepAlive message if parameters are acceptable (§2.5.1) | {gap}, no test | handleInit (internal/plugins/ldp/session.go:467) applies the negotiated parameters and advances the FSM without emitting anything; the only establishment KeepAlive is the unconditional one at internal/plugins/ldp/register.go:740, sent right after ze's own Initialization and before the peer's arrives, so no KeepAlive is conditioned on receiving and accepting an Initialization |
-| [`RFC5036-2.5.1-4`](#rfc5036-2.5.1-4) The LSR MUST check that the LSR ID matches what was expected in the Initialization (§2.5.1) | {gap}, no test | handleInit overwrites the expected peer LSR ID with whatever the PDU header carried (internal/plugins/ldp/session.go:471 `s.peerLSRID = peerLSRID`) instead of comparing it to the value learned from the Hello, and the Receiver LSR ID decoded from the Common Session Parameters TLV (internal/plugins/ldp/wire.go:338) is never compared to the local LSR ID |
-| [`RFC5036-2.5.3-2`](#rfc5036-2.5.3-2) An LSR MUST send a Notification message for fatal errors that require session teardown (§2.5.3) | {gap}, no test | the fatal-error path returns the error and closes the connection with no Notification (internal/plugins/ldp/session.go:334 keepalive expiry, internal/plugins/ldp/session.go:352 decode failure, internal/plugins/ldp/register.go:840 the session-ended log); wire.go has no Notification or Status TLV encoder |
+| [`RFC5036-2.6.1.2-1`](#rfc5036-2.6.1.2-1) An LSR MUST send a Label Withdraw message when a previously advertised binding is no longer valid (§2.6.1.2) | {gap}, no test | the encoder and sender exist (internal/plugins/ldp/session.go:326 SendLabelWithdraw, internal/plugins/ldp/wire.go:499 EncodeLabelWithdraw) but nothing invokes them -- a local binding is created once in OnStarted (internal/plugins/ldp/register.go:312) and released only by RemovePop at engine exit (internal/plugins/ldp/register.go:380), so no Label Withdraw ever reaches the wire |
+| [`RFC5036-2.6.1.3-1`](#rfc5036-2.6.1.3-1) An LSR MUST send a Label Release message when it no longer needs a label (§2.6.1.3) | {gap}, no test | the withdraw handler drops the binding and reconciles forwarding without replying (internal/plugins/ldp/register.go:821 the onWithdraw callback, internal/plugins/ldp/fib.go:48 withdrawRemoteBinding); MsgTypeLabelRelease has no encoder and an inbound one is discarded at internal/plugins/ldp/session.go:463 |
+| [`RFC5036-2.5.1-3`](#rfc5036-2.5.1-3) An LSR MUST respond to a received Initialization with a KeepAlive message if parameters are acceptable (§2.5.1) | {gap}, no test | handleInit (internal/plugins/ldp/session.go:504) applies the negotiated parameters and advances the FSM without emitting anything; the only establishment KeepAlive is the unconditional one at internal/plugins/ldp/register.go:758, sent right after ze's own Initialization and before the peer's arrives, so no KeepAlive is conditioned on receiving and accepting an Initialization |
+| [`RFC5036-2.5.1-4`](#rfc5036-2.5.1-4) The LSR MUST check that the LSR ID matches what was expected in the Initialization (§2.5.1) | {gap}, no test | handleInit overwrites the expected peer LSR ID with whatever the PDU header carried (internal/plugins/ldp/session.go:508 `s.peerLSRID = peerLSRID`) instead of comparing it to the value learned from the Hello, and the Receiver LSR ID decoded from the Common Session Parameters TLV (internal/plugins/ldp/wire.go:338) is never compared to the local LSR ID |
+| [`RFC5036-2.5.3-2`](#rfc5036-2.5.3-2) An LSR MUST send a Notification message for fatal errors that require session teardown (§2.5.3) | {gap}, no test | the fatal-error path returns the error and closes the connection with no Notification (internal/plugins/ldp/session.go:371 keepalive expiry, internal/plugins/ldp/session.go:391 decode failure, internal/plugins/ldp/register.go:859 the session-ended log); wire.go has no Notification or Status TLV encoder |
 | [`RFC5036-2.7-1`](#rfc5036-2.7-1) An LSR MUST NOT send labeled packets on a link until MPLS forwarding has been enabled on that interface (§2.7) | {gap}, no test | ProgramPush (internal/plugins/ldp/fib.go:128) emits the label-imposition entry for every accepted binding with no check that MPLS forwarding is enabled on the outgoing interface; enabling it is operator config carried by iface (internal/component/iface/config_sysctl.go:71 net.mpls.conf.<iface>.input) and LDP reads no such state |
-| [`RFC5036-3.5.1-1`](#rfc5036-3.5.1-1) An LSR MUST NOT process any further messages after sending a fatal Notification (§3.5.1) | {gap}, no test | the halt half holds -- processMessages returns on the first decode failure (internal/plugins/ldp/session.go:360) and ReadLoop propagates it (internal/plugins/ldp/session.go:352) -- but ze sends no fatal Notification to halt after, so the obligation's trigger has no producer; it is unmet for the same reason as RFC5036-2.5.3-2 |
+| [`RFC5036-3.5.1-1`](#rfc5036-3.5.1-1) An LSR MUST NOT process any further messages after sending a fatal Notification (§3.5.1) | {gap}, no test | the halt half holds -- processMessages returns on the first decode failure (internal/plugins/ldp/session.go:397) and ReadLoop propagates it (internal/plugins/ldp/session.go:391) -- but ze sends no fatal Notification to halt after, so the obligation's trigger has no producer; it is unmet for the same reason as RFC5036-2.5.3-2 |
 
 ## Proof state
 
@@ -150,8 +155,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5036PDUVersionOtherRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L147) | unit/verify | unproven |
-| positive | [`TestRFC5036PDUVersionOneAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L120) | unit/verify | unproven |
+| negative | [`TestRFC5036PDUVersionOtherRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L150) | unit/verify | unproven |
+| positive | [`TestRFC5036PDUVersionOneAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L123) | unit/verify | unproven |
 
 ### [`RFC5036-x-2`](#rfc5036-x-2)
 
@@ -161,8 +166,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5036HelloReservedBitsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L194) | unit/verify | unproven |
-| positive | [`TestRFC5036HelloReservedBitsZeroOnTransmit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L172) | unit/verify | unproven |
+| negative | [`TestRFC5036HelloReservedBitsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L197) | unit/verify | unproven |
+| positive | [`TestRFC5036HelloReservedBitsZeroOnTransmit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L175) | unit/verify | unproven |
 
 ### [`RFC5036-x-3`](#rfc5036-x-3)
 
@@ -172,8 +177,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5036InitProtocolVersionOtherRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L251) | unit/verify | unproven |
-| positive | [`TestRFC5036InitProtocolVersionOne`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L217) | unit/verify | unproven |
+| negative | [`TestRFC5036InitProtocolVersionOtherRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L254) | unit/verify | unproven |
+| positive | [`TestRFC5036InitProtocolVersionOne`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L220) | unit/verify | unproven |
 
 ### [`RFC5036-2.5.1-1`](#rfc5036-2.5.1-1)
 
@@ -183,8 +188,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5036SessionNotOperationalWithoutOwnInit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L299) | unit/verify | unproven |
-| positive | [`TestRFC5036SessionSendsInitializationFirst`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L276) | unit/verify | unproven |
+| negative | [`TestRFC5036SessionNotOperationalWithoutOwnInit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L302) | unit/verify | unproven |
+| positive | [`TestRFC5036SessionSendsInitializationFirst`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L279) | unit/verify | unproven |
 
 ### [`RFC5036-2.5.3-1`](#rfc5036-2.5.3-1)
 
@@ -194,8 +199,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5036KeepalivesNotSentContinuously`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L413) | unit/verify | unproven |
-| positive | [`TestRFC5036KeepalivesSentPeriodically`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L387) | unit/verify | unproven |
+| negative | [`TestRFC5036KeepalivesNotSentContinuously`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L416) | unit/verify | unproven |
+| positive | [`TestRFC5036KeepalivesSentPeriodically`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L390) | unit/verify | unproven |
 
 ### [`RFC5036-2.6.1.2-1`](#rfc5036-2.6.1.2-1)
 
@@ -221,8 +226,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5036KeepaliveNegotiationRefusesHigher`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L348) | unit/verify | unproven |
-| positive | [`TestRFC5036KeepaliveNegotiationAdoptsLower`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L332) | unit/verify | unproven |
+| negative | [`TestRFC5036KeepaliveNegotiationRefusesHigher`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L351) | unit/verify | unproven |
+| positive | [`TestRFC5036KeepaliveNegotiationAdoptsLower`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L335) | unit/verify | unproven |
 
 ### [`RFC5036-2.5.1-3`](#rfc5036-2.5.1-3)
 
@@ -240,8 +245,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5036HelloHoldTimeNonZeroNotDefaulted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L492) | unit/verify | unproven |
-| positive | [`TestRFC5036HelloHoldTimeZeroUsesDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L452) | unit/verify | unproven |
+| negative | [`TestRFC5036HelloHoldTimeNonZeroNotDefaulted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L495) | unit/verify | unproven |
+| positive | [`TestRFC5036HelloHoldTimeZeroUsesDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L455) | unit/verify | unproven |
 
 ### [`RFC5036-2.5.1-4`](#rfc5036-2.5.1-4)
 

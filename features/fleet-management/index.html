@@ -51,8 +51,14 @@
 serves configuration to remote ze instances over TLS.</p>
 </div>
 <ul>
-<li>Named hub blocks: <code>server &lt;name&gt; { ip; port; secret; }</code> for listeners, <code>client &lt;name&gt; { host; port; secret; }</code> for outbound</li>
+<li>Named hub blocks: <code>server &lt;name&gt; { ip; port; secret; }</code> for listeners, <code>client &lt;name&gt; { host; port; secret; ca; }</code> for outbound</li>
 <li>Per-client secrets: each managed client authenticates with its own token</li>
+<li>Hub authentication by issuer: <code>ca &lt;name&gt;</code> names a <code>pki ca</code> entry holding the
+hub's certificate authority root, which the operator exports from the hub with
+<code>show pki local-ca pem</code>. The client validates the hub's chain against that root
+and against nothing else, so a hub that reissues its certificate stays
+reachable with no client change. A name that resolves to nothing is an error,
+never a fall-through to another anchor</li>
 <li>Config fetch with version hashing: clients only download when config changes</li>
 <li>Two-phase config change: hub notifies, client fetches when ready</li>
 <li>Partition resilience: clients cache config locally and start from cache when hub is unreachable</li>
@@ -62,7 +68,9 @@ serves configuration to remote ze instances over TLS.</p>
 <li>Managed mode toggle: <code>meta/instance/managed</code> blob flag controls hub connection</li>
 </ul>
 <!-- source: internal/component/managed/client.go -- RunManagedClient lifecycle -->
+<!-- source: internal/component/managed/tls.go -- clientTLSConfig, the three trust anchors in order -->
 <!-- source: internal/component/plugin/server/managed.go -- hub-side config handlers -->
+<!-- source: internal/component/plugin/server/managed_serve.go -- managedCertificate, the leaf the hub serves -->
 <!-- source: pkg/fleet/ -- version hash and RPC envelope types -->
 
             </section>
@@ -98,7 +106,7 @@ serves configuration to remote ze instances over TLS.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

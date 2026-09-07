@@ -20,6 +20,8 @@ Show counters for one interface.
 - Command pipes: none
 - Pipe aliases: none
 
+The answer is the interface name and its Rx and Tx statistics. A backend that keeps no statistics for the interface answers no counters available rather than an error.
+
 ## Arguments
 
 | Name | Type | Required | Values |

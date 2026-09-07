@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 87.5% | 7 of 8 binding obligations | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 12.5% | 1 of 8 binding obligations | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 8 binding obligations | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 8 binding obligations | no test carries the requirement id, whether or not a gap states why |
+| Tested both ways | 77.8% | 7 of 9 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 11.1% | 1 of 9 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| No test at all | 0.0% | 0 of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Proven by a recorded break | 0.0% | 0 of 17 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -23,9 +23,12 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 9 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 1 | of 9 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below |
+| Out of scope | 1 | of 9 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 11.1% | 1 of 9 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 9 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 9 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 4 shares marked as a part above are the whole of the 8 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -37,6 +40,9 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
@@ -48,7 +54,6 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Enrolled |
 | Requirements | 16 |
 | Gated MUST-level | 9 |
-| Obligations that bind Ze | 8 |
 | Not applicable, so out of scope | 1 |
 | Declared gaps | 0 |
 | Gated with no test | 0 |
@@ -96,8 +101,8 @@ No tracked gap in current source anchors.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5492-3-1` | When sending Unsupported Capability NOTIFICATION, the message MUST contain the capability or capabilities that cause the speaker to send the message (§3) | MUST | 3 - Overview of Operations | **positive:** `unit/verify` [`TestBuildUnsupportedCapabilityData`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L342). **positive:** `unit/verify` [`TestOpenRejectsMalformedKnownCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L93). **negative:** `unit/verify` [`TestSessionAcceptsRequiredCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1312) |
-| `RFC5492-5-1` | The Data field in the NOTIFICATION message MUST list the set of capabilities that causes the speaker to send the message, each encoded as in an OPEN message (§5) | MUST | 5 - Extensions to Error Handling | **positive:** `unit/verify` [`TestBuildUnsupportedCapabilityDataCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1160). **positive:** `unit/verify` [`TestBuildUnsupportedCapabilityDataCodes_MultipleCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L372). **negative:** `unit/verify` [`TestBuildUnsupportedCapabilityDataCodes_Empty`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L394) |
+| `RFC5492-3-1` | When sending Unsupported Capability NOTIFICATION, the message MUST contain the capability or capabilities that cause the speaker to send the message (§3) | MUST | 3 - Overview of Operations | **positive:** `unit/verify` [`TestBuildUnsupportedCapabilityData`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L359). **positive:** `unit/verify` [`TestOpenRejectsMalformedKnownCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L93). **negative:** `unit/verify` [`TestSessionAcceptsRequiredCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1312) |
+| `RFC5492-5-1` | The Data field in the NOTIFICATION message MUST list the set of capabilities that causes the speaker to send the message, each encoded as in an OPEN message (§5) | MUST | 5 - Extensions to Error Handling | **positive:** `unit/verify` [`TestBuildUnsupportedCapabilityDataCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1160). **positive:** `unit/verify` [`TestBuildUnsupportedCapabilityDataCodes_MultipleCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L389). **negative:** `unit/verify` [`TestBuildUnsupportedCapabilityDataCodes_Empty`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L411) |
 | `RFC5492-4-1` | A BGP speaker MUST be prepared to accept multiple instances of a capability with the same Code, Length, and Value (§4) | MUST | 4 - Capabilities Optional Parameter (Parameter Type 2) | **positive:** `unit/verify` [`TestParseAcceptsMultipleIdenticalCapabilityInstances`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L254). **negative:** no negative test. **{single-polarity}:** ze's capability parser appends every capability TLV without dedup or reject (internal/core/bgp/capability/capability.go:177), so multiple identical instances are all accepted; there is no reject path, so no negative case exists |
 | `RFC5492-4-2` | A BGP speaker MUST be prepared to receive an OPEN message that contains multiple Capabilities Optional Parameters (§4) | MUST | 4 - Capabilities Optional Parameter (Parameter Type 2) | **positive:** `unit/verify` [`TestParseFromOptionalParamsMultipleCapabilitiesParameters`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L285). **negative:** `unit/verify` [`TestOptionalParamRejectsTruncatedCapabilityTLV`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L201) |
 | `RFC5492-3-2` | A BGP speaker MUST ignore unrecognized capability codes (§3) | MUST | 3 - Overview of Operations | **positive:** `unit/verify` [`TestParseUnknownCapability`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L138). **negative:** `unit/verify` [`TestParseRejectsMalformedKnownCapabilityLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L167) |
@@ -133,7 +138,7 @@ Audit verdict: not audited: no reader has judged these tests
 |---|---|---|---|
 | negative | [`TestSessionAcceptsRequiredCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1312) | unit/verify | unproven |
 | positive | [`TestOpenRejectsMalformedKnownCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L93) | unit/verify | unproven |
-| positive | [`TestBuildUnsupportedCapabilityData`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L342) | unit/verify | unproven |
+| positive | [`TestBuildUnsupportedCapabilityData`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L359) | unit/verify | unproven |
 
 ### [`RFC5492-5-1`](#rfc5492-5-1)
 
@@ -143,9 +148,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestBuildUnsupportedCapabilityDataCodes_Empty`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L394) | unit/verify | unproven |
+| negative | [`TestBuildUnsupportedCapabilityDataCodes_Empty`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L411) | unit/verify | unproven |
 | positive | [`TestBuildUnsupportedCapabilityDataCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1160) | unit/verify | unproven |
-| positive | [`TestBuildUnsupportedCapabilityDataCodes_MultipleCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L372) | unit/verify | unproven |
+| positive | [`TestBuildUnsupportedCapabilityDataCodes_MultipleCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L389) | unit/verify | unproven |
 
 ### [`RFC5492-4-1`](#rfc5492-4-1)
 

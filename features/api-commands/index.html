@@ -80,6 +80,10 @@
 <td>Graceful session closure with NOTIFICATION</td>
 </tr>
 <tr>
+<td><code>create bgp peer &lt;addr&gt; asn &lt;asn&gt;</code></td>
+<td>Add a peer to the running daemon</td>
+</tr>
+<tr>
 <td><code>delete bgp peer &lt;name&gt;</code></td>
 <td>Remove peer</td>
 </tr>
@@ -113,11 +117,11 @@
 </thead>
 <tbody>
 <tr>
-<td><code>peer * update text &lt;attrs&gt; nlri &lt;family&gt; &lt;op&gt; &lt;prefix&gt;</code></td>
+<td><code>send bgp * update text &lt;attrs&gt; nlri &lt;family&gt; &lt;op&gt; &lt;prefix&gt;</code></td>
 <td>Text-format UPDATE</td>
 </tr>
 <tr>
-<td><code>peer * update hex &lt;hex&gt;</code></td>
+<td><code>send bgp * update hex &lt;hex&gt;</code></td>
 <td>Hex-format UPDATE</td>
 </tr>
 </tbody>
@@ -190,7 +194,7 @@
 <td>Set cache expiration</td>
 </tr>
 <tr>
-<td><code>request cache forward</code></td>
+<td><code>send bgp &lt;sel&gt; cached &lt;id&gt;</code></td>
 <td>Forward cached message to peer(s)</td>
 </tr>
 </tbody>
@@ -265,7 +269,7 @@
 </thead>
 <tbody>
 <tr>
-<td><code>peer * raw &lt;hex&gt;</code></td>
+<td><code>send bgp * raw hex &lt;data&gt;</code></td>
 <td>Send raw BGP message bytes</td>
 </tr>
 <tr>
@@ -321,7 +325,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

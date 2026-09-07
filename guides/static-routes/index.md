@@ -1,9 +1,13 @@
 # Static Routes
 
 Ze supports static routes with ECMP, weighted load balancing, BFD-tracked
-failover, blackhole, and reject. Routes are programmed directly to the
-kernel via netlink (or VPP when available). Routes are grouped under
-named tables for policy-based routing support.
+failover, blackhole, and reject. Routes are grouped under named tables for
+policy-based routing support.
+
+A route in the MAIN table is ranked against every other protocol that offers the
+same prefix, and the winner is programmed by the FIB plugin. A route in a NAMED
+table is programmed directly, through netlink or through VPP, because a named
+table has only one writer and nothing to rank.
 
 ## Configuration
 
@@ -238,6 +242,18 @@ static {
 - `metric`: kernel route priority (lower is preferred)
 - `tag`: opaque value for route policy matching in redistribute
 
+The tag is not programmed to the kernel, because Linux has no route tag
+attribute. It travels with the route into redistribution, where it does two
+things. A `redistribute { destination <proto> { import static { tag N } } }`
+rule imports only the routes carrying `N`. And when the route reaches OSPF, Ze
+writes the tag into the External Route Tag of the AS-external LSA (RFC 2328
+Appendix A.4.5). A route that carries a tag keeps it there, ahead of the `tag`
+configured for the whole source under `ospf { redistribute { static { ... } } }`;
+a route with no tag takes that configured value.
+
+<!-- source: internal/plugins/static/inject.go -- emitRouteChangeID -->
+<!-- source: internal/plugins/ospf/redist_wiring.go -- externalRouteTag -->
+
 ## CLI
 
 ```
@@ -249,14 +265,41 @@ weights, and BFD status in JSON format.
 
 ## Route programming
 
-Static routes are programmed with `RTPROT_ZE` (protocol 251), a
-Ze-specific identifier distinct from the FIB kernel plugin (protocol 250).
-On config reload, the plugin
-computes the diff between old and new routes and applies only the
-changes.
+A main-table route is programmed with `RTPROT_ZE` (protocol 250) by the FIB
+plugin. A named-table route is programmed with `RTPROT_STATIC` (protocol 251) by
+the static plugin itself. On config reload, the plugin computes the diff between
+old and new routes and applies only the changes.
 
 Kernel ECMP uses `RTA_MULTIPATH` with per-next-hop weight mapped from
-the `weight` field (kernel weight = weight - 1).
+the `weight` field (kernel weight = weight - 1). The kernel carries that share in
+one octet, so a `weight` above 255 is capped at 255.
+
+**A main-table route needs a FIB plugin.** Add `fib { kernel { } }` for the Linux
+data plane, or `fib { vpp { } }` for VPP. Without one, the system RIB selects the
+route and nothing writes it, so `ze doctor` reports `doctor-static-no-fib-writer`
+at error severity and the daemon refuses to start. A configuration whose static
+routes are all in named tables does not need it.
+
+## Administrative distance
+
+`rib { distance { static N } }` decides which route the kernel forwards on when a
+static route and a dynamic protocol both offer one prefix. Lower wins. The default
+is 10, which beats eBGP at 20 and every IGP.
+
+```
+rib {
+    distance {
+        static 250
+    }
+}
+```
+
+At 250 a static route LOSES the prefix to an eBGP route at 20, and the kernel
+forwards on the BGP next-hop. At 5 it keeps the prefix. The number applies on the
+next config apply, and it applies to main-table routes: a named-table route has
+nothing to be ranked against.
+
+`show rib` reports the winner per prefix with the protocol that holds it.
 
 ## Redistribute
 

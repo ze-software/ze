@@ -75,6 +75,8 @@
 .rfc-tape-both_polarities { background: var(--teal-chip); }
 .rfc-tape-single_polarity { background: var(--sky-chip); }
 .rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -113,19 +115,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>66.7%</strong><b>2 of 3 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>33.3%</strong><b>1 of 3 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 3 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 3 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>66.7%</strong><b>2 of 3 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>33.3%</strong><b>1 of 3 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>11.1%</strong><b>2 of 18 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>3</strong><b>of 8 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 3 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 3 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 4 shares marked as a part above are the whole of the 3 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 3 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -156,6 +161,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
+</tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
@@ -184,9 +201,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>8</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>3</td>
-</tr>
-<tr><td>Obligations that bind Ze</td>
 <td>3</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
@@ -239,7 +253,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Optional per-peer next-hop override and path-hiding mitigation (add-path) are operator-configured. A modify policy with <code>as-path-prepend</code> or <code>del { med; }</code> also changes what an RS client receives. Section 2.1 requires a route server to accept every UPDATE it receives from a client for inclusion in its Adj-RIB-In, and ze does not: <code>notifyMessageReceiver</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_notify.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/reactor_notify.go</code></a>) returns at the ordered ingress step loop&#39;s non-accept branch, ahead of the cache add, ahead of <code>reactorForwardRS</code> and ahead of the plugin dispatch, so an UPDATE a filter denied is absent from <code>show bgp adj-rib-in</code>. <code>LoopIngress</code> denies with no operator configuration, so the path is reachable by default. Thomas ruled on 2026-08-30 that ze stores such an UPDATE first and marks the entry filtered; that work is homed in <a href="https://github.com/ze-software/ze/blob/main/plan/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md" target="_blank" rel="noopener"><code>plan/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md</code></a>, which reserves the id RFC7947-2.1-1, and site 2.1:1 of the extraction sign-off records the relocation.
+Optional per-peer next-hop override and path-hiding mitigation (add-path) are operator-configured. A modify policy with <code>as-path-prepend</code> or <code>del { med; }</code> also changes what an RS client receives. Section 2.1 requires a route server to accept every UPDATE it receives from a client for inclusion in its Adj-RIB-In, and ze does not: <code>notifyMessageReceiver</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_notify.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/reactor_notify.go</code></a>) returns at the ordered ingress step loop&#39;s non-accept branch, ahead of the cache add, ahead of <code>reactorForwardRS</code> and ahead of the plugin dispatch, so an UPDATE a filter denied is absent from <code>show bgp adj-rib-in</code>. <code>LoopIngress</code> denies with no operator configuration, so the path is reachable by default. Thomas ruled on 2026-08-30 that ze stores such an UPDATE first and marks the entry filtered; that work is homed in <a href="https://github.com/ze-software/ze/blob/main/plan/immediate/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md" target="_blank" rel="noopener"><code>plan/immediate/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md</code></a>, which reserves the id RFC7947-2.1-1, and site 2.1:1 of the extraction sign-off records the relocation.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -307,7 +321,7 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 <td>SHOULD</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7947-x-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L364" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardKeepsMEDForRouteServerClient</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L372" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardKeepsMEDForRouteServerClient</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L447" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L11" title="test/plugin/med-not-propagated-across-as.ci" target="_blank" rel="noopener"><code>med-not-propagated-across-as.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L15" title="test/plugin/med-not-propagated-across-as.ci" target="_blank" rel="noopener"><code>med-not-propagated-across-as.ci</code></a></span></div>
@@ -440,7 +454,7 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L364" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardKeepsMEDForRouteServerClient</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L372" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardKeepsMEDForRouteServerClient</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -589,7 +603,7 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 <td>Client UPDATE Messages</td>
 <td>1</td>
 <td>walked</td>
-<td>Client UPDATE Messages. Carries the document&#39;s only MUST that binds the route server itself, site 2.1:1 below. Ze does not meet it: notifyMessageReceiver (internal/component/bgp/reactor/reactor_notify.go) returns false at the ordered ingress step loop&#39;s non-accept branch, ahead of the recentUpdates cache add, ahead of reactorForwardRS and ahead of the plugin dispatch that feeds handleReceivedStructured (internal/component/bgp/plugins/adj_rib_in/rib.go), so a denied UPDATE from a route server client never reaches the Adj-RIB-In. The obligation is homed by owner ruling of 2026-08-30 in plan/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md, which reserves the id RFC7947-2.1-1 for it, and the site below is the relocation. Section 2.1&#39;s remaining directives carry no MUST-level keyword, so the site scan cannot see them: the MAY that lets a configured policy filter omit an UPDATE from the Loc-RIB, the SHOULD to perform one or more BGP Decision Processes, and the SHOULD to forward UPDATE messages from the Loc-RIB to the clients as determined by local policy. RFC7947-x-4 is read from that last SHOULD and from the MAY beside it, which is why it is declared unsourced here rather than mapped from a site; note that the summary states it at [MUST] while this section states it at SHOULD.</td>
+<td>Client UPDATE Messages. Carries the document&#39;s only MUST that binds the route server itself, site 2.1:1 below. Ze does not meet it: notifyMessageReceiver (internal/component/bgp/reactor/reactor_notify.go) returns false at the ordered ingress step loop&#39;s non-accept branch, ahead of the recentUpdates cache add, ahead of reactorForwardRS and ahead of the plugin dispatch that feeds handleReceivedStructured (internal/component/bgp/plugins/adj_rib_in/rib.go), so a denied UPDATE from a route server client never reaches the Adj-RIB-In. The obligation is homed by owner ruling of 2026-08-30 in plan/immediate/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md, which reserves the id RFC7947-2.1-1 for it, and the site below is the relocation. Section 2.1&#39;s remaining directives carry no MUST-level keyword, so the site scan cannot see them: the MAY that lets a configured policy filter omit an UPDATE from the Loc-RIB, the SHOULD to perform one or more BGP Decision Processes, and the SHOULD to forward UPDATE messages from the Loc-RIB to the clients as determined by local policy. RFC7947-x-4 is read from that last SHOULD and from the MAY beside it, which is why it is declared unsourced here rather than mapped from a site; note that the summary states it at [MUST] while this section states it at SHOULD.</td>
 </tr>
 <tr><td><code>2.2</code></td>
 <td>Attribute Transparency</td>
@@ -715,7 +729,7 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 <tbody>
 <tr><td><code>2.1:1</code></td>
 <td><code>relocated-to-spec</code><br /><strong>Ze owes it</strong><br />the obligation is real and unbuilt, and a named spec owes it</td>
-<td>The obligation IS owed and Ze does not produce it, so this is not a dismissal. notifyMessageReceiver (internal/component/bgp/reactor/reactor_notify.go) walks the ordered ingress steps and returns false on the first step that answers accept false, with the comment &#39;Route rejected by filter; don&#39;t cache or dispatch.&#39;. That return precedes the recentUpdates cache add, the reactorForwardRS fast path and the plugin dispatch, so nothing reaches handleReceivedStructured (internal/component/bgp/plugins/adj_rib_in/rib.go) and the Adj-RIB-In holds the post-policy population where this sentence requires the pre-policy one. The path is reachable by default: LoopIngress (internal/component/bgp/reactor/filter/loop.go) denies on the local AS in AS_PATH with no operator configuration at all. Thomas ruled on 2026-08-30 that Ze inserts into the Adj-RIB-In first for a route-server client peer, marking the stored entry filtered, and homed that work in plan/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md, which reserves the id RFC7947-2.1-1 for it and carries fifteen acceptance criteria, a new event type and a new rpc.EventKind ordinal. The id is deliberately absent from rfc/short/rfc7947.md until that spec lands it. (relocated to plan/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md as RFC7947-2.1-1)</td>
+<td>The obligation IS owed and Ze does not produce it, so this is not a dismissal. notifyMessageReceiver (internal/component/bgp/reactor/reactor_notify.go) walks the ordered ingress steps and returns false on the first step that answers accept false, with the comment &#39;Route rejected by filter; don&#39;t cache or dispatch.&#39;. That return precedes the recentUpdates cache add, the reactorForwardRS fast path and the plugin dispatch, so nothing reaches handleReceivedStructured (internal/component/bgp/plugins/adj_rib_in/rib.go) and the Adj-RIB-In holds the post-policy population where this sentence requires the pre-policy one. The path is reachable by default: LoopIngress (internal/component/bgp/reactor/filter/loop.go) denies on the local AS in AS_PATH with no operator configuration at all. Thomas ruled on 2026-08-30 that Ze inserts into the Adj-RIB-In first for a route-server client peer, marking the stored entry filtered, and homed that work in plan/immediate/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md, which reserves the id RFC7947-2.1-1 for it and carries fifteen acceptance criteria, a new event type and a new rpc.EventKind ordinal. The id is deliberately absent from rfc/short/rfc7947.md until that spec lands it. (relocated to plan/immediate/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md as RFC7947-2.1-1)</td>
 <td>A route server MUST accept all UPDATE messages received from each of its clients for inclusion in its Adj-RIB-In.</td>
 </tr>
 </tbody>
@@ -754,7 +768,7 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

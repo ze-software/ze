@@ -75,6 +75,8 @@
 .rfc-tape-both_polarities { background: var(--teal-chip); }
 .rfc-tape-single_polarity { background: var(--sky-chip); }
 .rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -113,19 +115,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>222 of 222 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 222 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 222 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 222 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.3%</strong><b>2 of 611 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>222 of 222 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 222 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 222 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 222 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>1.6%</strong><b>10 of 620 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>222</strong><b>of 228 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 222 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 222 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 222 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 222 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 222 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 4 shares marked as a part above are the whole of the 222 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 222 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -155,6 +160,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
 </tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -186,9 +203,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Gated MUST-level</td>
 <td>222</td>
 </tr>
-<tr><td>Obligations that bind Ze</td>
-<td>222</td>
-</tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
 </tr>
@@ -202,16 +216,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>614</td>
+<td>623</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>611</td>
+<td>620</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>2</td>
+<td>10</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7296.md</code></td>
@@ -227,7 +241,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Internet Key Exchange Protocol Version 2 / IKEv2 (RFC 7296): 227 rows, 222 of them gated (179 MUST + 43 MUST NOT). All 222 are MET and proven in both polarities by 574 `RFC requirement:` tagged tests across 75 files. Zero annotations: no gap, no not-applicable, no single-polarity, no partial. The other 5 rows are SHOULD-level, ungated and untagged. The 2026-08 pilot grew the summary from 23 rows and implemented what was absent: COOKIE (engine/cookie.go), the authenticated and out-of-SA error notifications (engine/notify_error.go), traffic-selector narrowing (engine/ts_narrow.go), per-SPI Child SA Delete (engine/delete.go), Message ID exhaustion (engine/msgid.go), and dual ESP form reception (dataplane/espform_linux.go). Two obligation sets are extracted and stay gated in their destination specs instead of here: the Configuration payload / IRAC role (11 rows, plan/spec-ipsec-remote-access.md; ze takes no IRAC role, which Section 4 permits) and IPComp (4 rows, plan/spec-ipsec-ipcomp.md). The Section 3.2 extraction walk added the two Critical-bit SENDER obligations the summary never carried, RFC7296-3.2-5 (zero asks the recipient to skip an unrecognized payload) and RFC7296-3.2-6 (one asks it to reject the whole message). The same walk added two more the summary never carried, RFC7296-1.3.3-2 (a CREATE_CHILD_SA that replaces an ESP or AH SA carries the REKEY_SA notification) and RFC7296-4-5 (the four-message IKE_SA_INIT and IKE_AUTH exchange establishes two SAs). rfc/extraction/rfc7296.json is signed off (2026-08-02): 261 sites in 104 sections, all classified, so the bound is a recorded walk of the source rather than the 222 extracted rows alone. 12 sites are relocated-to-spec, carrying obligations owner ruling D-1 moved to plan/spec-ipsec-remote-access.md and plan/spec-ipsec-ipcomp.md, and 26 requirements are unsourced-ids read from indicative prose that carries no keyword</p>
+<p>Enrolled: Internet Key Exchange Protocol Version 2 / IKEv2 (RFC 7296): 227 rows, 222 of them gated (179 MUST + 43 MUST NOT). All 222 are MET and proven in both polarities by 574 `RFC requirement:` tagged tests across 75 files. Zero annotations: no gap, no not-applicable, no single-polarity, no partial. The other 5 rows are SHOULD-level, ungated and untagged. The 2026-08 pilot grew the summary from 23 rows and implemented what was absent: COOKIE (engine/cookie.go), the authenticated and out-of-SA error notifications (engine/notify_error.go), traffic-selector narrowing (engine/ts_narrow.go), per-SPI Child SA Delete (engine/delete.go), Message ID exhaustion (engine/msgid.go), and dual ESP form reception (dataplane/espform_linux.go). Two obligation sets are extracted and stay gated in their destination specs instead of here: the Configuration payload / IRAC role (11 rows, plan/immediate/spec-ipsec-remote-access.md; ze takes no IRAC role, which Section 4 permits) and IPComp (4 rows, plan/spec-ipsec-ipcomp.md). The Section 3.2 extraction walk added the two Critical-bit SENDER obligations the summary never carried, RFC7296-3.2-5 (zero asks the recipient to skip an unrecognized payload) and RFC7296-3.2-6 (one asks it to reject the whole message). The same walk added two more the summary never carried, RFC7296-1.3.3-2 (a CREATE_CHILD_SA that replaces an ESP or AH SA carries the REKEY_SA notification) and RFC7296-4-5 (the four-message IKE_SA_INIT and IKE_AUTH exchange establishes two SAs). rfc/extraction/rfc7296.json is signed off (2026-08-02): 261 sites in 104 sections, all classified, so the bound is a recorded walk of the source rather than the 222 extracted rows alone. 12 sites are relocated-to-spec, carrying obligations owner ruling D-1 moved to plan/immediate/spec-ipsec-remote-access.md and plan/spec-ipsec-ipcomp.md, and 26 requirements are unsourced-ids read from indicative prose that carries no keyword</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
@@ -236,7 +250,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <li>Wire codec, cryptographic primitives, initiator and responder FSM, IKE_SA_INIT, IKE_AUTH, CREATE_CHILD_SA, INFORMATIONAL, rekey, DPD. Section 1.4 authenticated Delete on operator <code>clear</code> (graceful bounce)</li>
 <li>Section 2.4 state synchronization: the responder accepts a fresh IKE_SA_INIT in parallel with an established SA and supersedes it only once the new SA authenticates (never on the unauthenticated init)</li>
 <li>INITIAL_CONTACT emitted on the first IKE_AUTH request and honored on receipt. Section 1.4 liveness probes carry the Encrypted payload and authenticate under the negotiated keys. Section 2.4 refuses a verdict about the peer from an unauthenticated message, because an established SA is served by one handler that decrypts first. Section 2.5 accepts an IKE_AUTH whose payloads arrive in any order, on both the initiator and the responder path. Section 3.6 reads the first CERT payload as the peer certificate. It reads every later one as a chain intermediate. Ze sends its configured intermediate after the device certificate. Section 2.2 Message ID exhaustion: both counters stop at the 32-bit ceiling instead of wrapping. The SA rekeys itself in the headroom below the ceiling. The owner loop closes it at the ceiling (engine/msgid.go, engine/established.go). Section 2.3 window: Ze declares a window of one and accepts exactly one request id. It reads a peer SET_WINDOW_SIZE during IKE_AUTH, refuses a body that is not 4 octets, and reports the value as <code>peer-window-size</code> in <code>show vpn ipsec sa</code>. A peer request that crosses one of ours is accepted and answered, and a request outside the window is never acknowledged. Section 2.3 INVALID_MESSAGE_ID: an out-of-window request that authenticates draws the notification. Ze sends it as a NEW INFORMATIONAL request. That request carries the four-octet invalid Message ID. Ze never sends it as a response. Three bounds apply. Ze decrypts the request first, so an unauthenticated datagram draws nothing at all. Ze sends the notification only when its one request window is free. The notification therefore never displaces a liveness probe, a Delete or a rekey. A token bucket on the SA rate limits it. That bucket satisfies the MUST of Section 2.3 (engine/notify_invalid_msgid.go). Section 2.25: a rekey the peer answers with TEMPORARY_FAILURE waits 60 seconds before it is retried, per rekey kind. Sections 2.21.2, 2.21.3 and 2.21.4 error notifications: a request that fails on an authenticated IKE SA draws an encrypted error notify instead of silence. A refused Child SA rekey draws NO_PROPOSAL_CHOSEN, a malformed request draws INVALID_SYNTAX, and an unrecognized critical payload draws UNSUPPORTED_CRITICAL_PAYLOAD with the one-octet payload type. A datagram that matches no IKE SA draws an unprotected INVALID_IKE_SPI that copies the SPIs, Exchange Type and Message ID. That answer is rate limited. It is never sent in reply to a message marked as a response. It is never sent for an IKE_SA_INIT. An unprotected datagram at a CACHED message id draws no cached response and changes no SA state. This holds on the established path and on the mid-EAP responder path alike (engine/notify_error.go, engine/responder.go replayCachedResponse). The claim is bounded to that message id on purpose. An undecryptable datagram at a message id the responder is still expecting is a different path, and it does change SA state (engine/responder_eap.go handleResponderEAP). Section 3.10.1: an unrecognized error notify in a response fails the request it answers, and an unrecognized status notify is ignored and logged. Sections 1.2 and 2.6 corrected retry: an initiator that guesses the wrong Diffie-Hellman group retries the IKE_SA_INIT under the group the responder names, and refuses a group it never proposed, so a forged unauthenticated notify cannot steer it. The retry re-offers the whole configured suite set and re-anchors the signed IKE_SA_INIT octets. Section 2.6 COOKIE: the responder answers an inbound IKE_SA_INIT with a COOKIE challenge before it commits a half-open slot, and the initiator echoes the cookie as the first payload of a retry that changes nothing else. The cookie is an HMAC over the nonce, the source address and the initiator SPI under a rotating secret, is bounded to 1..64 octets on both the mint and the echo path, and a cookie that does not match is ignored rather than rejected. <code>cookie-threshold</code> sets how many half-open IKE SAs are tolerated before challenging, and defaults to 0 (challenge every initiation). Section 2.6.1: a second challenge replaces the first without failing, and the retry budget is bounded (engine/cookie.go, engine/sa_init_retry.go). Section 3.15.1 Configuration payload codec: the attribute type is 15 bits. Ze masks the Reserved bit on the read path and on the write path. A peer that sets that bit still has its INTERNAL_IP4_ADDRESS recognized (wire/payload_cp.go). Sections 2.19, 2.20 and 3.15.1: Ze builds no Configuration payload. It takes no IRAC role, which Section 4 permits. It ignores CFG_SET, which Section 3.15.1 permits. It sends no CFG_REQUEST, no CFG_REPLY and no CFG_ACK, and it gives out no version string. Section 3.4 key exchange pairing: the initiator refuses an IKE_SA_INIT or IKE-rekey response whose KE payload names a Diffie-Hellman group that no proposal of the same message specifies, and refuses a KE payload at all when no proposal specifies a group. A Transform ID of NONE names no group for both rules (wire/payload_sa.go, engine/fsm.go). Section 3.3.6: an IKE SA negotiation never selects the group NONE, and the one exchange that does select it, a Child SA rekey without PFS, ignores any KE payload the peer sends and omits one from the response (engine/rekey.go). Section 2.4: INITIAL_CONTACT is withheld by an identity that may be replicated. An EAP credential names a user rather than a device, so an EAP peer sends none</li>
-<li>a pre-shared secret or X.509 device identity still sends it (engine/auth.go). Section 2.8: an IKE SA whose negotiated lifetime has expired is refused for use at the point every protected message is built, not merely scheduled for teardown, and hard expiry is no longer deferred by an in-flight rekey. The rekey trigger is placed a full retransmit budget before the hard time so the replacement exchange still has room (engine/sa.go, engine/auth.go, engine/established.go, engine/rekey.go). Section 4: a rekey the peer refuses with NO_ADDITIONAL_SAS is answered by deleting the old SA and creating a new one through the initial exchanges, instead of retrying an exchange that peer will never accept (engine/rekey.go, engine/inbound.go). Section 3.6 certificate count: <code>certificate-count</code> bounds the chain Ze sends and the chain it accepts, and it defaults to the four the section names. A peer that sends more is refused, never truncated (engine/cert_payload.go). Section 3.6 Hash and URL: <code>hash-and-url</code> turns on both encodings. Ze sends encoding 12 for one certificate and encoding 13 for a bundle, and it advertises HTTP_CERT_LOOKUP_SUPPORTED. It resolves a payload a peer sends through a bounded http fetch. That fetch permits the http scheme only. It caps the body at 64 KiB and times out after 5 seconds. It follows no redirect. It denies loopback, private, link-local and metadata addresses. It verifies the SHA-1 before any parser reads the bytes. The leaf defaults to false, so no fetch is reachable until an operator asks for one (engine/certurl.go, engine/certbundle.go). Section 2.9 traffic-selector narrowing: the responder narrows the initiator&#39;s proposed TSi/TSr to a subset its configured <code>traffic-selector</code> list allows, leads that subset with the initiator&#39;s first choices, and answers TS_UNACCEPTABLE when nothing is acceptable. A peer with no configured selectors accepts whatever it is offered, which is the behavior of every configuration written before the list existed. The selectors Ze puts on the wire are the selectors it programs: a proposal it cannot program exactly is narrowed further, never rounded outward (engine/ts_narrow.go, ipsec/traffic_selector.go). Section 2.9.2: a rekey is never narrowed below the scope currently in use (engine/rekey.go). Sections 1.3.1 and 2.23.1 transport mode: <code>mode transport</code> sends USE_TRANSPORT_MODE with the Child SA request and pins TSi and TSr to the IKE SA&#39;s own address pair, one address each. A responder accepts the request only when its own configuration asks for transport mode, and echoes the notification when it does. A peer that declines leaves a tunnel-mode Child SA, and <code>transport-required</code> makes that decline delete the SA instead (engine/transport_mode.go, engine/child.go). Section 3.13.1 port selectors: a selector carries all ports (0/65535) or one port under a protocol that defines ports (ipsec/traffic_selector.go). Section 4 conformance set: Ze accepts PKIX certificates signed by RSA keys of 1024 and 2048 bits. The identity passed can be ID_FQDN, ID_RFC822_ADDR or ID_DER_ASN1_DN, which binds against the certificate subject exactly. <code>remote-id-type key-id</code> lets an operator accept ID_KEY_ID, which corresponds to no certificate field. The same leaf pins one identity type per peer (engine/remote_id.go). Section 3.3 transform alternatives: one proposal CAN carry several transforms of the same Transform Type. Ze reads every one of them as an alternative, and it does not keep only the last. A peer CAN offer two Diffie-Hellman groups, two key lengths, two PRFs or two integrity algorithms in one proposal. Ze considers all of them, in the order the peer listed them. Ze selects the peer&#39;s first choice that it supports. The number of combinations one proposal expands to is bounded, so an unauthenticated peer cannot turn a cross product into unbounded work (engine/initiator.go). Section 1.4.1 Delete: an inbound Child SA Delete is resolved to the pair the peer named by SPI and that pair is closed, and the response carries a Delete payload naming the paired SA going in the other direction. A Delete that crosses one Ze already sent for the same pair is answered without a Delete payload, and the two halves of the pair go at the two points the section names. An IKE SA Delete still draws an empty response (engine/delete.go). Section 1.5: the out-of-SA notification emitter is a fixed point, so its own output fed back to it produces nothing and two nodes cannot trade messages forever (engine/notify_error.go). Section 2.12: closing an IKE SA erases SK_d and the rest of SK_*, the Diffie-Hellman private value and the EAP MSK, and releases the nonces, on every path that ends an SA including an abandoned half-open handshake. The two holders that live on the peer SESSION rather than on the SA are released on the same exit: the Diffie-Hellman private value of a rekey that never got its answer, and a whole IKE SA built while answering the peer&#39;s rekey and never confirmed by the peer&#39;s Delete. The session outlives the SA, so either one left behind would carry key material into the next reconnect cycle (engine/sa.go, engine/established.go, engine/fsm.go). Section 2.16: the EAP shared key generates the AUTH payloads that follow EAP Success, and the responder sends Success on a completed method and Failure on a refused one (eap/eap.go, engine/eap_auth.go). Section 2.24 ECN: no config leaf and no negotiated parameter can reach an ECN knob, and the netlink state Ze fills carries no flags field, so XFRM_STATE_NOECN is unreachable and the kernel&#39;s ECN propagation stands (dataplane/xfrm_linux.go). Section 3.1: a liveness probe sets the I bit from the ORIGINAL initiator role rather than hardcoding it (engine/dpd.go). Section 3.5: an ID_FQDN or ID_RFC822_ADDR carrying a terminator octet is refused, on the receive path against a peer&#39;s asserted identity and at commit against local-id and remote-id (engine/remote_id.go, ipsec/validate.go). Section 3.3 ESP alternatives: every transform of a type in one ESP proposal is read as an alternative, and a key length is only ever compared beside the id of the transform that carried it (engine/responder.go). Section 2.7 Extended Sequence Numbers: Ze keys a 32-bit ESP sequence space, so it offers and answers Transform Type 5 value 0 and selects that value from a proposal that offers both. A proposal offering value 1 alone is refused with NO_PROPOSAL_CHOSEN rather than answered with a transform the peer never proposed, and an answer selecting value 1 ends the exchange on the initiator side (engine/responder.go, engine/initiator.go). Proven against strongSwan in test/interop-ipsec/scenarios/esn-extended-only-refused and esn-both-offered. Section 2.23 NAT-T: one Child SA receives BOTH ESP forms, and the form Ze SENDS follows the NAT verdict alone. Reception and transmission are two decisions. The inbound XFRM state carries the encapsulation template when a NAT was detected or the IKE SA runs on port 4500, so the kernel serves that form on its fast path. The other form is served beside the kernel: a raw IPPROTO_ESP reader takes the bare datagram XFRM refused and re-presents it through port 4500, which carries UDP_ENCAP, so the kernel hands XFRM the encapsulation type the template wants. Ze encapsulates on transmission only when it detected a NAT, which RFC 7296 Section 2.23 makes mandatory there and leaves free otherwise. Reading the port as a transmission signal broke interop against a strongSwan that floats to port 4500 for MOBIKE with no NAT present and then sends bare ESP (engine/child.go, dataplane/espform.go, dataplane/espform_linux.go, transport/encap_linux.go). Section 2.2 two counters: each end keeps its own next Message ID. A responder-role SA raises its first request at the id a conforming peer expects. It took the peer&#39;s id before this fix, so it raised no DPD, no Delete and no rekey (engine/responder.go, engine/msgid.go). Section 2.9 narrowing orientation: the responder narrows against the orientation of the exchange in hand. The IKE SA role is a different question. A Child SA rekey the peer starts on a tunnel Ze initiated is answered rather than refused with TS_UNACCEPTABLE (engine/ts_narrow.go). Section 2.8 rekey on the XFRM dataplane: the replacement Child SA inherits the retired pair&#39;s selectors and their orientation. The make-before-break window holds one policy, and retiring the superseded pair removes no selector the live pair still needs. <a href="https://github.com/ze-software/ze/blob/main/test/ipsec/ipsec-child-rekey-xfrm.ci" target="_blank" rel="noopener"><code>test/ipsec/ipsec-child-rekey-xfrm.ci</code></a> measures it on the real backend with the two roles crossed (engine/rekey.go, engine/child.go).</li>
+<li>a pre-shared secret or X.509 device identity still sends it (engine/auth.go). Section 2.8: an IKE SA whose negotiated lifetime has expired is refused for use at the point every protected message is built, not merely scheduled for teardown, and hard expiry is no longer deferred by an in-flight rekey. The rekey trigger is placed a full retransmit budget before the hard time so the replacement exchange still has room (engine/sa.go, engine/auth.go, engine/established.go, engine/rekey.go). Section 4: a rekey the peer refuses with NO_ADDITIONAL_SAS is answered by deleting the old SA and creating a new one through the initial exchanges, instead of retrying an exchange that peer will never accept (engine/rekey.go, engine/inbound.go). Section 3.6 certificate count: <code>certificate-count</code> bounds the chain Ze sends and the chain it accepts, and it defaults to the four the section names. A peer that sends more is refused, never truncated (engine/cert_payload.go). Section 3.6 Hash and URL: <code>hash-and-url</code> turns on both encodings. Ze sends encoding 12 for one certificate and encoding 13 for a bundle, and it advertises HTTP_CERT_LOOKUP_SUPPORTED. It resolves a payload a peer sends through a bounded http fetch. That fetch permits the http scheme only. It caps the body at 64 KiB and times out after 5 seconds. It follows no redirect. It denies loopback, private, link-local and metadata addresses. It verifies the SHA-1 before any parser reads the bytes. The leaf defaults to false, so no fetch is reachable until an operator asks for one (engine/certurl.go, engine/certbundle.go). Section 2.9 traffic-selector narrowing: the responder narrows the initiator&#39;s proposed TSi/TSr to a subset its configured <code>traffic-selector</code> list allows, leads that subset with the initiator&#39;s first choices, and answers TS_UNACCEPTABLE when nothing is acceptable. A peer with no configured selectors accepts whatever it is offered, which is the behavior of every configuration written before the list existed. The selectors Ze puts on the wire are the selectors it programs: a proposal it cannot program exactly is narrowed further, never rounded outward (engine/ts_narrow.go, ipsec/traffic_selector.go). Section 2.9.2: a rekey is never narrowed below the scope currently in use (engine/rekey.go). Sections 1.3.1 and 2.23.1 transport mode: <code>mode transport</code> sends USE_TRANSPORT_MODE with the Child SA request and pins TSi and TSr to the IKE SA&#39;s own OBSERVED address pair, one address each. A responder accepts the request only when its own configuration asks for transport mode, and echoes the notification when it does. A peer that declines leaves a tunnel-mode Child SA, and <code>transport-required</code> makes that decline delete the SA instead (engine/transport_mode.go, engine/child.go). Section 2.23.1 address substitution: with a NAT on the path, both roles replace the transport-mode selector addresses before those selectors are used for anything except storing the originals. The responder substitutes the TSi address with the observed remote address when the peer is behind a NAT, and the TSr address with its own local address when it is, before the policy lookup that is Ze&#39;s SPD lookup. The initiator substitutes the mirror pair before the answer is checked against what it proposed and before the SAD entry is created. The substituted address is always one this node observed, never one the peer asserted, so the narrowing guard still refuses an answer outside the proposal. The SA records which SIDE each translation is on, separately from whether a NAT is present, and stores the pre-substitution addresses the section requires be kept. Tunnel mode and a NAT-free path are unchanged. Proven against strongSwan across a netfilter box that really rewrites both addresses, in test/interop-ipsec/scenarios/real-nat-transport-ze-initiator, real-nat-transport-ze-responder and real-nat-tunnel-control (engine/ts_nat_substitute.go, engine/ts_narrow.go, engine/sa.go). Section 3.13.1 port selectors: a selector carries all ports (0/65535) or one port under a protocol that defines ports (ipsec/traffic_selector.go). Section 4 conformance set: Ze accepts PKIX certificates signed by RSA keys of 1024 and 2048 bits. The identity passed can be ID_FQDN, ID_RFC822_ADDR or ID_DER_ASN1_DN, which binds against the certificate subject exactly. <code>remote-id-type key-id</code> lets an operator accept ID_KEY_ID, which corresponds to no certificate field. The same leaf pins one identity type per peer (engine/remote_id.go). Section 3.3 transform alternatives: one proposal CAN carry several transforms of the same Transform Type. Ze reads every one of them as an alternative, and it does not keep only the last. A peer CAN offer two Diffie-Hellman groups, two key lengths, two PRFs or two integrity algorithms in one proposal. Ze considers all of them, in the order the peer listed them. Ze selects the peer&#39;s first choice that it supports. The number of combinations one proposal expands to is bounded, so an unauthenticated peer cannot turn a cross product into unbounded work (engine/initiator.go). Section 1.4.1 Delete: an inbound Child SA Delete is resolved to the pair the peer named by SPI and that pair is closed, and the response carries a Delete payload naming the paired SA going in the other direction. A Delete that crosses one Ze already sent for the same pair is answered without a Delete payload, and the two halves of the pair go at the two points the section names. An IKE SA Delete still draws an empty response (engine/delete.go). Section 1.5: the out-of-SA notification emitter is a fixed point, so its own output fed back to it produces nothing and two nodes cannot trade messages forever (engine/notify_error.go). Section 2.12: closing an IKE SA erases SK_d and the rest of SK_*, the Diffie-Hellman private value and the EAP MSK, and releases the nonces, on every path that ends an SA including an abandoned half-open handshake. The two holders that live on the peer SESSION rather than on the SA are released on the same exit: the Diffie-Hellman private value of a rekey that never got its answer, and a whole IKE SA built while answering the peer&#39;s rekey and never confirmed by the peer&#39;s Delete. The session outlives the SA, so either one left behind would carry key material into the next reconnect cycle (engine/sa.go, engine/established.go, engine/fsm.go). Section 2.16: the EAP shared key generates the AUTH payloads that follow EAP Success, and the responder sends Success on a completed method and Failure on a refused one (eap/eap.go, engine/eap_auth.go). Section 2.24 ECN: no config leaf and no negotiated parameter can reach an ECN knob, and the netlink state Ze fills carries no flags field, so XFRM_STATE_NOECN is unreachable and the kernel&#39;s ECN propagation stands (dataplane/xfrm_linux.go). Section 3.1: a liveness probe sets the I bit from the ORIGINAL initiator role rather than hardcoding it (engine/dpd.go). Section 3.5: an ID_FQDN or ID_RFC822_ADDR carrying a terminator octet is refused, on the receive path against a peer&#39;s asserted identity and at commit against local-id and remote-id (engine/remote_id.go, ipsec/validate.go). Section 3.3 ESP alternatives: every transform of a type in one ESP proposal is read as an alternative, and a key length is only ever compared beside the id of the transform that carried it (engine/responder.go). Section 2.7 Extended Sequence Numbers: Ze keys a 32-bit ESP sequence space, so it offers and answers Transform Type 5 value 0 and selects that value from a proposal that offers both. A proposal offering value 1 alone is refused with NO_PROPOSAL_CHOSEN rather than answered with a transform the peer never proposed, and an answer selecting value 1 ends the exchange on the initiator side (engine/responder.go, engine/initiator.go). Proven against strongSwan in test/interop-ipsec/scenarios/esn-extended-only-refused and esn-both-offered. Section 2.23 NAT-T: one Child SA receives BOTH ESP forms, and the form Ze SENDS follows the NAT verdict alone. Reception and transmission are two decisions. The inbound XFRM state carries the encapsulation template when a NAT was detected or the IKE SA runs on port 4500, so the kernel serves that form on its fast path. The other form is served beside the kernel: a raw IPPROTO_ESP reader takes the bare datagram XFRM refused and re-presents it through port 4500, which carries UDP_ENCAP, so the kernel hands XFRM the encapsulation type the template wants. Ze encapsulates on transmission only when it detected a NAT, which RFC 7296 Section 2.23 makes mandatory there and leaves free otherwise. Reading the port as a transmission signal broke interop against a strongSwan that floats to port 4500 for MOBIKE with no NAT present and then sends bare ESP (engine/child.go, dataplane/espform.go, dataplane/espform_linux.go, transport/encap_linux.go). Section 2.2 two counters: each end keeps its own next Message ID. A responder-role SA raises its first request at the id a conforming peer expects. It took the peer&#39;s id before this fix, so it raised no DPD, no Delete and no rekey (engine/responder.go, engine/msgid.go). Section 2.9 narrowing orientation: the responder narrows against the orientation of the exchange in hand. The IKE SA role is a different question. A Child SA rekey the peer starts on a tunnel Ze initiated is answered rather than refused with TS_UNACCEPTABLE (engine/ts_narrow.go). Section 2.8 rekey on the XFRM dataplane: the replacement Child SA inherits the retired pair&#39;s selectors and their orientation. The make-before-break window holds one policy, and retiring the superseded pair removes no selector the live pair still needs. <a href="https://github.com/ze-software/ze/blob/main/test/ipsec/ipsec-child-rekey-xfrm.ci" target="_blank" rel="noopener"><code>test/ipsec/ipsec-child-rekey-xfrm.ci</code></a> measures it on the real backend with the two roles crossed (engine/rekey.go, engine/child.go).</li>
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
@@ -301,14 +315,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-2.7-1">RFC7296-2.7-1</code></td><td colspan="3"><span class="rfc-subject">Responder picks exactly one transform of each type from the proposal, or rejects all with NO_PROPOSAL_CHOSEN (§2.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>2.7 - Walked the algorithm negotiation rules</td>
+<td>2.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.7-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L95" title="internal/component/ike/engine/rfc7296_esn_test.go" target="_blank" rel="noopener"><code>TestEsnResponderAnswersOnlyAValueTheOfferCarried</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/proposal_test.go#L8" title="internal/component/ike/crypto/proposal_test.go" target="_blank" rel="noopener"><code>TestProposalNegotiationFirstMatch</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L87" title="internal/component/ike/engine/rfc7296_esn_test.go" target="_blank" rel="noopener"><code>TestEsnResponderAnswersOnlyAValueTheOfferCarried</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/proposal_test.go#L63" title="internal/component/ike/crypto/proposal_test.go" target="_blank" rel="noopener"><code>TestProposalNegotiationNoMatch</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L807" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNBothOffered</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L776" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNExtendedOnlyRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L912" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNBothOffered</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L881" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNExtendedOnlyRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.3-1">RFC7296-3.3-1</code></td><td colspan="3"><span class="rfc-subject">AEAD ciphers and non-AEAD ciphers cannot be in the same proposal; use separate proposals for each class (§3.3)</span></td></tr>
@@ -395,7 +409,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-2.9.2-1">RFC7296-2.9.2-1</code></td><td colspan="3"><span class="rfc-subject">Thus, the new SA MUST NOT have narrower selectors than the original (§2.9.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
-<td>2.9.2 - Walked the rekeying selector rules</td>
+<td>2.9.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.9.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_initiator_answer_test.go#L183" title="internal/component/ike/engine/child_rekey_initiator_answer_test.go" target="_blank" rel="noopener"><code>TestChildRekeyAnswerBelowTheScopeInUseIsRefused</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_orientation_test.go#L322" title="internal/component/ike/engine/child_rekey_orientation_test.go" target="_blank" rel="noopener"><code>TestRekeyAnswerMatchesTheInstalledSelectors</code></a></span></div>
@@ -407,7 +421,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-2.9.2-2">RFC7296-2.9.2-2</code></td><td colspan="3"><span class="rfc-subject">The responder MUST NOT narrow down the Traffic Selectors narrower than the scope currently in use (§2.9.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
-<td>2.9.2 - Walked the rekeying selector rules</td>
+<td>2.9.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.9.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_initiator_answer_test.go#L188" title="internal/component/ike/engine/child_rekey_initiator_answer_test.go" target="_blank" rel="noopener"><code>TestChildRekeyAnswerBelowTheScopeInUseIsRefused</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ts_narrow_test.go#L247" title="internal/component/ike/engine/ts_narrow_test.go" target="_blank" rel="noopener"><code>TestRekeyFloorIsNotNarrowed</code></a></span></div>
@@ -440,7 +454,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.23.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.23.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_nat_test.go#L107" title="internal/component/ike/engine/rfc7296_transport_nat_test.go" target="_blank" rel="noopener"><code>TestResponderAnswersTheIKESAAddressesBehindANAT</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L116" title="internal/component/ike/engine/rfc7296_transport_test.go" target="_blank" rel="noopener"><code>TestTransportModeUsesExactlyOneAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_nat_test.go#L117" title="internal/component/ike/engine/rfc7296_transport_nat_test.go" target="_blank" rel="noopener"><code>TestResponderAnswersTheIKESAAddressesBehindANAT</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L129" title="internal/component/ike/engine/rfc7296_transport_test.go" target="_blank" rel="noopener"><code>TestTransportModeUsesExactlyOneAddress</code></a></span></div>
 </div></td>
 </tr>
@@ -450,7 +466,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2.23.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.23.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L140" title="internal/component/ike/engine/rfc7296_transport_test.go" target="_blank" rel="noopener"><code>TestTransportModeUsesExactlyOneAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_nat_test.go#L39" title="internal/component/ike/engine/rfc7296_transport_nat_test.go" target="_blank" rel="noopener"><code>TestTransportSelectorsMatchTheIKESAAddressesBehindANAT</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L170" title="internal/component/ike/engine/rfc7296_transport_test.go" target="_blank" rel="noopener"><code>TestTransportModeUsesExactlyOneAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_nat_test.go#L62" title="internal/component/ike/engine/rfc7296_transport_nat_test.go" target="_blank" rel="noopener"><code>TestTransportSelectorsMatchTheIKESAAddressesBehindANAT</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-2.23.1-3">RFC7296-2.23.1-3</code></td><td colspan="3"><span class="rfc-subject">The TSr entries MUST have exactly one IP address, and that MUST match the destination address of the IKE SA (§2.23.1)</span></td></tr>
@@ -459,7 +477,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2.23.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.23.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L150" title="internal/component/ike/engine/rfc7296_transport_test.go" target="_blank" rel="noopener"><code>TestTransportModeUsesExactlyOneAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_nat_test.go#L51" title="internal/component/ike/engine/rfc7296_transport_nat_test.go" target="_blank" rel="noopener"><code>TestTransportSelectorsMatchTheIKESAAddressesBehindANAT</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L176" title="internal/component/ike/engine/rfc7296_transport_test.go" target="_blank" rel="noopener"><code>TestTransportModeUsesExactlyOneAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_nat_test.go#L71" title="internal/component/ike/engine/rfc7296_transport_nat_test.go" target="_blank" rel="noopener"><code>TestTransportSelectorsMatchTheIKESAAddressesBehindANAT</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.13.1-1">RFC7296-3.13.1-1</code></td><td colspan="3"><span class="rfc-subject">For protocols for which port is undefined (including protocol 0), or if all ports are allowed, the Start Port field MUST be zero (§3.13.1)</span></td></tr>
@@ -503,7 +523,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.23</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.23-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L270" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSANATTEncapPorts</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L285" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSANATTEncapPorts</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L276" title="internal/component/ike/engine/rfc7296_test.go" target="_blank" rel="noopener"><code>TestChildSANoNATNoEncap</code></a></span></div>
 </div></td>
 </tr>
@@ -559,7 +579,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-1-1">RFC7296-1-1</code></td><td colspan="3"><span class="rfc-subject">In all cases, all IKE_SA_INIT exchanges MUST complete before any other exchange type, then all IKE_AUTH exchanges MUST complete, and following that, any number of CREATE_CHILD_SA and INFORMATIONAL exchanges may occur in any order (§1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>1 - The introduction names the exchange types and their order</td>
+<td>1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_auth_test.go#L168" title="internal/component/ike/engine/rfc7296_auth_test.go" target="_blank" rel="noopener"><code>TestAutExchangesRunInRFCOrder</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_auth_test.go#L170" title="internal/component/ike/engine/rfc7296_auth_test.go" target="_blank" rel="noopener"><code>TestAutExchangesRunInRFCOrder</code></a></span></div>
@@ -652,7 +672,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-2.7-2">RFC7296-2.7-2</code></td><td colspan="3"><span class="rfc-subject">Each proposal contains one protocol. If a proposal is accepted, the SA response MUST contain the same protocol (§2.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>2.7 - Walked the algorithm negotiation rules</td>
+<td>2.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.7-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L396" title="internal/component/ike/engine/rfc7296_session_test.go" target="_blank" rel="noopener"><code>TestSesAcceptedProposalKeepsItsProtocol</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L399" title="internal/component/ike/engine/rfc7296_session_test.go" target="_blank" rel="noopener"><code>TestSesAcceptedProposalKeepsItsProtocol</code></a></span></div>
@@ -661,7 +681,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-2.10-4">RFC7296-2.10-4</code></td><td colspan="3"><span class="rfc-subject">Nonces used in IKEv2 MUST be randomly chosen (§2.10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>2.10 - Walked the nonce section</td>
+<td>2.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.10-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L93" title="internal/component/ike/engine/rfc7296_session_test.go" target="_blank" rel="noopener"><code>TestSesNoncesAreRandomlyChosenAndNeverReused</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L95" title="internal/component/ike/engine/rfc7296_session_test.go" target="_blank" rel="noopener"><code>TestSesNoncesAreRandomlyChosenAndNeverReused</code></a></span></div>
@@ -762,7 +782,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2.23</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.23-10">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L153" title="internal/component/ike/engine/rfc7296_natt_bothforms_test.go" target="_blank" rel="noopener"><code>TestBfmBothESPFormsAreReachable</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L207" title="internal/component/ike/engine/rfc7296_natt_bothforms_test.go" target="_blank" rel="noopener"><code>TestBfmBothESPFormsReceivedOnOneChildSA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L209" title="internal/component/ike/engine/rfc7296_natt_bothforms_test.go" target="_blank" rel="noopener"><code>TestBfmBothESPFormsReceivedOnOneChildSA</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-2.23-11">RFC7296-2.23-11</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST process received UDP-encapsulated ESP packets even when no NAT was detected (§2.23)</span></td></tr>
@@ -778,7 +798,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.9-2">RFC7296-3.9-2</code></td><td colspan="3"><span class="rfc-subject">Nonce values MUST NOT be reused (§3.9)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
-<td>3.9 - Read the Nonce payload section</td>
+<td>3.9</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.9-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L97" title="internal/component/ike/engine/rfc7296_session_test.go" target="_blank" rel="noopener"><code>TestSesNoncesAreRandomlyChosenAndNeverReused</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L145" title="internal/component/ike/engine/rfc7296_session_test.go" target="_blank" rel="noopener"><code>TestSesRekeyDrawsFreshNoncesOnBothSides</code></a></span></div>
@@ -880,7 +900,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-2.12-1">RFC7296-2.12-1</code></td><td colspan="3"><span class="rfc-subject">Achieving perfect forward secrecy requires that when a connection is closed, each endpoint MUST forget not only the keys used by the connection but also any information that could be used to recompute those keys (§2.12)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>2.12 - Walked the Diffie-Hellman exponential reuse section</td>
+<td>2.12</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.12-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/established_test.go#L514" title="internal/component/ike/engine/established_test.go" target="_blank" rel="noopener"><code>TestRunEstablishedClearsPendingIKESwapOnExit</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_wp2_test.go#L85" title="internal/component/ike/engine/rfc7296_wp2_test.go" target="_blank" rel="noopener"><code>TestWp2ForgetKeysErasesEverySecret</code></a></span></div>
@@ -890,7 +910,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-2.24-1">RFC7296-2.24-1</code></td><td colspan="3"><span class="rfc-subject">Tunnel encapsulators and decapsulators for all tunnel mode SAs created by IKEv2 MUST support the ECN full-functionality option for tunnels specified in [ECN] (§2.24)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>2.24 - Read the ECN section</td>
+<td>2.24</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.24-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_ecn_test.go#L70" title="internal/component/ike/engine/rfc7296_ecn_test.go" target="_blank" rel="noopener"><code>TestEcnInstalledChildSAAsksForNoECNChange</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_ecn_linux_test.go#L86" title="internal/component/ike/dataplane/rfc7296_ecn_linux_test.go" target="_blank" rel="noopener"><code>TestEcnInstalledStateDisablesNothing</code></a></span></div>
@@ -903,7 +923,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-2.24-2">RFC7296-2.24-2</code></td><td colspan="3"><span class="rfc-subject">Tunnel encapsulators and decapsulators MUST implement the tunnel encapsulation and decapsulation processing specified in [IPSECARCH] to prevent discarding of ECN congestion indications (§2.24)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>2.24 - Read the ECN section</td>
+<td>2.24</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.24-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_ecn_test.go#L74" title="internal/component/ike/engine/rfc7296_ecn_test.go" target="_blank" rel="noopener"><code>TestEcnInstalledChildSAAsksForNoECNChange</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_ecn_linux_test.go#L90" title="internal/component/ike/dataplane/rfc7296_ecn_linux_test.go" target="_blank" rel="noopener"><code>TestEcnInstalledStateDisablesNothing</code></a></span></div>
@@ -936,8 +956,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.16</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.16-14">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_result_test.go#L55" title="internal/component/ike/eap/rfc7296_eap_result_test.go" target="_blank" rel="noopener"><code>TestEapResultSuccessIsSent</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_result_test.go#L81" title="internal/component/ike/eap/rfc7296_eap_result_test.go" target="_blank" rel="noopener"><code>TestEapResultFailureIsSent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_result_test.go#L55" title="internal/core/eap/rfc7296_eap_result_test.go" target="_blank" rel="noopener"><code>TestEapResultSuccessIsSent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_result_test.go#L81" title="internal/core/eap/rfc7296_eap_result_test.go" target="_blank" rel="noopener"><code>TestEapResultFailureIsSent</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-2.16-15">RFC7296-2.16-15</code></td><td colspan="3"><span class="rfc-subject">Similarly, if the authentication method has failed, the responder MUST send an EAP payload containing the Failure message (§2.16)</span></td></tr>
@@ -945,14 +965,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.16</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.16-15">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_result_test.go#L78" title="internal/component/ike/eap/rfc7296_eap_result_test.go" target="_blank" rel="noopener"><code>TestEapResultFailureIsSent</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_result_test.go#L101" title="internal/component/ike/eap/rfc7296_eap_result_test.go" target="_blank" rel="noopener"><code>TestEapResultSuccessIsNotFailure</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_result_test.go#L78" title="internal/core/eap/rfc7296_eap_result_test.go" target="_blank" rel="noopener"><code>TestEapResultFailureIsSent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_result_test.go#L101" title="internal/core/eap/rfc7296_eap_result_test.go" target="_blank" rel="noopener"><code>TestEapResultSuccessIsNotFailure</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.1-13">RFC7296-3.1-13</code></td><td colspan="3"><span class="rfc-subject">The I bit MUST be set in messages sent by the original initiator of the IKE SA and MUST be cleared in messages sent by the original responder (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.1 - Read the IKE header section and every field description</td>
+<td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.1-13">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_wp2_test.go#L259" title="internal/component/ike/engine/rfc7296_wp2_test.go" target="_blank" rel="noopener"><code>TestWp2DPDProbeIBitFollowsRole</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_wp2_test.go#L276" title="internal/component/ike/engine/rfc7296_wp2_test.go" target="_blank" rel="noopener"><code>TestWp2DPDProbeIBitDiffersByRole</code></a></span></div>
@@ -1035,7 +1055,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>1.3 - The CREATE_CHILD_SA exchange</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-1.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_pfs_test.go#L62" title="internal/component/ike/engine/child_rekey_pfs_test.go" target="_blank" rel="noopener"><code>TestChildRekeyProposesDiffieHellmanWhenPFSIsEnabled</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L167" title="internal/component/ike/engine/rfc7296_rekey_test.go" target="_blank" rel="noopener"><code>TestRkyIKERekeyOffersTheKEiGroup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_pfs_test.go#L66" title="internal/component/ike/engine/child_rekey_pfs_test.go" target="_blank" rel="noopener"><code>TestChildRekeyProposesDiffieHellmanWhenPFSIsEnabled</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_pfs_test.go#L100" title="internal/component/ike/engine/child_rekey_pfs_test.go" target="_blank" rel="noopener"><code>TestChildRekeyProposesNoDiffieHellmanWhenPFSIsDisabled</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L171" title="internal/component/ike/engine/rfc7296_rekey_test.go" target="_blank" rel="noopener"><code>TestRkyIKERekeyOffersTheKEiGroup</code></a></span></div>
 </div></td>
 </tr>
@@ -1206,7 +1229,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-2.25-1">RFC7296-2.25-1</code></td><td colspan="3"><span class="rfc-subject">When a peer receives a TEMPORARY_FAILURE notification, it MUST NOT immediately retry the operation; it MUST wait so that the sender may complete whatever operation caused the temporary condition (§2.25)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
-<td>2.25 - Read the exchange collision section</td>
+<td>2.25</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.25-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L382" title="internal/component/ike/engine/rfc7296_msgid_test.go" target="_blank" rel="noopener"><code>TestMidTemporaryFailureDefersTheIKERekey</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L268" title="internal/component/ike/engine/rfc7296_msgid_test.go" target="_blank" rel="noopener"><code>TestMidTemporaryFailureDefersTheRetry</code></a></span></div>
@@ -1273,8 +1296,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.16 - The EAP payload and the EAP message format</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.16-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_test.go#L40" title="internal/component/ike/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtResponseIdentifierMatchesRequest</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_test.go#L45" title="internal/component/ike/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtResponseIdentifierMatchesRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_test.go#L20" title="internal/core/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtResponseIdentifierMatchesRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_test.go#L25" title="internal/core/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtResponseIdentifierMatchesRequest</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.16-2">RFC7296-3.16-2</code></td><td colspan="3"><span class="rfc-subject">The Length field MUST be four less than the Payload Length of the encapsulating payload (§3.16)</span></td></tr>
@@ -1291,8 +1314,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.16 - The EAP payload and the EAP message format</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.16-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_test.go#L110" title="internal/component/ike/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtSuccessAndFailureCarryNoTypeField</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_test.go#L115" title="internal/component/ike/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtSuccessAndFailureCarryNoTypeField</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_test.go#L84" title="internal/core/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtSuccessAndFailureCarryNoTypeField</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_test.go#L88" title="internal/core/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtSuccessAndFailureCarryNoTypeField</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.16-4">RFC7296-3.16-4</code></td><td colspan="3"><span class="rfc-subject">In a Response (2) message, Type MUST either be Nak or match the type of the data requested (§3.16)</span></td></tr>
@@ -1300,8 +1323,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.16 - The EAP payload and the EAP message format</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.16-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_test.go#L153" title="internal/component/ike/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtPeerResponseTypeIsNakOrMatchesRequest</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_test.go#L157" title="internal/component/ike/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtPeerResponseTypeIsNakOrMatchesRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_test.go#L118" title="internal/core/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtPeerResponseTypeIsNakOrMatchesRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_test.go#L122" title="internal/core/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtPeerResponseTypeIsNakOrMatchesRequest</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-1.7-2">RFC7296-1.7-2</code></td><td colspan="3"><span class="rfc-subject">All pseudorandom functions (PRFs) used with IKEv2 MUST take variable-sized keys (§1.7)</span></td></tr>
@@ -1645,7 +1668,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-2.10-2">RFC7296-2.10-2</code></td><td colspan="3"><span class="rfc-subject">Nonces used in IKEv2 MUST be at least 128 bits in size (§2.10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>2.10 - Walked the nonce section</td>
+<td>2.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.10-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L609" title="internal/component/ike/wire/rfc7296_test.go" target="_blank" rel="noopener"><code>TestNonceLengthBounds</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L611" title="internal/component/ike/wire/rfc7296_test.go" target="_blank" rel="noopener"><code>TestNonceLengthBounds</code></a></span></div>
@@ -1654,7 +1677,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-2.10-3">RFC7296-2.10-3</code></td><td colspan="3"><span class="rfc-subject">Nonces used in IKEv2 MUST be at least half the key size of the negotiated pseudorandom function (PRF) (§2.10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>2.10 - Walked the nonce section</td>
+<td>2.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.10-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L421" title="internal/component/ike/engine/rfc7296_encrypt_test.go" target="_blank" rel="noopener"><code>TestNonceMeetsHalfPRFKeySize</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L426" title="internal/component/ike/engine/rfc7296_encrypt_test.go" target="_blank" rel="noopener"><code>TestNonceMeetsHalfPRFKeySize</code></a></span></div>
@@ -1717,7 +1740,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-2.17-1">RFC7296-2.17-1</code></td><td colspan="3"><span class="rfc-subject">Keying material for each Child SA MUST be taken from the expanded KEYMAT using the following rules: all keys for SAs carrying data from the initiator to the responder are taken before SAs going from the responder to the initiator (§2.17)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>2.17 - The section gives KEYMAT and three ordering bullets</td>
+<td>2.17</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.17-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L226" title="internal/component/ike/crypto/rfc7296_test.go" target="_blank" rel="noopener"><code>TestChildSAKeymatOrder</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L234" title="internal/component/ike/crypto/rfc7296_test.go" target="_blank" rel="noopener"><code>TestChildSAKeymatOrder</code></a></span></div>
@@ -1726,7 +1749,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-2.17-2">RFC7296-2.17-2</code></td><td colspan="3"><span class="rfc-subject">For ESP and AH, the encryption key (if any) MUST be taken from the first bits and the integrity key (if any) MUST be taken from the remaining bits (§2.17)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>2.17 - The section gives KEYMAT and three ordering bullets</td>
+<td>2.17</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.17-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L230" title="internal/component/ike/crypto/rfc7296_test.go" target="_blank" rel="noopener"><code>TestChildSAKeymatOrder</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L238" title="internal/component/ike/crypto/rfc7296_test.go" target="_blank" rel="noopener"><code>TestChildSAKeymatOrder</code></a></span></div>
@@ -1735,7 +1758,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.1-1">RFC7296-3.1-1</code></td><td colspan="3"><span class="rfc-subject">An Encrypted payload MUST be the last payload in a packet (§3.1, §3.14)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.1 - Read the IKE header section and every field description</td>
+<td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L87" title="internal/component/ike/engine/rfc7296_encrypt_test.go" target="_blank" rel="noopener"><code>TestSKIsLastAndNeverNested</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L95" title="internal/component/ike/engine/rfc7296_encrypt_test.go" target="_blank" rel="noopener"><code>TestSKIsLastAndNeverNested</code></a></span></div>
@@ -1744,7 +1767,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.1-2">RFC7296-3.1-2</code></td><td colspan="3"><span class="rfc-subject">An Encrypted payload MUST NOT contain another Encrypted payload (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
-<td>3.1 - Read the IKE header section and every field description</td>
+<td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L91" title="internal/component/ike/engine/rfc7296_encrypt_test.go" target="_blank" rel="noopener"><code>TestSKIsLastAndNeverNested</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_encrypt_test.go#L98" title="internal/component/ike/engine/rfc7296_encrypt_test.go" target="_blank" rel="noopener"><code>TestSKIsLastAndNeverNested</code></a></span></div>
@@ -1753,7 +1776,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.1-3">RFC7296-3.1-3</code></td><td colspan="3"><span class="rfc-subject">Initiator&#39;s SPI is a value chosen by the initiator to identify a unique IKE Security Association. This value MUST NOT be zero (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
-<td>3.1 - Read the IKE header section and every field description</td>
+<td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L201" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestSPIZeroRules</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L209" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestSPIZeroRules</code></a></span></div>
@@ -1762,7 +1785,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.1-4">RFC7296-3.1-4</code></td><td colspan="3"><span class="rfc-subject">Responder&#39;s SPI is a value chosen by the responder to identify a unique IKE Security Association. This value MUST be zero in the first message of an IKE initial exchange (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.1 - Read the IKE header section and every field description</td>
+<td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.1-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L204" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestSPIZeroRules</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L212" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestSPIZeroRules</code></a></span></div>
@@ -1771,7 +1794,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.1-5">RFC7296-3.1-5</code></td><td colspan="3"><span class="rfc-subject">Implementations based on this version of IKE MUST set the major version to 2 (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.1 - Read the IKE header section and every field description</td>
+<td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.1-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L79" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestBuiltMessagesCarryVersion2Point0</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L87" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestBuiltMessagesCarryVersion2Point0</code></a></span></div>
@@ -1780,7 +1803,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.1-6">RFC7296-3.1-6</code></td><td colspan="3"><span class="rfc-subject">Implementations based on this version of IKE MUST set the minor version to 0 (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.1 - Read the IKE header section and every field description</td>
+<td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.1-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L84" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestBuiltMessagesCarryVersion2Point0</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L90" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestBuiltMessagesCarryVersion2Point0</code></a></span></div>
@@ -1789,7 +1812,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.1-7">RFC7296-3.1-7</code></td><td colspan="3"><span class="rfc-subject">X bits MUST be cleared when sending (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.1 - Read the IKE header section and every field description</td>
+<td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.1-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L328" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestBuiltMessagesClearXAndVBits</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L335" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestBuiltMessagesClearXAndVBits</code></a></span></div>
@@ -1798,7 +1821,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.1-8">RFC7296-3.1-8</code></td><td colspan="3"><span class="rfc-subject">X bits MUST be ignored on receipt (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.1 - Read the IKE header section and every field description</td>
+<td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.1-8">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L420" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestXBitsIgnoredOnReceipt</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L428" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestXBitsIgnoredOnReceipt</code></a></span></div>
@@ -1807,7 +1830,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.1-9">RFC7296-3.1-9</code></td><td colspan="3"><span class="rfc-subject">The R bit MUST be cleared in all request messages and MUST be set in all responses (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.1 - Read the IKE header section and every field description</td>
+<td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.1-9">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L373" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestResponseBitMatchesDirection</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L377" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestResponseBitMatchesDirection</code></a></span></div>
@@ -1816,7 +1839,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.1-11">RFC7296-3.1-11</code></td><td colspan="3"><span class="rfc-subject">Implementations of IKEv2 MUST clear the V bit when sending and MUST ignore it in incoming messages (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.1 - Read the IKE header section and every field description</td>
+<td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.1-11">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L332" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestBuiltMessagesClearXAndVBits</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L337" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestBuiltMessagesClearXAndVBits</code></a></span></div>
@@ -1826,7 +1849,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.1-12">RFC7296-3.1-12</code></td><td colspan="3"><span class="rfc-subject">An IKE endpoint MUST NOT generate a response to a message that is marked as being a response (with one exception; see Section 2.21.2) (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
-<td>3.1 - Read the IKE header section and every field description</td>
+<td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.1-12">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L252" title="internal/component/ike/engine/rfc7296_noresponse_test.go" target="_blank" rel="noopener"><code>TestNrsInformationalHandlerRefusesAResponse</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L46" title="internal/component/ike/engine/rfc7296_noresponse_test.go" target="_blank" rel="noopener"><code>TestNrsResponseNeverDrawsAResponse</code></a></span></div>
@@ -1930,7 +1953,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.3.1-1">RFC7296-3.3.1-1</code></td><td colspan="3"><span class="rfc-subject">When a proposal is accepted, the proposal number in the SA payload MUST match the number on the proposal sent that was accepted (§3.3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.3.1 - Read the proposal substructure and every field description</td>
+<td>3.3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.3.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L43" title="internal/component/ike/crypto/rfc7296_proposal_test.go" target="_blank" rel="noopener"><code>TestPropAcceptedProposalNumberMatchesOffer</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L47" title="internal/component/ike/crypto/rfc7296_proposal_test.go" target="_blank" rel="noopener"><code>TestPropAcceptedProposalNumberMatchesOffer</code></a></span></div>
@@ -1939,7 +1962,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.3.1-2">RFC7296-3.3.1-2</code></td><td colspan="3"><span class="rfc-subject">For an initial IKE SA negotiation, the SPI Size field MUST be zero; the SPI is obtained from the outer header (§3.3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.3.1 - Read the proposal substructure and every field description</td>
+<td>3.3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.3.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_sa_test.go#L250" title="internal/component/ike/wire/rfc7296_sa_test.go" target="_blank" rel="noopener"><code>TestPropSPISizeMatchesProtocol</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_spisize_test.go#L49" title="internal/component/ike/engine/rfc7296_spisize_test.go" target="_blank" rel="noopener"><code>TestSpzInitialIKESANegotiationNeedsZeroSPISize</code></a></span></div>
@@ -1961,7 +1984,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.3.4-2">RFC7296-3.3.4-2</code></td><td colspan="3"><span class="rfc-subject">Upon receipt of a payload with a set of Transform IDs, the implementation MUST compare the transmitted Transform IDs against those locally configured via the management controls, to verify that the proposed suite is acceptable based on local policy (§3.3.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.3.4 - Read the mandatory Transform IDs section</td>
+<td>3.3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.3.4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L119" title="internal/component/ike/crypto/rfc7296_proposal_test.go" target="_blank" rel="noopener"><code>TestPropTransformIDsComparedAgainstLocalPolicy</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L125" title="internal/component/ike/crypto/rfc7296_proposal_test.go" target="_blank" rel="noopener"><code>TestPropTransformIDsComparedAgainstLocalPolicy</code></a></span></div>
@@ -1970,7 +1993,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.3.4-3">RFC7296-3.3.4-3</code></td><td colspan="3"><span class="rfc-subject">The implementation MUST reject SA proposals that are not authorized by these IKE suite controls (§3.3.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.3.4 - Read the mandatory Transform IDs section</td>
+<td>3.3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.3.4-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L157" title="internal/component/ike/crypto/rfc7296_proposal_test.go" target="_blank" rel="noopener"><code>TestPropUnauthorizedProposalRejected</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L161" title="internal/component/ike/crypto/rfc7296_proposal_test.go" target="_blank" rel="noopener"><code>TestPropUnauthorizedProposalRejected</code></a></span></div>
@@ -2057,7 +2080,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.9-1">RFC7296-3.9-1</code></td><td colspan="3"><span class="rfc-subject">The size of the Nonce Data MUST be between 16 and 256 octets, inclusive (§3.9)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.9 - Read the Nonce payload section</td>
+<td>3.9</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.9-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L604" title="internal/component/ike/wire/rfc7296_test.go" target="_blank" rel="noopener"><code>TestNonceLengthBounds</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L607" title="internal/component/ike/wire/rfc7296_test.go" target="_blank" rel="noopener"><code>TestNonceLengthBounds</code></a></span></div>
@@ -2066,7 +2089,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.10-3">RFC7296-3.10-3</code></td><td colspan="3"><span class="rfc-subject">For a notification concerning the IKE SA, the SPI Size MUST be zero and the SPI field must be empty (§3.10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.10 - Read the Notify payload section and its field list</td>
+<td>3.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.10-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L633" title="internal/component/ike/wire/rfc7296_test.go" target="_blank" rel="noopener"><code>TestNotifyIKESAHasEmptySPI</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L639" title="internal/component/ike/wire/rfc7296_test.go" target="_blank" rel="noopener"><code>TestNotifyIKESAHasEmptySPI</code></a></span></div>
@@ -2075,7 +2098,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.10-4">RFC7296-3.10-4</code></td><td colspan="3"><span class="rfc-subject">For notifications concerning Child SAs, the Protocol ID field MUST contain either (2) to indicate AH or (3) to indicate ESP (§3.10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.10 - Read the Notify payload section and its field list</td>
+<td>3.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.10-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_notify_test.go#L9" title="internal/component/ike/wire/rfc7296_notify_test.go" target="_blank" rel="noopener"><code>TestNtfyChildSAProtocolIDIsAHOrESP</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_notify_test.go#L14" title="internal/component/ike/wire/rfc7296_notify_test.go" target="_blank" rel="noopener"><code>TestNtfyChildSAProtocolIDIsAHOrESP</code></a></span></div>
@@ -2084,7 +2107,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.10-5">RFC7296-3.10-5</code></td><td colspan="3"><span class="rfc-subject">If the SPI field is empty, the Protocol ID field MUST be sent as zero and MUST be ignored on receipt (§3.10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.10 - Read the Notify payload section and its field list</td>
+<td>3.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.10-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_notify_test.go#L113" title="internal/component/ike/wire/rfc7296_notify_test.go" target="_blank" rel="noopener"><code>TestNtfyEmptySPIProtocolIDIgnoredOnReceipt</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_notify_test.go#L60" title="internal/component/ike/wire/rfc7296_notify_test.go" target="_blank" rel="noopener"><code>TestNtfyEmptySPISendsProtocolIDZero</code></a></span></div>
@@ -2095,7 +2118,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.11-1">RFC7296-3.11-1</code></td><td colspan="3"><span class="rfc-subject">Each SPI MUST be for the same protocol. Mixing of protocol identifiers MUST NOT be performed in the Delete payload (§3.11)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
-<td>3.11 - Read the Delete payload section and its field list</td>
+<td>3.11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.11-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L680" title="internal/component/ike/wire/rfc7296_test.go" target="_blank" rel="noopener"><code>TestDeletePayloadSingleProtocol</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L684" title="internal/component/ike/wire/rfc7296_test.go" target="_blank" rel="noopener"><code>TestDeletePayloadSingleProtocol</code></a></span></div>
@@ -2104,7 +2127,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.11-2">RFC7296-3.11-2</code></td><td colspan="3"><span class="rfc-subject">The SPI Size MUST be zero for IKE (SPI is in message header) or four for AH and ESP (§3.11)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.11 - Read the Delete payload section and its field list</td>
+<td>3.11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.11-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_delete_test.go#L257" title="internal/component/ike/engine/rfc7296_delete_test.go" target="_blank" rel="noopener"><code>TestDelWellFormedSPISizeIsAccepted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L729" title="internal/component/ike/wire/rfc7296_test.go" target="_blank" rel="noopener"><code>TestDeleteSPISizeByProtocol</code></a></span></div>
@@ -2115,7 +2138,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.12-2">RFC7296-3.12-2</code></td><td colspan="3"><span class="rfc-subject">Unfamiliar Vendor IDs MUST be ignored (§3.12)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.12 - Read the Vendor ID payload section</td>
+<td>3.12</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.12-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L766" title="internal/component/ike/wire/rfc7296_test.go" target="_blank" rel="noopener"><code>TestVendorIDIgnoredButPreserved</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L774" title="internal/component/ike/wire/rfc7296_test.go" target="_blank" rel="noopener"><code>TestVendorIDIgnoredButPreserved</code></a></span></div>
@@ -2124,7 +2147,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.12-3">RFC7296-3.12-3</code></td><td colspan="3"><span class="rfc-subject">Writers of documents who wish to extend this protocol MUST define a Vendor ID payload to announce the ability to implement the extension in the document (§3.12)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.12 - Read the Vendor ID payload section</td>
+<td>3.12</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.12-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L770" title="internal/component/ike/wire/rfc7296_test.go" target="_blank" rel="noopener"><code>TestVendorIDIgnoredButPreserved</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_test.go#L776" title="internal/component/ike/wire/rfc7296_test.go" target="_blank" rel="noopener"><code>TestVendorIDIgnoredButPreserved</code></a></span></div>
@@ -2133,7 +2156,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.12-4">RFC7296-3.12-4</code></td><td colspan="3"><span class="rfc-subject">A Vendor ID payload MUST NOT change the interpretation of any information defined in this specification (i.e., the critical bit MUST be set to 0) (§3.12)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
-<td>3.12 - Read the Vendor ID payload section</td>
+<td>3.12</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.12-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_critical_bit_test.go#L256" title="internal/component/ike/engine/rfc7296_critical_bit_test.go" target="_blank" rel="noopener"><code>TestVendorIDDoesNotChangeInterpretation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_critical_bit_test.go#L265" title="internal/component/ike/engine/rfc7296_critical_bit_test.go" target="_blank" rel="noopener"><code>TestVendorIDDoesNotChangeInterpretation</code></a></span></div>
@@ -2234,7 +2257,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-2.20-1">RFC7296-2.20-1</code></td><td colspan="3"><span class="rfc-subject">An IKE implementation MAY decline to give out version information prior to authentication or even after authentication in case some implementation is known to have some security weakness; in that case, it MUST either return an empty string or no CP payload if CP is not supported (§2.20)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>2.20 - The section shows the APPLICATION_VERSION exchange</td>
+<td>2.20</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.20-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L127" title="internal/component/ike/engine/rfc7296_cp_test.go" target="_blank" rel="noopener"><code>TestZeDeclinesApplicationVersion</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_test.go#L134" title="internal/component/ike/engine/rfc7296_cp_test.go" target="_blank" rel="noopener"><code>TestZeDeclinesApplicationVersion</code></a></span></div>
@@ -2409,7 +2432,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.3.4-4">RFC7296-3.3.4-4</code></td><td colspan="3"><span class="rfc-subject">All implementations of IKEv2 MUST include a management facility that enables a user or system administrator to specify the suites that are acceptable for use with IKE (§3.3.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.3.4 - Read the mandatory Transform IDs section</td>
+<td>3.3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-3.3.4-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc7296_test.go#L126" title="internal/component/ike/ipsec/rfc7296_test.go" target="_blank" rel="noopener"><code>TestIKESuitePolicyIsOperatorSpecified</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc7296_test.go#L198" title="internal/component/ike/ipsec/rfc7296_test.go" target="_blank" rel="noopener"><code>TestIKESuitePolicyRejectsAnUnhonourableSuite</code></a></span></div>
@@ -2564,7 +2587,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L776" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNExtendedOnlyRefused</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L881" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNExtendedOnlyRefused</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -2579,7 +2602,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L807" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNBothOffered</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L912" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNBothOffered</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -2914,9 +2937,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_nat_test.go#L117" title="internal/component/ike/engine/rfc7296_transport_nat_test.go" target="_blank" rel="noopener"><code>TestResponderAnswersTheIKESAAddressesBehindANAT</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L129" title="internal/component/ike/engine/rfc7296_transport_test.go" target="_blank" rel="noopener"><code>TestTransportModeUsesExactlyOneAddress</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_nat_test.go#L107" title="internal/component/ike/engine/rfc7296_transport_nat_test.go" target="_blank" rel="noopener"><code>TestResponderAnswersTheIKESAAddressesBehindANAT</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L116" title="internal/component/ike/engine/rfc7296_transport_test.go" target="_blank" rel="noopener"><code>TestTransportModeUsesExactlyOneAddress</code></a></td>
@@ -2934,9 +2967,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_nat_test.go#L62" title="internal/component/ike/engine/rfc7296_transport_nat_test.go" target="_blank" rel="noopener"><code>TestTransportSelectorsMatchTheIKESAAddressesBehindANAT</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L170" title="internal/component/ike/engine/rfc7296_transport_test.go" target="_blank" rel="noopener"><code>TestTransportModeUsesExactlyOneAddress</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_nat_test.go#L39" title="internal/component/ike/engine/rfc7296_transport_nat_test.go" target="_blank" rel="noopener"><code>TestTransportSelectorsMatchTheIKESAAddressesBehindANAT</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L140" title="internal/component/ike/engine/rfc7296_transport_test.go" target="_blank" rel="noopener"><code>TestTransportModeUsesExactlyOneAddress</code></a></td>
@@ -2954,9 +2997,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_nat_test.go#L71" title="internal/component/ike/engine/rfc7296_transport_nat_test.go" target="_blank" rel="noopener"><code>TestTransportSelectorsMatchTheIKESAAddressesBehindANAT</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L176" title="internal/component/ike/engine/rfc7296_transport_test.go" target="_blank" rel="noopener"><code>TestTransportModeUsesExactlyOneAddress</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_nat_test.go#L51" title="internal/component/ike/engine/rfc7296_transport_nat_test.go" target="_blank" rel="noopener"><code>TestTransportSelectorsMatchTheIKESAAddressesBehindANAT</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L150" title="internal/component/ike/engine/rfc7296_transport_test.go" target="_blank" rel="noopener"><code>TestTransportModeUsesExactlyOneAddress</code></a></td>
@@ -3059,7 +3112,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L270" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSANATTEncapPorts</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L285" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSANATTEncapPorts</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3694,7 +3747,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L207" title="internal/component/ike/engine/rfc7296_natt_bothforms_test.go" target="_blank" rel="noopener"><code>TestBfmBothESPFormsReceivedOnOneChildSA</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L209" title="internal/component/ike/engine/rfc7296_natt_bothforms_test.go" target="_blank" rel="noopener"><code>TestBfmBothESPFormsReceivedOnOneChildSA</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -4144,12 +4197,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_result_test.go#L81" title="internal/component/ike/eap/rfc7296_eap_result_test.go" target="_blank" rel="noopener"><code>TestEapResultFailureIsSent</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_result_test.go#L81" title="internal/core/eap/rfc7296_eap_result_test.go" target="_blank" rel="noopener"><code>TestEapResultFailureIsSent</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_result_test.go#L55" title="internal/component/ike/eap/rfc7296_eap_result_test.go" target="_blank" rel="noopener"><code>TestEapResultSuccessIsSent</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_result_test.go#L55" title="internal/core/eap/rfc7296_eap_result_test.go" target="_blank" rel="noopener"><code>TestEapResultSuccessIsSent</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -4164,12 +4217,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_result_test.go#L101" title="internal/component/ike/eap/rfc7296_eap_result_test.go" target="_blank" rel="noopener"><code>TestEapResultSuccessIsNotFailure</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_result_test.go#L101" title="internal/core/eap/rfc7296_eap_result_test.go" target="_blank" rel="noopener"><code>TestEapResultSuccessIsNotFailure</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_result_test.go#L78" title="internal/component/ike/eap/rfc7296_eap_result_test.go" target="_blank" rel="noopener"><code>TestEapResultFailureIsSent</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_result_test.go#L78" title="internal/core/eap/rfc7296_eap_result_test.go" target="_blank" rel="noopener"><code>TestEapResultFailureIsSent</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -4364,9 +4417,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_pfs_test.go#L66" title="internal/component/ike/engine/child_rekey_pfs_test.go" target="_blank" rel="noopener"><code>TestChildRekeyProposesDiffieHellmanWhenPFSIsEnabled</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_pfs_test.go#L100" title="internal/component/ike/engine/child_rekey_pfs_test.go" target="_blank" rel="noopener"><code>TestChildRekeyProposesNoDiffieHellmanWhenPFSIsDisabled</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L171" title="internal/component/ike/engine/rfc7296_rekey_test.go" target="_blank" rel="noopener"><code>TestRkyIKERekeyOffersTheKEiGroup</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_rekey_pfs_test.go#L62" title="internal/component/ike/engine/child_rekey_pfs_test.go" target="_blank" rel="noopener"><code>TestChildRekeyProposesDiffieHellmanWhenPFSIsEnabled</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L167" title="internal/component/ike/engine/rfc7296_rekey_test.go" target="_blank" rel="noopener"><code>TestRkyIKERekeyOffersTheKEiGroup</code></a></td>
@@ -4979,12 +5047,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_test.go#L45" title="internal/component/ike/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtResponseIdentifierMatchesRequest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_test.go#L25" title="internal/core/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtResponseIdentifierMatchesRequest</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_test.go#L40" title="internal/component/ike/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtResponseIdentifierMatchesRequest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_test.go#L20" title="internal/core/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtResponseIdentifierMatchesRequest</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -5019,12 +5087,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_test.go#L115" title="internal/component/ike/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtSuccessAndFailureCarryNoTypeField</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_test.go#L88" title="internal/core/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtSuccessAndFailureCarryNoTypeField</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_test.go#L110" title="internal/component/ike/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtSuccessAndFailureCarryNoTypeField</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_test.go#L84" title="internal/core/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtSuccessAndFailureCarryNoTypeField</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -5039,12 +5107,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_test.go#L157" title="internal/component/ike/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtPeerResponseTypeIsNakOrMatchesRequest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_test.go#L122" title="internal/core/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtPeerResponseTypeIsNakOrMatchesRequest</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc7296_eap_test.go#L153" title="internal/component/ike/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtPeerResponseTypeIsNakOrMatchesRequest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_test.go#L118" title="internal/core/eap/rfc7296_eap_test.go" target="_blank" rel="noopener"><code>TestEapfmtPeerResponseTypeIsNakOrMatchesRequest</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -7842,13 +7910,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>The abstract, the status of this memo, the copyright notice and the table of contents. No protocol obligation appears before Section 1.</td>
 </tr>
 <tr><td><code>1</code></td>
-<td>The introduction names the exchange types and their order</td>
+<td>not stated</td>
 <td>1</td>
 <td>walked</td>
 <td>The introduction names the exchange types and their order. Its one keyword site is the exchange-order sentence, mapped to RFC7296-1-1. The rest of the section describes what each exchange carries.</td>
 </tr>
 <tr><td><code>1.1</code></td>
-<td>One paragraph introducing the four usage scenarios below it</td>
+<td>not stated</td>
 <td>0</td>
 <td>walked</td>
 <td>One paragraph introducing the four usage scenarios below it. It states no obligation.</td>
@@ -7992,7 +8060,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Walked the interaction of COOKIE and INVALID_KE_PAYLOAD, including the three round trip diagram. The section states one obligation, in its closing sentence, and the site carries it.</td>
 </tr>
 <tr><td><code>2.7</code></td>
-<td>Walked the algorithm negotiation rules</td>
+<td>not stated</td>
 <td>5</td>
 <td>walked</td>
 <td>Walked the algorithm negotiation rules. The five sites state one rule set that the summary captures in two rows, so three sites restate obligations those rows already carry.</td>
@@ -8034,13 +8102,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Walked the section on selectors that violate the initiator&#39;s own policy. It is a worked example of dropped traffic and closes with a general statement of the hazard. It imposes no obligation and derives no site.</td>
 </tr>
 <tr><td><code>2.9.2</code></td>
-<td>Walked the rekeying selector rules</td>
+<td>not stated</td>
 <td>2</td>
 <td>walked</td>
 <td>Walked the rekeying selector rules. The two sites carry the two prohibitions, one binding the new SA and one binding the responder.</td>
 </tr>
 <tr><td><code>2.10</code></td>
-<td>Walked the nonce section</td>
+<td>not stated</td>
 <td>1</td>
 <td>walked</td>
 <td>Walked the nonce section. One sentence carries three obligations and derives one site, so the two size floors have no site of their own.</td>
@@ -8052,7 +8120,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Walked the address and port agility section, four sentences long. It derives two sites. The first sentence carries two obligations, so the second has no site of its own.</td>
 </tr>
 <tr><td><code>2.12</code></td>
-<td>Walked the Diffie-Hellman exponential reuse section</td>
+<td>not stated</td>
 <td>1</td>
 <td>walked</td>
 <td>Walked the Diffie-Hellman exponential reuse section. Its one obligation is the forget-the-keys sentence, which the site carries. The reuse strategies are stated as choices that do not affect interoperability.</td>
@@ -8082,7 +8150,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Every MUST-level sentence of the EAP section derives a site, and the eight sites map one to one onto the eight requirement ids anchored to this section. The remaining text is the message diagram and SHOULD NOT or MAY guidance.</td>
 </tr>
 <tr><td><code>2.17</code></td>
-<td>The section gives KEYMAT and three ordering bullets</td>
+<td>not stated</td>
 <td>2</td>
 <td>walked</td>
 <td>The section gives KEYMAT and three ordering bullets. Both MUST-level sites map to the two §2.17 rows, and the first bullet&#39;s ordering rule is already inside the text of RFC7296-2.17-1.</td>
@@ -8097,10 +8165,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not stated</td>
 <td>6</td>
 <td>walked</td>
-<td>Two of the six MUST-level sentences map to the two §2.19 rows the summary carries. The other four are the Configuration payload obligations that the 2026-07-31 owner ruling moved to plan/spec-ipsec-remote-access.md as RFC7296-2.19-2, -3, -5 and -6; those ids are not in rfc/short/rfc7296.md, so their sites stay unclassified.</td>
+<td>Two of the six MUST-level sentences map to the two §2.19 rows the summary carries. The other four are the Configuration payload obligations that the 2026-07-31 owner ruling moved to plan/immediate/spec-ipsec-remote-access.md as RFC7296-2.19-2, -3, -5 and -6; those ids are not in rfc/short/rfc7296.md, so their sites stay unclassified.</td>
 </tr>
 <tr><td><code>2.20</code></td>
-<td>The section shows the APPLICATION_VERSION exchange</td>
+<td>not stated</td>
 <td>1</td>
 <td>walked</td>
 <td>The section shows the APPLICATION_VERSION exchange. Its one MUST states what a peer that declines to give version information returns, and RFC7296-2.20-1 carries it.</td>
@@ -8154,37 +8222,37 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Read the transport mode NAT traversal scenario and the client and responder rule lists. Three MUST sites, all mapped; every other rule in the section is SHOULD or MAY.</td>
 </tr>
 <tr><td><code>2.24</code></td>
-<td>Read the ECN section</td>
+<td>not stated</td>
 <td>1</td>
 <td>walked</td>
 <td>Read the ECN section. Its one normative sentence carries two MUSTs and yields one site, so RFC7296-2.24-2 (the [IPSECARCH] encapsulation and decapsulation processing) has no site of its own.</td>
 </tr>
 <tr><td><code>2.25</code></td>
-<td>Read the exchange collision section</td>
+<td>not stated</td>
 <td>1</td>
 <td>walked</td>
 <td>Read the exchange collision section. The TEMPORARY_FAILURE retry ban is its only MUST; the TEMPORARY_FAILURE and CHILD_SA_NOT_FOUND sending rules are SHOULD.</td>
 </tr>
 <tr><td><code>2.25.1</code></td>
-<td>Read the Child SA rekey and close collision rules</td>
+<td>not stated</td>
 <td>0</td>
 <td>walked</td>
 <td>Read the Child SA rekey and close collision rules. Every rule in the section is SHOULD, so the section holds no MUST-level site and no requirement row cites it.</td>
 </tr>
 <tr><td><code>2.25.2</code></td>
-<td>Read the IKE SA rekey and close collision rules</td>
+<td>not stated</td>
 <td>0</td>
 <td>walked</td>
 <td>Read the IKE SA rekey and close collision rules. Every rule in the section is SHOULD, so the section holds no MUST-level site and no requirement row cites it.</td>
 </tr>
 <tr><td><code>3</code></td>
-<td>Read the section head</td>
+<td>not stated</td>
 <td>0</td>
 <td>walked</td>
 <td>Read the section head. Its one normative sentence is a SHOULD NOT about items marked UNSPECIFIED, so the section holds no MUST-level site.</td>
 </tr>
 <tr><td><code>3.1</code></td>
-<td>Read the IKE header section and every field description</td>
+<td>not stated</td>
 <td>13</td>
 <td>walked</td>
 <td>Read the IKE header section and every field description. Two rows share a source sentence with the row mapped from the same site: RFC7296-3.1-2 (no Encrypted payload inside an Encrypted payload) sits in site 3.1:1, and RFC7296-3.1-8 (ignore X bits on receipt) sits in site 3.1:9.</td>
@@ -8202,7 +8270,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Read the Security Association payload section, its nesting rules and its proposal example. RFC7296-3.3-1 (combined-mode ciphers and normal ciphers go in separate proposals) is written with a lowercase must, so it has no capitalised site.</td>
 </tr>
 <tr><td><code>3.3.1</code></td>
-<td>Read the proposal substructure and every field description</td>
+<td>not stated</td>
 <td>4</td>
 <td>walked</td>
 <td>Read the proposal substructure and every field description. Four sites, all mapped, two of them to the RESERVED rows that cite this section.</td>
@@ -8220,7 +8288,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Read the valid Transform Types section and its mandatory and optional table. Its one MUST is mapped.</td>
 </tr>
 <tr><td><code>3.3.4</code></td>
-<td>Read the mandatory Transform IDs section</td>
+<td>not stated</td>
 <td>5</td>
 <td>walked</td>
 <td>Read the mandatory Transform IDs section. Three MUSTs bind the implementation and are mapped; two sentences use the keyword to describe other documents&#39; suite specifications and are excluded.</td>
@@ -8256,7 +8324,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Read the Certificate payload section, the Certificate Encoding table, the CertBundle ASN.1 module and the two closing paragraphs. RFC7296-3.6-2 has no site of its own: one sentence carries the four-certificate obligation and the Hash and URL obligation together, and site 3.6:1 maps the first half.</td>
 </tr>
 <tr><td><code>3.7</code></td>
-<td>Read the Certificate Request payload section in full</td>
+<td>not stated</td>
 <td>0</td>
 <td>walked</td>
 <td>Read the Certificate Request payload section in full. It derives no site: its obligations are written at SHOULD and MAY level, such as CERTREQ payloads MAY be included and a certificate chain SHOULD be sent back to the requestor. The summary declares no requirement anchored at Section 3.7.</td>
@@ -8268,13 +8336,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Read the Authentication payload section and the Auth Method table. Its one site is the RESERVED field rule, which restates the forward compatibility rule of Section 2.5. The only summary row anchored at Section 3.8 is a SHOULD and never gates.</td>
 </tr>
 <tr><td><code>3.9</code></td>
-<td>Read the Nonce payload section</td>
+<td>not stated</td>
 <td>2</td>
 <td>walked</td>
 <td>Read the Nonce payload section. Both sites map: the 16 to 256 octet size range, and the ban on reusing a nonce value.</td>
 </tr>
 <tr><td><code>3.10</code></td>
-<td>Read the Notify payload section and its field list</td>
+<td>not stated</td>
 <td>3</td>
 <td>walked</td>
 <td>Read the Notify payload section and its field list. All three sites map to the Protocol ID and SPI Size rules that the field descriptions state.</td>
@@ -8286,13 +8354,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Read the Notify Message Types section, including the error type table and the status type table. Three sites map to the error handling paragraph and the INVALID_SYNTAX entry, and the fourth repeats the ignore rule for status types.</td>
 </tr>
 <tr><td><code>3.11</code></td>
-<td>Read the Delete payload section and its field list</td>
+<td>not stated</td>
 <td>3</td>
 <td>walked</td>
 <td>Read the Delete payload section and its field list. Two sites carry the same one-protocol-per-payload rule, and the third carries the SPI Size rule.</td>
 </tr>
 <tr><td><code>3.12</code></td>
-<td>Read the Vendor ID payload section</td>
+<td>not stated</td>
 <td>3</td>
 <td>walked</td>
 <td>Read the Vendor ID payload section. All three sites map: the critical bit rule, the ignore rule for an unfamiliar Vendor ID, and the obligation on writers of documents that extend the protocol.</td>
@@ -8484,7 +8552,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><code>1.7:3</code></td>
 <td><code>relocated-to-spec</code><br /><strong>Ze owes it</strong><br />the obligation is real and unbuilt, and a named spec owes it</td>
-<td>The obligation, ignore proposals carrying configuration attribute type 5, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-1.7-3 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/spec-ipsec-remote-access.md as RFC7296-1.7-3)</td>
+<td>The obligation, ignore proposals carrying configuration attribute type 5, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-1.7-3 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/immediate/spec-ipsec-remote-access.md as RFC7296-1.7-3)</td>
 <td>Implementations that conform to this document MUST ignore proposals that have configuration attribute type 5, the old value for INTERNAL_ADDRESS_EXPIRY.</td>
 </tr>
 <tr><td><code>1.7:5</code></td>
@@ -8514,22 +8582,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><code>2.19:2</code></td>
 <td><code>relocated-to-spec</code><br /><strong>Ze owes it</strong><br />the obligation is real and unbuilt, and a named spec owes it</td>
-<td>The obligation, the CP payload&#39;s position in the responder&#39;s payload chain, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-2.19-2 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/spec-ipsec-remote-access.md as RFC7296-2.19-2)</td>
+<td>The obligation, the CP payload&#39;s position in the responder&#39;s payload chain, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-2.19-2 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/immediate/spec-ipsec-remote-access.md as RFC7296-2.19-2)</td>
 <td>Initiator Responder ------------------------------------------------------------------- HDR, SK {IDi, [CERT,] [CERTREQ,] [IDr,] AUTH, CP(CFG_REQUEST), SAi2, TSi, TSr} --&gt; &lt;-- HDR, SK {IDr, [CERT,] AUTH, CP(CFG_REPLY), SAr2, TSi, TSr} In all cases, the CP payload MUST be inserted before the SA payload.</td>
 </tr>
 <tr><td><code>2.19:3</code></td>
 <td><code>relocated-to-spec</code><br /><strong>Ze owes it</strong><br />the obligation is real and unbuilt, and a named spec owes it</td>
-<td>The obligation, never send an unsolicited CFG_REPLY, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-2.19-3 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/spec-ipsec-remote-access.md as RFC7296-2.19-3)</td>
+<td>The obligation, never send an unsolicited CFG_REPLY, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-2.19-3 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/immediate/spec-ipsec-remote-access.md as RFC7296-2.19-3)</td>
 <td>In variations of the protocol where there are multiple IKE_AUTH exchanges, the CP payloads MUST be inserted in the messages containing the SA payloads.</td>
 </tr>
 <tr><td><code>2.19:5</code></td>
 <td><code>relocated-to-spec</code><br /><strong>Ze owes it</strong><br />the obligation is real and unbuilt, and a named spec owes it</td>
-<td>The obligation, emit FAILED_CP_REQUIRED when a required CP is absent, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-2.19-5 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/spec-ipsec-remote-access.md as RFC7296-2.19-5)</td>
+<td>The obligation, emit FAILED_CP_REQUIRED when a required CP is absent, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-2.19-5 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/immediate/spec-ipsec-remote-access.md as RFC7296-2.19-5)</td>
 <td>The responder MUST NOT send a CFG_REPLY without having first received a CP(CFG_REQUEST) from the initiator, because we do not want the IRAS to perform an unnecessary configuration lookup if the IRAC cannot process the REPLY.</td>
 </tr>
 <tr><td><code>2.19:6</code></td>
 <td><code>relocated-to-spec</code><br /><strong>Ze owes it</strong><br />the obligation is real and unbuilt, and a named spec owes it</td>
-<td>The obligation, the SA state after a failed configuration exchange, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-2.19-6 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/spec-ipsec-remote-access.md as RFC7296-2.19-6)</td>
+<td>The obligation, the SA state after a failed configuration exchange, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-2.19-6 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/immediate/spec-ipsec-remote-access.md as RFC7296-2.19-6)</td>
 <td>In the case where the IRAS&#39;s configuration requires that CP be used for a given identity IDi, but IRAC has failed to send a CP(CFG_REQUEST), IRAS MUST fail the request, and terminate the Child SA creation with a FAILED_CP_REQUIRED error.</td>
 </tr>
 <tr><td><code>2.22:1</code></td>
@@ -8594,17 +8662,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><code>3.15.1:2</code></td>
 <td><code>relocated-to-spec</code><br /><strong>Ze owes it</strong><br />the obligation is real and unbuilt, and a named spec owes it</td>
-<td>The obligation, at most one netmask, and only beside an INTERNAL_IP4_ADDRESS, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-3.15.1-1 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/spec-ipsec-remote-access.md as RFC7296-3.15.1-1)</td>
+<td>The obligation, at most one netmask, and only beside an INTERNAL_IP4_ADDRESS, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-3.15.1-1 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/immediate/spec-ipsec-remote-access.md as RFC7296-3.15.1-1)</td>
 <td>Only one netmask is allowed in the request and response messages (e.g., 255.255.255.0), and it MUST be used only with an INTERNAL_IP4_ADDRESS attribute.</td>
 </tr>
 <tr><td><code>3.15.1:4</code></td>
 <td><code>relocated-to-spec</code><br /><strong>Ze owes it</strong><br />the obligation is real and unbuilt, and a named spec owes it</td>
-<td>The obligation, a SUPPORTED_ATTRIBUTES request carries zero length, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-3.15.1-3 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/spec-ipsec-remote-access.md as RFC7296-3.15.1-3)</td>
+<td>The obligation, a SUPPORTED_ATTRIBUTES request carries zero length, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-3.15.1-3 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/immediate/spec-ipsec-remote-access.md as RFC7296-3.15.1-3)</td>
 <td>o SUPPORTED_ATTRIBUTES - When used within a Request, this attribute MUST be zero-length and specifies a query to the responder to reply back with all of the attributes that it supports.</td>
 </tr>
 <tr><td><code>3.15.1:5</code></td>
 <td><code>relocated-to-spec</code><br /><strong>Ze owes it</strong><br />the obligation is real and unbuilt, and a named spec owes it</td>
-<td>The obligation, ignore attributes the responder does not recognize, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-3.15.1-4 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/spec-ipsec-remote-access.md as RFC7296-3.15.1-4)</td>
+<td>The obligation, ignore attributes the responder does not recognize, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-3.15.1-4 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/immediate/spec-ipsec-remote-access.md as RFC7296-3.15.1-4)</td>
 <td>Unrecognized or unsupported attributes MUST be ignored in both requests and responses.</td>
 </tr>
 <tr><td><code>4:1</code></td>
@@ -8614,12 +8682,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><code>4:8</code></td>
 <td><code>relocated-to-spec</code><br /><strong>Ze owes it</strong><br />the obligation is real and unbuilt, and a named spec owes it</td>
-<td>The obligation, parse the CFG_REQUEST and recognize the address attribute, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-4-2 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/spec-ipsec-remote-access.md as RFC7296-4-2)</td>
+<td>The obligation, parse the CFG_REQUEST and recognize the address attribute, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-4-2 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/immediate/spec-ipsec-remote-access.md as RFC7296-4-2)</td>
 <td>If an implementation supports responding to such requests, it MUST parse the CP payload of type CFG_REQUEST in the first message in the IKE_AUTH exchange and recognize a field of type INTERNAL_IP4_ADDRESS or INTERNAL_IP6_ADDRESS.</td>
 </tr>
 <tr><td><code>4:9</code></td>
 <td><code>relocated-to-spec</code><br /><strong>Ze owes it</strong><br />the obligation is real and unbuilt, and a named spec owes it</td>
-<td>The obligation, return a CFG_REPLY carrying an address of the requested type, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-4-3 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/spec-ipsec-remote-access.md as RFC7296-4-3)</td>
+<td>The obligation, return a CFG_REPLY carrying an address of the requested type, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-4-3 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears. (relocated to plan/immediate/spec-ipsec-remote-access.md as RFC7296-4-3)</td>
 <td>If it supports leasing an address of the appropriate type, it MUST return a CP payload of type CFG_REPLY containing an address of the requested type.</td>
 </tr>
 </tbody>
@@ -8658,7 +8726,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 23:01 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

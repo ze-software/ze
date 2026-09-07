@@ -27,7 +27,7 @@ identity is injected only by trusted transport wiring.
 | Encoder | json or text (v4), json only (v6) | json or text |
 | Peer selectors | `*`, IP, filters (`[local-as ...]`) | `*`, IP, negated (`!IP`) |
 | Multi-session filters | Supported (draft) | Not supported |
-| Forward command | Not available | `request cache forward <id> <selector>` for route reflection |
+| Forward command | Not available | `send bgp <selector> cached <id>` for route reflection |
 
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch, IsReadOnlyPath -->
 
@@ -42,6 +42,7 @@ The action verb determines the command's behavior; the module implements it.
 |------|---------|---------|
 | `show` | Read-only display (returns data, exits) | `show bgp peer <selector> detail`, `show warnings` |
 | `set` | Create or modify | `set bgp peer X ...` |
+| `create` | Add to the running daemon | `create bgp peer X asn 65001` |
 | `delete` | Remove | `delete bgp peer X` |
 | `update` | Route operations (announce, withdraw, refresh), firmware, prefix data | `update system firmware check`, `update bgp peer * prefix` |
 | `monitor` | Long-running auto-refreshing display | `monitor bgp` (TUI dashboard) |
@@ -127,7 +128,12 @@ so the fallback never shadows the daemon. Because `cmdutil.RunCommand` rejects c
 absent from the CLI binary's tree before reaching the daemon path, it makes an exception
 for paths that have a registered fallback, routing them through so the fallback is
 reachable. Output is identical to the daemon RPC (both read the same detection library
-/ crash files), so online and offline results match.
+/ crash files), so online and offline results match. `show crashes` holds that
+identity to one call on each side: both build their rows from
+`crashlog.CrashListFields` and their readiness block from `crashes.Readiness`, so
+the answer cannot vary with the health of the box being diagnosed.
+<!-- source: internal/core/crashlog/list.go -- CrashListFields, the one row builder -->
+<!-- source: internal/plugins/crashes/readiness.go -- Readiness, the one readiness answer -->
 <!-- source: internal/component/command/registry/registry.go -- RegisterOfflineFallback, LookupOfflineFallback -->
 <!-- source: cmd/ze/internal/cmdutil/cmdutil.go -- RunCommand offline-fallback routing -->
 <!-- source: internal/component/cli/client/main.go -- runOfflineFallback (invoked on daemon-unreachable) -->
@@ -139,6 +145,18 @@ A local-data command never asks a daemon. Its handler reads a registry that
 registers with `cmdregistry.MustRegisterLocalData(path, handler, meta,
 command.RenderLocalAnswer)` and returns DATA, which is what lets `| json`,
 `| yaml` and `| table` be three renderings of one payload.
+
+The handler returns a payload AND an exit code, and the two are independent. The
+code carries the verdict, the payload carries the evidence, and `validate config`
+is the command that needs both: it answers the diagnostics of a configuration it
+rejects and exits 1. The answer therefore goes to stdout whatever the code is,
+because a payload on stderr is a payload no pipe operator can reach. A handler
+with nothing to say writes its reason to stderr itself and returns a nil payload,
+which prints nothing. The one local result stdout never sees is a pipe error,
+which is a diagnostic about the operator's own chain rather than an answer to
+their question.
+<!-- source: internal/component/cli/client/main.go -- emitLocalResult -->
+<!-- source: internal/component/command/registry/registry.go -- LocalDataHandler -->
 
 This differs from the offline fallback above: a fallback is a second answer for
 a command the daemon normally serves, tried only after the connection fails. A
@@ -213,6 +231,9 @@ the bus from buggy or malicious producers.
 | `ze-show:bmp-rib` | `forwardShowBMPRib` in `internal/component/bgp/plugins/bmp/cmd_show.go` | BMP-monitored routes (proxy to BMP plugin, dispatches to RIB) |
 | `ze-show:rr-status` | `forwardShowRRStatus` in `internal/component/bgp/plugins/rr/cmd_show.go` | `{"running": true}` (proxy to RR plugin) |
 | `ze-show:rr-peers` | `forwardShowRRPeers` in `internal/component/bgp/plugins/rr/cmd_show.go` | JSON array of RR peer states (proxy to RR plugin) |
+| `ze-show:reject-asn` | `forwardShowRejectASN` in `internal/component/bgp/plugins/filter_path_asn/register_command.go` | `{"lists": [{"name": "...", "import-peers": N, "export-peers": N, "entries": [{"asn": N, "positions": ["transit", "origin"], "network": "..."}], "patterns": ["..."]}]}` (proxy to the reject-asn filter plugin). `network` is written for every ASN and is EMPTY for one the curated table does not hold |
+| `ze-show:reject-asn-name` (selector: `name`) | `forwardShowRejectASNName` in the same file | One list record, the same shape as a row of `lists`. The value after the `name` keyword arrives as a SELECTOR rather than a positional, because `name` is both the last token of the path and the leaf under it, so the forwarder reads `ctx.Selector("name")` |
+| `ze-show:reject-asn-known-transit-free` | `forwardShowRejectASNTransitFree` in the same file | `{"curated": "YYYY-MM-DD", "sources": [...], "networks": [{"asn": N, "name": "...", "contested": bool}], "block": ["# ...", "indirect [ ... ];"]}`. `block` is an array of config LINES an operator pastes |
 | `ze-show:system-sockets` | `handleShowSystemSockets` in `sockets_linux.go` | `{"sockets": [...], "count": N}` (Linux only) |
 | `ze-show:system-kernel-log` | `handleShowSystemKernelLog` in `kernel_log_linux.go` | `{"entries": [...], "count": N}` (Linux only) |
 | `ze-show:system-goroutines` | `handleShowSystemGoroutines` in `goroutines.go` | `{"total": N, "by-state": {...}, "mode": "..."}` |
@@ -227,6 +248,8 @@ the bus from buggy or malicious producers.
 | `ze-clear:dns-cache` | `handleClearDNSCache` in `internal/component/resolve/cmd/dns.go` | `{"action": "clear-all"}` |
 | `ze-clear:dns-cache-stats` | `handleClearDNSCacheStats` in `internal/component/resolve/cmd/dns.go` | `{"action": "reset-stats"}` |
 | `ze-clear:dns-cache-record` | `handleClearDNSCacheRecord` in `internal/component/resolve/cmd/dns.go` | `{"action": "delete-entry", "name": "...", "removed": N}` or `{"action": "delete-entry", "name": "...", "type": "...", "found": bool}` |
+| `ze-show:resolve-rir` (args: `<asn>`) | `handleRIRASN` in `internal/component/resolve/cmd/rir.go` | `{"asn": N, "registry": "ARIN", "whois": "whois.arin.net", "range-start": N, "range-end": N}`. Two distinct errors: `AS<n> is in no delegated range` for a table that was read, `RIR delegation table unreadable: ...` for one that was not |
+| `ze-update:resolve-rir` (no args) | `handleRIRRefresh` in `internal/component/resolve/cmd/rir.go` | `{"key": "meta/rir/delegation", "ranges": N, "generated": "YYYY-MM-DD"}`. `ranges` is how many ranges the stored table holds and `generated` is the date it stored. All or nothing: a fetch that failed, a parse that refused, a run that read no ASN record, and a write that stored nothing each answer an error and change no stored table |
 | `ze-show:system-profile` | `handleShowSystemProfile` in `profile.go` | `{"type": "...", "format": "pprof-base64", "data": "..."}` |
 | `ze-show:system-memory-map` | `handleShowSystemMemoryMap` in `memory_map_linux.go` | `{"vm-rss-kb": N, "vm-size-kb": N, ...}` (Linux only) |
 | `ze-show:system-update` | `handleShowSystemUpdate` in `internal/plugins/update-cmd/cmd/show.go` | `{"backend": "ze-self-update"\|"gokrazy-ab", "running-version": "...", "remote-version": "...", "update-available": bool, "status": "...", "download-status": "...", "staged-version": "...", "gokrazy-reachable": bool, "gokrazy-features": [...]}` |
@@ -247,7 +270,7 @@ the bus from buggy or malicious producers.
 | `ze-show:traffic-stat` (args: `[name <interface>]`) | `handleShowTraffic` in `internal/component/trafficstat/cmd/traffic.go` | One-shot aggregated snapshot: `{"at": "RFC3339", "severity": "normal\|caution\|danger", "degraded": bool, "interfaces": [{name, rx-bps, tx-bps, rx-pps, tx-pps}], "top-source-ips": [{address, bps}], "top-dest-ips": [{address, bps}], "top-ports": [{port, service, proto, bps, amplification?}], "protocol-mix": [{proto, name, bps, percent}], "history": [float64]}`. Optional `name <interface>` filters the interfaces array. When no collector data: `"degraded": true` with interface rates only. |
 | `ze-monitor:traffic-stat` (args: `[name <interface>]`) | `streamTraffic` in `internal/component/trafficstat/cmd/traffic.go` | Streaming JSON lines (1/s) with the same shape as `ze-show:traffic-stat`. Attaches as a consumer on connect, detaches on disconnect (lazy lifecycle). Also registered as a `MonitorProvider` for full-screen TUI rendering via `createTrafficMonitorSession` in `cmd/render.go`. |
 | `ze-show:traffic-feature` (args: `[name <address>]`) | `handleShowTrafficFeature` in `internal/component/trafficfeature/cmd/traffic_feature.go` | Neutral per-source feature snapshot: `{"degraded": bool, "top-source-ips": [{address, fan-out, out-in-ratio, port-entropy, new-peer, rare-port, beaconing}]}`. `out-in-ratio` is the string `"inf"` when a source has no inbound bytes (else a float). Optional `name <address>` filters to one source. Facts only (no verdict); the anomaly detection family applies judgment. |
-| `ze-show:anomaly` (no args) | `handleShowAnomaly` in `internal/plugins/anomaly/detect/show.go` | Recent behavioral anomaly incidents (report-only): `{"enabled": bool, "incidents": [{entity, cohort, score, severity, at, fired-features: [{name, z}]}]}`. Bounded recent-incident ring; empty until an entity's correlated deviation confirms. `enabled` is false when the detector is not running. The `anomaly/shape` responder consumes the underlying `anomaly-detect` events; this command is the read-only view. |
+| `ze-show:anomaly` (no args) | `handleShowAnomaly` in `internal/plugins/anomaly/detect/show.go` | Recent behavioral anomaly incidents (report-only): `{"enabled": bool, "incidents": [{entity, entity-kind, cohort, score, severity, at, fired-features: [{name, z}]}]}`. `entity-kind` is `source`, `dest` or `port`. A source or dest row names its subject in `entity` as a prefix; a port row carries `port` and `proto` as two more fields and renders `entity` as `proto/port`, because a port is not an address. Bounded recent-incident ring; empty until an entity's correlated deviation confirms. `enabled` is false when the detector is not running. The `anomaly/shape` responder consumes the underlying `anomaly-detect` events; this command is the read-only view. |
 | `ze-show:anomaly-observe` (no args) | `handleShowAnomalyObserve` in `internal/plugins/anomaly/observe/show.go` | Behavioral anomaly incident LIFECYCLE, newest first: `{"enabled": bool, "active-count": N, "incidents": [{id, interface, entity, cohort, fired-features: [{name, z}], score, severity, start-time, end-time, active}]}`. `end-time` is omitted while `active` is true. It is set when the incident clears, or when the stale timeout finalizes it. A finished incident's duration is readable here and nowhere else. `enabled` is false when the plugin is not running. |
 | `ze-show:anomaly-shape` (no args) | `handleShowAnomalyShape` in `internal/plugins/anomaly/shape/show.go` | Shadow-first responder status: `{"enabled": bool, "mode": "shadow"\|"armed", "action": "limit"\|"drop", "kill-switch": bool, "armed-count": N, "armed": [source, ...]}`. `enabled` is false before configuration. In shadow mode (default) nothing is installed; armed sources carry a live per-source firewall action with a timed auto-revert. |
 | `ze-show:traffic-usage` (args: `[name <interface>]`) | `handleShowTrafficUsage` in `internal/plugins/trafficusage/show.go` | No arg: JSON array of per-interface objects. `name <interface>`: single interface object. Per-interface fields: `ingress-ports`, `egress-ports`, `map-entries`, and (only when `track-ip` is enabled) `ingress-ips`, `egress-ips`. Bad args: error `usage: show traffic usage [name <interface>]`. When unconfigured: `{"status": "not-configured"}`. |
@@ -543,6 +566,7 @@ show bgp peer <selector> capabilities # Show specific peer capabilities
 show bgp peer <selector> statistics   # Show specific peer statistics
 show bgp peer <selector> history      # Show FSM transition history
 request peer <selector> teardown [<cease-subcode>]  # Disconnect peer
+create bgp peer <address> asn <asn> [...]  # Add a peer to the running daemon
 delete bgp peer <name>             # Remove dynamic peer
 request peer <sel> flush           # Wait for forward pool to drain (barrier)
 ```
@@ -557,14 +581,14 @@ request peer <sel> flush           # Wait for forward pool to drain (barrier)
 > are independent refcount axes, and engine cache ack is cumulative.
 
 ```
-request cache forward <id> <sel>    # Forward cached UPDATE to peers
+send bgp <sel> cached <id>          # Forward cached UPDATE to peers
 request cache retain <id>           # Prevent eviction
 request cache release <id>          # Allow eviction (reset TTL)
 request cache expire <id>           # Remove immediately
 show cache                          # List cached message IDs
 
 # Batch variants (comma-separated IDs, max 1000):
-request cache forward <id1>,<id2>,...,<idN> <sel>  # Batch forward
+send bgp <sel> cached <id1>,<id2>,...,<idN>        # Batch forward
 request cache release <id1>,<id2>,...,<idN>        # Batch release
 ```
 
@@ -572,13 +596,13 @@ The cache commands enable route reflection via API:
 1. Received UPDATEs are assigned a unique msg-id (per-UPDATE, not per-NLRI)
 2. API outputs UPDATE info with msg-id
 3. External process decides routing
-4. The `request cache forward` command references msg-id (zero-copy when contexts match)
+4. The `send bgp <sel> cached <id>` command references msg-id (zero-copy when contexts match)
 5. Cache entries expire after configurable TTL (default 60s) unless retained
 <!-- source: internal/component/bgp/reactor/reactor.go -- cache forward -->
 
 #### Fast-path typed SDK (rs-fastpath-3)
 
-The text-RPC `request cache forward <id> <sel>` path tokenises, parses, and walks the command registry on every call. Plugins that forward many cached UPDATEs per second (route server, future route reflector) use a typed SDK pair instead:
+The text-RPC `send bgp <sel> cached <id>` path tokenises, parses, and walks the command registry on every call. Plugins that forward many cached UPDATEs per second (route server, future route reflector) use a typed SDK pair instead:
 
 ```go
 Plugin.ForwardCached(ctx, ids []uint64, destinations []netip.AddrPort) error
@@ -632,7 +656,7 @@ peer !upstream1           # All peers EXCEPT this one (for route reflection)
 The `!<ip>` negated selector is useful for route reflection:
 ```
 # Forward update to all peers except the source
-request cache forward 12345 !upstream1
+send bgp !upstream1 cached 12345
 ```
 
 > **Note:** Filter selectors (`[local-as ...]`, `[peer-as ...]`) from ExaBGP multi-session
@@ -646,22 +670,43 @@ All route operations use unified `update text` syntax with flat attribute declar
 
 ```bash
 # Announce routes (flat attributes, no 'set')
-peer <selector> update text next <ip> [attributes...] nlri <family> add prefix <prefix>...
+send bgp <selector> update text next <ip> [attributes...] nlri <family> add prefix <prefix>...
 
 # Withdraw routes
-peer <selector> update text nlri <family> del prefix <prefix>...
+send bgp <selector> update text nlri <family> del prefix <prefix>...
 
 # End-of-RIB marker (RFC 4724)
-peer <selector> update text nlri <family> eor
+send bgp <selector> update text nlri <family> eor
 
 # VPLS (L2VPN/VPLS)
-peer <selector> update text nlri l2vpn/vpls add rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>
+send bgp <selector> update text nlri l2vpn/vpls add rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>
 
 # EVPN (L2VPN/EVPN)
-peer <selector> update text nlri l2vpn/evpn add mac-ip rd <rd> mac <mac> [ip <ip>] label <n>
-peer <selector> update text nlri l2vpn/evpn add ip-prefix rd <rd> prefix <prefix> label <n>
-peer <selector> update text nlri l2vpn/evpn add multicast rd <rd> ip <ip>
+send bgp <selector> update text nlri l2vpn/evpn add mac-ip rd <rd> mac <mac> [ip <ip>] label <n>
+send bgp <selector> update text nlri l2vpn/evpn add ip-prefix rd <rd> prefix <prefix> label <n>
+send bgp <selector> update text nlri l2vpn/evpn add multicast rd <rd> ip <ip>
 ```
+
+#### A withdrawal can be answered with the peers it was withheld from
+
+`send bgp <selector> update text ... nlri <family> del ...` names no route to a
+peer whose session has advertised nothing, because RFC 4271 Section 4.3
+identifies a withdrawn route in the context of the connection it was previously
+advertised on. Such a peer is written the withdrawal's path attributes with no
+route in them, or nothing at all where the family's withdrawal carries no
+attributes of its own (`docs/architecture/update-building.md`, "A Withdrawal
+Names a Route This Connection Advertised"). The command still answers `done`,
+and the peers it withheld the routes from are named in the response's
+`warnings`:
+
+```
+withdraw ipv4/unicast: withdrawal withheld: this session has advertised no route to the peer: ipv4/unicast, peers 192.0.2.10
+```
+
+Once the session has carried one UPDATE that makes any destination reachable,
+every later withdrawal is written, whether or not the peer holds the route named.
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- handleUpdateText -->
+<!-- source: internal/component/bgp/route/route.go -- ErrWithdrawWithheld -->
 
 ### Route Commands (update cursor)
 
@@ -672,21 +717,21 @@ changed attributes (delta encoding), reducing per-call overhead.
 
 ```bash
 # First command: establish full attribute state + announce NLRIs
-peer <selector> update cursor origin igp as-path [65001] med 100 \
+send bgp <selector> update cursor origin igp as-path [65001] med 100 \
   next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24
 
 # Delta: only changed attributes, rest inherited from cursor
-peer <selector> update cursor as-path [65001 65003] \
+send bgp <selector> update cursor as-path [65001 65003] \
   nlri ipv4/unicast add 10.1.0.0/24
 
 # NLRIs only (all attributes inherited)
-peer <selector> update cursor nlri ipv4/unicast add 10.2.0.0/24
+send bgp <selector> update cursor nlri ipv4/unicast add 10.2.0.0/24
 
 # Remove an attribute from cursor
-peer <selector> update cursor del med nlri ipv4/unicast add 10.3.0.0/24
+send bgp <selector> update cursor del med nlri ipv4/unicast add 10.3.0.0/24
 
 # Clear cursor state (call after replay completes)
-peer <selector> update cursor done
+send bgp <selector> update cursor done
 ```
 
 Cursor mode supports announce-only (`nlri <family> add`). Withdrawals are not
@@ -741,7 +786,14 @@ request bgp rib withdraw <peer> <family> <prefix>       # Remove route from Adj-
 show bgp rib rpf <family> <source-addr>      # RPF lookup (longest-prefix-match in Loc-RIB)
 ```
 
-Generic pipes such as `match`, `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `resolve`, `origin`, `log`, `no-more`, `display`, and `fill` apply to the answer the command produced. The DAEMON runs them, on every surface. `execMiddleware` splits the chain off an SSH exec command and applies it. `ze cli` sends the chain intact and prints what comes back. Only the daemon holds the configuration, so only the daemon can honor `environment cli format default`.
+Generic pipes apply to the answer the command produced. The operator language has exactly one statement, `pipeCatalog`, and [`docs/features/pipe-operators.generated.md`](https://github.com/ze-software/ze/blob/main/docs/features/pipe-operators.generated.md) is that table published; naming the operators here again is the drift this catalog exists to end. What a given command owes is published per command by `ze help command --json`, derived from the shape it declares, and an operator the shape cannot support is refused by name before the command runs.
+
+For a command the daemon serves, the DAEMON runs the chain. `execMiddleware` splits it off an SSH exec command and applies it, and `ze cli -c` sends the chain intact and prints what comes back. Only the daemon holds the configuration, so only the daemon can honor `environment cli format default`. A command the client serves in its own process through `RegisterLocalData` is the exception: `ServeLocal` runs the same chain over the local payload, before any daemon is contacted. `| save` is refused on every chain the daemon expands, because the file would be written on the daemon's filesystem with the daemon's privileges.
+<!-- source: internal/component/command/pipe_catalog.go -- pipeCatalog -->
+<!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
+<!-- source: internal/component/command/pipe_save.go -- validateSaveOps -->
+<!-- source: internal/component/command/local_data.go -- ServeLocal -->
+<!-- source: cmd/ze/help_command.go -- operatorsFor -->
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
 <!-- source: internal/component/cli/client/main.go -- Execute, commandWithFormat -->
 <!-- source: internal/component/cli/client/answer.go -- daemonOutput, newDaemonOutput -->
@@ -765,14 +817,45 @@ request bgp rib attach-community <peer> <family> <hex>  # Attach community to st
 request bgp rib delete-with-community <peer> <family> <hex>  # Delete routes carrying community in family
 ```
 
-### Group Commands (Batching)
+### Named Commits (Batching)
+
+A named commit holds withdrawals and flushes them to every peer the selector
+matches. There is no `group start` or `group end`: this page published that pair
+until 2026-09-05 and no handler ever answered either spelling.
 
 ```
-group start [attributes ...]     # Start batch with shared attributes
-peer <selector> update text ...
-peer <selector> update text ...
-group end                         # End batch, send all
+request commit start <name>                      # Open a named commit
+request commit withdraw <name> route <prefix>    # Queue one withdrawal
+request commit show <name>                       # What the commit holds
+request commit end <name>                        # Flush it
+request commit eor <name>                        # Flush it, then End-of-RIB
+request commit rollback <name>                   # Discard the queue
 ```
+
+A named commit cannot carry an ANNOUNCEMENT. `(*Transaction).QueueAnnounce` has
+no non-test caller, so nothing queues one, and `send bgp <selector> update ...`
+announces immediately whether a commit is open or not
+(`plan/journal/unwired-feature.md`, 2026-09-05).
+
+`end` and `eor` answer what each peer took:
+
+| Key | What it states |
+|-----|----------------|
+| `routes-queued`, `withdrawals-queued` | What the commit HELD, offered to each matched peer |
+| `routes-announced`, `routes-withdrawn`, `updates-sent`, `eor-sent` | What LEFT, summed over the peer rows |
+| `eor-requested` | The operator asked for an End-of-RIB, which is a different fact from one being sent |
+| `peers` | One row per matched peer, keyed by address, carrying `name`, `state`, that peer's four counters, and `reasons` |
+
+A `reasons` entry appears exactly when that peer took less than the commit
+offered it, and the vocabulary is closed: `not-established`, `announce-refused`,
+`routes-dropped`, `withdraw-refused`, `send-failed`, `eor-refused`. Any such peer
+makes the command answer `error`, and the error sentence names each one, because
+an error answer's payload is dropped in transit and the sentence is all a plugin
+receives. This rail drops the work for a peer with no established session rather
+than queueing it, so undelivered means dropped and `done` would be untrue.
+<!-- source: internal/component/bgp/plugins/cmd/commit/commit.go -- handleNamedCommitEnd, peerRows, shortfallSentence -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- SendRoutes, commitToPeer -->
+<!-- source: internal/component/bgp/types/types.go -- TransactionResult, PeerCommitResult -->
 <!-- source: internal/component/bgp/transaction/commit_manager.go -- CommitManager -->
 
 ---
@@ -1035,12 +1118,27 @@ UPDATE processing. This is a callback RPC (engine to plugin), not a user command
 |-------|------|-------------|
 | `filter` | string | Filter name (declared at stage 1, dispatches to the right handler) |
 | `direction` | string | `import` or `export` |
-| `peer` | string | Peer IP address |
-| `peer-as` | uint32 | Peer ASN |
+| `peer` | string | The peer that SENT the route on import, the DESTINATION peer on export |
+| `peer-as` | uint32 | That peer's ASN, with the same meaning as `peer` |
 | `update` | string | Text-format attributes and NLRI (only declared attributes) |
 
 Response: `{"action":"accept"}`, `{"action":"reject"}`, or
 `{"action":"modify","update":"<delta>"}` with only changed fields.
+
+**`peer` and `peer-as` change meaning with the direction, and the callback says
+so only through `direction`.** The import chain passes the sending peer
+(`runIngressPolicyChain`) and the export chain passes the destination
+(`runEgressPolicyChainASN4`), both through `PolicyFilterChain`. A filter that
+reads the ASN as "who sent me this" is wrong on export, where nothing in the
+callback names the sender at all.
+
+**A filter's declared `Direction` does not gate dispatch.** `FilterDecl.Direction`
+is carried to `plugin.FilterRegistration.Direction` and read by nothing in the
+engine, so a filter is called on whichever chain the operator's config names it
+in. Direction lives on the config attachment point, and a filter that must act on
+one direction only tests `direction` itself.
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- runIngressPolicyChain, runEgressPolicyChainASN4 -->
+<!-- source: internal/component/plugin/server/startup.go -- the one writer of FilterRegistration.Direction -->
 
 <!-- source: internal/component/plugin/server/server.go -- CallFilterUpdate builds the filter-update request -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilterUpdate handles it plugin-side -->
@@ -1125,8 +1223,12 @@ schema and one that does not therefore answer one document for the same data.
 <!-- source: internal/component/plugin/server/command.go -- routeToProcess, pluginAnswerRows -->
 
 The value a built payload carries is unchanged, byte for byte. Only the frame
-around it changed, and it changed for every peer. Nothing declares an answer
-shape, so there is one frame and every reader knows it before the first line.
+around it changed, and it changed for every peer. No declaration selects the
+frame: `CommandDecl.Shape` states what the ANSWER holds, for the pipe layer to
+publish and to refuse against, and the walk length alone decides which frame
+carries it. So there is one frame and every reader knows it before the first
+line.
+<!-- source: pkg/plugin/rpc/types.go -- CommandDecl.Shape -->
 
 The rows are pulled as the operator's rendering writes them, so the engine never
 holds the whole collection for a walk that streams. A row wider than one wire
@@ -1173,7 +1275,7 @@ message is rejected and the walk continues. That row reaches the operator under
 > **Note:** This tree shows the **internal noun-first dispatch structure**, not
 > the user-facing grammar. User-facing commands are verb-first
 > (`show`/`request`/`clear`/`update`/`monitor` roots, e.g. `show bgp peer <sel> detail`,
-> `request cache forward`, `clear bgp rib in`); the noun-first RPCs below remain
+> `send bgp <sel> cached <id>`, `clear bgp rib in`); the noun-first RPCs below remain
 > only for internal dispatch. Nodes such as `peer/<selector>/announce` and
 > `peer/<selector>/withdraw` reflect removed verbs (see "Removed Commands").
 
@@ -1270,6 +1372,19 @@ Operational commands declare their argument types as YANG leaves inside
    between tokenize and handler call (two-phase: keyword extraction, then
    positional matching).
 
+A command carries more grammar than its ArgDefs hold. A modifier group states a
+keyword and a value the HANDLER parses, so the dispatcher meets tokens that
+belong to no definition of its own, and it MUST NOT read one of them as a bad
+value. `validateCommandArgs` counts the tokens it could not place against the
+definitions still open. As many tokens as open definitions, or fewer: each token
+can be attributed to a definition, so the first one is refused by that
+definition's own message (`invalid value "not-an-ip", does not match expected
+pattern`). More tokens than open definitions: at least one token is a value for
+nothing, so a missing mandatory argument is reported instead
+(`show policy test peer test-peer update <hex>` answers `required argument
+missing: direction`, and not a complaint about the `update` keyword the handler
+reads).
+
 A leaf's own `description` reaches no surface. `argDefFor`
 (`config/yang/command.go`) reads the leaf's `type` and its `mandatory`
 statement, and `command.ArgDef` carries no description field. State what an
@@ -1333,6 +1448,12 @@ never shadows a builtin at the completion layer (mirroring dispatch precedence).
 - **Shell completion** (`ze completion words`) runs in a standalone CLI process
   with no daemon, so it stays YANG-only; the daemon's `system command complete`
   RPC completes plugin commands directly from the registry (`Registry().Complete`).
+- **The attached console** of `ze start --cli` asks the daemon for
+  `system command list` at attach time. It filters the compiled RPC list against
+  that answer, then injects each non-hidden plugin command
+  (`buildRuntimeTreeFromDispatch`, `injectPluginCommands`). Both help texts
+  travel on that answer, so the tree carries the summary and the explanation. A
+  plugin a later reload adds is absent until the operator attaches again.
 
 `Hidden` commands still dispatch when typed in full. They never appear in
 completion, in help, in the MCP `tools/list` result, or in the API command list. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
@@ -1343,6 +1464,7 @@ every hidden plugin command.
 <!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta hidden plugin command skip -->
 <!-- source: internal/component/command/node.go -- MergeCommandPaths, CommandEntry -->
 <!-- source: cmd/ze/hub/session_factory.go -- mergePluginCommands (SSH per-session) -->
+<!-- source: internal/component/cli/client/main.go -- newAttachedModel, buildRuntimeTreeFromDispatch -->
 <!-- source: cmd/ze/hub/web_completer.go -- pluginAwareCommandCompleter (web live overlay) -->
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 <!-- source: internal/component/plugin/server/startup.go -- signalStartupComplete, WaitForStartupComplete -->
@@ -1411,7 +1533,7 @@ func ParseSelector(s string) (*Selector, error) {
 ```go
 var Commands = []CommandInfo{
     {"daemon shutdown", false, nil},
-    {"peer * update text", true, []string{"next", "origin", ...}},
+    {"send bgp * update text", true, []string{"next", "origin", ...}},
     // ...
 }
 ```
@@ -1429,9 +1551,8 @@ same pair, in the declaration form their own registration uses.
 | `command.Node.Help` | the `ze:help` extension | the LONG explanation of that one command |
 
 Neither is derived from the other, and no reader shortens either one to guess
-at the other. The summary is authored short because it is a summary. One reader
-clamps it, and it answers a display constraint: the interactive completion pane
-cuts the summary to the width its terminal gives it.
+at the other. The summary is authored short because it is a summary. No reader
+cuts it: every surface prints the summary whole.
 
 `mergeYANGEntry` (`internal/component/config/yang/command.go`) writes both, and
 `mergeHelpText` decides each field on its own when several modules contribute
@@ -1470,6 +1591,18 @@ refusal on a declared text are in
 `command help "<name>"` answers with both, under the `description` and
 `long-help` keys, for a builtin and for a plugin command alike.
 
+`system command list` carries both texts on every row too. The `help` key holds
+the summary, and `long-help` holds the explanation. That answer is the only
+place the ATTACHED console of `ze start --cli` reads either text from. An
+explanation that does not travel here is one its `?` key cannot print.
+`commandRows` fills the pair for a builtin and for a registered plugin command
+alike. A command that declares no explanation yields a row with no `long-help`
+key.
+
+On the client, `applyCommandText` writes the pair onto the node the row names,
+in ONE walk. `injectPluginCommands` carries the pair into a node the tree does
+not yet hold.
+
 An OFFLINE LOCAL command carries the same two texts in a `registry.Meta`,
 declared beside its handler in Go rather than in a YANG module. `Description` is
 the summary and `LongHelp` is the explanation, and the same empty-is-unwritten
@@ -1483,9 +1616,8 @@ its source, which is the only way to read a package Go forbids importing.
 
 #### Which surface renders which field
 
-Every surface that shows a command on ONE line reads the summary. Every one of
-them prints it whole, except the interactive completion pane, which has a
-terminal width to fit. Only a surface that shows ONE command reads the long
+Every surface that shows a command on ONE line reads the summary, and every one
+of them prints it whole. Only a surface that shows ONE command reads the long
 explanation: the help page in the terminal, and the two published detail
 surfaces.
 
@@ -1494,8 +1626,9 @@ surfaces.
 | The per-command help page | `commandHelpPage`, rendered by `helpfmt.(*Page).WriteTo` | `Description` on the header line, then `Help` in the body block, then the child rows. A node states its own two texts whether or not it has children |
 | A help page's child rows | `command.HelpEntries` | `Description` |
 | A completion candidate | `command.TreeCompleter.matchChildren`, `choiceSuggestions` | `Description` |
-| The interactive completion pane | `internal/component/cli` `Model.renderDropdownBox` | `Description`, cut to the column the terminal width leaves and closed with `...`. This is the one clamp the code keeps, because it answers a display constraint rather than guessing at a shorter text |
-| The interactive completion hint | `internal/component/cli` `Model.handleKeyMsg` (the `?` key), `Model.updateCompletions` | `Description`, whole |
+| The interactive completion pane | `internal/component/cli` `Model.renderDropdownBox` | nothing. A menu row is the command name alone, and a name wider than the box is clamped to the frame |
+| The interactive message line | `internal/component/cli` `Model.warningText`, `Model.handleKeyMsg` (the `?` key), `Model.updateCompletions` | `Description`, whole, for the candidate the menu has selected |
+| The interactive explanation box, which the `?` key opens | `internal/component/cli` `Model.renderExplanationBox`, answered by `command.TreeCompleter.Explain` | `Help`, whole. The attached console reads it from the `long-help` key of `system command list` |
 | A shell-completion record | `internal/plugins/completion` `writeCompletionRecord` | `Description` |
 | The `ze help command` table row | `printCommandTable` | `Description` |
 | `ze help command --verbose` | `printCommandVerbose` | `Description`, then `Help` |
@@ -1520,11 +1653,12 @@ that declares no explanation carries NO `description` key, never an empty one.
 
 The shell-completion record is `name`, tab, `description`, newline. A summary
 carrying a tab or a newline is FOLDED to single spaces there, never cut.
-Folding answers the format's one-line constraint and loses no word. The TUI
-completion pane folds for the same reason, and clamps to the column width its
-terminal gives it. That clamp is the only cut any surface makes, and it answers
-a display constraint. No surface cuts at a sentence, at a newline, or at a fixed
-character count to guess a shorter text.
+Folding answers the format's one-line constraint and loses no word.
+
+NO surface cuts a summary. The TUI completion pane held the last cut in Ze, and
+it went with the description column that sized it. A menu row is the command
+name alone. The selected candidate's summary is on message line 2, whole
+(`docs/architecture/cli/error-surface.md`).
 
 <!-- source: internal/component/command/help.go -- HelpEntries, describeChildren -->
 <!-- source: internal/component/plugin/server/schema.go -- RegisteredRPC, RegisterRPCs -->
@@ -1534,7 +1668,7 @@ character count to guess a shorter text.
 <!-- source: internal/component/command/registry/registry.go -- Meta, ListLocal -->
 <!-- source: cmd/ze/command_help_page.go -- commandHelpPage -->
 <!-- source: internal/plugins/completion/words.go -- writeCompletionRecord -->
-<!-- source: internal/component/cli/model_render.go -- (Model).renderDropdownBox -->
+<!-- source: internal/component/cli/model_render.go -- (Model).renderDropdownBox, (Model).warningText -->
 <!-- source: internal/component/web/handler_admin.go -- buildAdminFragmentData, CommandFormData -->
 <!-- source: internal/component/web/cli.go -- HandleCLICompleteWithCommandCompleter -->
 <!-- source: internal/component/mcp/tools.go -- CommandInfo, buildToolDef, commandText -->
@@ -1617,6 +1751,16 @@ half covers every command including the ones that declare nothing. The
 declaration is what makes the published catalog true, because `ze help command
 --json` lists a declared command's operators from its shape.
 
+An answer HAS rows in two spellings, and the second is what makes an identity
+readable. A LIST is rows. A MAP whose values share one shape is rows keyed by
+identity, and the key names each row: `show bgp peer list` maps a peer address
+to that peer's record, and `show bgp adj-rib-in` maps a peer address to that
+peer's routes. A row operator keeps the spelling it was given, so
+`show bgp adj-rib-in | first 1` answers one peer's routes under that peer's
+address. A map that mixes an object with a list under different keys is one
+document, because its keys are field names rather than identities.
+<!-- source: internal/component/command/answer_shape.go -- rowSet, identityValuesShareOneShape, selectRows -->
+
 Both halves of that message are derived, because one operator needs more than
 rows. `| fill` brings back the columns a command declared. So it acts on `tab`
 alone, and it means nothing over a `map` answer whose rows carry their own keys.
@@ -1642,7 +1786,7 @@ as an address.
 <!-- source: internal/component/command/pipe_origin.go -- originJSON -->
 
 Every `show bgp` command declares a shape, and two channels write them. Go
-compiled into the daemon declares sixteen paths. Nine of those name an address
+compiled into the daemon declares nineteen paths. Nine of those name an address
 field. `show bgp rib` and `show bgp irr` are served by a plugin process, and an
 in-core shim declares for them. Scope is therefore the registration site rather
 than the process boundary.

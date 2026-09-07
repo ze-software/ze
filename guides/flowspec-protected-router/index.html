@@ -244,13 +244,13 @@ and the rulesets of every other firewall owner, continue to reach the kernel.</p
 <p>The bridge only programs nftables from FlowSpec that <code>edge-01</code> <em>receives</em>, so the rule must be announced from a peer toward <code>edge-01</code>, not injected on <code>edge-01</code> itself. Use a lab prefix first. The example below drops TCP traffic to <code>10.0.0.0/8</code> port 80.</p>
 <p>If the source (<code>flowspec-rr</code>, <code>203.0.113.1</code>) is a Ze node, announce toward <code>edge-01</code> (<code>192.0.2.10</code>) with the required <code>peer &lt;selector&gt;</code> prefix:</p>
 <pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
-/usr/local/bin/ze cli -c "peer 192.0.2.10 update text extended-community discard nlri ipv4/flow add destination-ipv4 10.0.0.0/8 protocol tcp destination-port =80"
+/usr/local/bin/ze cli -c "send bgp 192.0.2.10 update text extended-community discard nlri ipv4/flow add destination-ipv4 10.0.0.0/8 protocol tcp destination-port =80"
 </code></pre>
 <p>On a non-Ze source, use that router's FlowSpec origination syntax instead. Then, on <code>edge-01</code>, check that nftables received a rule:</p>
 <pre><code class="language-bash">sudo nft list table inet ze_flowspec
 </code></pre>
 <p>Withdraw the test rule from the same source:</p>
-<pre><code class="language-bash">/usr/local/bin/ze cli -c "peer 192.0.2.10 update text nlri ipv4/flow del destination 10.0.0.0/8 protocol tcp destination-port =80"
+<pre><code class="language-bash">/usr/local/bin/ze cli -c "send bgp 192.0.2.10 update text nlri ipv4/flow del destination-ipv4 10.0.0.0/8 protocol tcp destination-port =80"
 </code></pre>
 <p>The rule leaves the kernel with the route. When the withdrawn route was the last
 one the peer gave <code>edge-01</code>, <code>nft list ruleset</code> shows no <code>ze_flowspec</code> table at
@@ -376,7 +376,7 @@ sudo systemctl reload ze.service
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

@@ -41,6 +41,14 @@ because `defaultDispatch` selects the personality with
 `registry.LookupRoot(binaryName())`, so the session name goes on the directory.
 The launcher carries the name into the process, and `refuseWrongBuildName`
 refuses to answer when the running binary is a different build.
+
+`./le --update` moves the cache forward instead of stepping around it. It builds
+the working tree beside `bin/le` and renames the result into place, so a peer
+session executing the old binary keeps its inode. The launcher never rebuilds on
+its own, because one peer's unfinished source would then fail every call in every
+session. About one call in sixteen compares the binary with the build inputs,
+after the command has answered. It prints one stderr line when a file git holds
+unmodified is newer.
 <!-- source: le -- the --name option; cmd/ze/le_build_name.go -- refuseWrongBuildName -->
 
 
@@ -183,11 +191,18 @@ plugin {
     # Third-party plugins
     external acme {
         run "/opt/acme/monitor-plugin";
-        respawn true;           # Restart if crashes
+        respawn true;           # Restart if it exits, if the plugin permits it
         timeout 60;             # Startup timeout
     }
 }
 ```
+
+A plugin declares in its Stage-1 registration what its own failure means:
+`restart`, `ignore` or `fatal`. That declaration decides what ze does. The
+`respawn` leaf states what the operator expects, and it can only ask for less
+than the declaration permits: `respawn false` leaves a plugin stopped that would
+have been started again, and `respawn true` against a plugin that declares it
+must not be restarted stops ze at startup with an error naming both sides.
 
 ### Section 3: Plugin Configuration
 
@@ -255,7 +270,7 @@ Any executable that speaks the plugin protocol:
 plugin {
     external my-plugin {
         run "/path/to/plugin";
-        respawn true;
+        respawn true;   # Only if the plugin declares failure-policy restart
     }
 }
 
@@ -358,7 +373,7 @@ CLI commands are routed to plugins by prefix:
 # Routed to ze bgp
 ze bgp peer list
 ze bgp peer upstream1 show
-ze bgp peer upstream1 update ...
+ze send bgp upstream1 update ...
 
 # Routed to ze rib
 ze rib show
@@ -744,7 +759,7 @@ Implementation: `internal/core/privilege/` -- calls `setgid` then `setuid` after
 
 ### Plugin TLS Transport
 
-External plugins connect back to the engine via TLS. The engine binds TLS listeners (configured via `plugin { hub { server <name> { ip ...; port ...; secret ...; } } }`), forks child processes with `ZE_PLUGIN_HUB_HOST`/`ZE_PLUGIN_HUB_PORT`/`ZE_PLUGIN_HUB_TOKEN` env vars, and waits for authenticated connect-back. Each plugin uses a single bidirectional TLS connection with MuxConn for concurrent RPCs.
+External plugins connect back to the engine via TLS. The engine binds TLS listeners (configured via `plugin { hub { server <name> { ip ...; port ...; secret ...; } } }`), forks child processes with `ZE_PLUGIN_HUB_HOST`/`ZE_PLUGIN_HUB_PORT`/`ZE_PLUGIN_HUB_TOKEN`/`ZE_PLUGIN_CA_PEM` env vars, and waits for authenticated connect-back. `ZE_PLUGIN_CA_PEM` carries the certificate authority root that issued the listener's certificate, and the SDK validates the chain against it and nothing else; the full contract is in [Process Protocol](https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md). Each plugin uses a single bidirectional TLS connection with MuxConn for concurrent RPCs.
 <!-- source: internal/component/plugin/acceptor.go -- hub TLS listener -->
 <!-- source: pkg/plugin/rpc/ -- MuxConn for concurrent RPCs -->
 

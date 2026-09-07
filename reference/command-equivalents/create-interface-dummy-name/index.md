@@ -20,6 +20,8 @@ Create a dummy (loopback-style) interface.
 - Command pipes: none
 - Pipe aliases: none
 
+The command is idempotent. When a unit or address command under it fails, and this command created the interface, the interface is deleted again.
+
 ## Arguments
 
 | Name | Type | Required | Values |

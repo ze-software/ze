@@ -20,6 +20,8 @@ Show the detailed help for one command.
 - Command pipes: none
 - Pipe aliases: none
 
+The answer carries command, description, long-help and source. A command a plugin registered also carries args and its timeout. An unknown name fails with 'unknown command: <name>'.
+
 ## Arguments
 
 No command-specific arguments listed.

@@ -341,13 +341,19 @@ the stats poll interval only when the defaults do not fit the workload.</p>
 <td><code>vpp.cpu.main-core</code></td>
 <td>uint8</td>
 <td>auto</td>
-<td>CPU core pinned to the VPP main thread. Omit for VPP default.</td>
+<td>CPU core pinned to the VPP main thread. The core is excluded from the worker set. Omit for VPP default. A core the host does not hold online is refused at commit.</td>
 </tr>
 <tr>
 <td><code>vpp.cpu.workers</code></td>
 <td>uint8</td>
 <td>auto</td>
-<td>Number of worker threads. Ze allocates <code>main-core+1 .. main-core+workers</code> for <code>corelist-workers</code> in startup.conf.</td>
+<td>Number of worker threads. Ze takes the cores from the kernel's isolated set (<code>/sys/devices/system/cpu/isolated</code>), lowest first, <code>main-core</code> excluded, and writes them as <code>corelist-workers</code>. On a host that isolated nothing, the list falls back to <code>main-core+1 .. main-core+workers</code> and <code>ze doctor</code> reports <code>doctor-vpp-cpu-isolation</code>. A count the host cannot satisfy is refused at commit. <!-- source: internal/component/vpp/cpuset.go -- resolveWorkerCores --></td>
+</tr>
+<tr>
+<td><code>vpp.cpu.worker-cores</code></td>
+<td>CPU list</td>
+<td>unset</td>
+<td>Explicit worker cores in the kernel's <code>isolcpus</code> syntax (<code>2-4</code>, <code>2,4,6</code>). Names the cores instead of deriving them, and MUST NOT be set beside <code>workers</code>. A core off the host, a core that is also <code>main-core</code>, and a core listed twice are each refused at commit. <!-- source: internal/core/cpulist/cpulist.go -- Parse --></td>
 </tr>
 <tr>
 <td><code>vpp.cpu.poll-sleep</code></td>
@@ -519,7 +525,7 @@ insufficient, or clamped. Before enabling VPP:</p>
 </tr>
 <tr>
 <td>CPU isolation for VPP workers</td>
-<td>Kernel cmdline: <code>isolcpus=&lt;worker-cores&gt;</code> so Linux does not schedule on them</td>
+<td>Appliance: <code>image.isolated-cpus</code> in <code>appliance.json</code>, which writes <code>isolcpus</code>, <code>nohz_full</code> and <code>rcu_nocbs</code> for those cores. Non-appliance host: the same three kernel cmdline arguments. Ze then draws its worker cores from that set, and <code>ze doctor</code> reports <code>doctor-vpp-cpu-isolation</code> when it cannot. <!-- source: internal/appliance/kernelargs.go -- isolatedCPUKernelArgs --></td>
 </tr>
 <tr>
 <td>Netlink buffer for route injection</td>
@@ -686,7 +692,7 @@ and converging sub-second on a full table.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 02:03 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

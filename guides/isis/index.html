@@ -289,6 +289,16 @@ entry; the only wire flag is the up/down bit (RFC 5305 sec 4), which IS-IS sets 
 when leaking a prefix to a lower level (RFC 2966), never to mark external origin.
 <code>destination isis { import isis }</code> is accepted by the schema but is a no-op:
 loop prevention rejects redistributing IS-IS into IS-IS.</p>
+<p>The block above is the whole configuration. It needs no <code>plugin</code> block and no
+<code>attach process</code> block. <code>import bgp</code> derives each peer's delivery to the
+Loc-RIB, and <code>destination bgp</code> derives the send permission the orchestrator
+needs on each peer.</p>
+<p>A consumer that registers after a producer emitted is replayed the producer's
+current set. The static prefix therefore reaches the LSP whichever of the two
+plugins started first. See
+<a href="../redistribution/">Route Filters and Redistribution</a>, "Route Redistribution".</p>
+<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
+<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- onConsumerRegistered -->
 <p><strong>Connected and passive interfaces.</strong> IS-IS also advertises its own enabled and
 <strong>passive</strong> interface prefixes as internal reachability in its LSPs. A passive
 interface forms no adjacency but its prefix is still advertised, so loopbacks and
@@ -523,7 +533,7 @@ System ID embedded in the first NET.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

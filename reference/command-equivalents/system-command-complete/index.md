@@ -20,6 +20,8 @@ List the completion candidates for a partial command.
 - Command pipes: none
 - Pipe aliases: none
 
+Ze completes a command NAME from the partial text. Write 'args' before the command name to complete an ARGUMENT of that command instead, in the form 'system command complete args <cmd> [<completed>...] <partial>'.
+
 ## Arguments
 
 No command-specific arguments listed.

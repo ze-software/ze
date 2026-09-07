@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 66.7% | 4 of 6 binding obligations | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 33.3% | 2 of 6 binding obligations | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 6 binding obligations | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 6 binding obligations | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 22 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 66.7% | 4 of 6 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 33.3% | 2 of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| No test at all | 0.0% | 0 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 9.1% | 2 of 22 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -23,9 +23,12 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 6 | of 17 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 6 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below |
+| Out of scope | 0 | of 6 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 6 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 4 shares marked as a part above are the whole of the 6 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -37,6 +40,9 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
@@ -48,7 +54,6 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Enrolled |
 | Requirements | 17 |
 | Gated MUST-level | 6 |
-| Obligations that bind Ze | 6 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Gated with no test | 0 |
@@ -56,14 +61,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 22 |
 | Tagged units | 22 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 2 |
 | Summary | `rfc/short/rfc4760.md` |
 | Requirement shard | `rfc/requirements/rfc4760.md` |
 | RFC text | `rfc/full/rfc4760.txt` |
 
 ## Enrolment
 
-Enrolled: Multiprotocol Extensions for BGP-4: six MUST-level requirements. Five are met: 3-2 (the next-hop length determines the next-hop protocol) carries positive+negative tags; 3-3 (an UPDATE with MP_REACH_NLRI also carries ORIGIN and AS_PATH) and 3-4 (an iBGP UPDATE carrying MP_REACH includes LOCAL_PREF) carry positive+negative tags on new internal/component/bgp/message tests; 3-1 (the MP_REACH Reserved octet is 0) and 8-1 (advertise the Multiprotocol capability) are {single-polarity: positive}. 7-1 (Section 7 bulk per-AFI/SAFI route deletion) is {not-applicable}: ze supersedes it with RFC 7606 revised error handling (treat-as-withdraw per NLRI or session reset).
+Enrolled: Multiprotocol Extensions for BGP-4: six MUST-level requirements, all six met: 3-2 (the next-hop length determines the next-hop protocol) carries positive+negative tags; 3-3 (an UPDATE with MP_REACH_NLRI also carries ORIGIN and AS_PATH) and 3-4 (an iBGP UPDATE carrying MP_REACH includes LOCAL_PREF) carry positive+negative tags on new internal/component/bgp/message tests; 3-1 (the MP_REACH Reserved octet is 0) and 8-1 (advertise the Multiprotocol capability) are {single-polarity: positive}. 7-1 (Section 7 bulk per-AFI/SAFI route deletion) carries positive+negative tags on internal/component/bgp/reactor/rfc4760_section7_test.go. The non-applicability annotation that stood here, claiming RFC 7606 superseded the behavior, was voided by the owner on 2026-08-31: RFC 7606 Section 3 clause (j) keeps the obligation, and Ze meets it by session reset, which drops every route from that neighbor and so a superset of that AFI/SAFI's routes.
 
 ## What the public ledger says
 
@@ -143,10 +148,10 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_rib_routes_nexthop_test.go#L50) | unit/verify | unproven |
-| negative | [`TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/commit_nexthop_test.go#L69) | unit/verify | unproven |
+| negative | [`TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/commit_nexthop_test.go#L69) | unit/verify | revert, verified |
 | negative | [`TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go#L124) | unit/verify | unproven |
 | negative | [`TestParseMPReachNLRI_InvalidNextHopLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L498) | unit/verify | unproven |
-| positive | [`TestCommitVPNAnnounceCarriesTheRFC4364NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/commit_nexthop_test.go#L155) | unit/verify | unproven |
+| positive | [`TestCommitVPNAnnounceCarriesTheRFC4364NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/commit_nexthop_test.go#L155) | unit/verify | revert, verified |
 | positive | [`TestMPReachNextHopLengthCountsTheOctetsWritten`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go#L39) | unit/verify | unproven |
 | positive | [`TestMPReachNLRI_WriteTo`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L16) | unit/verify | unproven |
 | positive | [`TestParseMPReachNLRI`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L128) | unit/verify | unproven |

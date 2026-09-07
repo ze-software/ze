@@ -20,6 +20,8 @@ NTP clock synchronization status.
 - Command pipes: none
 - Pipe aliases: none
 
+The answer carries enabled false alone when NTP is off. It carries the same when the daemon has recorded no state yet, so the two cases read alike. An enabled client answers whether it is synced, its source, the offset, the stratum and the poll interval. The last-sync time is present only after a synchronization has happened.
+
 ## Arguments
 
 No command-specific arguments listed.

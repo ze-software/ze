@@ -9,6 +9,7 @@ Commands sent through `ze cli`, `ze cli -c`, `ze show`, or process stdin.
 | `show bgp peer list` | List peers (brief) |
 | `show bgp peer <sel> detail` | Show peer details and statistics |
 | `request peer <addr> teardown <code>` | Graceful session closure with NOTIFICATION |
+| `create bgp peer <addr> asn <asn>` | Add a peer to the running daemon |
 | `delete bgp peer <name>` | Remove peer |
 | `request peer <addr> pause` | Pause reading from peer (flow control) |
 | `request peer <addr> resume` | Resume reading from peer |
@@ -22,8 +23,8 @@ Peer selector supports: `*` (all), exact IP, peer name, ASN (`as65001`), glob pa
 
 | Command | Description |
 |---------|-------------|
-| `peer * update text <attrs> nlri <family> <op> <prefix>` | Text-format UPDATE |
-| `peer * update hex <hex>` | Hex-format UPDATE |
+| `send bgp * update text <attrs> nlri <family> <op> <prefix>` | Text-format UPDATE |
+| `send bgp * update hex <hex>` | Hex-format UPDATE |
 
 Text attribute syntax: `origin set igp`, `nhop set 1.1.1.1`, `local-preference set 100`, `med set 50`, `as-path set [65000 65001]`, `community set [no-export]`, `large-community set [65000:1:1]`.
 
@@ -54,7 +55,7 @@ Inject attributes: `origin <igp|egp|incomplete>`, `nhop|nexthop <ip>`, `aspath <
 | `request cache retain` | Retain message in cache |
 | `request cache release` | Release from cache |
 | `request cache expire` | Set cache expiration |
-| `request cache forward` | Forward cached message to peer(s) |
+| `send bgp <sel> cached <id>` | Forward cached message to peer(s) |
 
 ### Event Subscription
 
@@ -83,7 +84,7 @@ Named update windows for atomic route changes:
 
 | Command | Description |
 |---------|-------------|
-| `peer * raw <hex>` | Send raw BGP message bytes |
+| `send bgp * raw hex <data>` | Send raw BGP message bytes |
 | `route-refresh <family>` | Send route refresh request |
 | `help` | Show available commands |
 | `command-list` | List all commands with descriptions |

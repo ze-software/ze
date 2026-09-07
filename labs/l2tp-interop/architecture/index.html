@@ -72,7 +72,9 @@ LCP/IPCP, kernel <code>pppN</code> interface creation, dataplane connectivity, a
 route redistribution from a live PPP session.</p>
 <h2 id="layout">Layout</h2>
 <pre><code>test/interop-l2tp/
-  Dockerfile.ze        Ze LNS image (Alpine + ze + iproute2 + kmod + ppp)
+  Dockerfile.ze        Ze LNS image (Alpine + iproute2 + kmod + ppp; copies the
+                       ze-linux the suite preflight cross-compiles)
+  ze-linux             the staged daemon, git-ignored and rewritten each run
   Dockerfile.lac       LAC image (Alpine + xl2tpd + ppp + iproute2)
   daemons              FRR daemons config (zebra + bgpd)
   vtysh.conf           FRR vtysh config
@@ -142,10 +144,28 @@ session: NAS-Port-Id (RFC 2869 Section 5.17) resolved from the operator's
 Framed-IP-Address (RFC 2865 Section 5.8) in the Accounting-Start carrying the
 address pppd actually negotiated (RFC 2866 Section 4.1). The assertion reads
 what the server decoded, not what ze logged.</p>
+<p>The Start record also proves the session attributes ze adds to every
+Accounting-Request: Event-Timestamp within an hour of the lab clock, and
+Acct-Delay-Time present. It proves two absences as well. Acct-Terminate-Cause
+is absent, which RFC 2866 Section 5.10 requires of every record that is not a
+Stop. Calling-Station-Id is absent because xl2tpd's ICRQ carries Message Type,
+Assigned Call ID, Call Serial Number and Bearer Type alone, so no Calling
+Number AVP reaches ze, and RFC 2865 Section 5 forbids sending a text attribute
+of length zero.</p>
+<p>The checker then POSTs <code>clear l2tp session all</code> to ze's REST surface on
+<code>127.0.0.1:17012</code> and reads the Stop record that follows. That teardown is the
+operator one, so the Stop reports Admin Reset, RFC 2866 Section 5.10 value 6.</p>
 <p>The typed plan starts the Go RADIUS peer on <code>172.29.0.5</code> before Ze and xl2tpd.
 The peer answers Access-Request and Accounting-Request packets and writes the
 decoded attributes that the checker compares. This scenario uses the same
 PPPoL2TP preflight as 01 and 02.</p>
+<p><code>auth-method chap-md5</code> in this scenario's <code>ze.conf</code> is load-bearing, unlike the
+same leaf in <code>test/l2tp/radius-acct-wire.ci</code>. xl2tpd sends no RFC 2661 Section
+4.4.5 proxy LCP AVPs, so ze negotiates LCP itself and the leaf picks the
+method. Read in xl2tpd v1.3.18 and v1.3.19: <code>avpsend.c</code> has no builder for AVP
+26, 27 or 28, and the ICRQ and ICCN branches of <code>control.c</code> carry none. The
+authentication has to reach a credential, because RFC 2865 Section 4.1 admits
+no Access-Request without one.</p>
 <h2 id="relationship-to-other-evidence">Relationship to Other Evidence</h2>
 <table>
 <thead>
@@ -233,7 +253,7 @@ specific to this protocol.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:15 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

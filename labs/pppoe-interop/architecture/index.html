@@ -76,7 +76,9 @@ also dials a wrong credential and requires CHAP refusal before proving that all
 session state disappeared.</p>
 <h2 id="layout">Layout</h2>
 <pre><code>test/interop-pppoe/
-  Dockerfile.ze        Ze image used in both roles
+  Dockerfile.ze        Ze image used in both roles (copies the ze-linux the
+                       suite preflight cross-compiles)
+  ze-linux             the staged daemon, git-ignored and rewritten each run
   Dockerfile.accel     accel-ppp access-concentrator image
   Dockerfile.client    pppd and rp-pppoe client image
   scenarios/
@@ -192,7 +194,7 @@ receive a refusal without creating a session.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:15 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

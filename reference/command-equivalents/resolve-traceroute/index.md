@@ -20,6 +20,8 @@ Traceroute from the router with optional source binding.
 - Command pipes: none
 - Pipe aliases: none
 
+The options are source, max-hops, timeout and probes, each one a keyword and a value. max-hops is 1 to 64 and defaults to 30, probes is 1 to 10 and defaults to 3, and timeout is 1s to 30s and defaults to 3s. The source also selects the address family: a target name is resolved in the family of the source, and a target with no address in that family is refused.
+
 ## Arguments
 
 | Name | Type | Required | Values |

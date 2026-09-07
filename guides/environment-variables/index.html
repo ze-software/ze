@@ -90,6 +90,10 @@ authoritative list.</p>
 <td>Bind pprof HTTP server (e.g. <code>:6060</code>). Empty disables</td>
 </tr>
 <tr>
+<td><code>ze.hide-version</code></td>
+<td>Keep the <code>X-Ze-Version</code> build banner off every HTTP response. Default false</td>
+</tr>
+<tr>
 <td><code>ze.bgp.openwait</code></td>
 <td>Seconds to wait for peer OPEN after TCP connect</td>
 </tr>
@@ -100,6 +104,14 @@ authoritative list.</p>
 <tr>
 <td><code>exabgp.api.ack</code></td>
 <td>ExaBGP bridge: emit <code>done</code>/<code>error</code> ack lines on plugin stdin</td>
+</tr>
+<tr>
+<td><code>ze.web.certificate</code></td>
+<td>PKI store entry the web HTTPS listener serves. Empty means self-signed</td>
+</tr>
+<tr>
+<td><code>ze.looking-glass.certificate</code></td>
+<td>PKI store entry the looking glass serves. Empty means self-signed</td>
 </tr>
 </tbody>
 </table>
@@ -115,6 +127,7 @@ authoritative list.</p>
         announce-delay 5s
     }
     pprof ":6060"
+    hide-version true
     exabgp {
         api {
             ack false
@@ -259,7 +272,7 @@ ones so an operator can audit an ExaBGP env file before commit.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

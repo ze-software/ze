@@ -534,7 +534,7 @@ run while the engine is waiting for the response, causing a deadlock.</p>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEncodeNLRI, OnDecodeNLRI, OnDecodeCapability -->
 <pre><code class="language-go">// Encode NLRI from text arguments to hex
 p.OnEncodeNLRI(func(family string, args []string) (string, error) {
-    // args: component keywords (e.g., ["destination", "10.0.0.0/24"])
+    // args: component keywords (e.g., ["destination-ipv4", "10.0.0.0/24"])
     hex, err := encodeFlowSpec(family, args)
     return hex, err
 })
@@ -602,7 +602,7 @@ err = p.UnsubscribeEvents(ctx)
 </code></pre>
 <h3 id="decodenlri-encodenlri">DecodeNLRI / EncodeNLRI</h3>
 <p>Request NLRI encoding/decoding from the engine via the plugin registry.</p>
-<pre><code class="language-go">hex, err := p.EncodeNLRI(ctx, "ipv4/flow", []string{"destination", "10.0.0.0/24"})
+<pre><code class="language-go">hex, err := p.EncodeNLRI(ctx, "ipv4/flow", []string{"destination-ipv4", "10.0.0.0/24"})
 json, err := p.DecodeNLRI(ctx, "ipv4/flow", "0701180A0000")
 </code></pre>
 <h3 id="decodempreach-decodempunreach">DecodeMPReach / DecodeMPUnreach</h3>
@@ -664,7 +664,7 @@ return fmt.Errorf("validation failed")
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

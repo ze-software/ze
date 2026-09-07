@@ -159,8 +159,16 @@ session state:</p>
 }
 </code></pre>
 <h2 id="unsupported-exabgp-extensions">Unsupported ExaBGP extensions</h2>
-<p>These ExaBGP extensions are recognized during migration, but Ze does not
-implement their behavior:</p>
+<p><code>ze exabgp migrate</code> translates the capability keywords Ze has a session
+setting for, and WARNS about every other keyword the block holds. The warning
+goes to stderr, names the peer and names each keyword in one line. The migrated
+session negotiates less than the ExaBGP config asked for, so read the warnings
+before you deploy the output.</p>
+<p>The set is derived, not listed: <code>migrateCapability</code> declares the keywords it
+translates (<code>route-refresh</code>, <code>extended-message</code>, <code>link-local-nexthop</code>, <code>asn4</code>,
+<code>graceful-restart</code>, <code>software-version</code>, <code>add-path</code>), and anything else in the
+block reaches the warning. A keyword ExaBGP adds later is therefore reported
+without an edit here.</p>
 <table>
 <thead>
 <tr>
@@ -171,18 +179,63 @@ implement their behavior:</p>
 <tbody>
 <tr>
 <td><code>capability { multi-session; }</code></td>
-<td>Warning. Ze uses standard BGP session handling.</td>
+<td>Warns: <code>peer &lt;name&gt;: the capability block asks for "multi-session", which `ze exabgp migrate` does not translate, so the migrated config does not ask for it</code></td>
 </tr>
 <tr>
-<td><code>capability { operational; }</code></td>
-<td>Warning. ExaBGP operational messages are not implemented.</td>
+<td><code>capability { aigp enable; }</code></td>
+<td>Same warning, naming <code>aigp</code>. Ze's AIGP codec is always on and has no per-peer switch, so there is no setting to translate the keyword into</td>
 </tr>
 <tr>
-<td><code>operational { ... }</code> under a peer</td>
-<td>Warning. The block is not applied.</td>
+<td>Several in one peer</td>
+<td>One warning names them all, in the order the block declares them</td>
+</tr>
+<tr>
+<td><code>operational { ... }</code> under an ExaBGP neighbor</td>
+<td><code>ze exabgp migrate</code> stops at the parser: <code>line N: unknown field in neighbor: operational</code></td>
+</tr>
+<tr>
+<td><code>capability { multi-session; }</code> in Ze syntax</td>
+<td><code>ze config migrate</code> stops at the parser: <code>line N: unknown field in capability: multi-session</code></td>
+</tr>
+<tr>
+<td><code>operational { ... }</code> under a peer, in Ze syntax</td>
+<td><code>ze config migrate</code> stops at the parser: <code>line N: unknown field in peer: operational</code></td>
 </tr>
 </tbody>
 </table>
+<p>The capability block is the only place a warning replaces a refusal. An
+<code>operational { ... }</code> block, in either syntax, is a parse error: the grammar has
+no such field, so there is nothing to leave out.</p>
+<p>Two of the keywords are worth knowing by name, because each comes from an IETF
+draft that expired without becoming an RFC.</p>
+<table>
+<thead>
+<tr>
+<th>Extension</th>
+<th>Draft</th>
+<th>Expired</th>
+<th>Codepoint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>multi-session</code></td>
+<td>draft-ietf-idr-bgp-multisession-07</td>
+<td>2013-03-16</td>
+<td>Section 4 assigns capability code 68</td>
+</tr>
+<tr>
+<td><code>operational</code></td>
+<td>draft-ietf-idr-operational-message-00</td>
+<td>2012-09-01</td>
+<td>Section 9 requests a capability code and a BGP message type from IANA. Neither was allocated</td>
+</tr>
+</tbody>
+</table>
+<p><code>operational</code> therefore has no assigned value to put on the wire. ExaBGP fills
+both with private values of its own, capability <code>0xB9</code> and message type <code>0x06</code>.
+Ze does not copy a private codepoint.</p>
+<!-- source: internal/exabgp/migration/migrate_unimplemented.go -- untranslatedCapabilityWarning, the warning and the two drafts -->
 <h2 id="commands">Commands</h2>
 <pre><code class="language-bash"># Check whether a file already matches the current binary
 ze config validate config.conf
@@ -210,7 +263,7 @@ ze config migrate --list
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

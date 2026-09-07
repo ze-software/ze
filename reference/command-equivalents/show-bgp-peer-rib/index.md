@@ -20,6 +20,8 @@ Show RIB data scoped to one peer.
 - Command pipes: none
 - Pipe aliases: none
 
+The command forwards to the RIB plugin with the peer selector attached, so the RIB plugin MUST be loaded for it to answer. 'show bgp rib' reads the same plugin without a peer scope.
+
 ## Arguments
 
 | Name | Type | Required | Values |

@@ -20,6 +20,8 @@ Remove a VLAN sub-interface.
 - Command pipes: none
 - Pipe aliases: none
 
+The VLAN id is 1 to 4094. The interface deleted is <name>.<vid>, so the parent interface stays.
+
 ## Arguments
 
 | Name | Type | Required | Values |

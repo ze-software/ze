@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5305 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5305: IS-IS Extensions for Traffic Engineering. 8 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5305: IS-IS Extensions for Traffic Engineering. 8 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 5305 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5305: IS-IS Extensions for Traffic Engineering. 8 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5305: IS-IS Extensions for Traffic Engineering. 8 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5305 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5305: IS-IS Extensions for Traffic Engineering. 8 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5305: IS-IS Extensions for Traffic Engineering. 8 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -75,6 +75,8 @@
 .rfc-tape-both_polarities { background: var(--teal-chip); }
 .rfc-tape-single_polarity { background: var(--sky-chip); }
 .rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -113,23 +115,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>80.0%</strong><b>4 of 5 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 5 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 5 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 10 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>62.5%</strong><b>5 of 8 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>8.3%</strong><b>1 of 12 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>8</strong><b>of 10 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>3</strong><b>of 8 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>3</strong><b>of 8 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>37.5%</strong><b>3 of 8 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>20.0%</strong><b>1 of 5 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-</div>
-<p>The 4 shares marked as a part above are the whole of the 5 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 8 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -157,8 +158,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
 </tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -190,14 +203,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Gated MUST-level</td>
 <td>8</td>
 </tr>
-<tr><td>Obligations that bind Ze</td>
-<td>5</td>
-</tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>3</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>1</td>
+<td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
@@ -206,16 +216,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>10</td>
+<td>12</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>10</td>
+<td>12</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5305.md</code></td>
@@ -231,7 +241,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: IS-IS Extensions for Traffic Engineering (TLV 22 extended IS reachability, TLV 135 extended IP reachability): eight MUST-level requirements. Four are met with positive+negative tags in internal/plugins/isis: 3-2 (SHALL clamp/saturate the wide path metric), 4-1 (do not install a route at or above MaxPathMetric), 4.1-1 (set the up/down bit correctly on a down-leak), 2-1 (retain unknown sub-TLVs without rejecting). 3.2-1, 3.2-2, 4.3-1 are {not-applicable}: ze implements no IS-IS TE sub-TLVs (6/8) or TLV 134. 3-1 (a maximum-metric link must not be used in normal SPF) is {gap}: ze relaxes a 2^24-1-metric link into SPF, excluding only metrics at or above MaxPathMetric (0xFE000000). Disclosed in the docs/features/rfc-status.md RFC 5305 row.</p>
+<p>Enrolled: IS-IS Extensions for Traffic Engineering (TLV 22 extended IS reachability, TLV 135 extended IP reachability): eight MUST-level requirements. Five are met with positive+negative tags in internal/plugins/isis: 3-1 (a maximum-metric link is not considered in normal SPF), 3-2 (SHALL clamp/saturate the wide path metric), 4-1 (do not install a route at or above MaxPathMetric), 4.1-1 (set the up/down bit correctly on a down-leak), 2-1 (retain unknown sub-TLVs without rejecting). 3.2-1, 3.2-2, 4.3-1 are {not-applicable}: ze implements no IS-IS TE sub-TLVs (6/8) or TLV 134.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Experimental</p>
@@ -241,9 +251,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <li>unknown sub-TLVs retained</li>
 <li>tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc5305.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc5305.md</code></a>.</li>
 </ul>
-<details class="rfc-fold"><summary>What the ledger says remains</summary>
-<a href="#rfc5305-3-1"><code>RFC5305-3-1</code></a> gap: a link advertised with the maximum link metric (2^24-1 = 16777215) is still used in normal SPF (spf/graph.go builds the edge with the raw metric and spf/spf.go excludes only metrics at or above MaxPathMetric 0xFE000000), so the Section 3 maximum-link-metric exclusion is not implemented. TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
-</details>
+<p><strong>What the ledger says remains:</strong></p>
+TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -251,11 +260,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>4</strong></td>
+<td><strong>5</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>4</strong></td>
+<td><strong>3</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -274,8 +283,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc5305-3-2"><code>RFC5305-3-2</code></a>, <a href="#rfc5305-4-1"><code>RFC5305-4-1</code></a>, <a href="#rfc5305-4.1-1"><code>RFC5305-4.1-1</code></a>, <a href="#rfc5305-2-1"><code>RFC5305-2-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (4):</strong> <a href="#rfc5305-3-1"><code>RFC5305-3-1</code></a>, <a href="#rfc5305-3.2-1"><code>RFC5305-3.2-1</code></a>, <a href="#rfc5305-3.2-2"><code>RFC5305-3.2-2</code></a>, <a href="#rfc5305-4.3-1"><code>RFC5305-4.3-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc5305-3-1"><code>RFC5305-3-1</code></a>, <a href="#rfc5305-3-2"><code>RFC5305-3-2</code></a>, <a href="#rfc5305-4-1"><code>RFC5305-4-1</code></a>, <a href="#rfc5305-4.1-1"><code>RFC5305-4.1-1</code></a>, <a href="#rfc5305-2-1"><code>RFC5305-2-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (3):</strong> <a href="#rfc5305-3.2-1"><code>RFC5305-3.2-1</code></a>, <a href="#rfc5305-3.2-2"><code>RFC5305-3.2-2</code></a>, <a href="#rfc5305-4.3-1"><code>RFC5305-4.3-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -287,17 +296,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5305-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze relaxes a maximum-metric (16777215) link into normal SPF -- internal/plugins/isis/spf/graph.go:192-194 builds the edge with the raw metric and spf/spf.go:208-211 excludes only metrics &gt;= MaxPathMetric (0xFE000000), so the RFC 5305 Section 3 maximum-link-metric exclusion is not implemented</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L317" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISSPFMaxLinkMetricExcluded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L318" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISSPFMaxLinkMetricExcluded</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-3-2">RFC5305-3-2</code></td><td colspan="3"><span class="rfc-subject">Clamp metrics at or above MAX_PATH_METRIC (0xFE000000) to MAX_PATH_METRIC (Section 3, Section 3.7)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5305-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L250" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISMetricWidth</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L251" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISMetricWidth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L252" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISMetricWidth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L253" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISMetricWidth</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-4-1">RFC5305-4-1</code></td><td colspan="3"><span class="rfc-subject">Consider a TLV 135 prefix with metric above MAX_PATH_METRIC in normal SPF (Section 4)</span></td></tr>
@@ -305,8 +314,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5305-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L293" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISMetricWidth</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L298" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISMetricWidth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L295" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISMetricWidth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L300" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISMetricWidth</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-4.1-1">RFC5305-4.1-1</code></td><td colspan="3"><span class="rfc-subject">Set the TLV 135 up/down bit to 1 when advertising down the hierarchy or across same-level areas (Section 4.1)</span></td></tr>
@@ -383,10 +392,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc5305-3-1"><code>RFC5305-3-1</code></a> Use a TLV 22 link advertised with metric 2^24 minus 1 in normal SPF (Section 3)</td>
-<td>{gap}, no test</td>
-<td>ze relaxes a maximum-metric (16777215) link into normal SPF -- internal/plugins/isis/spf/graph.go:192-194 builds the edge with the raw metric and spf/spf.go:208-211 excludes only metrics &gt;= MaxPathMetric (0xFE000000), so the RFC 5305 Section 3 maximum-link-metric exclusion is not implemented</td>
-</tr>
 <tr><td><a href="#rfc5305-3.2-1"><code>RFC5305-3.2-1</code></a> Inject sub-TLV 6 / sub-TLV 8 / Router-ID addresses as /32 routes (Section 3.2, Section 3.3, Section 4.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze never decodes the RFC 5305 TE sub-TLVs (sub-TLV 6/8) or TLV 134 into an address; internal/plugins/isis/spf/graph.go:192-194 reads only edges and drops sub-TLVs, and route.go:155 installs only node.Prefixes, so there is no per-link /32 injection code path</td>
@@ -408,7 +413,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc5305-3-1"><code>RFC5305-3-1</code></a></h3>
 <p>Use a TLV 22 link advertised with metric 2^24 minus 1 in normal SPF (Section 3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5305-3-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L318" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISSPFMaxLinkMetricExcluded</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L317" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISSPFMaxLinkMetricExcluded</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5305-3-2"><code>RFC5305-3-2</code></a></h3>
 <p>Clamp metrics at or above MAX_PATH_METRIC (0xFE000000) to MAX_PATH_METRIC (Section 3, Section 3.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -417,12 +438,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L251" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISMetricWidth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L253" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISMetricWidth</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L250" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISMetricWidth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L252" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISMetricWidth</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -437,12 +458,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L298" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISMetricWidth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L300" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISMetricWidth</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L293" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISMetricWidth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L295" title="internal/plugins/isis/spf/spf_test.go" target="_blank" rel="noopener"><code>TestISISMetricWidth</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -547,7 +568,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

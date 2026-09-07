@@ -20,6 +20,8 @@ Zero the Rx/Tx counters for one interface.
 - Command pipes: none
 - Pipe aliases: none
 
+Only the named interface is reset. Ze translates the name to its kernel device first, so a name bound to hardware by a selector clears the right port.
+
 ## Arguments
 
 | Name | Type | Required | Values |

@@ -47,12 +47,13 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="cli-reference">CLI Reference</h1>
-    <p>Ze provides an interactive CLI and single-command execution for runtime queries and control. All CLI access goes through the daemon's SSH server.</p>
+    <p>Ze provides an interactive CLI and single-command execution for runtime queries and control. <code>ze cli</code> reaches the daemon through its SSH server. <code>ze start --cli</code> attaches a console to the daemon it starts, in the same process.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#usage">Usage</a>
 <ol>
 <li><a href="#modes">Modes</a></li>
+<li><a href="#the-attached-console">The attached console</a></li>
 </ol></li>
 <li><a href="#peer-commands">Peer Commands</a></li>
 <li><a href="#route-commands">Route Commands</a></li>
@@ -60,16 +61,21 @@
 <li><a href="#event-subscription">Event Subscription</a></li>
 <li><a href="#commit-workflow">Commit Workflow</a></li>
 <li><a href="#rpki-commands">RPKI Commands</a></li>
+<li><a href="#resolution-commands">Resolution Commands</a></li>
 <li><a href="#daemon-control">Daemon Control</a></li>
 <li><a href="#signals">Signals</a></li>
-<li><a href="#interactive-features">Interactive Features</a></li>
+<li><a href="#interactive-features">Interactive Features</a>
+<ol>
+<li><a href="#keys-that-reveal-help">Keys that reveal help</a></li>
+</ol></li>
 </ol></nav>
-<!-- source: internal/component/cli/client/main.go -- Run -->
+<!-- source: internal/component/cli/client/main.go -- Run, RunAttached -->
 <h2 id="usage">Usage</h2>
 <pre><code class="language-bash">ze cli                              # Interactive CLI with tab completion
 ze cli -c "show bgp peer list"              # Execute single command and exit
 ze show bgp peer upstream1 detail           # Read-only query (safe for scripts)
 ze cli -c "request peer upstream1 teardown 2" # One-shot command (full access)
+ze start --cli                              # Start the daemon and attach a console
 </code></pre>
 <h3 id="modes">Modes</h3>
 <table>
@@ -96,8 +102,26 @@ ze cli -c "request peer upstream1 teardown 2" # One-shot command (full access)
 <td>Full</td>
 <td>Automation, route injection</td>
 </tr>
+<tr>
+<td><code>ze start --cli</code></td>
+<td>Interactive, full</td>
+<td>Running the daemon and operating it from one terminal</td>
+</tr>
 </tbody>
 </table>
+<h3 id="the-attached-console">The attached console</h3>
+<p><code>ze start --cli</code> starts the daemon and attaches an interactive console to it.
+The console dispatches each command in the daemon process, so it needs no SSH
+server and it works in a build with SSH compiled out.</p>
+<p>The console opens at the operational prompt. Type <code>configure</code> to reach
+configuration mode, and <code>commit</code> there reloads the running daemon, as it does
+over SSH. Type <code>exit</code>, or press Ctrl-D, to detach the console and leave the
+daemon running.</p>
+<p>The console authenticates nobody, so it names the change author from the <code>USER</code>
+environment variable, and <code>unknown</code> when that variable is empty. The name is
+what <code>show | blame</code> reports for the changes the console commits.</p>
+<!-- source: internal/component/cli/client/main.go -- RunAttached, newAttachedModel -->
+<!-- source: cmd/ze/hub/session_editor.go -- attachedConsoleEditor, attachedConsoleUser -->
 <h2 id="peer-commands">Peer Commands</h2>
 <table>
 <thead>
@@ -153,11 +177,11 @@ ze cli -c "request peer upstream1 teardown 2" # One-shot command (full access)
 </thead>
 <tbody>
 <tr>
-<td><code>peer &lt;sel&gt; update text &lt;attrs&gt; nlri &lt;family&gt; &lt;op&gt; &lt;prefix&gt;</code></td>
+<td><code>send bgp &lt;sel&gt; update text &lt;attrs&gt; nlri &lt;family&gt; &lt;op&gt; &lt;prefix&gt;</code></td>
 <td>Text-format UPDATE</td>
 </tr>
 <tr>
-<td><code>peer &lt;sel&gt; update hex &lt;hex&gt;</code></td>
+<td><code>send bgp &lt;sel&gt; update hex &lt;hex&gt;</code></td>
 <td>Hex-format UPDATE</td>
 </tr>
 <tr>
@@ -206,7 +230,7 @@ ze cli -c "request peer upstream1 teardown 2" # One-shot command (full access)
 <td>Remove a cached message immediately</td>
 </tr>
 <tr>
-<td><code>request cache forward &lt;id&gt; &lt;peer&gt;</code></td>
+<td><code>send bgp &lt;peer&gt; cached &lt;id&gt;</code></td>
 <td>Forward a cached message to a peer</td>
 </tr>
 </tbody>
@@ -312,6 +336,41 @@ ze cli -c "request peer upstream1 teardown 2" # One-shot command (full access)
 through a pipe alias the plugin declares. It resolves over <code>ze cli -c "..."</code> and
 over ssh, and NOT inside <code>ze cli</code> with no command argument
 (<code>docs/guide/rpki.md</code>).</p>
+<h2 id="resolution-commands">Resolution Commands</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>show resolve rir &lt;asn&gt;</code></td>
+<td>Which Regional Internet Registry holds an AS number, and its whois host</td>
+</tr>
+<tr>
+<td><code>update resolve rir</code></td>
+<td>Refresh the RIR delegation table from the five registry delegation files</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang -- show > resolve > rir, update > resolve > rir -->
+<p>The lookup reads a table the binary ships as embedded data, so it answers with
+no network. <code>update resolve rir</code> stores a fresh table under
+<code>meta/rir/delegation</code>, and the lookup prefers that copy while its generation
+date is later than the shipped table's. The refresh is all or nothing: a
+registry that does not answer leaves the previous table in place and the error
+names the file it could not read. The same lookup runs on the host with no
+daemon, as <code>ze resolve rir &lt;asn&gt;</code>.</p>
+<p>An appliance behind a mirror names where each file is read from, under
+<code>system/rir</code>, one <code>delegation-source</code> block per registry. A registry with no
+block is read from the file it publishes, so mirroring one blocked registry
+takes one block. A mirror is HTTPS, or plain HTTP when it runs on the router
+itself.</p>
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system/rir/delegation-source -->
+<!-- source: internal/component/resolve/irr/stored.go -- preferStoredDelegation -->
+<!-- source: internal/component/resolve/cmd/rir.go -- handleRIRASN, handleRIRRefresh -->
 <h2 id="daemon-control">Daemon Control</h2>
 <table>
 <thead>
@@ -397,6 +456,86 @@ from the other, and no row is cut at a sentence or a newline.
 <li><strong>History</strong> persisted across sessions</li>
 <li><strong>Ctrl-C</strong> cancels current command, <strong>Ctrl-D</strong> exits</li>
 </ul>
+<h3 id="keys-that-reveal-help">Keys that reveal help</h3>
+<p>Every command declares two help texts: a one-line summary and a long
+explanation. Tab and <code>?</code> reach both, so an operator reads what a command does
+and stays at the prompt. Two message lines sit above the prompt, and the second
+one carries the summary.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tab, with more to complete</td>
+<td>Completes the command. Two candidates or more open the menu</td>
+</tr>
+<tr>
+<td>Up or Down</td>
+<td>Moves the selection in the menu. The second message line shows the selected command's summary</td>
+</tr>
+<tr>
+<td>Tab, with nothing left to complete</td>
+<td>Shows the command's long explanation in a box above the prompt</td>
+</tr>
+<tr>
+<td>Tab, on a command that declares no explanation</td>
+<td>The second message line reads <code>&lt;command&gt;: no explanation is declared</code></td>
+</tr>
+<tr>
+<td><code>?</code>, with a candidate highlighted</td>
+<td>Shows that candidate's long explanation, in the box Tab uses. The menu stays open under it</td>
+</tr>
+<tr>
+<td><code>?</code>, on a config key in configuration mode</td>
+<td>Shows that key's whole YANG description in the box. A description is often a paragraph, and the message line holds one row</td>
+</tr>
+<tr>
+<td><code>?</code>, on a candidate that declares no text</td>
+<td>The second message line reads <code>&lt;command&gt;: no explanation is declared</code></td>
+</tr>
+<tr>
+<td><code>?</code>, with no candidate highlighted</td>
+<td>Completes, as Tab does</td>
+</tr>
+<tr>
+<td>Enter, with the menu open</td>
+<td>Puts the selected command in the input</td>
+</tr>
+<tr>
+<td>Enter, with the explanation on the screen</td>
+<td>Runs the command as typed</td>
+</tr>
+<tr>
+<td>Escape, with the explanation on the screen</td>
+<td>Removes the explanation. The typed command stays, and so does a menu under it</td>
+</tr>
+<tr>
+<td>Escape, with the menu open</td>
+<td>Closes the menu</td>
+</tr>
+<tr>
+<td>Escape, with nothing revealed</td>
+<td>Clears the typed command. An empty input asks to quit</td>
+</tr>
+<tr>
+<td>Any text key, or Backspace</td>
+<td>Removes the menu or the explanation. The key still reaches the input</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/cli/model_keys.go -- handleTab, revealExplanation, revealCandidateExplanation, handleEnter -->
+<!-- source: internal/component/cli/model_render.go -- warningText -->
+<p>Escape removes one thing for each press. The explanation goes first, and the
+typed command stays until the next press.</p>
+<!-- source: internal/component/cli/model_keys.go -- handleKeyMsg, the Escape descent -->
+<p>A menu row is the command name alone. The summary has the second message line to
+itself, so no width cuts it. Ze invents no explanation: a command that declares
+none says so.</p>
+<!-- source: internal/component/cli/model_render.go -- renderDropdownBox, renderExplanationBox -->
 
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
@@ -439,7 +578,7 @@ from the other, and no row is cut at a sentence or a newline.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

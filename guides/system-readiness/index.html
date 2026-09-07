@@ -116,6 +116,10 @@ remediation guidance.</p>
 <td>Plugin binary on PATH</td>
 </tr>
 <tr>
+<td><code>doctor-hub-managed-collision</code></td>
+<td>A <code>plugin/hub/server</code> block declares managed clients on the address the plugin acceptor binds, so its managed listener cannot bind and its clients are refused <!-- source: internal/component/plugin/doctor/check_managed_listener.go -- diagnoseManagedListener --></td>
+</tr>
+<tr>
 <td><code>doctor-service-executable</code></td>
 <td>Installed systemd unit <code>ExecStart</code> points to an executable ze binary</td>
 </tr>
@@ -136,6 +140,14 @@ remediation guidance.</p>
 <td>Interface existence and state</td>
 </tr>
 <tr>
+<td><code>doctor-iface-selector-unmatched</code> / <code>doctor-iface-selector-ambiguous</code></td>
+<td>A <code>mac { match }</code> selector names no device, or several</td>
+</tr>
+<tr>
+<td><code>doctor-iface-mac-override-by-name</code></td>
+<td>An ethernet overrides its MAC but binds by name, so the address lands on whichever device holds that name</td>
+</tr>
+<tr>
 <td><code>doctor-disk-space</code></td>
 <td>Partition free space (&lt;5%)</td>
 </tr>
@@ -150,6 +162,14 @@ remediation guidance.</p>
 <tr>
 <td><code>doctor-clock-skew</code></td>
 <td>System clock vs NTP (&gt;5 min)</td>
+</tr>
+<tr>
+<td><code>doctor-redistribute-unknown-source</code></td>
+<td>A <code>redistribute</code> import names a source no component registered. The daemon refuses to start on it</td>
+</tr>
+<tr>
+<td><code>doctor-redistribute-unknown-destination</code></td>
+<td>A <code>redistribute</code> destination names a protocol nothing registered, so every rule under it is inert. A warning, because a build that omits that protocol is a legitimate reason <!-- source: internal/component/doctor/checks_redistribute.go -- checkRedistributeRules --></td>
 </tr>
 <tr>
 <td><code>doctor-vpp-unreachable</code></td>
@@ -489,7 +509,7 @@ is present and emits the registered code.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

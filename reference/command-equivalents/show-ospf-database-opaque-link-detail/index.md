@@ -1,6 +1,6 @@
 # `show ospf database opaque-link detail`
 
-Decode each link-local opaque LSA body into its typed TLVs (TE / Router-Information / Extended / Segment-Routing) or a generic type/length/hex view (spec-ospf-ext-14, RFC 5250).
+Decode each link-local opaque LSA body (RFC 5250).
 
 ## Ze command
 
@@ -19,6 +19,8 @@ Decode each link-local opaque LSA body into its typed TLVs (TE / Router-Informat
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
+
+A body with a typed decoder returns its TLVs, which are TE, Router-Information, Extended and Segment-Routing. Every other body returns a generic type, length and hex view (spec-ospf-ext-14).
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `show geodns`
 
-GeoDNS server status: enabled, bind addresses/port, client-IP source mode, zones, nameserver/host-set/source counts, and the current SOA serial.
+Show the GeoDNS server status.
 
 ## Ze command
 
@@ -19,6 +19,8 @@ GeoDNS server status: enabled, bind addresses/port, client-IP source mode, zones
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
+
+Returns whether the server is enabled, the bind addresses and port, and the client-IP source mode. It also returns the zones, the nameserver, host-set and source counts, and the current SOA serial.
 
 ## Arguments
 

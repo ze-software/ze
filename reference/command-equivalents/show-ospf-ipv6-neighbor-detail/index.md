@@ -1,6 +1,6 @@
 # `show ospf ipv6 neighbor detail`
 
-Show full per-neighbor OSPFv3 state (spec-ospf-ext-14): the advertised Interface ID, DD sequence, decoded Options (R/V6/E/N/AF), list sizes, last NSM event, and timers.
+Show the full per-neighbor OSPFv3 state (spec-ospf-ext-14).
 
 ## Ze command
 
@@ -19,6 +19,8 @@ Show full per-neighbor OSPFv3 state (spec-ospf-ext-14): the advertised Interface
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
+
+Returns the advertised Interface ID, the DD sequence, the decoded Options (R/V6/E/N/AF), the list sizes, the last NSM event, and the timers.
 
 ## Arguments
 

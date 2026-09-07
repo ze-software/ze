@@ -20,6 +20,8 @@ Remove a cached message immediately.
 - Command pipes: none
 - Pipe aliases: none
 
+The entry is removed at once rather than when its lifetime ends. The ID leaf accepts a comma-separated list, and each ID is acted on in turn with a failure reported per ID.
+
 ## Arguments
 
 | Name | Type | Required | Values |

@@ -20,6 +20,8 @@ Show only ASBR-Summary-LSAs (Type 4).
 - Command pipes: none
 - Pipe aliases: none
 
+RFC 2328 Section 12.4.3 states that a Type 4 Summary-LSA describes a route to an AS boundary router. A Type 3 describes a route to a network instead. Both come from an area border router, and both are flooded through one area.
+
 ## Arguments
 
 No command-specific arguments listed.

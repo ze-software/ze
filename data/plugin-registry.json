@@ -234,6 +234,22 @@
     ]
   },
   {
+    "name": "bgp-filter-path-asn",
+    "description": "Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position",
+    "config_roots": [
+      "bgp"
+    ],
+    "dependencies": [
+      "bgp"
+    ],
+    "optional_dependencies": [],
+    "source_dir": "internal/component/bgp/plugins/filter_path_asn",
+    "yang_files": [
+      "internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn-cmd.yang",
+      "internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn.yang"
+    ]
+  },
+  {
     "name": "bgp-filter-prefix",
     "description": "Named prefix-list filter (CIDR + ge/le + accept/reject)",
     "config_roots": [
@@ -424,17 +440,6 @@
     "dependencies": [],
     "optional_dependencies": [],
     "source_dir": "internal/component/bgp/plugins/persist",
-    "yang_files": []
-  },
-  {
-    "name": "bgp-redistribute",
-    "description": "Route redistribution ingress filter with loop prevention and family filtering",
-    "config_roots": [],
-    "dependencies": [
-      "bgp"
-    ],
-    "optional_dependencies": [],
-    "source_dir": "internal/component/bgp/plugins/redistribute_ingress",
     "yang_files": []
   },
   {
@@ -767,6 +772,22 @@
     ]
   },
   {
+    "name": "firewall-domain",
+    "description": "DNS-sourced address groups for firewall rules",
+    "config_roots": [
+      "firewall"
+    ],
+    "dependencies": [
+      "firewall"
+    ],
+    "optional_dependencies": [],
+    "source_dir": "internal/component/firewall/plugins/domain",
+    "yang_files": [
+      "internal/component/firewall/plugins/domain/yang/ze-firewall-domain-group-cmd.yang",
+      "internal/component/firewall/plugins/domain/yang/ze-firewall-domain-group.yang"
+    ]
+  },
+  {
     "name": "firewall-irr",
     "description": "IRR-based prefix-list filtering for firewall rules",
     "config_roots": [
@@ -821,28 +842,6 @@
       "internal/plugins/geodns/yang/ze-geodns-cmd.yang",
       "internal/plugins/geodns/yang/ze-geodns-conf.yang"
     ]
-  },
-  {
-    "name": "iface-dhcp",
-    "description": "DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal",
-    "config_roots": [],
-    "dependencies": [
-      "interface"
-    ],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/iface/dhcp",
-    "yang_files": []
-  },
-  {
-    "name": "iface-ra",
-    "description": "Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861)",
-    "config_roots": [],
-    "dependencies": [
-      "interface"
-    ],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/iface/ra",
-    "yang_files": []
   },
   {
     "name": "ike",
@@ -1000,15 +999,6 @@
     ]
   },
   {
-    "name": "memlock",
-    "description": "Memory lock: keep the running executable resident under memory pressure",
-    "config_roots": [],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/memlock",
-    "yang_files": []
-  },
-  {
     "name": "mrt",
     "description": "MRT routing information export (RFC 6396)",
     "config_roots": [
@@ -1132,7 +1122,8 @@
       "static"
     ],
     "dependencies": [
-      "routing-table"
+      "routing-table",
+      "rib"
     ],
     "optional_dependencies": [
       "interface"

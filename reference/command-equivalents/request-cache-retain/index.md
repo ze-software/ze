@@ -20,6 +20,8 @@ Prevent eviction of a cached message.
 - Command pipes: none
 - Pipe aliases: none
 
+A retained entry is not evicted when it expires, so it stays listed until 'release' undoes the retain or 'expire' removes it. The ID leaf accepts a comma-separated list, and each ID is acted on in turn with a failure reported per ID.
+
 ## Arguments
 
 | Name | Type | Required | Values |

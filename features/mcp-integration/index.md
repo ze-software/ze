@@ -34,11 +34,11 @@ skip covers both surfaces.
 
 The `ze_execute` tool is the key to full control: anything you can do in `ze cli` (interactive or `ze cli -c` for one-shot commands), an AI can do via MCP. This includes:
 
-- **Route management:** `peer * update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24`
+- **Route management:** `send bgp * update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24`
 - **RIB queries:** `show bgp rib received`, `show bgp rib sent`, `clear bgp rib in`
 - **Peer lifecycle:** `show bgp peer list`, `request peer 10.0.0.1 teardown 6`, `delete bgp peer <sel>`
 - **Configuration:** `request commit start window1`, route changes, `request commit end window1`
-- **Cache operations:** `show cache`, `request cache forward`
+- **Cache operations:** `show cache`, `send bgp <sel> cached <id>`
 - **Event subscription:** `request subscribe bgp/update`
 - **Schema discovery:** `command-list`, `command-help <name>`
 

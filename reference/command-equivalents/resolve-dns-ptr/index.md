@@ -20,6 +20,8 @@ Reverse-lookup an IP address to its hostname (PTR).
 - Command pipes: none
 - Pipe aliases: none
 
+The address is turned into its in-addr.arpa or ip6.arpa name before the query. The cache holds the answer under that name, so show dns cache record takes it in that form.
+
 ## Arguments
 
 | Name | Type | Required | Values |

@@ -75,6 +75,8 @@
 .rfc-tape-both_polarities { background: var(--teal-chip); }
 .rfc-tape-single_polarity { background: var(--sky-chip); }
 .rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -113,19 +115,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>86.1%</strong><b>31 of 36 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>13.9%</strong><b>5 of 36 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 36 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 36 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>79.5%</strong><b>31 of 39 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>12.8%</strong><b>5 of 39 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 39 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 39 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 69 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>39</strong><b>of 50 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>3</strong><b>of 39 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>3</strong><b>of 39 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>7.7%</strong><b>3 of 39 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 39 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 39 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 4 shares marked as a part above are the whole of the 36 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 39 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -156,6 +161,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
+</tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
@@ -185,9 +202,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Gated MUST-level</td>
 <td>39</td>
-</tr>
-<tr><td>Obligations that bind Ze</td>
-<td>36</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>3</td>
@@ -288,7 +302,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>MUST</td>
 <td>5.2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-5.2.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L259" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertIPv4HeaderTTLProtoDst</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L260" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertIPv4HeaderTTLProtoDst</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> buildIPv4Header unconditionally sets TTL 255 at internal/plugins/vrrp/transport/transport.go:562, so no input yields a different TTL -- the rx TTL!=255 discard is the separate RFC3768-5.2.3-2</p></td>
 </tr>
@@ -298,7 +312,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>5.2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-5.2.3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L48" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV2</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L526" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L533" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-5.3.2-1">RFC3768-5.3.2-1</code></td><td colspan="3"><span class="rfc-subject">Discard packets with unknown Type; only 1 = ADVERTISEMENT is defined (§5.3.2)</span></td></tr>
@@ -307,7 +321,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>5.3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-5.3.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L49" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV2</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L145" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L150" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-5.3.4-1">RFC3768-5.3.4-1</code></td><td colspan="3"><span class="rfc-subject">Use Priority 255 for the VRRP router that owns the virtual router&#39;s IP address(es) (§5.3.4)</span></td></tr>
@@ -315,8 +329,8 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>MUST</td>
 <td>5.3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-5.3.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L764" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestOwnerAutoDetection</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L765" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestOwnerAutoDetection</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L770" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestOwnerAutoDetection</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L771" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestOwnerAutoDetection</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-5.3.4-2">RFC3768-5.3.4-2</code></td><td colspan="3"><span class="rfc-subject">Use Priority values 1-254 for VRRP routers backing up a virtual router (§5.3.4)</span></td></tr>
@@ -334,7 +348,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>5.3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-5.3.6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L50" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV2</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L590" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L598" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.2-1">RFC3768-6.4.2-1</code></td><td colspan="3"><span class="rfc-subject">Backup: never respond to ARP requests for the IP address(es) associated with the virtual router (§6.4.2)</span></td></tr>
@@ -343,7 +357,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>6.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-6.4.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L316" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L356" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L360" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.2-2">RFC3768-6.4.2-2</code></td><td colspan="3"><span class="rfc-subject">Backup: discard packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.2)</span></td></tr>
@@ -352,7 +366,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>6.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-6.4.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L317" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L357" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L361" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.2-3">RFC3768-6.4.2-3</code></td><td colspan="3"><span class="rfc-subject">Backup: never accept packets addressed to the IP address(es) associated with the virtual router (§6.4.2)</span></td></tr>
@@ -361,7 +375,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>6.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-6.4.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L318" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L358" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L362" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.2-4">RFC3768-6.4.2-4</code></td><td colspan="3"><span class="rfc-subject">Backup: on Shutdown, cancel the Master_Down_Timer and transition to Initialize (§6.4.2)</span></td></tr>
@@ -378,8 +392,8 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>MUST</td>
 <td>6.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-6.4.2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L429" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMMasterDownPromotion</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L618" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMStaleTimerGenerationIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L446" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMMasterDownPromotion</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L636" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMStaleTimerGenerationIgnored</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.2-6">RFC3768-6.4.2-6</code></td><td colspan="3"><span class="rfc-subject">Backup: on an ADVERTISEMENT with Priority 0, set the Master_Down_Timer to Skew_Time (§6.4.2)</span></td></tr>
@@ -415,7 +429,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-6.4.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L61" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L120" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L122" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.3-2">RFC3768-6.4.3-2</code></td><td colspan="3"><span class="rfc-subject">Master: forward packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.3)</span></td></tr>
@@ -423,7 +437,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>MUST</td>
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-6.4.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L354" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L358" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L319" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
 </div></td>
 </tr>
@@ -432,8 +446,8 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>MUST NOT</td>
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-6.4.3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L369" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L370" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L375" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L376" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.3-4">RFC3768-6.4.3-4</code></td><td colspan="3"><span class="rfc-subject">Master: accept packets addressed to the virtual router IP address(es) when the IP address owner (§6.4.3)</span></td></tr>
@@ -441,7 +455,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>MUST</td>
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-6.4.3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L355" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L359" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L320" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
 </div></td>
 </tr>
@@ -451,7 +465,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-6.4.3-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L96" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L429" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceShutdownAsMasterSendsPriorityZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L437" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceShutdownAsMasterSendsPriorityZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L97" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
 </div></td>
 </tr>
@@ -461,7 +475,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-6.4.3-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L98" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L619" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMStaleTimerGenerationIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L637" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMStaleTimerGenerationIgnored</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.3-7">RFC3768-6.4.3-7</code></td><td colspan="3"><span class="rfc-subject">Master: on an ADVERTISEMENT with Priority 0, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3)</span></td></tr>
@@ -497,7 +511,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-7.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L42" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV2</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L601" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L609" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-7.1-2">RFC3768-7.1-2</code></td><td colspan="3"><span class="rfc-subject">Rx: verify the received packet contains the complete VRRP packet, including fixed fields, IP address(es), and Authentication Data (§7.1)</span></td></tr>
@@ -506,7 +520,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-7.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L43" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV2</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L212" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L218" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-7.1-3">RFC3768-7.1-3</code></td><td colspan="3"><span class="rfc-subject">Rx: verify the VRRP checksum (§7.1)</span></td></tr>
@@ -515,7 +529,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-7.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L44" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV2</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L300" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeV2ChecksumCorrupt</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L306" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeV2ChecksumCorrupt</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-7.1-4">RFC3768-7.1-4</code></td><td colspan="3"><span class="rfc-subject">Rx: verify the VRID is configured on the receiving interface and the local router is not the IP address owner (Priority = 255) (§7.1)</span></td></tr>
@@ -524,7 +538,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-7.1-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L45" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV2</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L157" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L163" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-7.1-5">RFC3768-7.1-5</code></td><td colspan="3"><span class="rfc-subject">Rx: verify the Auth Type matches the locally configured authentication method and perform that method (§7.1)</span></td></tr>
@@ -533,7 +547,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-7.1-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L46" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV2</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L591" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L599" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-7.1-6">RFC3768-7.1-6</code></td><td colspan="3"><span class="rfc-subject">Rx: discard the packet if any mandatory receive check fails (§7.1)</span></td></tr>
@@ -541,8 +555,8 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>MUST</td>
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-7.1-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L472" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxValidAdvertReachesFSM</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L453" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxDecodeErrorMapsReason</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L481" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxValidAdvertReachesFSM</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L461" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxDecodeErrorMapsReason</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-7.1-7">RFC3768-7.1-7</code></td><td colspan="3"><span class="rfc-subject">Rx: if the optional address-list check fails and the sender is not the address owner (Priority != 255), drop the packet (§7.1)</span></td></tr>
@@ -550,8 +564,8 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>MUST</td>
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-7.1-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L553" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMatchReachesFSM</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L514" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMismatchDrops</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L563" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMatchReachesFSM</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L524" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMismatchDrops</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-7.1-8">RFC3768-7.1-8</code></td><td colspan="3"><span class="rfc-subject">Rx: verify the Adver Interval in the packet equals the locally configured value; discard the packet on mismatch (§7.1)</span></td></tr>
@@ -560,8 +574,8 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-7.1-8">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L47" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV2</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L287" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeV2IntervalMismatchDiscard</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L245" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L293" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeV2IntervalMismatchDiscard</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L251" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-7.2-1">RFC3768-7.2-1</code></td><td colspan="3"><span class="rfc-subject">Tx: fill in the VRRP fields from the virtual router configuration state and compute the VRRP checksum (§7.2)</span></td></tr>
@@ -578,7 +592,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>MUST</td>
 <td>7.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-7.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L383" title="internal/plugins/vrrp/packet/packet_test.go" target="_blank" rel="noopener"><code>TestConstants</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L385" title="internal/plugins/vrrp/packet/packet_test.go" target="_blank" rel="noopener"><code>TestConstants</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the source MAC is the virtual-router MAC from packet.VirtualMAC internal/plugins/vrrp/packet/packet.go:97 egressed by binding the tx socket to the vMAC macvlan internal/plugins/vrrp/transport/backend_linux.go:133, a deterministic derivation with no input that yields a different MAC</p></td>
 </tr>
@@ -596,7 +610,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>MUST</td>
 <td>7.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-7.2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L260" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertIPv4HeaderTTLProtoDst</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L261" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertIPv4HeaderTTLProtoDst</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> buildIPv4Header sets IP protocol 112 at internal/plugins/vrrp/transport/transport.go:563 and SendAdvert targets 224.0.0.18 at internal/plugins/vrrp/transport/backend_linux.go:256, both constants with no input that changes them</p></td>
 </tr>
@@ -606,7 +620,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>8.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-8.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L62" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L121" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L123" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-8.3-1">RFC3768-8.3-1</code></td><td colspan="3"><span class="rfc-subject">Advertise the virtual router MAC address in Proxy ARP messages sent on behalf of VRRP-protected addresses (§8.3; lowercase &#34;must&#34; in the RFC)</span></td></tr>
@@ -765,7 +779,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L259" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertIPv4HeaderTTLProtoDst</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L260" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertIPv4HeaderTTLProtoDst</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -780,7 +794,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L526" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L533" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -800,7 +814,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L145" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L150" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -820,12 +834,12 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L765" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestOwnerAutoDetection</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L771" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestOwnerAutoDetection</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L764" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestOwnerAutoDetection</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L770" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestOwnerAutoDetection</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -860,7 +874,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L590" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L598" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -880,7 +894,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L356" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L360" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -900,7 +914,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L357" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L361" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -920,7 +934,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L358" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L362" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -960,12 +974,12 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L618" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMStaleTimerGenerationIgnored</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L636" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMStaleTimerGenerationIgnored</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L429" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMMasterDownPromotion</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L446" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMMasterDownPromotion</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1040,7 +1054,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L120" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L122" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1065,7 +1079,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L354" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L358" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1080,12 +1094,12 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L370" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L376" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L369" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L375" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1105,7 +1119,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L355" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L359" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1130,7 +1144,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L429" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceShutdownAsMasterSendsPriorityZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L437" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceShutdownAsMasterSendsPriorityZero</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1145,7 +1159,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L619" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMStaleTimerGenerationIgnored</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L637" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMStaleTimerGenerationIgnored</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1225,7 +1239,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L601" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L609" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1245,7 +1259,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L212" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L218" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1265,7 +1279,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L300" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeV2ChecksumCorrupt</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L306" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeV2ChecksumCorrupt</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1285,7 +1299,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L157" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L163" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1305,7 +1319,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L591" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L599" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1325,12 +1339,12 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L453" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxDecodeErrorMapsReason</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L461" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxDecodeErrorMapsReason</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L472" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxValidAdvertReachesFSM</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L481" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxValidAdvertReachesFSM</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1345,12 +1359,12 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L514" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMismatchDrops</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L524" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMismatchDrops</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L553" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMatchReachesFSM</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L563" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMatchReachesFSM</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1365,12 +1379,12 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L287" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeV2IntervalMismatchDiscard</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L293" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeV2IntervalMismatchDiscard</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L245" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L251" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1405,7 +1419,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L383" title="internal/plugins/vrrp/packet/packet_test.go" target="_blank" rel="noopener"><code>TestConstants</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L385" title="internal/plugins/vrrp/packet/packet_test.go" target="_blank" rel="noopener"><code>TestConstants</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1435,7 +1449,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L260" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertIPv4HeaderTTLProtoDst</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L261" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertIPv4HeaderTTLProtoDst</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1450,7 +1464,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L121" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L123" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1763,7 +1777,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

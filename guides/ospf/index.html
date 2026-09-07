@@ -53,6 +53,7 @@
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#interface-network-types">Interface network types</a></li>
+<li><a href="#interface-cost">Interface cost</a></li>
 <li><a href="#multiple-address-families-rfc-5838">Multiple address families (RFC 5838)</a></li>
 <li><a href="#as-external-routes-and-redistribution">AS-External routes and redistribution</a></li>
 <li><a href="#stub-and-nssa-areas">Stub and NSSA areas</a></li>
@@ -67,6 +68,7 @@
 <li><a href="#graceful-restart-rfc-3623-rfc-5187">Graceful Restart (RFC 3623, RFC 5187)</a></li>
 <li><a href="#multi-instance-rfc-6549">Multi-Instance (RFC 6549)</a></li>
 <li><a href="#authentication">Authentication</a></li>
+<li><a href="#ospfv3-ipsec-rfc-4552">OSPFv3 IPsec (RFC 4552)</a></li>
 <li><a href="#operational-commands">Operational Commands</a></li>
 </ol></nav>
 <!-- source: internal/plugins/ospf/register.go -- registerOSPF -->
@@ -119,6 +121,27 @@ and <code>ze_ospf_ptmp_host_routes{interface,af}</code> metrics track NBMA/PtMP 
 <!-- source: internal/plugins/ospf/iface/nbma.go -- NBMA unicast/poll Hello + Start Hello -->
 <!-- source: internal/plugins/ospf/lsdb/origination.go -- routerLinks PtMP host route -->
 <!-- source: internal/plugins/ospf/origination_v6.go -- v6RouterLSABody, v6InterfacePrefixes /128 host route -->
+<h2 id="interface-cost">Interface cost</h2>
+<p>The cost an interface advertises in its Router-LSA link is the <code>cost</code> leaf when the interface sets one. An interface that sets none is priced by the auto-cost convention: <code>reference-bandwidth</code> divided by the speed of the link, both in Mbit/s. Under the default reference bandwidth of 100000 a 10 Gbit/s link costs 10, a 1 Gbit/s link costs 100 and a 100 Mbit/s link costs 1000, so a faster path wins with no per-interface configuration. Raise <code>reference-bandwidth</code> to spread the costs of a fast network further apart; lower it to compress them.</p>
+<pre><code>ospf {
+    router-id 10.0.0.1
+    reference-bandwidth 400000
+    interfaces {
+        interface eth0 {
+            area 0.0.0.0
+        }
+        interface eth1 {
+            area 0.0.0.0
+            cost 5
+        }
+    }
+}
+</code></pre>
+<p>The quotient is clamped to the range a Router-LSA link metric carries, 1 to 65535: RFC 2328 Appendix C.3 states that the interface output cost "must always be greater than 0", and the wire field is two octets wide. A link at or above the reference bandwidth therefore costs 1, and a link slow enough to exceed 65535 is capped there.</p>
+<p>The speed comes from the kernel, and which devices answer is the kernel's decision: a loopback, a dummy and a tunnel report none, a bridge and any link with no carrier report a negative speed, and a veth reports 10000 because its driver declares 10 Gbit/s. An interface with no reported speed costs 1, which is what Ze advertised for every unconfigured interface before auto-cost existed. Set <code>cost</code> on it to price it deliberately. The speed is read again on each origination pass rather than cached, so a link that renegotiates re-prices itself on the next pass; changing <code>reference-bandwidth</code> restarts the interfaces it re-prices and leaves an explicitly-costed interface alone. The same cost is what <code>show ospf interface</code> reports, what an LDP-IGP sync hold-down raises to <code>65535</code>, and what the RFC 3630 TE metric falls back to when <code>te-metric</code> is unset.</p>
+<!-- source: internal/plugins/ospf/interface_cost.go -- interfaceCost, interfaceLinkSpeedMbps -->
+<!-- source: internal/plugins/ospf/types/metric.go -- DefaultMetric -->
+<!-- source: internal/plugins/ospf/instance.go -- interfaceRuntimeConfigLocked, lsdbTopology, interfaceGlobalParamsChanged -->
 <h2 id="multiple-address-families-rfc-5838">Multiple address families (RFC 5838)</h2>
 <p>The OSPFv3 (IPv6) family carries several address families over one link, each as a separate
 OSPFv3 instance distinguished by its <strong>Instance ID range</strong> (RFC 5838 §2.1): IPv6-unicast
@@ -144,10 +167,15 @@ FRR <code>ospf6d</code>. IPv4-over-OSPFv3 (Instance ID 64-95) carries a 0-32-bit
 <!-- source: internal/plugins/ospf/lsdb/origination.go -- OriginateExternal, PurgeExternal -->
 <!-- source: internal/plugins/ospf/origination_v6_external.go -- v6InjectExternal, v6OriginateExternalLSA -->
 <!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSALSA -->
-<p>Redistribution uses the shared <code>redistribute</code> orchestrator. <code>redistribute { destination ospf { import connected static bgp } }</code> injects each accepted route as an external LSA in the configured address family; <code>redistribute { destination bgp { import ospf } }</code> exports OSPF-selected routes back out. OSPF self-import is a runtime no-op (loop prevention: the import source <code>ospf</code> equals the importing protocol). The per-source metric, metric-type (E1/E2), and route tag come from the <code>ospf</code> container's <code>redistribute</code> list; an unenrolled source falls back to metric 20, type-2.</p>
+<p>Redistribution uses the shared <code>redistribute</code> orchestrator. <code>redistribute { destination ospf { import connected static bgp } }</code> injects each accepted route as an external LSA in the configured address family; <code>redistribute { destination bgp { import ospf } }</code> exports OSPF-selected routes back out. OSPF self-import is a runtime no-op (loop prevention: the import source <code>ospf</code> equals the importing protocol). The per-source metric, metric-type (E1/E2), and route tag come from the <code>ospf</code> container's <code>redistribute</code> list; an unenrolled source falls back to metric 20, type-2. A redistributed route that carries its own tag overrides that per-source tag: the tag on the route is the more specific value, and it becomes the External Route Tag of the Type 5 (or Type 7) LSA. A route with no tag of its own takes the per-source value. RFC 2328 Appendix A.4.5 defines the field and states that OSPF itself does not read it, so the precedence is Ze's choice rather than the RFC's.</p>
 <!-- source: internal/plugins/ospf/redistribute/consumer.go -- Consumer InjectRoute, WithdrawRoute -->
 <!-- source: internal/plugins/ospf/redistribute/source.go -- Source OnSPFChange exports OSPF routes -->
 <!-- source: internal/plugins/ospf/redist_wiring.go -- engine InjectExternal, externalParams -->
+<p>The <code>redistribute</code> block is the whole configuration. It needs no <code>plugin</code> block
+and no <code>attach process</code> block. <code>import bgp</code> names the daemon's own Loc-RIB, and
+each peer's delivery to it is derived from the rule. See
+<a href="../redistribution/">Route Filters and Redistribution</a>, "Route Redistribution".</p>
+<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
 <p>Received external LSAs are resolved by the external SPF stage, which runs after the intra-area and inter-area route tables are built. Each external is resolved against its ASBR (or a non-zero forwarding address, re-resolved through the route table; unreachable externals are skipped). Type 1 (E1) cost is the distance to the forwarding target plus the advertised metric; type 2 (E2) cost is the advertised metric only, tie-broken by the forwarding distance. A type 1 external always wins over a type 2 regardless of cost, and any external ranks below an intra-area or inter-area route for the same prefix. The winning path installs as one <code>locrib.Path</code> with admin distance 110.</p>
 <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternal, ComputeExternalWith, betterExternal -->
 <!-- source: internal/plugins/ospf/afstrategy_v6.go -- v6ExternalReader -->
@@ -162,12 +190,14 @@ FRR <code>ospf6d</code>. IPv4-over-OSPFv3 (Instance ID 64-95) carries a 0-32-bit
 <p>An NSSA (<code>area-type nssa</code>, RFC 3101) is stub-like but permits local external redistribution. The N-bit must match between neighbors. The E-bit stays clear. An NSSA ASBR originates Type 7 LSAs for redistributed routes.</p>
 <!-- source: internal/plugins/ospf/lsdb/nssa.go -- OriginateNSSA, PurgeNSSA -->
 <!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSALSA -->
-<p>In OSPFv2, every NSSA border router originates a default into each directly attached NSSA. A regular NSSA gets a P-clear Type 7 default. A no-summary NSSA gets a Type 3 default. OSPFv3 does not yet originate this default correctly: see the RFC 3101 row in <code>docs/features/rfc-status.md</code>. In both address families the border router rejects received Type 7 defaults when the P-bit is clear or summary import is disabled.</p>
-<!-- source: internal/plugins/ospf/nssa.go -- applyNSSADefaults -->
+<p>Every NSSA border router originates a default into each directly attached NSSA, in both address families and with no operator leaf to enable it (RFC 3101 §2.4). A regular NSSA gets a P-clear Type 7 default: an OSPFv2 Type 7 LSA, or the OSPFv3 NSSA-LSA (<code>0x2007</code>) that carries the P-bit in its prefix options rather than in the LSA header. A no-summary NSSA gets the default through the summary path instead, as an OSPFv2 Type 3 summary-LSA or the OSPFv3 <code>::/0</code> Inter-Area-Prefix-LSA, and gets no Type 7 default at all (RFC 3101 §2.7). In both address families the border router rejects received Type 7 defaults when the P-bit is clear or summary import is disabled; a router that is not an NSSA border router installs them.</p>
+<!-- source: internal/plugins/ospf/nssa.go -- applyNSSADefaults, wantsType7Default -->
+<!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSADefault -->
 <!-- source: internal/plugins/ospf/spf/area_type.go -- applyAreaTypePolicy -->
+<!-- source: internal/plugins/ospf/origination_v6_stub.go -- v6ApplyAreaTypePolicy -->
 <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternalWith -->
-<p>An internal NSSA router can originate a P-set default with <code>nssa { default-originate true }</code> when it has a usable forwarding address.</p>
-<!-- source: internal/plugins/ospf/nssa.go -- applyNSSADefaults -->
+<p>An internal NSSA router can originate a P-set default with <code>nssa { default-originate true }</code> when it has a usable forwarding address. The leaf is an internal-router setting: a border router originates its default anyway, so the leaf changes nothing there, and it is inert in a no-summary NSSA because RFC 3101 §1.3 makes an internal router's Type 7 default and the no-summary option mutually exclusive.</p>
+<!-- source: internal/plugins/ospf/nssa.go -- applyNSSADefaults, wantsType7Default -->
 <!-- source: internal/plugins/ospf/lsdb/nssa.go -- OriginateNSSA -->
 <p>Among the ABRs attached to an NSSA, exactly one is elected the Type 7 to Type 5 translator (RFC 3101 §3.5): the translator-candidate ABR with the highest Router ID. Each ABR whose role is not <code>never</code> advertises the Nt-bit in its Router-LSA to stand as a candidate; a <code>never</code> ABR clears the Nt-bit and is excluded from the election, so it cannot wedge translation off for a willing lower-Router-ID candidate. The role is configurable per area (<code>nssa { translate-role candidate|always|never }</code>), sticky across a <code>stability-interval</code>. The elected translator re-originates each P=1, non-zero-FA Type 7 as a Type 5 onto the backbone (P cleared, Advertising Router set to the translator, forwarding address / metric / tag preserved), counted by <code>ze_ospf_nssa_translations_total{area}</code>. A non-elected ABR does not translate, so no duplicate Type 5 reaches the backbone. When the same external prefix is known via a Type 7 (P=1), a Type 5, and a Type 7 (P=0), the external route computation prefers them in that order (RFC 3101 §2.5) ahead of the §16.4 cost.</p>
 <!-- source: internal/plugins/ospf/nssa.go -- electNSSATranslator, translateNSSA, translatorEffective -->
@@ -372,8 +402,55 @@ Graceful Restart to survive a restart. The appliance image already sets it to
 <!-- source: internal/plugins/ospf/auth_wiring.go -- signPacket (TX), verifyPacket (RX) -->
 <p>For cryptographic auth the OSPF common-header Checksum is zero (the appended digest provides integrity) and the OSPF Packet Length covers only the header and body; the digest (and, for AuType 3, a leading 64-bit sequence number) is appended after the body and counted only in the IP length. All digest and password comparisons are constant-time. The cryptographic sequence number is non-decreasing per neighbour, key-id, and packet type, so a replayed packet is rejected; the send counter is seeded from a monotonic clock so it does not regress across a restart (a peer enforcing a strictly-increasing sequence keeps the adjacency, RFC 7474). For AuType 3 the IP source address is bound into the digest (RFC 7474 §5 initialises the first four octets of Apad to the source address) so a spoofed source fails verification.</p>
 <!-- source: internal/plugins/ospf/auth_keystore.go -- verify replay check, signKey sequence -->
-<p>Keys are organised as named chains for hitless rotation: a chain holds multiple keys, the first is used to sign, and any chain key is accepted on receive during an overlap window. A chain is bound per interface, or an interface set to <code>authentication { mode inherit }</code> uses the area-level default chain. Secrets are stored <code>$9$</code>-encoded and never appear in plaintext in <code>show configuration</code> or backups.</p>
+<p>Keys are organised as named chains for hitless rotation: a chain holds multiple keys, the key whose <code>send-lifetime</code> covers the current time signs, and every key whose <code>accept-lifetime</code> covers the current time is accepted on receive. RFC 7474 section 4 requires that window to include the current time for a key used on reception, so a packet made with a key outside its window is dropped and counted as <code>accept-lifetime</code> in <code>ze_ospf_auth_failures_total</code>. Configure the two windows to overlap and a key rolls over without dropping the adjacency; close an <code>accept-lifetime</code> and the key is retired without editing the chain. A key with no <code>accept-lifetime</code> is accepted at every time. A chain is bound per interface, or an interface set to <code>authentication { mode inherit }</code> uses the area-level default chain. Secrets are stored <code>$9$</code>-encoded and never appear in plaintext in <code>show configuration</code> or backups.</p>
 <!-- source: internal/plugins/ospf/auth_keystore.go -- configure, inherit resolution, decodeSecret -->
+<h2 id="ospfv3-ipsec-rfc-4552">OSPFv3 IPsec (RFC 4552)</h2>
+<p>OSPFv3 has no authentication field of its own, so an IPv6-family interface is protected by
+a manually keyed IPsec Security Association instead. The <code>ipsec</code> block installs one
+transport-mode kernel SA and three protocol-89 XFRM policies (out, in and forward) scoped
+to that interface. AH gives integrity only; ESP gives integrity, and confidentiality when
+an <code>encryption-algorithm</code> and <code>encryption-key</code> are set. This path is Linux-only, and it is
+mutually exclusive with a RFC 7166 authentication key chain on the same interface.</p>
+<pre><code>ospf {
+    address-family {
+        ipv6 {
+            interfaces {
+                interface eth1 {
+                    area 0.0.0.0
+                    ipsec {
+                        protocol ah
+                        spi 256
+                        algorithm sha256
+                        key &lt;64 hex characters&gt;
+                        replay-window 64
+                    }
+                }
+            }
+        }
+    }
+}
+</code></pre>
+<p>Each interface needs its own SPI: the kernel identifies the shared wildcard state by
+destination, SPI and protocol, so two interfaces sharing an SPI collide. <code>spi</code> is 256 or
+above, because RFC 4303 §2.1 reserves 0 to 255. The <code>key</code> length must match <code>algorithm</code>
+(sha1 40, sha256 64, sha384 96, sha512 128 hex characters).</p>
+<p><code>replay-window</code> is the anti-replay window in packets, for AH and ESP alike. RFC 4302
+§3.4.3 and RFC 4303 §3.4.3 require every implementation to support the anti-replay service
+and leave its use to the receiver, per SA. Ze accepts 0, which disables it, or 32 to 255;
+32 is the minimum window those sections make mandatory to support, and 64 is the size they
+prefer. The kernel performs the per-packet check.</p>
+<p>The default is 0, and leaving it there is the RFC's own advice for this path. RFC 4302 §5:
+"If the key used to compute an ICV is manually distributed, correct provision of the
+anti-replay service would require correct maintenance of the counter state at the sender,
+until the key is replaced ... Thus, a compliant implementation SHOULD NOT provide this
+service in conjunction with SAs that are manually keyed." Nothing rekeys these SAs, and
+the sequence counter lives in kernel state that a restart clears. So a peer that restarts
+begins again at sequence 1, and a receiver holding a window from before the restart drops
+those packets until its own SA is reinstalled. Enable the window only where a peer restart
+is an event you handle, because recovery needs the receiving interface to bounce.</p>
+<!-- source: internal/plugins/ospf/config_ipsec.go -- parseIPsec, validateIPsecInterface -->
+<!-- source: internal/plugins/ospf/ipsec_install.go -- buildIPsecSA, buildIPsecPolicies -->
+<!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- the ipsec container -->
 <h2 id="operational-commands">Operational Commands</h2>
 <p>Operational state is available through the <code>show ospf</code> command tree:</p>
 <pre><code class="language-text">show ospf
@@ -494,7 +571,7 @@ The recording uses `ze cli` directly. No output wrapper or synthetic summary sit
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

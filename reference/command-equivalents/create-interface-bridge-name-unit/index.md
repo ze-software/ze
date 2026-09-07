@@ -20,6 +20,8 @@ Add a VLAN sub-interface to the bridge.
 - Command pipes: none
 - Pipe aliases: none
 
+The VLAN id is 1 to 4094, and the new interface is named <name>.<vid>. The bridge is created first when it is absent, and deleted again when this step fails.
+
 ## Arguments
 
 | Name | Type | Required | Values |

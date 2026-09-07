@@ -1,6 +1,6 @@
 # `show dns cache stats`
 
-Show DNS cache hit, miss, eviction, expiry, and hit-rate counters without changing cache contents.
+Show the DNS cache hit, miss, eviction, expiry, and hit-rate counters.
 
 ## Ze command
 
@@ -19,6 +19,8 @@ Show DNS cache hit, miss, eviction, expiry, and hit-rate counters without changi
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
+
+It reads the counters and does not change the cache contents.
 
 ## Arguments
 

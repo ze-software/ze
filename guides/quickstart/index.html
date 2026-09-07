@@ -70,7 +70,7 @@
 cd ze
 CGO_ENABLED=0 go build -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' -o bin/ze ./cmd/ze
 </code></pre>
-<p>Requires <strong>Go 1.26+</strong> on a macOS or Linux development host. Windows is not a supported development platform.</p>
+<p>Requires <strong>Go 1.27+</strong> on a macOS or Linux development host. Windows is not a supported development platform.</p>
 <h3 id="or-go-install">Or: go install</h3>
 <p>To get a <code>ze</code> binary without cloning the repository, use <code>go install</code> with the
 default feature tags derived from <code>feature-gates.txt</code>:</p>
@@ -306,7 +306,7 @@ peer's OWN address on the wire, and Ze refuses to advertise that, because RFC 42
 Section 5.1.3 forbids telling a peer to reach a destination through itself. The
 session still establishes, so the symptom is routes that never arrive rather than
 an error. On Linux the whole 127.0.0.0/8 range is available; on macOS add the
-alias once with <code>sudo ifconfig lo0 alias 127.0.0.2</code>, which <code>./le setup</code> also
+alias once with <code>sudo ifconfig lo0 alias 127.0.0.2</code>, which <code>./le setup install</code> also
 does. The refusal is <code>originatedNextHopIsPeerOwn</code>
 (<code>internal/component/bgp/reactor/forward_next_hop.go</code>), and <code>precomputeNextHop</code>
 (<code>internal/component/bgp/reactor/peer_forward_facts.go</code>) is what resolves
@@ -364,7 +364,7 @@ announce a route; the address split is what keeps it working when you do.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:49 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

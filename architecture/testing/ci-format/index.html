@@ -92,8 +92,11 @@
 <li><a href="#example_1">Example</a></li>
 <li><a href="#process-commands-foregroundbackground">Process Commands (Foreground/Background)</a>
 <ol>
+<li><a href="#how-an-exec-value-becomes-argv">How an exec= value becomes argv</a></li>
 <li><a href="#cmdstop-terminate-a-background-process-mid-test">cmd=stop -- terminate a background process mid-test</a></li>
 <li><a href="#exit-vs-expectexitcode-per-command-vs-file-level">exit= vs expect=exit:code= (per-command vs file-level)</a></li>
+<li><a href="#every-stream-assertion-is-file-level-over-one-buffer">Every stream assertion is FILE-level, over ONE buffer</a></li>
+<li><a href="#the-parse-suite-reads-its-own-dialect">The parse suite reads its own dialect</a></li>
 </ol></li>
 <li><a href="#example-decode-test">Example (Decode Test)</a></li>
 <li><a href="#example-multi-process">Example (Multi-Process)</a></li>
@@ -104,6 +107,7 @@
 <li><a href="#bgp-wire-expectations">BGP Wire Expectations</a></li>
 <li><a href="#json-expectations">JSON Expectations</a></li>
 <li><a href="#exit-code-expectations">Exit Code Expectations</a></li>
+<li><a href="#unknown-keys-are-a-parse-error">Unknown Keys Are a Parse Error</a></li>
 <li><a href="#stdout-expectations">Stdout Expectations</a></li>
 <li><a href="#stderr-expectations">Stderr Expectations</a></li>
 <li><a href="#await-deterministic-stderr-fence">Await (deterministic stderr fence)</a></li>
@@ -140,6 +144,7 @@
 <li><a href="#the-compiled-observer-api">The compiled observer API</a></li>
 <li><a href="#engine-steps">Engine Steps</a>
 <ol>
+<li><a href="#expectevent">expect=event</a></li>
 <li><a href="#expectcommand-error">expect=command-error</a></li>
 <li><a href="#expectoutput-expectstream-predicates">expect=output / expect=stream predicates</a></li>
 <li><a href="#example_3">Example</a></li>
@@ -1012,6 +1017,34 @@ cmd=stop:seq=&lt;N&gt;:name=&lt;handle&gt;[:signal=kill|term]
 <p><strong>Background:</strong> Starts and keeps running until test ends.
 <strong>Foreground:</strong> Starts and waits for completion.
 <strong>Stop:</strong> Terminates a named background process mid-test (see below).</p>
+<h4 id="how-an-exec-value-becomes-argv">How an <code>exec=</code> value becomes argv</h4>
+<p>The runner splits the value on spaces and tabs, and a span inside <code>"</code> or <code>'</code>
+stays ONE argument. Quote an argument that carries a space or a pipe, exactly as
+you would in a shell:</p>
+<pre><code>cmd=foreground:seq=1:exec=ze cli -c "show config dump - | json":stdin=config
+</code></pre>
+<p><code>-c</code> receives <code>show config dump - | json</code>, and the quotes do not reach the
+process. Three limits apply:</p>
+<ul>
+<li>A backslash escape is not handled. <code>\"</code> is a backslash and a quote character,
+never a literal quote inside an argument.</li>
+<li>An unbalanced quote fails the test with <code>unclosed quote in ...</code>.</li>
+<li>No shell runs, so <code>|</code>, <code>&gt;</code> and <code>$HOME</code> are ordinary characters inside an
+argument. The runner expands <code>$PORT</code> and <code>$PORT2</code> and nothing else, and
+<code>ze-test fixture</code> expands the environment in its own arguments.</li>
+</ul>
+<p>One splitter serves every suite, so a <code>cmd=</code> line produces the same argv
+wherever it runs.</p>
+<p><strong>Provenance:</strong> until 2026-09-02 the <code>.ci</code> runner split the value on whitespace
+alone while the parse suite honored quotes. The example above was already
+published here, so four <code>test/ui</code> tests were written against it. <code>-c</code> received
+only the first word of the quoted command, <code>ze cli</code> fell through to its SSH
+client, and each test failed with <code>no credentials for 127.0.0.1:2222</code>.</p>
+<!-- source: internal/test/runner/runner_exec_util.go -- splitCommand -->
+<!-- source: internal/test/runner/runner_exec.go -- runExecCommands argv construction -->
+<!-- source: internal/test/runner/parsing.go -- runOneCommand, the parse suite's own execution -->
+<!-- source: internal/test/fixture/fixture.go -- Run, os.ExpandEnv over the fixture's own arguments -->
+<!-- test: test/runner/exec-quoted-argument.ci -- a quoted argument carrying a pipe reaches the callee as one argv element -->
 <h4 id="cmdstop-terminate-a-background-process-mid-test"><code>cmd=stop</code> -- terminate a background process mid-test</h4>
 <p>A background process started with <code>name=&lt;handle&gt;</code> can be stopped at a chosen step
 by <code>cmd=stop:seq=&lt;N&gt;:name=&lt;handle&gt;</code>. The runner looks the process up, signals it,
@@ -1052,11 +1085,33 @@ checked the moment that command finishes, and names the offending <code>seq</cod
 "quick-exit <code>ze</code> command" is any foreground <code>ze</code> whose verb is not a daemon verb
 (<code>hub</code>, <code>start</code>, <code>cli</code>, <code>monitor</code>) and which has no config-file argument or
 <code>--web</code> flag.</p>
-<p>Note that stdout/stderr expectations are file-level in the same way: they match the
-<strong>accumulated</strong> output of every command in the file, so <code>expect=stdout:contains=</code>
-can be satisfied by a different command than the one intended, and
-<code>reject=stdout:pattern=</code> trips on any command's output. When a reject must apply to
-one command, keep that command in its own file (see <code>test/vrrp/vrrp-doctor-quiet.ci</code>).</p>
+<h4 id="every-stream-assertion-is-file-level-over-one-buffer">Every stream assertion is FILE-level, over ONE buffer</h4>
+<p>This section describes the <strong>generic</strong> runner, which is every suite except
+<code>test/parse</code>. The parse suite scopes each assertion to one command; see "The
+parse suite reads its own dialect" below.</p>
+<p><code>expect=stdout:</code>, <code>expect=stderr:</code>, <code>reject=stdout:</code> and <code>reject=stderr:contains=</code>
+all read <code>Record.ClientOutput</code>, which the runner builds ONCE at the end of the
+test as the concatenated stdout AND stderr of every command in the file. Two
+consequences, and an author who misses either writes an assertion that cannot
+mean what it says:</p>
+<ul>
+<li><strong>There is no per-command scope.</strong> <code>expect=stdout:contains=</code> can be satisfied
+by a different command than the one it sits under, and a reject trips on any
+command's output. A file that asserts a needle PRESENT for one command and
+ABSENT for another asserts two contradictory things about one string.</li>
+<li><strong>The stream name selects nothing</strong> for <code>contains=</code>. Only <code>pattern=</code> on
+<code>expect=stderr:</code> / <code>reject=stderr:</code> reads stderr alone, through
+<code>validateLogging</code>.</li>
+</ul>
+<p>So a negative assertion belongs in a file whose every command may satisfy it.
+Split the file otherwise: <code>test/plugin/vpp-doctor-hugepages.ci</code> and
+<code>vpp-doctor-hugepages-quiet.ci</code> are one scenario in two files for exactly this
+reason, as are <code>test/appliance/no-install-appliance.ci</code> and
+<code>appliance-help-not-deprecated.ci</code>, and each says so at the top. Also see
+<code>test/vrrp/vrrp-doctor-quiet.ci</code>, a single-command file so its reject is
+meaningful.</p>
+<!-- source: internal/test/runner/runner_exec.go -- rec.ClientOutput = clientStdout.String() + clientStderr.String() -->
+<!-- source: internal/test/runner/runner_output_assert.go -- checkOutputAssertions -->
 <!-- source: internal/test/runner/runner_exec.go -- quickZe branch, per-command exit assertion -->
 <!-- source: internal/test/runner/record_parse_cmd.go -- parseCmdExec, exitMarker -->
 <!-- source: internal/test/runner/record.go -- RunCommand.ExitCode -->
@@ -1066,6 +1121,66 @@ one command, keep that command in its own file (see <code>test/vrrp/vrrp-doctor-
 <p><strong>Known gap:</strong> 108 quick-exit <code>ze</code> commands across 50 <code>.ci</code> files predate <code>exit=</code>
 and are still unasserted (their <code>expect=exit:code=</code> never reaches them). Arming
 them may surface real defects; tracked in <code>plan/known-failures/</code>.</p>
+<h4 id="the-parse-suite-reads-its-own-dialect">The parse suite reads its own dialect</h4>
+<p><code>test/parse</code> runs under <code>ParsingTests</code>, a second parser with its own execution
+model. Two differences are load-bearing for an author.</p>
+<p><strong>Every assertion is scoped to one command.</strong> It is checked against the stdout
+and stderr of the <code>cmd=</code> line directly above it, not against a file-level
+buffer. So a needle asserted present under one command and absent under another
+means what it says here, and does not need the file split the section above
+describes. An assertion that appears before the first <code>cmd=</code> has nothing to
+assert against and <strong>fails the file</strong>; <code>expect=stderr:contains=</code> is the one
+exception, because a <code>.ci</code> holding an inline config and no command at all is a
+legacy negative test whose expected error it carries.</p>
+<p><strong>The dialect is a subset of the generic vocabulary, and nothing else parses.</strong>
+A directive no arm reads <strong>fails the file at discovery</strong>, naming the directive,
+the file, and every directive the suite does read. It is the same rule as
+"Unknown Keys Are a Parse Error" above, applied to the whole line rather than to
+a key inside it.</p>
+<table>
+<thead>
+<tr>
+<th>Read by the parse suite</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cmd=</code>, <code>expect=exit:code=</code></td>
+</tr>
+<tr>
+<td><code>expect=stdout:contains=</code>, <code>expect=stdout:pattern=</code></td>
+</tr>
+<tr>
+<td><code>expect=stderr:contains=</code>, <code>expect=stderr:pattern=</code></td>
+</tr>
+<tr>
+<td><code>reject=stdout:contains=</code>, <code>reject=stdout:pattern=</code>, <code>reject=stderr:pattern=</code></td>
+</tr>
+<tr>
+<td><code>option=skip-os:value=</code>, <code>option=env:</code></td>
+</tr>
+</tbody>
+</table>
+<p>Two spellings this suite once had are <strong>deleted</strong>, not aliased. Both existed
+only here, and both are what two parsers over one corpus costs:</p>
+<ul>
+<li><code>expect=stdout:regex=</code> is now <code>expect=stdout:pattern=</code>. The generic parser
+reads <code>pattern=</code> and refuses <code>regex=</code>, so the gates that walk the whole corpus
+with it could not read three <code>test/parse</code> files at all.</li>
+<li><code>expect=stdout:not:contains=</code> is now <code>reject=stdout:contains=</code>, which this
+suite already read with the identical meaning. This is the one that mattered:
+the generic parser splits <code>not:contains=</code> at the <code>:contains=</code> key boundary and
+drops the bare <code>not</code>, so one written line meant "must be absent" to the suite
+that runs <code>test/parse</code> and "must be present" to every gate that reads it.</li>
+</ul>
+<p><strong><code>cmd=...:timeout=&lt;duration&gt;</code> is honored</strong>, and a bare <code>ze -</code> runs as
+<code>ze start &lt;file&gt;</code>, the same translation the generic runner makes. Substituting
+the path in place produced <code>ze &lt;path&gt;</code>, which is not a command: the daemon
+answered <code>unknown command: &lt;path&gt;</code> with its usage and exit 1 before reading a
+line of config, so a file could assert <code>expect=exit:code=1</code> and be satisfied by
+the usage error.</p>
+<!-- source: internal/test/runner/parsing.go -- ciDirectives, ciFileParser.line, runOneCommand -->
+<!-- test: internal/test/runner/parsing_test.go -- TestParseCIRefusesUnknownDirective, TestParseCIAssertionsDiscriminate, TestParseCICorpusReadsUnderTheGenericParser -->
 <p><strong>Daemon readiness (<code>ze</code> only):</strong> a <code>ze</code> daemon launched <strong>either</strong> foreground or
 background is told (via <code>ZE_READY_FILE</code>) to write <code>daemon.ready</code> once startup
 completes, and the runner publishes its PID to <code>daemon.pid</code> in the tmpfs directory.
@@ -1117,19 +1232,26 @@ next command.</p>
 and FreeBSD, the test runner adds loopback aliases via the <code>SIOCAIFADDR</code> ioctl.</p>
 <p>IPv6 works differently, because a host carries exactly one IPv6 loopback
 address. A fixture that needs a second one uses <code>fd00::2</code>, which is unique-local
-(RFC 4193) and never globally routable. <code>./le setup</code> adds it, and
+(RFC 4193) and never globally routable. <code>./le setup install</code> adds it, and
 <code>./le setup check</code> reports whether it is there. The runner never adds it:
 the ioctl returns EPERM to an unprivileged process, and <code>./le verify current mode full</code> runs as
 an ordinary user. A test that binds an address this host does not carry fails at
 once with <code>loopback_address_missing</code> and the command to run, rather than timing
 out on a bind that could not succeed.</p>
-<p>The check reads both places a fixture names an address it binds. One is
-<code>ze-peer --bind &lt;ip&gt;</code> on a <code>cmd=</code> line. The other is <code>connection { local { ip &lt;addr&gt; } }</code> in the config the fixture embeds: Ze sends from that address and
-listens on it when <code>accept</code> is true, so the host must carry it too. A local
-address outside 127.0.0.0/8 and fc00::/7 is left alone. A config-validation
-fixture names a routable one (<code>local { ip 192.0.2.1 }</code>), the daemon exits before
-it binds anything, and <code>./le setup</code> adds no such address.</p>
-<!-- source: internal/test/runner/loopback.go -- probe, error text, --bind and config-local scan -->
+<p>The check reads the three places a fixture names an address it binds. One is
+<code>ze-peer --bind &lt;ip&gt;</code> on a <code>cmd=</code> line. The second is <code>connection { local { ip &lt;addr&gt; } }</code> in the config the fixture embeds: Ze sends from that address and
+listens on it when <code>accept</code> is true, so the host must carry it too. The third is
+<code>local-address &lt;addr&gt;;</code> in an ExaBGP-syntax config the exabgp-compat suite keeps
+beside its <code>.ci</code> and names with <code>option=file:</code>. That suite has a parser and a
+runner of its own, so it calls the same scan through
+<code>EnsureConfigFileBindAddresses</code> rather than through the embedded path.</p>
+<p>A local address outside 127.0.0.0/8 and fc00::/7 is left alone. A
+config-validation fixture names a routable one (<code>local { ip 192.0.2.1 }</code>), the
+daemon exits before it binds anything, and <code>./le setup install</code> adds no such
+address. The <code>local-link-local fe80::1</code> leaf that sits beside <code>local-address</code> in
+an exabgp-compat config is left alone for the same reason.</p>
+<!-- source: internal/test/runner/loopback.go -- probe, error text, --bind, config-local and local-address scan -->
+<!-- source: internal/test/cli/cmd_exabgp.go -- runOneExaBGPTest, the exabgp-compat preflight call -->
 <!-- source: internal/test/runner/loopback_linux.go -- no-op on Linux for IPv4 -->
 <!-- source: internal/test/runner/loopback_darwin.go -- SIOCAIFADDR on BSD -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
@@ -1177,17 +1299,29 @@ expect=json:json=&lt;json-object&gt;
 <p>Validates the foreground process exit code. A test whose ONLY assertion is
 <code>expect=exit:code=0</code> is <strong>accept-only</strong> (weak) and is gated by a lint; see
 <a href="#assertion-strength-accept-only-tests-and-readback">Assertion Strength</a>.</p>
+<h3 id="unknown-keys-are-a-parse-error">Unknown Keys Are a Parse Error</h3>
+<p>Every <code>expect=</code> and <code>reject=</code> arm declares the keys it reads, and a key outside
+that set fails the file at discovery, naming the key, the accepted keys, and the
+line. Nothing is dropped in silence.</p>
+<p>The rule exists because a dropped key takes the whole assertion with it. An
+<code>expect=stdout:not-contains=X</code> line recorded NO assertion and then passed
+whatever the command printed. Ten such lines were live across seven <code>.ci</code> files
+when the check was added, and one of them was the only assertion its test made.</p>
+<!-- source: internal/test/runner/record_parse_keys.go -- checkKeys, retiredKeys -->
+<p>Two spellings get a named message, because both are the right key somewhere
+else: <code>not-contains=</code> belongs to <code>expect=file:</code>, and <code>!contains=</code> was the
+<code>expect=stdout</code> spelling until stream non-containment moved to <code>reject=</code>.</p>
 <h3 id="stdout-expectations">Stdout Expectations</h3>
 <pre><code>expect=stdout:contains=&lt;text&gt;
-expect=stdout:!contains=&lt;text&gt;
 expect=stdout:pattern=&lt;regex&gt;
 </code></pre>
-<p>Three modes:</p>
+<p>Two modes:</p>
 <ul>
 <li><code>contains=</code> -- substring match against stdout (multiple allowed, all must match)</li>
-<li><code>!contains=</code> -- negative substring match (stdout must NOT contain text)</li>
 <li><code>pattern=</code> -- regex match against stdout (uses Go <code>regexp</code> syntax)</li>
 </ul>
+<p>Stdout must NOT contain text is <code>reject=stdout:contains=</code>, below. A stream has
+ONE negation spelling and it lives on <code>reject=</code>.</p>
 <h3 id="stderr-expectations">Stderr Expectations</h3>
 <pre><code>expect=stderr:pattern=&lt;regex&gt;
 expect=stderr:contains=&lt;text&gt;
@@ -1197,6 +1331,10 @@ expect=stderr:contains=&lt;text&gt;
 <li><code>pattern=</code>: regex match against stderr (uses Go <code>regexp</code> syntax)</li>
 <li><code>contains=</code>: substring match against stderr</li>
 </ul>
+<p><code>pattern=</code> reads the daemon's stderr alone. <code>contains=</code> reads the same combined
+buffer every stdout assertion reads (see the scope note below), so it matches a
+needle the command wrote to stdout. Reach for <code>pattern=</code> when the stream matters.</p>
+<p>Stderr must NOT contain text is <code>reject=stderr:contains=</code>, below.</p>
 <h3 id="await-deterministic-stderr-fence">Await (deterministic stderr fence)</h3>
 <pre><code>await=stderr:contains=&lt;text&gt;[:timeout=&lt;dur&gt;]
 </code></pre>
@@ -1235,15 +1373,17 @@ expect=file:glob=&lt;rel-pattern&gt;:contains=&lt;text&gt;
 expect=file:glob=&lt;rel-pattern&gt;:not-contains=&lt;text&gt;
 </code></pre>
 <p>Validates files after the test process or peer sequence has completed. Paths and
-glob patterns are relative to the tmpfs directory when the test uses <code>tmpfs=</code>,
-otherwise relative to the <code>.ci</code> file directory. For glob <code>contains</code>, at least one
-matched file must contain the text. For glob <code>not-contains</code>, no matched file may
-contain it.</p>
+glob patterns are relative to the test's own work directory, which is where every
+child ran and where a daemon writes its artifacts. A test that declares <code>tmpfs=</code>
+files gets them in that same directory, so the two spellings name one place. For
+glob <code>contains</code>, at least one matched file must contain the text. For glob
+<code>not-contains</code>, no matched file may contain it.</p>
 <p>Use file expectations for post-run artifacts such as generated configs, pointer
 files, and logs. Do not write shell just to inspect files.</p>
 <!-- source: internal/test/runner/runner_validate.go -- validateFileChecks -->
 <h3 id="negative-expectations-reject">Negative Expectations (reject)</h3>
-<pre><code>reject=stderr:pattern=&lt;regex&gt;
+<pre><code>reject=stderr:contains=&lt;text&gt;
+reject=stderr:pattern=&lt;regex&gt;
 reject=stdout:contains=&lt;text&gt;
 reject=stdout:pattern=&lt;regex&gt;
 reject=syslog:pattern=&lt;regex&gt;
@@ -1258,6 +1398,10 @@ reject=bgp:conn=&lt;N&gt;:pattern=&lt;hex&gt;
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><code>reject=stderr:contains=&lt;text&gt;</code></td>
+<td>Fail if the combined output contains substring (the mirror of <code>expect=stderr:contains=</code>)</td>
+</tr>
 <tr>
 <td><code>reject=stderr:pattern=&lt;regex&gt;</code></td>
 <td>Fail if stderr matches regex</td>
@@ -1715,7 +1859,7 @@ across <code>test/**/*.ci</code> may not exceed the committed baseline in
 <code>test/.ci-sleep-baseline</code>, and <code>./le doc wiring</code> fails when it does. The markers
 cap how many are unexplained.</p>
 <h2 id="the-compiled-observer-api">The compiled observer API</h2>
-<!-- source: internal/test/fixture/fixture.go -- Register, Run, Observe, ObserveConfigured, Dispatch, Poll, ReportFailure -->
+<!-- source: internal/test/fixture/fixture.go -- Register, Run, Observe, observeConfigured, Dispatch, Poll, ReportFailure -->
 <p>Compiled <code>.ci</code> observers live under <code>internal/test/fixture</code>. They use
 <code>pkg/plugin/sdk</code> for the five-stage plugin protocol (<code>Plugin.Run</code> owns it) and
 the local <code>fixture</code> package for registration, dispatch, polling and failure
@@ -1741,8 +1885,8 @@ reporting.</p>
 <td>Connect through the SDK, complete startup, run the scenario after all plugins are ready, then request shutdown</td>
 </tr>
 <tr>
-<td><code>fixture.ObserveConfigured(...)</code></td>
-<td>Install callbacks before startup, then run the same observer lifecycle</td>
+<td><code>observeConfigured(...)</code></td>
+<td>Install callbacks before startup, then run the same observer lifecycle. It is unexported, so only a fixture in this package calls it</td>
 </tr>
 <tr>
 <td><code>fixture.Dispatch(...)</code></td>
@@ -1769,6 +1913,39 @@ replaces a <code>time.Sleep</code> followed by a one-shot assertion.</p>
 failed, so the daemon's exit code does not prove the observer's assertion. A
 failing observer returns an error, which <code>fixture.Run</code> hands to
 <code>fixture.ReportFailure</code>.</p>
+<p><strong>The sentinel is written where the scenario fails, BEFORE <code>request shutdown</code>.</strong>
+The runner reads it out of the DAEMON's stderr, and the daemon relays a plugin's
+stderr only while both processes live (<code>internal/component/plugin/process</code>,
+<code>relayStderrFrom</code>). <code>fixture.Run</code> reports the same error after <code>Plugin.Run</code>
+returns, which is after the daemon was asked to stop, so that line reaches the
+runner only when it wins the race with the shutdown. Measured 2026-09-02: an
+observer asserting a route that can never arrive still passed
+<code>test/plugin/rpki-group-action.ci</code>, and three plugin cases (<code>fib-table</code>,
+<code>metrics-name-show</code>, <code>modify-increment-localpref</code>) passed with a failing
+observer. <code>fixture.ReportFailure</code> emits the FIRST failure only, so the report at
+the failure site and the one on the way out are one line.</p>
+<!-- source: internal/test/fixture/fixture.go -- observeConfigured, ReportFailure -->
+<!-- source: internal/component/plugin/process/process.go -- relayStderrFrom -->
+<p><strong>A driver's working directory is the per-test directory, so a driver names its
+files relatively and <code>fixture.Run</code> refuses to start in the checkout.</strong> The
+runner creates one directory for each test, gives it to every child of that test
+and removes it at the end (<code>Record.WorkDir</code>, <code>internal/test/runner/runner_exec.go</code>),
+so <code>daemon.ready</code>, <code>testkey</code> and <code>&lt;case&gt;.conf</code> are written where the test can
+find them and nothing survives the run. The same names in the checkout land
+beside tracked source: on 2026-09-05 a run left two ed25519 private keys and
+five config files at the repository root, none of them ignored, so a <code>git add -A</code>
+from any session would have committed a private key. <code>fixture.Run</code> therefore
+reads its own working directory first and exits 1 with the <code>ZE-OBSERVER-FAIL</code>
+sentinel when that directory holds the ze <code>go.mod</code>
+(<code>sessionpath.IsRepoRoot</code>). A driver that needs the checkout reads
+<code>$ZE_REPO_ROOT</code>, which the runner exports; it never reads the working directory
+for one.</p>
+<!-- source: internal/test/fixture/fixture.go -- Run, refuseRepoRoot -->
+<!-- test: internal/test/fixture/fixture_test.go -- TestRunRefusesADriverStartedInTheCheckoutRoot, TestRunDispatchesADriverStartedOutsideTheCheckoutRoot -->
+<p>An observer assertion is therefore worth only what its wait is worth: a value
+that a plugin fills asynchronously (the Adj-RIB-In after RPKI validation, the
+SPF table after the first run, a session that drops when the peer completes)
+needs <code>fixture.Poll</code> around the read, never a fixed settle before it.</p>
 <h2 id="engine-steps">Engine Steps</h2>
 <p>Engine steps drive a live daemon through CLI dispatch, first-class in <code>.ci</code>
 instead of an embedded Python observer. The runner serializes the parsed steps
@@ -1786,7 +1963,36 @@ expect=command-error:contains=&lt;text&gt;
 <p><code>command=</code>/<code>stream=</code> keep their full raw text (colons included). <code>expect=output</code>
 re-dispatches the most recent <code>command=</code> until its predicate holds or the
 timeout expires; <code>expect=stream</code> matches delivered <code>stream=</code> events;
-<code>expect=event</code> matches a delivered event by exclusive subscription.</p>
+<code>expect=event</code> matches a delivered event by its <code>(namespace, name)</code> identity.</p>
+<h3 id="expectevent">expect=event</h3>
+<p>The executor declares ONE startup event subscription, derived from the
+<code>expect=event</code> steps of the file itself, and asks for enveloped delivery. A <code>.ci</code>
+therefore names each event once, in the step that waits for it, and nothing else
+declares the subscription.</p>
+<p>A startup subscription rides the <code>ready</code> RPC, so it is registered before any
+plugin's <code>OnAllPluginsReady</code> runs. That is what lets a step observe the FIRST
+delivery of an event the daemon emits while it starts. <code>test/ipsec/ipsec-sa-installed.ci</code>
+is the case that forced it: the IKE engine emits <code>vpn-ipsec</code>/<code>sa-up</code> from its
+startup peer reconciliation, so a subscription dispatched from the step could
+only ever see a SECOND establishment, and a test with no re-negotiation has none.</p>
+<p>Enveloped delivery wraps each event with its <code>(namespace, event)</code> identity
+(<code>rpc.EventEnvelope</code>), which is what tells one subscribed event from another once
+several share the one subscription. A bare payload decodes with an empty
+namespace and event, so a delivery the executor did not ask to be enveloped can
+never satisfy a step.</p>
+<p>Two consequences follow, and both are load-bearing when writing a test:</p>
+<ul>
+<li><strong>A step list names ONE namespace.</strong> <code>rpc.SubscribeEventsInput</code> carries one, so
+steps naming two are REFUSED before the executor dials, with a message naming
+both. Split the test rather than subscribing to one and dropping the rest.</li>
+<li><strong>A step matches ANY delivery of that identity, scrollback included.</strong> It cannot
+assert "another one, after this point". A second <code>sa-up</code> after an operator
+<code>clear</code> re-matches the first, so re-establishment is asserted by a separate
+test (<code>test/ipsec/ipsec-clear-reestablish.ci</code>), not by a second <code>expect=event</code>.</li>
+</ul>
+<!-- source: internal/test/runner/engine_steps.go -- EngineStepSubscriptionFor, RunEngineSteps -->
+<!-- source: internal/test/cli/cmd_engine_steps.go -- cmdEngineSteps -->
+<!-- source: internal/component/plugin/server/dispatch.go -- buildEventEnvelope, resolveSubscriptionNamespace -->
 <h3 id="expectcommand-error">expect=command-error</h3>
 <p><code>expect=command-error:contains=&lt;text&gt;</code> asserts that the PRECEDING <code>command=</code>
 FAILED, and that its message contains the text.</p>
@@ -2179,6 +2385,26 @@ expect=json:conn=1:seq=1:json={...}
 <td><code>expect=status:contains=committed</code></td>
 </tr>
 <tr>
+<td><code>expect=hint:contains=&lt;text&gt;</code></td>
+<td>Second message line includes text</td>
+<td><code>expect=hint:contains=show the peers</code></td>
+</tr>
+<tr>
+<td><code>expect=hint:empty</code></td>
+<td>Second message line is blank</td>
+<td><code>expect=hint:empty</code></td>
+</tr>
+<tr>
+<td><code>expect=explanation:contains=&lt;text&gt;</code></td>
+<td>Revealed long explanation includes text</td>
+<td><code>expect=explanation:contains=established</code></td>
+</tr>
+<tr>
+<td><code>expect=explanation:empty</code></td>
+<td class="cell-no">✕</td>
+<td><code>expect=explanation:empty</code></td>
+</tr>
+<tr>
 <td><code>expect=error:none</code></td>
 <td class="cell-no">✕</td>
 <td><code>expect=error:none</code></td>
@@ -2206,6 +2432,18 @@ expect=json:conn=1:seq=1:json={...}
 </tbody>
 </table>
 <!-- source: internal/component/cli/testing/expect.go -- editor expectation types -->
+<p><code>hint</code> reads the second message line with every style stripped. That row carries
+the completion hint, and the summary of the candidate the operator selected.
+<code>explanation</code> reads the long explanation Tab reveals, without the box that frames
+it on screen. Both accept <code>empty</code> and <code>contains=</code>. Both refuse an expectation
+that names neither key.</p>
+<!-- source: internal/component/cli/testing/expect.go -- checkHint, checkExplanation -->
+<p>A test that runs <code>option=mode:value=command</code> or <code>option=mode:value=operational</code>
+completes against the real command tree, built from the registered <code>-cmd</code> YANG
+modules. The tree carries no value hints and no plugin commands. A hint provider
+reads the live RIB, and a plugin command comes from the live dispatcher. A
+headless test has neither, so a completion over a VALUE stays empty there.</p>
+<!-- source: internal/component/cli/testing/headless.go -- headlessCommandTree -->
 <h3 id="wait-actions">Wait Actions</h3>
 <table>
 <thead>
@@ -2314,7 +2552,7 @@ expect=completion:contains=router-id,local-as,peer
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 02:01 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

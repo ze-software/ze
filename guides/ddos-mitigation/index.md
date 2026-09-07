@@ -227,9 +227,9 @@ server-driven mitigation commands.
 |-----------|---------|-------|-------------|
 | `enabled` | `false` | bool | Enable the detector |
 | `check-interval` | `1` | 1-3600 s | Seconds between detection evaluations |
-| `confirm-duration` | `3` | 0-3600 | Consecutive ticks above threshold before triggering (0 = immediate) |
-| `clear-consecutive-checks` | `10` | 1-100 | Consecutive ticks below threshold before clearing |
-| `baseline-window` | `300` | 10-86400 | Rolling baseline window in samples (~seconds at 1 Hz) |
+| `confirm-duration` | `3` | 0-3600 | Consecutive evaluations above threshold before triggering (0 = immediate) |
+| `clear-consecutive-checks` | `10` | 1-100 | Consecutive evaluations below threshold before clearing |
+| `baseline-window` | `300` | 10-86400 | Rolling baseline window in samples, one sample per evaluation (~seconds at the default `check-interval`) |
 | `threshold-multiplier` | `3.00` | 1.00-100.00 | Baseline p99 multiplier for the dynamic PPS threshold |
 | `absolute-floor` | `5000` | 1+ PPS | Minimum PPS threshold regardless of baseline |
 | `startup-grace` | `90` | 0-3600 s | Seconds after startup where only an extreme spike (>5x floor) or an armed bandwidth trigger fires |
@@ -242,6 +242,15 @@ server-driven mitigation commands.
 | `characterize-timeout` | `2000` | 50-5000 ms | Budget for the on-trigger traffic-usage / flow-recent queries |
 | `entropy-threshold` | `2.00` | 0.00-16.00 bits | Source-entropy at/above which an attack is logged as distributed/spoofed |
 | `policy` | (default-action `deny`) | container | Allow/deny traffic policy (see [Traffic policy](#traffic-policy)) that exempts or defends prefixes; replaces the old per-responder allowlists |
+
+**How `check-interval` works:** both rate feeds publish once a second, and the
+detector folds `check-interval` of those samples into one evaluation. The
+evaluation reads the PEAK of the interval, on the interface that carried it, so a
+one-second flood inside a 10-second interval still reaches the threshold.
+`confirm-duration`, `clear-consecutive-checks` and `baseline-window` all count
+evaluations, so raising `check-interval` multiplies their wall-clock meaning by
+the same factor. `startup-grace` counts feed samples and stays in seconds.
+<!-- source: internal/plugins/ddos/detect/detector.go -- tick, intervalPeak -->
 
 **How the threshold works:**
 ```
@@ -306,7 +315,7 @@ duration is not a factor.
 | `probe-interval` | `60` | 1-3600 s | Seconds between leak-probe attempts |
 | `probe-window` | `10` | 1-300 s | Seconds to observe leaked traffic during a probe |
 | `probe-rate` | `1000000` | 1+ bps | Bits per second to allow during a leak-probe |
-| `announce-rate-limit` | `10` | 1-600 /min | Maximum FlowSpec announcements per minute |
+| `announce-rate-limit` | `10` | 1-600 /min | Maximum FlowSpec announcements in any 60-second window. One over the limit is refused and logged, and the responder stays idle so the next characterization inside the window announces nothing |
 | `max-mitigation-duration` | `3600` | 0-604800 s | Force-withdraw the announce after this many seconds. Checked once a second; `0` means no cap |
 | `backoff-cap` | `3600` | 1-604800 s | Maximum hold-down after exponential backoff |
 | `blackhole-fallback` | `false` | bool | Engage an immediate upstream `discard` on a `critical` fast signal without waiting for characterization |

@@ -3465,7 +3465,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Daemon supervision</td>
 <td>Respawn and supervision</td>
-<td>Ze plugin manager enforces per-window respawn limit 5/60s and cumulative max 20 in <code>Respawn</code> disables processes and reports warnings at <code>:311-390</code>. <span class="ev-src"><span class="ev-ref"><code>manager.go:18-27</code></span></span></td>
+<td>Ze plugin manager enforces per-window respawn limit 5/60s and cumulative max 20 in <code>manager.go</code> (<code>RespawnLimit</code>, <code>RespawnWindow</code>, <code>MaxTotalRespawns</code>); <code>Respawn</code> disables processes and reports warnings past those bounds.</td>
 <td>VyOS uses systemd for supervised services. Examples: container units rendered under <code>/run/systemd/system</code> and <code>systemctl daemon-reload/restart</code> in; HA keepalived systemd override and reload/restart in. <span class="ev-src"><span class="ev-ref"><code>container.py:633-684</code></span><span class="ev-ref"><code>high-availability.py:40-234</code></span></span></td>
 <td>freeRtr has its own periodic checks and exception logging in <code>cfgInit.mainLoop</code> at, but no systemd-like respawn mechanism found in inspected Java sources. Some config objects have start/stop methods, for example <code>cfgXconn.start2run</code> at. <span class="ev-src"><span class="ev-ref"><code>cfgInit.java:1698-1724</code></span><span class="ev-ref"><code>cfgXconn.java:187-206</code></span></span></td>
 <td>[analysis] Ze and freeRtr supervise from inside the application for their internal components. VyOS relies on the OS service manager for many dataplane/control daemons.</td>
@@ -3536,7 +3536,7 @@ about non-BGP router OS breadth.</p>
 <li>[analysis] Feature parity between Ze and VyOS may be fastest when Ze can reuse kernel or Go library interfaces, but parity with VyOS features backed by mature external daemons may require either writing Ze-native protocol/service implementations or adding plugin/subprocess integration. Evidence: Ze deps include netlink/govpp/wgctrl in <code>go.mod:15-26</code>; VyOS BGP renders to FRR via <code>FRRender</code> in <code>protocols_bgp.py:26-27</code> and <code>:596-601</code>.</li>
 <li>[analysis] Feature parity between Ze and freeRtr is architecturally different: freeRtr has many own in-process protocol implementations, while Ze uses component/plugin boundaries and SDKs. A Ze feature port from freeRtr may need decomposition into YANG, plugin registration, engine subsystem, and API callbacks rather than a single in-process class. Evidence: freeRtr <code>cfgRtr</code> one field per protocol handler in <code>cfgRtr.java:78-166</code>; Ze plugin config, SDK, and process manager in <code>types.go:187-203</code>, <code>sdk.go:1-30</code>, <code>manager.go:125-173</code>.</li>
 <li>[analysis] Ze and freeRtr are better positioned for source-level performance tuning than VyOS scripts, because Ze has explicit allocation-aware helpers and freeRtr has reusable packet buffers. VyOS performance-sensitive forwarding/control behavior is more likely in external daemons/kernel, outside this repo. Evidence: Ze <code>textbuf.go:54-93</code>; freeRtr <code>packHolder.java:18-44</code> and <code>:365-430</code>; the only VyOS zero-copy reference is a VPP memif toggle, not application buffer reuse.</li>
-<li>[analysis] Ze has clearer external plugin isolation and restart policies than freeRtr in inspected sources, while VyOS gets service restart/isolation from systemd. Evidence: Ze respawn limits <code>manager.go:18-27</code>, disable path <code>:311-390</code>; VyOS systemctl examples from <code>container.py:647-684</code> and <code>high-availability.py:213-234</code>; freeRtr no systemd-like respawn found in inspected Java source.</li>
+<li>[analysis] Ze has clearer external plugin isolation and restart policies than freeRtr in inspected sources, while VyOS gets service restart/isolation from systemd. Evidence: Ze respawn limits and disable path in <code>manager.go</code> (<code>RespawnLimit</code>, <code>MaxTotalRespawns</code>, <code>Respawn</code>); VyOS systemctl examples from <code>container.py:647-684</code> and <code>high-availability.py:213-234</code>; freeRtr no systemd-like respawn found in inspected Java source.</li>
 <li>[analysis] Test maintainability differs strongly: Ze offers focused unit seams around registries/processes and compile-time gate tests, VyOS offers Python unit tests plus system-level CLI smoketests, freeRtr offers a process image tester. Evidence: Ze <code>manager.go:257-263</code> and build-tag tests; VyOS <code>src/tests/test_utils.py:31-38</code> and <code>smoketest/bin/vyos-configtest:21-52</code>; freeRtr <code>userTester.java:35-153</code>.</li>
 </ol>
 <h3 id="gaps-and-unclear-items_6">Gaps and unclear items</h3>
@@ -3621,7 +3621,7 @@ about non-BGP router OS breadth.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 02:01 UTC</span>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
                 </div>
             </div>
         </footer>

@@ -20,6 +20,8 @@ Flush all DNS cache entries and reset all DNS cache counters.
 - Command pipes: none
 - Pipe aliases: none
 
+The entries and the four counters go together. Use clear dns cache stats to zero the counters and keep the entries, or clear dns cache record to evict one name.
+
 ## Arguments
 
 No command-specific arguments listed.

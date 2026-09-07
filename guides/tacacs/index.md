@@ -41,7 +41,7 @@ system {
 |------|------|---------|-------|
 | `tacacs.server <ip>` | list, ordered-by-user | - | Tried in declaration order on connection failure |
 | `tacacs.server <ip>.port` | uint16 | 49 | TCP |
-| `tacacs.server <ip>.key` | string (`ze:sensitive`) | required | Shared secret, stored as `$9$` ciphertext |
+| `tacacs.server <ip>.key` | string (`ze:sensitive`) | required | Shared secret. A server with none disables the whole AAA bundle. See below: what that costs depends on when the bundle is built |
 | `tacacs.timeout` | uint16 (1-300) | 5 | Per-server connection timeout in seconds |
 | `tacacs.source-address` | ip-address | none | Local source IP for outbound TACACS+ TCP |
 | `tacacs.authorization` | boolean | false | Enable per-command TACACS+ authorization |
@@ -50,6 +50,47 @@ system {
 | `tacacs-profile <N>.profile` | leaf-list | required | Maps priv-lvl `N` (0-15) to one or more local authz profiles |
 
 <!-- source: internal/component/tacacs/yang/ze-tacacs-conf.yang -- system.authentication.tacacs -->
+
+The key is not optional. RFC 8907 Section 4.5 builds the obfuscation pad from
+the shared secret. Section 10.5.2 says "TACACS+ clients MUST NOT set
+TAC_PLUS_UNENCRYPTED_FLAG", which is the only honest wire form for an
+unobfuscated body. A client with no secret therefore has no conformant packet to
+send.
+
+Two refusals follow, and neither one stops the daemon. The AAA build refuses a
+server declared without a key and names the address. The packet writer refuses
+one too. No path reaches the socket with a cleartext body under a header that
+claims otherwise.
+
+What a keyless server costs depends on what else the config declares.
+
+**The tacacs backend is dropped and the rest of the chain composes without it.**
+A user who exists locally still logs in against the local backend, and the local
+authorization profiles still govern what they run. The daemon logs the drop at
+ERROR.
+
+| What the config has | What happens |
+|---------------------|--------------|
+| A local user as well | that user logs in, and their profiles decide what they run |
+| No other backend that builds | nothing authenticates, and ssh is not started |
+
+The chain order is unchanged. TACACS+ is asked first where it built, a reject
+stops the chain, and only a failure to ANSWER reaches the local account.
+
+A commit is REFUSED rather than dropped, and only while a chain is already
+running. The same error already in the file at boot is logged and startup
+continues. So `ze config validate` before a reboot.
+
+The `ze:sensitive` marking hides the key from `show` and from the web editor. It
+does NOT encrypt what the commit path writes. Ze decodes a `$9$` value you write
+by hand, and the editor stores a key as you typed it. Only `ze config dump`
+encodes on the way out, so a dump round-trips and the key stays hidden.
+
+<!-- source: internal/component/tacacs/register.go -- tacacsBackend.Build -->
+<!-- source: cmd/ze/hub/main_reload.go -- the reload refusal -->
+<!-- source: cmd/ze/hub/main.go -- the boot warning, noBGPAAAWiring -->
+<!-- source: internal/component/ssh/ssh.go -- the LocalAuthenticator fallback -->
+<!-- source: internal/component/tacacs/packet.go -- MarshalInto, ErrNoSharedSecret -->
 
 ## Authentication flow
 

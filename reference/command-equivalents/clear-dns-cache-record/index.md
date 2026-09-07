@@ -20,6 +20,8 @@ Evict DNS cache entries for one record name, or one name and type when a type is
 - Command pipes: none
 - Pipe aliases: none
 
+Add type <record-type> after the name to evict one type, and give no other tail. An unknown type is reported inside the answer rather than as an error.
+
 ## Arguments
 
 | Name | Type | Required | Values |

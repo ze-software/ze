@@ -35,6 +35,57 @@ the missing-database case which grants access for emergency recovery.
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig boot publication -->
 <!-- source: cmd/ze/hub/main_reload.go -- runReloadContext reload publication -->
 
+## A backend that will not build is dropped, and the others still answer
+
+The table above is about who CAN log in. This is about a backend that never
+starts. A TACACS+ server declared with no shared secret is one case, and any
+error while the AAA chain is built is another.
+
+**That backend is dropped and the rest of the chain composes without it.** A
+user who exists locally still logs in, against the local backend, and the local
+authorization profiles still govern what they run. The daemon logs the drop at
+ERROR and keeps running.
+
+Which backend answers is the chain's ordinary rule, and it does not change here:
+
+- The remote backend is asked first, because it sits ahead of local in priority.
+- A REJECT stops the chain. A wrong password at a reachable server does not fall
+  through to your local hash.
+- Any other failure tries the next backend, so an unreachable or unbuildable
+  server reaches the local account.
+- The local password must be right. The fallback is an ACCOUNT, never an open
+  door.
+
+**No user, no login.** Where every backend fails to build there is no chain at
+all, so nothing can authenticate. ssh is not started: a listener that
+authenticates nobody is a port rather than a service. Every command is refused
+for the same reason.
+
+| When | What happens |
+|------|--------------|
+| `ze config commit`, with a chain already running | REFUSED. The commit is rolled back and the running chain is kept |
+| The same, after a boot that composed no chain | Nothing. The rebuild is skipped, so a corrected config needs a restart |
+| Boot | The broken backend is logged and dropped. What composed answers |
+
+So a config error you commit is caught, while the same error already in the file
+at boot is not. Keep a local account that works on a box whose logins come from
+a central server.
+
+`ze doctor` says so before you find out the hard way:
+
+```
+ze doctor --json router.conf
+ze explain doctor-aaa-no-local-fallback
+```
+
+It warns where a RADIUS or TACACS+ server is configured and no
+`system.authentication.user` is. `docs/architecture/aaa-tacacs.md` carries the
+mechanism.
+
+<!-- source: internal/component/aaa/types.go -- backendRegistry.Build -->
+<!-- source: cmd/ze/hub/infra_setup.go -- the ssh build condition -->
+<!-- source: cmd/ze/hub/main_reload.go -- the reload refusal -->
+
 ## Adding a user
 
 ### Step 1: hash a password
@@ -48,6 +99,15 @@ $2a$10$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345678
 ```
 
 Interactive use prompts twice for confirmation.
+
+`ze passwd` writes a warning to stderr when the password is weak, and prints the
+hash to stdout anyway with exit code 0:
+
+```
+$ echo "secret" | ze passwd
+warning: weak password (shorter than 8 characters)
+$2a$10$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345678
+```
 
 <!-- source: internal/plugins/passwd/main.go -- runImpl -->
 
@@ -80,6 +140,39 @@ written to disk. This matches Junos's `plain-text-password` behavior.
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
 <!-- source: internal/component/cli/editor_commit.go -- commit path caller -->
 
+### Weak passwords are named, never refused
+
+Ze judges the plaintext before it hashes it, and warns when the password is
+shorter than 8 characters or is one of eight passwords an attacker tries first:
+`password`, `123456`, `12345678`, `qwerty`, `admin`, `letmein`, `root` and
+`changeme`. The comparison ignores case and matches the whole value, so
+`LetMeIn` warns and `password-of-the-day` does not.
+
+The warning is advisory at every surface. The password is hashed and set, the
+commit succeeds, and the exit code stays 0, so a config Ze accepted before this
+check existed still commits. Each surface says it where the operator is looking:
+
+| Surface | Where the warning appears |
+|---------|---------------------------|
+| `ze config set` and `ze config deactivate` | stderr, before the `set ...` line |
+| The CLI editor `commit` | the commit status line, as `(warning: ...)` |
+| A config file the daemon loads | the daemon log, at WARN |
+| REST, gRPC and gNMI config commits | the daemon log, at WARN, with the user name |
+| `ze passwd` | stderr, before the hash on stdout |
+
+```
+$ ze config set ze.conf system authentication user alice plaintext-password "secret"
+warning: system.authentication.user.alice.password: weak password (shorter than 8 characters)
+set system authentication user alice plaintext-password secret
+```
+
+The warning names the leaf and the rule the password failed. It never carries
+the password, so it is safe in a log an operator can read.
+
+<!-- source: internal/component/config/password_strength.go -- PasswordWeakness, PasswordMinLength -->
+<!-- source: internal/component/config/password_hash.go -- HashedPassword, PasswordWeaknessWarnings -->
+<!-- test: test/parse/password-weakness-warning.ci -- weak warns and sets, strong is silent -->
+
 ### Passwords in a config file
 
 An operator, a template, or a lab tool can also write `plaintext-password` straight
@@ -101,6 +194,14 @@ The warning names the leaf paths in a log attribute and never the password. Repl
 plaintext with a hash from `ze passwd`, or protect the file, or accept the risk if the
 file is a throwaway lab render (see [netlab](../../labs/netlab/index.md)).
 <!-- source: internal/component/config/loader.go -- warnPlaintextOnDisk -->
+
+A weak password in that file gets its own log line, one for each leaf, and the
+load continues:
+
+```
+system.authentication.user.alice.password: weak password (shorter than 8 characters)
+```
+<!-- source: internal/component/config/loader.go -- warnWeakPassword -->
 
 Two later steps DO rewrite that file, and both replace the plaintext with the hash. A
 schema evolution makes `applyEvolutions` serialize the loaded tree back to the config

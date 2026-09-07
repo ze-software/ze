@@ -20,6 +20,8 @@ Delete an interface from the kernel.
 - Command pipes: none
 - Pipe aliases: none
 
+The dispatcher calls this same command to undo a compound create. An interface it created is deleted when the unit or address step after it fails.
+
 ## Arguments
 
 | Name | Type | Required | Values |

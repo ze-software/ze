@@ -20,6 +20,8 @@ List all non-expired DNS cache entries, sorted by shortest TTL first.
 - Command pipes: none
 - Pipe aliases: none
 
+An entry whose TTL has run out is left out rather than reported as expired. The count beside the list is the number of entries reported.
+
 ## Arguments
 
 No command-specific arguments listed.

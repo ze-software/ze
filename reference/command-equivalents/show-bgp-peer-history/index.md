@@ -20,6 +20,8 @@ Show FSM state transitions for a peer over time.
 - Command pipes: none
 - Pipe aliases: none
 
+Each row reads as a sentence: when the transition happened, the state it left, the state it reached, and the reason. Only the first matched peer is read, so a wildcard selector with no argument is refused with 'no peer specified'. A peer whose transitions were never recorded answers 'no history for peer'.
+
 ## Arguments
 
 | Name | Type | Required | Values |

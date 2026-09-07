@@ -134,14 +134,14 @@ Each route-server client picks its identifiers alone. Two clients that both pick
 
 | Property | Behavior |
 |----------|----------|
-| Key | The path at ingress: the source that sent it and the identifier that source used. Never the message, never the attributes |
+| Key | The path at ingress, never the message and never the attributes. How much of the path the key holds follows what the source framed: a source that negotiated no ADD-PATH gets one identifier for its whole session, and a source that negotiated it gets one entry per family, received identifier and prefix |
 | Withdrawal | A withdrawn route carries no path attributes, so the ingress key is the only key that can be recomputed when the path leaves. The withdrawal names the identifier Ze advertised |
 | Re-announcement | A source that re-announces one path with changed attributes keeps the identifier it already has, so the destination sees a replacement rather than a duplicate |
-| Release | Identifiers are released at peer removal, not at session down. A reconnecting peer re-announces under the identifiers its destinations already hold |
+| Release | A source that framed no identifier holds its one entry until the peer is removed. A source that framed one has each pair freed when Ze has relayed that pair's withdraw. Neither is released at session down, so a reconnecting peer re-announces under the identifiers its destinations already hold |
 | Zero | Minted and accepted like any other value, which RFC 7911 Section 3 requires |
 
 Regeneration runs whenever either side of the forward frames identifiers. A session where neither side negotiated ADD-PATH keeps its zero-copy forward.
-<!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdPathIDs, fwdRegenerateRawPathIDs -->
+<!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdPathIDs, fwdRegenerateRawPathIDs, fwdReleaseWithdrawnPathIDs -->
 <!-- source: internal/component/bgp/reactor/forward_body.go -- fwdReencodeNLRIs -->
 
 ## Interaction with Route Reflection

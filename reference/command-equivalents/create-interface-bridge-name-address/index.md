@@ -20,6 +20,8 @@ Add an IP address to the bridge.
 - Command pipes: none
 - Pipe aliases: none
 
+The address is written in CIDR form, for example 10.0.0.1/32. The bridge is created first when it is absent, and deleted again when this step fails.
+
 ## Arguments
 
 | Name | Type | Required | Values |

@@ -20,6 +20,8 @@ Resume reading from a previously paused peer.
 - Command pipes: none
 - Pipe aliases: none
 
+The read loop restarts after a flow-control pause. The selector resolves to one peer and a wildcard is refused, for the reason pause states. Nothing else about the session changes.
+
 ## Arguments
 
 | Name | Type | Required | Values |

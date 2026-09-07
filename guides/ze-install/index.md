@@ -243,8 +243,9 @@ commit; the committed config replaces the bootstrap config on the next restart.
 - **Installer drops to a shell** instead of rebooting on a bad `ze.server`, no
   writable disk, or a download that fails 3 times. Read the serial/VGA console
   for the `[ze-install] FATAL:` line.
-- **Wrong disk** written: the initrd picks the first non-removable disk; detach
-  extra fixed disks or net-boot into the shell and inspect `/sys/block`.
+- **No disk chosen**: with more than one non-removable disk and no `ze.target`,
+  the installer stops and names the candidates rather than picking one. Pass
+  `ze.target=/dev/vda` in the cmdline, or detach the extra fixed disks.
 - **Download stalls / non-standard port**: confirm the image server's port and
   pass `ze.port=` in the iPXE cmdline.
 - **Dry-run first**: `./le qemu install-test` reproduces the whole chain and
@@ -653,10 +654,10 @@ The installer selects a non-removable block device via sysfs. Virtual devices
 (loop, ram, dm, zram, md), optical drives (sr), floppies (fd), and firmware/CFI
 flash (`mtdblock`, the QEMU `virt` machine's pflash) are skipped.
 
-In HTTP mode, the installer preserves the existing first-candidate behavior. In
-ISO mode, it also excludes the ISO source media and refuses to choose
-implicitly when more than one fixed candidate remains. Use `ze.target=/dev/vda`
-to name an explicit whole disk.
+The installer refuses to choose implicitly when more than one fixed candidate
+remains, in both HTTP and ISO mode, and names the candidates it found. ISO mode
+also excludes the ISO source media before it counts them. Use
+`ze.target=/dev/vda` to name an explicit whole disk.
 
 Supported target disk forms include `/dev/sda` (SATA/SCSI), `/dev/vda`
 (virtio-blk, used by QEMU/KVM), `/dev/nvme0n1` (NVMe), and `/dev/mmcblk0`

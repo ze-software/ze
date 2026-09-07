@@ -10,7 +10,7 @@ BGP peers, sessions, RIB, and protocol tools.
 - Wire method: `ze-bgp:overview`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
-- Subcommands: `decode`, `encode`, `health`, `irr`, `peer`, `rib`
+- Subcommands: `decode`, `encode`, `health`, `irr`, `peer`, `reject-asn`, `rib`
 - Answer shape: tab
 - Address fields: address
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin

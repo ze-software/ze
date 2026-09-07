@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Week of 2026-08-31 - Ze</title>
+        <meta name="description" content="Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and most of the week went on fixing what it found. Three of them mattered: an authentication byp" />
+        <meta property="og:title" content="Week of 2026-08-31 - Ze" />
+        <meta property="og:description" content="Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and most of the week went on fixing what it found. Three of them mattered: an authentication byp" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Week of 2026-08-31 - Ze" />
+        <meta name="twitter:description" content="Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and most of the week went on fixing what it found. Three of them mattered: an authentication byp" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/project/changes/2026-08-31/" />
+        <meta property="og:url" content="https://ze-software.net/project/changes/2026-08-31/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="blog-post" aria-labelledby="post-title">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Weekly update</span>
+    <h1 id="post-title">Week of 2026-08-31</h1>
+    <p>Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and most of the week went on fixing what it found. Three of them mattered: an authentication bypass on IKE logins, a redistribute block that discarded every route from every peer, and subscriber IPv6 that never worked at all.</p>
+</div>
+                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🔒 Security">
+                        <div class="md-content">
+                            <h2>🔒 Security</h2>
+                            <p>Fixed:</p>
+<ul>
+<li>A forged EAP Success, or a Response answering no outstanding challenge, was accepted during an IKE login. Someone off path could finish the login without ever answering the challenge. Both are discarded now (RFC 3748 Section 4).</li>
+<li>Ze accepted a BGP OPEN from any AS. A mistyped <code>remote-as</code> on the far end still established, and every AS-scoped decision after it ran against an AS the peer never claimed. The session is now refused with Bad Peer AS (RFC 4271 Section 6.2).</li>
+<li>If every configured RADIUS Change-of-Authorization server was a hostname that failed to resolve, Ze accepted CoA and Disconnect requests from any source using the default shared secret. A DNS outage opened the port to spoofed subscriber disconnects (RFC 5176 Section 6.1).</li>
+<li>An AAA chain with a broken remote backend took local login down with it, so a TACACS+ server missing its shared secret locked the operator out of the box. Login falls back to local accounts now, and authorization denies rather than permits.</li>
+</ul>
+<p>New:</p>
+<ul>
+<li>A firewall <code>domain-group</code> matches on what a DNS name resolves to, and the set follows the name's own TTL.</li>
+<li>Ze runs a local certificate authority and issues its own components short-lived certificates. The <code>certificate-fingerprint</code> leaf is gone, and a configuration that still sets it is refused. An unset fingerprint previously turned certificate verification off.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛰️ BGP">
+                        <div class="md-content">
+                            <h2>🛰️ BGP</h2>
+                            <p>Fixed:</p>
+<ul>
+<li>One <code>redistribute</code> block anywhere in the configuration discarded every route from every peer, with no log line.</li>
+</ul>
+<p>New:</p>
+<ul>
+<li><code>reject-asn</code> filters a path by the ASNs it carries and where it carries them: <code>direct</code>, <code>indirect</code>, <code>transit</code>, <code>origin</code>, <code>anywhere</code>, <code>regex</code> and <code>nth &lt;n&gt;</code>. <code>show bgp reject-asn known transit-free</code> reports it against the well-known transit-free set (BCP 194).</li>
+<li>A router being renumbered can run one iBGP session under either of two AS numbers at once. The leaf is <code>session { asn { migration &lt;asn&gt;; } }</code> (RFC 7705 Section 4.2).</li>
+<li>Administrative distance is declared in one place, <code>rib { distance { ... } }</code>. The <code>bgp { admin-distance }</code> container is deleted.</li>
+<li>FlowSpec prefix keywords name their family: <code>destination-ipv4</code>, <code>destination-ipv6</code>, <code>source-ipv4</code>, <code>source-ipv6</code>. The bare <code>destination</code> and <code>source</code> are gone.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🏠 Subscribers and tunnels">
+                        <div class="md-content">
+                            <h2>🏠 Subscribers and tunnels</h2>
+                            <p>Fixed:</p>
+<ul>
+<li>Router advertisements on the PPPoE and L2TP path left without Hop Limit 255, so every conforming subscriber discarded them. IPv6 address autoconfiguration did not work at all, and nothing on Ze's side looked wrong.</li>
+<li><code>l2tp { shaper { upload-rate } }</code> was accepted, stored and reported, and never enforced. Only the download direction was ever shaped. An ingress policer on the subscriber interface enforces it now.</li>
+<li>IPsec transport mode behind a NAT was refused in both roles. <code>show vpn ipsec sa</code> reports <code>behind-nat</code>, <code>peer-behind-nat</code>, <code>original-tsi</code> and <code>original-tsr</code> so the substitution is visible (RFC 7296 Section 2.23.1).</li>
+<li>An IPsec child rekey reused the old key material even though <code>esp-group pfs</code> defaults to enabled.</li>
+<li>GRE, GRETAP, IPIP and SIT tunnels defaulted their outer TTL to inherit, which black-holed traffic whenever the underlay was more than one hop. The <code>ttl</code> leaf now defaults to 64, and <code>ttl 0</code> still means inherit.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔁 ExaBGP compatibility">
+                        <div class="md-content">
+                            <h2>🔁 ExaBGP compatibility</h2>
+                            <p>New:</p>
+<ul>
+<li>The bridge is checked against ExaBGP's own tests. All 40 of the upstream <code>qa/api</code> scripts now run against Ze, and 34 of them pass, alongside 42 of 42 encoding cases. None of them ran at all before.</li>
+<li><code>encoder text;</code> gives a script line-based output instead of JSON, and <code>feed &lt;peer&gt; { event [ ... ]; }</code> limits a script to the peers and event kinds it asked for. Every script previously saw every peer.</li>
+<li>Non-route commands are answered rather than stopping the script dead: <code>clear adj-rib</code>, <code>flush adj-rib</code>, <code>announce watchdog</code>, <code>withdraw watchdog</code>, <code>shutdown</code>, <code>enable-ack</code>, <code>disable-ack</code> and <code>silence-ack</code>.</li>
+<li><code>ze exabgp migrate</code> converts the rest of a neighbor when one capability word does not carry over, and names the word on stderr. It refused the whole neighbor before.</li>
+</ul>
+<p>Fixed:</p>
+<ul>
+<li>Only the first <code>process</code> block ever started a script, and a script was answered <code>done</code> only for its first command, so a real script hung after one line.</li>
+<li>A line with no <code>neighbor &lt;ip&gt;</code> in front of it, which is the form most scripts use, was passed through unread and died at Ze's own command line. It reaches every peer now.</li>
+<li>An announce carrying an attribute Ze could not encode went on the wire without it while the script was told it succeeded. It is refused by name now, and <code>atomic-aggregate</code>, <code>aggregator</code>, <code>originator-id</code>, <code>cluster-list</code> and <code>aigp</code> are carried.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🖥️ CLI">
+                        <div class="md-content">
+                            <h2>🖥️ CLI</h2>
+                            <p>New:</p>
+<ul>
+<li>Every form that puts a message on the wire answers at one path: <code>send bgp &lt;selector&gt; unicast</code>, <code>blackhole</code>, <code>flowspec</code>, <code>withdraw</code>, <code>raw</code> and <code>update</code>. <code>send</code> is the verb, and <code>send bgp *</code> reaches every peer.</li>
+<li>Tab on an ambiguous command shows each candidate with its one-line summary, and Tab with nothing left to type shows the full explanation. <code>?</code> on a configuration key does the same for that key.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📚 Standards programme">
+                        <div class="md-content">
+                            <h2>📚 Standards programme</h2>
+                            <p>Ze is being checked against every RFC it implements, one MUST at a time. The work continues.</p>
+<p>Of 5,443 requirements, 3,579 are MUST-level and 3,303 are checked. That is 327 more MUSTs checked than last week. 313 still owe a test, against 68 last week, and 57 of the 182 documents have been read end to end, against 6.</p>
+<p>The owing number rose because a document read end to end writes down every obligation in it, including the ones nothing tests yet. The list gained 508 MUSTs this week, faster than the fixing closed them.</p>
+<p>Every one of those documents now has a page on the site. It names each requirement, the test that proves it, the recorded verdict and its age, and every gap, one line per requirement rather than folded into a count: https://ze-software.net/quality/rfc-compliance/</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔭 Coming up">
+                        <div class="md-content">
+                            <h2>🔭 Coming up</h2>
+                            <p>45 pieces of work were finished and closed this week, and 217 were opened. About thirty of the new ones are one per configuration leaf that Ze accepts today and that reaches no behavior.</p>
+<p>Reading continues, and the 125 documents not yet read end to end are the queue. Closing what the reading found comes first, then the 313 MUSTs owing a test. SHOULD-level work waits behind all of it.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Change note</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More context</h2>
+                    <a class="page-sidebar-link" href="../../../project/changes/">
+                        <span class="page-sidebar-link-label">All changes</span>
+                        <small>Return to the weekly update index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/milestones/">
+                        <span class="page-sidebar-link-label">Milestones</span>
+                        <small>See which changes became landmarks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>Map this week to the release plan.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/activity/">
+                        <span class="page-sidebar-link-label">Activity</span>
+                        <small>View commit cadence around this week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>
