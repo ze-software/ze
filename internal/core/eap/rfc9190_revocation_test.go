@@ -300,6 +300,99 @@ func TestEAPTLS12CompletesWithNoRevocationList(t *testing.T) {
 	}
 }
 
+// TestEAPTLS12RefusesARevokedClientCertificate drives a TLS 1.2 EAP-TLS
+// exchange whose client certificate the trusted CA has revoked.
+//
+// RFC requirement: RFC5216-5.4-1 positive -- RFC 5216 Section 5.4: "EAP-TLS peer
+// and server implementations MUST support the use of Certificate Revocation
+// Lists (CRLs)". Supporting them means acting on one, so the authenticator holds
+// a list carrying the client leaf's serial number and the exchange reaches no
+// EAP-Success. The obligation carries no version condition, which is what
+// separates it from RFC 9190 Section 5.4 above: that sentence opens "When
+// EAP-TLS is used with TLS 1.3" and this one does not.
+func TestEAPTLS12RefusesARevokedClientCertificate(t *testing.T) {
+	pki := newEAPTLSPKI(t)
+
+	serverCfg := pki.serverConfig()
+	serverCfg.CRLPEM = pki.crlRevoking(t, eapTLSClientSerial)
+	peer := NewPeerSessionTLS("eap-tls-client", pki.peerConfigWithCRL(pki.trustedCRLPEM))
+
+	fl := driveEAPTLSFlight(t, serverCfg, peer, tls.VersionTLS12, revocationRounds)
+
+	if fl.successAt >= 0 {
+		t.Fatal("the authenticator sent EAP-Success to a client certificate the CA had revoked")
+	}
+	err := fl.sess.Err()
+	if err == nil {
+		t.Fatal("the authenticator refused the exchange without recording a reason")
+	}
+	if !strings.Contains(err.Error(), "was revoked by") {
+		t.Fatalf("the authenticator refused for %q, which does not name the revocation", err)
+	}
+}
+
+// TestEAPTLS12CompletesWithAnUnrevokedChain is the counterpart of the test
+// above: the same TLS 1.2 conversation, with a list that names nobody.
+//
+// RFC requirement: RFC5216-5.4-1 negative -- a gate that refused every TLS 1.2
+// session carrying a list would satisfy the positive test above and support
+// nothing. A list that revokes nothing is a real answer, "no certificate this CA
+// issued is withdrawn", so the exchange completes and both ends derive the same
+// MSK.
+func TestEAPTLS12CompletesWithAnUnrevokedChain(t *testing.T) {
+	pki := newEAPTLSPKI(t)
+
+	peer := NewPeerSessionTLS("eap-tls-client", pki.peerConfigWithCRL(pki.trustedCRLPEM))
+
+	fl := driveEAPTLSFlight(t, pki.serverConfig(), peer, tls.VersionTLS12, revocationRounds)
+
+	if fl.peerErr != nil {
+		t.Fatalf("the peer failed an exchange whose list revokes nothing: %v", fl.peerErr)
+	}
+	if fl.successAt < 0 {
+		t.Fatal("no EAP-Success: a chain no list names was refused")
+	}
+	var zero [64]byte
+	if fl.peerMSK == zero || fl.peerMSK != fl.serverMSK {
+		t.Fatalf("MSK mismatch:\n peer=  %x\n server=%x", fl.peerMSK, fl.serverMSK)
+	}
+}
+
+// TestEAPTLS12RefusesAStaleRevocationList pins the one place the two versions
+// agree that reads as though they should differ.
+//
+// A TLS 1.2 session with NO list completes, which
+// TestEAPTLS12CompletesWithNoRevocationList proves. A TLS 1.2 session with an
+// EXPIRED list does NOT, because crlSet.configured answers yes for it: the
+// operator asked for the check, and crlSet.currentListFrom then finds nothing
+// that still speaks for now. RFC 5280 Section 5.1.2.5 defines nextUpdate as "the
+// date by which the next CRL will be issued", so an expired list is not a usable
+// one and treating it as an answer would report "not revoked" on the strength of
+// a document that has stopped speaking.
+//
+// PREVENTS docs/guide/ipsec.md going back to saying a stale list establishes on
+// TLS 1.2, which it said until 2026-09-07.
+func TestEAPTLS12RefusesAStaleRevocationList(t *testing.T) {
+	pki := newEAPTLSPKI(t)
+
+	serverCfg := pki.serverConfig()
+	serverCfg.CRLPEM = expiredCRL(t, pki.trustedCA, pki.trustedCAKey)
+	peer := NewPeerSessionTLS("eap-tls-client", pki.peerConfigWithCRL(pki.trustedCRLPEM))
+
+	fl := driveEAPTLSFlight(t, serverCfg, peer, tls.VersionTLS12, revocationRounds)
+
+	if fl.successAt >= 0 {
+		t.Fatal("the authenticator sent EAP-Success on the word of a revocation list that had expired")
+	}
+	err := fl.sess.Err()
+	if err == nil {
+		t.Fatal("the authenticator refused the exchange without recording a reason")
+	}
+	if !strings.Contains(err.Error(), "no current certificate revocation list") {
+		t.Fatalf("the authenticator refused for %q, which does not name the expired list", err)
+	}
+}
+
 // newSubCA returns an intermediate CA certificate, its key and its PEM, signed
 // by the parent CA.
 func newSubCA(t *testing.T, parent *x509.Certificate, parentKey *ecdsa.PrivateKey, cn string, serial int64) (*x509.Certificate, *ecdsa.PrivateKey, []byte) {

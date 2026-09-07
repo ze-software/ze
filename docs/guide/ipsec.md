@@ -477,11 +477,17 @@ decides whether a session establishes:
 | A current list, and the chain is not on it | The session establishes | The session establishes |
 | A current list naming a certificate on the chain | Ze refuses, naming the certificate, its serial number and the CA that withdrew it | The same |
 | No list at all | Ze refuses: nothing can answer the question Section 5.4 makes mandatory | The session establishes |
-| A list whose `nextUpdate` has passed | Ze refuses: an expired list says nothing about the present | The session establishes |
+| A list whose `nextUpdate` has passed | Ze refuses: an expired list says nothing about the present | The same |
 
-TLS 1.2 is governed by RFC 5216 Section 5.4 instead, which asks only that an implementation
-"MUST support the use of Certificate Revocation Lists (CRLs)". So a TLS 1.2 peer with no
-list configured still authenticates, and the same peer on TLS 1.3 does not.
+The "no list at all" row is the only one where the two versions differ. TLS 1.2 is governed by
+RFC 5216 Section 5.4 instead, which asks only that an implementation "MUST support the use of
+Certificate Revocation Lists (CRLs)". Nothing there obliges a session the operator configured
+no list for, so a TLS 1.2 peer with no list still authenticates while the same peer on TLS 1.3
+does not.
+
+Every other row holds on both versions, because a list that IS configured is checked whatever
+was negotiated. An expired list is not a usable one, so it refuses on TLS 1.2 too: the
+operator asked for the check, and the source can no longer perform it.
 
 Publish a fresh list before the `nextUpdate` of the one in the config passes. An expired
 list refuses the same peers a missing one does.

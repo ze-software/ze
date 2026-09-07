@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | 4/8 |
-| Updated | 2026-09-05 |
+| Updated | 2026-09-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -308,6 +308,17 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
    5.4-5 need a post-authentication check over a secure transport, wired to a point
    after the CHILD_SA is up. Those four are STILL OPEN and are gaps, never exclusions:
    Ze fills the role every one of them addresses.
+
+   IT ALSO CLOSED A GAP ON ANOTHER RFC, 2026-09-07. `rfc/short/rfc5216.md` recorded
+   RFC5216-5.4-1, "CRL checking MUST be supported", as `{gap: no CRL logic exists
+   anywhere in the EAP-TLS path}`, and RFC 5216 is ENROLLED, so that annotation was a
+   published claim about a behaviour the same producer now performs. The obligation
+   carries no version condition, unlike RFC 9190 Section 5.4, so it is proven on
+   TLS 1.2: `TestEAPTLS12RefusesARevokedClientCertificate` and
+   `TestEAPTLS12CompletesWithAnUnrevokedChain`, each with a discrimination record in
+   `rfc/discrimination/rfc5216.json`. RFC5216-5.4-2, post-authentication revocation
+   checking, is still a gap and is the same obligation as RFC9190-5.4-4 and 5.4-5, so
+   one piece of work closes all three.
 5. Anonymous and privacy-friendly NAIs.
 6. Write `rfc/extraction/rfc9190.json` by hand and run `./le rfc check`.
 7. Move the row from `rfc/not-enrolled.txt` to `rfc/enrolled.txt`, add the status row.

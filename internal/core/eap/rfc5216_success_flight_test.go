@@ -58,6 +58,11 @@ type eapTLSFlight struct {
 	serverSent []*Packet
 	peerSent   []*Packet
 
+	// sess is the authenticator Session the harness drove. It carries the
+	// method's refusal reason, which no packet on the wire does
+	// (Session.Err, eap.go).
+	sess *Session
+
 	peerDone  bool
 	peerMSK   [64]byte
 	serverMSK [64]byte
@@ -93,7 +98,7 @@ func driveEAPTLSFlight(t *testing.T, cfg MethodConfig, peer *PeerSession, maxTLS
 	}
 	method.tlsConfig.MaxVersion = maxTLSVersion
 
-	fl := &eapTLSFlight{successAt: -1, failureAt: -1}
+	fl := &eapTLSFlight{sess: sess, successAt: -1, failureAt: -1}
 	req := sess.Begin()
 
 	for range maxRounds {

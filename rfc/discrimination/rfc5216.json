@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc5216",
+  "records": [
+    {
+      "rid": "RFC5216-5.4-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS12CompletesWithAnUnrevokedChain",
+      "unit-sha": "b5e2077c38d9d857",
+      "claim-sha": "8ea44d322fd918db",
+      "route": "revert",
+      "producer": "internal/core/eap/revocation.go::checkChainRevocation",
+      "producer-sha": "bc6548ee07f24385",
+      "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-5.4-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS12RefusesARevokedClientCertificate",
+      "unit-sha": "a7b1de307f2048c6",
+      "claim-sha": "3a1446fcfa606063",
+      "route": "revert",
+      "producer": "internal/core/eap/revocation.go::revocationEntry",
+      "producer-sha": "6e32d12c4965fd39",
+      "break": "body of revocationEntry replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
