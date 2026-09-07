@@ -9,7 +9,7 @@ Acct-Interim-Interval.
 <!-- source: internal/component/l2tp/plugins/authradius/extract.go -- extractAuthMetadata, extractFramedRoutes, isValidSubscriberIP -->
 <!-- source: internal/component/l2tp/session_metadata.go -- AuthMetadata, StoreSessionMetadata, LoadSessionMetadata, ClearSessionMetadata -->
 <!-- source: internal/component/l2tp/session_timeout.go -- startSessionTimeouts, runSessionTimeout, runIdleTimeout, cancelSessionTimeouts -->
-<!-- source: internal/component/l2tp/plugins/shaper/filter_rate.go -- parseFilterRate -->
+<!-- source: internal/component/traffic/filterid_rate.go -- ParseFilterIDRate -->
 
 ## Decisions
 

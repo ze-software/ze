@@ -30,12 +30,13 @@ import (
 // the remainder and in neither column, so `gated - both` counts it as an
 // annotation that does not exist (ai/rules/principles.md, declare once).
 type ledgerRow struct {
-	rfc       string
-	gated     int
-	both      int
-	annotated int
-	noTest    int
-	state     string
+	rfc         string
+	gated       int
+	both        int
+	onePolarity int
+	annotated   int
+	noTest      int
+	state       string
 }
 
 // annotationPattern answers the pattern that finds one annotation kind on a
@@ -131,10 +132,11 @@ func collectRFC(t *tree, floors qualityFloors) (Metric, Metric, error) {
 	}
 	rows = enrolled
 
-	gated, both, annotated, noTest := 0, 0, 0, 0
+	gated, both, onePolarity, annotated, noTest := 0, 0, 0, 0, 0
 	for _, row := range rows {
 		gated += row.gated
 		both += row.both
+		onePolarity += row.onePolarity
 		annotated += row.annotated
 		noTest += row.noTest
 	}
@@ -163,12 +165,17 @@ func collectRFC(t *tree, floors qualityFloors) (Metric, Metric, error) {
 				"one; the two sources have diverged",
 			pythonDict(kinds), splitTotal, annotated, gated)
 	}
-	if annotated+noTest+both != gated {
+	// The gated population has FOUR buckets, and every one of them must be
+	// summed. One polarity is a real bucket: a requirement whose positive test
+	// exists and whose negative one does not is neither proven both ways nor
+	// annotated nor untested. Omitting it asserted a three-way partition over a
+	// four-way population, which held only while that column summed to zero.
+	if both+onePolarity+annotated+noTest != gated {
 		return Metric{}, Metric{}, collectErrorf(
 			"the ledger's own columns do not partition its gated population: %d both + %d "+
-				"annotated + %d with no test is not %d gated. One polarity is counted "+
-				"nowhere here, so the page would publish a remainder it cannot account for",
-			both, annotated, noTest, gated)
+				"one polarity + %d annotated + %d with no test is not %d gated, so the page "+
+				"would publish a remainder it cannot account for",
+			both, onePolarity, annotated, noTest, gated)
 	}
 
 	unproven := unprovenRows(rows)
@@ -206,14 +213,15 @@ func ledgerRows(text string) ([]ledgerRow, error) {
 		if gatedErr != nil || bothErr != nil {
 			continue
 		}
+		onePolarity, onePolarityErr := strconv.Atoi(match[4])
 		annotated, annotatedErr := strconv.Atoi(match[5])
 		noTest, noTestErr := strconv.Atoi(match[6])
-		if annotatedErr != nil || noTestErr != nil {
+		if onePolarityErr != nil || annotatedErr != nil || noTestErr != nil {
 			continue
 		}
 		rows = append(rows, ledgerRow{
-			rfc: match[1], gated: gated, both: both, annotated: annotated,
-			noTest: noTest, state: strings.TrimSpace(match[9]),
+			rfc: match[1], gated: gated, both: both, onePolarity: onePolarity,
+			annotated: annotated, noTest: noTest, state: strings.TrimSpace(match[9]),
 		})
 	}
 	if len(rows) == 0 {

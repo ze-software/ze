@@ -756,3 +756,43 @@ func TestTheLedgerRollupIsReadFromItsAnnotatedAndNoTestColumns(t *testing.T) {
 		t.Errorf("the third row's state is %q, want **backlog**", rows[2].state)
 	}
 }
+
+// VALIDATES: the One polarity column is READ, and it is one of the four buckets
+// that partition a row's gated population.
+// PREVENTS: the defect this replaced. collectRFC summed Both, Annotated and No
+// test and asserted the three of them equal Gated, which is a three-way
+// partition over a four-way population. It held only while every One polarity
+// cell was zero, so the page went red the first time a requirement had one
+// polarity proven and the other absent -- a state the ledger records on
+// purpose. Every fixture in the test above leaves that column at zero, which
+// is why it could not see this.
+func TestTheLedgerRollupReadsItsOnePolarityColumn(t *testing.T) {
+	// Columns, in the order ai/RFC-REQUIREMENTS.md declares them: RFC, Gated,
+	// Both, One polarity, Annotated, No test, Outstanding, Nightly-only, State.
+	table := "| RFC | Gated | Both | One polarity | Annotated | No test | Outstanding | Nightly-only | State |\n" +
+		"|---|---|---|---|---|---|---|---|---|\n" +
+		"| `rfc9004` | 9 | 3 | 2 | 3 | 1 | 0 | 0 | **enrolled** |\n"
+
+	rows, err := ledgerRows(table)
+	if err != nil {
+		t.Fatalf("the rollup was refused: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("the rollup parsed to %d row(s), want 1", len(rows))
+	}
+
+	row := rows[0]
+	if row.onePolarity != 2 {
+		t.Errorf("the one-polarity count is %d, want 2 -- the column is not read", row.onePolarity)
+	}
+	if row.both+row.onePolarity+row.annotated+row.noTest != row.gated {
+		t.Errorf("%d both + %d one polarity + %d annotated + %d with no test is not %d gated, so the four columns do not partition the row",
+			row.both, row.onePolarity, row.annotated, row.noTest, row.gated)
+	}
+	// The assertion that tells the two readings apart. Dropping One polarity
+	// leaves 7 against 9 gated, which is the sum collectRFC used to refuse on.
+	if row.both+row.annotated+row.noTest == row.gated {
+		t.Errorf("three columns already sum to %d gated, so this row cannot tell a three-way partition from a four-way one",
+			row.gated)
+	}
+}

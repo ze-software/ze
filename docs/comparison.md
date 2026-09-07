@@ -9,7 +9,7 @@ A feature comparison of open-source routing daemon implementations. Most tables 
 > project's own documentation before making decisions. Corrections and updates are welcome
 > via the [issue tracker](https://github.com/ze-software/ze/issues).
 
-Last updated: 2026-09-01
+Last updated: 2026-09-06
 
 ## Overview
 
@@ -614,7 +614,7 @@ attributes are consumed:
 <!-- source: internal/component/l2tp/plugins/authradius/extract.go -- extractAuthMetadata -->
 <!-- source: internal/component/l2tp/plugins/authradius/extract_vsa.go -- vendor VSA CoS/rate extraction -->
 <!-- source: internal/component/l2tp/session_timeout.go -- timeout enforcement -->
-<!-- source: internal/component/l2tp/plugins/shaper/filter_rate.go -- Filter-Id rate parsing -->
+<!-- source: internal/component/traffic/filterid_rate.go -- ParseFilterIDRate -->
 
 RADIUS Accounting (Interim-Update and Stop) includes real per-subscriber
 traffic counters read from the pppN kernel interface:

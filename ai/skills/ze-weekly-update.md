@@ -149,7 +149,7 @@ In `website/`, apply the checklist from `AI.md`:
 
 1. Confirm the post has valid `tags:` front matter.
 2. Check `data/features.json` and `data/milestones.json` for drift.
-3. Check `docs/comparison.md` and `website/compare/comparison.md` for comparison drift.
+3. Check `docs/comparison.md` and `website/compare/bgp.md` for comparison drift (`website/compare/comparison.md` is a dispatch page, not the mirror).
 4. Check whether a new lab page or `data/nav.json` Labs entry is needed.
 5. Check whether `performance/index.html` needs fresh headline benchmark stats.
 6. Run:

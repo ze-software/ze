@@ -8,8 +8,8 @@
   "note": {
     "label": "RFC compliance progress",
     "tone": "pink",
-    "title": "Every MUST requirement tied to a test",
-    "body": "Every gated MUST-level requirement links to source text, status, and test evidence.",
+    "title": "Every MUST-level requirement, and what proves it",
+    "body": "One page per RFC, naming each requirement, the test evidence behind it, and the ones that have none.",
     "link": {
       "href": "quality/rfc-compliance/",
       "label": "Compliance gate"

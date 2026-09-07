@@ -682,7 +682,8 @@
           "bullets": [
             "YANG-modelled **certificate** management",
             "Chain validation, **expiry** checks",
-            "Shared by IPsec, **TLS**, mutual auth"
+            "Shared by IPsec, **TLS**, mutual auth",
+            "**Local CA** issues 24-hour certs to Ze's components"
           ]
         },
         {
@@ -901,7 +902,8 @@
           "bullets": [
             "**15 match** types, 19 actions",
             "SNAT, DNAT, **masquerade**",
-            "FlowSpec-to-firewall **bridge**"
+            "FlowSpec-to-firewall **bridge**",
+            "**DNS-sourced** address groups, TTL-tracked"
           ]
         },
         {

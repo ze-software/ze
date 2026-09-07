@@ -424,10 +424,10 @@ this before considering the update done.
 2. **Check Compare for drift.** Did the week close one of the
    "Where Ze is behind today" gaps, or change a Yes/No/Partial cell? Edit
    `../docs/comparison.md` first (the source of truth), then copy the
-   change into `compare/comparison.md` here (or re-run whatever produced
-   that mirror). Bump the `Last updated:` date in main's file and the "as
-   of" date in this file's disclaimer when real content changes -- never let
-   this page carry content main doesn't also have.
+   change into `compare/bgp.md` here (`compare/comparison.md` is a dispatch
+   page between the BGP and NOS comparisons, not a mirror). Bump the
+   `Last updated:` date in main's file when real content changes -- never
+   let the mirror carry content main doesn't also have.
 3. **Check Labs for drift.** Did the week add new interop/QEMU evidence
    substantial enough for its own lab page (see `labs/bgp-interop/` as the
    template)? A new lab also needs an entry in `data/nav.json`'s Labs
