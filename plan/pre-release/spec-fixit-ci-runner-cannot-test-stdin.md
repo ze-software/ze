@@ -2,14 +2,32 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 3/8 |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-09-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+**Nobody is working on this (2026-09-07).** Status is `ready`, not
+`in-progress`: nothing claims it and no session is working it. The `Phase` field
+keeps the position so whoever picks it up does not restart.
+
+What is built, verified at the producer today: AC-1 through AC-5. The blanket
+rewrite of the first `-` in argv is gone, replaced by `routeStdinBlock`
+(`internal/test/runner/runner_exec_util.go`), which returns `stdinRouteDaemonConfig`
+only for the argument `zeDaemonConfigArgIndex` names, `stdinRoutePeerFile` only
+for a `ze-peer` line that wrote no `-`, and `stdinRoutePipe` for everything else.
+A verb's own `-` therefore pipes.
+
+What is NOT built: AC-6, AC-7, AC-8 and AC-13 have no product code. The four
+fixtures AC-9 through AC-12 name are at HEAD in `test/ui/`, but no recorded red
+for `bgp-decode-pcap-stdin.ci` or `bgp-decode-stdin-hex.ci` exists on disk, so
+the discrimination half of AC-9 and AC-10 is unproven. AC-14 and AC-15 need a
+whole functional suite run, which the owner deferred until the machine is free
+of the concurrent exabgp session.
 
 **Bucket: `plan/pre-release/`.** No operator meets this: the `ze` binary reads
 standard input correctly, and the defect is in the instrument that judges it. It
@@ -21,7 +39,30 @@ moves to `plan/` and nothing else in the spec changes.
 
 ## Task
 
-No `.ci` test can exercise a `ze` command that reads standard input.
+No `.ci` test can exercise a `ze` command whose `-` names standard input.
+
+**Corrected 2026-09-07, at the owner's finding.** This section said "no `.ci`
+test can exercise a `ze` command that reads standard input", and that is false.
+`runTest` (`internal/test/runner/runner_exec.go`) sets
+`proc.Stdin = strings.NewReader(string(stdinContent))` whenever the block
+survives the rewrite branches, so piping works and always has: 83 `cmd=` lines
+in 67 files pipe today. What breaks is the `-` CONVENTION, and only it. The
+census below re-derives every number in this spec; the ones it replaces were
+measured against the wrong population.
+
+| Measured 2026-09-07 over `test/**/*.ci` | Count |
+|------------------------------------------|-------|
+| files declaring a `stdin=` block | 1,356 |
+| `cmd=` lines naming a block on a `ze` argv carrying a bare `-` (intercepted) | 1,394, in 1,254 files |
+| of those, the `-` IS the daemon config argument (`zeDaemonConfigArgIndex` names it) | 914 |
+| of those, the `-` is a VERB's own stdin token (428 `ze config validate -`, 41 `ze bgp decode ... -`, 11 other `ze config`, 1 `ze schema validate -`) | 480 |
+| `cmd=` lines naming a block that pipe today | 83, in 67 files |
+| `ze-peer` lines naming a block, none of which can pipe | 702 |
+
+Of the 480, 286 are in `test/parse` and 39 in `test/decode`, which
+`parsingRunner.runOneCommand` and `DecodingTests.parseCIFile` drive rather than
+`runTest`. **155 lines in 62 files** are the generic runner's share, and they are
+what Option D moves.
 
 A `.ci` author writes `cmd=foreground:seq=1:exec=ze bgp decode pcap -:stdin=capture`
 and reads it as "pipe the `capture` block into `ze bgp decode pcap -`". The runner
@@ -37,7 +78,11 @@ recorded in `plan/journal/green-that-could-not-have-been-red.md` row 160:
 | `test/ui/bgp-decode-pcap-stdin.ci` | PASSED, vacuously | `decodePcapInput` opens a path just as happily as stdin, so the assertion held for a reason the test was not written to check. It could not have gone red for the stdin path being broken |
 | `test/ui/bgp-decode-stdin-hex.ci` | FAILED, `invalid byte: U+002F '/'` | `cmdDecode` fell through to `decodeHexPacket`, which was handed a filesystem path where hexadecimal was expected |
 
-Neither file was committed. Both are named here as evidence, not as work.
+**Corrected 2026-09-07.** This said neither file was committed. Both are at
+HEAD: `a83f838dfa`, 2026-09-07, committed them to `test/ui/`. So the ui suite
+carries the second one RED, and the first one green for a reason it does not
+assert. Re-measured before any code changed, and that red is this spec's
+discrimination evidence rather than a claim about an uncommitted file.
 
 The substitution is not an accident. Its comment says a bare `ze -` daemon launch
 needs the config as a FILE, and that is true: the daemon re-reads it on SIGHUP, a
@@ -59,7 +104,7 @@ runner ANSWERS a directive it did not understand, instead of refusing it.
   → Constraint: the doc states, under "Stdin Blocks", that a block is "piped to a process's stdin". For `ze <verb> ... -` and for every `ze-peer` line that is false, and the doc says nothing about the file substitution. The doc edit lands in the same work as the code (`ai/rules/documentation.md`), and it must state which form pipes and which does not
   → Decision: the `cmd=` line's key vocabulary is `seq`, `exec`, `stdin`, `timeout`, `exit`, `name`, `signal`. Any new directive this spec adds is one more marker in that set and must be documented in the same table
 - [ ] `docs/functional-tests.md` - the suite-by-suite map, already amended for this defect
-  → Constraint: the UI row already records "No `.ci` covers the standard-input forms of `ze bgp decode`, and none can". That sentence becomes false when this spec lands and must be rewritten, not appended to
+  → Constraint: the UI row recorded "No `.ci` covers the standard-input forms of `ze bgp decode`, and none can". REWRITTEN 2026-09-07: it now names the two `.ci` files that cover them and says what the runner did before
 - [ ] `ai/rules/principles.md` - fail-closed, one declaration, registration over enumeration
   → Constraint: "code that cannot answer MUST say so, and MUST NOT return zero, nil, false, empty, or the default in place of an answer". A parser that meets a directive it cannot honor is exactly this case, so a silent fallback is banned and a refusal is owed
   → Constraint: "a new feature MUST register itself and be discovered; it MUST NOT require an edit to a switch, a case, a factory, a field list, or any other central enumeration". This rules OUT Option A below, which is a hand-kept list of `ze` commands inside the runner
@@ -106,7 +151,7 @@ Not applicable. No wire behavior changes.
 |---|----------|----------|
 | 1 | the command loop in `runner_exec.go`, branch `binName == binNameZePeer && stdinContent != nil` | writes the block to `os.CreateTemp` as `ze-peer-expect-*.msg`, APPENDS the path to argv, sets `stdinContent = nil`. Unconditional: it does not look at argv, so a `-` the author wrote survives as a second positional argument |
 | 2 | the command loop in `runner_exec.go`, branch `binName == binNameZe && stdinContent != nil` | scans argv for the FIRST element equal to `-`, writes the block to `rec.WorkDir` under `zeConfigFileName`, and either inserts the `start` verb before it (when the index equals `zeDaemonConfigArgIndex`) or replaces it in place. Then `stdinContent = nil` and `break` |
-| 3 | the same loop, after both branches | `proc.Stdin` is assigned only when `stdinContent` is still non-nil. So a matched `-` means nothing is piped |
+| 3 | the same loop, after both branches | `proc.Stdin` is assigned only when `stdinContent` is still non-nil. So a matched `-` means nothing is piped, and every OTHER line pipes. This is the row the Task section used to contradict: the pipe is built, reached and depended on by 83 lines |
 | 4 | `zeDaemonConfigArgIndex` | for `ze -` returns 0; for `ze bgp decode pcap -` returns `-1`, because `bgp` is not a skipped flag, is not `-`, has no config suffix, holds no path separator and does not start with `.` |
 | 5 | `parseCmdExec` | extracts each value from its marker to the next KNOWN marker. An unknown `key=` on a `cmd=` line is not refused: it is swallowed into whichever value precedes it |
 | 6 | `parseCIFile` and `parseDecodeCmdLine` (`decoding.go`) | for `test/decode/*.ci` the `exec=` line is never executed. A bespoke parser lifts the message type, family, plugins and `--json` off it, takes the hex from the `stdin=` block as TEXT, and builds its own argv ending in the hex string. The `-` on those lines is decoration |
@@ -121,7 +166,7 @@ Not applicable. No wire behavior changes.
 | `exec=ze bgp decode -:stdin=payload` | the hex lines are piped | `ze bgp decode <workdir>/ze-bgp.conf` | fails, `invalid byte '/'` |
 | `exec=ze config fmt -w -:stdin=config` | the formatted config is printed | the temp file is rewritten in place | passes with empty stdout, and the pipeline branch is never entered |
 | `exec=ze config history -:stdin=config` | the named refusal is asserted | history runs against a real path | the refusal is unreachable, so the negative test cannot exist |
-| `exec=ze-peer --port $PORT -:stdin=peer` | the script is piped | `ze-peer --port $PORT - <tmpfile>`, two positional arguments | unvalidated: I did not run it. `expect.go` opens one path, so the second word is either an argument error or ignored |
+| `exec=ze-peer --port $PORT -:stdin=peer` | the script is piped | `ze-peer --port $PORT - <tmpfile>`, two positional arguments | `zeTestBuildPeerConfig` (`internal/test/cli/cmd_peer.go`) reads `fs.Arg(0)` only, so the `-` wins and the temp file is ignored. `LoadExpectFile` then opens stdin, which the runner left unset, and returns an EMPTY expect set. Measured 2026-09-07: ze-peer refuses to bind, `ze-peer exited without binding: "no test data available to test against"`, and every ze dial gets connection refused. Not silent, but the red names neither the pipe nor the `-` |
 | `exec=ze-test engine-steps -:stdin=steps` | the steps are piped | exactly that, stdin piped | works, because neither branch matches `ze-test` |
 | `exec=ze isis decode:stdin=payload` | the payload is piped | exactly that, stdin piped | works, because there is no `-` in argv to match |
 | `exec=ze cli -c "show config dump - \| json":stdin=config` | the config is piped | exactly that, stdin piped | works, because no argv ELEMENT equals `-` |
@@ -135,7 +180,7 @@ addresses it by bare name, a restart reuses it, and a rollback assertion reads
 
 | Command as typed in a `.ci` | Producer | `.ci` lines today |
 |-----------------------------|----------|-------------------|
-| `ze -`, and its flagged forms `ze --plugin X -`, `ze --mcp $PORT -`, `ze --web ... -` | `zeDaemonConfigArgIndex` returns the `-`'s own index, so the runner writes the file and inserts the `start` verb. The daemon then loads it through `internal/component/bgp/config/loader.go` | 747 `ze -`, plus 26 `ze --mcp $PORT -`, plus roughly 120 `ze --plugin ... -` |
+| `ze -`, and its flagged forms `ze --plugin X -`, `ze --mcp $PORT -`, `ze --web ... -` | `zeDaemonConfigArgIndex` returns the `-`'s own index, so the runner writes the file and inserts the `start` verb. The daemon then loads it through `internal/component/bgp/config/loader.go` | 763 `ze -`, plus 116 `ze --plugin ... -`, plus 34 `ze --mcp $PORT -`, plus 1 `ze --pprof <port> -`. Re-derived 2026-09-07 |
 
 Group 2, where `-` means "read from the pipe" and the runner substitutes a path
 anyway. Every row is a `ze` command whose stdin form no `.ci` can reach.
@@ -144,7 +189,7 @@ anyway. Every row is a `ze` command whose stdin form no `.ci` can reach.
 |---------|----------|---------------------|
 | `ze bgp decode -` | `cmdDecode` routes to `decodeHexStdin` | hexadecimal lines on stdin |
 | `ze bgp decode pcap -` | `decodePcapInput` opens `args[0]` via `cliio.OpenReader` | capture bytes on stdin, streamed |
-| `ze config validate -` | `cmd_validate.go` reads through `cliio.ReadFile` | the config text on stdin. 423 `.ci` lines, all testing the path form |
+| `ze config validate -` | `cmd_validate.go` reads through `cliio.ReadFile` | the config text on stdin. 428 `.ci` lines, all testing the path form; 147 of them in the generic runner |
 | `ze config fmt -`, `ze config fmt -w -`, `--check`, `--diff` | `cmd_fmt.go` | the config on stdin, AND for `-w` a different output sink: stdout unconditionally, rather than an in-place rewrite when changed |
 | `ze config set - ...`, `ze config deactivate - ...`, `ze config activate - ...` | `openEditableConfig` (`editor_stdin.go`) | read from stdin and route the SAVE to stdout, turning the command into a pipeline stage |
 | `ze config show -`, `ze config dump -`, `ze config graph -`, `ze config fix -`, `ze config completion -`, `ze config import -` | `cmd_show.go`, `cmd_dump.go`, `cmd_graph.go`, `cmd_fix.go`, `cmd_completion.go`, `cmd_import.go` | the config text on stdin. Content-equivalent to the path form, so these are the vacuous-green cases |
@@ -182,7 +227,7 @@ not break them.
 **Behavior to preserve:**
 - `ze -` and its flagged forms keep getting a real file in `rec.WorkDir` under the
   name `zeConfigFileName` chooses, with the `start` verb inserted, chowned for a
-  credential-dropped child in netns mode. 747 `.ci` files depend on the file
+  credential-dropped child in netns mode. 914 `.ci` lines depend on the file
   existing, and several depend on its exact NAME.
 - A second distinct stdin block in one record keeps getting its own
   `ze-<block>.conf`, so a two-daemon test still forms a distinct pair.
@@ -263,9 +308,9 @@ B, C and D are live and Thomas picks.
 | Option | How it works | What it costs | What it gains |
 |--------|-------------|---------------|---------------|
 | A. Distinguish by COMMAND | the runner holds a list of `ze` verbs whose `-` is a daemon config, and substitutes only for those | REJECTED. `ai/rules/principles.md` bans a central enumeration a new feature must edit, and this one would have to track every `ze` verb that ever takes a path. It also keeps the runner answering a question the author did not ask | nothing that B or D does not give |
-| B. Explicit `.ci` directive | `:stdin=<block>` means what the doc already says, pipe it. A new `cmd=` marker, `:config=<block>`, means materialize a file and substitute the `-` | rewriting roughly 900 `.ci` lines (747 `ze -`, 26 `ze --mcp`, about 120 `ze --plugin`), plus a parse-time refusal for a `ze -` line that still says `stdin=`, plus one more marker in `parseCmdExec` and its doc table | the `.ci` states its own meaning, and no runner heuristic reads argv at all. The largest diff and the only option with nothing left to infer |
-| C. Remove the substitution entirely | every `stdin=` block is piped. Daemon-launch tests declare their config as a `tmpfs=` block and name the path in `exec=` | rewriting the same 900 lines AND every fixture that depends on the file's NAME: `action=rewrite:dest=ze-bgp.conf`, the SIGHUP reload tests, the restart-against-the-same-file tests, the rollback assertions on `rollback/ze-bgp-*.conf`, and `zeConfigFileName`'s two-daemon rule. The netns chown of the config file moves to the tmpfs writer | one meaning for `stdin=`, no special case anywhere, and `-` in a `.ci` means what it means in a shell |
-| D. Narrow the branch to a true daemon launch | substitute only when the matched `-`'s index equals `zeDaemonConfigArgIndex(args)`. Pipe in every other case | the 423 `ze config validate -` lines flip from the path form to the pipe form. Content-identical, but any assertion naming the file changes, and `ze config fmt -w -` style commands change branch. `ze-peer` still needs its own answer, since it has no `-` to test. Requires a full functional-suite run to prove nothing else moved | the smallest diff by a wide margin, and the discriminator already exists and is already about the daemon rather than about a list of commands |
+| B. Explicit `.ci` directive | `:stdin=<block>` means what the doc already says, pipe it. A new `cmd=` marker, `:config=<block>`, means materialize a file and substitute the `-` | rewriting 914 `.ci` lines (763 `ze -`, 116 `ze --plugin`, 34 `ze --mcp`, 1 `ze --pprof`), plus a parse-time refusal for a `ze -` line that still says `stdin=`, plus one more marker in `parseCmdExec` and its doc table | the `.ci` states its own meaning, and no runner heuristic reads argv at all. The largest diff and the only option with nothing left to infer |
+| C. Remove the substitution entirely | every `stdin=` block is piped. Daemon-launch tests declare their config as a `tmpfs=` block and name the path in `exec=` | rewriting the same 914 lines AND every fixture that depends on the file's NAME: `action=rewrite:dest=ze-bgp.conf`, the SIGHUP reload tests, the restart-against-the-same-file tests, the rollback assertions on `rollback/ze-bgp-*.conf`, and `zeConfigFileName`'s two-daemon rule. The netns chown of the config file moves to the tmpfs writer | one meaning for `stdin=`, no special case anywhere, and `-` in a `.ci` means what it means in a shell |
+| D. Narrow the branch to a true daemon launch | substitute only when `zeDaemonConfigArgIndex(args)` names a `-`. Pipe in every other case | 155 `cmd=` lines in 62 files flip from the path form to the pipe form. Content-identical, but any assertion naming the file changes, and `ze config fmt -w -` style commands change branch. `ze-peer` still needs its own answer, since its branch reads no `-` at all | the smallest diff by a wide margin, and the discriminator already exists and is already about the daemon rather than about a list of commands |
 
 **Option D is already built for ONE of the two runners (2026-09-06, commit
 `d1e6e2d200`), so the decision below is smaller than the table states.** The
@@ -277,14 +322,24 @@ was fixed rather than left because the unnarrowed branch had made a security
 test vacuous, `test/parse/tacacs-key-required.ci`
 (`plan/journal/green-that-could-not-have-been-red.md`).
 
+**Corrected 2026-09-07: the precedent is NARROWER than that paragraph says, and
+the difference is the whole of D.** `d1e6e2d200` narrowed only WHERE the `start`
+verb goes. Read `runOneCommand` (`internal/test/runner/parsing.go`): both arms
+still substitute `stdinPath` into argv, the daemon arm as `start <path>` and
+every other arm in place, and the pipe below is guarded by `!containsDash(parts)`
+so the substitution has already made it false. The parse suite therefore still
+runs its 286 `ze config validate -` lines as the PATH form, and it still cannot
+test a piped `-`. What that commit fixed is a different defect on the same
+branch: `ze <path>` is not a command, so the daemon answered its usage and
+exit 1 before reading the config.
+
 Two facts this produced, both bearing on D's cost column:
 
 - The full `test/parse` suite ran green over the change, 328/330, with the two
-  failures pre-existing and unrelated. So D's "requires a full functional-suite
-  run to prove nothing else moved" is discharged for this suite's 330 files.
-- The parse suite's `-` substitution is the PATH form for `ze config validate -`
-  and stays so under D, because `zeDaemonConfigArgIndex` returns `-1` there.
-  The generic runner's 423 lines are the same case, which supports A-1.
+  failures pre-existing and unrelated. That evidence is about the `start`-verb
+  narrowing, not about piping, so it does NOT discharge D for this suite.
+- `zeDaemonConfigArgIndex` returns `-1` for `ze config validate -` in both
+  runners, which supports A-1 and is the only part of the precedent D reuses.
 
 What is NOT settled: the generic runner (`runner_exec.go`) is untouched, and
 `ze-peer` still has no answer under D.
@@ -293,8 +348,8 @@ Two sub-questions ride on the choice and Thomas should answer them together:
 
 | Sub-question | If B | If C | If D |
 |--------------|------|------|------|
-| `ze-peer` | `:expect-file=<block>` for the current behavior, `:stdin=` pipes | the block is piped and `ze-peer` reads `-`; every `ze-peer` line gains a `-` | unresolved by the discriminator. Needs its own answer: either the B treatment or the C treatment for this one binary |
-| the 423 `ze config validate -` lines | they say `stdin=` and start piping | same | same |
+| `ze-peer` | `:expect-file=<block>` for the current behavior, `:stdin=` pipes | the block is piped and `ze-peer` reads `-`; every `ze-peer` line gains a `-` | ANSWERED 2026-09-07: the `.ci` already declares it, by writing a `-` or not. A line carrying a bare `-` pipes; a line carrying none keeps the appended file. No directive is added, all 702 existing lines are unchanged, and the empty-expect-set refusal in the row above is gone. Proven by `test/runner/stdin-pipes-into-a-dash.ci`, whose peer takes its ASN from the piped block |
+| the 428 `ze config validate -` lines | they say `stdin=` and start piping | same | 147 of them, the generic runner's share; the rest are `test/parse`, which this change does not reach |
 
 ## Detection: how a silently-wrong `.ci` is caught
 
@@ -307,7 +362,7 @@ did not understand rather than refusing it.
 |---|----------|----------|-------|
 | 1 | an unrecognised key inside `expect=` was dropped in silence, so ten `not-contains=` lines across seven files asserted nothing | `parseExpect` | FIXED by `checkKeys`, commit `8c7f0a5bf2`, 2026-09-06 |
 | 2 | every stream assertion reads the whole file's accumulated stdout and stderr, so the stream named in the directive selects nothing and the command it sits near selects nothing | `checkOutputAssertions` | documented in that function's own comment at `8c7f0a5bf2`, NOT fixed |
-| 3 | the `-` rewrite, this spec | the `binName == binNameZe` branch in `runner_exec.go` | not fixed |
+| 3 | the `-` rewrite, this spec | the `binName == binNameZe` branch in `runner_exec.go`, and the unconditional `binNameZePeer` branch beside it | FIXED 2026-09-07 by `routeStdinBlock` (`runner_exec_util.go`). Both branches now run only for the shape they name, and the `.ci` selects the route by writing a `-` or not |
 | 4 | a `cmd=` line's unknown key is swallowed into the preceding value rather than refused, because `parseCmdExec` is marker-based and `checkKeys` never sees it | `parseCmdExec` with `nextMarker` | found writing this spec, not fixed |
 
 **What the runner owes an author who writes something it cannot honor: a refusal
@@ -347,30 +402,30 @@ green judges and watch it go red.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `zeDaemonConfigArgIndex` returns `-1` for every Group 2 command in the table above | read the function: the first non-flag word decides, and `bgp`, `config`, `doctor`, `support`, `plugin`, `data`, `tacacs`, `exabgp`, `appliance` each fall through to `return -1` | Option D substitutes where it should pipe, on a command nobody listed | a table test over one argv per Group 2 row asserting `-1` | unvalidated |
-| A-2 | the 423 `ze config validate -` lines pass identically when the config is piped rather than passed as a path | `cmd_validate.go` reads through `cliio.ReadFile`, which returns the same bytes either way | a suite-wide red that looks like a product defect | run the config suite under the change and diff the pass set | unvalidated |
-| A-3 | no `.ci` asserts on the substituted file's NAME in a Group 2 command | the name matters for `action=rewrite:dest=ze-bgp.conf` and the rollback assertions, which are daemon tests | a Group 2 test breaks for a reason unrelated to stdin | grep the suite for `ze-bgp.conf` and `ze-<block>.conf` beside a non-daemon `exec=` | unvalidated |
-| A-4 | `ze-peer` given both a `-` and an appended temp file misbehaves | I did not run it. `expect.go` opens one path and the runner appends one | the `ze-peer` sub-question is easier than stated | run one such `.ci` and read the error | unvalidated |
-| A-5 | `checkKeys`, `checkOutputAssertions` and the `reject=stdout:contains=` move are at HEAD and will not move again before this spec is implemented | read as uncommitted on 2026-09-06, then observed as commit `8c7f0a5bf2` with the package clean | this spec's D1 duplicates or contradicts a parser change that moved under it | re-read `git log` and `git status` for `internal/test/runner/` at the start of implementation | unvalidated |
-| A-6 | `test/decode/*.ci` is unaffected by any change to `runner_exec.go` | `parseCIFile` and `parseDecodeCmdLine` build their own argv from the `exec=` line and never reach the command loop | a change intended for `test/ui/` silently moves 200-plus decode tests | run the decode suite before and after and compare the pass set | unvalidated |
+| A-1 | `zeDaemonConfigArgIndex` returns `-1` for every Group 2 command in the table above | read the function: the first non-flag word decides, and `bgp`, `config`, `doctor`, `support`, `plugin`, `data`, `tacacs`, `exabgp`, `appliance` each fall through to `return -1` | Option D substitutes where it should pipe, on a command nobody listed | a table test over one argv per Group 2 row asserting `-1` | confirmed: `TestCIStdinPipesForNonDaemonZeCommand` (`internal/test/runner/stdin_route_test.go`), 31 argv rows including `--no-color` in front |
+| A-2 | the `ze config validate -` lines pass identically when the config is piped rather than passed as a path | `cmd_validate.go` reads through `cliio.ReadFile`, which returns the same bytes either way | a suite-wide red that looks like a product defect | run the config suite under the change and diff the pass set | confirmed: all 62 affected files pass under the change, across isis, ospf, ospfv3, vrrp, plugin, l2tp, dhcp, firewall, install, ui and draft |
+| A-3 | no `.ci` asserts on the substituted file's NAME in a Group 2 command | the name matters for `action=rewrite:dest=ze-bgp.conf` and the rollback assertions, which are daemon tests | a Group 2 test breaks for a reason unrelated to stdin | grep the suite for `ze-bgp.conf` and `ze-<block>.conf` beside a non-daemon `exec=` | confirmed: every file naming `dest=ze-bgp.conf` or `rollback/ze-bgp` is a daemon test, and the 62 affected files pass with no file written for them |
+| A-4 | `ze-peer` given both a `-` and an appended temp file misbehaves | I did not run it. `expect.go` opens one path and the runner appends one | the `ze-peer` sub-question is easier than stated | run one such `.ci` and read the error | confirmed by running `test/runner/stdin-pipes-into-a-dash.ci` against the pre-change runner: `ze-peer exited without binding: "no test data available to test against"`. The empty expect set is refused rather than accepted, so the shape is a red whose message names neither the pipe nor the `-` |
+| A-5 | `checkKeys`, `checkOutputAssertions` and the `reject=stdout:contains=` move are at HEAD and will not move again before this spec is implemented | read as uncommitted on 2026-09-06, then observed as commit `8c7f0a5bf2` with the package clean | this spec's D1 duplicates or contradicts a parser change that moved under it | re-read `git log` and `git status` for `internal/test/runner/` at the start of implementation | confirmed: both are at HEAD on 2026-09-07 and this change touches neither |
+| A-6 | `test/decode/*.ci` is unaffected by any change to `runner_exec.go` | `parseCIFile` and `parseDecodeCmdLine` build their own argv from the `exec=` line and never reach the command loop | a change intended for `test/ui/` silently moves 200-plus decode tests | run the decode suite before and after and compare the pass set | confirmed structurally: `zeTestNewDecodingTestSuite` and `zeTestNewParsingTestSuite` (`internal/test/cli/cmd_bgp.go`) build `DecodingRunner` and `ParsingRunner`, neither of which calls `runTest`. The 39 decode and 286 parse lines are out of this change's reach |
 | A-7 | the crash-dump intent path and `internal/appliance/config.go` are not directly typed `ze` verbs taking `-` | I read the call sites, not the flags that supply their paths | two rows of the Group 2 table are wrong about the command spelling | read the flag registration for each | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | a rewrite of roughly 900 `.ci` lines (Options B and C) lands with a mechanical error nobody sees, because the affected tests were already passing for the wrong reason | the suite stays green while a spot check of five rewritten files shows the wrong form | rewrite by script, not by hand, and prove the script on a five-file sample whose runs are read line by line before the bulk pass |
+| R-1 | a rewrite of 914 `.ci` lines (Options B and C) lands with a mechanical error nobody sees, because the affected tests were already passing for the wrong reason | the suite stays green while a spot check of five rewritten files shows the wrong form | rewrite by script, not by hand, and prove the script on a five-file sample whose runs are read line by line before the bulk pass |
 | R-2 | the daemon config file's NAME is depended on somewhere the grep in A-3 misses, so a restart or rollback test breaks late | a reload test reports "sighup reload complete" having changed nothing, which is exactly how the WorkDir defect showed itself before | keep `zeConfigFileName` and its two-daemon rule untouched in Options B and D; in Option C, port the whole naming rule to the `tmpfs=` route before touching any test |
 | R-3 | this spec collides with further parser work in the same package, which changed twice in one week | a merge conflict in `record_parse.go`, or two refusal mechanisms for the same key | cite by symbol not by line, re-read `git log` for the package at implementation start, and build D1 on top of `checkKeys` rather than beside it |
 | R-4 | D3's must-fail suite becomes a suite that passes for a new reason, which is the same defect one level up | a must-fail fixture that goes red for a message other than the one it names | each must-fail fixture asserts the SPECIFIC failure text, and the gate compares the text, not just the verdict |
 | R-5 | fixing stdin re-arms assertions across the suite the way the colon-splitting fix did (203 assertions, 15 suites, one security test that had never run its guard) | a wave of reds in files nobody touched | expect it and read every one as a real finding, not as fallout. Budget for it: this is the second time this class has been repaired |
-| R-6 | Option D leaves `ze-peer` unresolved and the spec closes with the biggest group still unable to pipe | the `ze-peer` row of the sub-question table is still empty at review | the `ze-peer` answer is an acceptance criterion, not a follow-up. If it is dropped it becomes its own spec in this bucket, named here |
+| R-6 | Option D leaves `ze-peer` unresolved and the spec closes with the biggest group still unable to pipe | the `ze-peer` row of the sub-question table is still empty at review | RETIRED 2026-09-07: `ze-peer` is answered inside D, by the same rule the `ze` arm takes, and `test/runner/stdin-pipes-into-a-dash.ci` proves it with an observed red |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
 | What breaks if this is wrong? | the functional suite, which is the evidence every other spec's closure rests on. No shipped binary changes. The worst case is a suite that goes green for a new wrong reason, which is strictly worse than today because today's wrongness is at least recorded |
-| How is it reverted? | a single commit revert for Option D. Options B and C rewrite roughly 900 `.ci` files, so the revert is large but mechanical and touches no product code |
+| How is it reverted? | a single commit revert for Option D. Options B and C rewrite 914 `.ci` lines, so the revert is large but mechanical and touches no product code |
 | Who else touches this path? | a sibling session changed `record_parse.go`, `record.go`, `accept_only.go`, `peer_contract.go` and `runner_exec.go` and added three files in commit `8c7f0a5bf2` on 2026-09-06, the same day. `plan/immediate/spec-bgp-pcap-decode.md` is in-progress and reached this defect |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
@@ -465,7 +520,7 @@ Not applicable. Test tooling with no protocol peer and no wire-visible change
 - `docs/architecture/testing/ci-format.md` - the `stdin=` contract, the `cmd=` key table, and the new directive if one is added
 - `docs/functional-tests.md` - the UI suite row, which currently says no `.ci` can cover these forms
 - `ai/patterns/functional-test.md` - the stdin example, which shows the `-` form
-- roughly 900 `.ci` files under `test/` - Options B and C only
+- 914 `.ci` lines under `test/` - Options B and C only
 
 ## Files to Create
 - `internal/test/runner/must_fail_test.go` - the D3 gate
@@ -603,7 +658,7 @@ Not applicable. Test tooling with no protocol peer and no wire-visible change
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| OPEN, Thomas decides | B (explicit directive), C (remove the substitution), D (narrow to a true daemon launch) | the three differ by roughly 900 rewritten `.ci` lines and by how much the runner infers. See Design Options |
+| D, chosen by Thomas 2026-09-07 | B (explicit directive), C (remove the substitution), D (narrow to a true daemon launch) | the three differ by 914 rewritten `.ci` lines and by how much the runner infers. See Design Options |
 | Option A is rejected without asking | a per-command list inside the runner | `ai/rules/principles.md` bans a central enumeration a new feature must edit, and it keeps the runner answering an unasked question. This is a rule verdict, not a preference |
 | D3 is the detection answer | D1 and D2 alone | D1 catches misspelling and D2 makes a rewrite visible, but only a stored forced red catches the next instance of the class. All three are proposed; D3 is the one that generalizes |
 | D4 is rejected | a corpus lint against each command's stdin capability | it is Option A wearing a lint's clothes and needs the same banned list |
