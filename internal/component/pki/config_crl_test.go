@@ -82,13 +82,24 @@ func TestParseCACRLAcceptsPEMAndBase64(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ParseConfig: %v", err)
 			}
-			ca := cfg.CACerts["test-ca"]
-			if len(ca.CRLs) != 1 {
-				t.Fatalf("revocation lists parsed = %d, want 1", len(ca.CRLs))
+			// The assertion runs over CRLPEM, which is what the EAP-TLS
+			// revocation check receives, so it reads the same bytes the
+			// consumer reads rather than an intermediate the product does
+			// not use.
+			block, rest := pem.Decode(cfg.CACerts["test-ca"].CRLPEM())
+			if block == nil {
+				t.Fatal("the CA answered no PEM for the one crl it was given")
 			}
-			entries := ca.CRLs[0].RevokedCertificateEntries
+			if extra, _ := pem.Decode(rest); extra != nil {
+				t.Fatalf("one crl leaf produced a second %s block", extra.Type)
+			}
+			list, pErr := x509.ParseRevocationList(block.Bytes)
+			if pErr != nil {
+				t.Fatalf("re-parse the emitted list: %v", pErr)
+			}
+			entries := list.RevokedCertificateEntries
 			if len(entries) != 1 || entries[0].SerialNumber.Int64() != 42 {
-				t.Fatalf("the parsed list does not carry serial 42: %v", entries)
+				t.Fatalf("the emitted list does not carry serial 42: %v", entries)
 			}
 		})
 	}

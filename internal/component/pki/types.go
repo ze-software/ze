@@ -1,4 +1,5 @@
 // Design: docs/architecture/pki/pki-store.md -- PKI certificate store types
+// RFC: rfc/short/rfc9190.md -- Section 5.4, why a CA with no revocation list is its own state
 
 package pki
 
@@ -23,10 +24,11 @@ const (
 
 // CACertEntry holds a parsed CA certificate and the revocation lists it issued.
 //
-// CRLs and RawCRLs are index-aligned: RawCRLs[i] is the DER that parsed into
-// CRLs[i]. The raw form is kept because a consumer hands the list on as PEM,
-// and re-encoding a parsed structure would not reproduce the bytes the CA
-// signed.
+// RawCRLs holds each list as the DER the CA signed, and NOT as a parsed
+// structure: the consumer hands the list on as PEM, and re-encoding a parsed
+// structure would not reproduce the signed bytes. Every list is parsed once at
+// config load, to check this CA signed it, and the parsed form is discarded
+// there (parseCACert, config.go).
 //
 // A CA with no list is a DIFFERENT state from one whose list revokes nothing.
 // The first cannot answer the question RFC 9190 Section 5.4 makes mandatory on
@@ -35,7 +37,6 @@ type CACertEntry struct {
 	Name        string
 	Certificate *x509.Certificate
 	Raw         []byte
-	CRLs        []*x509.RevocationList
 	RawCRLs     [][]byte
 }
 

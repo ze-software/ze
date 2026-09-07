@@ -1,4 +1,6 @@
 // Design: docs/architecture/pki/pki-store.md -- PKI config parser
+// RFC: rfc/short/rfc7296.md -- the certificate payloads a peer entry supplies (Section 3.6)
+// RFC: rfc/short/rfc9190.md -- Section 5.4, the crl leaf-list this parser reads
 
 package pki
 
@@ -229,7 +231,9 @@ func parseCACert(name string, tree *config.Tree) (*CACertEntry, error) {
 		if sErr := list.CheckSignatureFrom(cert); sErr != nil {
 			return nil, fmt.Errorf("%w: %w", errPKICRLIssuer, sErr)
 		}
-		entry.CRLs = append(entry.CRLs, list)
+		// The DER is what is stored, and the parsed list is discarded here. The
+		// consumer hands the list on as PEM, so re-encoding the parsed structure
+		// would not reproduce the bytes this CA signed (CACertEntry, types.go).
 		entry.RawCRLs = append(entry.RawCRLs, crlDER)
 	}
 

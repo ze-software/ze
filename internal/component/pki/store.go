@@ -1,4 +1,5 @@
 // Design: docs/architecture/pki/pki-store.md -- PKI in-memory certificate store
+// RFC: rfc/short/rfc9190.md -- Section 5.4, the revocation lists CRLPEM hands the consumer
 
 package pki
 
