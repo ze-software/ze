@@ -132,8 +132,22 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 	} else {
 		// RFC 4760: every other family carries its next-hop and NLRI inside
 		// MP_REACH_NLRI (type 14), which the writer places at its type-code position.
+		//
+		// A family that names no forwarding hop carries NONE, and carrying none is
+		// what makes the length octet zero. RFC 8955 Section 4: "When advertising
+		// Flow Specifications, the Length of the Next-Hop Network Address MUST be
+		// set to 0.  The Network Address of the Next-Hop field MUST be ignored."
+		// The batch rail asks Family.NeedsNextHop the same question
+		// (reactor_api_batch.go), and which rail encodes a route is decided by
+		// scheduling: a FlowSpec route queued while the peer drains its initial
+		// sync comes through here, so the two rails must answer alike or the wire
+		// bytes depend on timing.
+		var nextHops []netip.Addr
+		if fam.NeedsNextHop() {
+			nextHops = []netip.Addr{nextHop}
+		}
 		mpReach := attribute.NewMPReachNLRI(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI),
-			[]netip.Addr{nextHop}, nlriData)
+			nextHops, nlriData)
 		if err := mpReach.ValidateNextHops(); err != nil {
 			logRIBRouteNextHopUnencodable(routeNLRI, nextHop)
 			return nil
