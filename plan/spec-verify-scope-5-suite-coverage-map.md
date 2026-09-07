@@ -5,9 +5,9 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | spec-verify-scope-2-change-set-selector (closed 2026-09-05; the selector is `internal/le/changed/selector.go` and `docs/architecture/testing/verify-freshness-scope.md`) |
-| Phase | 1/5 |
+| Phase | 2/5 |
 | Handoff | - |
-| Updated | 2026-08-19 |
+| Updated | 2026-09-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -48,38 +48,40 @@ package at all.
 ### Architecture Docs
 - [ ] `docs/architecture/testing/ci-format.md` - the `.ci` test file format: embedded files, options, expectations and commands
 - [ ] `ai/rules/testing.md` - the four carriers, and how a `.ci` earns `functional/verify`
-  → Constraint: non-unit evidence is monotonic per requirement and per tier. `check_evidence_ratchet` fires when a `.ci` loses its tier, and no annotation satisfies it
+  → Constraint: non-unit evidence is monotonic per requirement and per tier. `checkEvidenceRatchet` (`internal/le/rfc/check_ratchets.go`) fires when a `.ci` loses its tier, and no annotation satisfies it
 - [ ] `docs/functional-tests.md` - the suites, the runner, and the isolated binary set
   → Constraint: the default mode builds the binaries OUTSIDE the runner
 - [ ] `docs/architecture/testing/verify-freshness-scope.md` - what a scoped run already judges
 
 **Key insights:**
 - The suites cannot be run concurrently: only the `bgp` and `vpp` paths call `runner.ReservePorts` (`internal/test/runner/ports.go`), and suites registered through `registerCIRoot` take a deterministic port. `plan/journal/parallel-copies-collide-on-a-deterministic-port.md` records the collisions. This spec SELECTS suites; it does not parallelize them.
-- `functional_suites` (`internal/le/rfc/rfc.go`) fails CLOSED by design: an unreadable or ambiguous recipe raises rather than assuming everything runs, and its own comment calls the opposite "the exact zero-that-looks-like-an-answer this module refuses elsewhere". That shapes the tier decision below.
+- `functionalSuitesFromGo` (`internal/le/rfc/check_baseline.go`) fails CLOSED by design: it parses `Gating` out of `internal/le/functional/suites.go` and raises on a source it cannot read, rather than assuming everything runs. That shapes the tier decision below. It was `functional_suites` in the Makefile era, and the ported name is what a reader has to grep for now.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
 - [ ] `internal/test/runner/runner.go` - `(*Runner).Build` compiles `./cmd/ze` with `go build -tags TestBuildTags() -ldflags ...`, and returns `r.verifyPrebuilt()` early when `ze.test.no.build` is enabled
 - [ ] `internal/test/runner/runner_exec_util.go` - `childEnv` returns `os.Environ()` plus `GOTRACEBACK=all` and `CGO_ENABLED=0`, so an exported variable reaches every spawned process with no per-test plumbing
-- [ ] `internal/le/functional/suites.go` - `ZE_ALT_BUILD` compiles ze, ze-test and ze-stripped into `tmp/testbin-*`; `ZE_TEST_RUN` sets `ZE_TEST_NO_BUILD=1`; `run_suite` executes the 24 `all_suites` entries in order
+- [ ] `internal/le/functional/suites.go` - `Gating`, the ordered gating suite list, and `GatingSuites`, which resolves it against the catalog
+- [ ] `internal/le/functional/binaries.go` - `Prepare` builds the isolated set; `ZE_SUFFIX` names its directory, `ZE_TEST_CANONICAL` runs the session's own binaries in place, `ZE_COVER` turns on `-cover` and `coverRoot`
+- [ ] `internal/le/functional/run.go` - `runGating` is the stage: it selects, announces and executes each suite, and `reduceCoverage` reduces the suite's `GOCOVERDIR` afterwards
 - [ ] `internal/le/changed/selector.go` - `runSelector`, whose package answer this spec consumes
-- [ ] `internal/le/rfc/rfc.go` - `functional_suites`, `_suite_carriers`, `check_evidence_ratchet`
+- [ ] `internal/le/rfc/check_baseline.go`, `carriers.go`, `check_ratchets.go` - `functionalSuitesFromGo`, `suiteCarriers`, `checkEvidenceRatchet`
 
 **→ Constraint: the instrumentation goes where the binary is BUILT, and in the
-default mode that is not the runner.** `ZE_ALT_BUILD` (`internal/le/functional/suites.go`)
-compiles the isolated set and `ZE_TEST_RUN` sets `ZE_TEST_NO_BUILD=1`, so
+default mode that is not the runner.** `Prepare` (`internal/le/functional/binaries.go`)
+compiles the isolated set and the suite runs with `ze.test.no.build` enabled, so
 `(*Runner).Build` takes its `verifyPrebuilt` branch and never compiles. Adding
 `-cover` to `(*Runner).Build` alone instruments only `ZE_TEST_CANONICAL=1` runs,
 which is not how the gate runs. Both producers need it, or the spec must name
 which mode produces the map.
 
 **Behavior to preserve:**
-- `all_suites` stays the single source of truth for which suites are gating.
+- `Gating` (`internal/le/functional/suites.go`) stays the single source of truth for which suites are gating.
 - Every `.ci` that runs today still runs when its subject changes.
 - The per-suite wall-clock budgets, including `ZE_SUITE_TIMEOUT_PLUGIN`.
 - `ZE_SKIP_SUITES` keeps its meaning as an operator override.
-- `functional_suites` keeps failing closed.
+- `functionalSuitesFromGo` keeps failing closed.
 
 **Behavior to change:**
 - The functional stage runs a subset of suites, chosen by the recorded map and the selector's package answer.
@@ -92,8 +94,8 @@ which mode produces the map.
 
 ### Transformation Path
 1. The binary producer compiles `./cmd/ze` with `-cover`.
-2. `run_suite` exports a per-suite `GOCOVERDIR`; `childEnv` carries it to every spawned `ze`.
-3. After each suite, `go tool covdata` reduces that directory to the set of packages the suite executed.
+2. `runGating` exports a per-suite `GOCOVERDIR`; `childEnv` carries it to every spawned `ze`.
+3. After each suite, `go tool covdata textfmt` reduces that directory to the set of packages the suite REACHED: a package with one covered block that is neither in `register.go` nor inside a `func init(` body. Counting a package as executed instead is what phase 1 measured and what broke A-3.
 4. The per-suite sets are written to one derived artifact, with the HEAD it was produced at.
 5. A later scoped run intersects the selector's package answer with that artifact and skips the suites no changed package reaches.
 
@@ -105,8 +107,8 @@ which mode produces the map.
 | Map ↔ functional stage | the derived artifact, read to compute `ZE_SKIP_SUITES` | No |
 
 ### Integration Points
-- `ZE_ALT_BUILD` and `(*Runner).Build` - the two binary producers.
-- `run_suite` (`internal/le/functional/suites.go`) - the per-suite environment and the post-suite reduction.
+- `Prepare` (`internal/le/functional/binaries.go`) and `(*Runner).Build` - the two binary producers.
+- `runGating` and `reduceCoverage` (`internal/le/functional/run.go`) - the per-suite environment and the post-suite reduction.
 - `runSelector` - the package answer this consumes.
 
 ### Architectural Verification
@@ -123,9 +125,9 @@ which mode produces the map.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | An instrumented `ze` is behaviourally identical to the shipped one for every `.ci` | `-cover` adds counters, not logic | Suites fail only under instrumentation, and the map cannot be produced | Run the full functional suite instrumented and compare the pass set against the uninstrumented run | **broken** (2026-08-19) |
-| A-2 | `GOCOVERDIR` reaches every process a `.ci` starts | `childEnv` returns `os.Environ()` plus extras | Some suites record nothing and read as covering no package | Assert a non-empty profile for every suite in `all_suites` | **broken** (2026-08-19) |
-| A-3 | Per-suite package sets are small enough to be worth selecting on | untested. The daemon LINKS 562 of 646 packages, and this spec bets it EXECUTES far fewer per suite | The map selects nearly every suite and buys nothing | **Measure first, in phase 1, before building anything else** | **broken** (2026-08-19) |
+| A-1 | An instrumented `ze` is behaviourally identical to the shipped one for every `.ci` | `-cover` adds counters, not logic | Suites fail only under instrumentation, and the map cannot be produced | Run the full functional suite instrumented and compare the pass set against the uninstrumented run | **broken for `ui` only** (2026-09-07). `encode` is identical over 9 runs and `parse` differs only on a test flaky in both arms. `ui` loses 7 per-test TIMEs over 3 instrumented runs against 0 over 3 uninstrumented ones, on 7 different tests, none of them reproducing across every instrumented run. The per-suite budget is refuted as the mechanism |
+| A-2 | `GOCOVERDIR` reaches every process a `.ci` starts | `childEnv` returns `os.Environ()` plus extras | Some suites record nothing and read as covering no package | Assert a non-empty profile for every suite in `Gating` | **broken** (2026-08-19) |
+| A-3 | Per-suite package sets are small enough to be worth selecting on | untested. The daemon LINKS 562 of 646 packages, and this spec bets it EXECUTES far fewer per suite | The map selects nearly every suite and buys nothing | **Measure first, in phase 1, before building anything else** | **broken** as EXECUTED (2026-08-19); **holds** as REACHED (2026-09-07, phase 1b) |
 
 ### Phase 1 measurement (2026-08-19)
 
@@ -161,13 +163,137 @@ The same `ui` test passes serially under both binaries, so the difference is
 load: the instrumented full run costs 2106s of suite time against 1452s (+45%),
 and 2236s of wall clock against 1472s (+52%).
 
+### Phase 1b measurement (2026-09-07)
+
+Three suites, instrumented one at a time on the same tree: `encode` (BGP wire
+encoding, 59 tests), `parse` (config parsing, 331 tests, the largest suite that
+is not `plugin`) and `ui` (CLI, completion and the native le fixtures, 258
+tests). They are the three largest suites phase 1 recorded as reaching different
+areas, and `plugin` was left out because its 1500s budget buys nothing this
+measurement needs. The whole measurement took 14 minutes of wall clock, of which
+`ui` was 615s.
+
+**A-3 holds under a refined definition, and the phase 1 definition is what was
+broken.** A package counts as REACHED by a suite only when the suite covered one
+block that is neither in `register.go` nor inside a `func init(` body. Every
+other block is what a process runs on any start, which is what phase 1 counted.
+
+| Set | Executed (phase 1) | Reached (refined) |
+|-----|-------------------|-------------------|
+| `ze show version` | 435 | 115 |
+| `encode` | 475 | 189 |
+| `parse` | 460 | 167 |
+| `ui` | 495 | 250 |
+| intersection of the three suites | 443 | 126 |
+| union of the three suites | 505 | 273 |
+
+The intersection is the number that decides the spec, and it falls from 443
+packages (68.6% of the module's 646) to 126 (19.5%). The union falls from 505 to
+273, so 303 of the 576 packages the instrumented binaries carry are reached by
+none of the three suites, and the other 70 of the module's 646 are not linked
+into `ze` at all. The floor a trivial command sets falls the same way, from 435
+to 115, and 112 of those 115 sit inside the three-suite intersection: they are
+the daemon start path (57 packages under `internal/component`, 35 under
+`internal/core`, 24 under `internal/plugins`), which selects every suite whatever
+the definition says.
+
+Two packages show the mechanism. `internal/component/bgp/plugins/nlri/mvpn` is
+EXECUTED by all three suites and REACHED by `encode` alone.
+`internal/component/ssh` is executed by `ui` alone, and it is the change set AC-3
+names.
+
+**The refined definition clears the stop rule in Implementation Step 1.** The
+largest of the three sets is 250 of the module's 646 packages (38.7%), which is
+not most of the module, and no set exceeds 43.4% of the 576 packages the
+instrumented binaries carry.
+
+Method: `go tool covdata textfmt` over each suite's `GOCOVERDIR`, then `go/ast`
+over each covered file for the line range of every `func init(` it declares. A
+file that declares several init functions yields several ranges, and a block
+inside any of them is discarded. No file failed to parse. Each suite ran through
+`./le functional <suite>` with `ZE_COVER=1` and an absolute `GOCOVERDIR`, so the
+raw directories survived for a textfmt reduction, which is not what
+`reduceCoverage` (`internal/le/functional/run.go`) performs.
+
+Every set here is a LOWER bound. Under `-cover` on a loaded box `encode` passed
+54/59, `parse` 328/331 and `ui` 238/258 with one timeout. No uninstrumented run
+was made beside them, so whether those failures are the A-1 cost or predate it is
+not measured here. A failed test still records the packages it reached before it
+failed.
+
+### A-1 attribution (2026-09-07)
+
+Nine `encode` runs, nine `parse` runs and six `ui` runs on one tree
+(`f8c8b29eb3`), uninstrumented and instrumented in adjacent pairs, compared test
+by test rather than by count. The hypothesis under test was that the losses are
+the per-suite wall-clock budget being exceeded under instrumentation and load.
+**It is refuted.**
+
+| Suite | Uninstrumented | Instrumented | Verdict |
+|-------|----------------|--------------|---------|
+| `encode` | 54/59, failed [10, 13, 14, 31, 53], 4 runs | 54/59, the same five ids, 5 runs | identical. Phase 1b's 54/59 is pre-existing |
+| `parse` | 329 or 328/331, always [253, 254], 4 runs | 328 or 329/331, 5 runs | [253, 254] pre-existing. `tacacs-key-required` (302) fails in 4 of 5 instrumented and 2 of 4 uninstrumented runs: flaky in BOTH arms |
+| `ui` | 235, 243, 243 of 260. 0 TIME in 3 runs | 243, 240, 236 of 260. 7 TIME in 3 runs | 16 tests fail in all six runs. The TIME verdicts are the one asymmetry |
+
+**The budget is not the mechanism, and three measurements say so.** `encode`
+used at most 51.6s and `parse` at most 80.2s of a 600s cap while failing, so no
+cap was near. Raising both to 1800s changed no verdict. Both members of two
+`ui` pairs ran at 1800s and used 502s to 558s, and the instrumented losses
+persisted. The gates that DO decide these verdicts are per-TEST and no
+`ZE_SUITE_TIMEOUT_<SUITE>` reaches either: `Timings.SuggestedTimeout`
+(`internal/test/runner/timing.go`) gives `min(30s, max(5s, 5x baseline))`,
+`ParallelTimeoutHeadroom` (`internal/test/runner/parallel.go`) multiplies it by
+3, and a fixture's own readiness wait is a fixed 20s that nothing scales
+(`Poll(ctx, 200, 100*time.Millisecond, ...)`, `internal/test/fixture/fixture.go`).
+No per-suite budget was changed.
+
+**The 7 instrumented TIME verdicts fell on 7 different tests, and 6 of them
+normally run under 1s.** `cli-completion-addpath-fields` 550ms, `-json-output`
+534ms, `-peer-set-all` 513ms, `-plugin-external` 531ms, `-process-content`
+549ms, `debug-enable-show` 258ms, each expiring at 16.0s to 19.4s. A test whose
+baseline is under 1s takes the 5s FLOOR, which the headroom widens to 15s, so it
+holds the smallest deadline in the suite and a suite-wide slowdown of any size
+reaches it first. `le-ste-answers` is the seventh and it is the opposite case:
+445.0s and 454.3s of a 600s suite in two runs that passed.
+
+**No single test fails under instrumentation and passes without it.**
+`show-column-order-absent-unchanged` is the closest at 2 of 3 instrumented
+against 0 of 3 uninstrumented. In the pair taken on a loaded box the
+INSTRUMENTED run passed more (243 against 235), and its nine extra passes
+include the `daemon did not become ready` tests phase 1 attributed to
+instrumentation. That direction reverses with load, so phase 1's `ui` finding is
+load and not `-cover`.
+
+**Instrumentation costs a suite between 0.96x and 2.45x, and costs a process
+nothing measurable.** Suite seconds over the comparable-load rounds: `encode`
+24.0 instrumented against 20.6 (1.16x), `parse` 63.2 against 25.8 (2.45x), `ui`
+502s to 558s against 524s to 531s. Outside the suite, on the same two binaries,
+`ze show version` took 0.21s instrumented against 0.22s, `ze config completion`
+0.52s against 0.53s, `ze config import` into a fresh zefs store 0.39s against
+0.42s, and 80 processes at 8-way concurrency 5.76s against 5.63s. `parse` is
+therefore 2.45x slower for a reason that is inside the suite and that this
+measurement did not locate.
+
+**`ui` is at 87% to 100% of its 600s budget in BOTH arms** (588.7s, 524s and
+531s uninstrumented; 600.7s, 502s and 558s instrumented). The one budget kill
+observed, exit 124 on an instrumented run, fell on the arm holding the busier
+window, and one test is 445s of it. That is budget creep in `ui`, independent of
+this spec.
+
+Two comparisons are unsound and are not read as evidence. The first `ui` pair
+ran at load 62 against load 11, which is the pair whose direction reverses. A
+commit landed during the first `ui` pair (`f8c8b29eb3`, `internal/le/doc/check`)
+and another during the last `ui` run (`61a2b21e52`, docs and website only). The
+box carried a load average of 20 to 60 across 32 cores for every `encode` and
+`parse` round, and 2 to 31 for the `ui` pairs of runs 2 and 3.
+
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | The map skips a suite that would have caught the change | CI red on a locally green change | The map may only NARROW from a package it records; anything it does not know widens to every suite |
 | R-2 | A stale map omits a suite that now covers the package | a suite newly reaches a package and nobody notices | A package is answerable only when the map records it AND no commit since the map's recorded HEAD touched it |
 | R-3 | Instrumentation costs more than selection saves | the instrumented full run exceeds the uninstrumented one by more than selection saves | Phase 1 measures both before anything depends on it |
-| R-4 | Per-change suite skipping lowers a tagged RFC requirement's derived tier | `./le rfc check` reports a tier change | See the tier decision below: the derivation stays on `all_suites`, and the ledger is diffed before and after |
+| R-4 | Per-change suite skipping lowers a tagged RFC requirement's derived tier | `./le rfc check` reports a tier change | See the tier decision below: the derivation stays on `Gating`, and the ledger is diffed before and after |
 
 ## Blast Radius
 
@@ -181,22 +307,22 @@ and 2236s of wall clock against 1472s (+52%).
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le functional` | → | the per-suite `GOCOVERDIR` export in `run_suite` | `TestEverySuiteRecordsACoverageProfile` |
+| `./le functional` | → | the per-suite `GOCOVERDIR` export in `runGating` | `TestEverySuiteRecordsACoverageProfile` |
 | a recorded map plus a package answer | → | the computed `ZE_SKIP_SUITES` | `TestSuiteSelectionSkipsOnlyUnreachedSuites` |
 | an absent or stale map | → | the fail-open branch | `TestAbsentMapRunsEverySuite` |
-| `./le rfc check` | → | `functional_suites` reading `all_suites` | `test_functional_tier_is_unchanged_by_selection` |
+| `./le rfc check` | → | `functionalSuitesFromGo` reading `Gating` | `test_functional_tier_is_unchanged_by_selection` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | A full instrumented functional run completes | Every suite in `all_suites` has a non-empty recorded package set, and the pass set equals the uninstrumented run's |
+| AC-1 | A full instrumented functional run completes | Every suite in `Gating` has a non-empty recorded package set, and the pass set equals the uninstrumented run's |
 | AC-2 | The instrumented full run is measured against the uninstrumented one | The added cost is stated as a number, and it is smaller than selection saves on a feature-local change |
 | AC-3 | The change set is one `internal/component/ssh` file and the map is current | The stage runs the suites whose recorded set contains that package, and no others |
 | AC-4 | The map does not record a changed package | Every suite runs, and the stage names the package it could not answer for |
 | AC-5 | The map exists, but a commit since its recorded HEAD touched the changed package | That package is treated as unknown, so every suite runs |
 | AC-6 | The map is absent entirely | Every suite runs, exactly as today |
-| AC-7 | `./le rfc check` runs before and after | No requirement loses its `functional/verify` tier, and `check_evidence_ratchet` stays green |
+| AC-7 | `./le rfc check` runs before and after | No requirement loses its `functional/verify` tier, and `checkEvidenceRatchet` stays green |
 | AC-8 | An operator sets `ZE_SKIP_SUITES` | Those suites are still skipped, and the map cannot re-add them |
 
 ## 🧪 TDD Test Plan
@@ -205,10 +331,10 @@ and 2236s of wall clock against 1472s (+52%).
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestEverySuiteRecordsACoverageProfile` | `internal/le/` | AC-1: the export reaches every suite | |
-| `TestSuiteSelectionSkipsOnlyUnreachedSuites` | `internal/le/changed/scope_test.go` | AC-3 | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
-| `TestAbsentMapRunsEverySuite` | `internal/le/changed/scope_test.go` | AC-4, AC-6: the fail-open branches | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
-| `TestStaleMapTreatsTouchedPackagesAsUnknown` | `internal/le/changed/scope_test.go` | AC-5 | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
-| `TestEmptyRecordedSetIsARefusal` | `internal/le/changed/scope_test.go` | a suite recording nothing must fail, never read as covering nothing | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
+| `TestSuiteSelectionSkipsOnlyUnreachedSuites` | `internal/le/functional/suitemap_test.go` | AC-3 | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
+| `TestAbsentMapRunsEverySuite` | `internal/le/functional/suitemap_test.go` | AC-4, AC-6: the fail-open branches | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
+| `TestStaleMapTreatsTouchedPackagesAsUnknown` | `internal/le/functional/suitemap_test.go` | AC-5 | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
+| `TestEmptyRecordedSetIsARefusal` | `internal/le/functional/suitemap_test.go` | a suite recording nothing must fail, never read as covering nothing | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
 | `TestOperatorSkipStillWins` | `internal/le/` | AC-8 | |
 | `test_functional_tier_is_unchanged_by_selection` | `internal/le/` | AC-7 | |
 
@@ -233,14 +359,15 @@ and 2236s of wall clock against 1472s (+52%).
 | N-A | - | - | Scope is tooling. No wire-visible behavior changes | |
 
 ## Files to Modify
-- `internal/le/functional/suites.go` - the `-cover` build, the per-suite `GOCOVERDIR`, the post-suite reduction, the computed `ZE_SKIP_SUITES`
+- `internal/le/functional/binaries.go` - the `-cover` build and `coverRoot`
+- `internal/le/functional/run.go` - the per-suite `GOCOVERDIR`, `reduceCoverage`, and the run list `runGating` computes
 - `internal/test/runner/runner.go` - `(*Runner).Build` for the canonical-mode producer
 - `docs/functional-tests.md`, `docs/architecture/testing/verify-freshness-scope.md`
 - `ai/rules/testing.md` - what the `functional/verify` tier now MEANS
 
 ## Files to Create
-- `internal/le/changed/scope.go` - the map reader and the suite selector <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
-- `internal/le/changed/scope_test.go` <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
+- `internal/le/functional/suitemap.go` - the map reader and the suite selector (created 2026-09-07, phase 2). NOT `internal/le/changed/scope.go`, which exists and holds the `ZE_VERIFY_SCOPE_PACKAGES` change-scope answer: the map is keyed by suite names, which only `internal/le/functional` declares
+- `internal/le/functional/suitemap_test.go` (created 2026-09-07, phase 2)
 - `test/runner/verify-scope-suite-map.ci` <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
 
 ### Integration Checklist
@@ -337,10 +464,11 @@ and 2236s of wall clock against 1472s (+52%).
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| A package is REACHED by a suite only when the suite covers a block outside `register.go` and outside every `func init(` in the file | Count any covered block, as phase 1 did | Ze registers by running `init()` in each `register.go` on process start, so every package a binary links counts as executed on any command. Phase 1b measured both: the three-suite intersection is 443 packages counting executions and 126 counting reaches, and the floor a `ze show version` sets falls from 435 to 115 |
 | Observe the mapping at run time | Derive it from `.ci` text, filenames, suite names, or the import graph | All four measured and rejected: 4.1% coverage, one-suite granularity, a false name match, and 87% of the module |
 | The map is a DERIVED artifact under `tmp/`, not committed | Commit it and gate its freshness | A committed map needs a staleness gate, and staleness here is detectable only by re-running the suites. An absent map costs today's behavior, so absence is safe and needs no gate |
 | A package is answerable only if the map records it AND no commit since the map's HEAD touched it | Trust the map until it is regenerated | The stale-map risk is a suite that newly reaches a package. Treating touched packages as unknown bounds it cheaply, with `git diff --name-only <map-sha> HEAD` |
-| **The tier derivation stays on `all_suites`; it does NOT read the map** | Point `functional_suites` at the recorded map | `functional_suites` fails CLOSED by design, and the map can legitimately be absent. Making a fail-closed derivation depend on an optional artifact inverts it. The tier's meaning becomes "this suite runs when its subject changes", which is the standard `./le changed scope` and `ze-unit-test-changed` already meet. `ai/rules/testing.md` must SAY that rather than leave the older reading standing |
+| **The tier derivation stays on `Gating`; it does NOT read the map** | Point `functionalSuitesFromGo` at the recorded map | `functionalSuitesFromGo` fails CLOSED by design, and the map can legitimately be absent. Making a fail-closed derivation depend on an optional artifact inverts it. The tier's meaning becomes "this suite runs when its subject changes", which is the standard `./le changed scope` and `ze-unit-test-changed` already meet. `ai/rules/testing.md` must SAY that rather than leave the older reading standing |
 | Select suites; do not parallelize them | Run the suites concurrently | Only `bgp` and `vpp` reserve ports; the rest take deterministic ones, and the collisions are already journalled |
 
 ## Known Limitations

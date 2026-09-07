@@ -6,23 +6,31 @@ Verification is a statement about one commit and the files the run read. The nat
 
 `internal/le/verify/engine.WriteCertificate` writes `tmp/ze-verify.status` and its manifest atomically after a native verification run. The certificate records the mode, commit, time, result, and the tree hash captured for the run. The manifest records each path at the content the stages read.
 
-`./le verify status check` calls `internal/le/verify/engine.CheckCertificate`. With no paths it compares the whole checkout. Repeated `path <path>` selectors restrict the answer to a prospective commit's files. A changed file, a moved `HEAD`, a missing manifest, or a path that moved while the run was in progress returns STALE.
+`./le verify status check` calls `internal/le/verify/engine.CheckCertificate`. With no paths it compares the whole checkout, and any change to it, `HEAD` included, returns STALE. Repeated `path <path>` selectors restrict the answer to a prospective commit's files. A missing manifest, an unreadable one, a scoped path whose content differs from what the stages read, and a scoped path that moved while the run was in progress each return STALE.
 
-Three properties of the narrower question matter to a caller:
+Four properties of the narrower question matter to a caller:
 
 - A path that MOVED while the run was in flight is STALE whatever it holds now, because no stage judged the content it holds today. The manifest records that path as `movedDuringRun` rather than voiding the whole run, so this is finer granularity and never leniency.
+- The scoped question is about CONTENT, and `scopedChange` asks it that way because the manifest is HEAD-relative while `HEAD` moves under a checkout many sessions commit to. A scoped path the run read as dirty stops being dirty the moment a commit absorbs it unchanged, so each manifest row is compared against the file on disk. A scoped path with no row was identical to the certificate's commit, so the commits made since are asked whether any of them reached it. A commit that reaches nothing in the path list therefore leaves the answer FRESH, which is the same reading the property below gives an uncommitted edit outside the list.
 - `CheckCertificate` reads the run's recorded exit code BEFORE it reads any scope, so a run that FAILED is STALE for every path list. Scoping is no route around a red run.
-- The answer is qualified by mode. `FRESH(full)` covers everything; `FRESH(changed)` is a weaker pass with no full lint, no vet evidence, and no cached full unit pass. A pass recorded with skipped suites (`ZE_SKIP_SUITES`) reports STALE. Only the full mode writes `tmp/ze-verify-full.json`, so a cheaper run cannot certify a Go-carrying commit.
+- The answer is qualified by mode. `FRESH(full)` covers everything; `FRESH(changed)` is a weaker pass with no vet evidence, no cached full unit pass, and no allocation benchmarks. Lint is NOT among the omissions: `changedStages` keeps `verify lint/run` at its full identity, and the lint action reads no change scope, so both modes load the whole module. A pass recorded with skipped suites (`ZE_SKIP_SUITES`) reports STALE. Only the full mode writes `tmp/ze-verify-full.json`, so a cheaper run cannot certify a Go-carrying commit.
 
 `verificationState` (`internal/le/commit/verification.go`) is what asks the scoped question on a prospective commit's behalf: it passes the commit's own explicit path list, so an edit another session makes outside that list does not make the evidence STALE.
 
-<!-- source: internal/le/verify/engine/status.go -- WriteCertificate, CheckCertificate, movedDuringRun -->
+<!-- source: internal/le/verify/engine/status.go -- WriteCertificate, CheckCertificate, scopedChange, movedDuringRun -->
+<!-- source: internal/le/job/treehash.go -- Fingerprint, PathsChangedBetween -->
+<!-- source: internal/le/verify/engine/stages.go -- changedStages -->
 <!-- source: internal/le/verify/status/answer.go -- Answer -->
 <!-- source: internal/le/commit/verification.go -- verificationState -->
 
 ## One change-set selection
 
 `./le changed packages` and `./le changed group-packages` derive the package scope from the current change set. Non-Go inputs seed the packages that consume them, and every unresolved case widens to `./...`. An empty answer is never used as a successful narrow selection.
+
+`verify deps/unit-race-changed` sizes its race pass from that selection, and an empty selection is two different answers rather than one. A change set holding no Go file is a SKIP: the stage runs no test, exits 0, and its report carries `skipped` with the reason, because an exit code cannot tell that run from one that raced every changed group. A change set whose every directory the toolchain calls no package is a REFUSAL: Go files changed, `Selection.Unresolved` names each directory `go list` dropped, and the stage exits non-zero instead of certifying a change it never tested. A dropped directory beside a selection that still holds packages is named on stderr and on the report, so a partial population does not read as the whole one.
+
+<!-- source: internal/le/verify/deps/verifydeps.go -- runUnitRaceChanged, skipUnitRaceChanged -->
+<!-- source: internal/le/changed/changed.go -- Selection, unresolvedDirs -->
 
 The verify runner resolves the selection once and publishes its package and feature-tag answers to the run's artifact directory. `publishChangeScope` writes `scope-packages.txt` and `scope-tags.txt` beside the run's logs and names each one in `ZE_VERIFY_SCOPE_PACKAGES` and `ZE_VERIFY_SCOPE_TAGS`. `le staticcheck-feature-matrix check` reads the tag answer; no stage reads the package answer today, so `scope-packages.txt` is written and never consulted. This keeps the unit pass and the staticcheck matrix on the same snapshot, and it avoids a second reverse-import walk after another session changes the checkout. A run that cannot select publishes neither name, and unset is the widest reading of both: the stage selects its own packages and the matrix judges every row.
 
@@ -54,6 +62,34 @@ One producer answers the change set: `Scope.resolveSelector` (`internal/le/chang
 <!-- source: internal/le/changed/actions.go -- Answer -->
 <!-- source: internal/le/staticcheckfeaturematrix/actions.go -- Answer -->
 <!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
+
+## The suite map
+
+The change-set selection above answers which PACKAGES a change reaches. The suite map answers the other half: which packages each functional suite REACHED when it last ran. A gating run consults it before it builds anything, so the denominator every progress line reads and the suites the loop starts are one decision.
+
+The map is a derived artifact at `tmp/ze-suite-map.json`, rewritten by a recording run and never committed. It lives beside the other verification artifacts rather than in a session scratch directory, because the run that records it and the run that reads it are two sessions. `suiteMap` (`internal/le/functional/suitemap.go`) holds two fields. `head` is the commit the recording ran at, which a reader needs to ask which files moved since. `reached` names, for each suite, every package that suite reached, spelled the way the change-set selector spells one (`./internal/component/ssh`), so neither side normalizes the other.
+
+**Every route that cannot answer WIDENS to every suite.** The file is under `tmp/`, which several sessions share, so a malformed map must widen and must never narrow. `readSuiteMap` refuses rather than answering thinly, and the caller's response to each refusal is the same widening:
+
+| What the reader meets | Why it is a refusal |
+|-----------------------|---------------------|
+| No file at the path | The ordinary state of a fresh checkout and of every CI shard |
+| A read error | A directory or a half-written file at the path is not a map that records nothing |
+| JSON that does not parse | A truncated write is not a narrower answer |
+| No `head` | A map with no commit cannot be asked what moved since, so nothing it records is answerable |
+| No suite under `reached` | A recording that produced no suite broke |
+| A suite whose recorded set is EMPTY | The recording broke for that suite. Reading it as "this suite covers nothing" would skip that suite for ever |
+
+Zero suites selected is a valid answer, because a docs-only change reaches none. Zero packages under one suite is not.
+
+A caller cannot mistake a widening for an empty selection. `suiteSelection` carries a `suiteVerdict` whose zero value is `verdictUnspecified`, so a selection nobody filled in is neither answer, and `runs` reports true under every verdict except `verdictSelected`. A widening therefore names no suite and subtracts none.
+
+`ZE_SKIP_SUITES` outranks the map: `gatingRunList` reads the operator's skip set first, so a recorded map can only ever subtract a suite and never add a skipped one back. The closing report names the operator's skips.
+
+Today `selectSuites` answers `verdictEverySuite` on every path. It reads and validates the map, and no change set is compared against it, so a recorded map subtracts no suite and an absent one costs nothing. Nothing writes the artifact yet.
+
+<!-- source: internal/le/functional/suitemap.go -- suiteMap, readSuiteMap, suiteSelection, selectSuites, gatingRunList -->
+<!-- source: internal/le/functional/run.go -- runGating -->
 
 ## Native stage execution
 

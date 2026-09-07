@@ -18,7 +18,7 @@ import (
 // GatingReport is one gating run.
 type GatingReport struct {
 	// SuiteTotal is the denominator every progress line read, which is the
-	// gating list minus whatever ZE_SKIP_SUITES left out.
+	// gating list minus whatever ZE_SKIP_SUITES and the suite map left out.
 	SuiteTotal int `json:"suite-total"`
 	// Ran is how many suites started.
 	Ran int `json:"ran"`

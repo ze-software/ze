@@ -117,7 +117,14 @@ func (s *session) suiteRunner(suite Suite) func() (any, int) {
 			leaction.ReportError(err)
 			return nil, 1
 		}
-		code, seconds := Execute(s.tc, suite, set, "")
+		covers, err := coverRoot(s.tc.Root)
+		if err != nil {
+			leaction.ReportError(err)
+			return nil, 1
+		}
+		cover, reduce := suiteCoverage(s.tc, suite, covers)
+		code, seconds := Execute(s.tc, suite, set, cover)
+		reduce()
 		return SuiteRun{
 			Suite:   suite.Name,
 			Budget:  suite.Budget(),

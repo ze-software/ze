@@ -309,10 +309,16 @@ func warmCITestPackages(tc gotoolchain.Toolchain) error {
 	return nil
 }
 
-// runGating runs every gating suite, in order, under its own budget.
+// runGating runs every gating suite the operator and the suite map leave in,
+// in order, under its own budget.
 //
 // One isolated binary set serves the whole run, built once and removed however
 // the run ends.
+//
+// The run list is decided before anything is built, so the denominator every
+// progress line reads and the suites the loop starts are one decision
+// (gatingRunList, suitemap.go). A suite the operator skipped is recorded, which
+// is what the closing report names.
 //
 // The payload is nil when the run never started.
 // A zero GatingReport is not an empty run because its Text renders "PASS all 0 suites" in green.
@@ -324,14 +330,15 @@ func runGating(tc gotoolchain.Toolchain) (any, int) {
 		return nil, 1
 	}
 
-	skip := Skipped()
-	total := 0
-	for _, suite := range suites {
-		if !skip[suite.Name] {
-			total++
-		}
+	selection := selectSuites(tc.Root)
+	var tb textbuf.Buffer
+	gaterun.Note(tb.Str("functional: ").Str(selection.Reason).String())
+
+	running, skipped := gatingRunList(suites, Skipped(), selection)
+	run := NewRun(len(running))
+	for _, suite := range skipped {
+		run.Skip(suite)
 	}
-	run := NewRun(total)
 
 	if err := warmCITestPackages(tc); err != nil {
 		gaterun.Note(reportLine(err))
@@ -343,26 +350,17 @@ func runGating(tc gotoolchain.Toolchain) (any, int) {
 		return nil, 1
 	}
 
-	coverRoot, err := coverRoot(tc.Root)
+	covers, err := coverRoot(tc.Root)
 	if err != nil {
 		gaterun.Note(reportLine(err))
 		return nil, 1
 	}
-	for _, suite := range suites {
-		if skip[suite.Name] {
-			continue
-		}
+	for _, suite := range running {
 		run.Announce(suite)
-		cover := ""
-		if coverRoot != "" {
-			cover = filepath.Join(coverRoot, suite.Name)
-			removeTree(cover)
-		}
+		cover, reduce := suiteCoverage(tc, suite, covers)
 		code, seconds := Execute(tc, suite, set, cover)
 		run.Record(suite, seconds, code)
-		if cover != "" {
-			reduceCoverage(tc, suite, cover, coverRoot)
-		}
+		reduce()
 	}
 
 	report := run.Report()
@@ -376,6 +374,26 @@ func runGating(tc gotoolchain.Toolchain) (any, int) {
 func reportLine(err error) string {
 	var tb textbuf.Buffer
 	return tb.Str("error: ").Err(err).String()
+}
+
+// suiteCoverage answers the directory one suite records coverage into, and the
+// reduction to run once that suite has finished. An empty directory and a
+// reduction that does nothing are the answer when ZE_COVER is off.
+//
+// Both callers of Execute go through here because the alternative was measured:
+// the gating loop set GOCOVERDIR and the single-suite action passed a literal
+// empty string, so `ZE_COVER=1 ./le functional <suite>` built instrumented
+// binaries, collected nothing, printed "GOCOVERDIR not set, no coverage data
+// emitted" from every ze it started, and exited 0
+// (plan/journal/enabled-gate-discards-settings.md). One producer for the
+// decision is what stops a second call site from answering it differently.
+func suiteCoverage(tc gotoolchain.Toolchain, suite Suite, covers string) (cover string, reduce func()) {
+	if covers == "" {
+		return "", func() {}
+	}
+	cover = filepath.Join(covers, suite.Name)
+	removeTree(cover)
+	return cover, func() { reduceCoverage(tc, suite, cover, covers) }
 }
 
 // reduceCoverage reduces one suite's raw coverage directory to the packages it
