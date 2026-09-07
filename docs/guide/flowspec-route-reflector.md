@@ -136,7 +136,7 @@ The `peer <selector>` prefix is required; the update command does not dispatch w
 Withdraw it with the same match components:
 
 ```bash
-/usr/local/bin/ze cli -c "send bgp 10.0.0.1 update text nlri ipv4/flow del destination 10.0.0.0/8 protocol tcp destination-port =80"
+/usr/local/bin/ze cli -c "send bgp 10.0.0.1 update text nlri ipv4/flow del destination-ipv4 10.0.0.0/8 protocol tcp destination-port =80"
 ```
 
 Then confirm `edge-a` and `edge-b` received the reflected rule with `show rr peers` or the client's own FlowSpec table.

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -44,21 +45,29 @@ func TestAnnouncementPlansPreserveEveryProcessProducer(t *testing.T) {
 	}
 }
 
+// TestAnnouncementPlanOrderAndTimingFixture pins the order, the timing and the
+// text of every compiled announcement plan. The digest covers one line for each
+// scenario and one line for each of its updates, so a reordered scenario, a
+// retimed delay, a dropped quiesce and a reworded command each break it. The
+// digest input is kept beside the hash and printed on a mismatch, because two
+// hex strings do not say which line moved.
 func TestAnnouncementPlanOrderAndTimingFixture(t *testing.T) {
 	digest := sha256.New()
+	var input strings.Builder
+	plans := io.MultiWriter(digest, &input)
 	for _, scenario := range compiledProcessScenarios {
 		plan, err := announcementPlan(scenario)
 		if err != nil {
 			t.Fatal(err)
 		}
-		fmt.Fprintf(digest, "%s|%d|%d|%t\n", scenario, plan.startup, plan.life, plan.stop) //nolint:errcheck // hash.Hash.Write never returns an error
+		fmt.Fprintf(plans, "%s|%d|%d|%t\n", scenario, plan.startup, plan.life, plan.stop) //nolint:errcheck // neither hash.Hash nor strings.Builder returns a write error
 		for _, update := range plan.updates {
-			fmt.Fprintf(digest, "%s|%s|%d|%t\n", update.selector, update.command, update.delay, update.quiesce) //nolint:errcheck // hash.Hash.Write never returns an error
+			fmt.Fprintf(plans, "%s|%s|%d|%t\n", update.selector, update.command, update.delay, update.quiesce) //nolint:errcheck // neither hash.Hash nor strings.Builder returns a write error
 		}
 	}
-	const want = "728c37f2f1d6276cb6c17b6f91db1cf72821be8ab6ac9f2f3bafb243035f7ec3"
+	const want = "45e2577acca669c8f994c669e385c0c5334c07756e8416e9279c40e500e22f75"
 	if got := hex.EncodeToString(digest.Sum(nil)); got != want {
-		t.Fatalf("compiled announcement order/timing digest = %s, want %s", got, want)
+		t.Fatalf("compiled announcement order/timing digest = %s, want %s\ndigest input:\n%s", got, want, input.String())
 	}
 }
 
@@ -269,6 +278,51 @@ func TestSpeakerDecodeIsBoundedAndEORIsNotRouteBearing(t *testing.T) {
 		t.Fatal("multiprotocol EOR counted as route-bearing")
 	}
 }
+
+// bmpCollectorWaitUntil returns the instant at which a wait for the collector
+// gives up. The test asserts that the collector reaches a state, never how fast
+// a machine reaches it, so the budget is a generous fixed bound. The bound is
+// shortened when the run's own deadline arrives first, so the assertion reports
+// the failure before the harness kills the run.
+func bmpCollectorWaitUntil(t *testing.T) time.Time {
+	const bound = 30 * time.Second
+
+	limit := time.Now().Add(bound)
+	deadline, ok := t.Deadline()
+	if !ok {
+		return limit
+	}
+	report := deadline.Add(-time.Second)
+	if report.Before(limit) {
+		return report
+	}
+	return limit
+}
+
+// bmpCollectorDial connects to the collector, and retries until waitUntil
+// because the collector opens its listener in another goroutine. It always
+// makes one attempt, whatever waitUntil holds.
+func bmpCollectorDial(t *testing.T, address string, waitUntil time.Time) (net.Conn, error) {
+	t.Helper()
+
+	dialer := net.Dialer{Timeout: time.Second}
+	for {
+		connection, err := dialer.DialContext(t.Context(), "tcp", address)
+		if err == nil {
+			return connection, nil
+		}
+		if !time.Now().Before(waitUntil) {
+			return nil, err
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// TestBMPCollectorRecordsWireTypesAndStaysAlive proves that the collector
+// records the type of every BMP message it reads, and that it stays alive until
+// its context is canceled. Both waits below are budgeted from the run deadline
+// rather than from an iteration count: a cold process on a loaded machine needs
+// longer to open the listener and to write the status file.
 func TestBMPCollectorRecordsWireTypesAndStaysAlive(t *testing.T) {
 	var config net.ListenConfig
 	reservation, err := config.Listen(t.Context(), "tcp", "127.0.0.1:0")
@@ -284,15 +338,7 @@ func TestBMPCollectorRecordsWireTypesAndStaysAlive(t *testing.T) {
 	result := make(chan error, 1)
 	go func() { result <- runBMPCollector(ctx, address, statusPath) }()
 
-	var connection net.Conn
-	dialer := net.Dialer{Timeout: 50 * time.Millisecond}
-	for range 20 {
-		connection, err = dialer.DialContext(t.Context(), "tcp", address)
-		if err == nil {
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
+	connection, err := bmpCollectorDial(t, address, bmpCollectorWaitUntil(t))
 	if err != nil {
 		cancel()
 		t.Fatalf("dial collector: %v", err)
@@ -305,9 +351,13 @@ func TestBMPCollectorRecordsWireTypesAndStaysAlive(t *testing.T) {
 	var document struct {
 		Types []uint8 `json:"types"`
 	}
-	for range 20 {
+	statusWaitUntil := bmpCollectorWaitUntil(t)
+	for {
 		data, readErr := os.ReadFile(statusPath)
 		if readErr == nil && json.Unmarshal(data, &document) == nil && len(document.Types) == 3 {
+			break
+		}
+		if !time.Now().Before(statusWaitUntil) {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)

@@ -1572,7 +1572,7 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 				flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")),
 			},
 			wantRD:  "0:65000:100",
-			wantKey: "destination",
+			wantKey: "destination-ipv4",
 		},
 		{
 			name:    "flowspec_vpn_protocol",

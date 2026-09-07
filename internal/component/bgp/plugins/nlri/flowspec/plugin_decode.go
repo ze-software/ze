@@ -436,8 +436,8 @@ func contains(slice []string, val string) bool {
 }
 
 // jsonToTextComponents converts FlowSpec JSON format to text component args.
-// Input: {"destination":[["10.0.0.0/24/0"]],"protocol":[["=tcp"],["=udp"]]}
-// Output: ["destination", "10.0.0.0/24", "protocol", "tcp", "udp"].
+// Input: {"destination-ipv4":[["10.0.0.0/24/0"]],"protocol":[["=tcp"],["=udp"]]}
+// Output: ["destination-ipv4", "10.0.0.0/24", "protocol", "tcp", "udp"].
 //
 // For simple OR groups (each inner array has one value), all values go after
 // a single keyword: "protocol tcp udp" -> one component with OR values.

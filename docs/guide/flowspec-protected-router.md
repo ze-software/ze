@@ -156,7 +156,7 @@ sudo nft list table inet ze_flowspec
 Withdraw the test rule from the same source:
 
 ```bash
-/usr/local/bin/ze cli -c "send bgp 192.0.2.10 update text nlri ipv4/flow del destination 10.0.0.0/8 protocol tcp destination-port =80"
+/usr/local/bin/ze cli -c "send bgp 192.0.2.10 update text nlri ipv4/flow del destination-ipv4 10.0.0.0/8 protocol tcp destination-port =80"
 ```
 
 The rule leaves the kernel with the route. When the withdrawn route was the last
