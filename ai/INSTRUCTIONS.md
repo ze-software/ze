@@ -241,13 +241,13 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 **Components** (`internal/component/`) are independent unless they explicitly depend on each other; `config`, `command`, and `plugin` are infrastructure components nearly everything uses.
 
 <!-- BEGIN GENERATED: arch-components (internal/le/archmap.Update; ./le arch-map update) -->
-43 directories under `internal/component/`:
+44 directories under `internal/component/`:
 
 aaa, aihelp, api, authz, bfd, bgp, cli, cmd, command, config, debug, doctor,
-engine, firewall, gnmi, gokrazy, host, hub, iface, ike, l2tp, lg, managed,
-mcp, mpls, ping, pki, plugin, radius, resolve, ssh, storage, support, sysctl,
-sysrib, tacacs, telemetry, traceroute, traffic, trafficfeature, trafficstat,
-vpp, web
+engine, firewall, gnmi, gokrazy, host, hub, iface, ike, kernelcap, l2tp, lg,
+managed, mcp, mpls, ping, pki, plugin, radius, resolve, ssh, storage, support,
+sysctl, sysrib, tacacs, telemetry, traceroute, traffic, trafficfeature,
+trafficstat, vpp, web
 <!-- END GENERATED: arch-components -->
 
 **System plugins** (`internal/plugins/`) handle domain policy outside the BGP engine: DHCP, NTP, sysctl, static routes, firewall lowering, TFTP/image servers, and CLI verb providers (`*-cmd`). Communication: JSON events down, text commands up.
