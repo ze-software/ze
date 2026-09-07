@@ -73,7 +73,7 @@ answer is still accepted at commit and still does nothing.
 
 An implementation agent ran against this spec and was STOPPED when the session
 hit its budget. It left uncommitted hunks in files that
-`plan/immediate/spec-peer-local-port-overwritten-by-remote-port.md` also had to
+`spec-peer-local-port-overwritten-by-remote-port` also had to
 change, and the port split does not compile without those files. Rather than
 drop work the agent had finished, the port-split commit CARRIES the hunks below.
 This section is what a resuming agent inherits instead of a surprise.

@@ -1,0 +1,93 @@
+# Test: connection > local > port opens the listener an operator names, and a
+# peer dialing that port establishes a session.
+#
+# VALIDATES: connection > local > port reaches PeerSettings.LocalPort
+#            (parsePeerSettings, internal/component/bgp/reactor/config.go), which
+#            peerListenPort (internal/component/bgp/reactor/reactor_peers.go)
+#            turns into the socket startMultiListeners binds. Proven from a
+#            configuration FILE, which is the surface an operator writes.
+# PREVENTS: the operator's local bind port never reaching a socket. Both
+#           connection > local > port and connection > remote > port wrote
+#           PeerSettings.Port until 2026-09-06, so the local value was replaced
+#           and the peer answered on the daemon's port instead, with no error and
+#           no log line.
+#
+# DISCRIMINATION: the ONLY socket this peer can be reached on is the one
+# connection > local > port asks for. $PORT2 is not the daemon's port, and
+# applyPortOverride (internal/component/bgp/config/peers.go) rewrites every
+# peer's remote port to $PORT under the test harness. So with the two endpoints
+# sharing one field, peerListenPort reads $PORT, ze binds nothing at $PORT2, the
+# dial below never connects, and neither the established line nor the
+# NOTIFICATION arrives.
+
+option=env:var=ze.log.bgp.reactor:value=info
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+# The peer's AS matches ze's own. ze-peer MIRRORS ze's OPEN and overrides only
+# the 2-octet My AS field (generateOpen, internal/test/peer/peer.go), so the
+# mirrored RFC 6793 AS4 capability keeps ze's AS whatever option=asn says. Any
+# other value makes the two disagree and ze rejects the OPEN with NOTIFICATION
+# 2/2. The AS numbers are incidental here: this file is about which SOCKET the
+# session arrives on.
+option=asn:value=65533
+option=tcp_connections:value=1
+
+# Cease (code 6) / Administrative Shutdown (subcode 2, RFC 4486) with the RFC 8203
+# shutdown communication: one length octet (0x17) and the 23-character default
+# text "Administrative Shutdown" (Session.Teardown). It is sent to a session that
+# reached Established, so its arrival says the dial above landed on a real
+# listener.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E
+EOF_PEER
+
+# One passive peer that names its own listen port. No dynamic group, so nothing
+# else can accept this connection.
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+bgp {
+	peer solo {
+		connection {
+			remote {
+				ip 127.0.0.2
+				connect false
+			}
+			local {
+				ip 127.0.0.1
+				accept true
+				port $PORT2
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# Trigger: let the session establish, then stop the daemon so the NOTIFICATION
+# above is sent.
+
+cmd=background:seq=1:exec=ze-peer --dial 127.0.0.1:$PORT2:stdin=peer
+cmd=background:seq=2:exec=ze-test fixture plugin/peer-local-port-listener-trigger
+cmd=foreground:seq=3:exec=ze start ze-bgp.conf:timeout=30s
+
+# The session reached Established on the operator's port, and the connection was
+# attributed to the configured peer rather than to the address it dialed from.
+expect=stderr:pattern=session established.*peer=127.0.0.2
+
+# No dynamic group is configured, so a dynamic peer here would mean the inbound
+# was attributed by something other than the listener this test is about.
+reject=stderr:pattern=dynamic peer created

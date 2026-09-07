@@ -30,6 +30,7 @@ func init() {
 	Register("plugin/gr-marker-restart-create", writeGRMarkerExtra3(4_070_910_976))
 	Register("plugin/mgmt-guard-web-dormant-insecure-warns-probe", webListenerProbeExtra3)
 	Register("plugin/mgmt-guard-web-env-started-address-binds-probe", webListenerProbeExtra3)
+	Register("plugin/peer-local-port-listener-trigger", delayedDaemonStopExtra3(3*time.Second))
 	Register("plugin/peer-port-listener-direct-route-trigger", delayedDaemonStopExtra3(3*time.Second))
 	Register("plugin/plugin-cli-debug", pluginCLIDebugExtra3)
 	Register("plugin/rbac-ssh-only-enforced", rbacSSHOnlyExtra3)

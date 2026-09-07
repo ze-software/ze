@@ -458,3 +458,172 @@ declared once as `DefaultBGPPort`.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- `PeerSettings.LocalPort` (`internal/component/bgp/reactor/peer_settings.go`), written by `parsePeerSettings` (`internal/component/bgp/reactor/config.go`) from `connection > local > port`, and read by `peerListenPort` (`internal/component/bgp/reactor/reactor_peers.go`) as the sole listen-port decision. `Port` keeps the remote endpoint: the dial target `Session.Connect` joins with `Address`, and the port half of the peer map key.
+- `operationPeerRemotePortExplicit` (`internal/component/bgp/reactor/operation.go`) reads the remote leaf alone, so a config naming only a listen port still takes the daemon's port as its dial target.
+- `listenerPeerKey` (`internal/component/bgp/reactor/reactor_connection.go`) tests the SOCKET's port rather than the claimant's `Port` field, which no longer means listen.
+- Both leaves' `description` and `ze:help` in `internal/component/bgp/yang/ze-bgp-conf.yang` name the endpoint they decide; the node no longer contradicts itself.
+- `test/plugin/peer-local-port-listener.ci` proves the chain from a configuration FILE to an established session on the operator's port. Added at closure (see Review Gate, finding 1).
+
+### Bugs Found/Fixed
+- The defect this spec exists to fix: both leaves wrote one field, remote last, so an operator's listen port was replaced with no error and no log line. Covered by `TestParsePeerFromTreeSplitsLocalAndRemotePorts` and `TestPeerLocalPortOpensARealListener`.
+- No new defect was introduced. Two found on the way are recorded below and in `plan/journal/guard-added-to-one-half-of-a-pair.md`.
+
+### Documentation Updates
+- `docs/config-reference.md`, peer `connection` table: the merged `remote { port }` / `local { port }` row became one row per leaf, each naming its endpoint.
+- `docs/guide/configuration.md`, Peer Settings table: the single `port` row became `remote { port }` and `local { port }`, the second stating that Ze binds no source port on an outbound connection.
+- Both edits ride on the implementation commit ce5ed4459, not on closure.
+- `./le doc check verify` exits 1 over this checkout with 8611 lines of findings. Grepping that log for every file this spec names (`peer_settings.go`, `reactor_peers.go`, `config.go`, `operation.go`, `ze-bgp-conf.yang`, `docs/config-reference.md`, `docs/guide/configuration.md`) returns nothing: the red is other sessions' work across the BGP command surface and `../gh-pages/`.
+
+### Deviations from Plan
+- The Key Design Decisions row "the proof is a socket-level Go test, not a `.ci`" was OVERTURNED at review. Its stated reason, that a `.ci` "would start a daemon and assert less than `ListenAddrs()` does", is wrong: a `.ci` reaches the configuration FILE, which `parsePeerFromTree` over a hand-built map does not, and it carries a session to Established on the operator's port, which `ListenAddrs()` does not. `ai/rules/testing.md` is explicit that a change is not done on unit tests alone. The `.ci` was written, walked red-then-green, and promoted.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The spec decided a `.ci` would assert less than the socket-level Go test, and recorded that as a design decision | A `.ci` asserts strictly more: it starts at the configuration file and ends at an established session, where the Go test starts at a hand-built `map[string]any` and ends at a bound socket | `/ze-review` step 3, functional test coverage, read against `ai/rules/testing.md` | `test/plugin/peer-local-port-listener.ci` written and promoted |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `connection > local > port` decides the listen port and nothing else | Done | `parsePeerSettings` (`internal/component/bgp/reactor/config.go`), `peerListenPort` (`internal/component/bgp/reactor/reactor_peers.go`) | `LocalPort` has one writer and one reader |
+| `connection > remote > port` decides the dial target and the peer key | Done | `Session.Connect` (`internal/component/bgp/reactor/session_connection.go`), `PeerKey` (`internal/component/bgp/reactor/peer_settings.go`) | Unchanged from before the split |
+| The two leaves' `description` and `ze:help` agree with the code | Done | `internal/component/bgp/yang/ze-bgp-conf.yang`, the `port` leaf of each of `connection/local` and `connection/remote` | Each says which endpoint it names and that the two are independent |
+| The range error names which endpoint carried the bad value | Done | `parsePeerSettings` (`internal/component/bgp/reactor/config.go`) | `local port must be 1-65535` and `remote port must be 1-65535` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestParsePeerFromTreeSplitsLocalAndRemotePorts`, `test/plugin/peer-local-port-listener.ci` | Listen 1790, dial 2790 |
+| AC-2 | Done | `TestPeerListenPortReadsTheOperatorsLocalPort`, `TestPeerListenPort` | Local alone: listen on it, dial 179 |
+| AC-3 | Done | `TestPeerListenPort` | Remote alone moves no listener |
+| AC-4 | Done | `TestPeerListenPort` | Neither leaf: the daemon's listener, dial 179 |
+| AC-5 | Done | `TestParsePeerFromTreeRefusesPortOutsideRange` | 0 and 65536 on both endpoints, message names the endpoint |
+| AC-6 | Done | `TestMD5PeersForListener`, `TestListenTTLForListener` | MD5 keys and GTSM TTL follow `LocalPort` |
+| AC-7 | Done | `TestPeerLocalPortOpensARealListener` | `ListenAddrs()` holds the local port and not the remote one |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestParsePeerFromTreeSplitsLocalAndRemotePorts` | Done | `internal/component/bgp/reactor/config_test.go` | pass |
+| `TestParsePeerFromTreeRefusesPortOutsideRange` | Done | `internal/component/bgp/reactor/config_test.go` | pass |
+| `TestPeerListenPortReadsTheOperatorsLocalPort` | Done | `internal/component/bgp/reactor/config_test.go` | pass |
+| `TestPeerLocalPortOpensARealListener` | Done | `internal/component/bgp/reactor/config_test.go` | pass |
+| `TestPeerListenPort` | Done | `internal/component/bgp/reactor/reactor_peers_test.go` | pass |
+| `TestListenerPeerKeyRoutesDirectlyForASoleClaimant` | Done | `internal/component/bgp/reactor/reactor_listener_attribution_test.go` | pass |
+| `TestMD5PeersForListener` | Done | `internal/component/bgp/reactor/reactor_test.go` | pass |
+| `TestListenTTLForListener` | Done | `internal/component/bgp/reactor/reactor_test.go` | pass |
+| `peer-local-port-listener` | Changed | `test/plugin/peer-local-port-listener.ci` | Added at closure; the plan recorded "no `.ci`" and that decision was overturned |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/reactor/peer_settings.go` | Done | `LocalPort` declared, `Port` documented as the remote endpoint |
+| `internal/component/bgp/reactor/config.go` | Done | Writes `LocalPort`, names the endpoint in the range error |
+| `internal/component/bgp/reactor/reactor_peers.go` | Done | `peerListenPort` reads `LocalPort` |
+| `internal/component/bgp/reactor/operation.go` | Done | `operationPeerRemotePortExplicit` |
+| `internal/component/bgp/reactor/reactor_dynamic.go` | Done | Comment: the template's `LocalPort` is the group's listen port |
+| `internal/component/bgp/yang/ze-bgp-conf.yang` | Done | Both leaves state their endpoint |
+| `internal/component/bgp/reactor/reactor_connection.go` | Changed | Not in the plan. `listenerPeerKey` had to test the socket's port instead of the claimant's `Port` field |
+| `internal/component/bgp/reactor/config_test.go` | Done | Four tests, the socket-level wiring test among them |
+| `internal/component/bgp/reactor/reactor_peers_test.go` | Done | `TestPeerListenPort` covers both ports |
+| `internal/component/bgp/reactor/reactor_listener_attribution_test.go` | Done | `attrPeer` takes both ports |
+| `internal/component/bgp/reactor/reactor_test.go` | Done | Two setup fields moved to `LocalPort` |
+| `docs/config-reference.md` | Done | One row per port leaf |
+| `docs/guide/configuration.md` | Done | Two rows replace the single `port` row |
+| `test/plugin/peer-local-port-listener.ci` | Changed | Added at closure, not in the plan |
+| `internal/test/fixture/plugin_shell_extra_3.go` | Changed | One `Register` line for that test's trigger |
+
+### Audit Summary
+- **Total items:** 40
+- **Done:** 36
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 4 (recorded in Deviations and in the tables above)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An operator who names `connection > local > port` gets a listener on that port | functional | `test/plugin/peer-local-port-listener.ci` passes in the live plugin suite (`ze-test bgp plugin --pattern peer-local-port-listener`: `pass 1/1 100.0% 6.9s`). Reverting `ps.LocalPort = uint16(v)` and `peerListenPort`'s read of `LocalPort`, rebuilding the daemon, and re-running gives `TIME 6 peer-local-port-listener` at 30s: nothing binds the port, so the dial never connects |
+| The remote leaf keeps deciding the dial target and the peer map key | data correctness | `TestParsePeerFromTreeSplitsLocalAndRemotePorts` asserts each leaf reaches its own field; `TestListenerPeerKeyRoutesDirectlyForASoleClaimant` asserts the key a listener returns carries the REMOTE port |
+| Neither leaf silently overwrites the other, which is the defect | data correctness | The red-then-green walk in Design Insights: reverting the two lines reddens seven tests over eleven cases, and restoring them returns all seven to green |
+| The YANG node stops contradicting itself | documentation | `internal/component/bgp/yang/ze-bgp-conf.yang`: `local/port` reads "Local listen port" with a `ze:help` naming the listener, `remote/port` reads "Remote connection port" with a `ze:help` naming the dial. Neither says the other replaces it |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None | Every AC has product code and a passing test. Two defects met on the way are journal rows rather than work this spec owed | N-A |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/peer-local-port-overwritten-by-remote-port-d64e7b3f-bfdc-4614-8db4-f12043eb77cc.md`, 19 files, verdict=clean |
+| `review check` | `review_gate: OK (5 code files, clean, hashes match)` |
+| Rounds | 2 |
+| Reviewer lenses used | wiring and functional-test coverage; logic, guard audit and removed-behavior; style, simplicity and security |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | No `.ci` or `.et` covered either port leaf, so the change stood on unit tests alone (`ai/rules/testing.md`). The Go test starts at a hand-built `map[string]any`, so no test carried the configuration FILE to the feature | `test/plugin/` held no test naming `connection { local { port } }` | `test/plugin/peer-local-port-listener.ci`, plus one `Register` line for its trigger in `internal/test/fixture/plugin_shell_extra_3.go`. Walked red (TIME, 30s) with the fix reverted and green (6.9s) with it restored |
+
+### Findings recorded, not fixed
+| # | Severity | Finding | Location | Disposition |
+|---|----------|---------|----------|-------------|
+| 2 | NOTE | `peerListenPort` treats an explicit `local { port 179 }` as "the operator named nothing", because the guard still carries `&& s.LocalPort != DefaultBGPPort` from the days the merged field defaulted to 179. `NewPeerSettings` leaves `LocalPort` at zero, so zero alone already means "not named" | `internal/component/bgp/reactor/reactor_peers.go`, `peerListenPort` | No operator can observe it: the only production writer of `reactor.Config.Port` is the `ze.test.bgp.port` override, read by `CreateReactorFromTree` (`internal/component/bgp/config/loader_create.go`), so the fallback returns 179 anyway and the same socket binds. It becomes reachable the day a config leaf sets the daemon's listen port |
+| 3 | NOTE | `ze-peer` builds its OPEN by mirroring ze's and overriding only the 2-octet My AS, so `option=asn:value=N` leaves the RFC 6793 AS4 capability holding ze's AS and ze answers NOTIFICATION 2/2 | `generateOpen` (`internal/test/peer/peer.go`) | Harness code, and the third scaffolding repair this session would have made (`ai/rules/pre-release.md`). Row in `plan/journal/guard-added-to-one-half-of-a-pair.md`. It reddens the live gated `test/plugin/peer-port-listener-direct-route.ci`, which is left red |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/peer-local-port-listener.ci` | Yes | `ze-test bgp plugin --list` shows it as test 479 of 771 |
+| `internal/component/bgp/reactor/config_test.go` | Yes | `git show --stat ce5ed4459` lists it at +196 |
+| `internal/component/bgp/reactor/reactor_peers_dynamic_test.go` | Yes | `git show --stat ce5ed4459` lists it at +144 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-5 | The parser splits the two leaves and bounds both | `go test -run 'TestParsePeerFromTreeSplitsLocalAndRemotePorts\|TestParsePeerFromTreeRefusesPortOutsideRange\|TestPeerListenPortReadsTheOperatorsLocalPort\|TestPeerListenPort' ./internal/component/bgp/reactor/`: 30 subtests, `--- PASS` on every one, `ok ... 0.298s` |
+| AC-6 | MD5 keys and GTSM TTL follow the local port | Same run: `--- PASS: TestMD5PeersForListener`, `--- PASS: TestListenTTLForListener` |
+| AC-7 | `ListenAddrs()` holds the local port and not the remote one | Same run: `--- PASS: TestPeerLocalPortOpensARealListener (0.09s)` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `connection { local { port } }` in a configuration file | `test/plugin/peer-local-port-listener.ci` | Yes. Read the file: the peer's only reachable socket is `$PORT2`, and the harness rewrites every peer's remote port to `$PORT`, so the session can only arrive on the port the local leaf named. Green at 6.9s, TIME at 30s with the fix reverted |
+| `connection { local { port } }` in the peer config tree | none (Go test) | Yes. `TestPeerLocalPortOpensARealListener` starts a reactor and reads `ListenAddrs()` |
+| `connection { remote { port } }` in the peer config tree | none (Go test) | Yes. `TestParsePeerFromTreeSplitsLocalAndRemotePorts` asserts the remote leaf reaches `Port`, which `Session.Connect` dials |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `./le repository check` reports one issue in the whole tree, `ExtractRemovePrivateASOps` in another session's uncommitted file, so no reader of the merged field is left unwired. `grep -rn LocalPort internal/ --include=*.go` outside tests lists exactly one writer and one reader in the reactor |
+| A-2 | confirmed | `listenerPeerKey` returns `only.PeerKey()`, and `PeerKey` reads `Port`. `TestListenerPeerKeyRoutesDirectlyForASoleClaimant` passes |
+| A-3 | confirmed | `Session.Connect` (`internal/component/bgp/reactor/session_connection.go`) passes no local address to the dialer, so no source port is bound |
+| A-4 | confirmed | `test/perf/configs/ze.conf` sets `local { ip 172.31.0.2; port 1790 }` on one peer and `port 1791` on the other, and neither peer sets a remote port |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Config syntax (checklist row 2) | `docs/config-reference.md` and `docs/guide/configuration.md` each carry one row per leaf, and their wording matches the `ze:help` in `internal/component/bgp/yang/ze-bgp-conf.yang` | Yes |
+| User guide (row 6) | Same, `docs/guide/configuration.md` Peer Settings | Yes |
+| Every No row | `./le doc check verify` names no file this spec touched across 8611 lines of findings; `./le spec citation anchors` reported the two declared documents, `docs/architecture/config/apply-ordering.md` and `docs/architecture/core-design.md`, and neither describes a port | Yes |
+
+## Core Insight
+
+A field with one writer can still have four readers that each mean something
+different by it. `gopls references` on `PeerSettings.Port` listed 61 sites, and
+splitting the field was not the work: classifying every reader as dial, key or
+listen was. The tests that had to change were the ones whose SETUP encoded a
+meaning, not the ones whose assertions did.
