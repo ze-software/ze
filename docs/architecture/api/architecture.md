@@ -1679,6 +1679,5 @@ CLI: when `ze_gnmi` is compiled in, `show gnmi` returns server status (enabled, 
 | `internal/component/bgp/reactor/reactor.go` | AnnounceRoute, PeerLifecycleObserver |
 | `internal/component/bgp/reactor/peer.go` | FSM callback, reactor notification, API sync |
 | `internal/component/bgp/reactor/session.go` | Session lifecycle, teardown handling |
-| `internal/component/bgp/rib/outgoing.go` | Adj-RIB-Out structure |
 <!-- source: internal/component/plugin/server/ -- server, command, handler packages -->
 <!-- source: internal/core/ipc/dispatch.go -- RPCDispatcher -->

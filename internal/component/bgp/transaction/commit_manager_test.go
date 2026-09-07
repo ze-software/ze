@@ -15,7 +15,7 @@ func testRoute(prefix string) *rib.Route {
 	fam := family.IPv4Unicast
 	n := nlri.NewINET(fam, p, 0)
 	nh := netip.MustParseAddr("1.2.3.4")
-	return rib.NewRoute(n, nh, nil)
+	return rib.NewRouteWithASPath(n, nh, nil, nil)
 }
 
 // testNLRI creates a test NLRI for a given prefix string.

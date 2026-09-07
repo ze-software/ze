@@ -1012,7 +1012,6 @@ characteristics. Measured at 100K IPv4/32 routes, Apple M4 Max, Go 1.26.
 | Layer | Location | Struct | Measured | Allocs | Per-peer? |
 |-------|----------|--------|----------|--------|-----------|
 | Plugin RIB (adj-rib-in) | `plugins/rib/storage/` | 32 B | **69 B** | 1.0 | No |
-| Engine OutgoingRIB | `bgp/rib/outgoing.go` | 160 B | **478 B** | 10.0 | Yes (test-only, no production callers) |
 | Plugin ribOut (before) | `bgp/route.go` in `rib.go` | 288 B | **385-741 B** | 6-10 | Yes |
 | Plugin ribOut (after) | `plugins/rib/ribout_entry.go` | 16 B | **~16 B** + shared pool | 0 | Yes (entry) / No (pool) |
 
@@ -1042,8 +1041,11 @@ with one entry per unique route, not per destination peer.
 | 1M routes, 10 peers | 66 MB | 153 MB | ~70 MB | 289 MB |
 | 1M routes, 50 peers | 66 MB | 763 MB | ~70 MB | 899 MB |
 
-Engine OutgoingRIB is excluded: it has no production callers (test-only).
-Previous totals included it at 478 B/route/peer, inflating projections.
+The engine holds no Adj-RIB-Out. Its Adj-RIB-Out type was deleted once every one
+of its symbols was shown to have no non-test caller, so there is no fourth layer
+to exclude. Earlier totals counted it at 478 B/route/peer and were inflated by it.
+What survives in that package is `rib.Route`, a 96-byte value the named-commit
+path hands to `CommitService`; it is not a storage layer and nothing retains it.
 
 ### Where the Bytes Go
 

@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | plugin |
 | Depends | - |
-| Phase | DESIGN |
+| Phase | 1/1 |
 | Handoff | - |
-| Updated | 2026-08-18 |
+| Updated | 2026-09-06 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

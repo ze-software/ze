@@ -15,11 +15,13 @@ Ze has multiple route representations serving different purposes in the data flo
 | `L2VPNRoute` | `internal/component/bgp/types/types.go` | L2VPN/EVPN route | RouteType, RD, MAC, IP, Labels |
 | `MUPRouteSpec` | `internal/component/bgp/types/types.go` | Mobile User Plane (SAFI 85) | RouteType, Prefix, RD, TEID, Wire |
 | `VPLSRoute` | `internal/component/bgp/types/types.go` | VPLS route | RD, VEBlockOffset, LabelBase |
-| `rib.Route` | `internal/component/bgp/rib/route.go` | Core engine storage | NLRI, Attrs, ASPath, wire cache, refcount |
+| `rib.Route` | `internal/component/bgp/rib/route.go` | Route value handed to `CommitService` | NLRI, NextHop, Attrs, ASPath |
 <!-- source: internal/component/bgp/types/types.go -- RouteSpec, FlowSpecRoute, L3VPNRoute, L2VPNRoute, MUPRouteSpec -->
 <!-- source: internal/component/bgp/rib/route.go -- rib.Route (core engine) -->
 
-**Note:** `rib.Route` in `internal/component/bgp/rib/` is the core engine storage type.
+**Note:** `rib.Route` in `internal/component/bgp/rib/` is what a named commit and
+the route API build and hand to `CommitService`. It stores nothing: the engine keeps
+no RIB, and route storage lives in the `bgp-rib` plugin.
 
 ## Route Type Families
 
@@ -58,7 +60,7 @@ Command Input                    Wire Reception
      ▼                                ▼
 ┌─────────────┐               ┌─────────────┐
 │ rib.Route   │               │ rib.Route   │
-│ (full store)│               │ (full store)│
+│ (transient) │               │ (transient) │
 └─────────────┘               └─────────────┘
 ```
 
@@ -82,7 +84,7 @@ internal/component/bgp/types/
 └── types.go          # RouteSpec, FlowSpecRoute, L3VPNRoute, L2VPNRoute, etc.
 
 internal/component/bgp/rib/
-└── route.go          # rib.Route (core engine storage)
+└── route.go          # rib.Route (transient value for CommitService)
 
 internal/core/selector/
 └── selector.go       # Peer selectors (*, IP, !IP, ip,ip,ip)

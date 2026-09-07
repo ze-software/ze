@@ -78,9 +78,9 @@ func TestCommitService_GroupsRoutesByAttributes(t *testing.T) {
 	attrs := []attribute.Attribute{attribute.Origin(0)}
 
 	routes := []*Route{
-		NewRoute(newIPv4NLRI("192.168.1.0/24"), nh, attrs),
-		NewRoute(newIPv4NLRI("192.168.2.0/24"), nh, attrs),                              // Same attrs as first
-		NewRoute(newIPv4NLRI("192.168.3.0/24"), netip.MustParseAddr("10.0.0.2"), attrs), // Different next-hop
+		NewRouteWithASPath(newIPv4NLRI("192.168.1.0/24"), nh, attrs, nil),
+		NewRouteWithASPath(newIPv4NLRI("192.168.2.0/24"), nh, attrs, nil),                              // Same attrs as first
+		NewRouteWithASPath(newIPv4NLRI("192.168.3.0/24"), netip.MustParseAddr("10.0.0.2"), attrs, nil), // Different next-hop
 	}
 
 	stats, err := cs.Commit(routes, CommitOptions{})
@@ -114,8 +114,8 @@ func TestCommitService_NoGrouping(t *testing.T) {
 	attrs := []attribute.Attribute{attribute.Origin(0)}
 
 	routes := []*Route{
-		NewRoute(newIPv4NLRI("192.168.1.0/24"), nh, attrs),
-		NewRoute(newIPv4NLRI("192.168.2.0/24"), nh, attrs), // Same attrs but no grouping
+		NewRouteWithASPath(newIPv4NLRI("192.168.1.0/24"), nh, attrs, nil),
+		NewRouteWithASPath(newIPv4NLRI("192.168.2.0/24"), nh, attrs, nil), // Same attrs but no grouping
 	}
 
 	stats, err := cs.Commit(routes, CommitOptions{})
@@ -146,7 +146,7 @@ func TestCommitService_SendsEORWhenRequested(t *testing.T) {
 	attrs := []attribute.Attribute{attribute.Origin(0)}
 
 	routes := []*Route{
-		NewRoute(newIPv4NLRI("192.168.1.0/24"), nh, attrs),
+		NewRouteWithASPath(newIPv4NLRI("192.168.1.0/24"), nh, attrs, nil),
 	}
 
 	stats, err := cs.Commit(routes, CommitOptions{SendEOR: true})
@@ -190,7 +190,7 @@ func TestCommitService_NoEORWhenNotRequested(t *testing.T) {
 	attrs := []attribute.Attribute{attribute.Origin(0)}
 
 	routes := []*Route{
-		NewRoute(newIPv4NLRI("192.168.1.0/24"), nh, attrs),
+		NewRouteWithASPath(newIPv4NLRI("192.168.1.0/24"), nh, attrs, nil),
 	}
 
 	stats, err := cs.Commit(routes, CommitOptions{SendEOR: false})
@@ -221,8 +221,8 @@ func TestCommitService_TracksAffectedFamilies(t *testing.T) {
 	attrs := []attribute.Attribute{attribute.Origin(0)}
 
 	routes := []*Route{
-		NewRoute(newIPv4NLRI("192.168.1.0/24"), netip.MustParseAddr("10.0.0.1"), attrs),
-		NewRoute(newIPv6NLRI("2001:db8::/32"), netip.MustParseAddr("2001:db8::1"), attrs),
+		NewRouteWithASPath(newIPv4NLRI("192.168.1.0/24"), netip.MustParseAddr("10.0.0.1"), attrs, nil),
+		NewRouteWithASPath(newIPv6NLRI("2001:db8::/32"), netip.MustParseAddr("2001:db8::1"), attrs, nil),
 	}
 
 	stats, err := cs.Commit(routes, CommitOptions{SendEOR: true})
@@ -281,7 +281,7 @@ func TestCommitService_SendError(t *testing.T) {
 	attrs := []attribute.Attribute{attribute.Origin(0)}
 
 	routes := []*Route{
-		NewRoute(newIPv4NLRI("192.168.1.0/24"), nh, attrs),
+		NewRouteWithASPath(newIPv4NLRI("192.168.1.0/24"), nh, attrs, nil),
 	}
 
 	_, err := cs.Commit(routes, CommitOptions{})

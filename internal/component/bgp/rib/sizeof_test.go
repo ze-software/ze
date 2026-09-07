@@ -7,7 +7,6 @@ import (
 	"unsafe"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
-	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -22,15 +21,10 @@ func TestStructSizes(t *testing.T) {
 	t.Logf("  nextHop:            %d bytes", unsafe.Sizeof(r.nextHop))
 	t.Logf("  attributes slice:   %d bytes", unsafe.Sizeof(r.attributes))
 	t.Logf("  asPath pointer:     %d bytes", unsafe.Sizeof(r.asPath))
-	t.Logf("  refCount:           %d bytes", unsafe.Sizeof(r.refCount))
 	t.Logf("  indexCache slice:   %d bytes", unsafe.Sizeof(r.indexCache))
-	t.Logf("  wireBytes slice:    %d bytes", unsafe.Sizeof(r.wireBytes))
-	t.Logf("  nlriWireBytes:      %d bytes", unsafe.Sizeof(r.nlriWireBytes))
-	t.Logf("  sourceCtxID:        %d bytes", unsafe.Sizeof(r.sourceCtxID))
 	t.Logf("")
 	t.Logf("ASPath struct:        %d bytes", unsafe.Sizeof(asp))
 	t.Logf("ASPathSegment struct: %d bytes", unsafe.Sizeof(seg))
-	t.Logf("ContextID:            %d bytes", unsafe.Sizeof(bgpctx.ContextID(0)))
 	t.Logf("family.Family:        %d bytes", unsafe.Sizeof(family.Family{}))
 }
 
@@ -58,10 +52,7 @@ func makeTypicalRoute(i int) *Route {
 	lp := attribute.LocalPref(200)
 	attrs := []attribute.Attribute{origin, med, lp}
 
-	wireBytes := make([]byte, 40)
-	nlriBytes := make([]byte, 4)
-
-	return NewRouteWithWireCacheFull(n, nh, attrs, asPath, wireBytes, nlriBytes, bgpctx.ContextID(1))
+	return NewRouteWithASPath(n, nh, attrs, asPath)
 }
 
 func measureHeap(fn func()) (allocBytes, allocObjects int64) {
@@ -99,48 +90,13 @@ func TestHeapBytesPerRoute(t *testing.T) {
 
 	bytesPerRoute := totalAlloc / N
 
-	t.Logf("=== Engine rib.Route (with wire cache, typical attrs) ===")
+	t.Logf("=== Engine rib.Route (typical attrs) ===")
 	t.Logf("Routes:          %d", N)
 	t.Logf("TotalAlloc:      %d bytes (%.1f MB)", totalAlloc, float64(totalAlloc)/(1024*1024))
 	t.Logf("Bytes per route: %d", bytesPerRoute)
 	t.Logf("Mallocs:         %d (%.1f per route)", mallocs, float64(mallocs)/N)
 
 	_ = routes
-}
-
-func TestHeapBytesPerRouteInOutgoingRIB(t *testing.T) {
-	if testing.Short() {
-		t.Skip("memory profiling")
-	}
-
-	const N = 100_000
-
-	rib := newOutgoingRIB()
-
-	totalAlloc, mallocs := measureHeap(func() {
-		for i := range N {
-			r := makeTypicalRoute(i)
-			rib.MarkSent(r)
-		}
-	})
-
-	stats := rib.Stats()
-	bytesPerRoute := totalAlloc / int64(stats.SentRoutes)
-
-	t.Logf("=== Engine OutgoingRIB (MarkSent with wire cache) ===")
-	t.Logf("Routes stored:   %d / %d attempted", stats.SentRoutes, N)
-	t.Logf("TotalAlloc:      %d bytes (%.1f MB)", totalAlloc, float64(totalAlloc)/(1024*1024))
-	t.Logf("Bytes per route: %d", bytesPerRoute)
-	t.Logf("Mallocs:         %d (%.1f per route)", mallocs, float64(mallocs)/float64(stats.SentRoutes))
-
-	t.Logf("")
-	t.Logf("--- Projection (bytes per route = %d) ---", bytesPerRoute)
-	for _, count := range []int{100_000, 1_000_000} {
-		for _, peers := range []int{1, 5, 10, 50} {
-			totalMB := float64(bytesPerRoute) * float64(count) * float64(peers) / (1024 * 1024)
-			t.Logf("  %dk routes x %d peers = %.0f MB", count/1000, peers, totalMB)
-		}
-	}
 }
 
 func TestHeapBytesPerRouteMinimal(t *testing.T) {
@@ -158,13 +114,13 @@ func TestHeapBytesPerRouteMinimal(t *testing.T) {
 			prefix := makePrefix(i)
 			n := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 			nh := netip.AddrFrom4([4]byte{192, 168, 1, 1})
-			routes[i] = NewRoute(n, nh, nil)
+			routes[i] = NewRouteWithASPath(n, nh, nil, nil)
 		}
 	})
 
 	bytesPerRoute := totalAlloc / N
 
-	t.Logf("=== Engine rib.Route (minimal, no attrs, no wire cache) ===")
+	t.Logf("=== Engine rib.Route (minimal, no attrs) ===")
 	t.Logf("Routes:          %d", N)
 	t.Logf("TotalAlloc:      %d bytes (%.1f MB)", totalAlloc, float64(totalAlloc)/(1024*1024))
 	t.Logf("Bytes per route: %d", bytesPerRoute)

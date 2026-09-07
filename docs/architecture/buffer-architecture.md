@@ -13,7 +13,7 @@
 | Phase 1 | ✅ Done | Core iterator types (`NLRIIterator`, `AttrIterator`, `ASPathIterator`) |
 | Phase 2 | ✅ Done | WireUpdate integration (iterator methods) |
 | Phase 3 | ✅ Done | Direct formatting functions (iterator-based AS_PATH / communities / NLRI emission in `text.go`, `text_json.go`, `text_update.go`) |
-| Phase 4 | ✅ Done | RIB migration (Route.AttrIterator, Route.ASPathIterator) |
+| Phase 4 | ✅ Done | RIB migration (retired: `Route.AttrIterator` and `Route.ASPathIterator` were deleted with the rest of the engine RIB's dead surface; iteration runs on `WireUpdate`) |
 | Phase 5 | ✅ Done | Deprecate parsed types (PathAttributes, RouteUpdate, UpdateInfo) |
 | Phase 6 | ✅ Done | RouteJSON, Builder done; PathAttributes removed (retired summary 105; see `plan/learned/DESIGN-HISTORY.md`, "BGP engine: wire encoding and RIB" > Abandoned approaches) |
 
@@ -261,53 +261,28 @@ func (b *UpdateBuilder) Reset()
 
 ---
 
-## RIB Storage
+## The Engine Route Value
 
-Routes store wire bytes as source of truth:
+The engine keeps no RIB. `rib.Route` is the value a named commit hands to
+`CommitService`, and it carries parsed fields only:
 
 ```go
 // internal/component/bgp/rib/route.go
 type Route struct {
-    // Wire bytes (source of truth)
-    wireBytes     []byte           // packed path attributes
-    nlriWireBytes []byte           // packed NLRI
-    sourceCtxID   ContextID        // for zero-copy compatibility check
-
-    // Parsed attributes (cached)
     nlri       nlri.NLRI
     nextHop    netip.Addr
     attributes []attribute.Attribute
     asPath     *attribute.ASPath
 
-    // Reference counting
-    refCount   atomic.Int32
-}
-
-// Access via iterators - parse on demand
-func (r *Route) AttrIterator() AttrIterator {
-    return NewAttrIterator(r.wireBytes)
-}
-
-func (r *Route) ASPathIterator(asn4 bool) *ASPathIterator {
-    // Find AS_PATH attribute
-    iter := r.AttrIterator()
-    for typeCode, _, value, ok := iter.Next(); ok; typeCode, _, value, ok = iter.Next() {
-        if typeCode == AS_PATH_TYPE {
-            return NewASPathIterator(value, asn4)
-        }
-    }
-    return nil
-}
-
-// Zero-copy forwarding
-func (r *Route) CanForwardDirect(destCtxID ContextID) bool {
-    return r.sourceCtxID == destCtxID
-}
-
-func (r *Route) WireBytes() []byte {
-    return r.wireBytes
+    indexCache []byte  // Route key, derived on the first Index() call
 }
 ```
+
+`rib.Route` holds no wire bytes and no reference count. The wire-cache cluster
+and the iterators over it were deleted once every one of their references was
+shown to come from this package's own tests. Wire bytes reach the forward path
+on the `WireUpdate` instead, and iteration over them is
+`attribute.NewAttrIterator(payload)`.
 <!-- source: internal/component/bgp/rib/route.go -- Route struct -->
 
 ---

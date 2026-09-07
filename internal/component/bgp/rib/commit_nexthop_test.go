@@ -26,10 +26,10 @@ func unencodableNextHopRoutes() []struct {
 		grouped bool
 		route   *Route
 	}{
-		{"grouped-ipv6", true, NewRoute(newIPv6NLRI("2001:db8::/32"), netip.Addr{}, attrs)},
-		{"ungrouped-ipv6", false, NewRoute(newIPv6NLRI("2001:db8::/32"), netip.Addr{}, attrs)},
-		{"grouped-vpnv4", true, NewRoute(newVPNv4NLRI("192.168.1.0/24"), netip.Addr{}, attrs)},
-		{"ungrouped-vpnv4", false, NewRoute(newVPNv4NLRI("10.42.0.0/16"), netip.Addr{}, attrs)},
+		{"grouped-ipv6", true, NewRouteWithASPath(newIPv6NLRI("2001:db8::/32"), netip.Addr{}, attrs, nil)},
+		{"ungrouped-ipv6", false, NewRouteWithASPath(newIPv6NLRI("2001:db8::/32"), netip.Addr{}, attrs, nil)},
+		{"grouped-vpnv4", true, NewRouteWithASPath(newVPNv4NLRI("192.168.1.0/24"), netip.Addr{}, attrs, nil)},
+		{"ungrouped-vpnv4", false, NewRouteWithASPath(newVPNv4NLRI("10.42.0.0/16"), netip.Addr{}, attrs, nil)},
 	}
 }
 
@@ -110,7 +110,7 @@ func TestCommitRefusalOfAnUnencodableNextHopIsLogged(t *testing.T) {
 	sender := &mockUpdateSender{}
 	cs := NewCommitService(sender, testContext(65000, 65001, true), true)
 
-	route := NewRoute(newIPv6NLRI("2001:db8::/32"), netip.Addr{}, []attribute.Attribute{attribute.Origin(0)})
+	route := NewRouteWithASPath(newIPv6NLRI("2001:db8::/32"), netip.Addr{}, []attribute.Attribute{attribute.Origin(0)}, nil)
 	_, err := cs.Commit([]*Route{route}, CommitOptions{})
 	require.Error(t, err)
 
@@ -158,10 +158,11 @@ func TestCommitVPNAnnounceCarriesTheRFC4364NextHop(t *testing.T) {
 	sender := &mockUpdateSender{}
 	cs := NewCommitService(sender, testContext(65000, 65000, true), true)
 
-	routes := []*Route{NewRoute(
+	routes := []*Route{NewRouteWithASPath(
 		newVPNv4NLRI("192.168.1.0/24"),
 		netip.MustParseAddr("10.0.0.1"),
 		[]attribute.Attribute{attribute.Origin(0)},
+		nil,
 	)}
 
 	_, err := cs.Commit(routes, CommitOptions{})

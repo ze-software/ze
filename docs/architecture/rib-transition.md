@@ -88,10 +88,10 @@ Engine receives UPDATE → Send event metadata + cached wire message ID → API 
 │  └─────────────────────────────────────────────────────────────────┘   │
 │                                                                         │
 │  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │  RIB (internal/component/bgp/rib/ as reference implementation)                      │   │
+│  │  RIB (internal/component/bgp/plugins/rib/ is Ze's own)           │   │
 │  │  • Routes with pool handles                                      │   │
-│  │  • IncomingRIB per peer                                          │   │
-│  │  • OutgoingRIB for replay                                        │   │
+│  │  • Adj-RIB-In per peer                                           │   │
+│  │  • ribOut entries for replay                                     │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
 │                                                                         │
 │  ┌─────────────────────────────────────────────────────────────────┐   │

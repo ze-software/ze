@@ -7,7 +7,7 @@
 | **Purpose** | Capability-dependent encoding, zero-copy when contexts match |
 | **Key Types** | `EncodingContext`, `NegotiatedCapabilities`, `ContextID` (uint16) |
 | **Key Functions** | `FromNegotiatedRecv/Send()`, `Registry.Register()`, `nc.Has()`, `nc.Families()` |
-| **Zero-Copy Rule** | If `sourceCtxID == destCtxID`, return cached wire bytes directly |
+| **Zero-Copy Rule** | If `sourceCtxID == destCtxID`, forward the received wire bytes unchanged |
 | **Files** | `internal/core/bgp/context/`, `internal/component/bgp/reactor/peer.go`, `internal/component/bgp/wireu/wire_update.go` |
 
 **When to read full doc:** Route forwarding, peer session, encoding mismatches, new capabilities.
@@ -165,8 +165,8 @@ ctx := context.FromNegotiatedRecv(negotiated, localAS)
 ctxID := context.Registry.Register(ctx)
 
 // For route forwarding (fast path)
-if route.CanForwardDirect(destCtxID) {
-    return route.WireBytes()  // Zero-copy
+if attrs.SourceContext() == destCtxID {
+    return attrs.Packed()  // Zero-copy
 }
 
 // Slow path: re-encode
@@ -307,54 +307,43 @@ type RawMessage struct {
 - Caller MUST call `ReceivedUpdate.Release()` to return buffer to pool
 - `Contains(id)` checks existence without taking ownership
 
-## Route Wire Cache
+## Where the Wire Bytes Live
 
-Routes store original wire bytes for zero-copy forwarding:
+The received wire bytes live on the `WireUpdate`, never on a route struct:
 
 ```go
-type Route struct {
-    // ... other fields ...
-
-    wireBytes     []byte           // Cached packed attributes
-    nlriWireBytes []byte           // Cached packed NLRI
-    sourceCtxID   ContextID        // Context used for encoding
+type WireUpdate struct {
+    payload     []byte     // UPDATE body (after the BGP header)
+    sourceCtxID ContextID  // The context that produced those bytes
+    // ...
 }
 ```
+<!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate, SourceCtxID -->
 
-### Constructors
+`rib.Route` carries no wire cache. It holds NLRI, next hop, attributes and
+AS-PATH, and it is built through one constructor:
 
 ```go
-// Without cache (locally originated routes)
-NewRoute(nlri, nextHop, attrs)
-NewRouteWithASPath(nlri, nextHop, attrs, asPath)
-
-// With attribute cache
-NewRouteWithWireCache(nlri, nextHop, attrs, asPath, wireBytes, ctxID)
-
-// With full cache (attributes + NLRI)
-NewRouteWithWireCacheFull(nlri, nextHop, attrs, asPath, wireBytes, nlriWireBytes, ctxID)
+NewRouteWithASPath(nlri, nextHop, attrs, asPath)  // asPath may be nil
 ```
+<!-- source: internal/component/bgp/rib/route.go -- Route, NewRouteWithASPath -->
 
 ### Zero-Copy Forwarding
 
-```go
-// PackAttributesFor - zero-copy when contexts match
-func (r *Route) PackAttributesFor(destCtxID ContextID) []byte {
-    if r.CanForwardDirect(destCtxID) {
-        return r.wireBytes  // Fast path: zero-copy
-    }
-    destCtx := Registry.Get(destCtxID)
-    return packAttributesWithContext(r.attributes, r.asPath, destCtx)
-}
+`forwardUpdateCore` compares contexts once per destination and caches each built
+body under its `(destCtxID, wire, extended)` key, so every destination on the
+same ContextID reuses one build:
 
-// PackNLRIFor - same pattern for NLRI
-func (r *Route) PackNLRIFor(destCtxID ContextID) []byte {
-    if len(r.nlriWireBytes) > 0 && r.sourceCtxID == destCtxID {
-        return r.nlriWireBytes  // Fast path
-    }
-    // Slow path: re-encode
-}
+```go
+srcCtx := bgpctx.Registry.Get(update.WireUpdate.SourceCtxID())
+// ... one entry per (destCtxID, wire, extended) for the whole fan-out
 ```
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateCore -->
+
+`AttributesWire.PackFor` applies the same rule to one attribute block: it returns
+the packed bytes unchanged when `sourceCtxID == destCtxID`, and re-encodes with
+the destination context otherwise.
+<!-- source: internal/core/bgp/attribute/wire.go -- AttributesWire.PackFor -->
 
 ## Peer Integration
 
@@ -400,14 +389,14 @@ ub := message.NewUpdateBuilder(localAS, isIBGP, ctx)
 | Component | Size |
 |-----------|------|
 | Per Peer | +20 bytes (2 pointers + 2 IDs) |
-| Per Route (with cache) | +10 bytes + wire size |
+| Per WireUpdate | +2 bytes for the ContextID, beside the payload it already holds |
 | Registry | ~100 bytes per unique context |
 
 ### CPU
 
 | Operation | Cost |
 |-----------|------|
-| CanForwardDirect | O(1) - uint16 compare |
+| Context compatibility check | O(1) - uint16 compare |
 | Zero-copy forward | O(1) - slice reference |
 | Re-encode | O(n) - n = attribute count |
 
@@ -415,7 +404,7 @@ ub := message.NewUpdateBuilder(localAS, isIBGP, ctx)
 
 With same-capability clients, route reflection is O(1):
 - Compare context IDs (uint16)
-- Return cached wire bytes directly
+- Reuse the body already built for that ContextID
 - No re-encoding needed
 
 ## Context-Dependent Encoding
@@ -518,8 +507,7 @@ Use `LenWithContext()` and `WriteNLRI()` for ADD-PATH aware encoding.
 All forwarding methods take only `ContextID`, not context pointer:
 
 ```go
-attrBytes := route.PackAttributesFor(peer.sendCtxID)
-nlriBytes := route.PackNLRIFor(peer.sendCtxID)
+attrBytes, err := attrs.PackFor(peer.sendCtxID)
 ```
 
 Benefits:
@@ -545,7 +533,7 @@ Context IDs must be registered via `Registry.Register()`:
 | `internal/core/bgp/capability/encoding.go` | EncodingCaps sub-component |
 | `internal/core/bgp/capability/session.go` | SessionCaps sub-component |
 | `internal/component/bgp/reactor/negotiated.go` | NegotiatedCapabilities struct |
-| `internal/component/bgp/rib/route.go` | Wire cache fields, Pack*For methods |
+| `internal/component/bgp/reactor/reactor_api_forward.go` | Per-destination context resolution and the shared body cache |
 | `internal/component/bgp/reactor/peer.go` | Peer.negotiated, recvCtx, sendCtx fields |
 <!-- source: internal/core/bgp/context/ -- encoding context package -->
 <!-- source: internal/component/bgp/reactor/peer.go -- Peer struct -->

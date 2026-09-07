@@ -24,7 +24,7 @@ func TestCommitService_DefaultOrigin(t *testing.T) {
 	attrs := []attribute.Attribute{}
 
 	routes := []*Route{
-		NewRoute(newIPv4NLRI("192.168.1.0/24"), nh, attrs),
+		NewRouteWithASPath(newIPv4NLRI("192.168.1.0/24"), nh, attrs, nil),
 	}
 
 	_, err := cs.Commit(routes, CommitOptions{})
@@ -93,7 +93,7 @@ func TestCommitService_PreservesExistingASPath(t *testing.T) {
 	attrs := []attribute.Attribute{attribute.Origin(0), existingASPath}
 
 	routes := []*Route{
-		NewRoute(newIPv4NLRI("192.168.1.0/24"), nh, attrs),
+		NewRouteWithASPath(newIPv4NLRI("192.168.1.0/24"), nh, attrs, nil),
 	}
 
 	_, err := cs.Commit(routes, CommitOptions{})
@@ -173,7 +173,7 @@ func TestCommitService_VPNNextHopHasRD(t *testing.T) {
 
 	// Create a VPN route (AFI=1, SAFI=128)
 	routes := []*Route{
-		NewRoute(newVPNv4NLRI("192.168.1.0/24"), nh, attrs),
+		NewRouteWithASPath(newVPNv4NLRI("192.168.1.0/24"), nh, attrs, nil),
 	}
 
 	_, err := cs.Commit(routes, CommitOptions{})
@@ -246,7 +246,7 @@ func TestCommitService_IPv4WithIPv6NextHop(t *testing.T) {
 	attrs := []attribute.Attribute{attribute.Origin(0)}
 
 	routes := []*Route{
-		NewRoute(newIPv4NLRI("192.168.1.0/24"), nh, attrs),
+		NewRouteWithASPath(newIPv4NLRI("192.168.1.0/24"), nh, attrs, nil),
 	}
 
 	_, err := cs.Commit(routes, CommitOptions{})
@@ -340,7 +340,7 @@ func TestCommitService_NilContext(t *testing.T) {
 	nh := netip.MustParseAddr("10.0.0.1")
 	attrs := []attribute.Attribute{attribute.Origin(0)}
 	routes := []*Route{
-		NewRoute(newIPv4NLRI("192.168.1.0/24"), nh, attrs),
+		NewRouteWithASPath(newIPv4NLRI("192.168.1.0/24"), nh, attrs, nil),
 	}
 
 	// Should either return error or use sensible defaults
@@ -368,7 +368,7 @@ func TestCommitService_IPv6_NLRIInMPReach(t *testing.T) {
 	attrs := []attribute.Attribute{attribute.Origin(0)}
 
 	routes := []*Route{
-		NewRoute(newIPv6NLRI("2001:db8:1::/48"), nh, attrs),
+		NewRouteWithASPath(newIPv6NLRI("2001:db8:1::/48"), nh, attrs, nil),
 	}
 
 	_, err := cs.Commit(routes, CommitOptions{})

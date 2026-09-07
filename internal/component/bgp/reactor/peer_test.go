@@ -50,7 +50,7 @@ func testRoute(prefixStr string) *rib.Route {
 	prefix := netip.MustParsePrefix(prefixStr)
 	fam := family.IPv4Unicast
 	n := nlri.NewINET(fam, prefix, 0)
-	return rib.NewRoute(n, netip.MustParseAddr("10.0.0.1"), nil)
+	return rib.NewRouteWithASPath(n, netip.MustParseAddr("10.0.0.1"), nil, nil)
 }
 
 // TestPeerNew verifies Peer creation with correct initial state.

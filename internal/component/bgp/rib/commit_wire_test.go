@@ -22,7 +22,7 @@ func TestCommitService_IPv4_HasNextHop(t *testing.T) {
 	attrs := []attribute.Attribute{attribute.Origin(0)}
 
 	routes := []*Route{
-		NewRoute(newIPv4NLRI("192.168.1.0/24"), nh, attrs),
+		NewRouteWithASPath(newIPv4NLRI("192.168.1.0/24"), nh, attrs, nil),
 	}
 
 	_, err := cs.Commit(routes, CommitOptions{})
@@ -100,7 +100,7 @@ func TestCommitService_IPv6_UsesMPReachNLRI(t *testing.T) {
 	attrs := []attribute.Attribute{attribute.Origin(0)}
 
 	routes := []*Route{
-		NewRoute(newIPv6NLRI("2001:db8:1::/48"), nh, attrs),
+		NewRouteWithASPath(newIPv6NLRI("2001:db8:1::/48"), nh, attrs, nil),
 	}
 
 	_, err := cs.Commit(routes, CommitOptions{})
@@ -191,7 +191,7 @@ func TestCommitService_ASN4_EncodesASPath(t *testing.T) {
 	attrs := []attribute.Attribute{attribute.Origin(0)}
 
 	routes := []*Route{
-		NewRoute(newIPv4NLRI("192.168.1.0/24"), nh, attrs),
+		NewRouteWithASPath(newIPv4NLRI("192.168.1.0/24"), nh, attrs, nil),
 	}
 
 	_, err := cs.Commit(routes, CommitOptions{})
@@ -260,7 +260,7 @@ func TestCommitService_iBGP_NoASPrepend(t *testing.T) {
 	attrs := []attribute.Attribute{attribute.Origin(0)}
 
 	routes := []*Route{
-		NewRoute(newIPv4NLRI("192.168.1.0/24"), nh, attrs),
+		NewRouteWithASPath(newIPv4NLRI("192.168.1.0/24"), nh, attrs, nil),
 	}
 
 	_, err := cs.Commit(routes, CommitOptions{})
@@ -317,7 +317,7 @@ func TestCommitService_EVPN_UsesMPReachNLRI(t *testing.T) {
 
 	// Create EVPN route (AFI=25, SAFI=70)
 	routes := []*Route{
-		NewRoute(newEVPNNLRI(), nh, attrs),
+		NewRouteWithASPath(newEVPNNLRI(), nh, attrs, nil),
 	}
 
 	_, err := cs.Commit(routes, CommitOptions{})
@@ -401,7 +401,7 @@ func TestCommitService_iBGP_PreservesASPath(t *testing.T) {
 	attrs := []attribute.Attribute{attribute.Origin(0), existingASPath}
 
 	routes := []*Route{
-		NewRoute(newIPv4NLRI("192.168.1.0/24"), nh, attrs),
+		NewRouteWithASPath(newIPv4NLRI("192.168.1.0/24"), nh, attrs, nil),
 	}
 
 	_, err := cs.Commit(routes, CommitOptions{})
