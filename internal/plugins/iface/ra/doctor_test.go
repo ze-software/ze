@@ -111,6 +111,30 @@ func TestDoctorRAForwarding(t *testing.T) {
 		})
 	}
 
+	t.Run("reads the sysctl of the aliased os device", func(t *testing.T) {
+		// os-name binds a readable logical name to a different kernel device,
+		// and /proc/sys/net/ipv6/conf is keyed by the kernel device. Reading
+		// the logical name finds no path, so the warning never fired for an
+		// aliased interface and the message named a sysctl that does not exist.
+		tree := raTree(t, "ethernet", "wan", true, "")
+		tree.GetContainer("interface").GetList("ethernet")["wan"].Set("os-name", "enp3s0")
+
+		got := runForwardingCheck(t, tree, map[string]bool{"enp3s0": false})
+
+		require.Len(t, got, 1, "the check must read the device os-name names")
+		assert.Contains(t, got[0].Message, "interface wan")
+		assert.Contains(t, got[0].Message, "net.ipv6.conf.enp3s0.forwarding")
+	})
+
+	t.Run("silent when only the logical name forwards off", func(t *testing.T) {
+		// The reader answers about the logical name and knows nothing about the
+		// aliased device. Nothing was read, so nothing is reported.
+		tree := raTree(t, "ethernet", "wan", true, "")
+		tree.GetContainer("interface").GetList("ethernet")["wan"].Set("os-name", "enp3s0")
+
+		assert.Empty(t, runForwardingCheck(t, tree, map[string]bool{"wan": false}))
+	})
+
 	t.Run("one warning per interface, not per unit", func(t *testing.T) {
 		tree := raTree(t, "ethernet", "eth0", true, "")
 		addRAUnit(t, tree.GetContainer("interface"), "ethernet", "eth0", "1", true)

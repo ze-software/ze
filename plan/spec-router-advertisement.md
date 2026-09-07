@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-09-05 |
+| Updated | 2026-09-07 |
 
 Anchor refresh (2026-07-22 plan review, design unchanged and implementable;
 citations below updated in-body): `reconcileDHCP` now `register.go`,
@@ -629,7 +629,7 @@ hand-editing Status to route around that check is banned.)
   checks: ... The IP Hop Limit field has a value of 255, i.e., the packet could
   not possibly have been forwarded by a router."
 - The fix is one shared constant and four call sites.
-  `ndp.AdvertisementHopLimit` (`internal/core/ndp/ra.go`) is now the only place
+  `ndp.MessageHopLimit` (`internal/core/ndp/ra.go`) is now the only place
   255 is written, which is what `ndp.CeaseWait` already does for the Section
   6.2.6 rate limit. Both senders set the socket option and the per-packet
   control message. `TestRASendAsksForHopLimit255`
@@ -658,7 +658,7 @@ hand-editing Status to route around that check is banned.)
 | Parse and reconcile tests in `internal/component/iface/config_test.go` | `config_ra_test.go` and `reconcile_ra_test.go` | `config_test.go` is already past the 1000-line modularity limit, and `config.go` and `register.go` are too. The new code went into new files for the same reason. |
 | Factory signature mirroring `SetDHCPClientFactory`'s twelve positional parameters | `SetRASenderFactory(func(RASenderSpec) (RAStopper, error))` | One value struct carries the advertisement, so a new leaf does not change the seam. `RASenderSpec.Equal` drives restart-on-change, because the struct holds slices and `==` is unavailable. |
 | "If A-4 proves the ppp hop-limit handling broken, the fix is a followup, not silent scope growth here" (Known Limitations, 2026-07-10) | The ppp hop limit is FIXED in this spec (2026-09-05) | A-4 proved it broken, and the deferral was an RFC 4861 MUST pointed away from full compliance. `ai/rules/rfc-compliance.md` voids every earlier answer of that shape "wherever it hides", naming a spec row explicitly, and puts conformance on rung 2 above scope integrity. The fix is four lines and one shared constant, so nothing about it is scope growth. |
-| `advertisementHopLimit` a private constant in `internal/plugins/iface/ra/sender_linux.go` | `ndp.AdvertisementHopLimit`, exported from `internal/core/ndp/ra.go` and read by both senders | Two senders answering one RFC sentence is exactly the shape `ndp.CeaseWait` already fixed for RFC 4861 Section 6.2.6. A second private copy is a future disagreement with nothing to arbitrate it. |
+| `advertisementHopLimit` a private constant in `internal/plugins/iface/ra/sender_linux.go` | `ndp.MessageHopLimit`, exported from `internal/core/ndp/ra.go` and read by both senders | Two senders answering one RFC sentence is exactly the shape `ndp.CeaseWait` already fixed for RFC 4861 Section 6.2.6. A second private copy is a future disagreement with nothing to arbitrate it. |
 
 ## Implementation Audit
 
@@ -768,22 +768,49 @@ mutation of the producing code turned that test red.)
 <!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
 <!-- NOTE-only findings do not block — record them and proceed. -->
 
+(2026-09-07 closure session. The implementation was already committed, so the
+review read the current state of the eleven files the spec produced rather than
+a working-tree diff. `./le repository check` and `./le commit audit` both ran:
+each names findings, and every one of them sits in another session's files.
+None names `internal/core/ndp`, `internal/plugins/iface/ra`,
+`internal/component/iface` or `internal/component/l2tp/ppp`.)
+
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| 1 | ISSUE | The forwarding doctor check read the sysctl of the LOGICAL interface name. `/proc/sys/net/ipv6/conf/<device>/forwarding` is keyed by the OS device, and `os-name` aliases the two apart, which is why `osDeviceFor` (`internal/component/iface/resolve.go`) exists at all. On an aliased interface `readIPv6Forwarding` found no path, answered `known=false`, and the check stayed silent for exactly the operator who most needs it. `docs/features/interfaces.md` already promised `net.ipv6.conf.<device>.forwarding`, so the page was right and the code was wrong | `checkRAForwarding`, `internal/plugins/iface/ra/doctor.go` | fixed for `os-name`: `osDeviceOf` reads the leaf off the entry the check already walks, the same rule `osDeviceFor` applies, and it needs no resolver state so both doctor surfaces answer alike. `mac/match` stays silent and is a row in `plan/journal/identity-default-hides-a-mapping.md`, the class file that already held this site |
+| 2 | NOTE | `interfaceKinds` is a second declaration of the list `forEachConfiguredUnit` (`internal/component/iface/reconcile_ra.go`) holds, and it omits `loopback`. Nothing advertises on a loopback, so the two lists disagree only where the answer does not matter. Deriving one from the other means exporting a kind list from the interface component for a warning surface | `internal/plugins/iface/ra/doctor.go` | recorded |
+| 3 | NOTE | `readSolicitations` continues on every `ReadFrom` error the context did not cause, so a socket in a persistently erroring state would spin. No such state is demonstrated: the only closer of the socket is `Sender.run`'s own defer, which runs after the context is cancelled. The shape is `rsReaderLoop`'s (`internal/component/l2tp/ppp/ra_linux.go`), so changing it here alone would leave the two senders disagreeing | `internal/plugins/iface/ra/sender_linux.go` | recorded |
+| 4 | NOTE | `sendFinal`'s comment says the `CeaseWait` sleep "holds only this sender's shutdown". It also holds its CALLER, which is `reconcileRA` on a config apply and `stopAllRASenders` on shutdown, so a restart of N senders serializes N waits. Each is zero in steady state and at most `MinDelayBetweenRAs` | `internal/plugins/iface/ra/sender_linux.go` | recorded |
+| 5 | NOTE | This spec's own Bugs Found/Fixed, Deviations and AC-8 rows named `ndp.AdvertisementHopLimit`. The constant is `ndp.MessageHopLimit` (`internal/core/ndp/ra.go`). A record defect, not a product one | this file | fixed in this edit |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- `internal/plugins/iface/ra/doctor.go`: new `osDeviceOf`, and `checkRAForwarding` now reads and NAMES the OS device rather than the logical name. The mac/match selector names no device in the configuration, so an interface bound that way keeps its logical name, finds no sysctl, and the check stays silent instead of reporting a state it never read.
+- `internal/plugins/iface/ra/doctor_test.go`: two cases drive it from the check's entry point. `reads the sysctl of the aliased os device` was observed RED against the reverted producer (`should have 1 item(s), but has 0`) and green after; `silent when only the logical name forwards off` pins the other polarity.
 
 ### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | none | Re-read of `doctor.go` and `doctor_test.go` after the fix. No BLOCKER, no ISSUE. The four NOTEs above stand | - | - |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE (run 2, 2026-09-07)
+- [ ] All NOTEs recorded above: four, rows 2 to 5 of run 1
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/router-advertisement-d64e7b3f-bfdc-4614-8db4-f12043eb77cc.md` |
+| Verdict | CLEAN |
+| Rounds | 2 |
+| Files | 13 code files plus this spec |
+| `./le spec session review check` | OK, hashes match |
+
+## Work Not Done
+
+| Item | Why it is not here | Spec that owns it now |
+|------|--------------------|-----------------------|
+| `rfc/short/rfc4861.md` and `rfc/short/rfc8106.md`, and the two `docs/features/rfc-status.md` rows they generate | RFC 4861 carries 151 MUST/SHALL occurrences over the whole of Neighbor Discovery, most of which the Linux kernel performs on Ze's behalf. Classifying them is a set of calls `ai/rules/rfc-compliance.md` reserves to Thomas, and RFC 8106 has no `rfc/full/` text in the tree yet | `plan/pre-release/spec-rfc4861-rfc8106-enrolment.md` |
+| DNSSL, the MTU option, RFC 4191 route information and preference, unicast RAs, the VPP backend, prefixes derived from unit addresses, RA state in `show interface`, the RFC 6275 fields | scoped out on 2026-07-10; each adds a config surface and an encoder branch without moving the goal, and two of them are designs rather than options | `plan/spec-router-advertisement-options-out-of-scope.md` |
 
 ## Pre-Commit Verification
 
@@ -800,7 +827,21 @@ driving the exabgp suite on the same box.)
 | `internal/component/l2tp/ppp/ra_parity_test.go` | yes |
 | `test/parse/iface-router-advertisement{,-invalid}.ci`, `test/parse/iface-vpp-rejects-router-advertisement.ci` | yes |
 | `test/plugin/iface-ra-slaac.ci` + `internal/test/fixture/plugin_fixture_08_ra.go` | yes, created 2026-09-05 |
-| `rfc/short/rfc4861.md`, `rfc/short/rfc8106.md` | NO, open decision |
+| `rfc/short/rfc4861.md`, `rfc/short/rfc8106.md` | NO, homed in `plan/pre-release/spec-rfc4861-rfc8106-enrolment.md` |
+
+### Closure verification (2026-09-07)
+
+The owner barred `./le verify worktree` for this session, so this closure carries
+a verification-debt row instead (`plan/verification-debt/`, written by
+`./le commit create`). What DID run:
+
+| Gate | Result |
+|------|--------|
+| `go test` over `./internal/core/ndp/... ./internal/plugins/iface/ra/... ./internal/component/iface/... ./internal/component/l2tp/ppp/...` | all seven packages ok |
+| `./le repository check` | 2 findings, both in other sessions' files (`filter_delta.go`, `internal/le/functional/report.go`); none in this spec's packages |
+| `./le commit audit` | 6 findings, all in other sessions' files (`plugin/all`, `internal/core/eap`, `internal/le/functional`); none in this spec's packages |
+| `./le verify lint run scope ./internal/plugins/iface/ra/...` | see the row below |
+| the doctor fix's RED phase | `TestDoctorRAForwarding/reads_the_sysctl_of_the_aliased_os_device` failed against the reverted `checkRAForwarding` and passes against the fix |
 
 ### AC Verified (grep/test)
 | AC ID | Evidence |
@@ -811,7 +852,7 @@ driving the exabgp suite on the same box.)
 | AC-5 | `TestRAFinalZeroLifetime` green |
 | AC-6, AC-13, AC-14 | `go test ./internal/component/iface/...` green; `ze config validate` accepts the zero-lifetime file and rejects the cross-field file |
 | AC-7 | `ze:backend "netlink"` on the container, `test/parse/iface-vpp-rejects-router-advertisement.ci` present |
-| AC-8 | `openRASocket` sets both hop-limit options through `ndp.AdvertisementHopLimit`; wire proof is `TestRASenderWireFormat`, not re-run |
+| AC-8 | `openRASocket` sets both hop-limit options through `ndp.MessageHopLimit`; wire proof is `TestRASenderWireFormat`, not re-run |
 | AC-9 | `Sender.onLinkEvent` present; `TestRALinkDownUp` not re-run |
 | AC-10 | `go test -run TestBuildRAParity ./internal/component/l2tp/ppp/` green |
 | AC-11 | `./le iface-resolution` names ONE site, `internal/test/fixture/plugin_fixture_08_tunnel_ttl_linux.go:32`, which is committed, unmodified and unrelated. Zero sites in `internal/core/ndp` or `internal/plugins/iface/ra`, zero new allowlist entries |
@@ -838,8 +879,10 @@ driving the exabgp suite on the same box.)
 ### Documentation Verified
 | Doc row | Evidence |
 |---------|----------|
-| features, configuration, plugins, interfaces, comparison, metrics, plugin-overview, features/plugins | grep hits in all eight files, 2026-09-05 |
-| `docs/features/rfc-status.md` RFC 4861 / RFC 8106 rows | ABSENT. The page is generated from `rfc/short/*.md`, so the rows cannot be written without the summaries. Open decision |
+| features, configuration, plugins, interfaces, comparison, metrics, plugin-overview, features/plugins | grep hits in all eight files, re-checked 2026-09-07 |
+| `docs/features/interfaces.md`, the leaf tables and the two cross-field rules | re-read 2026-09-07 against `raValidate` and the YANG. Every leaf name, range, default and rejection message matches the parser |
+| `docs/features/interfaces.md`, the `doctor-iface-ra-forwarding` paragraph | the page said `net.ipv6.conf.<device>.forwarding` and the code read the logical name. The CODE was repaired (Review Gate run 1, finding 1), so the page needs no edit and its `<!-- source: internal/plugins/iface/ra/doctor.go -- checkRAForwarding -->` anchor still resolves |
+| `docs/features/rfc-status.md` RFC 4861 / RFC 8106 rows | ABSENT. The page is generated from `rfc/short/*.md`, so the rows cannot be written without the summaries. Homed in `plan/pre-release/spec-rfc4861-rfc8106-enrolment.md` (Work Not Done) |
 
 ## Checklist
 

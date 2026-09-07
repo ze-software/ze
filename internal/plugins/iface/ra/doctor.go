@@ -77,9 +77,12 @@ func checkRAForwarding(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 			if !advertises(entries[name]) {
 				continue
 			}
+			// The sysctl is keyed by the OS device, which is not the logical
+			// name whenever os-name aliases it.
+			device := osDeviceOf(name, entries[name])
 			// Forwarding is a property of the device, so several advertising
 			// units on one interface share one warning.
-			on, known := ipv6ForwardingReader(name)
+			on, known := ipv6ForwardingReader(device)
 			if !known || on {
 				continue
 			}
@@ -88,13 +91,32 @@ func checkRAForwarding(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 				Severity: diagnostic.SeverityWarning,
 				Message: tb.Reset().
 					Str("interface ").Str(name).
-					Str(" sends Router Advertisements while net.ipv6.conf.").Str(name).
+					Str(" sends Router Advertisements while net.ipv6.conf.").Str(device).
 					Str(".forwarding is 0; hosts will install a default route through Ze and their off-link traffic will be dropped").
 					String(),
 			})
 		}
 	}
 	return diags
+}
+
+// osDeviceOf returns the kernel device a logical interface name binds to,
+// reading the same os-name leaf the resolver reads (osDeviceFor,
+// internal/component/iface/resolve.go): the leaf when it is set, the logical
+// name otherwise.
+//
+// The resolver's other selector, mac/match, names no device in the
+// configuration and cannot be answered without a running backend. An interface
+// bound that way keeps its logical name here, readIPv6Forwarding finds no such
+// path, and the check stays silent rather than naming a device it did not read.
+func osDeviceOf(name string, entry *config.Tree) string {
+	if entry == nil {
+		return name
+	}
+	if osName, ok := entry.Get("os-name"); ok && osName != "" {
+		return osName
+	}
+	return name
 }
 
 // advertises reports whether any unit of one interface enables Router
