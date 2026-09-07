@@ -27,6 +27,10 @@ import (
 const (
 	configName  = ".golangci.yml"
 	lintProgram = "golangci-lint"
+	// configPathPlaceholder is what golangci-lint expands to the directory holding the
+	// configuration it loaded. A derived copy loads from somewhere else, so
+	// deriveTaglessConfig expands it before the copy is written.
+	configPathPlaceholder = "${config-path}"
 	// allowSerial makes golangci-lint WAIT for its machine-wide lock. Without
 	// it the child gives up after five seconds and exits "parallel golangci-lint
 	// is running". Several sessions share this checkout, so a sibling lint made
@@ -597,14 +601,24 @@ func parseConfigTags(config []byte) ([]string, error) {
 	return tags, nil
 }
 
-func deriveTaglessConfig(config []byte) ([]byte, error) {
+// deriveTaglessConfig rewrites the checkout configuration for the flavors that
+// drop build tags. The derived copy is written under taglessDir rather than
+// beside the original, so every location the configuration states about itself
+// has to be restated absolutely. Two do. `relative-path-mode: gitroot` fixes
+// the paths golangci-lint reports, and configDir fixes the paths it reads:
+// golangci-lint expands `${config-path}` to the directory holding the config it
+// loaded, which for the copy is taglessDir. Left alone, the ruleguard rules
+// file resolves under taglessDir, is not there, and gocritic fails to
+// initialize. `failOn: all` then takes the whole goanalysis_metalinter pass
+// down, so those flavors lint with no gocritic at all.
+func deriveTaglessConfig(config []byte, configDir string) ([]byte, error) {
 	var output textbuf.Buffer
 	output.Reset()
 	dropping := false
 	foundRun := false
 	scanner := bufio.NewScanner(bytes.NewReader(config))
 	for scanner.Scan() {
-		line := scanner.Text()
+		line := strings.ReplaceAll(scanner.Text(), configPathPlaceholder, configDir)
 		if line == "  build-tags:" {
 			dropping = true
 			continue
@@ -673,7 +687,7 @@ func (r *Runner) execute(plan LintPlan) (Report, int) {
 		plan.Coverage.Code != 0
 	var errorText textbuf.Buffer
 	if plan.NeedsTagless {
-		derived, err := deriveTaglessConfig(plan.configContents)
+		derived, err := deriveTaglessConfig(plan.configContents, r.root)
 		if err != nil {
 			report.Code, report.Error = cannotPlan, err.Error()
 			if writeErr := writeLintf(os.Stderr, "lint: %v\n", err); writeErr != nil {

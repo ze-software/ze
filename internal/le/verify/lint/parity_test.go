@@ -25,7 +25,25 @@ import (
 	"github.com/ze-software/ze/internal/le/population"
 )
 
-const fixtureConfig = "version: \"2\"\nrun:\n  timeout: 10m\n  build-tags:\n    - ze_core\n    - ze_a\n    - ze_b\nlinters:\n  enable:\n    - errcheck\n"
+// fixtureConfig mirrors the shape of the checkout .golangci.yml that the
+// derivation has to preserve: a build-tags block to drop, and a rules path
+// stated relative to the directory holding the configuration.
+const fixtureConfig = `version: "2"
+run:
+  timeout: 10m
+  build-tags:
+    - ze_core
+    - ze_a
+    - ze_b
+linters:
+  enable:
+    - errcheck
+  settings:
+    gocritic:
+      settings:
+        ruleguard:
+          rules: '${config-path}/.golangci/ruleguard/modern.go'
+`
 
 func fixtureChain(root string) gotoolchain.Toolchain {
 	return gotoolchain.Toolchain{
@@ -575,7 +593,7 @@ func TestRunnerRefusesMissingToolAndEmptyPopulationOutput(t *testing.T) {
 }
 
 func TestTaglessConfigurationKeepsCurrentLintersAndDropsOnlyBuildTags(t *testing.T) {
-	derived, err := deriveTaglessConfig([]byte(fixtureConfig))
+	derived, err := deriveTaglessConfig([]byte(fixtureConfig), "/checkout")
 	if err != nil {
 		t.Fatalf("deriveTaglessConfig: %v", err)
 	}
@@ -587,6 +605,25 @@ func TestTaglessConfigurationKeepsCurrentLintersAndDropsOnlyBuildTags(t *testing
 		if !strings.Contains(text, preserved) {
 			t.Errorf("tagless config dropped %q:\n%s", preserved, text)
 		}
+	}
+}
+
+// TestTaglessConfigurationStatesItsRulesPathAbsolutely proves the derived copy
+// still names the file the checkout configuration named. The copy is written
+// under taglessDir, where golangci-lint would expand ${config-path} to that
+// directory instead, load no ruleguard rules, fail to initialize gocritic, and
+// take the whole metalinter pass down with it.
+func TestTaglessConfigurationStatesItsRulesPathAbsolutely(t *testing.T) {
+	derived, err := deriveTaglessConfig([]byte(fixtureConfig), "/checkout")
+	if err != nil {
+		t.Fatalf("deriveTaglessConfig: %v", err)
+	}
+	text := string(derived)
+	if strings.Contains(text, configPathPlaceholder) {
+		t.Fatalf("tagless config left %s unexpanded:\n%s", configPathPlaceholder, text)
+	}
+	if !strings.Contains(text, "rules: '/checkout/.golangci/ruleguard/modern.go'") {
+		t.Fatalf("tagless config does not name the checkout rules file:\n%s", text)
 	}
 }
 

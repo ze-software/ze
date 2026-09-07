@@ -507,6 +507,17 @@ place the linter already reaches: the post-write hook, `./le verify lint run`,
 CI, and `//nolint`. A rule written this way needs no new gate, no new hook, and
 no custom linter binary.
 
+That reach has one condition. The flavors that drop build tags do not lint
+through the checkout configuration. They lint through a copy written under
+`tmp/lint-flavors/`, and golangci-lint expands `${config-path}` against the
+directory holding the configuration it loaded, which for the copy is that
+directory. So the derivation expands the token to the checkout root before it
+writes the copy. Left relative, the rules file is not found, gocritic fails to
+initialize, and `failOn: all` takes the whole `goanalysis_metalinter` pass down
+with it: those flavors then lint with no gocritic at all, while the run's other
+findings still print.
+<!-- source: internal/le/verify/lint/verifylint.go -- deriveTaglessConfig -->
+
 The leading dot on the directory keeps the Go toolchain out of it, so a rules
 file is never compiled, vendored, or linted. Give each rule a `Report` line
 that states the cost, and a `Suggest` line that gives the replacement. Note that
