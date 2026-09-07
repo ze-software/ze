@@ -112,6 +112,7 @@ type parallelRunner[T any] struct {
 	noSummary      bool           // if true, skip Summary/TimingDetail/DebugHints in Run
 	onFail         func(T, error) // Called for each failed test (for verbose output)
 	onReport       func(*Tests)   // Called after run when there are failures (for PrintAllFailures)
+	onVerbose      func(*Tests)   // Called after run under -v, failures or not (for the step trace)
 	baseDir        string         // project root for timing baseline persistence
 	concurrency    int            // max concurrent tests; 0 means DefaultParallelConcurrent
 	statusInterval time.Duration  // status ticker interval; 0 means StatusUpdateInterval
@@ -189,6 +190,13 @@ func (r *parallelRunner[T]) setDisplay(d *Display) {
 // Use for .ci's PrintAllFailures.
 func (r *parallelRunner[T]) setOnReport(fn func(*Tests)) {
 	r.onReport = fn
+}
+
+// setOnVerbose sets a callback invoked after the run under -v, whether or not
+// anything failed. onReport answers "why did this fail"; this one answers "what
+// did the runner actually do", which a PASSING run is the only place to read.
+func (r *parallelRunner[T]) setOnVerbose(fn func(*Tests)) {
+	r.onVerbose = fn
 }
 
 // setNoSummary suppresses Summary/TimingDetail/DebugHints in Run.
@@ -452,6 +460,10 @@ func (r *parallelRunner[T]) Run(ctx context.Context) bool {
 
 	if !r.noSummary {
 		r.display.debugHints()
+	}
+
+	if r.verbose && !r.quiet && r.onVerbose != nil {
+		r.onVerbose(r.display.tests)
 	}
 
 	// Verify mode must include concise failure detail in saved logs without

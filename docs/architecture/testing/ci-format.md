@@ -157,7 +157,9 @@ rule above is a rule.
 
 ## Stdin Blocks
 
-Stdin blocks embed content that will be piped to a process's stdin.
+A stdin block embeds content the runner pipes to a process's standard input.
+Two commands take it as a FILE instead, and the table under "Where the block
+goes" says which, why, and what the `.ci` writes to select each route.
 
 ### Syntax
 
@@ -202,20 +204,52 @@ peer test-peer {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze bgp server -:stdin=ze
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp
 ```
+
+The block goes to a file and the daemon runs as `ze start <file>`. The example
+said `exec=ze bgp server -:stdin=ze` until 2026-09-07, naming a command the CLI
+does not have and a block the file does not declare.
 
 **Single-line hex (decode test):**
 ```
 stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C020000001C...
-cmd=foreground:seq=1:exec=ze-test decode --family ipv4/unicast -:stdin=payload
+cmd=foreground:seq=1:exec=ze bgp decode --json --family ipv4/unicast -:stdin=payload
 expect=json:json={ "type": "update", ... }
 ```
+
+The block is PIPED: the `-` belongs to `decode`, not to the daemon.
 
 **Single-line text:**
 ```
 stdin=cmd:text=update text nhop set 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24
 ```
+
+### Where the block goes
+
+The runner pipes the block, with two exceptions. Each one exists because the
+child needs a path it can open, and each is selected by what the `exec=` line
+already writes: no new directive chooses between them.
+
+| The `exec=` line | Where the block goes | Why |
+|------------------|----------------------|-----|
+| `ze -`, and its flagged forms `ze -d -`, `ze --plugin <p> -`, `ze --mcp <port> -`, `ze --web <port> --insecure-web -` | a FILE in the work directory, and argv becomes `ze [flags] start <file>` | the daemon re-reads its config on SIGHUP, a restart reuses it, `action=rewrite:dest=ze-bgp.conf` addresses it by bare name, and a rollback assertion reads the directory beside it |
+| `ze-peer ...` with NO `-` in argv | a temporary FILE appended to argv | `ze-test peer` takes its expect script as a path argument |
+| `ze-peer ... -` | PIPED | `LoadExpectFile` opens its argument through `cliio`, so `-` is standard input there |
+| every other line, `ze bgp decode -`, `ze config validate -`, `ze-test replay -`, `sh -c ...` included | PIPED | `-` is the `cliio` stdin token (`ai/rules/cli.md`), and the command reads standard input |
+
+The daemon `-` is recognized by POSITION, not by a list of verbs: the runner
+asks `zeDaemonConfigArgIndex` which argument is the config, and substitutes only
+when that argument is the `-`. A `-` belonging to a verb is left in argv and the
+block is piped, so `ze config validate -` and `ze bgp decode pcap -` test the
+form the operator types.
+<!-- source: internal/test/runner/runner_exec_util.go -- routeStdinBlock -->
+
+Until 2026-09-07 the runner took the FIRST `-` in argv whatever it meant, so
+every verb form ran against a file path the author never wrote. A test that
+named a stdin block on a verb was testing the path form under a `-` that said
+otherwise, and `test/ui/bgp-decode-stdin-hex.ci` failed with
+`invalid hex: encoding/hex: invalid byte: U+002F '/'` for that reason.
 
 ### What a ze-peer block may carry
 
@@ -548,7 +582,27 @@ cmd=stop:seq=<N>:name=<handle>[:signal=kill|term]
 | `name` | Handle for a background process, so a later `cmd=stop` can target it. |
 | `signal` | `cmd=stop` only: `kill` (SIGKILL, default) or `term` (SIGTERM). |
 
-Markers may appear in any order; each value runs to the next known marker.
+Markers may appear in any order; each value runs to the next key in the table
+above, whichever key that is.
+
+**The table is the whole vocabulary. Any other `:<word>=` on a `cmd=` line fails
+the file**, naming the key, the accepted set and the line. The scan reads the
+whole line, `exec=` included, because that is exactly where a key the parser
+does not read ends up: a value runs to the next KNOWN key, so an unknown one is
+swallowed into the value before it rather than dropped.
+`cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s:env=ZE_FWD_WRITE_DEADLINE=10s`
+parsed with `timeout="15s:env=ZE_FWD_WRITE_DEADLINE=10s"`, so the line got
+neither the timeout it declared nor the variable, and every assertion still
+passed. Set an environment variable with `option=env:var=<name>:value=<value>`.
+
+One consequence: a command carrying a `:<word>=` span of its own cannot be
+written on a `cmd=` line. Put it in a `tmpfs=` script and run the script.
+
+`timeout=` must be a Go duration (`10s`, `1m30s`). Both readers of the value
+keep their own default when it does not parse, so it is refused here instead.
+<!-- source: internal/test/runner/record_parse_cmd.go -- cmdExecKeys, cmdStopKeys, parseCmdExec -->
+<!-- source: internal/test/runner/record_parse_keys.go -- checkMarkerKeys -->
+<!-- test: internal/test/runner/record_parse_cmd_test.go TestCmdUnknownKeyRefused, TestCmdUnknownKeyNotSwallowedIntoExec -->
 
 **Background:** Starts and keeps running until test ends.
 **Foreground:** Starts and waits for completion.
@@ -670,7 +724,7 @@ meaningful.
 <!-- source: internal/test/runner/runner_exec.go -- rec.ClientOutput = clientStdout.String() + clientStderr.String() -->
 <!-- source: internal/test/runner/runner_output_assert.go -- checkOutputAssertions -->
 <!-- source: internal/test/runner/runner_exec.go -- quickZe branch, per-command exit assertion -->
-<!-- source: internal/test/runner/record_parse_cmd.go -- parseCmdExec, exitMarker -->
+<!-- source: internal/test/runner/record_parse_cmd.go -- parseCmdExec, markerExit -->
 <!-- source: internal/test/runner/record.go -- RunCommand.ExitCode -->
 
 <!-- test: internal/test/runner/record_newformat_test.go TestParseCmdExec -- exit= parsing, marker order, 0..255 bounds -->
@@ -882,11 +936,27 @@ Validates the foreground process exit code. A test whose ONLY assertion is
 `expect=exit:code=0` is **accept-only** (weak) and is gated by a lint; see
 [Assertion Strength](#assertion-strength-accept-only-tests-and-readback).
 
-### Unknown Keys Are a Parse Error
+### An Unknown Directive or Key Is a Parse Error
 
-Every `expect=` and `reject=` arm declares the keys it reads, and a key outside
-that set fails the file at discovery, naming the key, the accepted keys, and the
-line. Nothing is dropped in silence.
+Every directive the runner reads is declared: the `action=` word, the type after
+it, and the keys inside it. A word or a key outside its declared set fails the
+file at discovery, naming what was written, the accepted set, and the line.
+Nothing is dropped in silence, and nothing is guessed.
+
+```
+line 12: unknown action "exepct" (accepts action, await, cmd, command, expect, http, option, reject, stream)
+line 12: unknown expect type "stdoutt" (accepts bgp, command-error, event, exit, file, json, output, stderr, stdout, stream, syslog)
+line 12: cmd=foreground: unknown key "env" (accepts exec, exit, name, seq, stdin, timeout)
+```
+
+The accepted set in each message is the list the parser gates on, so it cannot
+describe a vocabulary the runner does not have. The line number is the line in
+the FILE: comments, blank lines and whole `stdin=` and `tmpfs=` blocks are
+consumed before the directives are parsed, and the refusal used to count only
+the directives that survived, which named line 2 for a line that was number 69.
+<!-- source: internal/test/runner/record_parse_vocabulary.go -- recordActions and the type lists each switch gates on -->
+<!-- source: internal/test/tmpfs/tmpfs.go -- Line, the directive text with its file line number -->
+<!-- test: internal/test/runner/record_parse_test.go TestUnknownDirectiveNamesLineAndAccepted, TestDirectiveVocabularyIsLive -->
 
 The rule exists because a dropped key takes the whole assertion with it. An
 `expect=stdout:not-contains=X` line recorded NO assertion and then passed

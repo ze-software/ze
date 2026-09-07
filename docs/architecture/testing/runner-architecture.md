@@ -403,9 +403,24 @@ They emit two trace formats through `internal/test/trace`:
 - **Human:** colored `checkmark`/`cross` glyphs, one line per step, with kind, assert, and failure detail.
 - **Machine:** `VERIFY STEP: {json}` token per step, matching the `VERIFY FAILURE GROUP` convention from `failure_group.go`.
 
-Trace is emitted automatically on failure (default tier). Under `-v`, passing tests
-also show their step trace. The `.ci` runner emits trace in failure reports when
-`rec.StepTrace` is non-empty.
+Trace is emitted automatically on failure (default tier). Under `-v`, passing
+tests also show their step trace. The `.ci` runner emits trace in failure
+reports when `rec.StepTrace` is non-empty, and `Report.printStepTraces` prints
+every selected test's trace under `-v`. That last half was untrue for the `.ci`
+runner until 2026-09-07: `RunOptions.Verbose` was carried from the command line
+and read by nothing, so `ze-test <suite> -v` over a green suite printed no more
+than a bare run.
+
+The first step of each command is what the runner RAN: the argv it built, and
+where the named `stdin=` block went (`piped`, or `written to a file, named in
+the argv above`). The `.ci` says what to run and the runner can rewrite it, a
+`ze -` daemon launch becoming `ze [flags] start <file>`, and neither rewrite
+appeared anywhere an author reads. So a test whose stimulus was replaced looked
+exactly like one whose stimulus was honored, which is how
+`test/ui/bgp-decode-pcap-stdin.ci` asserted a decoded capture while the capture
+reached the child as a file path it never wrote.
+<!-- source: internal/test/runner/runner_exec_trace.go -- recordExecStep -->
+<!-- source: internal/test/runner/report.go -- printStepTraces -->
 
 The trace package (`internal/test/trace`) is a leaf with no runner imports.
 This structure prevents import cycles between trace producers.

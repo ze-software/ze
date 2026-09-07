@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestDebugCommandsFullHex verifies that debug commands contain the full hex string,
@@ -172,4 +173,61 @@ func TestReportGatesVerifyGroups(t *testing.T) {
 	if !strings.Contains(verify, "VERIFY FAILURE GROUP:") {
 		t.Fatalf("missing verify failure group in PrintFailureGroups output:\n%s", verify)
 	}
+}
+
+// TestRunReportNamesTheArgvItRan runs a real child, so the argv it asserts on is
+// the argv the runner built rather than the one a test constructed.
+//
+// VALIDATES: AC-8 of spec-fixit-ci-runner-cannot-test-stdin. The report states
+// the argv the runner executed and whether standard input was piped, on a
+// failing run (printFailure) and on a passing one under -v (printStepTraces).
+// PREVENTS: the rewrite class this spec exists for staying invisible. The
+// runner replaces a `-` with a file for a daemon launch and appends one for a
+// ze-peer line, and until this step existed a .ci whose stimulus was replaced
+// read exactly like one whose stimulus was honored.
+func TestRunReportNamesTheArgvItRan(t *testing.T) {
+	baseDir := t.TempDir()
+	et := NewEncodingTests(baseDir)
+	r, err := NewRunner(et, baseDir)
+	require.NoError(t, err)
+	defer r.Cleanup()
+
+	success := 0
+	rec := et.Add("argv-probe")
+	rec.Active = true
+	rec.Conf = map[string]any{}
+	rec.Extra = map[string]string{"timeout": "30s"}
+	rec.ExpectExitCode = &success
+	rec.StdinBlocks = map[string][]byte{"payload": []byte("piped-marker\n")}
+	rec.RunCommands = []RunCommand{{Mode: modeForeground, Seq: 1, Exec: "/bin/cat", Stdin: "payload"}}
+
+	require.True(t, r.runTest(t.Context(), rec, &RunOptions{}), "the probe must run: %v", rec.Error)
+	require.Contains(t, rec.ClientOutput, "piped-marker",
+		"the block must reach the child's standard input, or this test is asserting about a claim rather than a run")
+
+	var executed []string
+	for _, step := range rec.StepTrace {
+		if step.Kind == stepKindExec {
+			executed = append(executed, step.Assert)
+		}
+	}
+	require.Len(t, executed, 1, "one command ran, so one exec step is recorded")
+	assert.Contains(t, executed[0], "/bin/cat", "the step names the argv the runner executed")
+	assert.Contains(t, executed[0], "[stdin=payload piped]", "the step says where the named block went")
+
+	// The failing reader's route.
+	var failure bytes.Buffer
+	failureReport := newReport(NewColors())
+	failureReport.SetOutput(&failure)
+	failureReport.printFailure(rec)
+	assert.Contains(t, failure.String(), "/bin/cat  [stdin=payload piped]",
+		"a failure report states what ran, which is the first question its reader asks")
+
+	// The passing reader's route, which is -v.
+	var verbose bytes.Buffer
+	verboseReport := newReport(NewColors())
+	verboseReport.SetOutput(&verbose)
+	verboseReport.printStepTraces(et.Tests)
+	assert.Contains(t, verbose.String(), "/bin/cat  [stdin=payload piped]",
+		"-v states what ran for a test that passed, which is the only place a replaced stimulus shows")
 }

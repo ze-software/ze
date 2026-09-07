@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -642,6 +643,66 @@ func zeDaemonConfigArgIndex(args []string) int {
 		return -1
 	}
 	return -1
+}
+
+// stdinRoute is how a named stdin= block reaches the child process. The zero
+// value is unspecified so a route is never taken by an unwritten field.
+type stdinRoute int
+
+const (
+	stdinRouteUnspecified stdinRoute = iota
+	// stdinRoutePipe writes the block to the child's standard input, which is
+	// what docs/architecture/testing/ci-format.md says stdin= means.
+	stdinRoutePipe
+	// stdinRouteDaemonConfig writes the block to a file in the work directory
+	// and puts `start <file>` in place of the `-`.
+	stdinRouteDaemonConfig
+	// stdinRoutePeerFile writes the block to a temporary file and appends its
+	// path to argv.
+	stdinRoutePeerFile
+)
+
+// routeStdinBlock answers how a named stdin= block reaches binName, and, for
+// stdinRouteDaemonConfig, the argv index the config file replaces.
+//
+// A `-` means standard input everywhere in Ze (ai/rules/cli.md), and one place
+// is the exception: the `-` that IS a ze daemon's config argument. That daemon
+// re-reads its config on SIGHUP, a fixture rewrites it by bare name, a restart
+// reuses it and a rollback assertion reads the directory beside it, so the
+// block has to be a FILE the child can open twice. zeDaemonConfigArgIndex is
+// the question that separates the two, and it answers on the first non-flag
+// token: 0 for `ze -`, 2 for `ze --plugin ./p.run -`, and -1 for every verb
+// (`ze config validate -`, `ze bgp decode pcap -`), whose `-` is the cliio
+// stdin token and is piped.
+//
+// The scan used to take the FIRST `-` in argv whatever it meant, so every verb
+// form ran against a path the author never wrote. test/ui/bgp-decode-stdin-hex.ci
+// failed with `invalid hex: encoding/hex: invalid byte: U+002F '/'`, and
+// test/ui/bgp-decode-pcap-stdin.ci passed for a reason it does not assert.
+//
+// ze-peer takes its expect script as a path argument, and LoadExpectFile opens
+// it through cliio, so `-` reads standard input there too
+// (internal/test/peer/expect.go). The runner appended a file unconditionally,
+// which left a `-` an author wrote as argv[0] of the peer with nothing on
+// standard input. ze-peer read an empty expect set and refused to bind with "no
+// test data available to test against", a red that names neither the pipe nor
+// the `-`. A line that writes `-` now pipes, and a line that writes none keeps
+// the appended file.
+func routeStdinBlock(binName string, args []string) (stdinRoute, int) {
+	switch binName {
+	case binNameZe:
+		idx := zeDaemonConfigArgIndex(args)
+		if idx >= 0 && args[idx] == "-" {
+			return stdinRouteDaemonConfig, idx
+		}
+		return stdinRoutePipe, -1
+	case binNameZePeer:
+		if slices.Contains(args, "-") {
+			return stdinRoutePipe, -1
+		}
+		return stdinRoutePeerFile, -1
+	}
+	return stdinRoutePipe, -1
 }
 
 func zeDaemonUsesWeb(args []string) bool {

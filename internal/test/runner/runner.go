@@ -534,6 +534,15 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 		r.report.printAllFailures(tests)
 	})
 
+	// -v prints what the runner RAN for every test, passing ones included. The
+	// option was carried from the command line into RunOptions and read by
+	// nothing, so `ze-test <suite> -v` over a green suite printed no more than a
+	// bare run (AC-8, spec-fixit-ci-runner-cannot-test-stdin).
+	pr.SetVerbose(opts.Verbose)
+	pr.setOnVerbose(func(tests *Tests) {
+		r.report.printStepTraces(tests)
+	})
+
 	return pr.Run(ctx)
 }
 

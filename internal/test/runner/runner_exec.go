@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -23,7 +24,6 @@ import (
 	"github.com/ze-software/ze/internal/test/sessionpath"
 	"github.com/ze-software/ze/internal/test/syslog"
 	"github.com/ze-software/ze/internal/test/tmpfs"
-	"github.com/ze-software/ze/internal/test/trace"
 )
 
 // startBackgroundLifetime stops a background process once its declared
@@ -730,9 +730,18 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			stdinContent = []byte(s)
 		}
 
-		// ze-peer reads from file argument, not stdin.
-		// Write stdin content to temp file and pass as argument.
-		if binName == binNameZePeer && stdinContent != nil {
+		// Where the block goes is decided once, before argv is touched, and the
+		// two arms below carry that decision out. Nothing else reads argv for a
+		// `-`: an author who writes one gets the pipe unless the `-` is the ze
+		// daemon's own config argument. See routeStdinBlock.
+		stdinDest, daemonCfgIdx := stdinRouteUnspecified, -1
+		if stdinContent != nil {
+			stdinDest, daemonCfgIdx = routeStdinBlock(binName, args)
+		}
+
+		// ze-peer takes its expect script as a path argument, so a line that
+		// wrote no `-` gets the block as a temporary file.
+		if stdinDest == stdinRoutePeerFile {
 			tmpFile, err := os.CreateTemp("", "ze-peer-expect-*.msg")
 			if err != nil {
 				rec.Error = fmt.Errorf("create temp file for peer: %w", err)
@@ -753,90 +762,72 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			stdinContent = nil // Don't pipe to stdin
 		}
 
-		// ze reads config from file, not stdin.
-		// If args contain "-", replace with temp file.
-		// Write to TmpfsTempDir if available so plugin paths (like ./plugin.run) resolve correctly.
-		if binName == binNameZe && stdinContent != nil {
-			// A bare `ze -` daemon launch (the `-` IS the daemon config arg) now runs
-			// as `ze start <file>` after spec-fixit-config-file-positional-grammar:
-			// keyword-first grammar places the config path behind the `start` verb.
-			// A `-` that is a subcommand value (e.g. `ze config validate -`, where
-			// zeDaemonConfigArgIndex returns a different index or -1) keeps its
-			// in-place file substitution and is NOT prefixed with `start`.
-			daemonCfgIdx := zeDaemonConfigArgIndex(args)
-			for i, arg := range args {
-				if arg != "-" {
-					continue
-				}
-				// Write the config into the directory the child RUNS in, so a
-				// fixture that rewrites it by BARE NAME addresses the file the
-				// daemon actually reads: action=rewrite:dest=ze-bgp.conf, a
-				// second `ze -` restarted against the same file, an assertion on
-				// rollback/ze-bgp-*.conf, and a native fixture that writes
-				// ze-bgp.conf and then SIGHUPs.
-				//
-				// It was TmpfsTempDir, with an else arm that put the config in a
-				// fresh MkdirTemp "ze-config-*" instead. That field is set only
-				// when the .ci declares tmpfs files, and a .ci can declare a
-				// `stdin=` config block without declaring any, so those tests got
-				// the else arm: the daemon read /tmp/ze-config-<random>/ze-bgp.conf
-				// while their fixture wrote ze-bgp.conf in the work directory. The
-				// SIGHUP then reloaded the ORIGINAL config and logged "sighup
-				// reload complete" having changed nothing, which is what
-				// static-reload-add, -remove and -empty-section-withdraws were
-				// reporting. WorkDir is set for every record and is already
-				// chowned for a credential-dropped child, so the else arm's own
-				// chown goes with it.
-				//
-				// The first ze daemon's config keeps the fixed name ze-bgp.conf. A
-				// SECOND concurrent ze daemon in the same test uses a DISTINCT
-				// stdin block (e.g. an IKE responder + initiator pair), so it gets
-				// a per-block file and does not clobber the first daemon's config
-				// -- without which a two-daemon test can never form a distinct
-				// pair (both load whichever config was written last). Reusing the
-				// same block (a restart) reuses its file.
-				configName := zeConfigFileName(rec, cmd.Stdin)
-				tmpFile, err := os.Create(filepath.Join(rec.WorkDir, configName)) //nolint:gosec // test runner, path from the per-test work directory
-				if err != nil {
-					rec.Error = fmt.Errorf("create temp config file: %w", err)
-					return false
-				}
-				if _, err := tmpFile.Write(stdinContent); err != nil {
-					tmpFile.Close() //nolint:errcheck,gosec // best-effort close on write error
-					rec.Error = fmt.Errorf("write config file: %w", err)
-					return false
-				}
-				if err := tmpFile.Close(); err != nil {
-					rec.Error = fmt.Errorf("close config file: %w", err)
-					return false
-				}
-				// Fix B: a credential-dropped ze reads this config, but it is
-				// created root-owned, so relying on world-read (umask 022) is
-				// fragile under a hardened umask (027/077 -> 0640/0600 -> EACCES).
-				// Own the file to the target uid so the read never depends on umask.
-				if netnsMode && netnsHasUID {
-					if chErr := os.Chown(tmpFile.Name(), netnsUID, netnsGID); chErr != nil {
-						rec.Error = fmt.Errorf("chown config file for netns child: %w", chErr)
-						return false
-					}
-				}
-				if i == daemonCfgIdx {
-					// Bare daemon config launch: insert the `start` verb before the
-					// config path so `ze -` runs as `ze start <file>`.
-					newArgs := make([]string, 0, len(args)+1)
-					newArgs = append(newArgs, args[:i]...)
-					newArgs = append(newArgs, zeVerbStart, tmpFile.Name())
-					newArgs = append(newArgs, args[i+1:]...)
-					args = newArgs
-				} else {
-					args[i] = tmpFile.Name()
-				}
-				stdinContent = nil // Don't pipe to stdin
-				break
+		// A ze daemon needs its config as a FILE, so the `-` that IS the config
+		// argument becomes `start <file>`: keyword-first grammar places the path
+		// behind the `start` verb (spec-fixit-config-file-positional-grammar).
+		if stdinDest == stdinRouteDaemonConfig {
+			// Write the config into the directory the child RUNS in, so a
+			// fixture that rewrites it by BARE NAME addresses the file the
+			// daemon actually reads: action=rewrite:dest=ze-bgp.conf, a
+			// second `ze -` restarted against the same file, an assertion on
+			// rollback/ze-bgp-*.conf, and a native fixture that writes
+			// ze-bgp.conf and then SIGHUPs.
+			//
+			// It was TmpfsTempDir, with an else arm that put the config in a
+			// fresh MkdirTemp "ze-config-*" instead. That field is set only
+			// when the .ci declares tmpfs files, and a .ci can declare a
+			// `stdin=` config block without declaring any, so those tests got
+			// the else arm: the daemon read /tmp/ze-config-<random>/ze-bgp.conf
+			// while their fixture wrote ze-bgp.conf in the work directory. The
+			// SIGHUP then reloaded the ORIGINAL config and logged "sighup
+			// reload complete" having changed nothing, which is what
+			// static-reload-add, -remove and -empty-section-withdraws were
+			// reporting. WorkDir is set for every record and is already
+			// chowned for a credential-dropped child, so the else arm's own
+			// chown goes with it.
+			//
+			// The first ze daemon's config keeps the fixed name ze-bgp.conf. A
+			// SECOND concurrent ze daemon in the same test uses a DISTINCT
+			// stdin block (e.g. an IKE responder + initiator pair), so it gets
+			// a per-block file and does not clobber the first daemon's config
+			// -- without which a two-daemon test can never form a distinct
+			// pair (both load whichever config was written last). Reusing the
+			// same block (a restart) reuses its file.
+			configName := zeConfigFileName(rec, cmd.Stdin)
+			tmpFile, err := os.Create(filepath.Join(rec.WorkDir, configName)) //nolint:gosec // test runner, path from the per-test work directory
+			if err != nil {
+				rec.Error = fmt.Errorf("create temp config file: %w", err)
+				return false
 			}
+			if _, err := tmpFile.Write(stdinContent); err != nil {
+				tmpFile.Close() //nolint:errcheck,gosec // best-effort close on write error
+				rec.Error = fmt.Errorf("write config file: %w", err)
+				return false
+			}
+			if err := tmpFile.Close(); err != nil {
+				rec.Error = fmt.Errorf("close config file: %w", err)
+				return false
+			}
+			// Fix B: a credential-dropped ze reads this config, but it is
+			// created root-owned, so relying on world-read (umask 022) is
+			// fragile under a hardened umask (027/077 -> 0640/0600 -> EACCES).
+			// Own the file to the target uid so the read never depends on umask.
+			if netnsMode && netnsHasUID {
+				if chErr := os.Chown(tmpFile.Name(), netnsUID, netnsGID); chErr != nil {
+					rec.Error = fmt.Errorf("chown config file for netns child: %w", chErr)
+					return false
+				}
+			}
+			args = slices.Concat(args[:daemonCfgIdx], []string{zeVerbStart, tmpFile.Name()}, args[daemonCfgIdx+1:])
+			stdinContent = nil // The daemon opens the file; nothing is piped.
 		}
 
-		logger().Debug("executing command", "mode", cmd.Mode, "binary", binPath, "args", args)
+		logger().Debug("executing command", "mode", cmd.Mode, "binary", binPath, "args", args, "stdin-piped", stdinContent != nil)
+
+		// What RAN, in the report every reader already reads. A rewrite above
+		// changed argv, and until this step existed nothing said so
+		// (runner_exec_trace.go).
+		rec.recordExecStep(binPath, args, cmd.Stdin, stdinContent != nil)
 
 		// Create command
 		proc := exec.CommandContext(testCtx, binPath, args...) //nolint:gosec // test runner
@@ -926,7 +917,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// the repository root.
 		proc.Dir = r.childWorkingDirectory(binName, rec)
 
-		// Set up stdin if specified (for ze and other commands)
+		// Pipe the block, unless an arm above consumed it into a file.
 		if stdinContent != nil {
 			proc.Stdin = strings.NewReader(string(stdinContent))
 		}
@@ -1150,23 +1141,15 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	}
 
 	// Execute HTTP waits (readiness polls) before assertion checks.
-	httpStepN := 0
 	if len(rec.HTTPWaits) > 0 {
 		if waitErr := r.executeHTTPWaits(testCtx, rec); waitErr != nil {
 			rec.Error = waitErr
 			rec.FailureType = "http_check_failed"
 			rec.Duration = time.Since(rec.StartTime)
-			httpStepN++
-			rec.StepTrace = append(rec.StepTrace, trace.StepResult{
-				Step: httpStepN, Kind: stepKindExpect, Assert: "http-wait",
-				Passed: false, Detail: waitErr.Error(),
-			})
+			rec.recordStep("http-wait", false, waitErr.Error())
 			return false
 		}
-		httpStepN++
-		rec.StepTrace = append(rec.StepTrace, trace.StepResult{
-			Step: httpStepN, Kind: stepKindExpect, Assert: "http-wait", Passed: true,
-		})
+		rec.recordStep("http-wait", true, "")
 	}
 
 	// Execute HTTP checks (after background processes have started). A passing
@@ -1182,17 +1165,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			rec.Error = httpErr
 			rec.FailureType = "http_check_failed"
 			rec.Duration = time.Since(rec.StartTime)
-			httpStepN++
-			rec.StepTrace = append(rec.StepTrace, trace.StepResult{
-				Step: httpStepN, Kind: stepKindExpect, Assert: "http-check",
-				Passed: false, Detail: httpErr.Error(),
-			})
+			rec.recordStep("http-check", false, httpErr.Error())
 			return false
 		}
-		httpStepN++
-		rec.StepTrace = append(rec.StepTrace, trace.StepResult{
-			Step: httpStepN, Kind: stepKindExpect, Assert: "http-check", Passed: true,
-		})
+		rec.recordStep("http-check", true, "")
 	}
 
 	// Build set of peer processes for exclusion from graceful stop and fgProc detection.

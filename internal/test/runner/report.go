@@ -365,6 +365,25 @@ func (r *Report) printDebugCommands(rec *Record) {
 	r.writeln("")
 }
 
+// printStepTraces prints what the runner DID for every test that ran, passing
+// tests included. It is the -v half of the same trace printFailure prints:
+// the argv of each command, where its stdin block went, and each assertion.
+//
+// A passing run is where this is worth reading. A .ci whose stimulus the runner
+// rewrote passes exactly like one it honored, and the argv is what tells them
+// apart (runner_exec_trace.go).
+func (r *Report) printStepTraces(tests *Tests) {
+	c := r.colors
+	for _, rec := range tests.Selected() {
+		if len(rec.StepTrace) == 0 {
+			continue
+		}
+		r.writef("%s %s %s\n", c.Yellow("STEP TRACE:"), c.Cyan(rec.Nick), rec.Name)
+		trace.PrintTrace(r.output, rec.Name, rec.StepTrace, c.Enabled())
+		r.writeln("")
+	}
+}
+
 // printAllFailures prints failure reports for all failed tests.
 func (r *Report) printAllFailures(tests *Tests) {
 	for _, rec := range tests.failedRecords() {
