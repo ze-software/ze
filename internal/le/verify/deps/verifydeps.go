@@ -111,8 +111,32 @@ type Report struct {
 	BenchmarkLog string              `json:"benchmark-log,omitempty"`
 	Children     []ChildReport       `json:"children,omitempty"`
 	Allocations  []AllocationVerdict `json:"allocations,omitempty"`
-	Code         int                 `json:"code"`
-	Error        string              `json:"error,omitempty"`
+	// Skipped says the stage executed no test, and Reason says why it was
+	// entitled to. The pair exists because an exit code cannot tell a stage
+	// that raced every changed group from one that ran nothing and answered 0,
+	// and the children of a skipped stage are its discovery queries rather
+	// than a test run (plan/journal/gate-excludes-part-of-its-population.md).
+	Skipped bool   `json:"skipped,omitempty"`
+	Reason  string `json:"reason,omitempty"`
+	Code    int    `json:"code"`
+	Error   string `json:"error,omitempty"`
+}
+
+// Text renders what this stage judged. A stage answer is a REPORT rather than a
+// streamed child, so nothing else prints it and a red row reaches the operator
+// as a name with no cause (plan/journal/failing-gate-prints-no-cause.md).
+func (r Report) Text() string {
+	var text textbuf.Buffer
+	text.Str(r.Action).Str(": ")
+	switch {
+	case r.Error != "":
+		text.Str(r.Error)
+	case r.Skipped:
+		text.Str("executed no test, ").Str(r.Reason)
+	default:
+		text.Int(int64(len(r.Children))).Str(" command(s) executed")
+	}
+	return text.Str(", exit ").Int(int64(r.Code)).Byte('\n').String()
 }
 
 type commandExecutor func(context.Context, CommandPlan, io.Writer) (string, ChildReport)
@@ -168,6 +192,11 @@ func run(ctx context.Context, root, verb string, deps dependencies) (Report, int
 }
 
 func runUnitCached(ctx context.Context, plan Plan, report Report, execute commandExecutor) (Report, int) {
+	report, ok := requireCommands(plan, report, 2)
+	if !ok {
+		return report, report.Code
+	}
+
 	gaterun.Note("Unit tests: full pass (cacheable, no -race)...")
 	_, child := execute(ctx, plan.Commands[0], os.Stdout)
 	report.Children = append(report.Children, child)
@@ -184,9 +213,27 @@ func runUnitCached(ctx context.Context, plan Plan, report Report, execute comman
 }
 
 func runUnitRaceChanged(ctx context.Context, plan Plan, report Report, execute commandExecutor) (Report, int) {
-	if plan.Changed == nil || plan.Changed.Empty() {
-		gaterun.Note("No changed .go files -- skipping changed-group pass")
-		return report, 0
+	if plan.Changed == nil {
+		// Planning attaches the selection on every path that reaches here, so
+		// a missing one is this package's own defect. It must not take the
+		// value of "nothing changed", which is what an absent selection would
+		// otherwise mean to the branch below.
+		report.Code = gaterun.CannotStart
+		report.Error = "changed-group pass reached execution with no change selection"
+		gaterun.Note(report.Error)
+		return report, report.Code
+	}
+	if plan.Changed.Empty() {
+		return skipUnitRaceChanged(plan, report)
+	}
+	if len(plan.Changed.Unresolved) > 0 {
+		// The pass runs, and these changed directories are outside it. Naming
+		// them is what stops a partial population from reading as the whole
+		// one, since the race command says nothing about a package it was
+		// never given.
+		var dropped textbuf.Buffer
+		gaterun.Note(dropped.Str("Unit tests: changed directories the toolchain calls no package: ").
+			Join(plan.Changed.Unresolved, " ").Slice())
 	}
 
 	var text textbuf.Buffer
@@ -206,7 +253,35 @@ func runUnitRaceChanged(ctx context.Context, plan Plan, report Report, execute c
 	return report, report.Code
 }
 
+// skipUnitRaceChanged answers a selection that names no package to race.
+//
+// An empty change set is a legitimate skip and exits 0. A change set that
+// dropped every directory it held is NOT: Go files changed, and the toolchain
+// called none of their directories a package, so this stage has no population
+// and cannot judge the tree. A deleted package and a package `go list` failed
+// to load answer the selector the same way, so the stage refuses rather than
+// certify a change it never tested.
+func skipUnitRaceChanged(plan Plan, report Report) (Report, int) {
+	if len(plan.Changed.Unresolved) > 0 {
+		var text textbuf.Buffer
+		report.Code = 1
+		report.Error = text.Str("changed Go files resolved to no test package: ").
+			Join(plan.Changed.Unresolved, " ").String()
+		gaterun.Note(report.Error)
+		return report, report.Code
+	}
+	report.Skipped = true
+	report.Reason = "no changed .go file, so no group carries a test to race"
+	gaterun.Note("No changed .go files -- skipping changed-group pass")
+	return report, 0
+}
+
 func runAlloc(ctx context.Context, plan Plan, report Report, deps dependencies) (Report, int) {
+	report, ok := requireCommands(plan, report, 1)
+	if !ok {
+		return report, report.Code
+	}
+
 	var text textbuf.Buffer
 	if err := os.MkdirAll(filepath.Dir(plan.BenchmarkLog), 0o750); err != nil {
 		report.Code = 1
@@ -255,6 +330,11 @@ func runAlloc(ctx context.Context, plan Plan, report Report, deps dependencies) 
 }
 
 func runCommands(ctx context.Context, plan Plan, report Report, execute commandExecutor) (Report, int) {
+	report, ok := requireCommands(plan, report, 1)
+	if !ok {
+		return report, report.Code
+	}
+
 	for _, command := range plan.Commands {
 		_, child := execute(ctx, command, os.Stdout)
 		report.Children = append(report.Children, child)
@@ -264,6 +344,24 @@ func runCommands(ctx context.Context, plan Plan, report Report, execute commandE
 		}
 	}
 	return report, 0
+}
+
+// requireCommands refuses a stage whose plan holds fewer commands than its
+// runner executes. Such a stage runs nothing and answers 0, which reads exactly
+// like a pass over its whole population
+// (plan/journal/gate-excludes-part-of-its-population.md). The changed-group
+// pass is the one stage entitled to execute nothing, and it says so on its
+// report through skipUnitRaceChanged rather than through this guard.
+func requireCommands(plan Plan, report Report, want int) (Report, bool) {
+	if len(plan.Commands) >= want {
+		return report, true
+	}
+	var text textbuf.Buffer
+	report.Code = gaterun.CannotStart
+	report.Error = text.Str(plan.Action).Str(" planned ").Int(int64(len(plan.Commands))).
+		Str(" of the ").Int(int64(want)).Str(" commands it runs, so it judged nothing").String()
+	gaterun.Note(report.Error)
+	return report, false
 }
 
 func reportFromPlan(plan Plan) Report {
@@ -572,6 +670,7 @@ func cloneSelection(selection *changed.Selection) *changed.Selection {
 	}
 	clone := &changed.Selection{Rest: slices.Clone(selection.Rest)}
 	clone.Groups = slices.Clone(selection.Groups)
+	clone.Unresolved = slices.Clone(selection.Unresolved)
 	return clone
 }
 

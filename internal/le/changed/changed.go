@@ -136,6 +136,14 @@ func RunCommand(dir string, argv []string) (string, error) {
 type Selection struct {
 	Groups []Group  `json:"groups"`
 	Rest   []string `json:"rest-packages"`
+	// Unresolved names every changed package directory the toolchain did not
+	// answer as a package, in the order Packages was asked about them. Packages
+	// DROPS such a directory, so without this list an empty selection is the
+	// same value for "nothing changed" and for "Go files changed and this
+	// selection covers none of them". A caller cannot tell those apart from
+	// Groups and Rest alone
+	// (plan/journal/gate-excludes-part-of-its-population.md).
+	Unresolved []string `json:"unresolved-packages,omitempty"`
 }
 
 // Empty reports whether nothing changed. Stated once, so no caller has to
@@ -240,6 +248,9 @@ func (s Selector) ChangedFiles() ([]string, error) {
 // test` refuses that directory with "build constraints exclude all Go files".
 // A toolchain failure is an ERROR. Otherwise, a broken module would produce a
 // test run over nothing.
+//
+// A dropped directory is not lost: Select records it in Selection.Unresolved,
+// which is how a caller learns that a changed file sits outside the run.
 func (s Selector) Packages(dirs []string) ([]string, error) {
 	if len(dirs) == 0 {
 		return nil, nil
@@ -302,5 +313,29 @@ func (s Selector) Select() (Selection, error) {
 	if err != nil {
 		return Selection{}, err
 	}
-	return Selection{Groups: grouped.Groups, Rest: rest}, nil
+	return Selection{
+		Groups:     grouped.Groups,
+		Rest:       rest,
+		Unresolved: unresolvedDirs(grouped.unmapped, rest),
+	}, nil
+}
+
+// unresolvedDirs names the directories Packages was asked about and did not
+// answer, in the sorted order it was asked in.
+//
+// Both sides are cleaned before they are compared because the module root is
+// asked about as `./.` and answered as `.`, and the two spell one directory.
+func unresolvedDirs(asked, resolved []string) []string {
+	answered := make(map[string]bool, len(resolved))
+	for _, dir := range resolved {
+		answered[path.Clean(dir)] = true
+	}
+	var missing []string
+	for _, dir := range asked {
+		if answered[path.Clean(dir)] {
+			continue
+		}
+		missing = append(missing, dir)
+	}
+	return missing
 }

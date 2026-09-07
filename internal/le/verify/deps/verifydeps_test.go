@@ -219,10 +219,12 @@ func TestRaceChangedFailsClosedOnPopulationFailure(t *testing.T) {
 	}
 }
 
-// VALIDATES: a genuinely empty changed population runs no race command and
-// reports the three successful git queries.
-// PREVENTS: treating fail-closed discovery as permission to skip, or running
-// broad race tests when nothing changed.
+// VALIDATES: a genuinely empty changed population runs no race command, reports
+// the three successful git queries, and says on the report that it executed no
+// test.
+// PREVENTS: treating fail-closed discovery as permission to skip, running broad
+// race tests when nothing changed, or leaving the skip in a stderr note that no
+// certificate holds.
 func TestRaceChangedEmptyPopulationRunsNoTests(t *testing.T) {
 	root := t.TempDir()
 	deps := fakeDependencies(root)
@@ -237,6 +239,136 @@ func TestRaceChangedEmptyPopulationRunsNoTests(t *testing.T) {
 	}
 	if len(report.Children) != 3 {
 		t.Fatalf("reported %d children, want three git queries", len(report.Children))
+	}
+	if !report.Skipped || report.Reason == "" {
+		t.Fatalf("report says skipped=%v reason=%q, want a stated skip", report.Skipped, report.Reason)
+	}
+}
+
+// VALIDATES: a skipped changed-group pass and a pass that raced its packages
+// are two different answers on the report, not one exit code.
+// PREVENTS: reading a stage that executed nothing as a pass over tests that
+// ran, which is what the exit code alone says
+// (plan/journal/gate-excludes-part-of-its-population.md).
+func TestARaceChangedSkipIsNotReadableAsAPassOverTests(t *testing.T) {
+	root := t.TempDir()
+
+	quiet := fakeDependencies(root)
+	quiet.execute = scriptedExecutor(map[string]scriptedResult{
+		"git diff --name-only -- *.go":                     {},
+		"git diff --cached --name-only -- *.go":            {},
+		"git ls-files --others --exclude-standard -- *.go": {},
+	})
+	skipped, skippedCode := run(context.Background(), root, VerbUnitRaceChanged, quiet)
+
+	busy := fakeDependencies(root)
+	busy.execute = scriptedExecutor(map[string]scriptedResult{
+		"git diff --name-only -- *.go":                     {output: "internal/core/env/env.go\n"},
+		"git diff --cached --name-only -- *.go":            {},
+		"git ls-files --others --exclude-standard -- *.go": {},
+	})
+	executed, executedCode := run(context.Background(), root, VerbUnitRaceChanged, busy)
+
+	if skippedCode != 0 || executedCode != 0 {
+		t.Fatalf("codes are %d and %d, want both 0", skippedCode, executedCode)
+	}
+	if !skipped.Skipped {
+		t.Error("the stage that ran no test does not say so")
+	}
+	if executed.Skipped {
+		t.Errorf("the stage that raced %v reports itself skipped", executed.Packages)
+	}
+	if len(executed.Children) <= len(skipped.Children) {
+		t.Errorf("both runs reported %d children, so the report cannot tell them apart",
+			len(skipped.Children))
+	}
+	if skipped.Text() == executed.Text() {
+		t.Errorf("both runs render %q", skipped.Text())
+	}
+}
+
+// VALIDATES: changed Go files whose every directory resolves to no package
+// answer non-zero and name those directories.
+// PREVENTS: certifying a change the stage never tested. `go list` DROPS a
+// directory it cannot load, so a deleted package, a build-ignored directory and
+// a package the toolchain failed on all reach the selector as an empty answer.
+func TestRaceChangedRefusesAChangeSetThatResolvedToNoPackage(t *testing.T) {
+	root := t.TempDir()
+	deps := fakeDependencies(root)
+	deps.execute = scriptedExecutor(map[string]scriptedResult{
+		"git diff --name-only -- *.go":                                      {output: "internal/le/gone/gone.go\n"},
+		"git diff --cached --name-only -- *.go":                             {},
+		"git ls-files --others --exclude-standard -- *.go":                  {},
+		"go list -e -f {{if not .Error}}{{.Dir}}{{end}} ./internal/le/gone": {},
+	})
+	report, code := run(context.Background(), root, VerbUnitRaceChanged, deps)
+	if code == 0 || report.Code == 0 {
+		t.Fatalf("a change set covering no package answered %d / %d, want non-zero", code, report.Code)
+	}
+	if report.Skipped {
+		t.Error("a refusal reports itself as an entitled skip")
+	}
+	if !strings.Contains(report.Error, "./internal/le/gone") {
+		t.Errorf("error is %q, want it to name the directory that resolved to no package", report.Error)
+	}
+}
+
+// VALIDATES: a stage whose plan holds fewer commands than its runner executes
+// refuses instead of answering 0.
+// PREVENTS: an empty command list reading like a pass over the stage's whole
+// population, and an index panic in the two runners that address their commands
+// by position.
+func TestAStageThatPlannedNoCommandRefusesInsteadOfPassing(t *testing.T) {
+	root := t.TempDir()
+	refuse := func(_ context.Context, plan CommandPlan, _ io.Writer) (string, ChildReport) {
+		t.Fatalf("executed %v for a stage that planned nothing", plan.Command)
+		return "", ChildReport{}
+	}
+	deps := fakeDependencies(root)
+	deps.execute = refuse
+
+	cases := []struct {
+		name string
+		plan Plan
+		run  func(Plan, Report) (Report, int)
+	}{
+		{
+			name: VerbEvidenceVet,
+			plan: Plan{Verb: VerbEvidenceVet, Action: actionEvidenceVet},
+			run: func(plan Plan, report Report) (Report, int) {
+				return runCommands(context.Background(), plan, report, refuse)
+			},
+		},
+		{
+			name: VerbUnitCached,
+			plan: Plan{
+				Verb:     VerbUnitCached,
+				Action:   actionUnitCached,
+				Commands: []CommandPlan{{Name: "only-one", Command: []string{"go", "test"}}},
+			},
+			run: func(plan Plan, report Report) (Report, int) {
+				return runUnitCached(context.Background(), plan, report, refuse)
+			},
+		},
+		{
+			name: VerbAlloc,
+			plan: Plan{Verb: VerbAlloc, Action: actionAlloc},
+			run: func(plan Plan, report Report) (Report, int) {
+				return runAlloc(context.Background(), plan, report, deps)
+			},
+		},
+	}
+	for _, testCase := range cases {
+		report, code := testCase.run(testCase.plan, reportFromPlan(testCase.plan))
+		if code != gaterun.CannotStart {
+			t.Errorf("%s answered %d, want %d", testCase.name, code, gaterun.CannotStart)
+		}
+		if report.Error == "" {
+			t.Errorf("%s refused with no stated reason", testCase.name)
+		}
+		if report.Skipped {
+			t.Errorf("%s reports an unplanned stage as an entitled skip", testCase.name)
+		}
 	}
 }
 

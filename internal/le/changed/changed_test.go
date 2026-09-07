@@ -216,6 +216,52 @@ func TestADirectoryWhoseGoFilesAreAllBuildIgnoredIsDropped(t *testing.T) {
 	}
 }
 
+// A dropped directory is the one way a real change answers an empty selection,
+// so the selection NAMES it. Without that name, "nothing changed" and "Go files
+// changed and this selection covers none of them" are the same value, and the
+// changed-group race pass reads the second as permission to test nothing
+// (plan/journal/gate-excludes-part-of-its-population.md).
+func TestADroppedDirectoryIsNamedRatherThanForgotten(t *testing.T) {
+	const listQuery = "go list -e -f {{if not .Error}}{{.Dir}}{{end}} ./internal/le/gone"
+	rec := &recorder{answers: map[string]string{
+		unstagedQuery: "internal/le/gone/gone.go\n",
+		listQuery:     "",
+	}}
+
+	selection, err := Selector{Root: t.TempDir(), Run: rec.run}.Select()
+	if err != nil {
+		t.Fatalf("Select: %v", err)
+	}
+	if !selection.Empty() {
+		t.Fatalf("selection is %v, want empty", selection)
+	}
+	if len(selection.Unresolved) != 1 || selection.Unresolved[0] != "./internal/le/gone" {
+		t.Fatalf("unresolved is %v, want exactly [./internal/le/gone]", selection.Unresolved)
+	}
+}
+
+// The contrast case: a directory the toolchain DOES answer leaves nothing
+// unresolved, so a caller reading Unresolved is reading a real drop.
+func TestAResolvedDirectoryLeavesNothingUnresolved(t *testing.T) {
+	root := t.TempDir()
+	const listQuery = "go list -e -f {{if not .Error}}{{.Dir}}{{end}} ./internal/le/changed"
+	rec := &recorder{answers: map[string]string{
+		unstagedQuery: "internal/le/changed/changed.go\n",
+		listQuery:     filepath.Join(root, "internal", "le", "changed") + "\n",
+	}}
+
+	selection, err := Selector{Root: root, Run: rec.run}.Select()
+	if err != nil {
+		t.Fatalf("Select: %v", err)
+	}
+	if len(selection.Rest) != 1 || selection.Rest[0] != "./internal/le/changed" {
+		t.Fatalf("rest is %v, want exactly [./internal/le/changed]", selection.Rest)
+	}
+	if len(selection.Unresolved) != 0 {
+		t.Fatalf("unresolved is %v, want none", selection.Unresolved)
+	}
+}
+
 func TestTheGroupListingAndThePackageListingRenderOneSelection(t *testing.T) {
 	selection := Selection{
 		Groups: []Group{{"bgp", "./internal/component/bgp/..."}},
