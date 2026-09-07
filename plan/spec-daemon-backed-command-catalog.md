@@ -309,10 +309,60 @@ The line was restored and the gate went green.
 `TestCheckNamesAPluginThatDeclaresOnlyToStageOne` keeps that red in the suite
 over a fixture tree.
 
+**`command-catalog-plugin-shape` discrimination, forced 2026-09-07.** The
+scenario was written against working code, so it started green and its
+discrimination was unproven. Four breaks were made in the product, `ze` was
+rebuilt each time so the break took effect, and the scenario was observed RED
+under each one; every break was then reverted and the scenario observed GREEN.
+
+| Break | What went red |
+|-------|---------------|
+| `Shape`, `Columns` and `AddressFields` deleted from the `show bgp rpki roa` entry of `commandDecls()` (`internal/component/bgp/plugins/rpki/rpki.go`) | ``show command help reports column orders [[address port state synced version]] for "show bgp rpki roa", want one order [prefix max-length asn]`` |
+| `Commands: commandDecls(),` deleted from the registration (`internal/component/bgp/plugins/rpki/register.go`) | ``` `ze help command "show bgp rpki" --json` names no "show bgp rpki roa": a plugin's command is absent from the published catalog: [] ``` |
+| `Pipes: pipeDecls(),` deleted from the same registration | ``` `ze help command --json` reports no `summary` alias on "show bgp rpki" ``` |
+| the read-side alias barrier deleted from `aliasesByPlugin` (`internal/component/command/declared.go`) | ``` `ze help command --json` gives "show bgp rpki roa" the `summary` its parent declares: the alias barrier is gone ``` |
+
+The first break is the one worth keeping. Deleting a command's own declaration
+does not empty the answer: `DeclaredForCommand` resolves by longest prefix, so
+`show bgp rpki roa` silently inherits its PARENT's column order and publishes
+five cache-server columns for a ROA table. A test asserting only that
+`column-orders` is present would pass over that. The fourth break is the answer
+to the second vacuity trap (`docs/architecture/testing/interop.md`): the barrier
+assertion is an ABSENCE, and removing the mechanism makes the name appear rather
+than leaving the same absence.
+
+**Load, 2026-09-07.** `./le stress-repro run suite "bgp plugin --draft" test
+command-catalog-plugin-shape any-failure iterations 80` reproduced a failure on
+invocation 49 at 64 burners and 16 parallel: `daemon did not become ready`, with
+an empty daemon stderr, so the daemon was still starting when the wait gave up.
+The bound was `startFixtureDaemon`'s own 300 attempts at 100ms
+(`internal/test/fixture/plugin_fixture_11_alias.go`), shared by the five
+`plugin-pipe-alias*` and `plugin-shape-declaration-refused` tests. It is now the
+named `daemonReadyAttempts` = 450, which is 45 seconds and stays inside the
+60-second budget every `.ci` using that helper declares. The same 80-iteration
+run then passed 80 of 80.
+
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `command-catalog-plugin-shape` | `test/plugin/command-catalog-plugin-shape.ci` | the catalog reports what a running plugin declares | | <!-- doc-links: ignore (file this skeleton plans and has not created yet) -->
+| `command-catalog-plugin-shape` | `test/plugin/command-catalog-plugin-shape.ci` | the catalog reports what a plugin declares, on both channels, and the two agree | PASS |
+
+The driver is `commandCatalogPluginShape`
+(`internal/test/fixture/plugin_fixture_command_catalog.go`), registered in
+`internal/test/fixture/register_command_catalog.go`. A daemon starts bgp-rpki
+and bgp-adj-rib-in in process with no peer and no cache server, because a
+declaration is sent at plugin startup and needs neither. `ze cli` then asks that
+daemon for `show command help`, and a second, DAEMONLESS `ze help command --json`
+process is asked the same questions; the two answers are compared key by key for
+`show bgp rpki roa`.
+
+The values asserted are the ones a surface cannot invent: the column order
+`[prefix, max-length, asn]`, which is neither alphabetical nor the order the rows
+are built in; the address field `[prefix]`; the shape `map` for
+`show bgp adj-rib-in` WITH no column order; and `source` = the plugin instance,
+which is what tells a plugin's command from a builtin in the daemon's own answer.
+The alias barrier is asserted in BOTH halves on BOTH surfaces, because the
+presence half alone passes with the barrier removed.
 
 ## Files to Modify
 - `internal/le/command/list/commandlist.go` - the catalog source and the fields the answer carries
@@ -332,10 +382,10 @@ over a fixture tree.
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| CLI commands/flags | | [answered at design] |
-| CLI grammar (keyword before value) | | [answered at design] |
-| Pipe completeness | | [answered at design] |
-| Functional test for new RPC/API | | `test/plugin/command-catalog-plugin-shape.ci` |
+| CLI commands/flags | Yes | `./le plugin declarations check` is a new `le` command: `internal/le/plugin/declarations/register.go` registers the area and `actions.go` holds its one verb. No PRODUCT command was added; `ze help command --json` and `show command help` each gained the `column-orders` key (`cmd/ze/help_command.go`, `internal/plugins/meta/cmd/help.go`) and `./le command list` gained `shape`, `column-orders`, `address-fields` and `pipe-aliases` (`internal/le/command/list/report.go`) |
+| CLI grammar (keyword before value) | N/A | Nothing gained a value token to order. `le plugin declarations check` is area then verb, which `internal/le/leaction` is what enforces for every `le` area, and the three product answers gained response KEYS rather than tokens |
+| Pipe completeness | Yes | `internal/le/plugin/declarations/register.go` calls `leroot.RegisterShape(area, command.ShapeMap)`, so the row operators act on the findings instead of being refused. The three catalog answers already routed through the pipe layer and gained keys inside their existing payloads, so `\| json`, `\| yaml` and `\| table` each render the new fields with no further wiring |
+| Functional test for new RPC/API | Yes | `test/plugin/command-catalog-plugin-shape.ci` |
 
 ### Documentation Update Checklist
 | # | Question | Applies? | File to update |

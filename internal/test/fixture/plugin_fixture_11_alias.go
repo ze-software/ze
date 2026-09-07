@@ -133,6 +133,19 @@ func pipeAnswer(kind, rowsKey string) map[string]any {
 	return map[string]any{fieldKind: kind, fieldVRPCount: 7, rowsKey: pipeRows()}
 }
 
+// daemonReadyAttempts bounds the wait for a fixture daemon's ready file, at one
+// attempt every 100ms, so 450 is 45 seconds.
+//
+// It was 300 (30 seconds), which is generous on an idle machine and not enough
+// on a loaded one: `./le stress-repro run suite "bgp plugin --draft" test
+// command-catalog-plugin-shape any-failure iterations 80` reproduced "daemon
+// did not become ready" on invocation 49 at 64 burners and 16 parallel, with an
+// empty daemon stderr, so the daemon was still starting when the wait gave up.
+// 45 seconds stays inside the 60-second budget every .ci using this helper
+// declares, which keeps this message the one a starved start reports rather
+// than the runner's timeout.
+const daemonReadyAttempts = 450
+
 type fixtureDaemon struct {
 	command *exec.Cmd
 	stdout  bytes.Buffer
@@ -185,7 +198,7 @@ func startFixtureDaemon(ctx context.Context, config string) (*fixtureDaemon, []s
 		close(daemon.done)
 	}()
 	readyOK := false
-	for range 300 {
+	for range daemonReadyAttempts {
 		_, addressErr := os.Stat(sshAddr)
 		_, readyErr := os.Stat(ready)
 		if addressErr == nil && readyErr == nil {

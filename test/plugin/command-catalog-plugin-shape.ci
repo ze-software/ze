@@ -1,0 +1,40 @@
+# Test: the command catalog reports what a plugin DECLARES, on both of the
+# channels a declaration travels, and the two channels agree.
+#
+# VALIDATES: spec-daemon-backed-command-catalog AC-2, AC-3, AC-5, AC-6 and AC-8
+#            over the end-user path. A declaration reaches a running daemon in
+#            the plugin's Stage 1 message and a linking client on
+#            registry.Registration, and until 2026-09-07 no reader published a
+#            column order from either one.
+# PREVENTS:  the catalog answering half a command. The daemon knew what a plugin
+#            declared and published none of the shape, the column order or the
+#            address fields; the client published those three for what it
+#            compiled in and named no plugin command at all.
+#
+# Method: a daemon starts bgp-rpki and bgp-adj-rib-in in process, with no peer
+# and no cache server, because a declaration is sent at plugin startup and needs
+# neither. `ze cli` then asks the daemon for `show command help` and a second,
+# DAEMONLESS `ze help command --json` process is asked the same questions. Both
+# answers are compared for `show bgp rpki roa`, key by key.
+#
+# The values asserted are the ones a surface cannot invent:
+#   - the column order [prefix, max-length, asn], which is neither alphabetical
+#     nor the order the rows are built in;
+#   - the address field [prefix], which is what admits `| resolve` there;
+#   - the shape `map` for `show bgp adj-rib-in`, WITH no column order, because
+#     that plugin declares a shape and deliberately declares no order;
+#   - `source` = the plugin instance, which is what tells a plugin's command
+#     from a builtin in the daemon's own answer.
+#
+# The alias barrier is asserted in BOTH halves, on both surfaces: `show bgp rpki`
+# answers to `summary` and `show bgp rpki roa` answers to nothing, because a
+# command the same plugin declares below the alias path inherits none of it.
+# Asserting the first half alone would pass with the barrier removed.
+#
+# The timeout is DECLARED because this file starts a daemon with two in-process
+# plugins and launches `ze` several times.
+option=timeout:value=90s
+
+cmd=foreground:seq=1:exec=ze-test fixture plugin/command-catalog-plugin-shape
+expect=exit:code=0
+expect=stdout:contains=OK
