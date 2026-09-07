@@ -16,6 +16,10 @@
 // a verdict whose zero value is neither answer, and runs reports true for every
 // verdict except the one that names the suites.
 //
+// The same file writes it. publish records what one WHOLE gating run reached,
+// through a temporary and a rename, so a session reading the artifact meets the
+// old map or the new one and never a half-written one.
+//
 // A suite that recorded an EMPTY package set is a REFUSAL, not a suite that
 // covers nothing. Zero suites selected is a valid answer, because a docs-only
 // change reaches none. Zero packages under a suite means the recording broke,
@@ -33,6 +37,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/job"
 )
 
 // suiteMapPath is where the suite map lives, relative to the checkout root.
@@ -197,4 +202,122 @@ func gatingRunList(suites []Suite, skip map[string]bool, selection suiteSelectio
 		}
 	}
 	return running, skipped
+}
+
+// suiteRecording is what one gating run observed, before it is published.
+//
+// An entry exists for every suite the run REDUCED, and its value is the
+// packages that suite reached. An entry with no package is a suite that
+// recorded nothing, which is a real state four suites are always in.
+type suiteRecording struct {
+	head    string
+	reached map[string][]string
+}
+
+// newSuiteRecording starts a recording for a run sitting on the commit head.
+//
+// The commit is read BEFORE the first suite starts, so it names the tree the
+// suites ran against. A run takes an hour and this checkout is shared, so the
+// tree can move under it; reading the commit at the end would claim the map
+// describes a tree no suite ever ran. Naming the earlier commit is the
+// conservative direction, because a reader treats every package touched since
+// as unknown and widens.
+func newSuiteRecording(head string) *suiteRecording {
+	return &suiteRecording{head: head, reached: map[string][]string{}}
+}
+
+// record keeps what one finished suite reached.
+//
+// An empty set is kept as one rather than dropped. publish tells a suite that
+// recorded nothing from a suite this run never ran, and it can only do that if
+// both states are visible here.
+func (r *suiteRecording) record(suite string, packages []string) {
+	r.reached[suite] = packages
+}
+
+// publish writes the suite map for a run that reduced every gating suite, and
+// answers the suites it left out.
+//
+// ONLY A WHOLE GATING RUN MAY WRITE THE ARTIFACT. A suite the map does not name
+// is unknown to the reader and therefore always runs, so a map written by a run
+// that covered one suite would declare every other suite unknown while the next
+// run narrowed on the one it named. A partial run is refused here rather than
+// trusted not to call this, which is why the loop reads Gating rather than the
+// recording.
+//
+// A suite that recorded nothing is OMITTED, never written with an empty set.
+// The two are different answers: omitted means "this run learned nothing about
+// that suite, so run it", and an empty set read back would mean "this suite
+// covers nothing, so never run it again". editor, web, runner and policy record
+// nothing every time, because they run the harness rather than an instrumented
+// ze, or skip unprivileged.
+func (r *suiteRecording) publish(root string) (omitted []string, err error) {
+	if r.head == "" || r.head == job.Unknown {
+		return nil, errors.New(
+			"functional: this run cannot name the commit it ran at, so it publishes no suite map")
+	}
+
+	published := suiteMap{Head: r.head, Reached: map[string][]string{}}
+	for _, name := range Gating {
+		packages, reduced := r.reached[name]
+		if !reduced {
+			return nil, fmt.Errorf(
+				"functional: this run did not run the gating suite %s, so only a full run can publish a suite map",
+				name)
+		}
+		if len(packages) == 0 {
+			omitted = append(omitted, name)
+			continue
+		}
+		published.Reached[name] = packages
+	}
+
+	// The writer's own output has to satisfy the reader, and validate is where
+	// that contract is declared. It is what refuses a run in which no suite
+	// recorded anything at all.
+	if err := published.validate(); err != nil {
+		return omitted, err
+	}
+	body, err := json.MarshalIndent(published, "", "  ")
+	if err != nil {
+		return omitted, fmt.Errorf("functional: render the suite map: %w", err)
+	}
+	return omitted, atomicWrite(filepath.Join(root, suiteMapPath), append(body, '\n'))
+}
+
+// atomicWrite publishes one derived artifact through a temporary file in the
+// same directory and one rename.
+//
+// tmp/ is shared by several sessions, and a reader that met a half-written map
+// would have to tell it from a valid one. A rename means the reader sees the
+// old map or the new one. This is the pattern atomicWrite
+// (internal/le/verify/engine/status.go) uses for the verification artifacts,
+// held here because that helper is private to its own package.
+func atomicWrite(path string, content []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return err
+	}
+	file, err := os.CreateTemp(filepath.Dir(path), ".suite-map-*")
+	if err != nil {
+		return err
+	}
+	temporary := file.Name()
+	defer func() { _ = os.Remove(temporary) }()
+
+	if err := file.Chmod(0o600); err != nil {
+		_ = file.Close()
+		return err
+	}
+	if _, err := file.Write(content); err != nil {
+		_ = file.Close()
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		_ = file.Close()
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	return os.Rename(temporary, path)
 }

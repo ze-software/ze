@@ -89,11 +89,21 @@ which packages each suite reaches.
 
 The gating run already consults that map, and today every answer is the wide
 one. `selectSuites` (`internal/le/functional/suitemap.go`) reads
-`tmp/ze-suite-map.json`, validates it, and answers `verdictEverySuite`: nothing
-writes the artifact and no change set is compared against it. The reader's
-fail-open rule is
+`tmp/ze-suite-map.json`, validates it, and answers `verdictEverySuite`: no
+change set is compared against it yet. The reader's fail-open rule is
 [`architecture/testing/verify-freshness-scope.md`](architecture/testing/verify-freshness-scope.md).
 <!-- source: internal/le/functional/suitemap.go -- suiteMap, selectSuites -->
+
+A gating run under `ZE_COVER=1` WRITES that artifact. Each suite records into
+its own `GOCOVERDIR`, and `reduceCoverage` (`internal/le/functional/run.go`)
+reduces the directory to the packages that suite REACHED: a package it covered
+outside `register.go` and outside every `func init()` body. A suite that records
+nothing is left OUT of the map, so the next reader knows nothing about it and
+runs it. Only a run that ran every gating suite publishes, so neither
+`./le functional encode` nor a run under `ZE_SKIP_SUITES` writes a map naming
+the few suites it happened to run.
+<!-- source: internal/le/functional/reach.go -- reachedPackages, packagesInProfile -->
+<!-- source: internal/le/functional/suitemap.go -- suiteRecording, publish -->
 
 `ZE_SKIP_SUITES` outranks the map, and the closing report names each suite it
 left out.
@@ -355,7 +365,7 @@ which kills leaked `ze` daemons and mock servers with it.
 | `ZE_SUITE_TIMEOUT_PLUGIN` | `1500s` | The `plugin` suite's own budget |
 | `ZE_SUITE_KILL_AFTER` | `10s` | How long after SIGTERM the group gets SIGKILL |
 | `ZE_SUITE_WARN_PERCENT` | `80` | The percentage of the budget that makes a green suite print a warning |
-| `ZE_COVER` | unset | Builds the subjects with `-cover` and gives each suite its own `GOCOVERDIR`, then reduces it once the suite ends. It applies to a single suite and to `gating` alike, because both take the directory from one producer (`suiteCoverage`, `internal/le/functional/run.go`) |
+| `ZE_COVER` | unset | Builds the subjects with `-cover` and gives each suite its own `GOCOVERDIR`, then reduces it to the packages the suite reached once the suite ends. It applies to a single suite and to `gating` alike, because both take the directory from one producer (`suiteCoverage`, `internal/le/functional/run.go`). Only a whole `gating` run publishes `tmp/ze-suite-map.json` |
 
 Override any of them on the command line:
 

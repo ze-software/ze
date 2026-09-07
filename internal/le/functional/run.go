@@ -12,13 +12,11 @@
 package functional
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -28,11 +26,9 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
+	"github.com/ze-software/ze/internal/le/job"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
-
-// coverageReduceTimeout bounds the go tool invocation for one suite.
-const coverageReduceTimeout = 30 * time.Second
 
 // killedByBudget is what `timeout` answers when it killed the command.
 const killedByBudget = 124
@@ -64,18 +60,31 @@ func commandLine(suite Suite, set BinarySet) []string {
 
 // Execute runs one suite and answers its exit status and how long it took.
 func Execute(tc gotoolchain.Toolchain, suite Suite, set BinarySet, cover string) (code, seconds int) {
-	environ := set.Environment(tc)
-	if cover != "" {
-		if err := os.MkdirAll(cover, 0o750); err != nil {
-			var tb textbuf.Buffer
-			gaterun.Note(tb.Str("could not create ").Str(cover).Str(": ").Err(err).String())
-		}
-		var cov textbuf.Buffer
-		environ = append(environ, cov.Str("GOCOVERDIR=").Str(cover).String())
-	}
+	environ := coverEnvironment(set.Environment(tc), cover)
 	started := time.Now()
 	code = gaterun.Stream(commandLine(suite, set), tc.Root, environ)
 	return code, int(time.Since(started).Seconds())
+}
+
+// coverEnvironment answers the environment one suite runs under: the binary
+// set's own, plus the suite's own GOCOVERDIR when this run records coverage.
+//
+// It creates the directory, because the Go runtime emits into an existing one
+// and otherwise prints "coverage meta-data emit failed" on the child's stderr,
+// which changes output a .ci can assert on. childEnv
+// (internal/test/runner/runner_exec_util.go) passes this process's environment
+// to every process a .ci starts, so one export here reaches every ze the suite
+// runs.
+func coverEnvironment(environ []string, cover string) []string {
+	if cover == "" {
+		return environ
+	}
+	if err := os.MkdirAll(cover, 0o750); err != nil {
+		var tb textbuf.Buffer
+		gaterun.Note(tb.Str("could not create ").Str(cover).Str(": ").Err(err).String())
+	}
+	var cov textbuf.Buffer
+	return append(environ, cov.Str("GOCOVERDIR=").Str(cover).String())
 }
 
 // failureGroupLine is the declared failure group a cap expiry publishes.
@@ -330,6 +339,12 @@ func runGating(tc gotoolchain.Toolchain) (any, int) {
 		return nil, 1
 	}
 
+	// The commit is read before anything is built, so the map this run may
+	// publish names the tree its binaries were compiled from. Several sessions
+	// share this checkout and a full run takes an hour, so the commit can move
+	// while the suites run (newSuiteRecording, suitemap.go).
+	recording := newSuiteRecording(job.Head(tc.Root))
+
 	selection := selectSuites(tc.Root)
 	var tb textbuf.Buffer
 	gaterun.Note(tb.Str("functional: ").Str(selection.Reason).String())
@@ -349,6 +364,7 @@ func runGating(tc gotoolchain.Toolchain) (any, int) {
 		gaterun.Note(reportLine(err))
 		return nil, 1
 	}
+	defer Release(set)
 
 	covers, err := coverRoot(tc.Root)
 	if err != nil {
@@ -360,8 +376,9 @@ func runGating(tc gotoolchain.Toolchain) (any, int) {
 		cover, reduce := suiteCoverage(tc, suite, covers)
 		code, seconds := Execute(tc, suite, set, cover)
 		run.Record(suite, seconds, code)
-		reduce()
+		recording.record(suite.Name, reduce())
 	}
+	publishSuiteMap(tc.Root, covers, recording)
 
 	report := run.Report()
 	if len(report.FailedNames) > 0 {
@@ -387,39 +404,66 @@ func reportLine(err error) string {
 // emitted" from every ze it started, and exited 0
 // (plan/journal/enabled-gate-discards-settings.md). One producer for the
 // decision is what stops a second call site from answering it differently.
-func suiteCoverage(tc gotoolchain.Toolchain, suite Suite, covers string) (cover string, reduce func()) {
+func suiteCoverage(tc gotoolchain.Toolchain, suite Suite, covers string) (cover string, reduce func() []string) {
 	if covers == "" {
-		return "", func() {}
+		return "", func() []string { return nil }
 	}
 	cover = filepath.Join(covers, suite.Name)
 	removeTree(cover)
-	return cover, func() { reduceCoverage(tc, suite, cover, covers) }
+	return cover, func() []string { return reduceCoverage(tc, suite, cover) }
 }
 
-// reduceCoverage reduces one suite's raw coverage directory to the packages it
-// reached.
-func reduceCoverage(tc gotoolchain.Toolchain, suite Suite, cover, root string) {
+// reduceCoverage reduces one suite's raw coverage directory to the packages
+// that suite reached, and removes the raw directory.
+//
+// A suite that recorded nothing answers an empty set, which the recording keeps
+// and publish omits from the map. A reduction that FAILED answers the same
+// empty set and says so on stderr: both leave the suite out of the map, which
+// makes it unknown to the next reader and therefore always run, and the run log
+// is where the two are told apart.
+func reduceCoverage(tc gotoolchain.Toolchain, suite Suite, cover string) []string {
+	defer removeTree(cover)
+
 	files, bytes := treeSize(cover)
-	var tb textbuf.Buffer
-	appendLine(filepath.Join(root, "raw-size.txt"),
-		tb.Str(suite.Name).Byte(' ').Int(int64(files)).Byte(' ').Int(bytes/1024).Byte('\n').String())
-
-	ctx, cancel := context.WithTimeout(context.Background(), coverageReduceTimeout)
-	defer cancel()
-	tb.Reset()
-	//nolint:gosec // the go tool, over a directory this run created
-	cmd := exec.CommandContext(ctx, "go", "tool", "covdata", "percent", tb.Str("-i=").Str(cover).String())
-	cmd.Dir = tc.Root
-	cmd.Env = tc.Environment(gotoolchain.EnvOptions{})
-	out, err := cmd.CombinedOutput()
-
-	tb.Reset()
-	writeFile(filepath.Join(root, tb.Str(suite.Name).Str(".percent").String()), out)
+	reached, err := reachedPackages(tc, cover)
 	if err != nil {
-		tb.Reset()
-		gaterun.Note(tb.Str("covdata percent failed for suite ").Str(suite.Name).String())
+		var tb textbuf.Buffer
+		gaterun.Note(tb.Str("      suite ").Str(suite.Name).
+			Str(" recorded coverage this run could not reduce: ").Err(err).String())
+		return nil
 	}
-	removeTree(cover)
+
+	var tb textbuf.Buffer
+	gaterun.Note(tb.Str("      suite ").Str(suite.Name).Str(" reached ").Int(int64(len(reached))).
+		Str(" package(s), from ").Int(int64(files)).Str(" profile file(s) of ").
+		Int(bytes / 1024).Str(" KiB").String())
+	return reached
+}
+
+// publishSuiteMap writes the map a whole instrumented gating run recorded.
+//
+// A run with coverage off recorded nothing and writes nothing. A run that left
+// a suite out publishes nothing either, and says why: the refusal lives in
+// publish (suitemap.go), because the map's one meaning is what makes a partial
+// one wrong.
+func publishSuiteMap(root, covers string, recording *suiteRecording) {
+	if covers == "" {
+		return
+	}
+	omitted, err := recording.publish(root)
+	var tb textbuf.Buffer
+	if len(omitted) > 0 {
+		gaterun.Note(tb.Str("functional: ").Int(int64(len(omitted))).
+			Str(" suite(s) recorded no package and are left out of the suite map, so they always run: ").
+			Str(strings.Join(omitted, ", ")).String())
+		tb.Reset()
+	}
+	if err != nil {
+		gaterun.Note(reportLine(err))
+		return
+	}
+	gaterun.Note(tb.Str("functional: the suite map at ").Str(suiteMapPath).
+		Str(" now records what this run reached").String())
 }
 
 // treeSize answers how many files a directory holds and how many bytes they
@@ -444,24 +488,4 @@ func treeSize(dir string) (files int, bytes int64) {
 		bytes += info.Size()
 	}
 	return files, bytes
-}
-
-// appendLine adds one line to a record file, and says so when it cannot.
-func appendLine(path, line string) {
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600) //nolint:gosec // a path this run derived
-	if err != nil {
-		gaterun.Note(reportLine(err))
-		return
-	}
-	defer f.Close() //nolint:errcheck // the write below is what matters
-	if _, err := f.WriteString(line); err != nil {
-		gaterun.Note(reportLine(err))
-	}
-}
-
-// writeFile records one coverage answer, and says so when it cannot.
-func writeFile(path string, content []byte) {
-	if err := os.WriteFile(path, content, 0o600); err != nil {
-		gaterun.Note(reportLine(err))
-	}
 }

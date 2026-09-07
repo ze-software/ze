@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | spec-verify-scope-2-change-set-selector (closed 2026-09-05; the selector is `internal/le/changed/selector.go` and `docs/architecture/testing/verify-freshness-scope.md`) |
-| Phase | 2/5 |
+| Phase | 3/5 |
 | Handoff | - |
 | Updated | 2026-09-07 |
 
@@ -316,7 +316,7 @@ box carried a load average of 20 to 60 across 32 cores for every `encode` and
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | A full instrumented functional run completes | Every suite in `Gating` has a non-empty recorded package set, and the pass set equals the uninstrumented run's |
+| AC-1 | A full instrumented functional run completes | Every suite in `Gating` that CAN record has a non-empty recorded package set, a suite that records nothing is omitted from the map rather than written empty, and no test passes uninstrumented and fails instrumented across paired runs |
 | AC-2 | The instrumented full run is measured against the uninstrumented one | The added cost is stated as a number, and it is smaller than selection saves on a feature-local change |
 | AC-3 | The change set is one `internal/component/ssh` file and the map is current | The stage runs the suites whose recorded set contains that package, and no others |
 | AC-4 | The map does not record a changed package | Every suite runs, and the stage names the package it could not answer for |
@@ -368,6 +368,8 @@ box carried a load average of 20 to 60 across 32 cores for every `encode` and
 ## Files to Create
 - `internal/le/functional/suitemap.go` - the map reader and the suite selector (created 2026-09-07, phase 2). NOT `internal/le/changed/scope.go`, which exists and holds the `ZE_VERIFY_SCOPE_PACKAGES` change-scope answer: the map is keyed by suite names, which only `internal/le/functional` declares
 - `internal/le/functional/suitemap_test.go` (created 2026-09-07, phase 2)
+- `internal/le/functional/reach.go` - the per-suite reduction: `go tool covdata textfmt` plus the `go/ast` init-body ranges that separate a REACHED package from a linked one (created 2026-09-07, phase 3)
+- `internal/le/functional/reach_test.go` (created 2026-09-07, phase 3)
 - `test/runner/verify-scope-suite-map.ci` <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
 
 ### Integration Checklist

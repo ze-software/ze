@@ -86,3 +86,61 @@ func sourceOf(t *testing.T, name string) string {
 	}
 	return string(raw)
 }
+
+// TestEverySuiteRecordsACoverageProfile holds the wiring A-2 was broken on: a
+// suite whose GOCOVERDIR never reaches its processes records nothing, and a
+// suite that records nothing is a suite the map can say nothing about. Every
+// gating suite must get its own absolute directory and carry it into the
+// environment its .ci processes inherit.
+//
+// VALIDATES: spec-verify-scope-5-suite-coverage-map AC-1.
+func TestEverySuiteRecordsACoverageProfile(t *testing.T) {
+	suites, err := GatingSuites(Gating, Suites)
+	if err != nil {
+		t.Fatalf("resolve the gating suites: %v", err)
+	}
+	covers := filepath.Join(t.TempDir(), "covdata")
+	tc := gotoolchain.Toolchain{Root: t.TempDir()}
+
+	seen := map[string]string{}
+	for _, suite := range suites {
+		cover, _ := suiteCoverage(tc, suite, covers)
+		if cover == "" {
+			t.Errorf("suite %s records into no directory", suite.Name)
+			continue
+		}
+		if !filepath.IsAbs(cover) {
+			t.Errorf("suite %s records into %q, which is relative: a .ci with tmpfs= resolves it against its own directory",
+				suite.Name, cover)
+		}
+		if owner, taken := seen[cover]; taken {
+			t.Errorf("suite %s records into %q, which suite %s already owns", suite.Name, cover, owner)
+		}
+		seen[cover] = suite.Name
+
+		environ := coverEnvironment([]string{"PATH=/usr/bin"}, cover)
+		var exported string
+		for _, entry := range environ {
+			if value, is := strings.CutPrefix(entry, "GOCOVERDIR="); is {
+				exported = value
+			}
+		}
+		if exported != cover {
+			t.Errorf("suite %s exports GOCOVERDIR=%q, want %q", suite.Name, exported, cover)
+		}
+		if info, err := os.Stat(cover); err != nil || !info.IsDir() {
+			t.Errorf("suite %s exports a directory the runtime cannot emit into: %v", suite.Name, err)
+		}
+	}
+	if len(seen) != len(suites) {
+		t.Errorf("%d of %d gating suites record a profile", len(seen), len(suites))
+	}
+
+	// A run that is not recording exports nothing, so an uninstrumented suite
+	// cannot leave a stray directory behind for the map to read.
+	for _, entry := range coverEnvironment([]string{"PATH=/usr/bin"}, "") {
+		if strings.HasPrefix(entry, "GOCOVERDIR=") {
+			t.Errorf("a run with coverage off exports %q", entry)
+		}
+	}
+}

@@ -86,10 +86,39 @@ A caller cannot mistake a widening for an empty selection. `suiteSelection` carr
 
 `ZE_SKIP_SUITES` outranks the map: `gatingRunList` reads the operator's skip set first, so a recorded map can only ever subtract a suite and never add a skipped one back. The closing report names the operator's skips.
 
-Today `selectSuites` answers `verdictEverySuite` on every path. It reads and validates the map, and no change set is compared against it, so a recorded map subtracts no suite and an absent one costs nothing. Nothing writes the artifact yet.
+Today `selectSuites` answers `verdictEverySuite` on every path. It reads and validates the map, and no change set is compared against it, so a recorded map subtracts no suite and an absent one costs nothing.
 
-<!-- source: internal/le/functional/suitemap.go -- suiteMap, readSuiteMap, suiteSelection, selectSuites, gatingRunList -->
-<!-- source: internal/le/functional/run.go -- runGating -->
+### What a suite REACHED
+
+A gating run under `ZE_COVER=1` records the map. The subjects are built `-cover`, each suite runs with its own `GOCOVERDIR`, and `reduceCoverage` (`internal/le/functional/run.go`) reduces that directory once the suite ends.
+
+**A package is REACHED when the suite covered one block that is neither in `register.go` nor inside a `func init()` body.** Every other covered block is what any process runs on any start, because Ze registers its components by running each package's `init()`. Counting every covered block answers "which packages does this binary link", and the spec measured both definitions over the same profiles: the three-suite intersection is 443 packages of 646 counting executions and 126 counting reaches, and `ze show version` alone counts 435 against 115. `packagesInProfile` (`internal/le/functional/reach.go`) reads the `go tool covdata textfmt` profile and asks `go/ast` for the line range of every `func init()` a covered file declares.
+
+Every uncertainty in the reduction WIDENS. A file that will not parse contributes its blocks, so its package reads as reached and the suite runs on a change to it. A profile row the reduction cannot read is a refusal rather than a skipped line, because a silently shorter set is a map that narrows more. A suite that FAILED records what it reached before it failed, and a recorded set is therefore a lower bound: a package the run missed is one the map cannot answer for, so the suite runs on a change to it.
+
+The raw coverage directory is removed as soon as it is reduced, and the text profile it reduces to is a temporary the reduction removes when it has read it. One suite's profile exists at a time, which is what bounds the disk an instrumented run costs: the largest measured is 13.7 MB.
+
+### What the writer refuses
+
+| What the run holds | What it publishes |
+|--------------------|-------------------|
+| Every gating suite reduced, some with packages | The map, naming the suites that recorded something |
+| A suite that recorded nothing | Nothing for that suite: it is OMITTED, so the next reader knows nothing about it and runs it |
+| A gating suite this run did not run | No map at all. A single-suite run and a run under `ZE_SKIP_SUITES` are both partial |
+| No suite recorded anything | No map. `validate` refuses a map that records no suite |
+| A commit Git could not name | No map. A map with no commit can be asked nothing about what moved since |
+
+**An omitted suite and an empty recorded set are different answers, and only one of them is writable.** Omitted means "this run learned nothing about that suite", which widens. An empty set read back would mean "this suite covers nothing", which would skip that suite for ever, and `readSuiteMap` refuses one for that reason. `editor`, `web`, `runner` and `policy` record nothing on every run: the first three run the harness rather than an instrumented `ze`, and `policy` skips its tests unprivileged. They are omitted every time, and they always run.
+
+**Only a whole gating run may write the artifact**, because a suite the map does not name always runs while a suite it does name can be ruled out. A map written by a run that covered one suite would declare the other 27 unknown and narrow on the one. `publish` (`internal/le/functional/suitemap.go`) loops over `Gating` rather than over what the run recorded, so a partial run is refused rather than trusted.
+
+The recorded `head` is the commit read BEFORE the first suite starts, which is the tree the binaries were compiled from. A full run takes an hour on a checkout several sessions share, so the commit can move under it. Reading it at the end would claim the map describes a tree no suite ran; naming the earlier commit is the conservative direction, because a reader treats every package touched since as unknown and widens. `job.Head` answers `unknown` on a tree Git cannot describe, and that publishes no map.
+
+The map is published through a temporary file in the same directory and one rename, so a session reading `tmp/` meets the old map or the new one and never a half-written one.
+
+<!-- source: internal/le/functional/suitemap.go -- suiteMap, readSuiteMap, suiteSelection, selectSuites, gatingRunList, suiteRecording, publish -->
+<!-- source: internal/le/functional/reach.go -- reachedPackages, packagesInProfile, initLineRanges -->
+<!-- source: internal/le/functional/run.go -- runGating, reduceCoverage, publishSuiteMap -->
 
 ## Native stage execution
 
