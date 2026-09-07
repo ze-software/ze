@@ -246,6 +246,23 @@ func (s *Server) WaitForStartupComplete(ctx context.Context) error {
 	}
 }
 
+// startupComplete reports whether signalStartupComplete has run, without
+// waiting for it. It answers false while any startup phase is still to come,
+// which is what tells a caller that the once-per-daemon post-startup fan-out is
+// still ahead of it (restartHandshake, restart.go).
+//
+// A Server built without NewServer carries no channel, and a receive on a nil
+// channel is never ready, so it answers false. That is the safe direction: the
+// caller then leaves the delivery to the fan-out rather than making a second one.
+func (s *Server) startupComplete() bool {
+	select {
+	case <-s.startupDone:
+		return true
+	default:
+		return false
+	}
+}
+
 // runPluginPhase starts a batch of plugins with tier-ordered handshake.
 //
 // All processes are started at once (single ProcessManager), but the 5-stage

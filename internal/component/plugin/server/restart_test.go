@@ -5,6 +5,7 @@ import (
 	"net"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -185,4 +186,61 @@ func TestRestartPluginRestartsAPluginThatDeclaredNothing(t *testing.T) {
 	cmd := s.dispatcher.Registry().Lookup(commandName)
 	require.NotNil(t, cmd, "the replacement's command must be resolvable")
 	assert.Same(t, after, cmd.Process, "the command must resolve to the replacement process")
+}
+
+// TestRestartBeforeStartupCompletesLeavesTheFanOutToDeliverOnce verifies that a
+// plugin restarted while startup phases are still running receives the
+// post-startup callback exactly once, from the fan-out that owes it.
+//
+// VALIDATES: AC-13 -- a restarted plugin runs its OnAllPluginsReady handler, and
+// runs it once. The handler is where a plugin takes an exclusive role over from
+// another one, and those handlers are written for a single call
+// (sendPostStartupToNames, poststartup.go).
+// PREVENTS: a second delivery. A plugin's own exit reaches restartHandshake
+// through applyFailurePolicy, whose supervisors start at the end of each
+// runPluginPhase, so a plugin that exits between two phases is restarted BEFORE
+// signalStartupComplete. Delivering there and again from sendPostStartupToAll
+// runs the handler twice, and the first of the two runs before the registries
+// are frozen, which is the state the callback's contract promises the handler.
+func TestRestartBeforeStartupCompletesLeavesTheFanOutToDeliverOnce(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const name = "restart-early-ready"
+	ready := &atomic.Int64{}
+
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        name,
+		Description: "restart test plugin that counts its post-startup callbacks",
+		RunEngine: func(conn net.Conn) int {
+			p := sdk.NewWithConn(name, conn)
+			p.OnAllPluginsReady(func() error {
+				ready.Add(1)
+				return nil
+			})
+			if err := p.Run(context.Background(), sdk.Registration{}); err != nil {
+				return 1
+			}
+			return 0
+		},
+		CLIHandler: func([]string) int { return 0 },
+	}))
+
+	s, _ := newLifecycleStartupServer(t)
+	require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{
+		{Name: name, Internal: true, Encoder: plugin.EncodingJSON},
+	}))
+
+	// No signalStartupComplete yet: this is the window a later phase would still
+	// be running in.
+	require.NoError(t, s.restartPlugin(name))
+	require.Never(t, func() bool { return ready.Load() > 0 }, failureSettle, 10*time.Millisecond,
+		"a restart before startup completed must leave the callback to the fan-out")
+
+	s.signalStartupComplete()
+	require.Eventually(t, func() bool { return ready.Load() == 1 }, failureWait, 10*time.Millisecond,
+		"the fan-out must deliver the callback to the replacement")
+	assert.Never(t, func() bool { return ready.Load() > 1 }, failureSettle, 10*time.Millisecond,
+		"the replacement must not run its OnAllPluginsReady handler twice")
 }

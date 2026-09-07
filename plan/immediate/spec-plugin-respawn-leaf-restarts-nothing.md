@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | 1/4 |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-09-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -491,3 +491,229 @@ rather than derived):**
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only
+
+The learned-summary row above is superseded: a closure records ONE row in
+`plan/journal/<class>.md` (owner directive, 2026-08-10). This closure writes
+`plan/journal/new-caller-assumes-the-old-callers-timing.md`.
+
+## Implementation Summary
+
+### What Was Implemented
+- `rpc.FailurePolicy` (`pkg/plugin/rpc/enums.go`): a closed three-value enum on
+  the Stage-1 wire, with `AllowsRestart` answering the restart question and
+  `UnmarshalText` refusing a fourth spelling by name.
+- `DeclareRegistrationInput.FailurePolicy` (`pkg/plugin/rpc/types.go`) and its
+  SDK names (`pkg/plugin/sdk/sdk_types.go`), which is how a plugin declares.
+- `internal/component/plugin/server/failure_policy.go`: `superviseProcess`,
+  `pluginFailurePolicy`, `refuseRespawnDisagreement`, `applyFailurePolicy`,
+  `stopDaemonOnStartupFailure` and `stopDaemonForPlugin`.
+- `plugin.RespawnRequest` (`internal/component/plugin/types.go`) with three
+  states, written by `ExtractPluginsFromTree` (`config/loader.go`) from the
+  `respawn` leaf, which no producer had ever set. `PluginConfig.RespawnEnabled`
+  is gone: one field, not two.
+- `ProcessManager.ReportCrash` and the removal of the config check and
+  `ErrRespawnNotEnabled` from `ProcessManager.Respawn`
+  (`plugin/process/manager.go`).
+- `Process.EngineDone` (`plugin/process/process.go`) and the third arm of the
+  bridge-mode wait (`server/dispatch.go`), which is how an in-process plugin's
+  exit reaches the same path a fork's exit reaches.
+- `restartHandshake` supervises the replacement and delivers the post-startup
+  callback to it (`server/restart.go`).
+- The ExaBGP bridge, firewall-irr and firewall-domain declare `restart`.
+
+### Bugs Found/Fixed
+- A restarted plugin never ran its `OnAllPluginsReady` handler: `restartHandshake`
+  made no post-startup delivery, and the daemon-wide fan-out runs once. Found by
+  `failure-policy-restart` timing out. Fixed in `restartHandshake`, covered by
+  that .ci and by `TestRestartBeforeStartupCompletesLeavesTheFanOutToDeliverOnce`.
+- That fix then delivered TWICE for a plugin restarted before
+  `signalStartupComplete`, which a plugin's own exit can now cause: supervisors
+  start at the end of each `runPluginPhase`, and the fan-out is later. Found in
+  the closure review. Fixed with `Server.startupComplete` (`server/startup.go`)
+  gating the delivery; covered by the same test, which reds without the gate.
+- `restartPlugin`'s doc comment still named "respawn not enabled for this
+  plugin" as a refusal reason after `ErrRespawnNotEnabled` was deleted. Fixed in
+  `server/reload_tx.go`.
+
+### Documentation Updates
+- `docs/architecture/api/process-protocol.md` -- "Failure-Policy Declaration
+  (Stage 1)", anchored on `pkg/plugin/rpc/enums.go -- FailurePolicy`,
+  `server/failure_policy.go` and `process/manager.go`.
+- `docs/architecture/api/ipc_protocol.md` -- the Stage-1 field and the two
+  restart bounds. `docs/architecture/hub-architecture.md` -- a plugin phase can
+  now stop the daemon. `docs/architecture/system-architecture.md` -- both
+  `respawn true;` blocks. `docs/features/plugins.md`, `docs/guide/plugins.md`,
+  `docs/plugin-development/protocol.md`, `docs/architecture/exabgp-bridge.md`,
+  `docs/architecture/firewall/firewall-irr.md`, `docs/guide/firewall.md`,
+  `website/compare/nos.md`.
+- `./le doc check verify` is red across the BGP command surface and
+  `../gh-pages/` for reasons this spec did not create; no finding names a page
+  or a file this spec touches.
+
+### Deviations from Plan
+- The TDD plan named `TestRegistrationRefusesAnUnknownFailurePolicy` in
+  `server/failure_policy_test.go`. AC-5 is proven one layer earlier instead, at
+  the decoder that refuses first: `TestFailurePolicyValidAcceptsOnlyTheThreeSpellings`
+  and `TestDeclareRegistrationCarriesTheFailurePolicy`
+  (`pkg/plugin/rpc/failure_policy_test.go`) show an unknown spelling failing the
+  whole `DeclareRegistrationInput` decode. `runStartupHandshake`
+  (`server/startup_driver.go`) returns that parse error before `onRegistration`
+  runs, so a server-level test would exercise no code of its own.
+- `pkg/plugin/rpc/enums.go` carries the new enum rather than a new file, beside
+  the six enums that already share it.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The post-startup delivery added for a restarted plugin was written as unconditional, on the reading that a restart always lands after startup | A plugin's own exit reaches `restartHandshake` from `applyFailurePolicy`, whose supervisors start at the end of each `runPluginPhase`, so a restart can land before `signalStartupComplete` | closure review, reading `runPluginStartup` against the new call site | gated on `Server.startupComplete`; journal row in `plan/journal/new-caller-assumes-the-old-callers-timing.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A plugin declares what its own failure means, in three values | Done | `pkg/plugin/rpc/enums.go` `FailurePolicy`; `server/startup.go` `registrationFromRPC` | |
+| Ze restarts, carries on, or stops | Done | `server/failure_policy.go` `(*Server).applyFailurePolicy` | |
+| The `respawn` leaf stays and is a request inside the declaration | Done | `config/loader.go` `ExtractPluginsFromTree`; `server/failure_policy.go` `refuseRespawnDisagreement` | |
+| A disagreement stops the daemon and names both sides | Done | `refuseRespawnDisagreement`, `stopDaemonOnStartupFailure` | |
+| `fatal` is open to any plugin | Done | no check on the plugin's origin anywhere in `failure_policy.go` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestPluginThatExitsIsStartedAgainWhenItDeclaredRestart`; `test/plugin/failure-policy-restart.ci` | |
+| AC-2 | Done | `TestPluginThatExitsStaysDownWhenItDeclaredNothing` | |
+| AC-3 | Done | `TestPluginThatExitsStopsTheDaemonWhenItDeclaredFatal`; `test/plugin/failure-policy-fatal.ci` | |
+| AC-4 | Done | `TestStartupFailureOfAFatalPluginStopsTheDaemon`, with `TestStartupFailureOfASilentPluginLeavesTheDaemonRunning` as the other polarity | |
+| AC-5 | Done | `TestFailurePolicyValidAcceptsOnlyTheThreeSpellings`, `TestDeclareRegistrationCarriesTheFailurePolicy` | see Deviations |
+| AC-6 | Done | `TestProcessManagerRespawnLimit`, `TestProcessManagerCumulativeRespawnLimit` | bounds unchanged by this spec |
+| AC-7 | Done | `TestRespawnRequestAgainstAPluginThatCannotRestartStopsTheDaemon`; `test/plugin/failure-policy-disagreement.ci` | |
+| AC-8 | Done | `TestRespawnFalseKeepsAPluginThatCanRestartDown` | |
+| AC-9 | Done | `TestExtractPluginsReadsTheRespawnLeaf` | non-boolean refused by `ParseBoolStrict` |
+| AC-10 | Done | `TestPluginCrashReportBus` over `ProcessManager.ReportCrash` | |
+| AC-11 | Done | `TestRestartPluginRestartsAPluginThatDeclaredNothing` | |
+| AC-12 | Done | `TestExabgpBridgeDeclaresItCanRestart` | |
+| AC-13 | Done | `test/plugin/failure-policy-restart.ci` (generation 2 acts from `OnAllPluginsReady`); `TestRestartBeforeStartupCompletesLeavesTheFanOutToDeliverOnce` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestFailurePolicyValidAcceptsOnlyTheThreeSpellings` | Done | `pkg/plugin/rpc/failure_policy_test.go` | |
+| `TestFailurePolicyAllowsARestartOnlyForRestart` | Done | same | |
+| `TestExtractPluginsReadsTheRespawnLeaf` | Done | `internal/component/config/loader_plugin_test.go` | |
+| `TestPluginFailurePolicyReadsAnUndeclaredPolicyAsIgnore` | Done | `server/failure_policy_test.go` | |
+| `TestRegistrationRefusesAnUnknownFailurePolicy` | Changed | `pkg/plugin/rpc/failure_policy_test.go` | recorded in Deviations |
+| `TestExabgpBridgeDeclaresItCanRestart` | Done | `internal/plugins/exabgp/bridgeplugin/internal_test.go` | |
+| the six server-level functional tests | Done | `server/failure_policy_test.go` | all six pass under `-race` |
+| `failure-policy-restart`, `-fatal`, `-disagreement` | Done | `test/plugin/` | 257, 258, 259 of 771, all PASS |
+| `cli-completion-plugin-external.ci` | Done | `test/ui/` | unchanged; the leaf keeps its spelling |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every file in "Files to Modify" | Done | except `cmd/ze/hub/main.go`, which needed no edit: it already copied `pc.Respawn`, and the field changed type under it |
+| every file in "Files to Create" | Done | `pkg/plugin/rpc/failure_policy.go` landed as an addition to `enums.go` |
+| `server/startup.go`, `server/restart.go`, `server/reload_tx.go` | Changed | the closure review's fix, beyond the plan |
+
+### Audit Summary
+- **Total items:** 13 ACs, 9 planned tests, 22 planned files
+- **Done:** 13 ACs, 8 tests, all files
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** 1 test (AC-5, proven at the decoder), recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A plugin informs ze whether it wishes to be restarted, ignored, or to stop ze | functional, real forked processes | `test/plugin/failure-policy-restart.ci` and `failure-policy-fatal.ci`, PASS 259 and 258 of 771 in `./le functional plugin`. Each drives a real `run` line, and the daemon acts with no operator input |
+| `respawn` stays for ExaBGP compatibility | functional + unit | the leaf keeps its spelling and container (`ze-plugin-conf.yang`); `TestExtractPluginsReadsTheRespawnLeaf` reads it; `TestExabgpBridgeDeclaresItCanRestart` shows the bridge declaring `restart`, which is ExaBGP's own default |
+| A plugin that cannot restart against a config that asks for one stops ze | functional | `test/plugin/failure-policy-disagreement.ci`, PASS 257 of 771. It asserts the daemon stops AND that the message names the plugin and the declared policy, and rejects the "started again" line |
+| The three dead behaviors become live | unit, red-then-green | `TestRestartPluginRestartsAPluginThatDeclaredNothing` (the rollback restart, which answered `ErrRespawnNotEnabled` before), `TestExtractPluginsReadsTheRespawnLeaf` (the leaf), the three .ci files (nothing watched an exit) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| nothing | every AC is implemented and proven | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/plugin-respawn-leaf-restarts-nothing-d64e7b3f-bfdc-4614-8db4-f12043eb77cc.md` |
+| `./le spec session review check` | `OK (4 code files, clean, hashes match)` |
+| Rounds | 2. Round 1 over the whole diff found the double post-startup delivery; round 2 over that fix found nothing |
+| Reviewer lenses used | wiring + removed-behavior, logic + guard audit, style + simplicity |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `restartHandshake` delivered the post-startup callback unconditionally. A plugin restarted before `signalStartupComplete`, which its own exit can now cause, then ran its `OnAllPluginsReady` handler twice, and the first run happened before the registries were frozen, which is the state that callback's contract promises | `internal/component/plugin/server/restart.go` `restartHandshake` | `Server.startupComplete` (`server/startup.go`) gates the delivery; `TestRestartBeforeStartupCompletesLeavesTheFanOutToDeliverOnce` reds without it |
+| 2 | NOTE | `restartPlugin`'s doc named a refusal reason that no longer exists (`ErrRespawnNotEnabled` was deleted) | `internal/component/plugin/server/reload_tx.go` | comment corrected to the three refusals `Respawn` still answers |
+| 3 | NOTE | The TDD table named a server-level test for AC-5 that the implementation proved at the decoder instead | this spec | recorded in Deviations rather than by writing a test over no code |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/plugin/server/failure_policy.go` | Yes | `ls -l` 8106 bytes |
+| `internal/component/plugin/server/failure_policy_test.go` | Yes | 19888 bytes |
+| `pkg/plugin/rpc/failure_policy_test.go` | Yes | 3456 bytes |
+| `internal/component/config/loader_plugin_test.go` | Yes | 2258 bytes |
+| `internal/test/fixture/plugin_fixture_failure_policy.go` | Yes | 6800 bytes |
+| `internal/test/fixture/register_failure_policy.go` | Yes | 417 bytes |
+| `test/plugin/failure-policy-restart.ci` | Yes | 1419 bytes |
+| `test/plugin/failure-policy-fatal.ci` | Yes | 1219 bytes |
+| `test/plugin/failure-policy-disagreement.ci` | Yes | 1432 bytes |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-4, AC-7, AC-8, AC-13 | each policy reaches its own outcome through the real handshake | `go test -race` with the feature tags: `ok internal/component/plugin/server 61.114s`, all seven named tests PASS |
+| AC-5 | an unknown spelling is refused by name | `ok pkg/plugin/rpc 1.122s`, 3 tests PASS |
+| AC-6, AC-10, AC-11 | bounds, the crash report, the rollback restart | `ok internal/component/plugin/process 4.020s`; the full package, `TestPluginCrashReportBus` included, is green in the tagged run of 2026-09-07 |
+| AC-9 | the leaf reaches `PluginConfig` | `ok internal/component/config 4.108s`, `TestExtractPluginsReadsTheRespawnLeaf` PASS |
+| AC-12 | the bridge declares `restart` | `ok internal/plugins/exabgp/bridgeplugin 1.086s`; `grep -rn "FailurePolicy:" internal/` names the declaration in `bridgeplugin/internal.go`, `firewall/plugins/irr/irr.go` and `firewall/plugins/domain/domain.go` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| a plugin declaring `restart` that exits | `test/plugin/failure-policy-restart.ci` | Yes: read it. It forks `ze-test fixture plugin/failure-policy-restart` from a `run` line and asserts generation 2 exists |
+| a plugin declaring nothing | none; `TestPluginThatExitsStaysDownWhenItDeclaredNothing` | Yes: the negative outcome is an absence, watched for `failureSettle` |
+| a plugin declaring `fatal` | `test/plugin/failure-policy-fatal.ci` | Yes: asserts the daemon's stop line and its reason |
+| `respawn true` against a plugin declaring `ignore` | `test/plugin/failure-policy-disagreement.ci` | Yes: asserts both sides in the message and rejects the restart line |
+| `respawn true;` in a config file | none; `TestExtractPluginsReadsTheRespawnLeaf` | Yes: the disagreement .ci carries the leaf through the real loader to reach its assertion |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `AllowsRestart` (`pkg/plugin/rpc/enums.go`) is the only restart question anyone asks; `TestFailurePolicyAllowsARestartOnlyForRestart` |
+| A-2 | confirmed | `Process.EngineDone` is the third arm of the bridge-mode select (`server/dispatch.go`); `TestPluginThatExitsIsStartedAgainWhenItDeclaredRestart` |
+| A-3 | confirmed | `signalShutdownRequested` (`server/server.go`) closes `shutdownRequested` under a `sync.Once`, and `Server.Wait` reads it; `TestPluginThatExitsStopsTheDaemonWhenItDeclaredFatal` |
+| A-4 | confirmed | `pluginFailurePolicy` reads an EMPTY registration, because `NewProcess` (`process/process.go`) builds one, never a nil one |
+| A-5 | confirmed | `errRespawnDisagreement` survives to `stopDaemonOnStartupFailure` for `errors.Is`; `TestRespawnRequestAgainstAPluginThatCannotRestartStopsTheDaemon` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| the three values and the leaf's relation to them | `docs/architecture/api/process-protocol.md` against `pluginFailurePolicy` and `refuseRespawnDisagreement` | Yes |
+| the two restart bounds published as 5/60s and 20 | `docs/architecture/api/ipc_protocol.md` against `RespawnLimit`, `RespawnWindow`, `MaxTotalRespawns` (`process/manager.go`) | Yes |
+| a plugin phase can stop the daemon | `docs/architecture/hub-architecture.md` against `runPluginPhase` and `stopDaemonOnStartupFailure` | Yes |
+| the YANG help for `respawn` | `ze-plugin-conf.yang` against `ExtractPluginsFromTree` and `refuseRespawnDisagreement` | Yes |
+| no page states WHEN a restarted plugin receives the post-startup callback | `grep -rln "OnAllPluginsReady\|post-startup" docs/ website/` returns seven pages, none of which says it | Yes: the closure fix changes no published claim |
+
+## Core Insight
+
+One value can answer two questions when the system does the thing for exactly
+one reason. Ze restarts a plugin only because the plugin failed, so "what
+happens on failure" and "may this be restarted" are one declaration, and a
+second boolean beside it would have been a state nothing needs.
+
+The cost showed up at the other end: the new trigger. A once-per-daemon delivery
+was safe for its old caller because that caller could only run after startup.
+Giving it a second caller, driven by a plugin's own exit, put it inside the
+window its safety depended on, and the sentence stating that safety lived at the
+old call site.

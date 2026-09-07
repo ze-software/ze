@@ -105,17 +105,30 @@ func (s *Server) restartHandshake(proc *process.Process) error {
 		s.superviseProcess(proc)
 	})
 
-	// The replacement joins after signalStartupComplete has run, so the one
-	// delivery sendPostStartupToAll makes is long past. Without this line its
-	// OnAllPluginsReady handler never runs, which is the handler where a plugin
-	// takes an exclusive role over from the plugin that holds it (bgp-rs
-	// claimReplayOwnership, bgp/plugins/rs/server_handlers.go). A restarted
-	// plugin would come back registered, configured and subscribed, and still
-	// not do the one piece of work that needs every other plugin present.
+	// A replacement that joins after signalStartupComplete has run reaches no
+	// other delivery, because sendPostStartupToAll fans out once and no later
+	// phase calls it. Without this line its OnAllPluginsReady handler never
+	// runs, which is the handler where a plugin takes an exclusive role over
+	// from the plugin that holds it (bgp-rs claimReplayOwnership,
+	// bgp/plugins/rs/server_handlers.go). A restarted plugin would come back
+	// registered, configured and subscribed, and still not do the one piece of
+	// work that needs every other plugin present.
 	//
 	// It is the same delivery a config reload makes for a plugin it starts
 	// mid-life (autoLoadForNewConfigPaths, startup_autoload.go), for the same
 	// reason and by the same call.
-	s.sendPostStartupToNames([]string{proc.Name()})
+	//
+	// A restart DURING startup takes neither branch's work twice: the
+	// replacement sits in the process manager under the plugin's name, so the
+	// coming sendPostStartupToAll reaches it, and it reaches it at the point the
+	// callback's contract names, with the registries frozen and every phase's
+	// commands registered. Delivering here as well would run that plugin's
+	// OnAllPluginsReady twice, and those handlers are written for a single call
+	// (poststartup.go). A plugin's own exit reaches this path from
+	// applyFailurePolicy, whose supervisors start at the end of each
+	// runPluginPhase, so the window is real rather than theoretical.
+	if s.startupComplete() {
+		s.sendPostStartupToNames([]string{proc.Name()})
+	}
 	return nil
 }

@@ -410,10 +410,10 @@ func (s *Server) restartPluginFn() transaction.RestartFunc {
 //     replacement's handshake is not refused its own plugin's name.
 //  3. Run the handshake on the replacement and start its runtime handler.
 //
-// Step 2 runs AFTER step 1 on purpose: a respawn that is refused (respawn not
-// enabled for this plugin, limit exceeded, plugin disabled) must leave the
-// running plugin exactly as it found it, and a teardown before the refusal would
-// unregister a plugin that is still serving.
+// Step 2 runs AFTER step 1 on purpose: a respawn that is refused (limit
+// exceeded, plugin disabled, no such plugin) must leave the running plugin
+// exactly as it found it, and a teardown before the refusal would unregister a
+// plugin that is still serving.
 func (s *Server) restartPlugin(pluginName string) error {
 	if s.spawner == nil {
 		return fmt.Errorf("no plugin spawner available to restart %s", pluginName)
