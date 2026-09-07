@@ -59,8 +59,15 @@ went RED with the text the Functional Tests table records. Both cuts were
 restored, `git status` over `internal/component/config/cli/` came back clean, and
 both fixtures were re-run green.
 
-What is NOT built: AC-14 and AC-15, which need a whole functional suite run. The
-owner deferred that until the machine is free of the concurrent exabgp session.
+Built 2026-09-07: AC-15. `./le functional decode` ran the whole decode suite
+against a tree carrying every change this spec made, and returned `pass 39/39
+100.0%`. The pass set is unchanged, which is what AC-15 asks: `parseCIFile`
+drives that suite and none of this spec's work reached it.
+
+What is NOT built: AC-14, the whole functional suite before and after. There is
+no "before" left to take, because the work has landed. What is reachable is a
+run now with every difference from the recorded state explained, and the closure
+record must say which of the two it holds.
 
 **Bucket: `plan/pre-release/`.** No operator meets this: the `ze` binary reads
 standard input correctly, and the defect is in the instrument that judges it. It
@@ -541,6 +548,7 @@ The user here is a `.ci` author, and the product is the runner.
 | `config-history-stdin-refused` | `test/ui/config-history-stdin-refused.ci` | an operator pipes a config into `ze config history -` and is told history needs on-disk revisions | pass; RED observed 2026-09-07 with the `cliio.IsStdin` guard of `cmdHistory` cut: `stderr does not contain "history needs on-disk revision history"`, client output `error: cannot read config file: read file/active/-: file does not exist`. The exit assertion PASSED under that same cut, so the stderr text is the whole discriminator. The step trace reads `ze config history -  [stdin=config piped]` |
 | `config-fmt-write-stdout` | `test/ui/config-fmt-write-stdout.ci` | an operator pipes a config into `ze config fmt -w -` and gets the formatted config on stdout | pass; RED observed 2026-09-07 with the `cliio.IsStdin(configPath)` arm of `cmdFmt` cut so the in-place arm runs. The whole fixture fails on `stderr unexpectedly contains "Formatted"`, the in-place note a pipeline stage never prints. A second run of the same cut, with that reject line removed, fails on `stdout does not contain "router-id 5.6.7.8"`, because the in-place arm writes nothing for the already-formatted input of seq=2. Both runs print the formatted config of seq=1 and no `router-id 5.6.7.8`, and the step trace reads `ze config fmt -w -  [stdin=formatted piped]` |
 | the must-fail fixtures | `internal/test/runner/testdata/mustfail/*.ci` | not user-facing: each one proves the runner still refuses or still fails where it must | six fixtures, green in `61de329f6`. Red observed by pointing `exit-code-is-judged.ci` at `/bin/true` |
+| the whole decode suite | `test/decode/*.ci` | not user-facing: it proves this spec's work did not reach the second `.ci` driver | AC-15. `./le functional decode` over a tree carrying every change here: `pass 39/39 100.0%`, the pass set unchanged. `parseCIFile` drives that suite, and no red is owed: the criterion is that nothing MOVED |
 
 ### Interop Tests (Scope: protocol)
 Not applicable. Test tooling with no protocol peer and no wire-visible change
