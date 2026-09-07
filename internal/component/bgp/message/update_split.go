@@ -493,14 +493,16 @@ func lowRunLen(attrs []byte) int {
 // highLen == 0 (nothing coded above MP) reduces to the original append.
 func (s *Splitter) emitMPChunk(lowLen, highLen, stashOff int, chunk attribute.Attribute, emit func(*Update) error) error {
 	attrLen := chunk.Len()
-	// Extended length for >255-byte attributes.
-	hdrLen := 3
-	if attrLen > 255 {
-		hdrLen = 4
-	}
+	// AttrWireLen owns the header-size rule that WriteAttrToWithLen writes by, which
+	// is the extended four-octet header for a value above 255 octets OR for flags
+	// that already carry FlagExtLength (RFC 4271 Section 4.3). MP_REACH_NLRI and
+	// MP_UNREACH_NLRI return a constant FlagOptional today, so only the length arm
+	// fires here; restating the rule locally is what makes it wrong the day a chunk
+	// carries a sender's flags.
+	//
 	// Reset to the MP insert position and allocate the chunk region.
 	s.off = lowLen
-	attrBuf := s.alloc(hdrLen + attrLen)
+	attrBuf := s.alloc(attribute.AttrWireLen(chunk))
 	attribute.WriteAttrToWithLen(chunk, attrBuf, 0, attrLen)
 
 	if highLen > 0 {

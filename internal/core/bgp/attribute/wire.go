@@ -282,16 +282,14 @@ func (a *AttributesWire) packWithContext(destCtx *bgpctx.EncodingContext) ([]byt
 		return nil, fmt.Errorf("unknown source context ID: %d", a.sourceCtxID)
 	}
 
-	// Pass 1: calculate total size
-	total := 0
-	for _, attr := range attrs {
-		valueLen := attrLenWithContext(attr, destCtx)
-		if valueLen > 255 {
-			total += 4 + valueLen // extended length header
-		} else {
-			total += 3 + valueLen // normal header
-		}
-	}
+	// Pass 1: size the buffer with the function that owns the header-size rule.
+	// The count has to agree with WriteHeaderTo, which emits the four-octet header
+	// whenever the flags carry FlagExtLength, and not only when the value exceeds
+	// 255 octets (RFC 4271 Section 4.3). parseSpan builds an OpaqueAttribute from a
+	// peer's own flags, so a relayed unknown attribute reaches this loop with that
+	// bit set over a short value, and a length-only count is one octet short for
+	// each one.
+	total := AttributesSizeWithContext(attrs, destCtx)
 
 	// Pass 2: write all attributes
 	buf := make([]byte, total)

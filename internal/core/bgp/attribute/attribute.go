@@ -268,7 +268,7 @@ type Attribute interface {
 	// from that query first. A bounds check here re-derives the same number one
 	// call deeper, so it always agrees.
 	//
-	//   - attribute.packWithContext sums attrLenWithContext.
+	//   - attribute.packWithContext sums AttributesSizeWithContext.
 	//   - rib.packAttributesWithASPath sums AttrWireLen, AttrWireLenWithContext
 	//     and AttributesSizeWithContext.
 	//   - reactor.announceAttrs.add reserves ValueLenWithContext octets, then
