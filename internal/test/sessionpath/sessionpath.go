@@ -219,7 +219,7 @@ func repoRoot() string {
 		return ""
 	}
 	for {
-		if isRepoRoot(dir) {
+		if IsRepoRoot(dir) {
 			return dir
 		}
 		parent := filepath.Dir(dir)
@@ -230,8 +230,11 @@ func repoRoot() string {
 	}
 }
 
-// isRepoRoot reports whether dir holds the ze module's own go.mod.
-func isRepoRoot(dir string) bool {
+// IsRepoRoot reports whether dir holds the ze module's own go.mod.
+//
+// It is exported because a test helper process has to recognize the checkout it
+// must not write into: internal/test/fixture refuses to run a driver there.
+func IsRepoRoot(dir string) bool {
 	data, err := os.ReadFile(filepath.Join(dir, "go.mod")) //nolint:gosec // walking to the checkout root
 	if err != nil {
 		return false

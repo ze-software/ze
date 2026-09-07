@@ -1374,6 +1374,23 @@ the failure site and the one on the way out are one line.
 <!-- source: internal/test/fixture/fixture.go -- observeConfigured, ReportFailure -->
 <!-- source: internal/component/plugin/process/process.go -- relayStderrFrom -->
 
+**A driver's working directory is the per-test directory, so a driver names its
+files relatively and `fixture.Run` refuses to start in the checkout.** The
+runner creates one directory for each test, gives it to every child of that test
+and removes it at the end (`Record.WorkDir`, `internal/test/runner/runner_exec.go`),
+so `daemon.ready`, `testkey` and `<case>.conf` are written where the test can
+find them and nothing survives the run. The same names in the checkout land
+beside tracked source: on 2026-09-05 a run left two ed25519 private keys and
+five config files at the repository root, none of them ignored, so a `git add -A`
+from any session would have committed a private key. `fixture.Run` therefore
+reads its own working directory first and exits 1 with the `ZE-OBSERVER-FAIL`
+sentinel when that directory holds the ze `go.mod`
+(`sessionpath.IsRepoRoot`). A driver that needs the checkout reads
+`$ZE_REPO_ROOT`, which the runner exports; it never reads the working directory
+for one.
+<!-- source: internal/test/fixture/fixture.go -- Run, refuseRepoRoot -->
+<!-- test: internal/test/fixture/fixture_test.go -- TestRunRefusesADriverStartedInTheCheckoutRoot, TestRunDispatchesADriverStartedOutsideTheCheckoutRoot -->
+
 An observer assertion is therefore worth only what its wait is worth: a value
 that a plugin fills asynchronously (the Adj-RIB-In after RPKI validation, the
 SPF table after the first run, a session that drops when the peer completes)

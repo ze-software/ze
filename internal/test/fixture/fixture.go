@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/test/sessionpath"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -69,6 +70,10 @@ func Run(args []string) int {
 		fmt.Fprintf(os.Stderr, "unknown fixture %q; use one of: %s\n", args[0], strings.Join(Names(), ", "))
 		return 2
 	}
+	if err := refuseRepoRoot(); err != nil {
+		ReportFailure(err)
+		return 1
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	// The caller has already removed the quotes: a .ci exec= value is split by
@@ -83,6 +88,34 @@ func Run(args []string) int {
 		return 1
 	}
 	return 0
+}
+
+// refuseRepoRoot answers an error when this process runs in the ze checkout
+// root, and nil anywhere else.
+//
+// A driver names its scratch files relatively (`daemon.ready`, `testkey`,
+// `<case>.conf`), so its working directory IS the per-test directory the .ci
+// runner creates and removes for the step (Record.WorkDir,
+// internal/test/runner/runner_exec.go). Started in the checkout instead, those
+// same names land beside tracked source: on 2026-09-05 one run left two ed25519
+// private keys and five config files at the repository root, none of them
+// ignored, so any `git add -A` would have committed a private key. See
+// plan/journal/test-artifacts-land-in-the-repository-root.md.
+//
+// A working directory this process cannot read is refused too. "Not the
+// checkout root" would then be a guess, and the caller cannot tell a guess from
+// a fact.
+func refuseRepoRoot() error {
+	dir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("read the working directory: %w", err)
+	}
+	if !sessionpath.IsRepoRoot(dir) {
+		return nil
+	}
+	return fmt.Errorf(
+		"refusing to run a fixture in the ze checkout root %s: a fixture writes relative file names, "+
+			"so it runs in the per-test working directory the .ci runner gives it", dir)
 }
 
 // ObserverScenario runs after all daemon plugins are ready.
