@@ -236,7 +236,10 @@ Exit codes: 0 = running, 1 = not running.
 BGP protocol tools (offline, no daemon needed).
 
 ```
-ze bgp decode <hex>              # Decode BGP message hex to JSON
+ze bgp decode <hex>              # Decode one BGP message from hex
+ze bgp decode -                  # Decode one hex message for each line of standard input
+ze bgp decode pcap <file>        # Decode every BGP message in a capture
+ze bgp decode pcap -             # Decode a capture read from standard input
 ze bgp encode <route-command>    # Encode route command to BGP hex
 ze bgp plugin cli                # Plugin debug shell (5-stage handshake + interactive)
 ze bgp plugin cli --name <name>  # Debug shell with custom plugin name
@@ -245,6 +248,14 @@ ze bgp plugin cli --name <name>  # Debug shell with custom plugin name
 ze show bgp decode <hex>
 ze show bgp encode <route-command>
 ```
+
+The `pcap` keyword precedes the path, so the first word after `decode` is always
+a keyword or a hex payload and never an ambiguous file name. A capture may be
+one `show capture-raw dump bgp pcap` wrote or one from tcpdump: the reader takes
+either byte order and the Ethernet, raw IP and Linux cooked link types, reads
+only TCP flows with port 179 at either end, and reassembles each direction
+before it frames messages. A hole in the capture is reported and never read
+across, and a capture with no BGP in it exits non-zero naming what it examined.
 
 **decode flags:**
 
@@ -1018,6 +1029,40 @@ deregistered upstream: no IRR answer removes prefixes on its own.
 <!-- source: internal/component/firewall/plugins/irr/command.go -- handleCommand, showIRR, showIRRPrefix, updateASN, updateASSet, clearASN, clearASSet -->
 <!-- source: internal/component/resolve/irr/store/store.go -- Refresh keeps last-known-good, Purge removes -->
 
+### show, update and clear firewall domain-group
+
+DNS-resolved addresses behind firewall rules that name a domain group. Provided
+by the `firewall-domain` plugin.
+
+```
+ze show firewall domain-group           # Every group: addresses, freshness, last answer
+ze show firewall domain-group <name>    # One group
+ze update firewall domain-group <name>  # Resolve the group's names now
+ze clear firewall domain-group <name>   # Remove the group's cached addresses
+```
+
+**`show firewall domain-group`** reports one row per configured group, and
+within it one entry per DNS name and address family. `status` carries what the
+last answer said: `NOERROR`, `NXDOMAIN`, `SERVFAIL`, `REFUSED`, or `missing`
+when that name and family have never been asked for. `missing` and a `NOERROR`
+holding no address are different facts: the first says nothing was asked, the
+second says the name holds no address of that family. An entry whose name has
+stopped answering also carries `failing-since`.
+
+**`update firewall domain-group <name>`** resolves every name in the group at
+once rather than waiting for a TTL. It is the only path back from a cold cache,
+because a commit naming a group Ze has never resolved is refused. A name that
+fails keeps the addresses Ze already had for it, and the command reports what
+did resolve beside what did not.
+
+**`clear firewall domain-group <name>`** is how addresses are removed. It drops
+them from memory and from ZeFS and re-applies the tables. Use it when a name is
+gone upstream for good: only an NXDOMAIN removes addresses on its own, and a
+failing server never does.
+
+<!-- source: internal/component/firewall/plugins/domain/command.go -- handleCommand, showDomainGroup, updateDomainGroup, clearDomainGroup -->
+<!-- source: internal/component/firewall/plugins/domain/domain.go -- resolveAndRecord, the four outcomes -->
+
 ### show system uptime
 
 ```
@@ -1459,7 +1504,7 @@ daemon is running.
 ### show crashes
 
 ```
-ze show crashes              # List crash files with timestamp and size (JSON)
+ze show crashes              # List crash reports with size, kind and readiness (JSON)
 ze show crashes latest       # Display the most recent crash report
 ze show crashes name <file>  # Display a specific crash report
 ```
@@ -1469,9 +1514,44 @@ it falls back to reading the crash files in-process. That fallback matters most
 here: you inspect a crash precisely when the daemon has died, so the command must
 work with no daemon.
 
-Crash reports contain the panic stack trace, ring buffer context (last 64
-log entries before the crash), version, build date, and uptime. Crash files
+Each row carries a `kind`. `panic` is a Go panic this daemon caught and wrote
+itself. `kernel` is a kernel fault, which leaves no process behind to write a
+report: the kernel writes its own record into a reserved memory region, and Ze
+reads it on the next boot. Both kinds live in one directory, share the
+`ze.crash.keep` retention count, and are listed by this one command.
+
+Crash reports contain the panic stack trace or the kernel backtrace, ring buffer
+context (last 64 log entries), version, build date, and uptime. Crash files
 are stored in the autodetected crash directory (see `ze.crash.dir` env var).
+
+The listing also carries a `readiness` block, which answers **configured** and
+**armed** separately:
+
+| Field | Meaning |
+|-------|---------|
+| `configured` | `system crash-dump enabled` is set in the running config |
+| `armed` | the RUNNING kernel booted with the reservation, and its record store is readable |
+| `reason` | what to do next when the two disagree |
+| `region`, `reserve-megabytes` | the reservation the running kernel carries |
+| `directory-writable` | a crash directory was resolved and is writable |
+| `pstore-available` | kernel crash records can be read back |
+| `memory-image` | the same two states for the full-memory-image option, with `shortfall-bytes` when the target lacks room |
+
+The two fields come from different places on purpose. A reservation is a kernel
+boot argument, so a commit looks like it took effect and changes nothing until
+the box reboots into an image built with `image.crash-dump`. Reporting one field
+would hide exactly that gap. See `docs/guide/appliance.md` for the reservation
+and `docs/guide/configuration.md` for the config leaves.
+<!-- source: internal/plugins/crashes/readiness.go -- Readiness, the one answer every surface reads -->
+<!-- source: internal/core/crashlog/kernel.go -- CrashReadiness, configured versus armed -->
+<!-- source: internal/core/crashlog/list.go -- CrashKind, CrashListFields -->
+
+Three `ze doctor` checks report the same facts with stable diagnostic codes:
+`doctor-crash-capture-unarmed`, `doctor-crash-capture-pstore` and
+`doctor-crash-directory-unwritable`.
+<!-- source: internal/plugins/crashes/doctor.go -- the three checks -->
+<!-- source: internal/plugins/crashes/register.go -- their registration -->
+
 <!-- source: internal/plugins/crashes/cmd/register.go -- online show crashes RPC -->
 <!-- source: internal/plugins/crashes/register.go -- offline fallback (registry.RegisterOfflineFallback) -->
 
@@ -1716,6 +1796,10 @@ ze passwd                                                # interactive
 
 The output is suitable for direct paste into a YANG `password` leaf, or as a
 shell substitution into `ze config set ... password "$(echo s | ze passwd)"`.
+
+A weak password draws `warning: weak password (<reason>)` on stderr. The hash
+still goes to stdout and the exit code stays 0, so a pipeline is unaffected. See
+[authentication](authentication.md) for the policy.
 <!-- source: internal/plugins/passwd/main.go -- runImpl -->
 
 ### --user / -u flag (all client CLIs)
@@ -2189,6 +2273,24 @@ Config keys are parsed from the YANG `peer-fields` schema via `ParseInlineArgs`.
 <!-- source: internal/component/config/setparser.go -- parseSet structural-only commands -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- grouping peer-fields, the source of every key in this table -->
 <!-- source: internal/component/plugin/types_bgp.go -- AddDynamicPeer, which takes the parsed peer-fields tree -->
+
+### Create Commands
+
+| Command | Access | Purpose |
+|---------|--------|---------|
+| `create bgp peer <address> asn <asn> [...]` | write | Add a peer to the running daemon <!-- source: internal/component/bgp/plugins/cmd/peer/create.go -- handleBgpPeerAdd --> |
+
+The peer address comes first and `asn` is the only required keyword. The rest
+are optional: `local-as`, `local-address`, `router-id`, `receive-hold-time`,
+`send-hold-time`, `connect-retry`, `connect`, `accept`, `family`,
+`graceful-restart`, `group-updates` and `attach`. `family` and `attach` each
+take a comma-separated list. A keyword the command does not take is refused by
+name, and so is a value it cannot use.
+
+The peer lives in the running daemon alone. Nothing is written to the
+configuration, so `show config` does not carry it and a reload removes it. That
+is what `delete bgp peer` mirrors on the way out: it removes the peer from the
+running daemon and leaves the file on disk alone.
 
 ### Del Commands
 
