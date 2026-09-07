@@ -24,7 +24,10 @@ type Command struct {
 	// ABSENT for a command that has none: a streaming prefix and a TUI command
 	// are reached by path alone.
 	WireMethod string `json:"wire-method"`
-	// Source says where the registration came from: builtin, streaming or cli.
+	// Source says where the registration came from: builtin, streaming, cli, or
+	// plugin. A plugin's command is dispatched through the plugin, so it
+	// reaches no builtin RPC and no streaming prefix, and the inventory named
+	// none of them until it read registry.Registration.Commands.
 	Source string `json:"source"`
 	// Shape is the wire spelling of what the command's ANSWER holds: "doc" for
 	// one document, "map" for rows that carry their own keys, "tab" for rows

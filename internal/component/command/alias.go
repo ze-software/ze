@@ -550,19 +550,38 @@ func lookupAlias(command, name string) (aliasEntry, bool) {
 // A command-specific alias replaces the global one of the same name, which is
 // what lookupAlias answers for the same pair.
 func AliasesForCommand(command string) []Alias {
-	byName := make(map[string]Alias)
+	byName := globalAliasesByName()
+	if set, ok := aliasRegistry.lookup(command); ok {
+		addAliases(byName, set)
+	}
+	return sortedAliases(byName)
+}
 
+// globalAliasesByName answers the global aliases keyed by name. It is the base
+// every command-specific set is laid over, because a command-specific alias
+// replaces the global one of the same name.
+func globalAliasesByName() map[string]Alias {
 	globalAliases.mu.RLock()
+	defer globalAliases.mu.RUnlock()
+
+	byName := make(map[string]Alias, len(globalAliases.byName))
 	for name, entry := range globalAliases.byName {
 		byName[name] = entry.alias
 	}
-	globalAliases.mu.RUnlock()
+	return byName
+}
 
-	if set, ok := aliasRegistry.lookup(command); ok {
-		for name, entry := range set.byName {
-			byName[name] = entry.alias
-		}
+// addAliases lays a registered set over the aliases byName already holds.
+func addAliases(byName map[string]Alias, set aliasSet) {
+	for name, entry := range set.byName {
+		byName[name] = entry.alias
 	}
+}
+
+// sortedAliases answers the set as a list sorted by name, and nil for an empty
+// one, so a `,omitempty` key leaves the answer rather than publishing an empty
+// list.
+func sortedAliases(byName map[string]Alias) []Alias {
 	if len(byName) == 0 {
 		return nil
 	}

@@ -317,7 +317,7 @@ all render it.
 | `./le perf-bench` | `internal/le/perfbench.Answer` | suggest a perf run when BGP data-plane code changed since the last one |
 | `./le platform-vet` | `internal/le/platformvet.Answer` | vet the host and interface trees against their Darwin and FreeBSD implementations |
 | `./le plugin boundary` | `internal/le/plugin/boundary.Answer` | no plugin reaches engine state through a plain in-process call, so moving that plugin to an external subprocess cannot silently disable it |
-| `./le plugin declarations` | `internal/le/plugin/declarations.Answer` | every command a plugin declares to Stage 1 is also on its registration, so a catalog built from the tree names what the daemon serves |
+| `./le plugin declarations` | `internal/le/plugin/declarations.Answer` | a plugin's two Registration literals declare the same commands and pipe aliases, field for field and in both directions, so the catalog built from the tree names what the daemon serves and nothing more |
 | `./le plugin imports` | `internal/le/plugin/imports.Answer` | the generated composition root: check that internal/component/plugin/all names every package the tree registers, or write it |
 | `./le port-defaults` | `internal/le/portdefaults.Answer` | the Go listener-default table and the YANG refine port defaults still agree, service by service |
 | `./le protocol-skeleton` | `internal/le/protocolskeleton.Answer` | which protocol implementations are still a skeleton rather than a daemon, classified against ai/rules/protocol.md |

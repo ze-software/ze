@@ -6,9 +6,13 @@
 package commandlist
 
 import (
+	"net"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
+
+	pluginregistry "github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 // TestClassifyVerb pins the taxonomy. The verb is the first word when it is one
@@ -215,24 +219,103 @@ func TestAnswerAnswersRows(t *testing.T) {
 // declaration reaches the daemon in the plugin's Stage 1 message, which no
 // reader of the compiled tree ever sees.
 func TestCommandListReportsAPluginDeclaredShape(t *testing.T) {
-	const (
-		path  = "show bgp adj-rib-in status"
-		shape = "doc"
-	)
+	commands, err := Collect()
+	if err != nil {
+		t.Fatalf("collect: %v", err)
+	}
+
+	byPath := make(map[string]Command, len(commands))
+	for _, entry := range commands {
+		byPath[entry.Path] = entry
+	}
+
+	const shapePath = "show bgp adj-rib-in status"
+	entry, found := byPath[shapePath]
+	if !found {
+		t.Fatalf("the inventory names no %q, so no plugin declaration reached it", shapePath)
+	}
+	if entry.Shape != "doc" {
+		t.Errorf("%q reports shape %q, and the plugin declares doc", shapePath, entry.Shape)
+	}
+
+	// The column order is the other half of AC-5, and this reader is the
+	// fourth to publish one. The order below is neither alphabetical nor the
+	// order the rows are built in, so it can only have come from the
+	// declaration (internal/component/bgp/plugins/rpki/rpki.go, commandDecls).
+	const orderPath = "show bgp rpki roa"
+	entry, found = byPath[orderPath]
+	if !found {
+		t.Fatalf("the inventory names no %q, so no plugin declaration reached it", orderPath)
+	}
+	want := [][]string{{"prefix", "max-length", "asn"}}
+	if !slices.EqualFunc(entry.ColumnOrders, want, slices.Equal) {
+		t.Errorf("%q reports column orders %v, and the plugin declares %v",
+			orderPath, entry.ColumnOrders, want)
+	}
+}
+
+// TestRegistrationCarriesTheDeclaredCommands is AC-4 of
+// plan/spec-daemon-backed-command-catalog.md: a reader answers a plugin's
+// command declarations, and answers them with NO engine started.
+//
+// The guard is the point of the test, so it is driven through Collect, the
+// reader `./le command list` runs. A plugin's declarations used to exist only
+// after its runner sent them in the Stage 1 registration message, so the
+// rejected way to read them was to RUN the plugin -- which, for two of the 97
+// runners, programs nftables or writes XFRM policy before it declares anything.
+// Every runner in this process is replaced by one that records its own call,
+// so a reader that goes back to that route fails here by name rather than by
+// the host state it changed.
+//
+// registry.All answers POINTERS into the registry, so the stubs are shared with
+// every other test in this binary until the cleanup restores them. This test
+// therefore MUST NOT call t.Parallel, and neither may anything that reads
+// RunEngine.
+func TestRegistrationCarriesTheDeclaredCommands(t *testing.T) {
+	var started []string
+
+	registrations := pluginregistry.All()
+	engines := make([]func(net.Conn) int, len(registrations))
+	for index, reg := range registrations {
+		engines[index] = reg.RunEngine
+		name := reg.Name
+		reg.RunEngine = func(net.Conn) int {
+			started = append(started, name)
+			return 1
+		}
+	}
+	t.Cleanup(func() {
+		for index, reg := range registrations {
+			reg.RunEngine = engines[index]
+		}
+	})
 
 	commands, err := Collect()
 	if err != nil {
 		t.Fatalf("collect: %v", err)
 	}
 
+	reported := make(map[string]bool, len(commands))
 	for _, entry := range commands {
-		if entry.Path != path {
-			continue
-		}
-		if entry.Shape != shape {
-			t.Fatalf("%q reports shape %q, and the plugin declares %q", path, entry.Shape, shape)
-		}
-		return
+		reported[entry.Path] = true
 	}
-	t.Fatalf("the inventory names no %q, so no plugin declaration reached it", path)
+
+	// One plugin for each way a declaration reaches the registration:
+	// bgp-adj-rib-in already had a commandDecls function, mrt's runner carried
+	// a one-line literal, and sysctl's carried a six-entry block. Each is
+	// asserted through the reader's own answer, so a declaration the reader
+	// drops is a failure here and not only a missing field.
+	for _, path := range []string{
+		"show bgp adj-rib-in status",
+		"request mrt dump-rib",
+		"show sysctl",
+	} {
+		if !reported[path] {
+			t.Errorf("the inventory names no %q, so a plugin's declaration did not reach the reader", path)
+		}
+	}
+
+	if len(started) > 0 {
+		t.Errorf("reading the declarations started %d engine(s): %v", len(started), started)
+	}
 }

@@ -11,11 +11,11 @@
 #            address fields; the client published those three for what it
 #            compiled in and named no plugin command at all.
 #
-# Method: a daemon starts bgp-rpki and bgp-adj-rib-in in process, with no peer
-# and no cache server, because a declaration is sent at plugin startup and needs
-# neither. `ze cli` then asks the daemon for `show command help` and a second,
-# DAEMONLESS `ze help command --json` process is asked the same questions. Both
-# answers are compared for `show bgp rpki roa`, key by key.
+# Method: a daemon starts bgp-rpki, bgp-adj-rib-in and bgp-rib in process, with
+# no peer and no cache server, because a declaration is sent at plugin startup
+# and needs neither. `ze cli` then asks the daemon for `show command help` and a
+# second, DAEMONLESS `ze help command --json` process is asked the same
+# questions. Both answers are compared for `show bgp rpki roa`, key by key.
 #
 # The values asserted are the ones a surface cannot invent:
 #   - the column order [prefix, max-length, asn], which is neither alphabetical
@@ -25,6 +25,16 @@
 #     that plugin declares a shape and deliberately declares no order;
 #   - `source` = the plugin instance, which is what tells a plugin's command
 #     from a builtin in the daemon's own answer.
+#
+# bgp-rib is here for the one case the two rpki paths cannot show: a command
+# whose own declaration is on the plugin's registration, under an ancestor whose
+# declaration is in the REGISTRY and is NOT empty. `show bgp rib` declares the
+# eleven route columns and two address fields, and `show bgp rib help` answers
+# subcommand names. A reader that consults the registries first and the plugin
+# second gives the child its ancestor's answer, and both surfaces published
+# eleven route columns and offered `| resolve` on a list of names. The ancestor
+# is asserted beside the child, so the test compares two answers rather than
+# pinning one absence.
 #
 # The alias barrier is asserted in BOTH halves, on both surfaces: `show bgp rpki`
 # answers to `summary` and `show bgp rpki roa` answers to nothing, because a

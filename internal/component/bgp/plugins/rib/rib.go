@@ -612,8 +612,9 @@ func runRIBPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-rib", conn)
 	defer func() { _ = p.Close() }()
 
-	// Populate command table before creating manager.
-	// Built-in commands registered here; plugins register via RegisterRIBCommand.
+	// Populate the command table before creating the manager. init() has
+	// already built it, through commandDecls(), and sync.Once makes this the
+	// cheap restatement of the requirement rather than a second build.
 	registerBuiltinCommands()
 
 	r := newRIBManager(p)
@@ -1278,6 +1279,14 @@ func GetYANG() string {
 	return yang.ZeRibYANG
 }
 
+// shapeMap and shapeTab are the wire spellings of what an answer holds
+// (pkg/plugin/rpc/types.go, CommandDecl.Shape): rows that carry their own keys,
+// and rows read against a declared column order.
+const (
+	shapeMap = "map"
+	shapeTab = "tab"
+)
+
 // commandDecls names the commands this plugin serves and states what each
 // answer holds (pkg/plugin/rpc/types.go, CommandDecl).
 //
@@ -1292,43 +1301,55 @@ func GetYANG() string {
 // map, so a second copy on this list would be a future disagreement with
 // nothing to arbitrate it (ai/rules/principles.md). registerBuiltinCommands is
 // idempotent, so calling it here costs one sync.Once check.
+//
+// The three META-commands declare their own answer, and the reason is the
+// resolution rule rather than a preference. A shape, a column order and an
+// address-field list all resolve to the longest declared path that is a prefix
+// of the command, so `show bgp rib`'s route declaration
+// (internal/component/bgp/plugins/cmd/rib/rib.go) reached each of them: every
+// one was published with eleven route columns it never writes and with `peer`
+// and `next-hop` named as address fields, so `| resolve` and `| origin` were
+// offered on an answer holding no address. Their producers are ribHelp,
+// ribCommandList and ribEventList (rib_commands.go).
 func commandDecls() []sdk.CommandDecl {
 	registerBuiltinCommands()
 
-	names := []string{
+	decls := []sdk.CommandDecl{
 		// Unified show with pipeline (scope + filters + terminals)
-		"show bgp rib status",
-		"show bgp rib",
-		"clear bgp rib in",
-		"clear bgp rib out",
+		{Name: "show bgp rib status"},
+		{Name: "show bgp rib"},
+		{Name: "clear bgp rib in"},
+		{Name: "clear bgp rib out"},
 		// GR support: route retention and stale tracking (RFC 4724)
-		"request bgp rib retain-routes",
-		"request bgp rib release-routes",
-		"request bgp rib mark-stale",
-		"request bgp rib purge-stale",
+		{Name: "request bgp rib retain-routes"},
+		{Name: "request bgp rib release-routes"},
+		{Name: "request bgp rib mark-stale"},
+		{Name: "request bgp rib purge-stale"},
 		// Best-path selection (RFC 4271 §9.1.2)
-		"show bgp rib best",
-		"show bgp rib best status",
+		{Name: "show bgp rib best"},
+		{Name: "show bgp rib best status"},
 		// Reverse Path Forwarding query: longest-prefix-match in Loc-RIB
-		"show bgp rib rpf",
+		{Name: "show bgp rib rpf"},
 		// Route injection (manual RIB manipulation)
-		"request bgp rib inject",
-		"request bgp rib withdraw",
+		{Name: "request bgp rib inject"},
+		{Name: "request bgp rib withdraw"},
 		// Protocol-scoped route management (BMP integration)
-		"show bgp rib protocol",
-		"request bgp rib withdraw-protocol",
-		"request bgp rib withdraw-router",
-		// Meta-commands (introspection)
-		"show bgp rib help",
-		"show bgp rib commands",
-		"show bgp rib events",
+		{Name: "show bgp rib protocol"},
+		{Name: "request bgp rib withdraw-protocol"},
+		{Name: "request bgp rib withdraw-router"},
+		// Meta-commands (introspection). ribHelp and ribEventList each answer a
+		// list of names, so the rows are those names and no column orders them.
+		// ribCommandList answers one row for each command, and an operator
+		// reads the command before the sentence describing it.
+		{Name: "show bgp rib help", Shape: shapeMap},
+		{Name: "show bgp rib commands", Shape: shapeTab, Columns: []string{"name", "description"}},
+		{Name: "show bgp rib events", Shape: shapeMap},
 		// Zero-copy forward-handle fast path (rib-arch-6)
-		"request bgp rib fastpath",
+		{Name: "request bgp rib fastpath"},
 	}
 
-	decls := make([]sdk.CommandDecl, 0, len(names))
-	for _, name := range names {
-		decls = append(decls, sdk.CommandDecl{Name: name, Description: commandSummary(name)})
+	for index := range decls {
+		decls[index].Description = commandSummary(decls[index].Name)
 	}
 	return decls
 }

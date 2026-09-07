@@ -94,3 +94,53 @@ func TestHelpCommandReportsAPluginDeclaredAlias(t *testing.T) {
 		assert.Empty(t, child.Aliases, "%q inherited an alias that sits on %q", below, path)
 	}
 }
+
+// VALIDATES: a command that declares its OWN answer publishes it, and does not
+// publish the declaration of an ancestor path. `show bgp rib` declares the
+// eleven route columns and two address fields
+// (internal/component/bgp/plugins/cmd/rib/rib.go), and the three meta-commands
+// under it answer subcommand names, command rows and event names.
+// PREVENTS: the two channels resolving one after the other rather than by path
+// length together. `ze help command --json` published route columns and
+// `| resolve` on `show bgp rib help`, `show bgp rib commands` and
+// `show bgp rib events`, whose producers (ribHelp, ribCommandList,
+// ribEventList, internal/component/bgp/plugins/rib/rib_commands.go) write not
+// one of the eleven keys and hold no address.
+func TestHelpCommandGivesAMetaCommandItsOwnAnswer(t *testing.T) {
+	var out bytes.Buffer
+	require.Equal(t, 0, renderHelpCommand(&out, []string{flagJSON}))
+
+	var entries []commandEntry
+	require.NoError(t, json.Unmarshal(out.Bytes(), &entries))
+
+	byPath := make(map[string]commandEntry, len(entries))
+	for _, entry := range entries {
+		byPath[entry.Path] = entry
+	}
+
+	// The ancestor still declares the routes, so the test compares two answers
+	// rather than asserting one absence.
+	parent, found := byPath["show bgp rib"]
+	require.True(t, found, "the catalog names no \"show bgp rib\"")
+	assert.Equal(t, "tab", parent.AnswerShape)
+	assert.Equal(t, []string{"peer", "next-hop"}, parent.AddressFields)
+	require.Len(t, parent.ColumnOrders, 1)
+	routeColumns := parent.ColumnOrders[0]
+
+	for path, want := range map[string]commandEntry{
+		"show bgp rib help":     {AnswerShape: "map"},
+		"show bgp rib events":   {AnswerShape: "map"},
+		"show bgp rib commands": {AnswerShape: "tab", ColumnOrders: [][]string{{"name", "description"}}},
+	} {
+		entry, named := byPath[path]
+		require.True(t, named, "the catalog names no %q", path)
+		assert.Equal(t, want.AnswerShape, entry.AnswerShape, "%q publishes the wrong shape", path)
+		assert.Equal(t, want.ColumnOrders, entry.ColumnOrders, "%q publishes the wrong column order", path)
+		assert.Empty(t, entry.AddressFields,
+			"%q declares an address field, and its answer holds no address", path)
+		for _, order := range entry.ColumnOrders {
+			assert.NotEqual(t, routeColumns, order,
+				"%q publishes the route column order of its parent", path)
+		}
+	}
+}

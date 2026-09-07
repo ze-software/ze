@@ -18,6 +18,13 @@ const (
 	catalogCommandRPKI     = "show bgp rpki"
 	catalogCommandROA      = "show bgp rpki roa"
 	catalogCommandAdjRIBIn = "show bgp adj-rib-in"
+	// catalogCommandRib and catalogCommandRibHelp are the ancestor and the
+	// child of the resolution rule this fixture reads last. The ancestor's
+	// declaration is in the REGISTRY (RegisterShape and RegisterColumns,
+	// internal/component/bgp/plugins/cmd/rib/rib.go) and the child's is on the
+	// plugin's registration, so the two channels have to be weighed together.
+	catalogCommandRib     = "show bgp rib"
+	catalogCommandRibHelp = "show bgp rib help"
 	// catalogSourceRPKI is the plugin instance the configuration below names.
 	// commandHelp answers cmd.Process.Name() for a command the plugin registry
 	// holds, and "builtin" for one the dispatcher's own table holds
@@ -29,6 +36,12 @@ const (
 	catalogKeyColumns = "column-orders"
 	catalogKeyAddress = "address-fields"
 	catalogKeyAliases = "pipe-aliases"
+	// The two surfaces spell the pipe-filter list differently: the daemon
+	// answers `pipe-filters` (commandHelp, internal/plugins/meta/cmd/help.go)
+	// and the published catalog `pipes` (commandEntry, cmd/ze/help_command.go).
+	// A command declaring none carries neither key.
+	catalogKeyFilters      = "pipe-filters"
+	catalogKeyFiltersAlias = "pipes"
 )
 
 // catalogROAColumns is the column ORDER `show bgp rpki roa` declares
@@ -36,17 +49,33 @@ const (
 // the answer carries it: it is neither alphabetical (asn, max-length, prefix)
 // nor a shape a reader could derive from the rows, so a surface that invented a
 // list rather than reading the declaration answers a different one.
-var catalogROAColumns = []string{"prefix", "max-length", "asn"}
+var catalogROAColumns = []string{columnPrefix, "max-length", "asn"}
 
 // catalogAddressFieldsROA is the field `show bgp rpki roa` declares as an IP
 // address. Its presence is what admits `| resolve` and `| origin` there.
-var catalogAddressFieldsROA = []string{"prefix"}
+var catalogAddressFieldsROA = []string{columnPrefix}
+
+// catalogRibColumns is the ROUTE column order `show bgp rib` declares in the
+// registry, and catalogAddressFieldsRib its two address fields. They are what
+// `show bgp rib help` published until the two channels were weighed by path
+// length together: an operator was offered eleven route columns and
+// `| resolve` on an answer that lists subcommand names.
+var (
+	catalogRibColumns = []string{
+		fieldPeer, "direction", fieldFamily, columnPrefix, columnNextHop, "path-id",
+		fieldASPath, columnOrigin, "local-pref", "med", "communities",
+	}
+	catalogAddressFieldsRib = []string{fieldPeer, columnNextHop}
+)
 
 // catalogConfig starts two in-tree plugins and no peer. bgp-rpki declares an
 // answer shape, a column order, an address field and a pipe alias;
-// bgp-adj-rib-in declares a shape and deliberately no column order. Neither
-// needs a session, a cache server or a peer to declare any of it: a declaration
-// reaches the daemon in the plugin's Stage 1 message at startup.
+// bgp-adj-rib-in declares a shape and deliberately no column order. bgp-rib
+// declares a shape for `show bgp rib help` under a `show bgp rib` whose
+// declaration is in the REGISTRY, which is the one case where the two channels
+// answer for the same command at different depths. None of the three needs a
+// session, a cache server or a peer to declare any of it: a declaration reaches
+// the daemon in the plugin's Stage 1 message at startup.
 const catalogConfig = `bgp {
     router-id 192.0.2.254
     session {
@@ -61,6 +90,9 @@ plugin {
     }
     internal adj-rib-in {
         use bgp-adj-rib-in
+    }
+    internal rib {
+        use bgp-rib
     }
 }
 system {
@@ -154,7 +186,23 @@ func catalogCheckDaemon(ctx context.Context, cliEnv []string, roaHelp map[string
 	if err != nil {
 		return err
 	}
-	return catalogCheckAdjRIBInFields(adjHelp, "show command help")
+	if err := catalogCheckAdjRIBInFields(adjHelp, "show command help"); err != nil {
+		return err
+	}
+
+	// The exact path against its ancestor, on the channel a daemon reads.
+	ribHelp, err := catalogHelp(ctx, cliEnv, catalogCommandRib)
+	if err != nil {
+		return err
+	}
+	ribHelpHelp, err := catalogHelp(ctx, cliEnv, catalogCommandRibHelp)
+	if err != nil {
+		return err
+	}
+	if err := catalogCheckExactPathWins(ribHelp, ribHelpHelp, "show command help"); err != nil {
+		return err
+	}
+	return nil
 }
 
 // catalogCheckClient reads the same declarations from `ze help command --json`,
@@ -195,7 +243,70 @@ func catalogCheckClient(ctx context.Context) (map[string]map[string]any, error) 
 	if err := catalogCheckAdjRIBInFields(adj, "ze help command --json"); err != nil {
 		return nil, err
 	}
+
+	ribEntries, err := catalogPublished(ctx, catalogCommandRib)
+	if err != nil {
+		return nil, err
+	}
+	rib, ribHelp := ribEntries[catalogCommandRib], ribEntries[catalogCommandRibHelp]
+	if rib == nil || ribHelp == nil {
+		return nil, fmt.Errorf("`ze help command %q --json` names no %q or no %q: %v",
+			catalogCommandRib, catalogCommandRib, catalogCommandRibHelp, catalogPaths(ribEntries))
+	}
+	if err := catalogCheckExactPathWins(rib, ribHelp, "ze help command --json"); err != nil {
+		return nil, err
+	}
 	return entries, nil
+}
+
+// catalogCheckExactPathWins holds one surface to the resolution rule the two
+// declaration channels share: the longest declared path that is a prefix of the
+// command answers, whichever channel it came from.
+//
+// `show bgp rib` declares its answer in the REGISTRY (RegisterShape and
+// RegisterColumns, internal/component/bgp/plugins/cmd/rib/rib.go) and
+// `show bgp rib help` declares its own on the plugin's registration
+// (commandDecls, internal/component/bgp/plugins/rib/rib.go). A reader that asks
+// the registries first and the plugin second answers the ancestor's for the
+// child, which is what published eleven route columns and `| resolve` on an
+// answer holding no address. The ancestor is asserted beside the child, so the
+// test compares two answers rather than pinning one absence.
+func catalogCheckExactPathWins(parent, child map[string]any, surface string) error {
+	shape, _ := parent[catalogKeyShape].(string)
+	if shape != shapeTab {
+		return fmt.Errorf("%s reports shape %q for %q, want %s: %v", surface, shape, catalogCommandRib, shapeTab, parent)
+	}
+	orders := catalogOrders(parent[catalogKeyColumns])
+	if len(orders) != 1 || !slices.Equal(orders[0], catalogRibColumns) {
+		return fmt.Errorf("%s reports column orders %v for %q, want one order %v", surface, orders, catalogCommandRib, catalogRibColumns)
+	}
+	if fields := catalogStrings(parent[catalogKeyAddress]); !slices.Equal(fields, catalogAddressFieldsRib) {
+		return fmt.Errorf("%s reports address fields %v for %q, want %v", surface, fields, catalogCommandRib, catalogAddressFieldsRib)
+	}
+
+	if shape, _ := child[catalogKeyShape].(string); shape != catalogShapeMap {
+		return fmt.Errorf("%s reports shape %q for %q, want %s: %v", surface, shape, catalogCommandRibHelp, catalogShapeMap, child)
+	}
+	if _, present := child[catalogKeyColumns]; present {
+		return fmt.Errorf("%s gives %q the column order of %q: the exact path lost to its ancestor: %v",
+			surface, catalogCommandRibHelp, catalogCommandRib, child[catalogKeyColumns])
+	}
+	if _, present := child[catalogKeyAddress]; present {
+		return fmt.Errorf("%s gives %q the address fields of %q, so `| resolve` is offered on an answer holding no address: %v",
+			surface, catalogCommandRibHelp, catalogCommandRib, child[catalogKeyAddress])
+	}
+	// The pipe filters are the fourth declaration a command path resolves, and
+	// the only one a plugin cannot declare: rpc.CommandDecl carries no filter
+	// list, so the barrier is an in-tree RegisterPipeFilters
+	// (internal/component/bgp/plugins/cmd/rib/rib.go). Without it a list of
+	// subcommand names published `| peer`, `| prefix` and `| community`.
+	for _, key := range []string{catalogKeyFilters, catalogKeyFiltersAlias} {
+		if filters, present := child[key]; present {
+			return fmt.Errorf("%s gives %q the route pipe filters of %q under %q, and its answer has no route to filter: %v",
+				surface, catalogCommandRibHelp, catalogCommandRib, key, filters)
+		}
+	}
+	return nil
 }
 
 // catalogCheckROAFields holds one surface to the three values bgp-rpki declares

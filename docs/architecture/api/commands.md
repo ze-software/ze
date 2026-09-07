@@ -2139,18 +2139,40 @@ description. An alias takes no argument and names no other alias, so the chain
 it stands for is the whole of what the name does.
 
 `command.DeclaredForCommand` is the ONE reader of both channels, and the last
-three rows call it. It answers from the declaration registries first, which a
-running daemon has already filled from Stage 1, and from the plugin's
-registration for a field this process declared nowhere. So the three catalogs
-agree by derivation, not because a check reconciles them.
+three rows call it. So the three catalogs agree by derivation, not because a
+check reconciles them.
+
+It weighs the two channels by PATH LENGTH together, and not one after the other.
+Inside a daemon there is only one channel: `registerPluginShapes`
+(`internal/component/plugin/server/startup.go`) writes each Stage 1 declaration
+into the three registries at the plugin's own command path, and every later read
+resolves to the longest declared path that is a prefix of the command. A reader
+that asked the registries first and the plugin second gave an ancestor's
+declaration to a command that declares its own, and `show bgp rib help`
+published the eleven route columns of `show bgp rib` and offered `| resolve` on
+an answer holding no address.
+
+Two rules follow from reproducing what a daemon holds. A plugin declaration that
+names no column and no address field is a BARRIER and not an absence, so a
+command whose answer has no columns says so and inherits nothing. And a
+declaration that states no answer shape is passed over entirely, because
+`registerPluginShapes` writes nothing for one.
 
 `AliasesForCommand` is deliberately NOT changed to read the registration. It is
 what a running daemon reads, and a daemon has already written each STARTED
 plugin's aliases into the registry, so adding a registration's aliases there
-would offer an operator a name no running command answers to. The alias barrier
-holds on the read side too: `show bgp rpki` answers to `summary`, and
-`show bgp rpki roa` answers to nothing, because a command the same plugin
-declares below the alias path stops the inheritance.
+would offer an operator a name no running command answers to.
+
+The alias channel is weighed by PATH LENGTH beside the registry, as the three
+above are. `lookupAlias` reads the set on the longest registered prefix and
+never falls back to a shorter one, so a plugin's alias on a longer path SHADOWS
+an in-tree ancestor's rather than joining it, and the two merge only where they
+sit on ONE path. The barrier holds on the read side for the same reason:
+`show bgp rpki` answers to `summary`, and `show bgp rpki roa` answers to nothing
+at all, because the daemon writes an empty declaration on a command the same
+plugin declares below its alias path, and no path is longer than the command
+itself. The global aliases sit under both, as they sit under every registered
+set.
 
 `./le plugin declarations check` gates BOTH channels. It compares what a
 plugin's runner passes to `p.Run` against what its `registry.Registration`
@@ -2158,6 +2180,18 @@ carries, identifying a command by its name and a pipe alias by the pair its
 registry keys it on, the command path and the name. A field both literals write
 as a call to one parameterless function is compared by that function's identity
 rather than by reading its body, because one function answers one slice.
+
+Anything else is compared in BOTH directions and over every field an entry
+states. The published catalog is generated from the registration, so a command
+the registration carries and the runner never declares is a phantom on the
+website, and a `Shape`, a `Columns` or a `Hidden` the two spell differently is a
+catalog describing an answer the daemon does not give.
+
+The gate pairs ONE runner literal to ONE registration literal in a package, and
+it refuses a package that builds two of either rather than pooling both sides.
+Pooled, two plugins wired to each other's declaration functions agree as a
+package and disagree one by one: dropping either plugin takes the surviving
+one's catalog entries with it while the daemon still serves them.
 
 The wiki catalog is NOT built from `ze help command --json`. Both join the
 registries in their own process, because an `internal` package cannot import
@@ -2185,7 +2219,9 @@ Two rules govern what such an entry carries.
   with an authored summary, long help and grammar already written. For a command
   no node models, `usage` carries the invocation form the plugin declares and
   `grammar` stays empty: a plugin declares its arguments as text, and a token
-  list built from that text would state kinds nobody declared.
+  list built from that text would state kinds nobody declared. A declared
+  argument is spelled in ANGLE BRACKETS, because both catalogs publish the
+  tokens verbatim and a bare identifier reads as a keyword an operator types.
 
 <!-- source: internal/component/command/declared.go -- DeclaredForCommand -->
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.Commands -->

@@ -85,8 +85,8 @@ func (r *RIBManager) autoExpireStale(peerAddr netip.Addr, owner *peerGRState) {
 	}
 }
 
-// CommandHandler is the signature for RIB command handlers.
-// Registered by plugins via RegisterRIBCommand during init().
+// CommandHandler is the signature for RIB command handlers. Every handler is
+// registered by doRegisterBuiltinCommands, which is the table's only writer.
 type CommandHandler func(r *RIBManager, selector string, args []string) (string, any, error)
 
 // ribCommandEntry holds a registered command handler and its help text.
@@ -95,8 +95,13 @@ type ribCommandEntry struct {
 	Description string
 }
 
-// registeredCommands is the command dispatch table, populated at startup.
-// Read-only after startup; no mutex needed.
+// registeredCommands is the command dispatch table. It is built once, by
+// registerBuiltinCommands, and read-only after that, so it needs no mutex.
+//
+// The build happens at init() in every process linking the composition root:
+// this plugin's init() calls commandDecls() (rib.go) to put the declaration on
+// its registry.Registration, and commandDecls() reads the table for each
+// command's summary rather than restating it.
 var registeredCommands = map[string]*ribCommandEntry{}
 
 // builtinsOnce guards against concurrent/double-registration of builtin commands.
@@ -113,7 +118,8 @@ func registerCommand(name, help string, handler CommandHandler) error {
 }
 
 // registerBuiltinCommands populates the command table with RIB-native commands
-// and LLGR extensions. Called from RIB startup (explicit, not init).
+// and LLGR extensions. It is called from this package's init(), through
+// commandDecls(), and again when the engine starts.
 // Idempotent via sync.Once (safe for concurrent calls from multiple plugin goroutines).
 func registerBuiltinCommands() {
 	builtinsOnce.Do(doRegisterBuiltinCommands)

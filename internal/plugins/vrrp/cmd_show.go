@@ -107,6 +107,12 @@ func commandDecls() []sdk.CommandDecl {
 		{
 			Name:        cmdShowVRRPInterface,
 			Description: "Show the virtual routers of one interface, named after the selector keyword.",
+			// The selector is MANDATORY: handleCommand answers
+			// errNoInterfaceSelector without it. Both catalogs publish these
+			// tokens verbatim as the invocation form (pluginUsage,
+			// cmd/ze/help_command.go), so leaving them off published
+			// `show vrrp interface` as a complete command.
+			Args: []string{selectorKeyword, "<interface>"},
 		},
 		{
 			Name:        cmdShowVRRPStatistics,

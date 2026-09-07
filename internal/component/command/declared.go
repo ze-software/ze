@@ -9,8 +9,6 @@
 package command
 
 import (
-	"slices"
-
 	pluginregistry "github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -45,119 +43,191 @@ type Declared struct {
 // DeclaredForCommand answers what a command states about its answer, reading
 // both channels a declaration travels.
 //
-// The declaration registries answer first. Every in-tree package writes them
-// from init(), and a RUNNING daemon has also written each plugin's Stage 1
-// message into them (RegisterPluginShapes), so inside a daemon they hold the
-// whole answer and this function adds nothing.
+// Inside a DAEMON there is only one channel. registerPluginShapes
+// (internal/component/plugin/server/startup.go) writes each Stage 1 declaration
+// into the three registries below, at the plugin's own command path, and every
+// later read resolves by the longest declared path that is a prefix of the
+// command. This function answers what those registries would hold, for a reader
+// that starts no engine and therefore never receives a Stage 1 message:
+// Registration.Commands is the only place a plugin's declaration exists there.
+// Both channels carry the same commandDecls() slice, so they cannot disagree,
+// and `./le plugin declarations check` refuses a plugin that lets them.
 //
-// A field no package in THIS process declared is answered by the registration
-// of the plugin that provides the command. A catalog generator links the
-// composition root and starts no engine, so a plugin's Stage 1 message never
-// happens there and Registration.Commands is the only place its declaration
-// exists. Both channels carry the same commandDecls() slice, so they cannot
-// disagree, and `./le plugin declarations check` refuses a plugin that lets
-// them.
+// The two channels are weighed by PATH LENGTH together rather than one after
+// the other. A reader that asked the registries first and the plugin second
+// would give an ancestor's registry declaration to a command that declares its
+// own: `show bgp rib` declares eleven route columns in the tree, and
+// `show bgp rib help` answers subcommands, so the second published the first's
+// columns and its address fields until this resolution replaced that one.
 //
-// The fallback is per field rather than all-or-nothing, because the two
-// channels declare at different granularities: an in-tree command package
-// declares a shape for a path whose plugin declares the column order beside it.
+// A plugin declaration that names no column and no address field is a BARRIER
+// and not an absence, which is the same rule RegisterPluginShapes writes into
+// the registries: a path that declares nothing inherits its nearest declared
+// ancestor, so a command whose answer has no columns has to say so.
 //
-// Resolution is by the longest declared command path that is a prefix of the
-// command, in both channels. That is what the registries do for the first one,
-// so a plugin declaration answers here exactly as it would inside a daemon.
+// Resolution stays per registry, because the three do not declare at one
+// granularity: an in-tree command package declares a shape for a path whose
+// plugin declares the column order beside it.
 func DeclaredForCommand(name string) Declared {
-	shape, shapeDeclared := ShapeForCommand(name)
+	shapes, shapePath, shapeFound := shapeRegistry.lookupPath(name)
+	orders, columnPath, columnFound := columnRegistry.lookupPath(name)
+	fields, addressPath, addressFound := addressFieldRegistry.lookupPath(name)
+
 	declared := Declared{
-		Shape:         shape,
-		ShapeDeclared: shapeDeclared,
-		Columns:       ColumnsForCommand(name),
-		AddressFields: AddressFieldsForCommand(name),
+		Shape:         ShapeDoc,
+		ShapeDeclared: shapeFound && len(shapes) > 0,
 		Aliases:       aliasesIncludingPlugins(name),
 	}
+	if declared.ShapeDeclared {
+		declared.Shape = shapes[0]
+	}
+	if columnFound {
+		declared.Columns = orders
+	}
+	if addressFound {
+		declared.AddressFields = fields
+	}
 
-	decl, found := declaredByPlugin(name)
+	decl, declPath, found := declaredByPlugin(name)
 	if !found {
 		return declared
 	}
 
-	if !declared.ShapeDeclared {
-		if parsed, ok := ParseAnswerShape(decl.Shape); ok {
-			declared.Shape = parsed
-			declared.ShapeDeclared = true
-		}
+	// The shape is never empty on this channel: registerPluginShapes writes
+	// nothing for a declaration that states none, and declaredByPlugin passes
+	// over the same ones for the same reason.
+	declaresShape := declarationSite{path: declPath, declared: true}
+	if declaresShape.winsOver(declarationSite{path: shapePath, declared: shapeFound, empty: len(shapes) == 0}) {
+		declared.Shape, declared.ShapeDeclared = ParseAnswerShape(decl.Shape)
 	}
-	if len(declared.Columns) == 0 {
-		if order := normalizedNames(decl.Columns); len(order) > 0 {
+
+	order := normalizedNames(decl.Columns)
+	declaresColumns := declarationSite{path: declPath, declared: true, empty: len(order) == 0}
+	if declaresColumns.winsOver(declarationSite{path: columnPath, declared: columnFound, empty: len(orders) == 0}) {
+		declared.Columns = nil
+		if len(order) > 0 {
 			declared.Columns = []ColumnOrder{order}
 		}
 	}
-	if len(declared.AddressFields) == 0 {
-		if fields := normalizedNames(decl.AddressFields); len(fields) > 0 {
-			declared.AddressFields = fields
-		}
+
+	addresses := normalizedNames(decl.AddressFields)
+	declaresAddresses := declarationSite{path: declPath, declared: true, empty: len(addresses) == 0}
+	if declaresAddresses.winsOver(declarationSite{path: addressPath, declared: addressFound, empty: len(fields) == 0}) {
+		declared.AddressFields = addresses
 	}
 	return declared
 }
 
-// aliasesIncludingPlugins answers the aliases a command answers to, from the
-// alias registry and then from the registration of the plugin that puts one on
-// the command.
+// declarationSite is where one channel's answer for a command comes from: the
+// declared path it resolved to, whether that path declares anything at all, and
+// whether what it declares is a barrier rather than a value.
+type declarationSite struct {
+	path     string
+	declared bool
+	empty    bool
+}
+
+// winsOver reports whether this site's declaration is the one a daemon's
+// registry would hold for the command, against the other channel's site.
 //
-// AliasesForCommand is left alone deliberately. It is what a RUNNING daemon
+// The longer path wins, because that is how the registries resolve a command
+// once a plugin's declaration has been written into them. At the SAME path the
+// registry's declaration wins unless it is a barrier, which is declareFor's
+// rule (column_order.go): a declaration of nothing is a floor that stops
+// inheritance and states nothing, so a value replaces one and never the
+// reverse. A conflict between two values at one path is refused there, and the
+// registry's is what the daemon keeps.
+func (s declarationSite) winsOver(other declarationSite) bool {
+	if !s.declared {
+		return false
+	}
+	if !other.declared {
+		return true
+	}
+	if len(s.path) != len(other.path) {
+		return len(s.path) > len(other.path)
+	}
+	return other.empty && !s.empty
+}
+
+// aliasesIncludingPlugins answers the aliases a command answers to, resolved
+// the way a RUNNING daemon resolves them: over the alias registry this process
+// holds, and over the registrations of the plugins it compiled in.
+//
+// AliasesForCommand is left alone deliberately. It is what a running daemon
 // reads, and a daemon has already written each started plugin's Stage 1
 // aliases into the registry, so adding a registration's aliases there would
 // offer an operator a name no running command answers to.
 //
-// An alias the registry already holds on the resolved path WINS. A plugin whose
-// name collides with one is refused at Stage 1 (RegisterPluginAliases, through
-// aliasOnPath), so keeping the registry's is the answer a daemon reaches.
+// The two channels are weighed by PATH LENGTH, which is how DeclaredForCommand
+// weighs the other three. A daemon writes a plugin's aliases into the registry
+// at the plugin's own path, and lookupAlias then reads the LONGEST registered
+// path that is a prefix of the command and never falls back to a shorter one.
+// A reader that added the plugin's set to whatever the registry answered would
+// publish an ancestor's aliases beside a plugin's own, which no daemon does.
+//
+// At ONE path the two sets merge, which is what mergedAliases (alias.go) does
+// when a plugin registers on a path the tree already holds. An alias the
+// registry holds there WINS: Stage 1 refuses that collision
+// (RegisterPluginAliases, through aliasOnPath), so keeping the registry's is
+// the answer a daemon reaches.
+//
+// The global aliases sit under both, as they sit under every registered set.
 func aliasesIncludingPlugins(name string) []Alias {
-	registered := AliasesForCommand(name)
-	declared := aliasesByPlugin(name)
-	if len(declared) == 0 {
-		return registered
+	name = normalizeCommand(name)
+
+	registered, registryPath, registryFound := aliasRegistry.lookupPath(name)
+	declared, pluginPath, pluginFound := aliasesByPlugin(name)
+
+	bestLen := 0
+	if registryFound {
+		bestLen = len(registryPath)
+	}
+	if pluginFound && len(pluginPath) > bestLen {
+		bestLen = len(pluginPath)
 	}
 
-	byName := make(map[string]Alias, len(registered)+len(declared))
-	for _, alias := range declared {
-		byName[alias.Name] = alias
+	byName := globalAliasesByName()
+	// The plugin's set goes first, so a name the registry holds replaces it.
+	if pluginFound && len(pluginPath) == bestLen {
+		for _, alias := range declared {
+			byName[alias.Name] = alias
+		}
 	}
-	// Second, so a name the registry holds replaces the plugin's.
-	for _, alias := range registered {
-		byName[alias.Name] = alias
+	if registryFound && len(registryPath) == bestLen {
+		addAliases(byName, registered)
 	}
-
-	names := make([]string, 0, len(byName))
-	for aliasName := range byName {
-		names = append(names, aliasName)
-	}
-	slices.Sort(names)
-
-	aliases := make([]Alias, 0, len(names))
-	for _, aliasName := range names {
-		aliases = append(aliases, byName[aliasName])
-	}
-	return aliases
+	return sortedAliases(byName)
 }
 
 // aliasesByPlugin answers the aliases a registered plugin puts on this command,
-// resolved the way the alias registry resolves one.
+// the path they are declared on, and whether any plugin declares for it at all.
 //
-// The longest declared alias path that is a prefix of the command wins, and a
-// command the SAME plugin declares below that path answers none. That second
-// rule is the read-side twin of aliasBarriers (alias.go): the daemon writes an
-// empty declaration on such a path to stop the inheritance, and a reader that
-// skipped the rule would report `show bgp rpki roa` answering to a name that
-// sits on `show bgp rpki`.
+// The longest declared alias path that is a prefix of the command wins, and
+// several plugins declaring on ONE path merge, which is how the daemon's
+// registry holds them.
+//
+// A command the SAME plugin declares BELOW its alias path answers no alias, and
+// the path reported for it is then the command itself. That is the read side of
+// aliasBarriers (alias.go): the daemon writes an EMPTY declaration on such a
+// command, and no path is longer than the command itself, so nothing above it
+// is answered -- not the plugin's alias, and not an in-tree ancestor's either.
+//
+// aliasBarriers writes no barrier on a path that ALREADY carries a
+// declaration, and this reader needs no such condition. That declaration sits
+// on the command itself, so it wins on length either way; the daemon's
+// condition exists to stop the barrier ERASING it, which a reader cannot do.
 //
 // The walk is bounded by the registered plugin count and each plugin's
 // declaration lists, both fixed once init() has run.
-func aliasesByPlugin(name string) []Alias {
+func aliasesByPlugin(name string) ([]Alias, string, bool) {
 	name = normalizeCommand(name)
 
 	var aliases []Alias
+	bestPath := ""
 	bestLen := -1
 	for _, registration := range pluginregistry.All() {
+		barrier := false
 		for index := range registration.Pipes {
 			decl := &registration.Pipes[index]
 			path := normalizeCommand(decl.Command)
@@ -165,6 +235,7 @@ func aliasesByPlugin(name string) []Alias {
 				continue
 			}
 			if path != name && declaresCommand(registration.Commands, name) {
+				barrier = true
 				continue
 			}
 			if len(path) < bestLen {
@@ -172,6 +243,7 @@ func aliasesByPlugin(name string) []Alias {
 			}
 			if len(path) > bestLen {
 				aliases = aliases[:0]
+				bestPath = path
 				bestLen = len(path)
 			}
 			aliases = append(aliases, Alias{
@@ -180,8 +252,13 @@ func aliasesByPlugin(name string) []Alias {
 				Expansion:   decl.Expansion,
 			})
 		}
+		if barrier && len(name) > bestLen {
+			aliases = aliases[:0]
+			bestPath = name
+			bestLen = len(name)
+		}
 	}
-	return aliases
+	return aliases, bestPath, bestLen >= 0
 }
 
 // declaresCommand reports whether the plugin names this exact command path.
@@ -213,21 +290,47 @@ func ColumnNames(orders []ColumnOrder) [][]string {
 }
 
 // declaredByPlugin answers the declaration a registered plugin makes for the
-// longest declared command path that is a prefix of name.
+// longest declared command path that is a prefix of name, and the path it was
+// declared on.
+//
+// A declaration that states no answer shape is passed over, because a daemon
+// writes nothing for one, and that is the ONE such declaration a daemon
+// tolerates. validateShapeDecls (internal/component/plugin/server/startup.go)
+// judges the list before any registry is written, and it returns an error both
+// for a shape that is not doc, map or tab and for an empty shape carrying a
+// column order or an address field. That error fails the WHOLE Stage 1
+// registration, so a plugin declaring either serves none of its commands. What
+// reaches registerPluginShapes, and what this walk passes over, is a
+// declaration whose shape is empty and which names no column and no address
+// field: it reaches no registry, so it inherits its nearest declared ancestor
+// exactly as an undeclared command does.
+//
+// The pass-over is written as ParseAnswerShape rather than as a test for the
+// empty string, so a spelling a daemon refuses publishes nothing here either.
+// It is not a state a reader can meet in a tree this repository builds:
+// TestEveryDeclaredShapeIsOneStage1Accepts
+// (internal/component/plugin/all/all_test.go) holds every in-tree declaration
+// to what Stage 1 accepts, because a catalog that passed over the one
+// mis-spelled command and published the plugin's others would name commands the
+// daemon refused to register at all.
 //
 // The walk is bounded by the registered plugin count and by each plugin's
 // declaration list, both of which are fixed once init() has run. Nothing on a
 // wire path reads this: the callers are the command catalog generators and
 // `ze help command`.
-func declaredByPlugin(name string) (rpc.CommandDecl, bool) {
+func declaredByPlugin(name string) (rpc.CommandDecl, string, bool) {
 	name = normalizeCommand(name)
 
 	var best rpc.CommandDecl
+	bestPath := ""
 	bestLen := -1
 	found := false
 	for _, registration := range pluginregistry.All() {
 		for index := range registration.Commands {
 			decl := &registration.Commands[index]
+			if _, known := ParseAnswerShape(decl.Shape); !known {
+				continue
+			}
 			path := normalizeCommand(decl.Name)
 			if !commandMatchesPrefix(name, path) {
 				continue
@@ -236,9 +339,10 @@ func declaredByPlugin(name string) (rpc.CommandDecl, bool) {
 				continue
 			}
 			best = *decl
+			bestPath = path
 			bestLen = len(path)
 			found = true
 		}
 	}
-	return best, found
+	return best, bestPath, found
 }

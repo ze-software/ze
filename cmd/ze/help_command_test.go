@@ -354,3 +354,32 @@ func TestHelpCommandDerivesEveryDeclarationFromOneReader(t *testing.T) {
 	}
 	require.Greater(t, checked, 10, "too few declaring commands were compared")
 }
+
+// VALIDATES: a plugin's declared argument reaches the published usage line as a
+// PLACEHOLDER an operator fills in, not as a keyword an operator types.
+// PREVENTS: the catalog publishing `show sysctl key key` and
+// `show sysctl profile name`. pluginUsage concatenates the declared tokens
+// verbatim, which is right, so a bare identifier in the declaration is a wrong
+// invocation form on the website and in `show command help`.
+func TestHelpCommandPublishesAPluginArgumentAsAPlaceholder(t *testing.T) {
+	var out bytes.Buffer
+	require.Equal(t, 0, renderHelpCommand(&out, []string{flagJSON}))
+
+	var entries []commandEntry
+	require.NoError(t, json.Unmarshal(out.Bytes(), &entries))
+
+	usage := make(map[string]string, len(entries))
+	for _, entry := range entries {
+		usage[entry.Path] = entry.Usage
+	}
+
+	for path, want := range map[string]string{
+		"show sysctl key":     "show sysctl key <key>",
+		"show sysctl profile": "show sysctl profile <name>",
+		"set sysctl":          "set sysctl <key> <value>",
+	} {
+		line, found := usage[path]
+		require.True(t, found, "the catalog names no %q", path)
+		assert.Equal(t, want, line, "%q publishes an invocation form it does not answer to", path)
+	}
+}

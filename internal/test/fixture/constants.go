@@ -153,6 +153,8 @@ const (
 	columnConnectionsDropped = "connections-dropped"
 	columnGroup              = "group" // The column in a rendered table.
 	columnName               = "name"  // The column in a rendered table.
+	columnNextHop            = "next-hop"
+	columnOrigin             = "origin" // The BGP origin column of a route row.
 	columnPrefix             = "prefix"
 	columnRemoteAS           = "remote-as"
 	columnState              = "state" // The column in a rendered table.

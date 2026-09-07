@@ -56,7 +56,7 @@ Optional metadata:
 | `PeerUpBarrier` | `bool` | The plugin registers the peer on the peer-up event, so End-of-RIB waits for it |
 | `SignalsSessionReady` | `bool` | The plugin's routes belong to a peer's initial routing update and it reports `plugin session ready` when they are out, so End-of-RIB waits for that report |
 | `YANG` | `string` | YANG schema content |
-| `Commands` | `[]rpc.CommandDecl` | The commands the plugin serves, and what each answer holds. It is the SAME slice the runner sends at Stage 1, taken from the plugin's one `commandDecls()` function, so a reader that links the composition root sees a declaration with no engine started. `./le plugin declarations check` holds the two readings together |
+| `Commands` | `[]rpc.CommandDecl` | The commands the plugin serves, and what each answer holds. It is the SAME slice the runner sends at Stage 1, taken from the plugin's one `commandDecls()` function, so a reader that links the composition root sees a declaration with no engine started. `./le plugin declarations check` holds the two readings together, in both directions and field by field |
 | `FilterTypes` | `[]string` | YANG filter list names this plugin owns, such as `prefix-list`. Names are globally unique; a duplicate aborts startup |
 | `DoctorChecks` | `[]DoctorCheckDef` | Doctor readiness checks. `Component` is set from `Name` |
 | `FatalOnConfigError` | `bool` | A configure-callback failure exits `ze` instead of running without the plugin |
@@ -385,6 +385,14 @@ first is served by the daemon and never named by a catalog built from the tree:
 the page is short, and nothing goes red. Both readers therefore call one
 `commandDecls()` function, and `./le plugin declarations check` fails with the
 package and the command when they disagree.
+
+It fails the other way too. The published catalog is generated FROM the
+registration, so a command on the registration that the runner never declares is
+a phantom on the website, and a `Shape`, a `Columns` or a `Hidden` the two
+literals spell differently is a catalog describing an answer the daemon does not
+give. The gate pairs one runner literal to one registration literal per package,
+and refuses a package that builds two of either rather than pooling both sides
+and answering that they agree.
 
 <!-- source: internal/component/plugin/process/process.go -- startInternal, startExternal -->
 <!-- source: internal/le/plugin/boundary/pluginboundary.go -- Roots, dangerousCalls, allowlist -->

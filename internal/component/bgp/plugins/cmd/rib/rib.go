@@ -28,6 +28,13 @@ const (
 	cmdRibInject     = "request bgp rib inject"
 	cmdRibWithdraw   = "request bgp rib withdraw"
 	cmdRibRPF        = "show bgp rib rpf"
+	// The three META-commands. This package forwards none of them: they are
+	// dispatched through the plugin, and they are named here because a
+	// declaration resolves by command PATH and these three sit under
+	// cmdRibShow.
+	cmdRibHelp     = "show bgp rib help"
+	cmdRibCommands = "show bgp rib commands"
+	cmdRibEvents   = "show bgp rib events"
 	// cmdBgpPeerRib is the peer-scoped spelling of cmdRibShow. It forwards to
 	// the same plugin command with a selector, so it answers the same rows.
 	cmdBgpPeerRib = "show bgp peer rib"
@@ -121,6 +128,19 @@ func registerPipeFilters() {
 	// prefix and offer `| peer`, `| histogram`, `| graph` on output that
 	// has no routes to filter. Registering empty overrides that inheritance.
 	command.RegisterPipeFilters([]string{cmdRibStatus, cmdRibBestStatus, cmdRibRPF})
+
+	// The three meta-commands answer names, not routes, so they take the same
+	// empty declaration for the same reason. ribHelp and ribEventList answer a
+	// list of subcommand and event names and ribCommandList one row for each
+	// command (internal/component/bgp/plugins/rib/rib_commands.go): not one of
+	// them has a peer, a family, a prefix or an AS path to filter on, and each
+	// was offering all thirteen route filters through the cmdRibShow prefix.
+	//
+	// The other three registries take their declaration from the plugin, which
+	// declares a shape for each (commandDecls, same package). A pipe filter has
+	// no such channel: rpc.CommandDecl carries Shape, Columns and AddressFields
+	// and no filter list, so the barrier is written here.
+	command.RegisterPipeFilters([]string{cmdRibHelp, cmdRibCommands, cmdRibEvents})
 
 	// `show bgp rib` answers FLAT ROWS: one envelope, one row per route, each
 	// row carrying `peer` and `direction` as fields (owner ruling, 2026-08-23).

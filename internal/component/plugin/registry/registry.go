@@ -148,10 +148,18 @@ type Registration struct {
 	// (pkg/plugin/rpc/types.go, CommandDecl).
 	//
 	// It is the SAME slice the plugin's runner sends in its Stage 1
-	// registration message, taken from the same function, so the two can never
-	// disagree. The runner's copy reaches a RUNNING daemon; this one reaches
-	// anything that links the composition root and reads All(), which is how a
-	// catalog generator sees a declaration without starting an engine.
+	// registration message, taken from the same function. The runner's copy
+	// reaches a RUNNING daemon; this one reaches anything that links the
+	// composition root and reads All(), which is how a catalog generator sees a
+	// declaration without starting an engine.
+	//
+	// `./le plugin declarations check` is what holds the two to that, and it is
+	// why "the same function" is a rule rather than a habit. It compares the
+	// two literals of every in-tree plugin package in BOTH directions and over
+	// every field an entry states, so a command on one side alone and a Shape
+	// the two spell differently are each a finding. The published catalog is
+	// generated from THIS field, so a command here that no runner declares is a
+	// phantom on the website.
 	//
 	// Empty means the plugin declares no command, which is the normal answer:
 	// most plugins serve none. An external plugin registers nothing here and
@@ -164,9 +172,9 @@ type Registration struct {
 	// PipeDecl).
 	//
 	// It is the SAME slice the plugin's runner sends in its Stage 1
-	// registration message, taken from the same function, so the two can never
-	// disagree. `./le plugin declarations check` compares them by the pair a
-	// pipe alias is identified by, its command path and its name.
+	// registration message, taken from the same function.
+	// `./le plugin declarations check` holds the two to that, comparing them by
+	// the pair a pipe alias is identified by, its command path and its name.
 	//
 	// Until 2026-09-07 an alias existed on the Stage 1 message alone, so no
 	// reader outside a running daemon could report one and the published

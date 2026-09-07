@@ -16,6 +16,13 @@
 // catalog never names it, and no test goes red: the catalog is simply short,
 // which is exactly the failure that has no signal of its own.
 //
+// The comparison runs in BOTH directions and over every field an entry states,
+// because the published catalog is now generated FROM the registration. A
+// command the registration carries and the runner never declares is a phantom
+// on the website, and a Shape, a Columns or a Hidden the two spell differently
+// is a catalog describing an answer the daemon does not give. Both are the same
+// disagreement read from the other end.
+//
 // The scan needs no list of where a plugin may live. Its subject is a package
 // holding BOTH literals, which is what a registered plugin is. A test fixture
 // that builds an sdk.Registration and registers no plugin has no registration
@@ -31,10 +38,11 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -89,26 +97,35 @@ func Check(tree string, floor int) (Findings, error) {
 	for _, pkg := range packages {
 		findings = append(findings, pkg.disagreements()...)
 	}
-	sort.Slice(findings, func(i, j int) bool {
-		if findings[i].Package != findings[j].Package {
-			return findings[i].Package < findings[j].Package
+	// The reason is part of the order because one command can now carry two
+	// findings, one for each channel, and a map walk decides neither their
+	// order nor their neighbors.
+	slices.SortFunc(findings, func(left, right Finding) int {
+		if left.Package != right.Package {
+			return strings.Compare(left.Package, right.Package)
 		}
-		return findings[i].Command < findings[j].Command
+		if left.Command != right.Command {
+			return strings.Compare(left.Command, right.Command)
+		}
+		return strings.Compare(left.Reason, right.Reason)
 	})
 	return findings, nil
 }
 
 // declaration is one Commands or Pipes field found on a Registration literal:
-// where it was written, and the identities it resolves to.
+// where it was written, and the entries it resolves to.
 type declaration struct {
-	file  string
-	line  int
-	names []string
-	// unresolved holds the source position of every entry whose command name
-	// the reader could not resolve. It is never dropped: a name the gate
-	// cannot read is a comparison it cannot make, and answering "they agree"
-	// for one would be a zero standing in for an answer
-	// (ai/rules/principles.md).
+	file string
+	line int
+	// entries maps the identity of every entry the reader could read to every
+	// FIELD that entry sets, rendered. The value is what makes a Shape, a
+	// Columns or a Hidden the two literals spell differently a disagreement,
+	// rather than an agreement about a name.
+	entries map[string]string
+	// unresolved holds the source position of every entry whose identity the
+	// reader could not resolve. It is never dropped: an entry the gate cannot
+	// read is a comparison it cannot make, and answering "they agree" for one
+	// would be a zero standing in for an answer (ai/rules/principles.md).
 	unresolved []string
 	// fromFunc is the parameterless function in this package the field CALLS,
 	// and "" for a field written as a literal or as anything else.
@@ -131,34 +148,49 @@ type pluginPackage struct {
 	// usually a constant, so the directory is the identity every finding can
 	// carry.
 	dir string
-	// buildsRunner and buildsRegistration say which Registration LITERALS the
-	// package writes, which is a different fact from whether either sets a
+	// runnerLiterals and registrationLiterals count the Registration LITERALS
+	// the package writes, which is a different fact from whether either sets a
 	// Commands field. The scope rule turns on the literals: a plugin whose
 	// registration names no command is precisely the drift this gate looks
 	// for, so reading its absence as "not a plugin" would make the gate
 	// vacuous for its own subject.
-	buildsRunner       bool
-	buildsRegistration bool
-	runner             []declaration
-	register           []declaration
-	// runnerPipes and registerPipes are the same two readings of the PIPE
-	// channel: the aliases a plugin puts on its own commands. They are kept
-	// apart from the command channel because the two are identified
-	// differently and a finding must name which channel drifted.
-	runnerPipes   []declaration
-	registerPipes []declaration
+	//
+	// The COUNT is what lets the gate refuse to guess. It pairs one runner to
+	// one registration, and a package building two of either gives it no way to
+	// say which registration answers for which runner: two plugins wired to
+	// each other's declaration functions agree as a package and disagree one by
+	// one, and pooling both sides reports nothing.
+	runnerLiterals       int
+	registrationLiterals int
+	// runner and register hold one declaration per channel field the literal
+	// sets. An absent key is a field the literal does not set, which is a
+	// different answer from a field set to an empty list.
+	runner   map[string]declaration
+	register map[string]declaration
 }
 
 // channel is one declaration channel a plugin writes on a Registration literal.
 //
 // The gate compares both the same way, so the difference between them is data:
 // the field to read, how one entry is identified, and what a finding says when
-// the registration is missing it.
+// one side is missing it.
 type channel struct {
-	field    string
-	identity func(entry *ast.CompositeLit) (string, bool)
-	reason   string
+	field                   string
+	identity                func(entry *ast.CompositeLit) (string, bool)
+	missingFromRegistration string
+	missingFromRunner       string
 }
+
+// unpairable is what a finding says when the package builds more than one
+// Registration literal on a side, so the gate cannot tell which runner the
+// registration answers for.
+const unpairable = "this package builds more than one Registration literal on a side, " +
+	"and the gate pairs one runner to one registration: split the package, one plugin each"
+
+// fieldsDiffer is what a finding says when both literals name one entry and
+// state different things about it.
+const fieldsDiffer = "the runner and the registration state different fields for it, " +
+	"so the catalog describes an answer the daemon does not give"
 
 // channels answers the two declaration channels, in the order a finding sorts.
 //
@@ -170,14 +202,16 @@ type channel struct {
 func channels() []channel {
 	return []channel{
 		{
-			field:    "Commands",
-			identity: commandIdentity,
-			reason:   "declared to Stage 1 and absent from registry.Registration.Commands",
+			field:                   "Commands",
+			identity:                commandIdentity,
+			missingFromRegistration: "declared to Stage 1 and absent from registry.Registration.Commands",
+			missingFromRunner:       "on registry.Registration.Commands and never declared to Stage 1",
 		},
 		{
-			field:    "Pipes",
-			identity: pipeIdentity,
-			reason:   "declared to Stage 1 and absent from registry.Registration.Pipes",
+			field:                   "Pipes",
+			identity:                pipeIdentity,
+			missingFromRegistration: "declared to Stage 1 and absent from registry.Registration.Pipes",
+			missingFromRunner:       "on registry.Registration.Pipes and never declared to Stage 1",
 		},
 	}
 }
@@ -212,65 +246,130 @@ func declaredField(entry *ast.CompositeLit, field string) (string, bool) {
 	return commandName(value)
 }
 
-// disagreements answers one finding per declaration the runner makes that the
-// registration does not, over BOTH channels, and one per declaration entry the
-// gate could not read.
+// entryFields renders every field one declaration entry sets, sorted by field
+// name, so two literals stating the same thing compare equal.
+//
+// It renders the EXPRESSION rather than evaluating it, because a value is
+// usually a constant this reader cannot resolve. Both literals in one package
+// name a constant the same way, which is the same assumption commandName makes
+// for the identity, so a difference here is a difference an author wrote.
+func entryFields(entry *ast.CompositeLit) string {
+	written := make([]string, 0, len(entry.Elts))
+	for _, element := range entry.Elts {
+		pair, ok := element.(*ast.KeyValueExpr)
+		if !ok {
+			continue
+		}
+		key, ok := pair.Key.(*ast.Ident)
+		if !ok {
+			continue
+		}
+		var tb textbuf.Buffer
+		written = append(written,
+			tb.Str(key.Name).Byte('=').Str(types.ExprString(pair.Value)).String())
+	}
+	slices.Sort(written)
+	return textbuf.Join(written, "; ")
+}
+
+// disagreements answers one finding per declaration the two literals do not
+// share, over BOTH channels, and one per declaration entry the gate could not
+// read.
 func (p *pluginPackage) disagreements() Findings {
+	if p.runnerLiterals > 1 || p.registrationLiterals > 1 {
+		return Findings{{Package: p.dir, Command: p.dir, Reason: unpairable}}
+	}
+
 	var findings Findings
 	for _, channel := range channels() {
-		runner, register := p.runner, p.register
-		if channel.field == "Pipes" {
-			runner, register = p.runnerPipes, p.registerPipes
-		}
-		findings = append(findings, compareChannel(p.dir, channel.reason, runner, register)...)
+		findings = append(findings,
+			compareChannel(p.dir, channel,
+				declarationOn(p.runner, channel.field), declarationOn(p.register, channel.field))...)
 	}
 	return findings
 }
 
+// declarationOn answers the declaration one Registration literal writes on a
+// channel, and nil when the literal does not set that field at all. Absent and
+// empty are different answers: a field neither literal sets is nothing to
+// compare, and a field one sets and the other does not is a disagreement about
+// every entry.
+func declarationOn(written map[string]declaration, name string) *declaration {
+	decl, set := written[name]
+	if !set {
+		return nil
+	}
+	return &decl
+}
+
 // compareChannel answers what one channel's two readings disagree about.
 //
-// A runner field that CALLS the same parameterless function the registration
-// calls is skipped whole. One function answers one slice, so the two readings
-// are the same declaration and there is nothing to compare; reporting its body
-// as unreadable would refuse the very pattern this gate's own remedy asks for.
-func compareChannel(dir, reason string, runner, register []declaration) Findings {
-	registered := make(map[string]bool)
-	shared := make(map[string]bool)
-	for _, decl := range register {
-		for _, name := range decl.names {
-			registered[name] = true
-		}
-		if decl.fromFunc != "" {
-			shared[decl.fromFunc] = true
-		}
+// A field both literals write as a call to the SAME parameterless function is
+// skipped whole. One function answers one slice, so the two readings are the
+// same declaration and there is nothing to compare; reporting its body as
+// unreadable would refuse the very pattern this gate's own remedy asks for.
+//
+// Everything else is compared in both directions and field by field. A field
+// one literal sets and the other does not is every entry of the one that does:
+// the two readings disagree about all of them.
+func compareChannel(dir string, channel channel, runner, register *declaration) Findings {
+	if runner == nil && register == nil {
+		return nil
+	}
+	if runner != nil && register != nil && runner.fromFunc != "" && runner.fromFunc == register.fromFunc {
+		return nil
 	}
 
 	var findings Findings
-	for _, decl := range runner {
-		if decl.fromFunc != "" && shared[decl.fromFunc] {
+	findings = append(findings, unreadable(dir, runner)...)
+	findings = append(findings, unreadable(dir, register)...)
+
+	for identity, declared := range entriesOf(runner) {
+		held, carried := entriesOf(register)[identity]
+		switch {
+		case !carried:
+			findings = append(findings, finding(dir, identity, runner, channel.missingFromRegistration))
+		case held != declared:
+			findings = append(findings, finding(dir, identity, runner, fieldsDiffer))
+		}
+	}
+	for identity := range entriesOf(register) {
+		if _, declared := entriesOf(runner)[identity]; declared {
 			continue
 		}
-		for _, where := range decl.unresolved {
-			findings = append(findings, Finding{
-				Package: dir,
-				Command: where,
-				File:    decl.file,
-				Line:    decl.line,
-				Reason:  "the runner's declaration cannot be read, so it cannot be compared",
-			})
-		}
-		for _, name := range decl.names {
-			if registered[name] {
-				continue
-			}
-			findings = append(findings, Finding{
-				Package: dir,
-				Command: name,
-				File:    decl.file,
-				Line:    decl.line,
-				Reason:  reason,
-			})
-		}
+		findings = append(findings, finding(dir, identity, register, channel.missingFromRunner))
+	}
+	return findings
+}
+
+// entriesOf answers what one side of a channel declares, and an empty set for a
+// literal that does not set the field.
+func entriesOf(decl *declaration) map[string]string {
+	if decl == nil {
+		return nil
+	}
+	return decl.entries
+}
+
+// finding is one row, pointing at the declaration it came from.
+func finding(dir, identity string, decl *declaration, reason string) Finding {
+	row := Finding{Package: dir, Command: identity, Reason: reason}
+	if decl != nil {
+		row.File, row.Line = decl.file, decl.line
+	}
+	return row
+}
+
+// unreadable answers one finding per entry of a declaration the gate could not
+// resolve, so an unread entry is never counted as an agreement.
+func unreadable(dir string, decl *declaration) Findings {
+	if decl == nil {
+		return nil
+	}
+	var findings Findings
+	for _, where := range decl.unresolved {
+		findings = append(findings,
+			finding(dir, where, decl, "the declaration cannot be read, so it cannot be compared"))
 	}
 	return findings
 }
@@ -352,7 +451,11 @@ func readPackage(tree, dir string, files []string) (pluginPackage, error) {
 	if err != nil {
 		return pluginPackage{}, fmt.Errorf("locate %s under %s: %w", dir, tree, err)
 	}
-	pkg := pluginPackage{dir: filepath.ToSlash(relative)}
+	pkg := pluginPackage{
+		dir:      filepath.ToSlash(relative),
+		runner:   map[string]declaration{},
+		register: map[string]declaration{},
+	}
 
 	// The whole directory's declaration functions are indexed first, because a
 	// runner in one file calls a commandDecls() written in another.
@@ -376,10 +479,13 @@ func readPackage(tree, dir string, files []string) (pluginPackage, error) {
 			if owner != sdkName && owner != registryName {
 				return true
 			}
+
+			written := pkg.register
 			if owner == sdkName {
-				pkg.buildsRunner = true
+				pkg.runnerLiterals++
+				written = pkg.runner
 			} else {
-				pkg.buildsRegistration = true
+				pkg.registrationLiterals++
 			}
 
 			for _, channel := range channels() {
@@ -392,17 +498,7 @@ func readPackage(tree, dir string, files []string) (pluginPackage, error) {
 				found := resolve(value, decls, fset, channel.identity)
 				found.file = filepath.ToSlash(relativeTo(tree, position.Filename))
 				found.line = position.Line
-
-				switch {
-				case owner == sdkName && channel.field == "Pipes":
-					pkg.runnerPipes = append(pkg.runnerPipes, found)
-				case owner == sdkName:
-					pkg.runner = append(pkg.runner, found)
-				case channel.field == "Pipes":
-					pkg.registerPipes = append(pkg.registerPipes, found)
-				default:
-					pkg.register = append(pkg.register, found)
-				}
+				written[channel.field] = found
 			}
 			return true
 		})
@@ -415,7 +511,7 @@ func readPackage(tree, dir string, files []string) (pluginPackage, error) {
 // is what a registered plugin does and what this gate judges. A package that
 // builds one of them, a test fixture driving an sdk.Registration for instance,
 // has no second reading to agree with.
-func (p *pluginPackage) isPlugin() bool { return p.buildsRunner && p.buildsRegistration }
+func (p *pluginPackage) isPlugin() bool { return p.runnerLiterals > 0 && p.registrationLiterals > 0 }
 
 // importAlias answers the identifier this file names an import path by, and ""
 // when the file does not import it. A renamed import answers its rename, so a
@@ -501,8 +597,9 @@ func commandFuncs(files []*ast.File) map[string]ast.Expr {
 	return found
 }
 
-// resolve reads one Commands or Pipes expression into the identities it holds,
-// with identity saying how one entry of that channel is named.
+// resolve reads one Commands or Pipes expression into the entries it holds,
+// keyed by identity, with identity saying how one entry of that channel is
+// named.
 //
 // It follows a call to a parameterless function in the same package ONE hop,
 // which is the commandDecls() indirection both sides are meant to use. It does
@@ -532,11 +629,20 @@ func resolve(
 		}
 	}
 
+	// A declaration function whose body is `return nil` states an empty list,
+	// which the gate CAN read. Recording it as unreadable would report a plugin
+	// that declares nothing as one the gate could not judge.
+	if ident, named := value.(*ast.Ident); named && ident.Name == "nil" {
+		found.entries = map[string]string{}
+		return found
+	}
+
 	literal, ok := value.(*ast.CompositeLit)
 	if !ok {
 		found.unresolved = append(found.unresolved, where(value, fset))
 		return found
 	}
+	found.entries = make(map[string]string, len(literal.Elts))
 	for _, element := range literal.Elts {
 		entry, ok := element.(*ast.CompositeLit)
 		if !ok {
@@ -548,7 +654,7 @@ func resolve(
 			found.unresolved = append(found.unresolved, where(entry, fset))
 			continue
 		}
-		found.names = append(found.names, text)
+		found.entries[text] = entryFields(entry)
 	}
 	return found
 }

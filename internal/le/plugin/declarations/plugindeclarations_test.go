@@ -38,7 +38,7 @@ func TestEveryRunnerDeclarationIsOnItsRegistration(t *testing.T) {
 // fail, so its discrimination is unproven until a fixture forces one
 // (ai/rules/interop-and-goal-validation.md).
 func TestCheckNamesAPluginThatDeclaresOnlyToStageOne(t *testing.T) {
-	tree := writeFixture(t, `
+	tree := writeFixture(t, "drifter", `
 func init() {
 	_ = registry.Register(registry.Registration{
 		Name:      "drifter",
@@ -83,7 +83,7 @@ func runDrifter(conn net.Conn) int {
 // registration and by the runner. The gate must follow the call rather than
 // compare two spellings of it.
 func TestCheckAcceptsOneFunctionServingBothReaders(t *testing.T) {
-	tree := writeFixture(t, `
+	tree := writeFixture(t, "agreeing", `
 func init() {
 	_ = registry.Register(registry.Registration{
 		Name:      "agreeing",
@@ -120,7 +120,7 @@ func runAgreeing(conn net.Conn) int {
 // answering "they agree" for one would be a zero standing in for an answer
 // (ai/rules/principles.md).
 func TestCheckReportsADeclarationItCannotRead(t *testing.T) {
-	tree := writeFixture(t, `
+	tree := writeFixture(t, "opaque", `
 func init() {
 	_ = registry.Register(registry.Registration{
 		Name:      "opaque",
@@ -203,21 +203,9 @@ func TestCheckRefusesAWalkThatReadTooLittle(t *testing.T) {
 
 // writeFixture writes body into internal/plugins/<name>/plugin.go of a fresh
 // temporary tree, under the imports every plugin file carries, and answers the
-// tree root. The package name is taken from the plugin directory.
-func writeFixture(t *testing.T, body string) string {
+// tree root. The package name is the plugin directory.
+func writeFixture(t *testing.T, name, body string) string {
 	t.Helper()
-
-	name := "drifter"
-	switch {
-	case strings.Contains(body, "runAgreeing"):
-		name = "agreeing"
-	case strings.Contains(body, "runOpaque"):
-		name = "opaque"
-	case strings.Contains(body, "runPiper"):
-		name = "piper"
-	case strings.Contains(body, "runLooper"):
-		name = "looper"
-	}
 
 	tree := t.TempDir()
 	dir := filepath.Join(tree, "internal", "plugins", name)
@@ -256,7 +244,7 @@ func namesCommand(findings Findings, command string) bool {
 // published catalog would list a command without the name it answers to and
 // nothing would go red.
 func TestCheckNamesAPipeAliasMissingFromTheRegistration(t *testing.T) {
-	tree := writeFixture(t, `
+	tree := writeFixture(t, "piper", `
 func init() {
 	_ = registry.Register(registry.Registration{
 		Name:      "piper",
@@ -304,7 +292,7 @@ func runPiper(conn net.Conn) int {
 // wants and which no syntactic reader can evaluate; before this rule the gate
 // reported it as "cannot be read".
 func TestCheckAcceptsADeclarationFunctionItCannotEvaluate(t *testing.T) {
-	tree := writeFixture(t, `
+	tree := writeFixture(t, "looper", `
 func init() {
 	_ = registry.Register(registry.Registration{
 		Name:      "looper",
@@ -336,5 +324,144 @@ func runLooper(conn net.Conn) int {
 	}
 	if len(findings) != 0 {
 		t.Fatalf("one function serving both readers answered %d finding(s): %+v", len(findings), findings)
+	}
+}
+
+// VALIDATES: the two literals are compared FIELD by field, not by name alone.
+// PREVENTS: the gate passing over exactly the fields this spec added. Shape,
+// Columns and AddressFields decide which pipe operators a command publishes, and
+// the catalog is now generated from the registration, so a Shape the two
+// literals spell differently is a published answer no running command gives.
+func TestCheckNamesAFieldTheTwoLiteralsSpellDifferently(t *testing.T) {
+	tree := writeFixture(t, "diverging", `
+func init() {
+	_ = registry.Register(registry.Registration{
+		Name:      "diverging",
+		RunEngine: runDiverging,
+		Commands: []sdk.CommandDecl{
+			{Name: "show diverging rows", Shape: "doc"},
+		},
+	})
+}
+
+func runDiverging(conn net.Conn) int {
+	var p sdk.Plugin
+	_ = p.Run(nil, sdk.Registration{
+		Commands: []sdk.CommandDecl{
+			{Name: "show diverging rows", Shape: "tab", Columns: []string{"peer"}},
+		},
+	})
+	return 0
+}
+`)
+
+	findings, err := Check(tree, 0)
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if len(findings) != 1 {
+		t.Fatalf("two literals stating different shapes answered %d finding(s): %+v", len(findings), findings)
+	}
+	if findings[0].Command != "show diverging rows" {
+		t.Errorf("the finding names %q, and the two literals disagree about \"show diverging rows\"", findings[0].Command)
+	}
+	if !strings.Contains(findings[0].Reason, "different fields") {
+		t.Errorf("the finding reads %q, and it must say the two state different fields", findings[0].Reason)
+	}
+}
+
+// VALIDATES: the comparison runs in BOTH directions. A command on the
+// registration that the runner never declares is named too.
+// PREVENTS: a phantom command on the published website. The catalog is
+// generated FROM registry.Registration.Commands, so a registration-only command
+// is published to an operator and answered by no daemon, and that is the
+// direction the gate had no rule for.
+func TestCheckNamesACommandOnlyTheRegistrationCarries(t *testing.T) {
+	tree := writeFixture(t, "phantom", `
+func init() {
+	_ = registry.Register(registry.Registration{
+		Name:      "phantom",
+		RunEngine: runPhantom,
+		Commands: []sdk.CommandDecl{
+			{Name: "show phantom status"},
+			{Name: "show phantom ghost"},
+		},
+	})
+}
+
+func runPhantom(conn net.Conn) int {
+	var p sdk.Plugin
+	_ = p.Run(nil, sdk.Registration{
+		Commands: []sdk.CommandDecl{
+			{Name: "show phantom status"},
+		},
+	})
+	return 0
+}
+`)
+
+	findings, err := Check(tree, 0)
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if len(findings) != 1 {
+		t.Fatalf("a registration-only command answered %d finding(s): %+v", len(findings), findings)
+	}
+	if findings[0].Command != "show phantom ghost" {
+		t.Errorf("the finding names %q, and only \"show phantom ghost\" is registration-only", findings[0].Command)
+	}
+	if !strings.Contains(findings[0].Reason, "never declared to Stage 1") {
+		t.Errorf("the finding reads %q, and it must say the runner never declares it", findings[0].Reason)
+	}
+}
+
+// VALIDATES: the gate REFUSES a package it cannot pair rather than pooling both
+// sides and answering that they agree.
+// PREVENTS: two plugins in one package wired to each other's declaration
+// functions. Pooled, each side holds the union of both plugins and the two
+// agree; one by one, each plugin's registration carries the OTHER plugin's
+// commands, so dropping either plugin takes the surviving one's catalog entries
+// with it while the daemon still serves them.
+func TestCheckRefusesAPackageItCannotPair(t *testing.T) {
+	tree := writeFixture(t, "twinned", `
+func init() {
+	_ = registry.Register(registry.Registration{
+		Name:      "twinned-alpha",
+		RunEngine: runAlpha,
+		Commands:  betaDecls(),
+	})
+	_ = registry.Register(registry.Registration{
+		Name:      "twinned-beta",
+		RunEngine: runBeta,
+		Commands:  alphaDecls(),
+	})
+}
+
+func alphaDecls() []sdk.CommandDecl { return []sdk.CommandDecl{{Name: "show twinned alpha"}} }
+
+func betaDecls() []sdk.CommandDecl { return []sdk.CommandDecl{{Name: "show twinned beta"}} }
+
+func runAlpha(conn net.Conn) int {
+	var p sdk.Plugin
+	_ = p.Run(nil, sdk.Registration{Commands: alphaDecls()})
+	return 0
+}
+
+func runBeta(conn net.Conn) int {
+	var p sdk.Plugin
+	_ = p.Run(nil, sdk.Registration{Commands: betaDecls()})
+	return 0
+}
+`)
+
+	findings, err := Check(tree, 0)
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if len(findings) != 1 {
+		t.Fatalf("a package the gate cannot pair answered %d finding(s): %+v", len(findings), findings)
+	}
+	if !strings.Contains(findings[0].Reason, "pairs one runner to one registration") {
+		t.Errorf("the finding reads %q, and it must say the gate cannot pair the package", findings[0].Reason)
 	}
 }

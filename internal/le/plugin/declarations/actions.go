@@ -18,7 +18,7 @@ const area = "plugin declarations"
 var actions = leaction.New(area,
 	leaction.Action{
 		Verb:   "check",
-		Why:    "every command a plugin's runner declares to Stage 1 is also on its registry.Registration, so the published catalog names what the daemon serves",
+		Why:    "a plugin's runner and its registry.Registration declare the same commands and pipe aliases, field for field and in both directions, so the published catalog names what the daemon serves and nothing more",
 		Answer: runCheck,
 	},
 )

@@ -155,12 +155,24 @@ func (r *commandRegistry[T]) get(command string) (T, bool) {
 }
 
 func (r *commandRegistry[T]) lookup(command string) (T, bool) {
+	value, _, found := r.lookupPath(command)
+	return value, found
+}
+
+// lookupPath is lookup, and also answers the declared path the value came from.
+//
+// The path is what a reader needs to weigh this answer against a declaration
+// that reached it by another route. A declaration on the command itself and one
+// inherited from a grandparent are both a hit here, and only the path tells
+// them apart (declared.go, DeclaredForCommand).
+func (r *commandRegistry[T]) lookupPath(command string) (T, string, bool) {
 	command = normalizeCommand(command)
 
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	var best T
+	bestPath := ""
 	bestLen := -1
 	found := false
 	for prefix, value := range r.byCommand {
@@ -169,11 +181,12 @@ func (r *commandRegistry[T]) lookup(command string) (T, bool) {
 		}
 		if len(prefix) > bestLen {
 			best = value
+			bestPath = prefix
 			bestLen = len(prefix)
 			found = true
 		}
 	}
-	return best, found
+	return best, bestPath, found
 }
 
 // each calls visit once for every registered command path, in map order. The

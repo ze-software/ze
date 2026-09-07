@@ -3,7 +3,6 @@ package all
 import (
 	"context"
 	"flag"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -370,50 +370,56 @@ func TestCapabilityMappings(t *testing.T) {
 }
 
 // TestRegistrationCarriesTheDeclaredCommands is AC-4 of
-// plan/spec-daemon-backed-command-catalog.md: a reader gets a plugin's command
-// declarations out of registry.All(), and gets them with no engine started.
+// plan/spec-daemon-backed-command-catalog.md, and it lives in
+// internal/le/command/list/commandlist_test.go rather than here.
 //
-// The guard is the point of the test. A plugin's declarations used to exist
-// only after its runner sent them in the Stage 1 registration message, so the
-// rejected way to read them was to RUN the plugin -- which, for two of the 97
-// runners, programs nftables or writes XFRM policy before it declares
-// anything. Every runner in this process is therefore replaced by one that
-// records its own call, so a reader that goes back to that route fails here by
-// name rather than by the host state it changed.
-func TestRegistrationCarriesTheDeclaredCommands(t *testing.T) {
-	var started []string
+// AC-4 is a claim about a READER: it answers a plugin's declarations without
+// starting an engine. This package holds the composition root and no reader, so
+// a test written here could stub every RunEngine and then never reach one,
+// which is what the first version did: it read registry.All().Commands itself,
+// so its `no engine started` assertion had nothing that could have started one.
+// Collect (internal/le/command/list) is the reader `./le command list` runs, and
+// the test drives it under the stub there.
+
+// TestEveryDeclaredShapeIsOneStage1Accepts holds every command declaration in
+// the tree to a shape the daemon accepts at Stage 1.
+//
+// VALIDATES: each rpc.CommandDecl on a registry.Registration carries a shape
+// validateShapeDecls (internal/component/plugin/server/startup.go) admits: a
+// spelling ParseAnswerShape knows, or no shape at all and then no column and no
+// address field with it.
+// PREVENTS: a catalog naming commands no daemon serves. validateShapeDecls
+// fails the WHOLE Stage 1 registration for a mis-spelled shape, so `"table"`
+// for `"tab"` stops the daemon registering that plugin, while the reader of the
+// compiled tree (command.DeclaredForCommand) passes over the one declaration
+// and publishes the plugin's other commands as though they were served.
+//
+// `./le plugin declarations check` cannot see this: it compares the two
+// declaration literals as source text, and a shape written as a constant reads
+// there as the identifier rather than as its value.
+//
+// This is the whole population in one walk. Four plugins assert the same
+// spelling rule over their own commandDecls (adj_rib_in, healthcheck, rpki, rs),
+// which fails closer to the author who wrote the declaration.
+func TestEveryDeclaredShapeIsOneStage1Accepts(t *testing.T) {
 	for _, reg := range registry.All() {
-		name, engine := reg.Name, reg.RunEngine
-		reg.RunEngine = func(net.Conn) int {
-			started = append(started, name)
-			return 1
+		for index := range reg.Commands {
+			decl := &reg.Commands[index]
+			if decl.Shape == "" {
+				if len(decl.Columns) > 0 {
+					t.Errorf("plugin %q: command %q declares columns and no shape, which Stage 1 refuses",
+						reg.Name, decl.Name)
+				}
+				if len(decl.AddressFields) > 0 {
+					t.Errorf("plugin %q: command %q declares address fields and no shape, which Stage 1 refuses",
+						reg.Name, decl.Name)
+				}
+				continue
+			}
+			if _, known := command.ParseAnswerShape(decl.Shape); !known {
+				t.Errorf("plugin %q: command %q declares answer shape %q, which is not doc, map or tab",
+					reg.Name, decl.Name, decl.Shape)
+			}
 		}
-		t.Cleanup(func() { reg.RunEngine = engine })
-	}
-
-	declared := make(map[string][]string, len(registry.All()))
-	for _, reg := range registry.All() {
-		for _, decl := range reg.Commands {
-			declared[reg.Name] = append(declared[reg.Name], decl.Name)
-		}
-	}
-
-	// One plugin for each way a declaration reaches the registration:
-	// bgp-adj-rib-in already had a commandDecls function, mrt's runner carried
-	// a one-line literal, and sysctl's carried a six-entry block.
-	expected := map[string]string{
-		"bgp-adj-rib-in": "show bgp adj-rib-in status",
-		"mrt":            "request mrt dump-rib",
-		"sysctl":         "show sysctl",
-	}
-	for plugin, want := range expected {
-		if !slices.Contains(declared[plugin], want) {
-			t.Errorf("%s declares %v on its registration, and %q is not among them",
-				plugin, declared[plugin], want)
-		}
-	}
-
-	if len(started) > 0 {
-		t.Errorf("reading the declarations started %d engine(s): %v", len(started), started)
 	}
 }

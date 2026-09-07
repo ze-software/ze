@@ -242,7 +242,7 @@ compares the two.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestCommandListReportsAPluginDeclaredShape` | `internal/le/command/list/commandlist_test.go` | AC-1 | PASS since Phase 4 |
-| `TestRegistrationCarriesTheDeclaredCommands` | `internal/component/plugin/all/all_test.go` | AC-4 | PASS |
+| `TestRegistrationCarriesTheDeclaredCommands` | `internal/le/command/list/commandlist_test.go` | AC-4 | PASS. It moved out of `internal/component/plugin/all/all_test.go` at review: that package holds the composition root and no reader, so the stub it installed over every `RunEngine` had nothing that could have called one. It now drives `Collect`, the reader `./le command list` runs |
 | `TestEveryRunnerDeclarationIsOnItsRegistration` | `internal/le/plugin/declarations/plugindeclarations_test.go` | AC-7 | PASS |
 | `TestHelpCommandReportsTheDeclaredColumnOrder` | `cmd/ze/help_command_test.go` | AC-5 | PASS |
 | `TestHelpCommandDerivesEveryDeclarationFromOneReader` | `cmd/ze/help_command_test.go` | AC-8 | PASS |
@@ -258,6 +258,18 @@ compares the two.
 | `TestWikiCatalogReportsAPluginDeclaredAlias` | `internal/le/wikicatalog/catalog_test.go` | AC-2 | PASS |
 | `TestCheckNamesAPipeAliasMissingFromTheRegistration` | `internal/le/plugin/declarations/plugindeclarations_test.go` | AC-2 | PASS |
 | `TestCheckAcceptsADeclarationFunctionItCannotEvaluate` | `internal/le/plugin/declarations/plugindeclarations_test.go` | AC-2 | PASS |
+| `TestEveryDeclaredShapeIsOneStage1Accepts` | `internal/component/plugin/all/all_test.go` | AC-8 | PASS. Added at review round 2. It walks `registry.All()` and holds every in-tree `Shape` to what `validateShapeDecls` accepts, so the catalog cannot publish a plugin whose registration the daemon refuses whole. `./le plugin declarations check` cannot do this job: it compares the two literals as source text, where a shape written as a constant reads as the identifier |
+| `TestDeclaredAliasesTakeTheLongestDeclaredPath` | `internal/component/command/declared_test.go` | AC-2 | PASS. Added at review round 2 |
+| `TestDeclaredAliasesStopAtAPluginBarrier` | `internal/component/command/declared_test.go` | AC-2 | PASS. Added at review round 2. The alias channel is now weighed by path length beside the registry, as the other three are, so a plugin's alias shadows an in-tree ancestor's rather than joining it and the daemon's barrier cuts both |
+| `TestDeclaredPrefersTheExactPathOverAnAncestor` | `internal/component/command/declared_test.go` | AC-1, AC-3, AC-5 | PASS |
+| `TestDeclaredMatchesTheRegistriesADaemonWrites` | `internal/component/command/declared_test.go` | AC-6, AC-8 | PASS |
+| `TestDeclaredKeepsAnAncestorPluginDeclaration` | `internal/component/command/declared_test.go` | AC-5 | PASS |
+| `TestDeclaredPassesOverADeclarationWithNoShape` | `internal/component/command/declared_test.go` | AC-5 | PASS |
+| `TestHelpCommandGivesAMetaCommandItsOwnAnswer` | `cmd/ze/help_command_plugin_test.go` | AC-3, AC-5 | PASS |
+| `TestHelpCommandPublishesAPluginArgumentAsAPlaceholder` | `cmd/ze/help_command_test.go` | AC-3 | PASS |
+| `TestCheckNamesAFieldTheTwoLiteralsSpellDifferently` | `internal/le/plugin/declarations/plugindeclarations_test.go` | AC-7 | PASS |
+| `TestCheckNamesACommandOnlyTheRegistrationCarries` | `internal/le/plugin/declarations/plugindeclarations_test.go` | AC-7 | PASS |
+| `TestCheckRefusesAPackageItCannotPair` | `internal/le/plugin/declarations/plugindeclarations_test.go` | AC-7 | PASS |
 
 **Phase 1 red, 2026-09-07** (`go test ./internal/le/command/list/ -run TestCommandListReportsAPluginDeclaredShape`):
 
@@ -341,6 +353,40 @@ The bound was `startFixtureDaemon`'s own 300 attempts at 100ms
 named `daemonReadyAttempts` = 450, which is 45 seconds and stays inside the
 60-second budget every `.ci` using that helper declares. The same 80-iteration
 run then passed 80 of 80.
+
+**Review round reds, forced 2026-09-07.** An independent review found two
+BLOCKERs and four ISSUEs. Each fix was made, then the fix was reverted, the red
+was observed, and the fix was restored.
+
+| Fix | Test | The red it was observed under |
+|-----|------|-------------------------------|
+| `DeclaredForCommand` weighs the two channels by path length together (`internal/component/command/declared.go`) | `TestDeclaredPrefersTheExactPathOverAnAncestor` | `winsOver` restored to the old per-field rule (`!other.declared \|\| other.empty`): ``shape = tab (declared true), and the plugin declares doc on the command itself`` and ``column orders = [[peer prefix next-hop]] ... an ancestor's order is not its own`` |
+| `show bgp rib help`, `commands` and `events` declare their own answer (`internal/component/bgp/plugins/rib/rib.go`, `commandDecls`) | `TestHelpCommandGivesAMetaCommandItsOwnAnswer` | the three `Shape` and `Columns` fields removed from the declaration: each of the three published `tab`, the eleven route columns, and `address-fields [peer next-hop]` |
+| a plugin's declared argument is spelled in angle brackets (`internal/component/sysctl/register.go`, `internal/plugins/vrrp/cmd_show.go`) | `TestHelpCommandPublishesAPluginArgumentAsAPlaceholder`, `TestHelpCommandKeepsTheModelHelpOfAPluginCommand` | the brackets removed: ``show sysctl key key``, ``show sysctl profile name``, ``set sysctl key value``, and ``show vrrp interface`` for a command that answers `errNoInterfaceSelector` without its selector |
+| the gate compares every field an entry states (`internal/le/plugin/declarations/plugindeclarations.go`) | `TestCheckNamesAFieldTheTwoLiteralsSpellDifferently` | the field comparison disabled: ``two literals stating different shapes answered 0 finding(s): []`` |
+| the gate compares in both directions | `TestCheckNamesACommandOnlyTheRegistrationCarries` | the registration-to-runner walk removed: ``a registration-only command answered 0 finding(s): []`` |
+| the gate refuses a package it cannot pair | `TestCheckRefusesAPackageItCannotPair` | the pairing guard removed: two cross-wired plugins in one package answered two findings naming the wrong halves, because the last literal read overwrote the first |
+
+`TestRegistrationCarriesTheDeclaredCommands` moved because its assertion could
+not fire where it stood. Driving `Collect` gives it something to catch, and the
+red was forced by adding `_ = registration.RunEngine(nil)` to `Collect`'s plugin
+loop: ``reading the declarations started 92 engine(s): [anomaly-detect ...]``.
+
+The `.ci` covers both fixes over the end-user path, and both reds were forced
+with the daemon binary REBUILT so the revert took effect
+(`ai/rules/interop-and-goal-validation.md`).
+
+| Break | What went red |
+|-------|---------------|
+| `Shape` and `Columns` removed from the three meta-commands (`commandDecls`, `internal/component/bgp/plugins/rib/rib.go`) | ``show command help reports shape "tab" for "show bgp rib help", want map: map[address-fields:[peer next-hop] answer-shape:tab column-orders:[[peer direction family prefix next-hop path-id as-path origin local-pref med communities]] ...]`` |
+| the pipe-filter barrier removed (`registerPipeFilters`, `internal/component/bgp/plugins/cmd/rib/rib.go`) | ``show command help gives "show bgp rib help" the route pipe filters of "show bgp rib" under "pipe-filters", and its answer has no route to filter`` |
+
+The second break is a FOURTH declaration the same three commands over-inherited,
+found while forcing the first red: the daemon published all thirteen route pipe
+filters on a list of subcommand names. A plugin cannot declare a filter list
+(`rpc.CommandDecl` carries `Shape`, `Columns` and `AddressFields` and no
+filters), so the barrier is an in-tree `RegisterPipeFilters` beside the one
+`show bgp rib status` already had.
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -435,7 +481,7 @@ presence half alone passes with the barrier removed.
 5. **Phase: Documentation** -- the "Discovery" table in `docs/architecture/api/commands.md`, and its two wrong sentences
 
 ## Known Limitations
-- The published sibling artifacts are STALE until they are regenerated, by 52 commands and one new key. `../gh-pages/data/cli-commands.json` holds 411 commands and `wikicatalog.Collect` now answers 463, `column-orders` is a key none of the published entries carries, and `show bgp rpki` now publishes the `summary` alias it did not. `./le site build` regenerates the website file and `./le wiki-catalog update file <catalog.md>` the wiki page; both write a SIBLING checkout, so neither was run here. Until they are, `compareWebsiteCommandCatalog` and `compareWikiCommandCatalog` (`internal/le/docvalid/command_surfaces.go`) both report a disagreement. The wiki MARKDOWN gains its 50 new commands as well, because `wikicatalog.Render` renders every entry; it renders no column order, so that key changes nothing there.
+- The published sibling artifacts are STALE until they are regenerated, by 52 commands and one new key. `../gh-pages/data/cli-commands.json` holds 411 commands and `wikicatalog.Collect` now answers 463, `column-orders` is a key none of the published entries carries, and `show bgp rpki` now publishes the `summary` alias it did not. `./le site build` regenerates the website file and `./le wiki-catalog update file <catalog.md>` the wiki page; both write a SIBLING checkout, so neither was run here. Until they are, `compareWebsiteCommandCatalog` and `compareWikiCommandCatalog` (`internal/le/docvalid/command_surfaces.go`) both report a disagreement. The wiki MARKDOWN gains its 50 new commands as well, because `wikicatalog.Render` renders every entry; it renders no column order, so that key changes nothing there. The review round adds seven more published changes to that regeneration, measured by diffing `ze help command --json` across the fix (463 commands before and after, and nothing else moved): `show bgp rib help`, `show bgp rib commands` and `show bgp rib events` each lose the eleven route columns, the two address fields, the thirteen route pipe filters and the `resolve` and `origin` operators of `show bgp rib`, and the usage lines of `show sysctl key`, `show sysctl profile`, `set sysctl` and `show vrrp interface` name their arguments. Those three `show bgp rib` entries also change what their own answer states, because each now publishes its OWN declaration rather than its ancestor's: `show bgp rib help` and `show bgp rib events` publish `answer-shape` `map` where the ancestor said `tab`, and so lose `fill`, the one operator gated on `ShapeTab` (`internal/component/command/pipe_catalog.go`, the `fill` row); `show bgp rib commands` keeps `tab` and GAINS `column-orders [[name description]]`, which is the order its own declaration states.
 - An EXTERNAL plugin's declarations are still a running daemon's answer alone, and always will be: it registers nothing in the composition root, so neither `Commands` nor `Pipes` exists for it outside Stage 1. R-3 named this for aliases; it is the same boundary for every channel, and it is a property of an external process rather than a gap in this work.
 - `command.Usage` answers nil for a node carrying no wire method, so a plugin command the YANG model describes publishes an authored summary, an authored long help and NO grammar. Its `usage` is the invocation form the plugin declares. A machine reader takes an absent `grammar` as "not modeled", which is what the four main-package builtins and every offline local command already publish.
 

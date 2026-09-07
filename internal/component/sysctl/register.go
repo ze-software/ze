@@ -441,13 +441,19 @@ func runSysctlPlugin(conn net.Conn) int {
 // registry.Registration, which anything linking the composition root reads
 // without starting an engine, and the runner sends it in the Stage 1
 // registration message, which a running daemon reads.
+//
+// An argument is spelled in ANGLE BRACKETS, because both readers publish the
+// tokens verbatim as the command's invocation form (pluginUsage,
+// cmd/ze/help_command.go and internal/le/wikicatalog/catalog.go). A bare
+// identifier reads as a keyword an operator types, so `show sysctl key` was
+// published as `show sysctl key key`.
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{Name: "show sysctl", Description: "Show all active sysctl keys with source and persistence"},
 		{Name: "show sysctl keys", Description: "List all known sysctl keys with descriptions"},
-		{Name: "show sysctl key", Description: "Show detail for one sysctl key", Args: []string{"key"}},
-		{Name: "set sysctl", Description: "Set a transient sysctl value", Args: []string{"key", "value"}},
+		{Name: "show sysctl key", Description: "Show detail for one sysctl key", Args: []string{"<key>"}},
+		{Name: "set sysctl", Description: "Set a transient sysctl value", Args: []string{"<key>", "<value>"}},
 		{Name: "show sysctl profiles", Description: "List all registered sysctl profiles"},
-		{Name: "show sysctl profile", Description: "Show detail for one sysctl profile", Args: []string{"name"}},
+		{Name: "show sysctl profile", Description: "Show detail for one sysctl profile", Args: []string{"<name>"}},
 	}
 }
