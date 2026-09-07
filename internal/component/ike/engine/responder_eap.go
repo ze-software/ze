@@ -273,6 +273,11 @@ func (ps *PeerSession) handleResponderEAP(sa *SA, msg *wire.Message, rawMsg []by
 		return
 	}
 
+	// The cause the session held before this round, which an earlier round has
+	// already written to the log. Nothing else calls Process for a responder
+	// session, so reading it here is what keeps one refusal to one line.
+	announced := sess.Err()
+
 	next := sess.Process(wireEAPToPacket(eapPayload))
 	if next == nil {
 		if sess.Succeeded() {
@@ -284,20 +289,37 @@ func (ps *PeerSession) handleResponderEAP(sa *SA, msg *wire.Message, rawMsg []by
 		sa.EAPMSK = sess.MSK()
 	}
 	ps.sendResponderEAP(sa, msg.Header.MessageID, next, tr, remote, log)
+
+	// One account per refusal, written on the round the session RECORDS the cause.
+	//
+	// A method that owes a refused peer a last word records it while it sends that
+	// EAP-Request (MethodResult.FinalRequest, internal/core/eap), one round before
+	// the EAP-Failure. RFC 5216 Section 2.1.3 makes the server wait for the peer's
+	// reply in between, and the peer decides whether that reply ever comes:
+	// strongSwan abandons an EAP-TLS exchange after ze's fatal alert. Logging under
+	// next.Code == CodeFailure alone therefore left every EAP-TLS certificate
+	// refusal unreported, and the operator read the 30s handshake timeout and
+	// nothing else
+	// (plan/journal/diagnosis-parked-until-a-round-the-peer-may-never-send.md).
+	//
+	// An EAP-Failure packet carries no reason of its own (RFC 3748 Section 4.2,
+	// requirement RFC3748-4.2-2: Code, Identifier and Length, no Type field), so
+	// the session's cause is the only account there is. The initiator half logs its
+	// equivalent in handleEAPResponse (fsm.go).
+	//
+	// The comparison is by VALUE and not by presence, and Session.nakUnexpected is
+	// why: it records a cause on a round that discards the peer's packet and
+	// returns nothing, so no line is written there. One forbidden Nak would
+	// otherwise leave a cause standing on the session for the rest of the
+	// exchange, and silence the report of the certificate refusal that follows it.
+	switch cause := sess.Err(); {
+	case cause != nil && cause != announced:
+		log.Warn("ike: EAP authentication failed", "peer", sa.PeerName, "error", cause)
+	case cause == nil && next.Code == eap.CodeFailure:
+		log.Warn("ike: EAP authentication failed", "peer", sa.PeerName)
+	}
+
 	if next.Code == eap.CodeFailure {
-		// The method's own diagnosis, when it has one. An EAP-Failure packet
-		// carries no reason (RFC 3748 Section 4.2, requirement RFC3748-4.2-2: Code,
-		// Identifier and Length, no Type field), so without this the operator
-		// reads "authentication failed" and nothing else. The EAP-TLS MSK export
-		// refusal is the case that matters: it names the peer, the negotiated TLS
-		// version, RFC 7627 and what to change (exportEAPTLSMSK,
-		// internal/core/eap). The initiator half already logs its
-		// equivalent in handleEAPResponse (fsm.go).
-		if err := sess.Err(); err != nil {
-			log.Warn("ike: EAP authentication failed", "peer", sa.PeerName, "error", err)
-		} else {
-			log.Warn("ike: EAP authentication failed", "peer", sa.PeerName)
-		}
 		sa.State = StateDead
 	}
 }

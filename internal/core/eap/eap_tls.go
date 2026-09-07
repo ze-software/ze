@@ -298,20 +298,11 @@ type tlsMethod struct {
 	transport  *eapTLSTransport
 	handshaked atomic.Bool
 
-	// alertSent holds the handshake failure whose fatal TLS alert has ALREADY gone
-	// out as an EAP-Request, so the round that follows can report it.
-	//
-	// RFC 5216 Section 2.1.3 ends a rejected handshake over two rounds, and one
-	// MethodResult cannot hold both halves (see the handshakeError branch in
-	// Process). It is written and read on the dispatch goroutine alone, exactly
-	// like state and the fragmenter fields beside it, so it needs no atomic.
-	alertSent error
-
 	// successIndicated records that the RFC 9190 Section 2.5 protected success
 	// result indication has already gone out. Step 3 of that procedure forbids
 	// any further EAP-Request once it has been sent, so the write happens on
 	// exactly one round. Written and read on the dispatch goroutine alone, like
-	// state, alertSent and the fragmenter fields beside it.
+	// state and the fragmenter fields beside it.
 	successIndicated bool
 
 	// started publishes the transport to Close, which runs on the session's
@@ -429,15 +420,10 @@ func (m *tlsMethod) Start(identifier uint8) *Packet {
 // RFC 5216 Section 2.1.5: handles fragment reassembly and outbound fragmentation.
 func (m *tlsMethod) Process(response *Packet) MethodResult {
 	if response.Type != TypeTLS {
-		// A rejected peer must not be able to replace the reported cause by changing
-		// one octet. Once the alert is on the wire the exchange is over, so the
-		// failure to report is the handshake's, not this packet's type: answering
-		// ErrMethodFailed here would hand the operator "eap: method authentication
-		// failed" in place of the certificate error, which is the substitution
-		// m.alertSent exists to prevent.
-		if m.alertSent != nil {
-			return MethodResult{Err: m.alertSent}
-		}
+		// A rejected peer cannot reach this and replace the cause the operator
+		// reads. The refusal goes out as the method's last word, which moves the
+		// exchange to stateLastWord (eap.go), and every packet that arrives after it
+		// draws the EAP-Failure without this method being asked anything.
 		return MethodResult{Err: ErrMethodFailed}
 	}
 
@@ -448,25 +434,6 @@ func (m *tlsMethod) Process(response *Packet) MethodResult {
 		return MethodResult{
 			Response: &Packet{Code: CodeRequest, Type: TypeTLS, TypeData: m.nextFragment()},
 		}
-	}
-
-	// The fatal alert went out on an earlier round, and this response is the reply
-	// RFC 5216 Section 2.1.3 makes the server wait for: "To ensure that the peer
-	// receives the TLS alert message, the EAP server MUST wait for the peer to
-	// reply with an EAP-Response packet." Reporting the failure here is what turns
-	// into the EAP-Failure the same paragraph then makes mandatory
-	// (Session.handleMethod, eap.go).
-	//
-	// It sits AFTER the fragment-ACK branch above so a fragmented alert finishes
-	// going out first, and BEFORE the reassembly below so nothing more is fed to an
-	// engine that has already stopped reading.
-	//
-	// Ze does not implement the OPTIONAL restart. The section leaves that to the
-	// server -- "It is up to the EAP server whether to allow restarts" -- so a reply
-	// carrying a fresh client_hello ends the conversation exactly as an empty one
-	// does.
-	if m.alertSent != nil {
-		return MethodResult{Err: m.alertSent}
 	}
 
 	// Reassemble inbound fragments from peer.
@@ -511,34 +478,60 @@ func (m *tlsMethod) Process(response *Packet) MethodResult {
 	if err := m.transport.handshakeError(); err != nil {
 		failure := fmt.Errorf("eap-tls: TLS handshake failed: %w", err)
 
-		// SEND THE ALERT NOW, REPORT THE FAILURE ON THE NEXT ROUND. serverData holds
-		// the fatal TLS alert the engine produced in this same round.
+		// The engine failed without producing an alert, so there is nothing for the
+		// peer to receive and nothing for it to answer. Waiting would leave the
+		// exchange to the stale-handshake reaper, which is the regression this
+		// handshake-error read removed, so the failure is reported at once.
+		if len(serverData) == 0 {
+			return MethodResult{Err: failure}
+		}
+
+		// The last word is ONE packet, so the alert has to fit one EAP-TLS fragment.
+		// A fatal alert is a single TLS record: a 5-octet record header, two octets
+		// of payload, and at most 17 octets of AEAD expansion when the TLS 1.3
+		// handshake keys are already in force, against an eapTLSFragmentSize of
+		// 1024. A flight that does not fit is a state this engine does not produce,
+		// and a truncated TLS message tells the peer less than no alert does, so the
+		// failure is reported at once instead.
+		if len(serverData) > eapTLSFragmentSize {
+			return MethodResult{Err: failure}
+		}
+
+		// SEND THE ALERT NOW, AND RECORD THE CAUSE NOW. serverData holds the fatal
+		// TLS alert the engine produced in this same round, and MethodResult.
+		// FinalRequest (eap.go) is the field built for a packet a method owes a peer
+		// it has already refused: Session.finalRequest sends it, writes the cause to
+		// Session.err in this round, and answers the peer's reply with the
+		// EAP-Failure and nothing else.
 		//
-		// Returning the alert BESIDE the error puts it nowhere. MethodResult carries
-		// both fields, but Session.handleMethod (eap.go) tests Err first and answers
-		// with s.failure(), so the Response is discarded and the alert octets never
-		// reach the wire. The two are therefore mutually exclusive here, and the
-		// cause is parked on m.alertSent until the round that may report it.
+		// The cause is written HERE rather than on the round that emits EAP-Failure
+		// because the PEER decides whether that round ever happens. strongSwan
+		// abandons the exchange after the alert, so a cause parked for the next
+		// round reached the operator never, and a refused certificate and a dead
+		// network read the same
+		// (plan/journal/diagnosis-parked-until-a-round-the-peer-may-never-send.md).
+		//
+		// Returning the alert as MethodResult.Response BESIDE the error puts it
+		// nowhere: Session.handleMethod tests Err first and answers with s.failure(),
+		// so the Response is discarded and the alert octets never reach the wire.
 		//
 		// RFC 5216 Section 2.1.3 spends two rounds on this deliberately. The server
 		// SHOULD send the alert "so as to allow the peer to inform the user or log
 		// the cause of the failure", it "MUST wait for the peer to reply with an
 		// EAP-Response packet", and only then "MUST send an EAP-Failure packet and
-		// terminate the conversation". Collapsing that into one round drops the
-		// diagnostic the whole section exists to deliver.
-		if len(serverData) > 0 {
-			m.alertSent = failure
-			m.startSending(serverData)
-			return MethodResult{
-				Response: &Packet{Code: CodeRequest, Type: TypeTLS, TypeData: m.nextFragment()},
-			}
+		// terminate the conversation". stateLastWord is what spends the second
+		// round: it answers whatever the peer replies with an EAP-Failure, and it
+		// never calls this method again.
+		//
+		// Ze does not implement the OPTIONAL restart. The section leaves that to the
+		// server -- "It is up to the EAP server whether to allow restarts" -- so a
+		// reply carrying a fresh client_hello ends the conversation exactly as an
+		// empty one does.
+		m.startSending(serverData)
+		return MethodResult{
+			FinalRequest: &Packet{Code: CodeRequest, Type: TypeTLS, TypeData: m.nextFragment()},
+			Err:          failure,
 		}
-
-		// The engine failed without producing an alert, so there is nothing for the
-		// peer to receive and nothing for it to answer. Waiting would leave the
-		// exchange to the stale-handshake reaper, which is the regression this
-		// handshake-error read removed, so the failure is reported at once.
-		return MethodResult{Err: failure}
 	}
 
 	if m.handshaked.Load() {

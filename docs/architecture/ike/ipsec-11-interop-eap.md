@@ -158,6 +158,13 @@ establishes with the same material. So the refusal this one asserts can only be
 the revocation check. Ze logs the certificate, its serial number, the CA that
 withdrew it and RFC 9190 Section 5.4, and neither end installs an XFRM SA.
 
+Ze writes that line on the round that sends the fatal TLS alert, which is what
+makes it readable here at all. charon abandons the exchange after the alert
+rather than answering it, so the EAP-Failure round never happens, and a refusal
+reported there would leave ze saying nothing but the 30s handshake timeout. The
+scenario asserts both accounts: charon's, which is ze's wire output read by
+another implementation, and ze's own, which is what an operator has.
+
 <!-- source: internal/core/eap/eap_tls.go -- exportEAPTLSMSK, eapTLS12ExportRefused -->
 <!-- source: internal/core/eap/peer.go -- naks, nakResponse -->
 <!-- source: internal/le/interoplab/ipsec/checkers.go -- checkEAPNakMethodNegotiation, eapNakFacts, checkResponderEAPTLS13RevokedClient -->

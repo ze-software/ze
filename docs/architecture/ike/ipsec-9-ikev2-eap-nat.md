@@ -193,20 +193,27 @@ and a notification channel.
 the other.** `MethodResult` carries a response and an error. `Session.handleMethod`
 tests the error first and answers with a failure packet. A fix that set BOTH
 looked complete and put nothing on the wire: the EAP-TLS fatal alert that RFC
-5216 Section 2.1.3 exists to deliver was dropped for two commits. Where a
-protocol spends two rounds, the producer has to spend two rounds: park the
-cause, send the packet, and report on the round after. Ze as EAP PEER needs the
-mirror of the same fix, because the authenticator now waits for a reply that the
-peer was discarding.
+5216 Section 2.1.3 exists to deliver was dropped for two commits. Ze as EAP PEER
+needs the mirror of the same fix, because the authenticator waits for a reply
+that the peer was discarding.
 
 **A method's last word has its own field, `MethodResult.FinalRequest`.** The
 paragraph above is why: a packet returned in `Response` beside a non-nil `Err`
 is discarded. `FinalRequest` is read first, it fails the exchange as it goes
-out, and it obliges `Err` to be set beside it. MS-CHAPv2 uses it for the Failure
-packet RFC 2759 Section 6 defines. The difference from the parked cause above is
-WHEN the exchange knows: with a last word the failure is recorded at once and no
-later packet can undo it, where a parked cause leaves the session ignorant for a
-round.
+out, and it obliges `Err` to be set beside it. Both methods that owe a refused
+peer a packet use it: MS-CHAPv2 for the Failure packet RFC 2759 Section 6
+defines, and EAP-TLS for the fatal alert of RFC 5216 Section 2.1.3.
+
+**The cause is recorded on the round it is COMPUTED, never on the round after.**
+EAP-TLS parked its certificate failure on a field the next round read, and that
+next round is the one Section 2.1.3 makes the server wait for. The peer decides
+whether it ever arrives: strongSwan abandons the exchange after ze's alert, so
+ze's whole account of a revoked client certificate was the 30s handshake timeout,
+and a refused certificate read exactly like a dead network. `FinalRequest` closed
+it, because `Session.finalRequest` writes `Session.err` as the last word goes out.
+`handleResponderEAP` (`internal/component/ike/engine`) reads that error on every
+round and writes `ike: EAP authentication failed` on the round it first appears,
+which is one line for one refusal whether or not the peer answers.
 
 **A refusal still costs two rounds, and the lower layer is why.** RFC 3748
 Section 4.2 makes the authenticator send an EAP-Failure after a failure result
@@ -221,6 +228,7 @@ the Failure packet would leave the authenticator no round to meet Section 4.2 in
 <!-- source: internal/core/eap/eap.go -- MethodResult, Session.handleMethod, Session.failure -->
 <!-- source: internal/core/eap/eap_tls.go -- tlsMethod.Process, tlsMethod.Close -->
 <!-- source: internal/core/eap/peer.go -- PeerSession.handleTLSRequest, readAndSendTLS -->
+<!-- source: internal/component/ike/engine/responder_eap.go -- handleResponderEAP -->
 
 ## NAT traversal
 

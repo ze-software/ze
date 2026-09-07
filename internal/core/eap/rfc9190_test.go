@@ -109,7 +109,7 @@ func readPeerPlaintext(t *testing.T, peer *PeerSession) []byte {
 
 // driveRejectedEAPTLS13 drives the real authenticator against the real peer over
 // a session pinned to TLS 1.3, until the authenticator refuses the peer, and
-// returns the authenticator.
+// returns the authenticator and the MethodResult that carried the refusal.
 //
 // It drives tlsMethod directly rather than through driveEAPTLSFlight, because
 // the refusal direction of Section 2.5 is NOT readable from the wire: on TLS 1.3
@@ -120,7 +120,7 @@ func readPeerPlaintext(t *testing.T, peer *PeerSession) []byte {
 //
 // The version pin touches only this method's own tls.Config copy. No production
 // default moves, and MinVersion stays TLS 1.2 everywhere else.
-func driveRejectedEAPTLS13(t *testing.T, cfg MethodConfig, peer *PeerSession) *tlsMethod {
+func driveRejectedEAPTLS13(t *testing.T, cfg MethodConfig, peer *PeerSession) (*tlsMethod, MethodResult) {
 	t.Helper()
 
 	method, err := newTLSMethod(cfg)
@@ -148,8 +148,8 @@ func driveRejectedEAPTLS13(t *testing.T, cfg MethodConfig, peer *PeerSession) *t
 		if mres.Done {
 			t.Fatalf("round %d: the authenticator completed a handshake it was meant to refuse", i+1)
 		}
-		if mres.Err != nil || method.alertSent != nil {
-			return method
+		if mres.Err != nil {
+			return method, mres
 		}
 		if mres.Response == nil {
 			t.Fatalf("round %d: the authenticator sent nothing at all", i+1)
@@ -157,7 +157,7 @@ func driveRejectedEAPTLS13(t *testing.T, cfg MethodConfig, peer *PeerSession) *t
 		req = mres.Response
 	}
 	t.Fatalf("the authenticator never refused the peer within %d rounds", eapTLS13Rounds)
-	return nil
+	return nil, MethodResult{}
 }
 
 // TestEAPTLS13SendsProtectedSuccessIndication drives a mutually authenticated
@@ -281,9 +281,9 @@ func TestEAPTLS13RefusedClientGetsNoSuccessIndication(t *testing.T) {
 		CRLPEM:    pki.trustedCRLPEM,
 	})
 
-	method := driveRejectedEAPTLS13(t, pki.serverConfig(), peer)
+	method, refusal := driveRejectedEAPTLS13(t, pki.serverConfig(), peer)
 
-	if method.alertSent == nil {
+	if refusal.FinalRequest == nil {
 		t.Fatal("the exchange ended without the authenticator's fatal TLS alert, so it never reached the round a broken server would have indicated success on")
 	}
 	if method.handshaked.Load() {

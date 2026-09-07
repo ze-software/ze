@@ -75,6 +75,53 @@ func TestEAPTLS13RefusesARevokedClientCertificate(t *testing.T) {
 	}
 }
 
+// TestEAPTLS13RecordsTheRevocationWhenTheRefusedPeerWalksAway drives the same
+// exchange as the test above and stops at the fatal TLS alert, which is every
+// packet a peer that abandons the exchange there ever sees.
+//
+// VALIDATES: the authenticator's own account names the revoked certificate on the
+// round that sends the alert, with no further packet from the peer and no
+// EAP-Failure.
+// PREVENTS: the state measured on 2026-09-05. The cause was parked for the round
+// that emits EAP-Failure, RFC 5216 Section 2.1.3 makes the server wait for a
+// reply before sending it, and charon abandons the exchange after the alert. So
+// the operator's whole account of a refused certificate was
+// "ike: responder handshake timed out, tearing down", 30 seconds later
+// (plan/journal/diagnosis-parked-until-a-round-the-peer-may-never-send.md). The
+// test above cannot see this: ze's own peer answers the alert, so it reaches the
+// round that reports and stays green either way.
+func TestEAPTLS13RecordsTheRevocationWhenTheRefusedPeerWalksAway(t *testing.T) {
+	pki := newEAPTLSPKI(t)
+
+	serverCfg := pki.serverConfig()
+	serverCfg.CRLPEM = pki.crlRevoking(t, eapTLSClientSerial)
+
+	sess, err := NewSession(TypeTLS, serverCfg)
+	if err != nil {
+		t.Fatalf("NewSession: %v", err)
+	}
+	peer := NewPeerSessionTLS("eap-tls-client", pki.peerConfigWithCRL(pki.trustedCRLPEM))
+	t.Cleanup(func() {
+		sess.Close()
+		peer.Close()
+	})
+
+	alert := alertFlight(t, sess, peer, revocationRounds)
+	if alert.Code != CodeRequest {
+		t.Fatalf("the refusal went out as code %d, want %d (the EAP-Request carrying the alert)",
+			alert.Code, CodeRequest)
+	}
+
+	cause := sess.Err()
+	if cause == nil {
+		t.Fatal("the authenticator sent its fatal TLS alert without recording why, so a peer " +
+			"that stops answering there leaves the operator nothing to read")
+	}
+	if !strings.Contains(cause.Error(), "was revoked") {
+		t.Fatalf("the authenticator recorded %q, which does not name the revocation", cause)
+	}
+}
+
 // TestEAPTLS13RefusesARevokedServerCertificate drives the same exchange from
 // the peer's seat, with the authenticator's own certificate revoked.
 //

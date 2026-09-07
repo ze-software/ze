@@ -308,12 +308,14 @@ func checkResponderEAPTLS13(ctx context.Context, lab *scenarioLab) error {
 // responder-eap-tls13 establishes with the same material, so the revocation is
 // the only thing this refusal can be about.
 //
-// The assertions read STRONGSWAN's account rather than ze's. Ze's own log names
-// the revoked certificate only on the round that emits EAP-Failure, and charon
-// abandons the exchange after the alert rather than answering it, so that round
-// never comes (plan/journal/diagnosis-parked-until-a-round-the-peer-may-never-send.md).
-// What charon reports is ze's wire output read by another implementation, which
-// is the stronger evidence anyway.
+// The assertions read BOTH accounts. Charon's is ze's wire output read by another
+// implementation, which is the stronger evidence about the refusal itself. Ze's
+// own log is what an operator has, and it is asserted here because charon
+// abandons the exchange after the alert rather than answering it: the refusal
+// therefore has to be reported on the round that sends the alert, and a report
+// held back for the EAP-Failure round would leave this scenario with ze saying
+// nothing at all
+// (plan/journal/diagnosis-parked-until-a-round-the-peer-may-never-send.md).
 func checkResponderEAPTLS13RevokedClient(ctx context.Context, lab *scenarioLab) error {
 	const (
 		// The grouped form is what `interopScenarioOf` (`internal/le/rfc`) reads to
@@ -390,6 +392,25 @@ func checkResponderEAPTLS13RevokedClient(ctx context.Context, lab *scenarioLab) 
 	}
 	if err := lab.checkXFRMCount(ctx, zePeer, 0); err != nil {
 		return fail(10, err)
+	}
+	// Assertion 11. Ze told its own operator why. charon never answers the alert,
+	// so this line is written on the round that sends it or it is never written at
+	// all, and the operator is left with the 30s handshake timeout.
+	if err := lab.waitLog(ctx, zePeer, "ike: EAP authentication failed", lab.timeout); err != nil {
+		return fail(11, err)
+	}
+	zeLogs, err := lab.logs(ctx, zePeer)
+	if err != nil {
+		return fail(12, err)
+	}
+	// Assertion 13. The refusal names the revocation and not merely a failure.
+	// Each fragment is one of the four facts an operator needs to act: which
+	// certificate, which serial number, which CA withdrew it, and under which
+	// obligation ze refused.
+	for _, fragment := range []string{"was revoked", "(serial ", "revoked by", "RFC 9190 Section 5.4"} {
+		if !strings.Contains(zeLogs, fragment) {
+			return fail(13, fmt.Errorf("ze's account of the refusal does not carry %q", fragment))
+		}
 	}
 	return nil
 }

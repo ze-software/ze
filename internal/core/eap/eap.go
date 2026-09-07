@@ -184,9 +184,9 @@ func DecodePacket(data []byte) (*Packet, error) {
 //
 // Setting Response BESIDE Err puts the packet nowhere: the Err branch answers
 // with an EAP-Failure and the Response is discarded. That is why the last word
-// has a field of its own rather than a flag over Response, and it is a defect
-// this package has already paid for once (see the EAP-TLS alert in
-// tlsMethod.Process, eap_tls.go).
+// has a field of its own rather than a flag over Response. Both methods that owe
+// a refused peer a packet use it: the MS-CHAPv2 Failure message
+// (mschapv2Method.sendFailure) and the EAP-TLS fatal alert (tlsMethod.Process).
 type MethodResult struct {
 	Response     *Packet
 	FinalRequest *Packet
@@ -632,9 +632,11 @@ func desiredTypes(desired []byte) string {
 // a refusal, sent by an exchange that has already failed.
 //
 // The decision is taken here and now. Err is recorded, no MSK is kept, and the
-// only packet this exchange can produce afterwards is the EAP-Failure. That is
-// what separates a last word from the parked cause EAP-TLS uses, where the
-// Session does not learn of the failure until the round after.
+// only packet this exchange can produce afterwards is the EAP-Failure. Recording
+// the cause on THIS round is the point: the peer decides whether the round that
+// carries the EAP-Failure ever arrives, so a cause held back for it reaches the
+// operator only when the refused peer chooses to answer
+// (plan/journal/diagnosis-parked-until-a-round-the-peer-may-never-send.md).
 //
 // One round still follows, and the lower layer is why. RFC 3748 Section 4.2:
 // "After the authenticator sends a failure result indication to the peer,

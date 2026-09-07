@@ -37,20 +37,26 @@ const (
 	tlsRecordHeaderLen       = 5
 )
 
-// alertRound drives the real authenticator against the real peer until the alert
-// goes out, and returns the EAP-Request that carried it.
+// alertFlight drives a real EAP-TLS Session against a real peer until the
+// authenticator refuses the handshake, and returns the packet that carried the
+// refusal to the peer.
 //
-// The stop condition is `m.alertSent`, which the branch under test sets and
-// nothing else writes. Stopping on `transport.handshakeError() != nil` instead
-// would be merely CORRELATED with the alert round: it re-reads outside Process a
-// value Process has already consumed, so if the 2s eapTLSSettleBackstop fires on
-// a loaded host, Process can answer a bare ACK and the engine can record the
-// error a moment later. This loop would then return a non-alert response and the
-// test would redden blaming a production defect that is not there.
-func alertRound(t *testing.T, method *tlsMethod, peer *PeerSession, maxRounds int) *Packet {
+// The stop condition is `Session.Err`, which the branch under test fills through
+// MethodResult.FinalRequest and nothing else in this exchange writes. Stopping on
+// `transport.handshakeError() != nil` instead would be merely CORRELATED with the
+// alert round: it re-reads outside Process a value Process has already consumed,
+// so if the 2s eapTLSSettleBackstop fires on a loaded host, Process can answer a
+// bare ACK and the engine can record the error a moment later. This loop would
+// then return a non-alert packet and the test would redden blaming a production
+// defect that is not there.
+//
+// The peer is never given the returned packet. That is the point: it models the
+// peer that abandons the exchange after the alert, which is what strongSwan does
+// and what every assertion about the cause being RECORDED has to survive.
+func alertFlight(t *testing.T, sess *Session, peer *PeerSession, maxRounds int) *Packet {
 	t.Helper()
 
-	req := method.Start(1)
+	req := sess.Begin()
 	for i := range maxRounds {
 		pres := peer.Process(req)
 		if pres.Err != nil {
@@ -61,27 +67,23 @@ func alertRound(t *testing.T, method *tlsMethod, peer *PeerSession, maxRounds in
 			t.Fatalf("round %d: the peer stopped answering before the rejection", i+1)
 		}
 
-		mres := method.Process(pres.Response)
-		if mres.Err != nil {
-			// The message names the collapse rather than the no-alert branch,
-			// because this PKI always produces one: a rejection at path validation
-			// happens after the engine has a record layer to send it on.
-			t.Fatalf("round %d: the authenticator reported the failure in the SAME round it "+
-				"produced the alert (%v). Session.handleMethod discards MethodResult.Response "+
-				"whenever Err is set, so the alert never reaches the wire: RFC 5216 Section "+
-				"2.1.3 wants the alert in an EAP-Request and the failure on the round after",
-				i+1, mres.Err)
+		next := sess.Process(pres.Response)
+		if next == nil {
+			t.Fatalf("round %d: the authenticator discarded the peer's response", i+1)
 		}
-		if mres.Done {
+		if next.Code == CodeSuccess {
 			t.Fatalf("round %d: the authenticator completed a handshake it was meant to reject", i+1)
 		}
-		if mres.Response == nil {
-			t.Fatalf("round %d: the authenticator sent nothing at all", i+1)
+		if err := sess.Err(); err != nil {
+			if next.Code == CodeFailure {
+				t.Fatalf("round %d: the authenticator recorded its cause (%v) only on the round "+
+					"that sends EAP-Failure, and the refused peer decides whether that round ever "+
+					"happens. RFC 5216 Section 2.1.3 sends the fatal TLS alert first, and the "+
+					"cause belongs to that round", i+1, err)
+			}
+			return next
 		}
-		if method.alertSent != nil {
-			return mres.Response
-		}
-		req = mres.Response
+		req = next
 	}
 	t.Fatalf("the authenticator never rejected the peer within %d rounds", maxRounds)
 	return nil
@@ -93,36 +95,36 @@ func alertRound(t *testing.T, method *tlsMethod, peer *PeerSession, maxRounds in
 // RFC requirement: RFC5216-2.1.3-3 positive -- RFC 5216 Section 2.1.3: "To ensure
 // that the peer receives the TLS alert message, the EAP server MUST wait for the
 // peer to reply with an EAP-Response packet." The round that produces the alert
-// concludes nothing: it returns an EAP-Request and no error, so the exchange is
-// still open when the peer's reply arrives.
+// sends an EAP-Request and nothing else: no EAP-Failure and no EAP-Success reach
+// the peer until the reply arrives, so the exchange is still open while it waits.
 //
 // RFC requirement: RFC5216-2.1.3-4 positive -- RFC 5216 Section 2.1.3: a reply
 // that "contain[s] an EAP-Response packet with EAP-Type=EAP-TLS and no data" is
 // answered thus: "the EAP-Server MUST send an EAP-Failure packet and terminate
-// the conversation." The empty reply below yields MethodResult.Err (which
-// Session.handleMethod renders as EAP-Failure) and no further packet.
+// the conversation." The empty reply below draws exactly one packet, EAP-Failure.
 //
-// VALIDATES: the round that detects a rejected client certificate returns an
-// EAP-Request carrying the TLS engine's fatal alert and NO error, and the round
-// that follows returns the error naming the certificate cause and no packet.
-// PREVENTS: the alert being returned beside the error, where Session.handleMethod
-// drops it and the peer is told only that the exchange ended -- which is the one
-// thing Section 2.1.3 exists to stop ("so as to allow the peer to inform the user
-// or log the cause of the failure").
+// VALIDATES: the round that detects a rejected client certificate sends an
+// EAP-Request carrying the TLS engine's fatal alert, records the certificate
+// cause in that same round, and sends no EAP-Failure until the peer replies.
+// PREVENTS: two defects at once. The alert being returned beside the error, where
+// Session.handleMethod drops it and the peer is told only that the exchange ended
+// -- the one thing Section 2.1.3 exists to stop ("so as to allow the peer to
+// inform the user or log the cause of the failure"). And the cause being held
+// back for the EAP-Failure round, which the refused peer decides whether to send.
 func TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure(t *testing.T) {
 	impostor := newImpostorPKI(t)
 
-	method, err := newTLSMethod(impostor.serverConfig())
+	sess, err := NewSession(TypeTLS, impostor.serverConfig())
 	if err != nil {
-		t.Fatalf("newTLSMethod: %v", err)
+		t.Fatalf("NewSession: %v", err)
 	}
 	peer := NewPeerSessionTLS("impostor-pki-client", impostor.peerConfig())
 	t.Cleanup(func() {
-		method.Close()
+		sess.Close()
 		peer.Close()
 	})
 
-	alert := alertRound(t, method, peer, 40)
+	alert := alertFlight(t, sess, peer, 40)
 
 	// The alert round must carry a TLS record, not the bare fragment ACK that a
 	// round with nothing to say produces.
@@ -149,27 +151,37 @@ func TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure(t *testing.T)
 			"(an alert sealed under TLS 1.3 handshake keys)", ct, tlsRecordAlert, tlsRecordApplicationData)
 	}
 
+	// The cause is in hand on the SAME round, before the peer has answered
+	// anything. A peer that walks away now leaves the operator this sentence.
+	msg := sess.Err().Error()
+	if !strings.Contains(msg, "unknown authority") {
+		t.Errorf("the recorded cause %q does not carry the TLS engine's own reason", msg)
+	}
+	if strings.Contains(msg, "no MSK") {
+		t.Errorf("the recorded cause %q reports the missing MSK rather than the certificate "+
+			"failure that caused it", msg)
+	}
+
 	// RFC 5216 Section 2.1.3: "The EAP-Response packet sent by the peer ... MAY
 	// contain an EAP-Response packet with EAP-Type=EAP-TLS and no data, in which
 	// case the EAP-Server MUST send an EAP-Failure packet". This is that reply.
-	next := method.Process(&Packet{Code: CodeResponse, Type: TypeTLS, TypeData: []byte{0}})
-	if next.Err == nil {
-		t.Fatalf("the round after the alert reported no failure (response=%+v, done=%v): the "+
-			"exchange would continue after a handshake the authenticator already rejected",
-			next.Response, next.Done)
+	last := sess.Process(&Packet{
+		Code:       CodeResponse,
+		Identifier: alert.Identifier,
+		Type:       TypeTLS,
+		TypeData:   []byte{0},
+	})
+	if last == nil {
+		t.Fatal("the reply to the alert drew no packet at all, so the conversation never terminated")
 	}
-	if next.Response != nil {
-		t.Errorf("the round after the alert also sent a packet (%+v); the conversation ends here", next.Response)
+	if last.Code != CodeFailure {
+		t.Errorf("the reply to the alert drew code %d, want %d (EAP-Failure)", last.Code, CodeFailure)
 	}
-	if next.Done {
-		t.Error("the round after the alert reported the method as done")
+	if sess.Succeeded() {
+		t.Error("the session reports success for a client certificate it could not verify")
 	}
-	msg := next.Err.Error()
-	if !strings.Contains(msg, "unknown authority") {
-		t.Errorf("error %q does not carry the TLS engine's own reason", msg)
-	}
-	if strings.Contains(msg, "no MSK") {
-		t.Errorf("error %q reports the missing MSK rather than the certificate failure that caused it", msg)
+	if got := sess.Err().Error(); got != msg {
+		t.Errorf("the cause changed on the EAP-Failure round, from %q to %q", msg, got)
 	}
 }
 
@@ -256,62 +268,69 @@ func TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure(t *testing.T) {
 	}
 }
 
-// TestEAPTLSRejectedPeerCannotSteerTheReportedCause asserts the parked cause
+// TestEAPTLSRejectedPeerCannotSteerTheReportedCause asserts the recorded cause
 // survives whatever the rejected peer answers the alert with.
 //
-// VALIDATES: after the alert round, a malformed EAP-TLS response still yields the
-// TLS handshake failure, not the reassembly complaint that response would
-// otherwise produce.
+// VALIDATES: after the alert round, a malformed EAP-TLS response and a response
+// of a type this method does not serve each leave Session.Err holding the TLS
+// handshake failure, and each draws the EAP-Failure the conversation owes.
 // PREVENTS: a peer whose certificate was refused choosing what the operator sees.
-// Without the parked cause, Process falls through to the reassembly checks, the
-// first one that trips wins, and the certificate failure is replaced by "peer
-// ended a TLS message after 0 of 10 declared bytes" -- which names the peer's last
+// The reply reaches stateLastWord (eap.go), which answers it without asking the
+// method anything. Were it fed to tlsMethod.Process instead, the first guard that
+// tripped would win and the certificate failure would be replaced by "peer ended
+// a TLS message after 0 of 10 declared bytes" -- which names the peer's last
 // packet instead of the reason the exchange died (ai/rules/cli.md).
 func TestEAPTLSRejectedPeerCannotSteerTheReportedCause(t *testing.T) {
-	impostor := newImpostorPKI(t)
-
-	method, err := newTLSMethod(impostor.serverConfig())
-	if err != nil {
-		t.Fatalf("newTLSMethod: %v", err)
-	}
-	peer := NewPeerSessionTLS("impostor-pki-client", impostor.peerConfig())
-	t.Cleanup(func() {
-		method.Close()
-		peer.Close()
-	})
-
-	alertRound(t, method, peer, 40)
-
-	// Two shapes a rejected peer can answer with, each of which produced a
-	// DIFFERENT error before the cause was parked.
+	// Two shapes a rejected peer can answer with, each of which named the peer's
+	// own packet rather than the refusal before the cause was recorded.
 	replies := []struct {
 		name    string
-		packet  *Packet
-		usurper string // the wording that would win if the parked cause did not
+		reply   func(identifier uint8) *Packet
+		usurper string // the wording that would win if the recorded cause did not
 	}{
 		{
 			// A first fragment declaring ten octets and carrying none. Fed to a live
 			// exchange this trips reassemblyComplete and is reported as such.
-			name:    "a truncated TLS message",
-			packet:  &Packet{Code: CodeResponse, Type: TypeTLS, TypeData: []byte{eapTLSFlagL, 0, 0, 0, 10}},
+			name: "a truncated TLS message",
+			reply: func(id uint8) *Packet {
+				return &Packet{Code: CodeResponse, Identifier: id, Type: TypeTLS, TypeData: []byte{eapTLSFlagL, 0, 0, 0, 10}}
+			},
 			usurper: "declared bytes",
 		},
 		{
-			// One octet, and it reaches a DIFFERENT guard: the type check at the top
-			// of Process, which answers ErrMethodFailed and names no cause at all.
-			name:    "an EAP type this method does not serve",
-			packet:  &Packet{Code: CodeResponse, Type: TypeIdentity},
+			// A type check this method does not serve, which answers ErrMethodFailed
+			// and names no cause at all.
+			name: "an EAP type this method does not serve",
+			reply: func(id uint8) *Packet {
+				return &Packet{Code: CodeResponse, Identifier: id, Type: TypeIdentity}
+			},
 			usurper: "method authentication failed",
 		},
 	}
 
 	for _, tc := range replies {
 		t.Run(tc.name, func(t *testing.T) {
-			res := method.Process(tc.packet)
-			if res.Err == nil {
-				t.Fatal("a rejected peer's reply ended the exchange with no error at all")
+			impostor := newImpostorPKI(t)
+			sess, err := NewSession(TypeTLS, impostor.serverConfig())
+			if err != nil {
+				t.Fatalf("NewSession: %v", err)
 			}
-			msg := res.Err.Error()
+			peer := NewPeerSessionTLS("impostor-pki-client", impostor.peerConfig())
+			t.Cleanup(func() {
+				sess.Close()
+				peer.Close()
+			})
+
+			alert := alertFlight(t, sess, peer, 40)
+
+			last := sess.Process(tc.reply(alert.Identifier))
+			if last == nil {
+				t.Fatal("a rejected peer's reply drew no packet, so the conversation never terminated")
+			}
+			if last.Code != CodeFailure {
+				t.Errorf("a rejected peer's reply drew code %d, want %d (EAP-Failure)", last.Code, CodeFailure)
+			}
+			msg := sess.Err().Error()
 			if !strings.Contains(msg, "unknown authority") {
 				t.Errorf("error %q is not the certificate failure that caused the rejection", msg)
 			}
