@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-09-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -385,7 +385,8 @@ session.
      is not a limitation: write it as its own spec, in the bucket that item
      belongs to, and name that spec here (ai/rules/planning.md). -->
 - A session that is already operational keeps the KeepAlive Time it negotiated when the leaf changes. This is RFC 5036 Section 3.5.3's exchange model rather than unbuilt work: the value travels in the Initialization message, which is sent one time per session.
-- The FRR interop assertion is written and type-checks, and it was NOT run: FRR is not installed on the machine this work was done on, and no registered `./le` action runs `internal/plugins/ldp/frr_interop_integration_linux_test.go`. The wire half is proven instead by `TestConfiguredKeepaliveReachesInitializationMessage`, which reads the KeepAlive Time bytes back off a `net.Pipe`.
+- The FRR interop assertion is written and type-checks, and it was NOT run. The wire half is proven instead by `TestConfiguredKeepaliveReachesInitializationMessage`, which reads the KeepAlive Time bytes back off a `net.Pipe` through `DecodeInit`.
+  Two registered runners DO reach it, so the sentence this bullet carried until closure ("no registered `./le` action runs `internal/plugins/ldp/frr_interop_integration_linux_test.go`") was false: `./le qemu all-tests` runs the integration-tagged tests inside the VM and `./internal/plugins/ldp` is in that package set (`internal/le/qemu/alltests.go`), and the test's own skip line names `./le qemu run` with `packages frr`. Closure ran the second one. FRR 10.2.1 installed in the guest and the run never reached the test: the guest's 9p mount of the checkout did not take, so `/workspace` was empty and the Go bootstrap failed with `sh: go: not found` (exit 127). That is a harness defect, recorded at `plan/journal/silent-fall-through.md` (2026-09-07), not a property of this change.
 
 ## RFC Documentation (Scope: protocol)
 
@@ -451,3 +452,172 @@ code, observes the red, then restores it and observes the green.
 |------|----------------|--------------|----------------|
 | `TestConfiguredKeepaliveReachesInitializationMessage`, `TestSessionKeepaliveBoundaries` | `NewSession` builds the session with `keepaliveTime: DefaultKeepaliveTime` and `holdTime: 3 * DefaultKeepaliveTime`, the state before this spec | `FAIL`: proposed 0x3c where 0x0f was expected; keepalive 1m0s where 15s was expected; hold time 3m0s where 45s was expected. `lowest encodable` read 0x3c for 0x1 and `highest encodable` read 0x3c for 0xffff | `ok github.com/ze-software/ze/internal/plugins/ldp` |
 | `test/ldp/ldp-keepalive-time.ci` | `parseLDPConfig` drops its `keepalive-time` branch, so the leaf reaches no field | `FAIL 2 ldp-keepalive-time`, `stderr does not contain "keepalive-time=15s"`; the engine logged `keepalive-time=1m0s`. The other three tests in the suite passed, so the red is specific to this one | `pass 4/4 100.0%` |
+
+## Implementation Summary
+
+### What Was Implemented
+- `SessionConfig` and a revised `NewSession` (`internal/plugins/ldp/session.go`). The constructor takes one named struct rather than eight positional parameters, refuses a KeepAlive Time outside the range two octets can carry, and derives `holdTime` as three times the accepted value. `keepaliveTimeMax` states the wire limit and quotes RFC 5036 Section 3.5.3 above itself.
+- `sessionConfigForAdj` and a revised `startSessionForAdj` (`internal/plugins/ldp/register.go`). The builder fills the session parameters from the LSR-ID, the timer and the adjacency; the discovery callback reads `activeCfg.KeepaliveTime` under `mgrMu`, copies one field and releases the lock before calling anything.
+- The engine start log line in `runLDPEngine`, which reports the LSR-ID and all three timers, so a daemon with no peer can still be asked what each leaf did.
+- Tests: `internal/plugins/ldp/keepalive_test.go` (wiring, peer identity, four boundaries), `test/ldp/ldp-keepalive-time.ci` (operator path), and a negotiated-value assertion in `TestLDPInteropFRR`.
+- Prose: the `ze:help` beside the leaf, `docs/guide/mpls.md`, and `docs/architecture/ldp/mpls-ldp.md`.
+
+### Bugs Found/Fixed
+- Fixed here: the leaf itself. `ldpConfig.KeepaliveTime` was written by `parseLDPConfig` and read by nothing, so `SendInit` proposed 60 seconds whatever the operator wrote. Covered by `TestConfiguredKeepaliveReachesInitializationMessage` and `test/ldp/ldp-keepalive-time.ci`, both proven red against the pre-spec code (Red-Then-Green Evidence above).
+- Fixed at closure: `rfc/short/rfc5036.md` published `Default KeepAlive Time / 180 seconds` in its constants table beside real RFC 5036 constants. RFC 5036 states no default: `grep 180 rfc/full/rfc5036.txt` returns nothing, and Section 3.5.3 gives only "Two octet unsigned non zero integer". The row now states the range, names 180 as FRR's and Cisco's number, and names `DefaultKeepaliveTime` as the producer of Ze's 60. Implementation recorded this and left it; the row in `plan/journal/reference-checked-claim-unchecked.md` is amended to say the instance is repaired and the class is still open.
+- Found, not fixed, one row each in `plan/journal/`: `handleInit` accepts a peer's KeepAlive Time of 0 and zeroes the hold time with it (`zero-value-as-valid-answer.md`), and `./le qemu run` does not check its 9p mount so a failed mount surfaces as `go: not found` (`silent-fall-through.md`). Neither is in this diff and neither blocks an AC; both are stated in Work Not Done.
+
+### Documentation Updates
+- `docs/guide/mpls.md` -- what `keepalive-time` does and when a change to it applies. Anchors `<!-- source: internal/plugins/ldp/session.go -- NewSession, SendInit -->` and `<!-- source: internal/plugins/ldp/register.go -- sessionConfigForAdj -->`.
+- `docs/architecture/ldp/mpls-ldp.md` -- "Decision: the KeepAlive Time is read when the session opens", with the rejected alternative. Anchors on `sessionConfigForAdj`/`startSessionForAdj` and `SessionConfig`/`NewSession`.
+- `internal/plugins/ldp/yang/ze-ldp-conf.yang` -- the `ze:help` no longer says the leaf is read nowhere.
+- `rfc/short/rfc5036.md` -- the constants-table repair above.
+- `./le doc check verify` exits 1 across the BGP command surface and `../gh-pages/reference/command-equivalents/`, which is a pre-existing red belonging to other sessions. No finding names `docs/guide/mpls.md`, `docs/architecture/ldp/mpls-ldp.md` or `rfc/short/rfc5036.md`; the grep for all three over the run's log returns nothing.
+
+### Deviations from Plan
+- `runLDPEngine`'s discovery callback dials from `c.TransportAddr` where it previously used the engine-start `cfg.TransportAddr`. The spec did not plan this line. It is correct and the comment above it states why: the TCP source address must be the one this interface's Hellos advertise, and `discoverOnInterface` takes those from the same `c`. Reading it from `activeCfg`, as the keepalive is, would let a reload move the dial address away from what the running interface still advertises, which a conformant peer rejects. The two leaves take different sources on purpose.
+- The FRR interop run was attempted at closure rather than skipped. See Known Limitations.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Implementation found the false `Default KeepAlive Time / 180 seconds` row in `rfc/short/rfc5036.md`, wrote a journal row, and left the row standing on the grounds that "correcting one row leaves the class open" | The class staying open is a reason to build the check, never a reason to leave a false constant published on an outside-facing page. `ai/rules/documentation.md` is rung 2 and puts the page repair in the work that read the page | Closure re-read the spec's own assumption A-2 and the constants table it was derived from | The row is fixed and the journal entry amended to separate the repaired instance from the open class |
+| assumption | The Known Limitations bullet stated that no registered `./le` action runs `frr_interop_integration_linux_test.go` | Two do. `./le qemu all-tests` runs the integration-tagged tests and `./internal/plugins/ldp` is in its package set (`internal/le/qemu/alltests.go`); the test's own skip message names `./le qemu run` with `packages frr` | Closure grepped for the runner before accepting the limitation, rather than accepting the sentence | The bullet is corrected and the run was attempted. It failed in the harness, not in the test |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The KeepAlive Time Ze proposes is the configured value, not a fixed 60 seconds | Done | `NewSession`, `SendInit` (`internal/plugins/ldp/session.go`); `sessionConfigForAdj` (`internal/plugins/ldp/register.go`) | Read back off the wire as 15 by `proposedKeepalive` |
+| The pre-negotiation hold time is three times the configured value | Done | `NewSession` (`holdTime: 3 * keepalive`) | 45s asserted for a 15s configuration |
+| The leaf is NOT refused at commit; it is carried | Done | the whole chain above | The alternative, an `unimplementedVRFValidator`-style refusal, was rejected in Key Design Decisions |
+| A session already up keeps its negotiated value | Done | `runLDPEngine`'s discovery callback reads `activeCfg` at session open only | RFC 5036 Section 3.5.3 exchanges the value once |
+| `NewSession` stops taking eight positional parameters | Done | `SessionConfig` (`session.go`) | All five call sites converted; `grep -n "NewSession("` shows every one passing the struct |
+| The engine states the timers it starts with | Done | `runLDPEngine` (`register.go`) | `ldp: engine started lsr-id=... keepalive-time=15s` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestConfiguredKeepaliveReachesInitializationMessage` | `assert.Equal(t, uint16(15), proposedKeepalive(...))`, decoded from the Common Session Parameters TLV via `DecodeInit` |
+| AC-2 | Done | the same test | `assert.Equal(t, 45*time.Second, sess.currentHoldTime())` |
+| AC-3 | Done | `TestSessionKeepaliveNegotiation`, and `handleInit` unchanged by this diff | `handleInit` lowers to `msg.KeepaliveTime` and never raises; the commit's `session.go` hunk touches no line of it |
+| AC-4 | Done | `TestSessionKeepaliveBoundaries`, four subtests | 1s and 65535s pass through; 0 and 65536s log both numbers and propose 60. No truncation path exists: the guard runs before the field is stored |
+| AC-5 | Done | `runLDPEngine` log line; `test/ldp/ldp-keepalive-time.ci` | `expect=stderr:contains=ldp: engine started` and `keepalive-time=15s`, with `reject=stderr:pattern=keepalive-time=1m0s` |
+| AC-6 | Done | the `mgrMu`-guarded read in `runLDPEngine`'s discovery callback | A new session reads `activeCfg`, which the reload path updates; an established session is never revisited |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestConfiguredKeepaliveReachesInitializationMessage` | Pass | `internal/plugins/ldp/keepalive_test.go` | |
+| `TestSessionConfigForAdjCarriesPeerIdentity` | Pass | same file | |
+| `TestSessionKeepaliveBoundaries` | Pass | same file | 4 subtests |
+| `TestSessionKeepaliveNegotiation` | Pass | `internal/plugins/ldp/session_test.go` | Pre-existing, kept green |
+| `ldp-keepalive-time` | Pass | `test/ldp/ldp-keepalive-time.ci` | `./le functional ldp`: `pass 4/4 100.0% 13.3s` |
+| `TestLDPInteropFRR` | Written, NOT RUN | `internal/plugins/ldp/frr_interop_integration_linux_test.go` | `go vet -tags integration ./internal/plugins/ldp/...` exits 0. The QEMU run reached FRR install and died in the guest Go bootstrap; see Known Limitations |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/plugins/ldp/session.go` | Done | `SessionConfig`, `keepaliveTimeMax`, guarded `NewSession`, `SendInit` comment |
+| `internal/plugins/ldp/register.go` | Done | `sessionConfigForAdj`, `startSessionForAdj` signature, engine log line, `mgrMu` read |
+| `internal/plugins/ldp/yang/ze-ldp-conf.yang` | Done | `ze:help` corrected |
+| `internal/plugins/ldp/adjacency_expiry_test.go`, `rfc5036_test.go` | Done | Call sites moved to `SessionConfig`; owner approval owed for the tagged file, see Work Not Done |
+| `internal/plugins/ldp/frr_interop_integration_linux_test.go` | Done | 15s configured, negotiated value asserted |
+| `docs/architecture/ldp/mpls-ldp.md`, `docs/guide/mpls.md` | Done | With source anchors |
+| `internal/plugins/ldp/keepalive_test.go` | Created | |
+| `test/ldp/ldp-keepalive-time.ci` | Created | |
+| `rfc/short/rfc5036.md` | Added at closure | Not in the plan; the false constant repair |
+
+### Audit Summary
+- **Total items:** 6 requirements, 6 ACs, 6 tests, 9 file groups = 27
+- **Done:** 26
+- **Partial:** 1 -- `TestLDPInteropFRR` is written and type-checked but never executed. Not a scope reduction and not owner-approved as one: the run was attempted and the harness failed before the test started
+- **Skipped:** 0
+- **Changed:** 2 (both in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An operator who writes `keepalive-time 15` gets 15 on the wire, not 60 | functional + wire-byte unit | `TestConfiguredKeepaliveReachesInitializationMessage` reads `init.KeepaliveTime == 15` back through `DecodeInit` off a `net.Pipe`. Proven red against the pre-spec `NewSession`: the wire read 0x3c where 0x0f was expected |
+| The same operator gets a 45-second hold, not 180 | unit | `assert.Equal(t, 45*time.Second, sess.currentHoldTime())` in the same test. Red phase read `3m0s` |
+| The leaf reaches a running engine at all | functional `.ci` | `test/ldp/ldp-keepalive-time.ci`, `./le functional ldp` `pass 4/4 100.0%`. Proven red by reverting `parseLDPConfig`'s branch: `FAIL 2 ldp-keepalive-time`, engine logged `keepalive-time=1m0s`, other three tests green |
+| A value two octets cannot carry never reaches the wire truncated | boundary unit | `TestSessionKeepaliveBoundaries`: 1s and 65535s encode as written, 0 and 65536s propose 60. Red phase read 0x3c for 0x1 and for 0xffff |
+| RFC 5036 Section 3.5.3 negotiation still holds | RFC-tagged unit | `RFC5036-2.5.1-2` positive and negative (`internal/plugins/ldp/rfc5036_test.go`) pass; `handleInit` is untouched by the diff |
+| Ze interoperates with another LSR on the negotiated value | interop | NOT OBTAINED. `TestLDPInteropFRR` asserts `cfg.KeepaliveTime == negotiatedKA` against FRR, which proposes 180, so the assertion can only pass if Ze put 15 on the wire. The run was attempted (`./le qemu run packages "frr frr-pythontools"`): FRR 10.2.1 installed, then the guest 9p mount left `/workspace` empty and the run exited 127 at `sh: go: not found`. Harness defect, recorded in `plan/journal/silent-fall-through.md` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| `TestLDPInteropFRR` was never executed, so no evidence from a second implementation exists | The assertion, the config and the runner all exist. `./le qemu run` failed in its guest bootstrap before the test started, and the cause is the harness rather than this change | Not a spec: a journal row, `plan/journal/silent-fall-through.md` (2026-09-07), which names the mount and the repair. The test itself is complete and in the `./le qemu all-tests` package set, so it runs the moment the harness does |
+| Owner approval for the RFC-tagged test change in `internal/plugins/ldp/rfc5036_test.go` | `./le commit audit` reports `[WEAKENED] ... RFC-TAGGED test changed`. The change is `rfcTestSession`'s call site alone: eight positional arguments became a `SessionConfig` carrying `KeepaliveTime: DefaultKeepaliveTime`, which reproduces the previous value exactly. No tag comment, requirement id, assertion, offset or quoted requirement moved. An author MUST NOT write his own approval row | Thomas. The row belongs in `test/rfc-changed/<session>.md` in the commit carrying the change, which is `1b53458e0`, already landed. It is recorded as open debt in `plan/verification-debt/1bfe298a.md` and no push may follow until he answers |
+| `handleInit` still accepts a peer KeepAlive Time of 0 and zeroes the hold time with it | Outside this diff: this spec changed what Ze proposes and left `handleInit` byte-identical. The correct answer is `Session Rejected/Bad KeepAlive Time` (RFC 5036 Section 3.9), which needs the Notification encoder Ze does not have | `plan/journal/zero-value-as-valid-answer.md` (2026-09-07). The Notification gap is already on the public ledger as RFC5036-2.5.3-2 and RFC5036-3.5.1-1 under `Support remaining` in `rfc/short/rfc5036.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/ldp-keepalive-time-proposal-d64e7b3f-bfdc-4614-8db4-f12043eb77cc.md` (11 files, verdict=clean) |
+| `review_gate.py check` | clean -- `./le spec session review check` exits 0: `review_gate: OK (8 code files, clean, hashes match ...)` |
+| Rounds | 1. One pass found three items: two record defects (NOTEs, fixed in one edit each) and one page defect (the `rfc/short/rfc5036.md` constant, fixed). No PRODUCT defect was found in the diff, so no later round was earned |
+| Reviewer lenses used | wiring and reachability; removed-behavior audit over every replaced line; boundary and degenerate input on the new guard; untrusted-peer input on `handleInit`; concurrency on the `mgrMu` read and the `SendInit`/`ReadLoop` ordering; allocation; `docs/contributing/ze-go-style.md` style pass; RFC 5036 Section 3.5.3 read from `rfc/full/`; documentation drift |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | An outside-facing page publishes a constant the RFC does not contain: `Default KeepAlive Time / 180 seconds` sits in the constants table beside UDP port 646 and the 256-byte minimum Max PDU Length, and `grep 180 rfc/full/rfc5036.txt` returns nothing | `rfc/short/rfc5036.md`, Constants | The row now gives the range Section 3.5.3 defines, names 180 as FRR's and Cisco's default, and names `DefaultKeepaliveTime` (`internal/plugins/ldp/session.go`) as the producer of Ze's 60 |
+| 2 | NOTE | The Known Limitations bullet asserted that no registered `./le` action runs the FRR interop test. Two do | this spec, Known Limitations | Bullet rewritten naming `./le qemu all-tests` (`internal/le/qemu/alltests.go`) and `./le qemu run packages frr`, and recording the attempted run |
+| 3 | NOTE | The `c.TransportAddr` change is correct but undeclared in the spec | `runLDPEngine` (`internal/plugins/ldp/register.go`) | Recorded in Deviations with the reason the two leaves take different sources |
+
+Checks that found nothing, each run rather than assumed: `./le repository check` reports one issue and it is `ExtractRemovePrivateASOps` in another session's uncommitted `internal/component/bgp/reactor/filter_delta.go`, not this diff. `gofmt -l internal/plugins/ldp/` is empty and `go vet ./internal/plugins/ldp/...` exits 0. No `panic()` is added, so the style pass's first question has no trace to follow. No `make()` is added and `SendInit` still encodes into its `[256]byte` stack buffer. `SendInit`'s new comment claims it runs before `ReadLoop`; verified at the call site in `startSessionForAdj`, where `sess.SendInit()` returns before the keepalive goroutine is started and before `sess.ReadLoop` is entered, and `handleInit` has no other caller. The compound range guard in `NewSession` was weighed against "split a compound condition" and kept: both arms take the same handling, and the alternative puts the happy path in an `if` with the guard in an `else`, which the same page forbids.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/plugins/ldp/keepalive_test.go` | Yes | `git show --stat 1b53458e0` lists it at 118 added lines; `cat` returns the three tests |
+| `test/ldp/ldp-keepalive-time.ci` | Yes | `git show --stat 1b53458e0` lists it at 76 added lines; `cat` returns the config, the `expect=` and the `reject=` lines |
+| `internal/plugins/ldp/frr_interop_integration_linux_test.go` | Yes | `grep -n KeepaliveTime` returns the config field, the `startSessionForAdj` argument and the `require.Equal` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | 15 configured reaches the wire as 15 | `./le job run label ldp-unit command go test -run ... -v`: `--- PASS: TestConfiguredKeepaliveReachesInitializationMessage (0.00s)` |
+| AC-2 | The hold time is 45s | same run, same test, which asserts `currentHoldTime()` |
+| AC-3 | The smaller proposal wins | same run: `--- PASS: TestSessionKeepaliveNegotiation (0.00s)` |
+| AC-4 | An unencodable value proposes the default | same run: `--- PASS: TestSessionKeepaliveBoundaries` with all four subtests PASS |
+| AC-5 | The engine reports its timers | `./le functional ldp`: `13.3s 2/4 PASS 2 ldp-keepalive-time`, whose `expect=stderr:contains=keepalive-time=15s` is what passing means |
+| AC-6 | A new session reads the config in force | `grep -n "activeCfg\|mgrMu" internal/plugins/ldp/register.go` shows the callback's lock, one-field read and unlock, and shows `activeCfg` assigned on the first-config and reload paths |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ldp { keepalive-time 15 }` in a booted config | `test/ldp/ldp-keepalive-time.ci` | Yes -- read the file: it writes `keepalive-time 15` in the `ldp` block, pipes the config to `ze -`, and asserts `ldp: engine started` and `keepalive-time=15s` while rejecting `keepalive-time=1m0s`. It is in the registered `ldp` suite, which ran 4/4 |
+| The delivered `ldp` JSON section | `TestConfiguredKeepaliveReachesInitializationMessage` | Yes -- read the file: it builds `sdk.ConfigSection{Root: "ldp", Data: ...}` with the leaves as strings, runs `parseLDPConfig`, then `sessionConfigForAdj` and `NewSession`, and decodes the Initialization off the pipe |
+| A discovered adjacency with an FRR peer | `TestLDPInteropFRR` | Assertion verified by reading, execution NOT obtained. `require.Equal(t, cfg.KeepaliveTime, negotiatedKA)` against a `cfg.KeepaliveTime` of `15 * time.Second` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | Confirmed | `grep -rn "NewSession(" internal/plugins/ldp/` returns five sites and one definition; the only pre-spec reader of `ldpConfig.KeepaliveTime` was the parser that wrote it. Both revert walks in Red-Then-Green Evidence went red, which is the positive proof |
+| A-2 | Confirmed | `grep -n 180 rfc/full/rfc5036.txt` returns nothing. Section 3.5.3 defines the field and no default. This is also what made the `rfc/short/` constants row a defect |
+| A-3 | Confirmed | `reconcile` (`internal/plugins/ldp/discovery_manager.go`) starts a goroutine for an added interface and stops one for a removed interface, and leaves a running interface alone, so the captured `ldpConfig` is frozen at interface start |
+| A-4 | Confirmed | `rfc/full/rfc5036.txt` Section 3.5.3 carries the KeepAlive Time in the Initialization message's Common Session Parameters, which is sent one time per session |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/guide/mpls.md`: "ze proposes in the Initialization message of each new session" | `SendInit` encodes `uint16(s.keepaliveTime.Seconds())`, and `s.keepaliveTime` is `cfg.KeepaliveTime` from `NewSession` | Yes |
+| `docs/guide/mpls.md`: defaults 5s / 15s / 60s | `internal/plugins/ldp/yang/ze-ldp-conf.yang` gives `default 60` on `keepalive-time`; `parseLDPConfig` seeds `DefaultHelloInterval` and `DefaultHelloHoldTime` | Yes |
+| `docs/architecture/ldp/mpls-ldp.md`: "read from the active config rather than from the copy the discovery goroutine started with" | the `mgrMu.Lock()` / `activeCfg.KeepaliveTime` / `mgrMu.Unlock()` block in `runLDPEngine` | Yes |
+| Checklist rows answered No (1, 2, 3, 4, 7, 8, 9, 10, 11, 13, 14, 15) | `git show --stat 1b53458e0` names 13 files and none is a command, RPC, SDK type, wire encoder, metric, runner or comparison page. `grep -rn "spec-ldp-keepalive-time-proposal"` over the tree returns only the two `VALIDATES:` headers | Yes |
+| RFC status row | No requirement changed level. Requirement `RFC5036-2.5.1-2` was already proven and `handleInit` is untouched. The `Support coverage` cell already names "Initialization/KeepAlive negotiation" | Yes, no `./le rfc index-update` run is owed |
+| `./le doc check verify` | Exits 1 across the BGP command surface and `../gh-pages/`; `grep` for `docs/guide/mpls.md`, `docs/architecture/ldp` and `rfc/short/rfc5036` over the log returns nothing | Yes |
+
+## Core Insight
+
+A leaf that parses is not a leaf that is read, and a grep for the leaf's own name hides that rather than showing it: `KeepaliveTime` matched three times in the package, and one of the three was an unrelated wire-struct field with the same spelling. What separates a carried value from a dead one is a reader on the path from the config to the wire, so the question to ask of any config leaf is not "where is this name" but "which function between the parser and the socket reads it".
