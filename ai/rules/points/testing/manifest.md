@@ -21,6 +21,7 @@ rfc-tagged-tests-blocking ## RFC-Tagged Tests
   never-edit-an-rfc-tagged-test-to-match-the-code
   pin-every-requirement-with-a-positive-and-a-negative
   reindex-after-moving-a-tagged-test
+  read-the-functional-tier-as-runs-when-its-subject-changes
 iteration-workflow-blocking ## Iteration Workflow
   never-keep-a-numeric-test-id-past-the-turn
   name-a-real-slog-subsystem-in-a-ze-log-key

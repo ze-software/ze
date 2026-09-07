@@ -10,8 +10,8 @@
 // is whether anything EXECUTES it, and a tag in a suite no pipeline runs is not
 // weaker evidence -- it is the absence of evidence wearing evidence's clothes.
 //
-// Neither axis is a literal. A suite's verify tier comes from the run list that
-// executes it, and an interop tree's nightly tier from whether a SCHEDULED
+// Neither axis is a literal. A suite's verify tier comes from the gating list
+// that names it, and an interop tree's nightly tier from whether a SCHEDULED
 // workflow names its runner. Deleting that job takes the tier away, which is
 // the property four hard-coded tiers could not have.
 package rfc
@@ -28,8 +28,15 @@ import (
 )
 
 // The three execution tiers.
+//
+// A verify tier says the native full verifier OWNS the carrier, not that every
+// run executes it. A gating run selects its suites from the recorded suite map
+// (docs/architecture/testing/verify-freshness-scope.md), so a suite the change
+// set cannot reach is ruled out and still holds its tier: the derivation below
+// reads the gating LIST and never one run's selection, which is what stops a
+// narrowed run from lowering a requirement's evidence.
 const (
-	tierVerify  = "verify"  // runs in the native full verifier on every push
+	tierVerify  = "verify"  // the native full verifier owns it; a .ci runs when the change set reaches its suite
 	tierNightly = "nightly" // runs in a scheduled advisory workflow
 	tierUnrun   = "unrun"   // nothing runs it automatically: a tag here is refused
 )
