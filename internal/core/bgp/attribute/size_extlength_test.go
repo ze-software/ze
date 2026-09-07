@@ -1,11 +1,11 @@
 // VALIDATES: the attribute sizers agree with WriteHeaderTo about the header size
 //            class, for an attribute whose flags already carry FlagExtLength over
 //            a value of 255 octets or fewer.
-// PREVENTS: an under-allocated attribute buffer. packAttributesWithContext
-//           (internal/component/bgp/rib/route.go) sizes with
-//           AttributesSizeWithContext. It then does make([]byte, totalSize) and
-//           writes into that buffer. One byte short is an out-of-range panic,
-//           on any route relayed from a peer that sets the bit.
+// PREVENTS: an under-allocated attribute buffer. CommitService.packAttributesWithASPath
+//           (internal/component/bgp/rib/commit.go) sizes with
+//           AttributesSizeWithContext. It then does make([]byte, totalLen) and
+//           writes into that buffer. One byte short shifts every octet after the
+//           header, on any route relayed from a peer that sets the bit.
 
 package attribute
 
@@ -69,5 +69,5 @@ func TestAttributesSizeWithContextMatchesWhatIsWrittenForAnExtLengthShortValue(t
 	}
 
 	assert.Equal(t, off, size,
-		"AttributesSizeWithContext sizes the buffer packAttributesWithContext allocates in internal/component/bgp/rib/route.go")
+		"AttributesSizeWithContext sizes the buffer packAttributesWithASPath allocates in internal/component/bgp/rib/commit.go")
 }

@@ -193,10 +193,12 @@ existing suites unchanged, not a new test.
 - [ ] `docs/architecture/update-building.md` - Yes, the `CanForwardDirect` source anchor moves
 - [ ] `docs/architecture/pool-architecture.md` - Yes, the per-route byte figures change
 - [ ] `docs/architecture/rib-transition.md` - Yes, its diagram shows types this spec deletes
-- [ ] Source anchors elsewhere - checked: `route-types.md`, `buffer-architecture.md` and `guide/route-injection.md` name `Route` or `commit.go` and survive
+- [ ] `docs/architecture/route-types.md` - Yes, it described the wire-byte cluster the engine route no longer holds
+- [ ] Source anchors elsewhere - checked: `buffer-architecture.md` and `guide/route-injection.md` name `Route` or `commit.go` and survive
 
 ## Review Gate
 
 | Run | BLOCKER | ISSUE | Notes |
 |-----|---------|-------|-------|
-| | | | |
+| 1 | 0 | 4 | Independent review of `fa9faf5d94` against its parent. Deletion verified safe per symbol: whole-tree word-boundary grep at HEAD, `git grep` at HEAD^ for the historical caller, `go vet ./...` as the typecheck backstop because vet reads test files and `go build` does not. Every removed name returns zero on a `rib.`-selector grep; the surviving `Release`/`Acquire` hits belong to a local variable named `rib` holding a `*FamilyRIB` in the storage plugin, which does not import this package. Test edits are the pure `NewRoute` to `NewRouteWithASPath(.., nil)` rename in all seven files, no changed expectation and no removed assertion. `Route` measured 96 bytes by `TestStructSizes` over five fields with no padding. Nine of the weakened rows spot-checked against their subjects; none false. `tracked-build check` OK on six flavors. |
+| 2 | 0 | 0 | All four ISSUEs closed. (1) The duplicate uncommitted shard `test/weakened/c7ef7dc3.md` is superseded by the committed `8c4ad6c3.md`. (2) `attribute.AttributesSizeWithContext` was orphaned by the deletion of its only non-test caller; it is re-homed rather than deleted, because the review found the rib rail held a hand-rolled duplicate of the header-size fact that had already diverged. `rib.attrSize` and `rib.attrSizeWithContext` tested `valueLen > 255` alone while `attrWireLenForValue` tests `valueLen > 255 \|\| attr.Flags().IsExtLength()`, and `WriteHeaderTo` emits the four-octet header on the FLAG, so the rail under-allocated by one octet for an attribute whose flags carry the bit over a short value. Both local sizers are deleted and the rail now calls `AttrWireLen`, the newly exported `AttrWireLenWithContext`, and `AttributesSizeWithContext`, which also replaces a hand-rolled summing loop. (3) and (4) the stale comment at `attribute.go` and the stale PREVENTS clause name live producers again. `TestPackAttributesSizesTheExtLengthHeaderItWrites` is added on the rail that was wrong: with the `IsExtLength` term removed it reads "attribute runs past the block", 28 against 27. `docs/architecture/update-building.md` no longer describes the removed cluster. |

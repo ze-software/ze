@@ -7,7 +7,7 @@
 | **Three Paths** | Receive (zero-copy ingest) → Forward (reflection) → Build (origination) |
 | **Receive Path** | conn.Read → WireUpdate(owns buffer) → API/Cache (zero-copy) |
 | **Build Path** | Config → *Params → UpdateBuilder.Build*() → Update{[]byte} |
-| **Forward Path** | Route{wireBytes} → zero-copy if contexts match |
+| **Forward Path** | WireUpdate{payload, sourceCtxID} → one built body per destination ContextID |
 | **Key Insight** | Zero-copy from read buffer to API; high-volume forwarding uses wire cache |
 
 **When to read full doc:** Understanding message building, *Params design, FlowSpec differences.
@@ -191,7 +191,7 @@ stats, err := cs.Commit([]*rib.Route{route}, rib.CommitOptions{SendEOR: false})
 | Volume | Low (config rules) | High (millions of routes) |
 | Frequency | Once at session start | Continuous |
 | Optimization | Pre-pack at config time | Zero-copy forwarding |
-| Key structure | *Params structs | Route.wireBytes cache |
+| Key structure | *Params structs | WireUpdate payload, cached per destination ContextID |
 
 **The forward path is where scale matters.** Route reflection of millions of routes needs zero-copy. The build path handles low-volume local origination.
 
@@ -227,7 +227,7 @@ type FlowSpecParams struct {
 3. Build path passes through without repacking
 4. Negligible optimization, but intentional design
 
-**This does NOT affect route reflection** - received FlowSpec routes use Route.wireBytes like everything else.
+**This does NOT affect route reflection** - received FlowSpec routes forward from their WireUpdate payload like everything else.
 
 ---
 
@@ -349,7 +349,7 @@ Wire format depends on negotiated capabilities:
 | Extended Message | >4096 byte messages |
 
 **Build path:** `UpdateBuilder.Ctx` contains pack context
-**Forward path:** `Route.sourceCtxID` vs `peer.sendCtxID` determines zero-copy eligibility
+**Forward path:** `WireUpdate.SourceCtxID()` vs the destination's `sendCtxID` determines zero-copy eligibility
 
 ---
 
@@ -542,10 +542,10 @@ Both optimizations can be active simultaneously and are independent.
 ┌─────────────────────────────────────────────────────────────────┐
 │                    FORWARD PATH (Route Reflection)              │
 │                                                                 │
-│  Receive → Route{wireBytes, sourceCtxID} → CanForwardDirect()?  │
+│  Receive → WireUpdate{payload, sourceCtxID} → contexts match?   │
 │                        ↓                          ↓             │
-│              Stored in RIB          YES: zero-copy wireBytes    │
-│                                     NO:  PackAttributesFor()    │
+│         Route stored in RIB       YES: forward the payload      │
+│         (it holds no wire cache)  NO:  rebuild for destCtxID    │
 │                                                                 │
 │  Volume: High (millions of routes)                              │
 │  Optimization: Zero-copy when contexts match                    │

@@ -269,8 +269,8 @@ type Attribute interface {
 	// call deeper, so it always agrees.
 	//
 	//   - attribute.packWithContext sums attrLenWithContext.
-	//   - rib.packAttributesWithContext sums AttributesSizeWithContext.
-	//   - rib.packAttributesWithASPath sums attrSizeWithContext.
+	//   - rib.packAttributesWithASPath sums AttrWireLen, AttrWireLenWithContext
+	//     and AttributesSizeWithContext.
 	//   - reactor.announceAttrs.add reserves ValueLenWithContext octets, then
 	//     rejects a write whose return disagrees with that count.
 	WriteToWithContext(buf []byte, off int, srcCtx, dstCtx *bgpctx.EncodingContext) int
@@ -310,10 +310,18 @@ func AttrWireLen(attr Attribute) int {
 	return attrWireLenForValue(attr, attr.Len())
 }
 
-// attrWireLenWithContext is AttrWireLen for a destination encoding context, so an
+// AttrWireLenWithContext is AttrWireLen for a destination encoding context, so an
 // AS_PATH or AGGREGATOR sized here matches what WriteAttrToWithContext writes
 // (RFC 6793: two- versus four-octet AS numbers).
-func attrWireLenWithContext(attr Attribute, dstCtx *bgpctx.EncodingContext) int {
+//
+// Exported for the same reason AttrWireLen is. A caller outside this package that
+// sizes one attribute under a context has to derive the header class from the two
+// conditions WriteHeaderTo uses, and a local re-statement of that arithmetic is a
+// second declaration of the fact this function owns. The rib commit rail carried
+// one until 2026-09-07, and it had dropped the IsExtLength term, so it under-sized
+// by one octet any attribute whose flags already carried the bit over a value of
+// 255 octets or fewer.
+func AttrWireLenWithContext(attr Attribute, dstCtx *bgpctx.EncodingContext) int {
 	return attrWireLenForValue(attr, ValueLenWithContext(attr, dstCtx))
 }
 

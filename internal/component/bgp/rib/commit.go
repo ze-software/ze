@@ -363,21 +363,19 @@ func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, as
 	}
 
 	// Phase 2: Calculate total size
-	totalLen := attrSize(origin) +
-		attrSizeWithContext(asPathAttr, dstCtx) +
-		attrSize(nhAttr)
+	totalLen := attribute.AttrWireLen(origin) +
+		attribute.AttrWireLenWithContext(asPathAttr, dstCtx) +
+		attribute.AttrWireLen(nhAttr)
 
 	if includeLocalPref {
-		totalLen += attrSize(localPref)
+		totalLen += attribute.AttrWireLen(localPref)
 	}
 
 	// Sized with the destination's context, and written with it below. AS_PATH is
 	// not the only context-dependent attribute that reaches this rail: a FORWARDED
 	// AGGREGATOR sits in otherAttrs, and a context-free write sends the 8-octet
 	// form to a peer for which RFC 4271 defines a 6-octet attribute.
-	for _, attr := range otherAttrs {
-		totalLen += attrSizeWithContext(attr, dstCtx)
-	}
+	totalLen += attribute.AttributesSizeWithContext(otherAttrs, dstCtx)
 
 	// Phase 3: Pre-allocate and write using copy
 	buf := make([]byte, totalLen)
@@ -450,44 +448,6 @@ func appendAS4AggregatorFor(attrs []attribute.Attribute, dstCtx *bgpctx.Encoding
 	})
 }
 
-// attrSize returns the total wire size of an attribute (header + value).
-func attrSize(attr attribute.Attribute) int {
-	valueLen := attr.Len()
-	if valueLen > 255 {
-		return 4 + valueLen // Extended length header
-	}
-	return 3 + valueLen // Normal header
-}
-
-// attrSizeWithContext returns the total wire size with context-dependent encoding.
-//
-// Context-dependent attributes (RFC 6793):
-//   - AS_PATH: 2-byte vs 4-byte ASN encoding
-//   - AGGREGATOR: 6-byte vs 8-byte format
-func attrSizeWithContext(attr attribute.Attribute, dstCtx *bgpctx.EncodingContext) int {
-	asn4 := dstCtx == nil || dstCtx.ASN4()
-
-	var valueLen int
-	switch a := attr.(type) {
-	case *attribute.ASPath:
-		valueLen = a.LenWithASN4(asn4)
-	case *attribute.Aggregator:
-		// RFC 6793: 8-byte (4-byte ASN + 4-byte IP) or 6-byte (2-byte ASN + 4-byte IP)
-		if asn4 {
-			valueLen = 8
-		} else {
-			valueLen = 6
-		}
-	default:
-		return attrSize(attr)
-	}
-
-	if valueLen > 255 {
-		return 4 + valueLen
-	}
-	return 3 + valueLen
-}
-
 // buildASPathFromExplicit builds AS_PATH from an explicit AS_PATH parameter.
 // For eBGP: prepends local AS. For iBGP: preserves as-is.
 // Returns the AS_PATH attribute object (not packed).
@@ -542,7 +502,7 @@ func (c *CommitService) buildASPathFromExplicit(asPath *attribute.ASPath) *attri
 // reads to determine the next hop's network-layer protocol. The zero netip.Addr
 // has no wire form, so it yields a length that attribute.ValidNextHopLens admits
 // for no AFI/SAFI pair, and the peer answers a malformed MP_REACH_NLRI with a
-// session reset (RFC 7606 Section 7.11). This rail sizes with attrSize and writes
+// session reset (RFC 7606 Section 7.11). This rail sizes with attribute.AttrWireLen and writes
 // with attribute.WriteAttrTo, so no CheckedWriteTo sits between it and the socket
 // and the refusal has to happen here. The two announce rails in the reactor call
 // the same ValidateNextHops for the same reason.

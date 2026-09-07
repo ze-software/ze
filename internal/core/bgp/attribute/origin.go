@@ -268,7 +268,7 @@ func AttributesSize(attrs []Attribute) int {
 func AttributesSizeWithContext(attrs []Attribute, ctx *bgpctx.EncodingContext) int {
 	totalLen := 0
 	for _, attr := range attrs {
-		totalLen += attrWireLenWithContext(attr, ctx)
+		totalLen += AttrWireLenWithContext(attr, ctx)
 	}
 	return totalLen
 }
