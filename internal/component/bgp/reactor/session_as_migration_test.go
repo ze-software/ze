@@ -219,9 +219,15 @@ func TestMigrationOpenLocalASWithoutAPeer(t *testing.T) {
 // migration AS while the local AS is the other of the pair is INTERNAL, so the eBGP
 // AS_PATH prepend does not run and the RFC 7606 iBGP branch is taken.
 // RFC requirement: RFC7705-4.2-4 negative -- the same pair of AS numbers with no migration
-// AS configured is EXTERNAL, and a peer AS that is neither of the two is external even
-// with the mechanism on. Without this arm the positive arm would pass against code that
-// called every session internal.
+// AS configured is EXTERNAL. Without this arm the positive arm would pass against code
+// that called every session internal.
+//
+// A remote AS outside the pair has no row here, because it is not a configuration this
+// table can build: Section 4.2 widens "ours" to exactly two ASNs, so setMigrationAS
+// refuses a third and the settings never reach a verdict. That refusal is asserted by
+// TestMigrationConfigRefusesTheTwoShapesSection42CannotDescribe, and the third AS reaches
+// the verdict the way a real one does, ADVERTISED, in
+// TestMigrationIBGPVerdictAgreesAcrossEverySite.
 //
 // VALIDATES: AC-7.
 // PREVENTS: a migrating session being iBGP for one decision and eBGP for another, which is
@@ -236,7 +242,6 @@ func TestMigrationSessionIsIBGP(t *testing.T) {
 		{"peer on the retained asn", migrationLocalAS, migrationLegacyAS, true},
 		{"peer still on the legacy asn", migrationLegacyAS, migrationLegacyAS, true},
 		{"peer on the legacy asn with no migration configured", migrationLegacyAS, 0, false},
-		{"peer on a third asn with migration configured", migrationStrangerAS, migrationLegacyAS, false},
 		{"peer on the retained asn with no migration configured", migrationLocalAS, 0, true},
 	}
 
