@@ -16,7 +16,7 @@
       "rid": "RFC4760-3-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitVPNAnnounceCarriesTheRFC4364NextHop",
-      "unit-sha": "16e1b46b6a768594",
+      "unit-sha": "64a02b07aec97276",
       "claim-sha": "4d453c8e7684cd35",
       "route": "revert",
       "producer": "internal/core/bgp/attribute/mpnlri.go::nextHopOctets",
