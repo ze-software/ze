@@ -110,6 +110,28 @@
       "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
       "producer-sha": "72a79b187f3dbec0",
       "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-7.4-2",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4301_fragment_test.go::TestIKEBypassIsPortScopedSoSection74Binds",
+      "unit-sha": "ba3f32331dbd341a",
+      "claim-sha": "fd24264833885479",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/bypass.go::ikeBypassPolicies",
+      "producer-sha": "45908ec464ffd0cf",
+      "break": "body of ikeBypassPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-7.4-2",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_fragment_test.go::TestPortScopedBypassNeverReachesTheForwardPath",
+      "unit-sha": "55c0ec90c5053e2e",
+      "claim-sha": "1ec0d3daa6eb0788",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/bypass.go::ikeBypassPolicies",
+      "producer-sha": "45908ec464ffd0cf",
+      "break": "body of ikeBypassPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
