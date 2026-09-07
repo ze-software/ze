@@ -163,14 +163,7 @@ func runFilterIRR(conn net.Conn) int {
 	defer close(plug.stopCh)
 
 	if err := p.Run(ctx, sdk.Registration{
-		Commands: []sdk.CommandDecl{
-			{Name: "show bgp irr", Description: "Show IRR filter status per ASN"},
-			{Name: "show bgp irr prefix", Description: "Show IRR-resolved prefixes for a peer", Args: []string{"<peer>"}},
-			{Name: "show bgp irr check", Description: "Check if a prefix is accepted by IRR filter", Args: []string{"<peer>", "<prefix>"}},
-			{Name: "update bgp irr all", Description: "Refresh all IRR prefix-lists immediately"},
-			{Name: "update bgp irr asn", Description: "Refresh IRR prefix-list for a specific ASN", Args: []string{"<asn>"}},
-			{Name: "update bgp irr as-set", Description: "Refresh IRR prefix-list for a specific AS-SET", Args: []string{"<as-set>"}},
-		},
+		Commands:    commandDecls(),
 		WantsConfig: []string{configRootBGP},
 	}); err != nil {
 		logger().Error("filter-irr plugin failed", "error", err)
@@ -591,4 +584,22 @@ func updateMetricsGauges(plug *irrPlugin) {
 	plug.mu.RUnlock()
 	m.prefixesCached.Set(float64(total))
 	m.lastRefresh.Set(float64(time.Now().Unix()))
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{Name: "show bgp irr", Description: "Show IRR filter status per ASN"},
+		{Name: "show bgp irr prefix", Description: "Show IRR-resolved prefixes for a peer", Args: []string{"<peer>"}},
+		{Name: "show bgp irr check", Description: "Check if a prefix is accepted by IRR filter", Args: []string{"<peer>", "<prefix>"}},
+		{Name: "update bgp irr all", Description: "Refresh all IRR prefix-lists immediately"},
+		{Name: "update bgp irr asn", Description: "Refresh IRR prefix-list for a specific ASN", Args: []string{"<asn>"}},
+		{Name: "update bgp irr as-set", Description: "Refresh IRR prefix-list for a specific AS-SET", Args: []string{"<as-set>"}},
+	}
 }

@@ -21,6 +21,8 @@ func init() {
 		ConfigRoots:  []string{configRootBGP},
 		Dependencies: []string{configRootBGP, "bgp-adj-rib-in"},
 		RunEngine:    runRPKIPlugin,
+		Commands:     commandDecls(),
+		Pipes:        pipeDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

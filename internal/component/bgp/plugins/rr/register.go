@@ -21,6 +21,7 @@ func init() {
 		// End-of-RIB (rr.go).
 		SignalsSessionReady: true,
 		RunEngine:           runRouteReflector,
+		Commands:            commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

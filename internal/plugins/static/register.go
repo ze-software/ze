@@ -130,6 +130,7 @@ func init() {
 		InProcessConfigVerifier: verifyStaticConfig,
 		DoctorChecks:            staticDoctorChecks(),
 		RunEngine:               runStaticPlugin,
+		Commands:                commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -351,9 +352,7 @@ func runStaticPlugin(conn net.Conn) int {
 		WantsConfig:  []string{pluginName, "interface"},
 		VerifyBudget: 1,
 		ApplyBudget:  2,
-		Commands: []sdk.CommandDecl{
-			{Name: "show static"},
-		},
+		Commands:     commandDecls(),
 	})
 	if err != nil {
 		logger().Error("static plugin failed", "error", err)
@@ -367,4 +366,17 @@ func runStaticPlugin(conn net.Conn) int {
 	}
 
 	return 0
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{Name: "show static"},
+	}
 }

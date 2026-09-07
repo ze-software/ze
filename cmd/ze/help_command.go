@@ -23,6 +23,7 @@ import (
 	cli "github.com/ze-software/ze/internal/component/cli/client"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	pluginregistry "github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -71,11 +72,17 @@ type commandAlias struct {
 }
 
 // operatorsFor answers what one command supports, derived from the operator
-// catalog and the shape the command declared.
+// catalog and the declaration the command carries.
 //
 // Nothing here enumerates commands: the catalog states each operator's
 // contract, the command states its own shape, and this is the join.
-func operatorsFor(cliPath string) ([]commandOperator, string) {
+//
+// The declaration is passed in rather than looked up, so one lookup answers the
+// operators, the answer shape, the column orders and the address fields. That
+// lookup reads a plugin's registration for a command this process never ran
+// (internal/component/command, DeclaredForCommand), which is what lets this
+// catalog and the wiki producer agree by derivation rather than by comparison.
+func operatorsFor(cliPath string, declared command.Declared) ([]commandOperator, string) {
 	// A command the CLIENT serves in its own process reaches the pipe layer
 	// only if it answers with DATA. A plain local handler suppresses operators
 	// only when the path has no daemon handler: a daemon surface reaches that
@@ -88,8 +95,8 @@ func operatorsFor(cliPath string) ([]commandOperator, string) {
 		return nil, ""
 	}
 
-	shape, declared := command.ShapeForCommand(cliPath)
-	hasAddress := len(command.AddressFieldsForCommand(cliPath)) > 0
+	shape := declared.Shape
+	hasAddress := len(declared.AddressFields) > 0
 	out := make([]commandOperator, 0, 16)
 	for _, op := range command.PipeOperatorCatalog() {
 		// `| resolve` and `| origin` act on a field holding an IP address, and
@@ -114,12 +121,12 @@ func operatorsFor(cliPath string) ([]commandOperator, string) {
 				Name: op.Name, Class: op.Class.String(), Available: pipeAvailabilityAlways,
 				LocalOnly: op.LocalOnly, Description: op.Description,
 			})
-		case declared && op.Applies(shape):
+		case declared.ShapeDeclared && op.Applies(shape):
 			out = append(out, commandOperator{
 				Name: op.Name, Class: op.Class.String(), Available: pipeAvailabilityAlways,
 				LocalOnly: op.LocalOnly, Description: op.Description,
 			})
-		case declared:
+		case declared.ShapeDeclared:
 			// The declared shape cannot support it, so it is refused before the
 			// command runs and is not published as supported at all.
 		default:
@@ -129,7 +136,7 @@ func operatorsFor(cliPath string) ([]commandOperator, string) {
 			})
 		}
 	}
-	if !declared {
+	if !declared.ShapeDeclared {
 		return out, ""
 	}
 	return out, shape.String()
@@ -166,14 +173,19 @@ func daemonHandlesPath(cliPath string) bool {
 	return false
 }
 
-// aliasesFor answers the chains a command names.
-func aliasesFor(cliPath string) []commandAlias {
-	declared := command.AliasesForCommand(cliPath)
-	if len(declared) == 0 {
+// aliasesFor answers the chains a command names, from the declaration the
+// catalog already resolved for it.
+//
+// The declaration carries a registered plugin's aliases beside the alias
+// registry's, because an alias reaches a short-lived client on
+// registry.Registration.Pipes alone: a client starts no plugin, so no Stage 1
+// message ever arrives (internal/component/command, DeclaredForCommand).
+func aliasesFor(declared command.Declared) []commandAlias {
+	if len(declared.Aliases) == 0 {
 		return nil
 	}
-	out := make([]commandAlias, 0, len(declared))
-	for _, a := range declared {
+	out := make([]commandAlias, 0, len(declared.Aliases))
+	for _, a := range declared.Aliases {
 		out = append(out, commandAlias{Name: a.Name, Description: a.Description, Expansion: a.Expansion})
 	}
 	return out
@@ -252,6 +264,15 @@ type commandEntry struct {
 	// Their presence gates resolve and origin and is part of the published
 	// contract checked against the wiki and website.
 	AddressFields []string `json:"address-fields,omitempty"`
+	// ColumnOrders are the JSON keys of the answer's records, in the order a
+	// person reads them, one list per record shape the command renders. A
+	// command that renders an outer record and a list of rows declares two
+	// orders, so a flat list could state neither.
+	//
+	// `| json`, `| ndjson` and `| yaml` keep their alphabetical keys whatever
+	// this says: a program reads them and column order carries no meaning for a
+	// program (internal/component/command/column_order.go, RegisterColumns).
+	ColumnOrders [][]string `json:"column-orders,omitempty"`
 	// Aliases are the chains this command names. `ze help command --json` never
 	// read them before, so they published on `show command help` alone.
 	Aliases     []commandAlias `json:"pipe-aliases,omitempty"`
@@ -331,9 +352,11 @@ func collectCommands() []commandEntry {
 				Mode:        mode,
 				WireMethod:  wireMethod,
 			}
-			e.Operators, e.AnswerShape = operatorsFor(cliPath)
-			e.AddressFields = command.AddressFieldsForCommand(cliPath)
-			e.Aliases = aliasesFor(cliPath)
+			declared := command.DeclaredForCommand(cliPath)
+			e.Operators, e.AnswerShape = operatorsFor(cliPath, declared)
+			e.AddressFields = declared.AddressFields
+			e.ColumnOrders = command.ColumnNames(declared.Columns)
+			e.Aliases = aliasesFor(declared)
 			if node != nil {
 				e.Args = extractArgs(node)
 				e.Grammar = command.Usage(strings.Fields(cliPath), node)
@@ -367,11 +390,103 @@ func collectCommands() []commandEntry {
 		seen[lc.Path] = true
 	}
 
+	entries = appendPluginCommands(entries, seen, tree)
+
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[i].Path < entries[j].Path
 	})
 
 	return entries
+}
+
+// appendPluginCommands adds every command a plugin declares on its
+// registration that nothing above already named.
+//
+// A plugin's command is dispatched through the plugin, so it reaches neither
+// the YANG command tree nor the local command registry, and the catalog named
+// none of them however much each declared. `show bgp rpki roa` states a shape,
+// a column order and an address field, and this catalog answered that the
+// command does not exist.
+//
+// A HIDDEN declaration is skipped. This catalog is the operator's list, and the
+// daemon already keeps a hidden command out of VisibleCommandEntries and out of
+// completion (internal/component/plugin/server/command_registry.go), so
+// publishing one here would be the only surface offering it.
+//
+// The YANG node wins wherever one exists. A plugin command can be modeled and
+// still carry no wire method, `show vrrp interface` among them, so it reaches
+// this function with an authored summary, long help and grammar already
+// written. Taking the declaration's texts over those would publish the
+// plugin's one-line summary in place of the model's, and drop the grammar.
+//
+// For a command no node models, Usage carries the invocation form the plugin
+// declares and Grammar stays EMPTY. A plugin declares its arguments as text, so
+// a token list built from that text would state kinds nobody declared; the four
+// main-package builtins and every offline local command publish neither field
+// for the same reason.
+func appendPluginCommands(entries []commandEntry, seen map[string]bool, tree *command.Node) []commandEntry {
+	for _, registration := range pluginregistry.All() {
+		for index := range registration.Commands {
+			decl := &registration.Commands[index]
+			if decl.Name == "" || decl.Hidden || seen[decl.Name] {
+				continue
+			}
+			mode := "daemon"
+			if pluginserver.IsReadOnlyPath(decl.Name) {
+				mode = "read-only"
+			}
+			e := commandEntry{
+				Path:        decl.Name,
+				Description: decl.Description,
+				LongHelp:    decl.LongHelp,
+				Mode:        mode,
+				Usage:       pluginUsage(decl.Name, decl.Args),
+			}
+			if node := findNode(tree, decl.Name); node != nil {
+				e.Description = node.Description
+				e.LongHelp = node.LongHelp
+				e.Args = extractArgs(node)
+				e.Subcommands = extractSubcommands(node)
+				e.Backend = node.Backend
+				e.TaskSupport = node.TaskSupport
+				// Usage answers nil for a node carrying no wire method, which
+				// every plugin-dispatched node does, so the declaration's own
+				// form is kept rather than overwritten with an empty line.
+				if grammar := command.Usage(strings.Fields(decl.Name), node); len(grammar) > 0 {
+					e.Grammar = grammar
+					e.Usage = command.UsageLine(grammar)
+				}
+			}
+			declared := command.DeclaredForCommand(decl.Name)
+			e.Operators, e.AnswerShape = operatorsFor(decl.Name, declared)
+			e.AddressFields = declared.AddressFields
+			e.ColumnOrders = command.ColumnNames(declared.Columns)
+			e.Aliases = aliasesFor(declared)
+			e.Pipes = extractPipes(decl.Name)
+			entries = append(entries, e)
+			seen[decl.Name] = true
+		}
+	}
+	return entries
+}
+
+// pluginUsage answers the invocation form a plugin declares: the command path,
+// then the argument tokens the plugin spells for a reader.
+//
+// The tokens are published as the plugin wrote them. They are a usage STRING in
+// the declaration, which is also how the daemon carries them to `show command
+// help` (internal/component/plugin/server, CommandRegistry), so rewriting them
+// here would give one command two spellings.
+func pluginUsage(path string, args []string) string {
+	if len(args) == 0 {
+		return path
+	}
+	var tb textbuf.Buffer
+	tb.Str(path)
+	for _, arg := range args {
+		tb.Byte(' ').Str(arg)
+	}
+	return tb.String()
 }
 
 // findNode looks up the node for a CLI path in the command tree.

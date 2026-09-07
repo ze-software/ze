@@ -51,7 +51,7 @@ func TestCollectReadsTheLiveRegistry(t *testing.T) {
 		t.Fatal("the registry answered no command: the composition root registered nothing")
 	}
 
-	sources := map[string]bool{"builtin": true, "streaming": true, "cli": true}
+	sources := map[string]bool{"builtin": true, "streaming": true, "cli": true, "plugin": true}
 	for _, entry := range commands {
 		if entry.Path == "" {
 			t.Errorf("a %s command carries no path: %+v", entry.Source, entry)
@@ -139,16 +139,22 @@ func TestHasPathComparesTheWayItsCallerNeeds(t *testing.T) {
 // total line. It reads the rendering directly rather than a subprocess's stdout.
 func TestTextRendersTheMarkdownTable(t *testing.T) {
 	commands := Commands{
-		{Verb: "show", Path: "show bgp peer", WireMethod: "peer-list", Source: "builtin"},
+		{
+			Verb: "show", Path: "show bgp peer", WireMethod: "peer-list", Source: "builtin",
+			Shape:         "tab",
+			ColumnOrders:  [][]string{{"peer", "state"}, {"up"}},
+			AddressFields: []string{"peer"},
+			Aliases:       []Alias{{Name: "summary", Description: "the aggregate half", Expansion: "display router-id"}},
+		},
 		{Verb: "-", Path: "raw-thing", Source: "streaming"},
 	}
 	text := commands.Text()
 
 	for _, want := range []string{
 		"# Command Inventory",
-		"| Verb | CLI Path | Wire Method | Source |",
-		"| show | show bgp peer | peer-list | builtin |",
-		"| - | raw-thing |  | streaming |",
+		"| Verb | CLI Path | Wire Method | Source | Shape | Column Order | Address Fields | Aliases |",
+		"| show | show bgp peer | peer-list | builtin | tab | peer, state; up | peer | summary |",
+		"| - | raw-thing |  | streaming | - | - | - | - |",
 		"Total: 2 commands",
 	} {
 		if !strings.Contains(text, want) {
@@ -200,4 +206,33 @@ func TestAnswerAnswersRows(t *testing.T) {
 	if len(commands) == 0 {
 		t.Error("the payload holds no command")
 	}
+}
+
+// TestCommandListReportsAPluginDeclaredShape is the wiring test: the inventory
+// must report the answer shape a PLUGIN declared, not only the shape of what
+// the reader's own process compiled in. `show bgp adj-rib-in status` declares
+// `doc` (internal/component/bgp/plugins/adj_rib_in, commandDecls), and that
+// declaration reaches the daemon in the plugin's Stage 1 message, which no
+// reader of the compiled tree ever sees.
+func TestCommandListReportsAPluginDeclaredShape(t *testing.T) {
+	const (
+		path  = "show bgp adj-rib-in status"
+		shape = "doc"
+	)
+
+	commands, err := Collect()
+	if err != nil {
+		t.Fatalf("collect: %v", err)
+	}
+
+	for _, entry := range commands {
+		if entry.Path != path {
+			continue
+		}
+		if entry.Shape != shape {
+			t.Fatalf("%q reports shape %q, and the plugin declares %q", path, entry.Shape, shape)
+		}
+		return
+	}
+	t.Fatalf("the inventory names no %q, so no plugin declaration reached it", path)
 }

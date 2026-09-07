@@ -253,6 +253,27 @@ func commandDecls() []sdk.CommandDecl {
 	}
 }
 
+// pipeDecls names the pipe aliases this plugin puts on its own commands
+// (pkg/plugin/rpc/types.go, PipeDecl).
+//
+// It has two readers and MUST stay one function, the same rule commandDecls
+// carries. init() puts it on the registry.Registration, which anything linking
+// the composition root reads without starting an engine, and the runner sends
+// it in the Stage 1 registration message, which a running daemon reads.
+//
+// The alias is a selection over the sibling keys the bare command writes.
+// `show bgp rpki summary` keeps answering, and the engine derives from the
+// command list the empty declaration that stops this name reaching a command
+// below the one it sits on.
+func pipeDecls() []sdk.PipeDecl {
+	return []sdk.PipeDecl{{
+		Command:     commandShowRPKI,
+		Name:        "summary",
+		Description: "The validation counters, without the cache server rows",
+		Expansion:   summaryAliasExpansion,
+	}}
+}
+
 // runRPKIPlugin runs the bgp-rpki plugin using the SDK RPC protocol.
 func runRPKIPlugin(conn net.Conn) int {
 	logger().Debug("bgp-rpki plugin starting")
@@ -354,17 +375,8 @@ func runRPKIPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		Commands: commandDecls(),
-		// The alias is a selection over the sibling keys the bare command
-		// writes. `show bgp rpki summary` keeps answering, and the engine
-		// derives from the command list above the empty declaration that stops
-		// this name reaching a command below the one it sits on.
-		Pipes: []sdk.PipeDecl{{
-			Command:     commandShowRPKI,
-			Name:        "summary",
-			Description: "The validation counters, without the cache server rows",
-			Expansion:   summaryAliasExpansion,
-		}},
+		Commands:    commandDecls(),
+		Pipes:       pipeDecls(),
 		WantsConfig: []string{configRootBGP},
 	})
 	if err != nil {

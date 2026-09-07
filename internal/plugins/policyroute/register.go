@@ -27,6 +27,7 @@ func init() {
 		Dependencies:            []string{"firewall"},
 		InProcessConfigVerifier: verifyPolicyConfig,
 		RunEngine:               runPolicyRoutePlugin,
+		Commands:                commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -161,9 +162,7 @@ func runPolicyRoutePlugin(conn net.Conn) int {
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 1,
 		ApplyBudget:  2,
-		Commands: []sdk.CommandDecl{
-			{Name: "show policy routes"},
-		},
+		Commands:     commandDecls(),
 	})
 	if err != nil {
 		logger().Error("policy-routes plugin failed", "error", err)
@@ -276,4 +275,17 @@ func formatPolicies(policies []PolicyRoute) any {
 		out = append(out, sp)
 	}
 	return out
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{Name: "show policy routes"},
+	}
 }

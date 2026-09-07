@@ -60,8 +60,18 @@ plugin shapes use this directory:
 
 Both shapes can own user commands. Removing either folder removes all surfaces
 that belong to that owner.
+
+A full-subsystem plugin declares the commands it owns in one `commandDecls()`
+function in its own package. Two readers call it and neither copies it: the
+`registry.Registration` its `init()` builds, which a catalog generator reads
+from the linked composition root, and the `sdk.Registration` its runner passes
+to `p.Run`, which a running daemon reads over Stage 1. `./le plugin
+declarations check` fails with the package and the command when the two
+disagree.
+
 <!-- source: internal/plugins/host-cmd/cmd/register.go -- init -->
-<!-- source: internal/plugins/ospf/register.go -- runOSPFEngine -->
+<!-- source: internal/plugins/ospf/register.go -- runOSPFEngine, commandDecls -->
+<!-- source: internal/le/plugin/declarations/plugindeclarations.go -- Check -->
 
 ## Plugin Directory Layout
 

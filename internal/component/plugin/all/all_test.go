@@ -3,6 +3,7 @@ package all
 import (
 	"context"
 	"flag"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -365,5 +366,54 @@ func TestCapabilityMappings(t *testing.T) {
 	}
 	if cm[70] != "bgp-route-refresh" {
 		t.Errorf("CapabilityMap[70] = %q, want bgp-route-refresh", cm[70])
+	}
+}
+
+// TestRegistrationCarriesTheDeclaredCommands is AC-4 of
+// plan/spec-daemon-backed-command-catalog.md: a reader gets a plugin's command
+// declarations out of registry.All(), and gets them with no engine started.
+//
+// The guard is the point of the test. A plugin's declarations used to exist
+// only after its runner sent them in the Stage 1 registration message, so the
+// rejected way to read them was to RUN the plugin -- which, for two of the 97
+// runners, programs nftables or writes XFRM policy before it declares
+// anything. Every runner in this process is therefore replaced by one that
+// records its own call, so a reader that goes back to that route fails here by
+// name rather than by the host state it changed.
+func TestRegistrationCarriesTheDeclaredCommands(t *testing.T) {
+	var started []string
+	for _, reg := range registry.All() {
+		name, engine := reg.Name, reg.RunEngine
+		reg.RunEngine = func(net.Conn) int {
+			started = append(started, name)
+			return 1
+		}
+		t.Cleanup(func() { reg.RunEngine = engine })
+	}
+
+	declared := make(map[string][]string, len(registry.All()))
+	for _, reg := range registry.All() {
+		for _, decl := range reg.Commands {
+			declared[reg.Name] = append(declared[reg.Name], decl.Name)
+		}
+	}
+
+	// One plugin for each way a declaration reaches the registration:
+	// bgp-adj-rib-in already had a commandDecls function, mrt's runner carried
+	// a one-line literal, and sysctl's carried a six-entry block.
+	expected := map[string]string{
+		"bgp-adj-rib-in": "show bgp adj-rib-in status",
+		"mrt":            "request mrt dump-rib",
+		"sysctl":         "show sysctl",
+	}
+	for plugin, want := range expected {
+		if !slices.Contains(declared[plugin], want) {
+			t.Errorf("%s declares %v on its registration, and %q is not among them",
+				plugin, declared[plugin], want)
+		}
+	}
+
+	if len(started) > 0 {
+		t.Errorf("reading the declarations started %d engine(s): %v", len(started), started)
 	}
 }

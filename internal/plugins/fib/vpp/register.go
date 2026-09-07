@@ -39,6 +39,7 @@ func init() {
 		DataPlane:   "vpp",
 		YANG:        fibvppyang.ZeFibVPPConfYANG,
 		RunEngine:   runFibVPPPlugin,
+		Commands:    commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setFibVPPLogger(slogutil.Logger(loggerName))
 		},
@@ -195,9 +196,7 @@ func runFibVPPPlugin(conn net.Conn) int {
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
-		Commands: []sdk.CommandDecl{
-			{Name: "show fib vpp"},
-		},
+		Commands:     commandDecls(),
 	})
 	if err != nil {
 		lg.Error("fib-vpp plugin failed", "error", err)
@@ -209,4 +208,20 @@ func runFibVPPPlugin(conn net.Conn) int {
 	}
 
 	return 0
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{
+			Name:        "show fib vpp",
+			Description: "Show the routes this backend programmed into the VPP forwarding table.",
+		},
+	}
 }

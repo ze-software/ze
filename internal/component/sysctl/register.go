@@ -64,6 +64,7 @@ func init() {
 		ConfigRoots:             []string{configRoot},
 		InProcessConfigVerifier: verifySysctlConfig,
 		RunEngine:               runSysctlPlugin,
+		Commands:                commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -415,14 +416,7 @@ func runSysctlPlugin(conn net.Conn) int {
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
-		Commands: []sdk.CommandDecl{
-			{Name: "show sysctl", Description: "Show all active sysctl keys with source and persistence"},
-			{Name: "show sysctl keys", Description: "List all known sysctl keys with descriptions"},
-			{Name: "show sysctl key", Description: "Show detail for one sysctl key", Args: []string{"key"}},
-			{Name: "set sysctl", Description: "Set a transient sysctl value", Args: []string{"key", "value"}},
-			{Name: "show sysctl profiles", Description: "List all registered sysctl profiles"},
-			{Name: "show sysctl profile", Description: "Show detail for one sysctl profile", Args: []string{"name"}},
-		},
+		Commands:     commandDecls(),
 	})
 	if err != nil {
 		log.Error("sysctl plugin failed", "error", err)
@@ -438,4 +432,22 @@ func runSysctlPlugin(conn net.Conn) int {
 	s.restoreAll()
 
 	return 0
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{Name: "show sysctl", Description: "Show all active sysctl keys with source and persistence"},
+		{Name: "show sysctl keys", Description: "List all known sysctl keys with descriptions"},
+		{Name: "show sysctl key", Description: "Show detail for one sysctl key", Args: []string{"key"}},
+		{Name: "set sysctl", Description: "Set a transient sysctl value", Args: []string{"key", "value"}},
+		{Name: "show sysctl profiles", Description: "List all registered sysctl profiles"},
+		{Name: "show sysctl profile", Description: "Show detail for one sysctl profile", Args: []string{"name"}},
+	}
 }

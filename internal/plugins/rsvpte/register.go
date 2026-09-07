@@ -450,6 +450,7 @@ func registerRSVPTE() {
 		ConfigRoots:  []string{Namespace},
 		Dependencies: []string{"fib-kernel", "sysctl"},
 		RunEngine:    runRSVPTEEngine,
+		Commands:     commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -676,12 +677,7 @@ func runRSVPTEEngine(conn net.Conn) int {
 		WantsConfig:  []string{Namespace},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
-		Commands: []sdk.CommandDecl{
-			{Name: "show rsvp-te session"},
-			{Name: "show rsvp-te interface"},
-			{Name: "show rsvp-te tunnel"},
-			{Name: "show rsvp-te fast-reroute"},
-		},
+		Commands:     commandDecls(),
 	})
 	if err != nil {
 		log.Error("rsvp-te engine failed", "error", err)
@@ -1118,3 +1114,31 @@ func emitLSPDown(log *slog.Logger, lsp *LSP, activeCount int) {
 
 // The `show rsvp-te ...` data builders (showSessions/showInterfaces/showTunnels)
 // live in show_data.go.
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{
+			Name:        "show rsvp-te session",
+			Description: "Show each signaling session with its LSP state, role, bandwidth and labels.",
+		},
+		{
+			Name:        "show rsvp-te interface",
+			Description: "Show the bandwidth each interface reserves and the amount still available.",
+		},
+		{
+			Name:        "show rsvp-te tunnel",
+			Description: "Show each tunnel with its state, bandwidth and explicit route hop count.",
+		},
+		{
+			Name:        "show rsvp-te fast-reroute",
+			Description: "Show each bypass LSP and each protected LSP, with the protection state of each.",
+		},
+	}
+}

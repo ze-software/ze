@@ -380,7 +380,9 @@ internal/component/plugin/registry/registry.go
 
 No other wiring is needed. The engine discovers it through registry queries, the CLI dispatches via `CLIHandler`, YANG schemas are picked up automatically, and dependency resolution handles startup ordering.
 
-**Registration struct fields:** Each plugin provides its name, handlers (`RunEngine`, `CLIHandler`), and optional metadata: address families, capability codes, dependencies, YANG schema, event types, and in-process codec functions. See `registry/registry.go` for the full `Registration` type.
+**Registration struct fields:** Each plugin provides its name, handlers (`RunEngine`, `CLIHandler`), and optional metadata: address families, capability codes, dependencies, YANG schema, event types, declared commands, and in-process codec functions. See `registry/registry.go` for the full `Registration` type, and `docs/architecture/plugin/plugin-system.md` for the field-by-field table.
+
+`Commands` is the one field a running plugin also sends over the wire. It holds the same `[]rpc.CommandDecl` the runner passes to `p.Run` at Stage 1, taken from the plugin's one `commandDecls()` function, so a reader that links the composition root sees what a plugin serves without starting its engine.
 
 **Key registry queries used at runtime:**
 

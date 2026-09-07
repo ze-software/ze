@@ -20,6 +20,7 @@ func init() {
 		YANG:        bmpyang.ZeBMPConfYANG,
 		ConfigRoots: []string{configRootBGP, configRootEnvironment},
 		RunEngine:   runBMPPlugin,
+		Commands:    commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

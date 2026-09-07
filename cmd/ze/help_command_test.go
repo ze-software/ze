@@ -282,3 +282,75 @@ func TestCommandCatalogDerivesNeitherHelpTextFromTheOther(t *testing.T) {
 	}
 	require.Greater(t, checked, 100, "too few YANG-backed commands were compared")
 }
+
+// VALIDATES: AC-5 at the offline catalog's own entry point. `ze help command
+// --json` publishes the column order a command declares. No reader published
+// one before this, so a person had to run the command to learn the order its
+// rows are read in.
+// PREVENTS: a catalog that names every operator a command supports and stays
+// silent about the order of its columns.
+func TestHelpCommandReportsTheDeclaredColumnOrder(t *testing.T) {
+	var out bytes.Buffer
+	require.Equal(t, 0, renderHelpCommand(&out, []string{flagJSON}))
+
+	var entries []commandEntry
+	require.NoError(t, json.Unmarshal(out.Bytes(), &entries))
+
+	byPath := make(map[string]commandEntry, len(entries))
+	for _, entry := range entries {
+		byPath[entry.Path] = entry
+	}
+
+	// internal/plugins/env/register.go declares this order, and it is the
+	// order `| table` reads the rows against.
+	const path = "show env list"
+	entry, found := byPath[path]
+	require.True(t, found, "the catalog names no %q", path)
+	assert.Equal(t,
+		[][]string{{"key", "type", "default", "current", "description"}},
+		entry.ColumnOrders,
+		"%q publishes no column order, and an in-tree package declares one", path)
+
+	// The order is published for every command that declares one, never for
+	// the single command this test names.
+	ordered := 0
+	for _, published := range entries {
+		if len(published.ColumnOrders) > 0 {
+			ordered++
+		}
+	}
+	require.Greater(t, ordered, 1, "only one command publishes a column order")
+}
+
+// VALIDATES: AC-8 at the shared producer. Every column order, answer shape and
+// address-field list this catalog publishes comes from
+// command.DeclaredForCommand, which reads the declaration registries and then a
+// plugin's registry.Registration.Commands. internal/le/wikicatalog reads the
+// same function, so the two catalogs agree by derivation.
+// PREVENTS: a second join in this file that reads the registries directly and
+// drifts from the wiki producer, which is the drift compareWikiCatalogProducer
+// was written to catch after the fact.
+func TestHelpCommandDerivesEveryDeclarationFromOneReader(t *testing.T) {
+	entries := collectCommands()
+	require.NotEmpty(t, entries)
+
+	checked := 0
+	for _, entry := range entries {
+		if entry.AnswerShape == "" && len(entry.ColumnOrders) == 0 && len(entry.AddressFields) == 0 {
+			continue
+		}
+		checked++
+		declared := command.DeclaredForCommand(entry.Path)
+		assert.Equal(t, command.ColumnNames(declared.Columns), entry.ColumnOrders,
+			"%q publishes a column order the declaration reader does not answer", entry.Path)
+		assert.Equal(t, declared.AddressFields, entry.AddressFields,
+			"%q publishes address fields the declaration reader does not answer", entry.Path)
+		if entry.AnswerShape != "" {
+			require.True(t, declared.ShapeDeclared,
+				"%q publishes a shape the declaration reader calls undeclared", entry.Path)
+			assert.Equal(t, declared.Shape.String(), entry.AnswerShape,
+				"%q publishes a shape the declaration reader does not answer", entry.Path)
+		}
+	}
+	require.Greater(t, checked, 10, "too few declaring commands were compared")
+}

@@ -53,6 +53,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/perfbench"
 	_ "github.com/ze-software/ze/internal/le/platformvet"
 	_ "github.com/ze-software/ze/internal/le/plugin/boundary"
+	_ "github.com/ze-software/ze/internal/le/plugin/declarations"
 	_ "github.com/ze-software/ze/internal/le/plugin/imports"
 	_ "github.com/ze-software/ze/internal/le/portdefaults"
 	_ "github.com/ze-software/ze/internal/le/protocolskeleton"

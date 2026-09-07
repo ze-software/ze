@@ -53,6 +53,7 @@ func init() {
 		// this plugin has REGISTERED the peer, this one says its ROUTES are out.
 		SignalsSessionReady: true,
 		RunEngine:           RunRouteServer,
+		Commands:            commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
 		},

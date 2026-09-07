@@ -19,7 +19,9 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	_ "github.com/ze-software/ze/internal/component/doctor"
+	pluginregistry "github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/textbuf"
 
 	// Offline command packages are the direct registration half of
 	// cmd/ze/ze_core_dispatch.go. The live product and this catalog must compose
@@ -93,7 +95,12 @@ type Entry struct {
 	Operators     []Operator `json:"operators,omitempty"`
 	AnswerShape   string     `json:"answer-shape,omitempty"`
 	AddressFields []string   `json:"address-fields,omitempty"`
-	Aliases       []Alias    `json:"pipe-aliases,omitempty"`
+	// ColumnOrders are the JSON keys of the answer's records, in the order a
+	// person reads them, one list per record shape the command renders. A
+	// command that renders an outer record and a list of rows declares two
+	// orders, so a flat list could state neither.
+	ColumnOrders [][]string `json:"column-orders,omitempty"`
+	Aliases      []Alias    `json:"pipe-aliases,omitempty"`
 	// Usage is the invocation form generated from the command model, and
 	// Grammar is the same form as an ordered token list. Both come from one
 	// producer (internal/component/command, Usage), so the two cannot disagree.
@@ -133,9 +140,11 @@ func Collect() []Entry {
 				entry.Backend = node.Backend
 				entry.TaskSupport = node.TaskSupport
 			}
-			entry.Operators, entry.AnswerShape = operatorsFor(cliPath)
-			entry.AddressFields = command.AddressFieldsForCommand(cliPath)
-			entry.Aliases = aliasesFor(cliPath)
+			declared := command.DeclaredForCommand(cliPath)
+			entry.Operators, entry.AnswerShape = operatorsFor(cliPath, declared)
+			entry.AddressFields = declared.AddressFields
+			entry.ColumnOrders = command.ColumnNames(declared.Columns)
+			entry.Aliases = aliasesFor(declared)
 			entry.Pipes = pipesFor(cliPath)
 			entries = append(entries, entry)
 			seen[cliPath] = true
@@ -196,10 +205,91 @@ func Collect() []Entry {
 		seen[local.Path] = true
 	}
 
+	entries = appendPluginCommands(entries, seen, tree)
+
 	slices.SortFunc(entries, func(left, right Entry) int {
 		return strings.Compare(left.Path, right.Path)
 	})
 	return entries
+}
+
+// appendPluginCommands adds every command a plugin declares on its
+// registration that nothing above already named.
+//
+// It is the twin of appendPluginCommands in cmd/ze/help_command.go and MUST
+// stay its twin: the two catalogs are compared field for field
+// (internal/le/docvalid, compareWikiCatalogProducer). A plugin's command is
+// dispatched through the plugin, so it reaches neither the YANG command tree
+// nor the local command registry, and both catalogs named none of them however
+// much each declared.
+//
+// A HIDDEN declaration is skipped, because the daemon already keeps one out of
+// VisibleCommandEntries and out of completion, and this catalog is what the
+// website and the wiki publish to an operator.
+//
+// The YANG node wins wherever one exists. A plugin command can be modeled and
+// still carry no wire method, `show vrrp interface` among them, so it arrives
+// with an authored summary, long help and grammar already written.
+func appendPluginCommands(entries []Entry, seen map[string]bool, tree *command.Node) []Entry {
+	for _, registration := range pluginregistry.All() {
+		for index := range registration.Commands {
+			decl := &registration.Commands[index]
+			if decl.Name == "" || decl.Hidden || seen[decl.Name] {
+				continue
+			}
+			mode := "daemon"
+			if pluginserver.IsReadOnlyPath(decl.Name) {
+				mode = "read-only"
+			}
+			entry := Entry{
+				Path:        decl.Name,
+				Description: decl.Description,
+				LongHelp:    decl.LongHelp,
+				Mode:        mode,
+				Usage:       pluginUsage(decl.Name, decl.Args),
+			}
+			if node := findNode(tree, decl.Name); node != nil {
+				entry.Description = node.Description
+				entry.LongHelp = node.LongHelp
+				entry.Args = extractArgs(node)
+				entry.Subcommands = extractSubcommands(node)
+				entry.Backend = node.Backend
+				entry.TaskSupport = node.TaskSupport
+				// Usage answers nil for a node carrying no wire method, which
+				// every plugin-dispatched node does, so the declaration's own
+				// form is kept rather than overwritten with an empty line.
+				if grammar := command.Usage(strings.Fields(decl.Name), node); len(grammar) > 0 {
+					entry.Grammar = grammar
+					entry.Usage = command.UsageLine(grammar)
+				}
+			}
+			declared := command.DeclaredForCommand(decl.Name)
+			entry.Operators, entry.AnswerShape = operatorsFor(decl.Name, declared)
+			entry.AddressFields = declared.AddressFields
+			entry.ColumnOrders = command.ColumnNames(declared.Columns)
+			entry.Aliases = aliasesFor(declared)
+			entry.Pipes = pipesFor(decl.Name)
+			entries = append(entries, entry)
+			seen[decl.Name] = true
+		}
+	}
+	return entries
+}
+
+// pluginUsage answers the invocation form a plugin declares: the command path,
+// then the argument tokens the plugin spells for a reader. Grammar stays empty
+// beside it, because a plugin declares its arguments as text and a token list
+// built from that text would state kinds nobody declared.
+func pluginUsage(path string, args []string) string {
+	if len(args) == 0 {
+		return path
+	}
+	var tb textbuf.Buffer
+	tb.Str(path)
+	for _, arg := range args {
+		tb.Byte(' ').Str(arg)
+	}
+	return tb.String()
 }
 
 func findNode(tree *command.Node, path string) *command.Node {
@@ -253,12 +343,21 @@ func extractSubcommands(node *command.Node) []string {
 	return names
 }
 
-func operatorsFor(path string) ([]Operator, string) {
+// operatorsFor answers what one command supports, derived from the operator
+// catalog and the declaration the command carries.
+//
+// The declaration is passed in rather than looked up, so one lookup answers the
+// operators, the answer shape, the column orders and the address fields. That
+// lookup reads a plugin's registration for a command no process here ever ran
+// (internal/component/command, DeclaredForCommand), and `ze help command
+// --json` reads the same function, so the two catalogs agree by derivation
+// rather than by comparison.
+func operatorsFor(path string, declared command.Declared) ([]Operator, string) {
 	if plainLocalOnly(path) {
 		return nil, ""
 	}
-	shape, declared := command.ShapeForCommand(path)
-	hasAddress := len(command.AddressFieldsForCommand(path)) > 0
+	shape := declared.Shape
+	hasAddress := len(declared.AddressFields) > 0
 	operators := make([]Operator, 0, 16)
 	for _, catalog := range command.PipeOperatorCatalog() {
 		if catalog.NeedsAddressField && !hasAddress {
@@ -275,16 +374,16 @@ func operatorsFor(path string) ([]Operator, string) {
 			operator.Available = "when-streaming"
 		case catalog.Class == command.ClassGlobal:
 			operator.Available = modeAlways
-		case declared && catalog.Applies(shape):
+		case declared.ShapeDeclared && catalog.Applies(shape):
 			operator.Available = modeAlways
-		case declared:
+		case declared.ShapeDeclared:
 			continue
 		default:
 			operator.Available = "with-rows"
 		}
 		operators = append(operators, operator)
 	}
-	if !declared {
+	if !declared.ShapeDeclared {
 		return operators, ""
 	}
 	return operators, shape.String()
@@ -303,13 +402,16 @@ func plainLocalOnly(path string) bool {
 	return true
 }
 
-func aliasesFor(path string) []Alias {
-	declared := command.AliasesForCommand(path)
-	if len(declared) == 0 {
+// aliasesFor answers the chains a command names, from the declaration the
+// catalog already resolved for it. The declaration carries a registered
+// plugin's aliases beside the alias registry's, because this process starts no
+// plugin and so receives no Stage 1 message.
+func aliasesFor(declared command.Declared) []Alias {
+	if len(declared.Aliases) == 0 {
 		return nil
 	}
-	aliases := make([]Alias, 0, len(declared))
-	for _, alias := range declared {
+	aliases := make([]Alias, 0, len(declared.Aliases))
+	for _, alias := range declared.Aliases {
 		aliases = append(aliases, Alias{
 			Name: alias.Name, Description: alias.Description, Expansion: alias.Expansion,
 		})

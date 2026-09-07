@@ -100,10 +100,22 @@ func forward(ctx *pluginserver.CommandContext, command string, args []string) (*
 // commandDecls are the commands this plugin answers (SDK Stage 1).
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
-		{Name: cmdShowVRRP},
-		{Name: cmdShowVRRPInterface},
-		{Name: cmdShowVRRPStatistics},
-		{Name: cmdClearVRRPStats},
+		{
+			Name:        cmdShowVRRP,
+			Description: "Show every virtual router this system runs, with the state of each.",
+		},
+		{
+			Name:        cmdShowVRRPInterface,
+			Description: "Show the virtual routers of one interface, named after the selector keyword.",
+		},
+		{
+			Name:        cmdShowVRRPStatistics,
+			Description: "Show the advertisement and packet-error counters of each virtual router.",
+		},
+		{
+			Name:        cmdClearVRRPStats,
+			Description: "Set the counters of every virtual router back to zero.",
+		},
 	}
 }
 

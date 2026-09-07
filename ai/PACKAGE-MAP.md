@@ -603,6 +603,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/perfbench` | reports BGP dataplane changes since the last performance run |  |
 | `internal/le/platformvet` | checks the host and interface package trees against the non-Linux implementations that the normal host build does not compile |  |
 | `internal/le/plugin/boundary` | enforces an invariant discovered during the AS112/cos advisory-doctor-check review: a plugin calling another in-process package's plain exported function directly -- bypassing... |  |
+| `internal/le/plugin/declarations` | holds a plugin's command declarations to ONE function |  |
 | `internal/le/plugin/imports` | generates internal/component/plugin/all, the product's composition root, from what the tree REGISTERS |  |
 | `internal/le/population` | turns a gate's claim about the set it governs into an accounting that fails when a member is neither walked nor excused |  |
 | `internal/le/portdefaults` | pins the hand-maintained Go listener-default table (internal/component/config/listener_defaults.go, RegisterBuiltinListenerDefaults) |  |

@@ -19,6 +19,7 @@ func init() {
 		ConfigRoots:  []string{configRootBGP},
 		Dependencies: []string{configRootBGP},
 		RunEngine:    runFilterIRR,
+		Commands:     commandDecls(),
 		ConfigureMetrics: func(reg metrics.Registry) {
 			SetMetricsRegistry(reg)
 		},

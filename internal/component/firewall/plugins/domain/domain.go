@@ -185,11 +185,7 @@ func runFirewallDomain(conn net.Conn) int {
 	defer plug.stop()
 
 	if err := p.Run(ctx, sdk.Registration{
-		Commands: []sdk.CommandDecl{
-			{Name: cmdShowDomainGroup, Description: "Show what each configured domain group's DNS names resolve to", Args: []string{"[<name>]"}},
-			{Name: cmdUpdateDomainGroup, Description: "Resolve a domain group's DNS names now and program its set", Args: []string{"<name>"}},
-			{Name: cmdClearDomainGroup, Description: "Remove the addresses cached for a domain group", Args: []string{"<name>"}},
-		},
+		Commands:    commandDecls(),
 		Enrichers:   []sdk.EnricherDecl{{Command: enrichCommand, Key: enrichKey}},
 		WantsConfig: []string{configRoot},
 		// The resolved addresses survive a restart in the zefs store, so a
@@ -756,4 +752,19 @@ func (plug *domainPlugin) updateMetricsGauges(cfg *domainConfig) {
 	}
 	m.addressesCached.Set(float64(total))
 	m.dataAge.Set(oldest.Seconds())
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{Name: cmdShowDomainGroup, Description: "Show what each configured domain group's DNS names resolve to", Args: []string{"[<name>]"}},
+		{Name: cmdUpdateDomainGroup, Description: "Resolve a domain group's DNS names now and program its set", Args: []string{"<name>"}},
+		{Name: cmdClearDomainGroup, Description: "Remove the addresses cached for a domain group", Args: []string{"<name>"}},
+	}
 }

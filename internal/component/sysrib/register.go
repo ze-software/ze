@@ -34,6 +34,7 @@ func init() {
 		ConfigRoots:             []string{configRootRIB},
 		InProcessConfigVerifier: verifySysRIBConfig,
 		RunEngine:               runSysRIBPlugin,
+		Commands:                commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -290,11 +291,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 		WantsConfig:  []string{configRootRIB},
 		VerifyBudget: 1,
 		ApplyBudget:  2,
-		Commands: []sdk.CommandDecl{
-			{Name: "show rib"},
-			{Name: "show nexthop-table"},
-			{Name: "show ecmp-groups"},
-		},
+		Commands:     commandDecls(),
 	})
 	if err != nil {
 		logger().Error("sysrib plugin failed", "error", err)
@@ -302,4 +299,28 @@ func runSysRIBPlugin(conn net.Conn) int {
 	}
 
 	return 0
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{
+			Name:        "show rib",
+			Description: "Show each route the system RIB holds, with its family, next hop and protocol.",
+		},
+		{
+			Name:        "show nexthop-table",
+			Description: "Show each next hop the resolver tracks and the direct next hop it resolves to.",
+		},
+		{
+			Name:        "show ecmp-groups",
+			Description: "Show each multipath prefix with the paths that share its load.",
+		},
+	}
 }

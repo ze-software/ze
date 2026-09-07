@@ -243,7 +243,8 @@ func newSeqMap() *seqmap.Map[compactRouteKey, *RawRoute] {
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{
-			Name: "show bgp adj-rib-in status",
+			Name:        "show bgp adj-rib-in status",
+			Description: "Show whether the Adj-RIB-In runs, its total route count, and the count for each peer.",
 			// status (rib_commands.go) writes "running", "total-routes" and
 			// "peers". "peers" maps a peer address to a route COUNT, and rowSet
 			// (internal/component/command/answer_shape.go) reads a map as rows
@@ -252,7 +253,8 @@ func commandDecls() []sdk.CommandDecl {
 			Shape: "doc",
 		},
 		{
-			Name: "show bgp adj-rib-in",
+			Name:        "show bgp adj-rib-in",
+			Description: "Show the routes held for each peer, with the wire bytes and validation state of each.",
 			// show (rib_commands.go) writes {"adj-rib-in": {<peer>: [route,
 			// ...]}}. That inner map is rows keyed by peer address, and each
 			// row is that peer's routes. rowSet
@@ -266,15 +268,37 @@ func commandDecls() []sdk.CommandDecl {
 			// ROW, and a row here is a list whose keys sit one level below it.
 			Shape: "map",
 		},
-		{Name: "request bgp adj-rib-in replay"},
+		{
+			Name:        "request bgp adj-rib-in replay",
+			Description: "Replay the stored routes of every other peer to one target peer.",
+		},
 		// Plugin-to-plugin plumbing, not an operator verb: bgp-rs claims
 		// peer-up replay ownership with this at startup.
-		{Name: "request bgp adj-rib-in claim-replay", Hidden: true},
-		{Name: "request bgp adj-rib-in enable-validation"},
-		{Name: "request bgp adj-rib-in accept-routes"},
-		{Name: "request bgp adj-rib-in reject-routes"},
-		{Name: "request bgp adj-rib-in batch-validate"},
-		{Name: "request bgp adj-rib-in revalidate"},
+		{
+			Name:        "request bgp adj-rib-in claim-replay",
+			Description: "Take peer-up replay ownership, which stands the Adj-RIB-In's own replay down.",
+			Hidden:      true,
+		},
+		{
+			Name:        "request bgp adj-rib-in enable-validation",
+			Description: "Turn the validation gate on, so each new route waits in the pending state.",
+		},
+		{
+			Name:        "request bgp adj-rib-in accept-routes",
+			Description: "Install one pending route under the validation state given.",
+		},
+		{
+			Name:        "request bgp adj-rib-in reject-routes",
+			Description: "Discard one pending route and do not install it.",
+		},
+		{
+			Name:        "request bgp adj-rib-in batch-validate",
+			Description: "Apply up to 256 validation decisions in one call.",
+		},
+		{
+			Name:        "request bgp adj-rib-in revalidate",
+			Description: "Answer the installed routes of one prefix, so a validator can validate them again.",
+		},
 	}
 }
 

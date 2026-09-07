@@ -114,7 +114,7 @@ func TestVerboseHelpNamesTheGlobalOperators(t *testing.T) {
 		Path:        "show test",
 		Description: "a command that reaches the pipe layer",
 	}
-	entry.Operators, entry.AnswerShape = operatorsFor(entry.Path)
+	entry.Operators, entry.AnswerShape = operatorsFor(entry.Path, command.DeclaredForCommand(entry.Path))
 
 	var buf bytes.Buffer
 	rw := helpfmt.NewRenderWriter(&buf)
@@ -170,7 +170,7 @@ func TestDualRegisteredDaemonCommandPublishesOperators(t *testing.T) {
 	if !daemonHandlesPath("show version") {
 		t.Fatal("show version has no daemon handler; this test no longer covers dual registration")
 	}
-	ops, _ := operatorsFor("show version")
+	ops, _ := operatorsFor("show version", command.DeclaredForCommand("show version"))
 	if len(ops) == 0 {
 		t.Fatal("show version publishes no operators although its daemon handler reaches the pipe layer")
 	}
@@ -282,7 +282,7 @@ func TestACommandServedWithoutDataPublishesNoOperators(t *testing.T) {
 		if daemonHandlesPath(path) {
 			t.Fatalf("%s has a daemon handler now; move it to the dual-registration test", path)
 		}
-		ops, shape := operatorsFor(path)
+		ops, shape := operatorsFor(path, command.DeclaredForCommand(path))
 		if len(ops) != 0 {
 			t.Errorf("%s publishes %d operators and reaches no pipe layer", path, len(ops))
 		}
@@ -293,7 +293,7 @@ func TestACommandServedWithoutDataPublishesNoOperators(t *testing.T) {
 
 	// The converted sibling still publishes, so the check above is not passing
 	// because operatorsFor answers nothing for everything.
-	if ops, _ := operatorsFor("show data registered"); len(ops) == 0 {
+	if ops, _ := operatorsFor("show data registered", command.DeclaredForCommand("show data registered")); len(ops) == 0 {
 		t.Error("show data registered publishes no operators; it answers with data")
 	}
 }

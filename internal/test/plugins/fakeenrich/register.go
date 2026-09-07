@@ -21,6 +21,7 @@ func init() {
 		Name:        Name,
 		Description: "Test-only in-process enricher (harmless when not invoked)",
 		RunEngine:   runPlugin,
+		Commands:    commandDecls(),
 	}
 	reg.CLIHandler = func(args []string) int {
 		cfg := cli.BaseConfig(&reg)

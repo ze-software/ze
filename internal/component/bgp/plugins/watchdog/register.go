@@ -21,6 +21,7 @@ func pluginSetup() {
 		ConfigRoots:  []string{configRootBGP},
 		Dependencies: []string{configRootBGP},
 		RunEngine:    runWatchdogPlugin,
+		Commands:     commandDecls(),
 		// A peer-up resends this peer's announced pool, and the resend reports
 		// when it is out (watchdog.go).
 		SignalsSessionReady: true,

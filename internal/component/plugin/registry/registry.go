@@ -142,6 +142,39 @@ type Registration struct {
 
 	YANG string // YANG schema content (empty if none)
 
+	// Commands are the commands this plugin serves, and what each answer
+	// holds: the name, the help texts, the args, and the Shape, Columns and
+	// AddressFields that decide which pipe operators the command supports
+	// (pkg/plugin/rpc/types.go, CommandDecl).
+	//
+	// It is the SAME slice the plugin's runner sends in its Stage 1
+	// registration message, taken from the same function, so the two can never
+	// disagree. The runner's copy reaches a RUNNING daemon; this one reaches
+	// anything that links the composition root and reads All(), which is how a
+	// catalog generator sees a declaration without starting an engine.
+	//
+	// Empty means the plugin declares no command, which is the normal answer:
+	// most plugins serve none. An external plugin registers nothing here and
+	// still declares over Stage 1, unchanged.
+	Commands []rpc.CommandDecl
+
+	// Pipes are the pipe ALIASES this plugin puts on its own commands: the
+	// command path each sits on, the name an operator types after the pipe
+	// character, and the chain that name stands for (pkg/plugin/rpc/types.go,
+	// PipeDecl).
+	//
+	// It is the SAME slice the plugin's runner sends in its Stage 1
+	// registration message, taken from the same function, so the two can never
+	// disagree. `./le plugin declarations check` compares them by the pair a
+	// pipe alias is identified by, its command path and its name.
+	//
+	// Until 2026-09-07 an alias existed on the Stage 1 message alone, so no
+	// reader outside a running daemon could report one and the published
+	// command catalog listed a plugin's commands without their aliases. Empty
+	// means the plugin puts no alias on its commands, which is the normal
+	// answer.
+	Pipes []rpc.PipeDecl
+
 	// FilterTypes lists the YANG filter list names this plugin owns (e.g.,
 	// ["prefix-list"]). Used by the policy filter chain to resolve short chain
 	// refs like "prefix-list:CUSTOMERS" or plain "CUSTOMERS" to this plugin's

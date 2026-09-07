@@ -85,14 +85,7 @@ func runFilterPathASN(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		Commands: []sdk.CommandDecl{
-			{Name: cmdShowRejectASN, Description: "Show every reject-asn list with its ASNs, positions and attached peers"},
-			{Name: cmdShowRejectASNName, Description: "Show one reject-asn list by name", Args: []string{"<name>"}},
-			// The description says "well-known" rather than naming the table
-			// this command reads: TestCuratedTableDecidesNothing asserts that
-			// no file deciding anything mentions it, and this file decides.
-			{Name: cmdShowRejectASNTransitFree, Description: "Print the well-known transit-free ASNs as a config block"},
-		},
+		Commands:    commandDecls(),
 		WantsConfig: []string{configRootBGP},
 	}); err != nil {
 		logger().Error("filter-path-asn plugin failed", "error", err)
@@ -212,4 +205,22 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 	logger().Debug("reject-asn accept",
 		"filter", list.name, "direction", in.Direction, "peer", in.Peer, "as-path", asPath)
 	return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{Name: cmdShowRejectASN, Description: "Show every reject-asn list with its ASNs, positions and attached peers"},
+		{Name: cmdShowRejectASNName, Description: "Show one reject-asn list by name", Args: []string{"<name>"}},
+		// The description says "well-known" rather than naming the table
+		// this command reads: TestCuratedTableDecidesNothing asserts that
+		// no file deciding anything mentions it, and this file decides.
+		{Name: cmdShowRejectASNTransitFree, Description: "Print the well-known transit-free ASNs as a config block"},
+	}
 }

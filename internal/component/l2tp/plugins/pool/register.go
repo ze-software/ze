@@ -77,6 +77,7 @@ func init() {
 		ConfigRoots:             []string{configRootL2TP},
 		InProcessConfigVerifier: verifyPoolConfig,
 		RunEngine:               runPlugin,
+		Commands:                commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -445,9 +446,7 @@ func runPlugin(conn net.Conn) int {
 		WantsConfig:  []string{configRootL2TP},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
-		Commands: []sdk.CommandDecl{
-			{Name: "show l2tp pool"},
-		},
+		Commands:     commandDecls(),
 	}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)
 		return 1
@@ -769,4 +768,20 @@ func parseNamedIPv6Pools(entries []configvalue.ListEntry) (map[string]*ipv6Prefi
 		pools[entry.Key] = pool
 	}
 	return pools, nil
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{
+			Name:        "show l2tp pool",
+			Description: "Show the IPv4 and IPv6 subscriber address pools and what each has allocated.",
+		},
+	}
 }

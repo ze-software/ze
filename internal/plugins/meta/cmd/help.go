@@ -24,6 +24,13 @@ const (
 	// one command. keyDescription carries the summary beside it, and neither is
 	// derived from the other.
 	keyLongHelp = "long-help"
+	// keyAnswerShape, keyColumnOrders and keyAddressFields are the response
+	// payload keys describing what a command's ANSWER holds. They are spelled
+	// exactly as `ze help command --json` spells them (cmd/ze/help_command.go,
+	// commandEntry), so one reader parses either surface.
+	keyAnswerShape   = "answer-shape"
+	keyColumnOrders  = "column-orders"
+	keyAddressFields = "address-fields"
 )
 
 func init() {
@@ -142,13 +149,20 @@ type commandHelpText struct {
 	Args        string
 }
 
-// commandHelp answers for one command: what it is, and the pipe names it
-// answers to beside the built-in operators.
+// commandHelp answers for one command: what it is, what its answer holds, and
+// the pipe names it answers to beside the built-in operators.
 //
-// A running daemon is the only place both lists exist. A pipe filter and a pipe
-// alias are each registered at startup, an alias by an in-tree package or by a
-// plugin's Stage 1 message, so a tool reading the compiled command tree in its
-// own process can report neither.
+// A running daemon is the only place every one of those lists exists. A pipe
+// filter, a pipe alias, an answer shape, a column order and an address-field
+// list are each registered at startup, by an in-tree package or by a plugin's
+// Stage 1 message, so a tool reading the compiled command tree in its own
+// process reports only the half its own binary declared.
+//
+// The three declaration registries are read directly rather than through
+// command.DeclaredForCommand, because this handler runs INSIDE the daemon and
+// answers what the daemon holds. A plugin that is registered and has not
+// started has declared nothing here, and reporting its registration would
+// promise an operator a shape no running command answers with.
 func commandHelp(cmd commandHelpText) *plugin.Response {
 	data := map[string]any{
 		"command":      cmd.Name,
@@ -158,6 +172,15 @@ func commandHelp(cmd commandHelpText) *plugin.Response {
 	}
 	if cmd.Args != "" {
 		data["args"] = cmd.Args
+	}
+	if shape, declared := command.ShapeForCommand(cmd.Name); declared {
+		data[keyAnswerShape] = shape.String()
+	}
+	if orders := command.ColumnNames(command.ColumnsForCommand(cmd.Name)); len(orders) > 0 {
+		data[keyColumnOrders] = orders
+	}
+	if fields := command.AddressFieldsForCommand(cmd.Name); len(fields) > 0 {
+		data[keyAddressFields] = fields
 	}
 	if filters := pipeFilterHelp(command.PipeFiltersForCommand(cmd.Name)); len(filters) > 0 {
 		data["pipe-filters"] = filters

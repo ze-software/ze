@@ -17,6 +17,7 @@ func init() {
 		Features:    "yang",
 		YANG:        getYANG(),
 		RunEngine:   runAdjRIBInPlugin,
+		Commands:    commandDecls(),
 		// The peer-up replay of stored routes is part of the establishing peer's
 		// initial routing update, and signalSessionReady reports on every peer-up
 		// (rib.go) -- including when bgp-rs holds the replay role and this plugin

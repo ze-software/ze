@@ -117,6 +117,7 @@ func registerOSPF() {
 		Dependencies:            []string{"interface", "fib-kernel", "sysctl"},
 		RFCs:                    []string{"2328", "5709", "7474", "9129"},
 		RunEngine:               runOSPFEngine,
+		Commands:                commandDecls(),
 		InProcessConfigVerifier: verifyOSPFConfigSections,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
@@ -688,68 +689,7 @@ func runOSPFEngine(conn net.Conn) int {
 		WantsConfig:  []string{Namespace},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
-		Commands: []sdk.CommandDecl{
-			{Name: "show ospf"},
-			{Name: "show ospf ipv6"},
-			{Name: "show ospf ipv6 interface"},
-			{Name: "show ospf instance"},
-			{Name: "show ospf neighbor"},
-			{Name: "show ospf interface"},
-			{Name: "show ospf database"},
-			{Name: cmdShowDatabaseRouter},
-			{Name: cmdShowDatabaseNetwork},
-			{Name: cmdShowDatabaseSummary},
-			{Name: cmdShowDatabaseASBRSummary},
-			{Name: cmdShowDatabaseExternal},
-			{Name: cmdShowDatabaseNSSAExternal},
-			{Name: cmdShowDatabaseOpaqueLink},
-			{Name: cmdShowDatabaseOpaqueArea},
-			{Name: cmdShowDatabaseOpaqueAS},
-			{Name: cmdShowDatabaseRI},
-			{Name: "show ospf te-database"},
-			{Name: "show ospf route"},
-			{Name: "show ospf route fast-reroute"},
-			{Name: "show ospf virtual-links"},
-			{Name: "show ospf border-routers"},
-			{Name: "show ospf spf"},
-			{Name: "show ospf ldp-sync"},
-			{Name: cmdShowGracefulRestart},
-			{Name: cmdShowIPv6GracefulRestart},
-			{Name: cmdShowSegmentRouting},
-			{Name: cmdShowIPv6SegmentRouting},
-			{Name: cmdClearProcess},
-			{Name: cmdClearNeighbor},
-			{Name: cmdClearCounters},
-			{Name: cmdGRPrepare},
-			// spec-ospf-ext-14 IPv4 deep-introspection views.
-			{Name: cmdShowDatabaseOpaqueAreaDetail},
-			{Name: cmdShowDatabaseOpaqueASDetail},
-			{Name: cmdShowDatabaseOpaqueLinkDetail},
-			{Name: cmdShowSPFDetail},
-			{Name: cmdShowNeighborDetail},
-			{Name: cmdShowInterfaceDetail},
-			// spec-ospf-ext-14 IPv6 deep-introspection views.
-			{Name: cmdShowIPv6Database},
-			{Name: cmdShowIPv6DatabaseDetail},
-			{Name: cmdShowIPv6DatabaseRouterDetail},
-			{Name: cmdShowIPv6DatabaseScopeLink},
-			{Name: cmdShowIPv6DatabaseScopeArea},
-			{Name: cmdShowIPv6DatabaseScopeAS},
-			{Name: cmdShowIPv6DatabaseRI},
-			{Name: cmdShowIPv6DatabaseExtended},
-			{Name: cmdShowIPv6DatabaseSegmentRouting},
-			{Name: cmdShowIPv6Instance},
-			{Name: cmdShowIPv6Neighbor},
-			{Name: cmdShowIPv6NeighborDetail},
-			{Name: cmdShowIPv6InterfaceDetail},
-			{Name: cmdShowIPv6SPF},
-			{Name: cmdShowIPv6SPFDetail},
-			// spec-ospf-ext-14 guarded LSA injection (both families) + shared enablement.
-			{Name: cmdDebugInjectEnable},
-			{Name: cmdDebugInjectDisable},
-			{Name: cmdDebugInjectOpaque},
-			{Name: cmdDebugInjectLSA},
-		},
+		Commands:     commandDecls(),
 	})
 	if err != nil {
 		log.Error("ospf engine failed", "error", err)
@@ -760,4 +700,76 @@ func runOSPFEngine(conn net.Conn) int {
 	instances.shutdownAll()
 	v6set.shutdownAll()
 	return 0
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{Name: "show ospf"},
+		{Name: "show ospf ipv6"},
+		{Name: "show ospf ipv6 interface"},
+		{Name: "show ospf instance"},
+		{Name: "show ospf neighbor"},
+		{Name: "show ospf interface"},
+		{Name: "show ospf database"},
+		{Name: cmdShowDatabaseRouter},
+		{Name: cmdShowDatabaseNetwork},
+		{Name: cmdShowDatabaseSummary},
+		{Name: cmdShowDatabaseASBRSummary},
+		{Name: cmdShowDatabaseExternal},
+		{Name: cmdShowDatabaseNSSAExternal},
+		{Name: cmdShowDatabaseOpaqueLink},
+		{Name: cmdShowDatabaseOpaqueArea},
+		{Name: cmdShowDatabaseOpaqueAS},
+		{Name: cmdShowDatabaseRI},
+		{Name: "show ospf te-database"},
+		{Name: "show ospf route"},
+		{Name: "show ospf route fast-reroute"},
+		{Name: "show ospf virtual-links"},
+		{Name: "show ospf border-routers"},
+		{Name: "show ospf spf"},
+		{Name: "show ospf ldp-sync"},
+		{Name: cmdShowGracefulRestart},
+		{Name: cmdShowIPv6GracefulRestart},
+		{Name: cmdShowSegmentRouting},
+		{Name: cmdShowIPv6SegmentRouting},
+		{Name: cmdClearProcess},
+		{Name: cmdClearNeighbor},
+		{Name: cmdClearCounters},
+		{Name: cmdGRPrepare},
+		// spec-ospf-ext-14 IPv4 deep-introspection views.
+		{Name: cmdShowDatabaseOpaqueAreaDetail},
+		{Name: cmdShowDatabaseOpaqueASDetail},
+		{Name: cmdShowDatabaseOpaqueLinkDetail},
+		{Name: cmdShowSPFDetail},
+		{Name: cmdShowNeighborDetail},
+		{Name: cmdShowInterfaceDetail},
+		// spec-ospf-ext-14 IPv6 deep-introspection views.
+		{Name: cmdShowIPv6Database},
+		{Name: cmdShowIPv6DatabaseDetail},
+		{Name: cmdShowIPv6DatabaseRouterDetail},
+		{Name: cmdShowIPv6DatabaseScopeLink},
+		{Name: cmdShowIPv6DatabaseScopeArea},
+		{Name: cmdShowIPv6DatabaseScopeAS},
+		{Name: cmdShowIPv6DatabaseRI},
+		{Name: cmdShowIPv6DatabaseExtended},
+		{Name: cmdShowIPv6DatabaseSegmentRouting},
+		{Name: cmdShowIPv6Instance},
+		{Name: cmdShowIPv6Neighbor},
+		{Name: cmdShowIPv6NeighborDetail},
+		{Name: cmdShowIPv6InterfaceDetail},
+		{Name: cmdShowIPv6SPF},
+		{Name: cmdShowIPv6SPFDetail},
+		// spec-ospf-ext-14 guarded LSA injection (both families) + shared enablement.
+		{Name: cmdDebugInjectEnable},
+		{Name: cmdDebugInjectDisable},
+		{Name: cmdDebugInjectOpaque},
+		{Name: cmdDebugInjectLSA},
+	}
 }

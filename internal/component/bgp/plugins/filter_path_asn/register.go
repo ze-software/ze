@@ -21,6 +21,7 @@ func init() {
 		// role reads this declaration, so the rule holds no filter type name.
 		FilterObligations: []string{filterapi.ObligationTransitLeak},
 		RunEngine:         runFilterPathASN,
+		Commands:          commandDecls(),
 		CLIHandler:        func(_ []string) int { return 0 },
 		ConfigureMetrics: func(reg metrics.Registry) {
 			setMetricsRegistry(reg)

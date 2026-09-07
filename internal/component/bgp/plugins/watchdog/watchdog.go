@@ -157,10 +157,7 @@ func runWatchdogPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		WantsConfig: []string{configRootBGP},
-		Commands: []sdk.CommandDecl{
-			{Name: commandRequestWatchdogAnnounce, Description: "Announce routes in watchdog group"},
-			{Name: commandRequestWatchdogWithdraw, Description: "Withdraw routes in watchdog group"},
-		},
+		Commands:    commandDecls(),
 	})
 	if err != nil {
 		logger().Error("watchdog plugin failed", "error", err)
@@ -189,4 +186,18 @@ func parseStateEvent(text string) (peerAddr, state string) {
 		}
 	}
 	return "", ""
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{Name: commandRequestWatchdogAnnounce, Description: "Announce routes in watchdog group"},
+		{Name: commandRequestWatchdogWithdraw, Description: "Withdraw routes in watchdog group"},
+	}
 }

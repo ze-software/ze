@@ -135,15 +135,7 @@ func runFirewallIRR(conn net.Conn) int {
 	defer close(plug.stopCh)
 
 	if err := p.Run(ctx, sdk.Registration{
-		Commands: []sdk.CommandDecl{
-			{Name: cmdShowIRR, Description: "Show IRR filter status for all cached entries"},
-			{Name: "show firewall irr prefix", Description: "Show IRR-resolved prefixes for a cached entry", Args: []string{"<asn-or-as-set>"}},
-			{Name: "update firewall irr all", Description: "Refresh all cached IRR prefix-lists"},
-			{Name: "update firewall irr asn", Description: "Fetch/refresh IRR prefix-list for an ASN", Args: []string{"<asn>"}},
-			{Name: "update firewall irr as-set", Description: "Fetch/refresh IRR prefix-list for an AS-SET", Args: []string{"<as-set>"}},
-			{Name: "clear firewall irr asn", Description: "Remove the cached IRR prefix-list for an ASN", Args: []string{"<asn>"}},
-			{Name: "clear firewall irr as-set", Description: "Remove the cached IRR prefix-list for an AS-SET", Args: []string{"<as-set>"}},
-		},
+		Commands:    commandDecls(),
 		WantsConfig: []string{configRoot},
 		// The cache this plugin serves the firewall from survives a restart in
 		// the zefs store, so a crashed process comes back and programs its sets
@@ -623,4 +615,23 @@ func extractIfaceRefs(root map[string]any) []irrRef {
 		refs = append(refs, irrRef{Name: asSet, IsASSet: true, IsSrc: true})
 	}
 	return refs
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{Name: cmdShowIRR, Description: "Show IRR filter status for all cached entries"},
+		{Name: "show firewall irr prefix", Description: "Show IRR-resolved prefixes for a cached entry", Args: []string{"<asn-or-as-set>"}},
+		{Name: "update firewall irr all", Description: "Refresh all cached IRR prefix-lists"},
+		{Name: "update firewall irr asn", Description: "Fetch/refresh IRR prefix-list for an ASN", Args: []string{"<asn>"}},
+		{Name: "update firewall irr as-set", Description: "Fetch/refresh IRR prefix-list for an AS-SET", Args: []string{"<as-set>"}},
+		{Name: "clear firewall irr asn", Description: "Remove the cached IRR prefix-list for an ASN", Args: []string{"<asn>"}},
+		{Name: "clear firewall irr as-set", Description: "Remove the cached IRR prefix-list for an AS-SET", Args: []string{"<as-set>"}},
+	}
 }

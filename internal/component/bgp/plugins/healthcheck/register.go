@@ -22,6 +22,7 @@ func pluginSetup() {
 		Features:     "yang",
 		YANG:         yang.ZeHealthcheckConfYANG,
 		RunEngine:    runHealthcheckPlugin,
+		Commands:     commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
 		},

@@ -29,7 +29,9 @@ import (
 	// runtime's exactly.
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/yang"
+	pluginregistry "github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/le/leroot"
 )
@@ -93,6 +95,45 @@ func Collect() (Commands, error) {
 		})
 	}
 
+	// Commands a plugin declares on its registration. A plugin's command is
+	// dispatched through the plugin rather than through a builtin RPC or a
+	// streaming prefix, so nothing above names one and the inventory reported
+	// none of them.
+	//
+	// A HIDDEN declaration is included. The inventory answers what ze
+	// registers, and a hidden command is registered; it is kept out of
+	// completion, which is a different question.
+	for _, registration := range pluginregistry.All() {
+		for index := range registration.Commands {
+			path := registration.Commands[index].Name
+			if path == "" || hasPath(commands, path, strings.EqualFold) {
+				continue
+			}
+			commands = append(commands, Command{
+				Verb:   classifyVerb(path),
+				Path:   path,
+				Source: "plugin",
+			})
+		}
+	}
+
+	// What each command DECLARES about its answer. One reader answers for both
+	// declaration channels: the registries an in-tree package writes from
+	// init(), and the registration a plugin carries
+	// (internal/component/command, DeclaredForCommand). `ze help command
+	// --json` and the wiki catalog read that same function, so the three
+	// inventories cannot disagree about one command.
+	for index := range commands {
+		entry := &commands[index]
+		declared := command.DeclaredForCommand(entry.Path)
+		if declared.ShapeDeclared {
+			entry.Shape = declared.Shape.String()
+		}
+		entry.ColumnOrders = command.ColumnNames(declared.Columns)
+		entry.AddressFields = declared.AddressFields
+		entry.Aliases = aliasesFor(declared)
+	}
+
 	sort.Slice(commands, func(i, j int) bool {
 		if commands[i].Verb != commands[j].Verb {
 			return commands[i].Verb < commands[j].Verb
@@ -100,6 +141,27 @@ func Collect() (Commands, error) {
 		return commands[i].Path < commands[j].Path
 	})
 	return commands, nil
+}
+
+// aliasesFor answers the pipe chains a command names, from the declaration the
+// inventory already resolved for it.
+//
+// It carries a registered plugin's aliases beside the alias registry's, because
+// this process starts no plugin and so receives no Stage 1 message. An alias
+// declared by a plugin that is not in this composition root, an EXTERNAL plugin,
+// stays a running daemon's answer (internal/plugins/meta/cmd/help.go,
+// commandHelp).
+func aliasesFor(declared command.Declared) []Alias {
+	if len(declared.Aliases) == 0 {
+		return nil
+	}
+	aliases := make([]Alias, 0, len(declared.Aliases))
+	for _, alias := range declared.Aliases {
+		aliases = append(aliases, Alias{
+			Name: alias.Name, Description: alias.Description, Expansion: alias.Expansion,
+		})
+	}
+	return aliases
 }
 
 // hasPath reports whether any collected command already carries path, compared

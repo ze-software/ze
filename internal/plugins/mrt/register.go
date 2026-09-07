@@ -96,6 +96,7 @@ func init() {
 		YANG:        mrtyang.ZeMRTConfYANG,
 		ConfigRoots: []string{configRoot},
 		RunEngine:   runEngine,
+		Commands:    commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -205,7 +206,7 @@ func runEngine(conn net.Conn) int {
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 2,
 		ApplyBudget:  10,
-		Commands:     []sdk.CommandDecl{{Name: "request mrt dump-rib"}},
+		Commands:     commandDecls(),
 	}); err != nil {
 		log.Error("mrt plugin failed", "error", err)
 		return 1
@@ -277,4 +278,20 @@ func ParseConfig(data json.RawMessage) (*Config, error) {
 		cfg.RoutesInterval = time.Duration(raw.Routes.Interval) * time.Second
 	}
 	return cfg, nil
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{
+			Name:        "request mrt dump-rib",
+			Description: "Write the current RIB to the MRT table dump file.",
+		},
+	}
 }

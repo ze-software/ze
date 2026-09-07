@@ -185,6 +185,7 @@ func registerLDP() {
 		ConfigRoots:  []string{configRoot},
 		Dependencies: []string{"fib-kernel", "sysctl"},
 		RunEngine:    runLDPEngine,
+		Commands:     commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -357,10 +358,7 @@ func runLDPEngine(conn net.Conn) int {
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
-		Commands: []sdk.CommandDecl{
-			{Name: "show ldp neighbor"},
-			{Name: "show ldp binding"},
-		},
+		Commands:     commandDecls(),
 	})
 	if err != nil {
 		log.Error("ldp engine failed", "error", err)
@@ -952,4 +950,18 @@ func showBindings(lib *LIB) any {
 	}
 
 	return out
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{Name: "show ldp neighbor"},
+		{Name: "show ldp binding"},
+	}
 }

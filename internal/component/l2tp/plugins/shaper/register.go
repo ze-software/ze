@@ -29,6 +29,7 @@ func init() {
 		ConfigRoots:             []string{configRootL2TP},
 		InProcessConfigVerifier: verifyShaperConfig,
 		RunEngine:               runPlugin,
+		Commands:                commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -125,12 +126,26 @@ func runPlugin(conn net.Conn) int {
 		WantsConfig:  []string{configRootL2TP},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
-		Commands: []sdk.CommandDecl{
-			{Name: "show l2tp shaper"},
-		},
+		Commands:     commandDecls(),
 	}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)
 		return 1
 	}
 	return 0
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{
+			Name:        "show l2tp shaper",
+			Description: "Show each shaped subscriber session with its download and upload rate.",
+		},
+	}
 }

@@ -171,10 +171,7 @@ func runRouteReflector(conn net.Conn) int {
 	err := p.Run(ctx, sdk.Registration{
 		CacheConsumer:          true,
 		CacheConsumerUnordered: true,
-		Commands: []sdk.CommandDecl{
-			{Name: "show rr status", Description: "Show RR status"},
-			{Name: "show rr peers", Description: "Show peer states"},
-		},
+		Commands:               commandDecls(),
 	})
 
 	if err != nil {
@@ -607,4 +604,18 @@ func nlriDelCmd(fam, prefixes string) string {
 func rrEORCmd(fam string) string {
 	var b textbuf.Buffer
 	return b.Reset().Str("update text nlri ").Str(fam).Str(" eor").String()
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{Name: "show rr status", Description: "Show RR status"},
+		{Name: "show rr peers", Description: "Show peer states"},
+	}
 }

@@ -32,6 +32,7 @@ func init() {
 		ConfigRoots: []string{configRootBGP},
 		YANG:        ribyang.ZeRibYANG,
 		RunEngine:   runRIBPlugin,
+		Commands:    commandDecls(),
 		// The Adj-RIB-Out replay on the down-to-up edge IS this peer's initial
 		// routing update, and replayRoutesWithCursor reports when it is out --
 		// including when there was nothing to replay (rib_replay.go).

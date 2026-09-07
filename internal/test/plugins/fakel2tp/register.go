@@ -30,6 +30,7 @@ func init() {
 		Name:        Name,
 		Description: "Test-only synthetic L2TP route producer (use ze.fakel2tp; harmless when not invoked)",
 		RunEngine:   runPlugin,
+		Commands:    commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -61,13 +62,24 @@ func runPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		Commands: []sdk.CommandDecl{
-			{Name: "request fakel2tp emit"},
-			{Name: "show fakel2tp help"},
-		},
+		Commands: commandDecls(),
 	}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)
 		return 1
 	}
 	return 0
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{Name: "request fakel2tp emit"},
+		{Name: "show fakel2tp help"},
+	}
 }

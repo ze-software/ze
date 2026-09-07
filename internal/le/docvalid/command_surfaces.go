@@ -140,11 +140,15 @@ type publishedCommand struct {
 	Operators     []publishedCommandOperator `json:"operators,omitempty"`
 	AnswerShape   string                     `json:"answer-shape,omitempty"`
 	AddressFields []string                   `json:"address-fields,omitempty"`
-	Aliases       []publishedCommandAlias    `json:"pipe-aliases,omitempty"`
-	Usage         string                     `json:"usage,omitempty"`
-	Grammar       []publishedCommandToken    `json:"grammar,omitempty"`
-	Syntax        string                     `json:"syntax,omitempty"`
-	Subcommands   []string                   `json:"subcommands,omitempty"`
+	// ColumnOrders are the answer's record keys in reading order, one list per
+	// record shape. The parser rejects an unknown field, so a catalog carrying
+	// a column order is unreadable without it.
+	ColumnOrders [][]string              `json:"column-orders,omitempty"`
+	Aliases      []publishedCommandAlias `json:"pipe-aliases,omitempty"`
+	Usage        string                  `json:"usage,omitempty"`
+	Grammar      []publishedCommandToken `json:"grammar,omitempty"`
+	Syntax       string                  `json:"syntax,omitempty"`
+	Subcommands  []string                `json:"subcommands,omitempty"`
 }
 
 const commandCatalogGenerationTimeout = 2 * time.Minute
@@ -611,6 +615,22 @@ func (c *checker) collectWikiCatalogEntries() []wikicatalog.Entry {
 	return wikicatalog.Collect()
 }
 
+// compareWikiCatalogProducer holds the shipping wiki producer and the live
+// per-command catalog to one answer.
+//
+// What it proves narrowed when the two stopped joining the registries
+// separately. Every answer shape, column order and address-field list either
+// one publishes now comes from command.DeclaredForCommand, so that half agrees
+// by DERIVATION and is proven by TestWikiCatalogDerivesEveryDeclarationFromOneReader
+// beside its cmd/ze twin. Retiring this check on the strength of that would
+// have dropped the guard on the half that still has two producers, so it is
+// kept and its subject is restated here.
+//
+// The remaining independent half is small and cannot be collapsed: an internal
+// package cannot import cmd/ze's main package, so wikicatalog.Collect carries
+// four main-package commands as literal Entry values and drops every `le `
+// path the product binary never registers. Nothing derives those, and this
+// comparison is what catches them going stale.
 func compareWikiCatalogProducer(
 	live []publishedCommand,
 	entries []wikicatalog.Entry,

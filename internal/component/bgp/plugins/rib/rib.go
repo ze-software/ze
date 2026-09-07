@@ -733,36 +733,7 @@ func runRIBPlugin(conn net.Conn) int {
 		// WantsConfig: receive the bgp subtree in Stage 2 so OnConfigure can
 		// read multipath config (maximum-paths, relax-as-path).
 		WantsConfig: []string{configRootBGP},
-		Commands: []sdk.CommandDecl{
-			// Unified show with pipeline (scope + filters + terminals)
-			{Name: "show bgp rib status"},
-			{Name: "show bgp rib"},
-			{Name: "clear bgp rib in"},
-			{Name: "clear bgp rib out"},
-			// GR support: route retention and stale tracking (RFC 4724)
-			{Name: "request bgp rib retain-routes"},
-			{Name: "request bgp rib release-routes"},
-			{Name: "request bgp rib mark-stale"},
-			{Name: "request bgp rib purge-stale"},
-			// Best-path selection (RFC 4271 §9.1.2)
-			{Name: "show bgp rib best"},
-			{Name: "show bgp rib best status"},
-			// Reverse Path Forwarding query: longest-prefix-match in Loc-RIB
-			{Name: "show bgp rib rpf"},
-			// Route injection (manual RIB manipulation)
-			{Name: "request bgp rib inject"},
-			{Name: "request bgp rib withdraw"},
-			// Protocol-scoped route management (BMP integration)
-			{Name: "show bgp rib protocol"},
-			{Name: "request bgp rib withdraw-protocol"},
-			{Name: "request bgp rib withdraw-router"},
-			// Meta-commands (introspection)
-			{Name: "show bgp rib help"},
-			{Name: "show bgp rib commands"},
-			{Name: "show bgp rib events"},
-			// Zero-copy forward-handle fast path (rib-arch-6)
-			{Name: "request bgp rib fastpath"},
-		},
+		Commands:    commandDecls(),
 	})
 	if err != nil {
 		logger().Error("bgp rib plugin failed", "error", err)
@@ -1305,4 +1276,73 @@ func getLocalASN(event *Event) uint32 {
 // GetYANG returns the embedded YANG for the RIB plugin.
 func GetYANG() string {
 	return yang.ZeRibYANG
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+//
+// Each summary is READ from the dispatch table rather than written again here.
+// doRegisterBuiltinCommands (rib_commands.go) already states one for every
+// command it registers, and `show bgp rib commands` answers from that same
+// map, so a second copy on this list would be a future disagreement with
+// nothing to arbitrate it (ai/rules/principles.md). registerBuiltinCommands is
+// idempotent, so calling it here costs one sync.Once check.
+func commandDecls() []sdk.CommandDecl {
+	registerBuiltinCommands()
+
+	names := []string{
+		// Unified show with pipeline (scope + filters + terminals)
+		"show bgp rib status",
+		"show bgp rib",
+		"clear bgp rib in",
+		"clear bgp rib out",
+		// GR support: route retention and stale tracking (RFC 4724)
+		"request bgp rib retain-routes",
+		"request bgp rib release-routes",
+		"request bgp rib mark-stale",
+		"request bgp rib purge-stale",
+		// Best-path selection (RFC 4271 §9.1.2)
+		"show bgp rib best",
+		"show bgp rib best status",
+		// Reverse Path Forwarding query: longest-prefix-match in Loc-RIB
+		"show bgp rib rpf",
+		// Route injection (manual RIB manipulation)
+		"request bgp rib inject",
+		"request bgp rib withdraw",
+		// Protocol-scoped route management (BMP integration)
+		"show bgp rib protocol",
+		"request bgp rib withdraw-protocol",
+		"request bgp rib withdraw-router",
+		// Meta-commands (introspection)
+		"show bgp rib help",
+		"show bgp rib commands",
+		"show bgp rib events",
+		// Zero-copy forward-handle fast path (rib-arch-6)
+		"request bgp rib fastpath",
+	}
+
+	decls := make([]sdk.CommandDecl, 0, len(names))
+	for _, name := range names {
+		decls = append(decls, sdk.CommandDecl{Name: name, Description: commandSummary(name)})
+	}
+	return decls
+}
+
+// commandSummary answers the one-line summary the dispatch table holds for a
+// command, and the empty string for a command it does not name.
+//
+// The caller MUST have called registerBuiltinCommands first. An empty answer
+// means the name on the declaration list and the name in the table disagree,
+// which TestEveryDeclaredCommandCarriesItsTableSummary catches.
+func commandSummary(name string) string {
+	entry, found := registeredCommands[name]
+	if !found {
+		return ""
+	}
+	return entry.Description
 }

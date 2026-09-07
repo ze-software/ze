@@ -141,6 +141,7 @@ func registerISIS() {
 		Dependencies: []string{"fib-kernel", "sysctl"},
 		RFCs:         []string{"1195", "5301", "5303", "5305", "5308", "5310"},
 		RunEngine:    runISISEngine,
+		Commands:     commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -400,18 +401,7 @@ func runISISEngine(conn net.Conn) int {
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
-		Commands: []sdk.CommandDecl{
-			{Name: cmdShowNeighbor},
-			{Name: cmdShowDatabase},
-			{Name: cmdShowDatabaseDetail},
-			{Name: cmdShowRoute},
-			{Name: cmdShowRouteIPv6},
-			{Name: cmdShowInterface},
-			{Name: cmdShowHostname},
-			{Name: cmdShowSPFLog},
-			{Name: cmdClearAdjacency},
-			{Name: cmdClearCounters},
-		},
+		Commands:     commandDecls(),
 	})
 	if err != nil {
 		log.Error("isis engine failed", "error", err)
@@ -430,4 +420,26 @@ func runISISEngine(conn net.Conn) int {
 type clearResult struct {
 	Action  string `json:"action"`
 	Cleared int    `json:"cleared"`
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{Name: cmdShowNeighbor},
+		{Name: cmdShowDatabase},
+		{Name: cmdShowDatabaseDetail},
+		{Name: cmdShowRoute},
+		{Name: cmdShowRouteIPv6},
+		{Name: cmdShowInterface},
+		{Name: cmdShowHostname},
+		{Name: cmdShowSPFLog},
+		{Name: cmdClearAdjacency},
+		{Name: cmdClearCounters},
+	}
 }

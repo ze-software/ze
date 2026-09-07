@@ -56,6 +56,7 @@ Optional metadata:
 | `PeerUpBarrier` | `bool` | The plugin registers the peer on the peer-up event, so End-of-RIB waits for it |
 | `SignalsSessionReady` | `bool` | The plugin's routes belong to a peer's initial routing update and it reports `plugin session ready` when they are out, so End-of-RIB waits for that report |
 | `YANG` | `string` | YANG schema content |
+| `Commands` | `[]rpc.CommandDecl` | The commands the plugin serves, and what each answer holds. It is the SAME slice the runner sends at Stage 1, taken from the plugin's one `commandDecls()` function, so a reader that links the composition root sees a declaration with no engine started. `./le plugin declarations check` holds the two readings together |
 | `FilterTypes` | `[]string` | YANG filter list names this plugin owns, such as `prefix-list`. Names are globally unique; a duplicate aborts startup |
 | `DoctorChecks` | `[]DoctorCheckDef` | Doctor readiness checks. `Component` is set from `Name` |
 | `FatalOnConfigError` | `bool` | A configure-callback failure exits `ze` instead of running without the plugin |
@@ -376,8 +377,18 @@ check is a presence heuristic: it does not prove the guard covers the call at
 run time. An `allowlist` entry covers a package's own legitimate calls to its
 own function.
 
+A plugin's COMMAND declaration crosses the same boundary and fails the same
+quiet way. `Registration.Commands` is read by anything that links the
+composition root, and the `sdk.Registration` a runner passes to `p.Run` is read
+by a running daemon. A plugin that declares a command to the second and not the
+first is served by the daemon and never named by a catalog built from the tree:
+the page is short, and nothing goes red. Both readers therefore call one
+`commandDecls()` function, and `./le plugin declarations check` fails with the
+package and the command when they disagree.
+
 <!-- source: internal/component/plugin/process/process.go -- startInternal, startExternal -->
 <!-- source: internal/le/plugin/boundary/pluginboundary.go -- Roots, dangerousCalls, allowlist -->
+<!-- source: internal/le/plugin/declarations/plugindeclarations.go -- Check, readPackage -->
 <!-- source: internal/le/plugin/imports/pluginimports.go -- PluginSearchRoots, pluginDirs -->
 
 ## A registered name lives in many loose strings

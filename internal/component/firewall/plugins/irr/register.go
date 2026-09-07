@@ -30,6 +30,7 @@ func init() {
 		ConfigRoots:  []string{configRoot},
 		Dependencies: []string{dependencyFirewall},
 		RunEngine:    runFirewallIRR,
+		Commands:     commandDecls(),
 		ConfigureMetrics: func(reg metrics.Registry) {
 			setMetricsRegistry(reg)
 		},

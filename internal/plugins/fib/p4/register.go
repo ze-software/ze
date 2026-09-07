@@ -31,6 +31,7 @@ func init() {
 		ProgramsFIB: true,
 		YANG:        fibp4yang.ZeFibP4ConfYANG,
 		RunEngine:   runFIBP4Plugin,
+		Commands:    commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -105,9 +106,7 @@ func runFIBP4Plugin(conn net.Conn) int {
 		WantsConfig:  []string{"fib/p4"},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
-		Commands: []sdk.CommandDecl{
-			{Name: "show fib p4"},
-		},
+		Commands:     commandDecls(),
 	})
 	if err != nil {
 		logger().Error("fib-p4 plugin failed", "error", err)
@@ -119,4 +118,20 @@ func runFIBP4Plugin(conn net.Conn) int {
 	}
 
 	return 0
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// It has two readers and MUST stay one function. init() puts it on the
+// registry.Registration, which anything linking the composition root reads
+// without starting an engine, and the runner sends it in the Stage 1
+// registration message, which a running daemon reads.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{
+			Name:        "show fib p4",
+			Description: "Show the routes this backend programmed into the P4 forwarding pipeline.",
+		},
+	}
 }

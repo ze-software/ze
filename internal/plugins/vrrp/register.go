@@ -61,6 +61,7 @@ func registerVRRP() {
 		Dependencies:            []string{"interface"},
 		RFCs:                    []string{"9568", "3768"},
 		RunEngine:               runVRRPEngine,
+		Commands:                commandDecls(),
 		InProcessConfigVerifier: verifyVRRPConfigSections,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
