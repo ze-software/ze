@@ -45,12 +45,13 @@ and query mode reads it through the same Stage 1 message a running daemon reads.
 No manifest, no build-time emission, no generated list, nothing to compare, and
 nothing that can disagree with the plugin (`ai/rules/principles.md`).
 
-**Prior art, not a dependency.** `plan/spec-daemon-backed-command-catalog.md`
-made the catalog read a plugin's declarations from a RUNNING daemon, and
+**Prior art, not a dependency.** `spec-daemon-backed-command-catalog` made the
+catalog read a plugin's declarations from its `registry.Registration`, and
 rejected a collector that would start engines to introspect them. Its audit of
-all 97 registered runners is the evidence for that rejection, and this spec
-transcribes the part of it that bears on query mode, because that spec is
-deleted at its own closure and its text then lives only in history.
+all 97 registered runners is the evidence for that rejection. That spec closed
+on 2026-09-08 and its text now lives in
+`plan/learned/007-declaration-on-the-registration.md`, which carries the audit
+table whole. This spec transcribes the part of it that bears on query mode.
 
 ## Required Reading
 
@@ -90,8 +91,8 @@ plugin RPC.
 - [ ] `internal/component/plugin/register.go` - `show plugins` writes one row per plugin and NEVER drops a row it could not read: a plugin that recorded a setup outcome and never completed `Register` keeps its row with `descriptionUnregistered` (line 37), and a registered plugin that recorded nothing keeps its row with the unknown outcome. That is the precedent for the state answer this spec owes
 
 **The audit of all 97 registered runners, 2026-09-07.** Transcribed from
-`plan/spec-daemon-backed-command-catalog.md`, under Risks, headed "Why the
-collector was rejected". About 19 distinct plugins do something beyond callback
+`plan/learned/007-declaration-on-the-registration.md`, section 1, which carries
+it whole. About 19 distinct plugins do something beyond callback
 wiring and a signal handler before Stage 1:
 
 | Finding | Runners | What runs before Stage 1 |
@@ -205,7 +206,7 @@ carrier differs, not that in-tree plugins are out of reach.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Every field of a command declaration is static, so a query-mode answer equals a live daemon's answer | `CommandDecl` and `PipeDecl`, `pkg/plugin/rpc/types.go`; each plugin's `commandDecls()` | A plugin whose declaration varies with configuration would answer differently in the two modes, and the catalog would publish the wrong one | compare a query-mode answer against a running daemon's `show command help` for the same plugin | unvalidated |
 | A-2 | Stage 1 is reachable with no configure, so a plugin can declare without activating | `(*Plugin).Run`, `pkg/plugin/sdk/sdk.go` line 375, and `runDHCPServerPlugin` binding only inside `OnConfigure` | Query mode would need a protocol change rather than a mode | the dhcpserver shape, exercised with no Stage 2 | unvalidated |
-| A-3 | The audit's runner findings still hold when this spec is implemented | `plan/spec-daemon-backed-command-catalog.md`, Risks, "Why the collector was rejected", 2026-09-07 | The pre-`p.Run` scope in Q-3 is the wrong size | re-read the named runners at design | unvalidated |
+| A-3 | The audit's runner findings still hold when this spec is implemented | `plan/learned/007-declaration-on-the-registration.md`, section 1, measured 2026-09-07 | The pre-`p.Run` scope in Q-3 is the wrong size | re-read the named runners at design | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -220,7 +221,7 @@ carrier differs, not that in-tree plugins are out of reach.
 |----------|--------|
 | What breaks if this is wrong? | A query-mode start that is not inert mutates the host it was only asked to interrogate: nftables tables, four node-wide XFRM policies, the calling process's memlock rlimit. Beside a running daemon it can strip that daemon's IKE bypass |
 | How is it reverted? | Single commit revert while the mode has no reader. Once a published catalog reads it, the reader has to be repointed as well |
-| Who else touches this path? | `plan/spec-daemon-backed-command-catalog.md` (in progress, same Stage 1 declarations, daemon-backed), and every plugin runner the audit named |
+| Who else touches this path? | `spec-daemon-backed-command-catalog` (closed 2026-09-08, same Stage 1 declarations, read from `registry.Registration`; see `plan/learned/007-declaration-on-the-registration.md`), and every plugin runner the audit named |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

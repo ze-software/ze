@@ -15,7 +15,7 @@ did not verify something, the row says so.
 | Spec | Status | Where its unfinished items went |
 |------|--------|----------------|
 | `spec-cli-show-bgp-answer-shapes` | CLOSED 2026-09-05 and removed from `plan/` | four specs in `plan/immediate/`, listed below |
-| `plan/spec-plugin-declares-answer-shape.md` | in-progress, 5 of 5 phases done | `plan/spec-plugin-declaration-names-a-path-it-serves.md`, `plan/spec-daemon-backed-command-catalog.md` |
+| `plan/spec-plugin-declares-answer-shape.md` | in-progress, 5 of 5 phases done | `plan/spec-plugin-declaration-names-a-path-it-serves.md`, and `spec-daemon-backed-command-catalog`, CLOSED 2026-09-08 (`plan/learned/007-declaration-on-the-registration.md`) |
 
 Run `/ze-close` on each. It appends `plan/TEMPLATE-CLOSURE.md`, runs the Review
 Gate over the committed diff, records the artifact with `review_gate.py`, and
@@ -131,4 +131,4 @@ None blocks closure. Each has a journal row or a spec that owns it.
 | One name for the peer address across the `show bgp` tree | `plan/immediate/spec-show-bgp-one-name-for-the-peer-address.md` |
 | `show bgp decode` and `encode` answer text, so no operator chain reaches them | `plan/immediate/spec-show-bgp-decode-encode-answer-structured-data.md` |
 | A documented `register command "<name>" ...` text verb with no parser | `plan/journal/documentation-shows-config-the-parser-refuses.md` |
-| The published catalog cannot see a plugin's declaration | `plan/spec-daemon-backed-command-catalog.md` |
+| The published catalog cannot see a plugin's declaration | done: `spec-daemon-backed-command-catalog`, CLOSED 2026-09-08 (`plan/learned/007-declaration-on-the-registration.md`) |

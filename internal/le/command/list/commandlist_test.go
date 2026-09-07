@@ -255,7 +255,7 @@ func TestCommandListReportsAPluginDeclaredShape(t *testing.T) {
 }
 
 // TestRegistrationCarriesTheDeclaredCommands is AC-4 of
-// plan/spec-daemon-backed-command-catalog.md: a reader answers a plugin's
+// spec-daemon-backed-command-catalog: a reader answers a plugin's
 // command declarations, and answers them with NO engine started.
 //
 // The guard is the point of the test, so it is driven through Collect, the

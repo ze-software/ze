@@ -14,7 +14,7 @@ import (
 )
 
 // TestEveryRunnerDeclarationIsOnItsRegistration is AC-7 of
-// plan/spec-daemon-backed-command-catalog.md, over the real checkout: a plugin
+// spec-daemon-backed-command-catalog, over the real checkout: a plugin
 // declaring a command to Stage 1 and not to its registry.Registration is
 // invisible to every reader that does not start a daemon.
 func TestEveryRunnerDeclarationIsOnItsRegistration(t *testing.T) {

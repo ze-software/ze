@@ -370,7 +370,7 @@ func TestCapabilityMappings(t *testing.T) {
 }
 
 // TestRegistrationCarriesTheDeclaredCommands is AC-4 of
-// plan/spec-daemon-backed-command-catalog.md, and it lives in
+// spec-daemon-backed-command-catalog, and it lives in
 // internal/le/command/list/commandlist_test.go rather than here.
 //
 // AC-4 is a claim about a READER: it answers a plugin's declarations without
