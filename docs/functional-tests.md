@@ -81,11 +81,22 @@ by one piece and CI runs the six pieces on six shards. The rules, the four
 inputs that widen the scope back to 38, and the measured cost are
 [`architecture/testing/verify-freshness-scope.md`](architecture/testing/verify-freshness-scope.md).
 
-Suite selection is NOT scoped: every functional suite runs on every verify,
+Suite selection is NOT scoped yet: every functional suite runs on every verify,
 whatever the change set says. `go list -deps ./cmd/ze` links 562 of the module's
 646 packages, so no static signal attributes a `.ci` file to a package.
 `plan/spec-verify-scope-5-suite-coverage-map.md` derives that map by observing
-what a suite executes.
+which packages each suite reaches.
+
+The gating run already consults that map, and today every answer is the wide
+one. `selectSuites` (`internal/le/functional/suitemap.go`) reads
+`tmp/ze-suite-map.json`, validates it, and answers `verdictEverySuite`: nothing
+writes the artifact and no change set is compared against it. The reader's
+fail-open rule is
+[`architecture/testing/verify-freshness-scope.md`](architecture/testing/verify-freshness-scope.md).
+<!-- source: internal/le/functional/suitemap.go -- suiteMap, selectSuites -->
+
+`ZE_SKIP_SUITES` outranks the map, and the closing report names each suite it
+left out.
 
 The functional test target runs 27 suites: encode, plugin, parse, decode, reload,
 ui, editor, managed, l2tp, firewall, policy, ipsec, ldp, rsvpte, isis, ospf, ospfv3,
@@ -301,7 +312,7 @@ and name, plus periodic progress while tests are still running.
 | Parse | `ze-test bgp parse` | `test/parse/*.ci` | Runs foreground config validation commands and checks exit code plus stdout/stderr expectations. |
 | Decode | `ze-test bgp decode` | `test/decode/*.{ci,test}` | Feeds BGP message bytes to decode commands and compares JSON output with volatile fields normalized. |
 | Reload | `ze-test bgp reload` | `test/reload/*.ci` | Starts Ze, rewrites config, sends SIGHUP, then checks post-reload behavior. |
-| UI | `ze-test ui` | `test/ui/*.ci` | Runs foreground CLI commands and checks terminal output and exit status. The three `bgp-decode-pcap-*` tests carry their capture as a base64 `tmpfs=` block, because `test/decode/` cannot express them: its driver reads the flags off the `exec=` line and then builds its own `ze bgp decode <hex>` argv, so it never runs the command as written. No `.ci` covers the standard-input forms of `ze bgp decode`, and none can: this runner replaces the first `-` in argv with a file holding the stdin block and pipes nothing, so such a test would exercise the path form instead (`plan/journal/green-that-could-not-have-been-red.md`). Those two forms are proven by Go tests at the same entry point. |
+| UI | `ze-test ui` | `test/ui/*.ci` | Runs foreground CLI commands and checks terminal output and exit status. The three `bgp-decode-pcap-*` tests carry their capture as a base64 `tmpfs=` block, because `test/decode/` cannot express them: its driver reads the flags off the `exec=` line and then builds its own `ze bgp decode <hex>` argv, so it never runs the command as written. `bgp-decode-pcap-stdin` and `bgp-decode-stdin-hex` cover the standard-input forms: since 2026-09-07 the runner pipes a stdin block whenever the `-` belongs to a verb rather than to a daemon config argument (`routeStdinBlock`, `internal/test/runner/runner_exec_util.go`). Before that it replaced the first `-` in argv with a file and piped nothing, so `bgp-decode-stdin-hex` failed on a path where hexadecimal was expected and `bgp-decode-pcap-stdin` passed for a reason it does not assert (`plan/journal/green-that-could-not-have-been-red.md`). |
 | Editor | `ze-test editor` | `test/editor/**/*.et` | Runs headless editor keystroke scripts through the CLI testing harness. |
 | Managed | `ze-test managed` | `test/managed/*.ci` | Exercises managed config, hub, auth, and fleet workflows through `.ci` process tests. |
 | L2TP | `ze-test l2tp` | `test/l2tp/*.ci` | Runs L2TP control-plane scenarios over loopback UDP with fake test plugins where needed. |
@@ -344,6 +355,7 @@ which kills leaked `ze` daemons and mock servers with it.
 | `ZE_SUITE_TIMEOUT_PLUGIN` | `1500s` | The `plugin` suite's own budget |
 | `ZE_SUITE_KILL_AFTER` | `10s` | How long after SIGTERM the group gets SIGKILL |
 | `ZE_SUITE_WARN_PERCENT` | `80` | The percentage of the budget that makes a green suite print a warning |
+| `ZE_COVER` | unset | Builds the subjects with `-cover` and gives each suite its own `GOCOVERDIR`, then reduces it once the suite ends. It applies to a single suite and to `gating` alike, because both take the directory from one producer (`suiteCoverage`, `internal/le/functional/run.go`) |
 
 Override any of them on the command line:
 
@@ -1044,7 +1056,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze bgp validate -:stdin=config
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=0
 ```
 
@@ -1065,7 +1077,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze bgp validate -:stdin=config
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
 expect=stderr:contains=route-refresh requires process with send { update; }
 ```
@@ -2309,7 +2321,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze bgp validate -:stdin=config
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
 expect=stderr:contains=specific error message substring
 ```
