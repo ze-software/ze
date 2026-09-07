@@ -50,6 +50,8 @@ Note this is specifically the custom `X-Ze-Version` header. Ze sends no standard
   -> Constraint: gate only the version header; leave the other security headers (frame-options, CSP, HSTS, no-store) untouched.
 - [ ] `internal/component/lg/server.go` - the looking-glass sets the same header independently.
   -> Constraint: both sites must consult the same toggle so suppression is complete.
+- [ ] `docs/architecture/config/syntax.md` - the design document `internal/component/config/apply_env.go` declares, which is where the `environment` block's syntax is stated.
+  -> Constraint: the page defers the block's leaf list to `docs/architecture/config/environment-block.md`, so the new leaf is documented there and `syntax.md` needs no edit.
 - [ ] `ai/rules/config.md`, `ai/rules/config.md` - YANG vs env var, kebab-case.
   -> Decision: a single kebab-case boolean, resolved from config and consulted at both header sites.
 
@@ -135,7 +137,7 @@ All refs re-verified against current code:
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Both header sites can read a resolved config toggle | auth.go, server.go (refs refreshed 2026-07-22); note `addSecurityHeaders` takes only the ResponseWriter, so the toggle reaches it via its callers or a package-level setting | plumb the toggle into the relevant struct | trace both servers' config during audit | confirmed -- both packages already import `internal/core/version`, so the predicate `version.HTTPHeaderHidden` reaches both sites with no signature change |
-| A-2 | `X-Ze-Version` is the only response-header version leak | grep found only these two sites; no `Server` header | another surface leaks the banner | grep all response-header writers | confirmed -- `gopls references` on `version.HTTPHeader` answers three non-test callers: web/auth.go:491, lg/server.go:656, and config/system/update.go:249 (the self-update User-Agent, not a response header). No `Header().Set("Server"` exists anywhere |
+| A-2 | `X-Ze-Version` is the only response-header version leak | grep found only these two sites; no `Server` header | another surface leaks the banner | grep all response-header writers | confirmed at closure -- `version.HTTPHeader()` has five non-test callers: the two response-header writers (`web/auth.go`, `lg/server.go`) and three outbound User-Agent writers (`config/system/selfupdate.go` twice, `config/system/update.go`), none of which is a response header. `X-Ze-Version` is written at those two sites alone, and no `Header().Set("Server"` exists anywhere. The implementation session's cell named three callers, having missed the two in `selfupdate.go`; the conclusion is unchanged |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -248,9 +250,15 @@ All refs re-verified against current code:
 | Registration over hardcoding | one config-driven toggle, no compile-time constant |
 
 ## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2's evidence cell said `version.HTTPHeader` has three non-test callers | It has five: two response-header writers and three outbound User-Agent writers, the two in `internal/component/config/system/selfupdate.go` having been missed | `git grep -n "version.HTTPHeader()"` at closure | A-2's cell corrected in place. The conclusion it supports, that `X-Ze-Version` is written at two sites only, is unchanged |
+
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| `gopls references` on `version.HTTPHeader` had enumerated every caller | The count recorded in A-2 was two short | re-run at closure | none on the design: both missed callers write an outbound `User-Agent`, not a response header |
 
 ## Design Insights
 <!-- LIVE -->
@@ -325,6 +333,39 @@ All refs re-verified against current code:
 | AC-4 | both guards touch the version header alone | `TestWebVersionHeaderSuppressed` and `TestLGVersionHeaderSuppressed` assert each surviving header by value; `.ci` line "OK: the other security headers survive suppression" |
 | AC-5 | no `Server` header is written anywhere | `gopls references` finds no `Header().Set("Server"`; both unit tests and the `.ci` line "OK: neither server sends a Server banner" assert its absence |
 
+### Bugs Found/Fixed
+- `waitForLog09` (`internal/test/fixture/plugin_fixture_09_shell.go`) answered
+  "looking glass never announced a listener" for any needle it timed out on. The
+  new fixture waits on the web banner first, so that message named the wrong
+  server. The error now quotes the needle and the log path.
+
+### Documentation Updates
+- `docs/features.md` and `docs/features/web-interface.md` -- the toggle on the
+  web interface row, with the anchor
+  `<!-- source: internal/core/version/version.go -- HTTPHeaderHidden -->`.
+- `docs/guide/configuration.md` -- the `hide-version` leaf in the `environment`
+  block, landed by `170e0139ea`.
+- `docs/guide/environment-variables.md` -- the `ze.hide-version` row and the
+  config form that sets it.
+- `docs/guide/web-interface.md` and `docs/guide/looking-glass.md` -- what the
+  banner carries and how to keep it off each server.
+- `docs/architecture/config/environment-block.md` and
+  `docs/architecture/config/environment.md` -- the leaf, its env key and its
+  default in the two tables that enumerate the block.
+- `docs/architecture/web-interface.md` -- the security-header section.
+- `docs/architecture/config/syntax.md` needs no edit: it states the block's
+  syntax and defers the leaf list to `environment-block.md`, which carries the
+  new row.
+
+### Deviations from Plan
+- The spec left open whether the toggle is one shared leaf or a leaf mirrored
+  into the web and looking-glass containers. It is one top-level leaf under
+  `environment`, beside `pprof`, so the two servers have no second value to
+  disagree about (Design Insights, first bullet).
+- The plan named `internal/component/web/integration_test.go` as an existing
+  anchor. The new web tests went in `auth_test.go` beside `addSecurityHeaders`
+  instead, and `integration_test.go` is unchanged.
+
 ## Review Gate
 
 <!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->
@@ -333,22 +374,29 @@ All refs re-verified against current code:
 <!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
 <!-- NOTE-only findings do not block — record them and proceed. -->
 
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/mgmt-version-header-suppress-d64e7b3f-bfdc-4614-8db4-f12043eb77cc.md` (14 files, verdict=clean, model=claude-opus-5) |
+| `review check` | OK: 6 code files, clean, hashes match |
+| Rounds | 1 |
+| Reviewer lenses used | wiring + logic, security + edge cases, style + simplicity |
+
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| 1 | NOTE | `addSecurityHeaders` returns early when the banner is hidden, so a header appended after that point would also disappear. `securityHeaders` in the looking glass wraps the write instead, which has no such edge | `internal/component/web/auth.go` `addSecurityHeaders` | acknowledged: the doc comment above the guard states the intent, and the version write is the last statement today |
+| 2 | NOTE | The two header tests spell `"ze.hide-version"` as a literal where `version.EnvKeyHideVersion` exists | `internal/component/web/auth_test.go`, `internal/component/lg/server_test.go` | acknowledged: a rename turns `TestWebVersionHeaderSuppressed` and `TestLGVersionHeaderSuppressed` red rather than green, so the copy cannot pass silently |
+| 3 | NOTE | An unrecognized value in the env var falls back to the default, so the banner stays on. `env.GetBool` warns on stderr and this is its behavior for every boolean key, not this change's | `internal/core/env/env.go` `GetBool` | acknowledged: shared helper semantics, and the YANG type is boolean so the config path cannot reach it |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- None. Run 1 found no BLOCKER and no ISSUE.
 
 ### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+<!-- No re-run: run 1 changed no code, so there is nothing for a second pass to read. -->
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- Run 1 shows 0 BLOCKER, 0 ISSUE. The three NOTEs are recorded above.
+- Automated pre-checks: `./le repository check` reports 2 issues, both in other sessions' files (`filter_delta.go` `ExtractRemovePrivateASOps`, `internal/le/rfc/carriers.go` `CarrierRank`). `./le commit audit base origin/main` reports 11 `[WEAKENED]` findings, none in this spec's files.
 
 ## Checklist
 
@@ -374,3 +422,116 @@ All refs re-verified against current code:
 
 `3522fc9db4` carries the feature, `5b15df5e06` the amendment, and `170e0139ea`
 the configuration guide.
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A management-hardening toggle suppresses `X-Ze-Version` | Done | `hide-version` leaf, `internal/component/hub/yang/ze-hub-conf.yang`; `HTTPHeaderHidden`, `internal/core/version/version.go` | one leaf, one env key, one predicate |
+| Both emitting sites honor it | Done | `addSecurityHeaders`, `internal/component/web/auth.go`; `securityHeaders`, `internal/component/lg/server.go` | `git grep "X-Ze-Version"` finds no third writer |
+| The default preserves today's behavior | Done | `HTTPHeaderHidden`, `internal/core/version/version.go`, which passes `false` to `env.GetBool` | the YANG default is false as well |
+| No standard `Server` header is introduced | Done | nowhere | `git grep 'Header().Set("Server"'` answers nothing |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestWebVersionHeaderSuppressed` over `addSecurityHeaders` | PASS at closure |
+| AC-2 | Done | `TestLGVersionHeaderSuppressed` over `securityHeaders` | PASS at closure |
+| AC-3 | Done | `TestVersionHeaderPresentByDefault`, `TestLGVersionHeaderPresentByDefault`, `TestApplyEnvConfigHideVersionAbsent` | PASS at closure |
+| AC-4 | Done | both suppression tests assert every other security header by value | PASS at closure |
+| AC-5 | Done | both suppression tests and both default tests assert `Server` is absent | PASS at closure |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestWebVersionHeaderSuppressed` | Done | `internal/component/web/auth_test.go` | PASS |
+| `TestVersionHeaderPresentByDefault` | Done | `internal/component/web/auth_test.go` | PASS |
+| `TestLGVersionHeaderSuppressed` | Done | `internal/component/lg/server_test.go` | PASS |
+| `TestLGVersionHeaderPresentByDefault` | Done | `internal/component/lg/server_test.go` | PASS |
+| `TestHTTPHeaderHidden` | Done | `internal/core/version/version_test.go` | PASS, four sub-cases |
+| `TestApplyEnvConfigHideVersion` | Done | `internal/component/config/apply_env_test.go` | PASS |
+| `TestApplyEnvConfigHideVersionAbsent` | Done | `internal/component/config/apply_env_test.go` | PASS |
+| `version-header-suppress` | Done | `test/plugin/version-header-suppress.ci` | PASS on 2026-09-06, 15.1s, with its red half observed through the rebuilt daemon. Not re-run at closure: the plugin suite has no single-test selector and its budget is 1500s |
+| `environment-hide-version` | Done | `test/parse/environment-hide-version.ci` | PASS on 2026-09-06, 575ms |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/hub/yang/ze-hub-conf.yang` | Done | the leaf, with `ze:help` |
+| `internal/core/version/version.go` | Done | `EnvKeyHideVersion`, `env.MustRegister`, `HTTPHeaderHidden` |
+| `internal/component/config/apply_env.go` | Done | the `envPlumbingTable` row naming the constant |
+| `internal/component/web/auth.go` | Done | the guard in `addSecurityHeaders` |
+| `internal/component/lg/server.go` | Done | the guard in `securityHeaders` |
+| `internal/test/fixture/plugin_fixture_09_shell.go` | Done | `waitForLog09` names the needle it waited for |
+| `test/plugin/version-header-suppress.ci` | Done | created |
+| `test/parse/environment-hide-version.ci` | Done | created |
+| `internal/test/fixture/plugin_fixture_version_header_suppress.go` | Done | created |
+| `internal/test/fixture/register_version_header_suppress.go` | Done | created |
+
+### Audit Summary
+- **Total items:** 27
+- **Done:** 27
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2, both recorded in Deviations from Plan
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An operator can stop Ze publishing its exact build over HTTP | functional | `test/plugin/version-header-suppress.ci` drives one daemon twice over the same configuration text apart from the leaf, and reads the header set of both servers with a real HTTP client. Its assertion line "OK: hide-version takes the banner off both servers" |
+| One setting removes the banner everywhere, so no server is left leaking | functional plus source | the same `.ci` reads the web server and the looking glass in each run. `git grep -n "X-Ze-Version" -- '*.go'` answers two production writers, `addSecurityHeaders` and `securityHeaders`, and both consult `HTTPHeaderHidden` |
+| Existing deployments are unchanged unless they opt in | functional plus unit | the `.ci` line "OK: both servers send the version banner by default", and `TestApplyEnvConfigHideVersionAbsent`, which writes an `environment` block with another leaf and asserts the predicate stays false |
+| The hardening takes no other header down with it | functional plus unit | the `.ci` line "OK: the other security headers survive suppression", and both suppression unit tests, which assert each surviving header by value |
+| The test discriminates: it would fail if the guards were gone | recorded red | with both guards removed and `ze` rebuilt, the `.ci` failed with `ZE-OBSERVER-FAIL: the hardened web server sent X-Ze-Version: "ze/26.09.06 (3522fc9db485+; go1.27.0; linux/amd64)", want no banner`, while the default half stayed green. Recorded by `5b15df5e06` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None | Every acceptance criterion, test and file in the plan is implemented and verified | n/a |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/version-header-suppress.ci` | yes | `ls` at closure listed it |
+| `test/parse/environment-hide-version.ci` | yes | `ls` at closure listed it |
+| `internal/test/fixture/plugin_fixture_version_header_suppress.go` | yes | `ls` at closure listed it |
+| `internal/test/fixture/register_version_header_suppress.go` | yes | `ls` at closure listed it |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | the web server omits the banner when hidden | `TestWebVersionHeaderSuppressed` PASS in the closure run of `internal/component/web` |
+| AC-2 | the looking glass omits it | `TestLGVersionHeaderSuppressed` PASS in the closure run of `internal/component/lg` |
+| AC-3 | the default keeps it | `TestVersionHeaderPresentByDefault`, `TestLGVersionHeaderPresentByDefault` and `TestApplyEnvConfigHideVersionAbsent` all PASS in the same closure run |
+| AC-4 | the other security headers survive | the two suppression tests above assert five and four header values respectively, and both passed |
+| AC-5 | no `Server` banner appears | `git grep -n 'Header().Set("Server"' -- '*.go'` answers nothing, and all four header tests assert the absence |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `hide-version true`, request the web UI | `test/plugin/version-header-suppress.ci` | yes: the file runs `ze-test fixture plugin/version-header-suppress`, and `versionHeaderSuppress` writes the leaf, starts the daemon and reads `/show/` over HTTPS |
+| `hide-version true`, request the looking glass | `test/plugin/version-header-suppress.ci` | yes: the same fixture reads `/api/looking-glass/status` in the same run |
+| default (off), request either server | `test/plugin/version-header-suppress.ci` | yes: the fixture's first run writes no leaf and asserts the `ze/` banner on both servers |
+| `environment { hide-version true; }` in a config file | `test/parse/environment-hide-version.ci` | yes: the file pipes that block into `ze config validate -` and expects exit 0 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `addSecurityHeaders` and `securityHeaders` both call `version.HTTPHeaderHidden()`, and neither signature changed |
+| A-2 | confirmed | `git grep -n "version.HTTPHeader()" -- '*.go'` answers five production callers, of which exactly two write a response header. Both are guarded |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| New user-facing feature (`docs/features.md`, `docs/features/web-interface.md`) | the paragraph names `HTTPHeaderHidden` and carries the source anchor for it | yes, at HEAD |
+| Config syntax (`docs/guide/configuration.md`, `docs/architecture/config/environment-block.md`, `docs/architecture/config/environment.md`) | the leaf, the env key `ze.hide-version` and the default `false` match `ze-hub-conf.yang` and `EnvKeyHideVersion` | yes, at HEAD |
+| Env var (`docs/guide/environment-variables.md`) | the row matches the `env.MustRegister` entry in `internal/core/version/version.go` | yes, at HEAD |
+| Guides for the two servers (`docs/guide/web-interface.md`, `docs/guide/looking-glass.md`) | each names the leaf and states that no other header changes, which both guards satisfy | yes, at HEAD |
+| Architecture (`docs/architecture/web-interface.md`) | the security-header section names the toggle | yes, at HEAD |
+| CLI reference, API/RPC, plugin SDK, wire format, RFC status, comparison table | `git grep -n "hide-version" -- docs/` answers only the pages above, and the change adds no command, no RPC, no wire field and no protocol behavior | yes, not applicable |
+| `./le doc check verify` | not run at closure. It is red across the BGP command surface and `../gh-pages/` for reasons this spec did not produce, and re-running it would report those | not run |
