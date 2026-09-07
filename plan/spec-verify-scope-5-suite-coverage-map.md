@@ -163,6 +163,29 @@ The same `ui` test passes serially under both binaries, so the difference is
 load: the instrumented full run costs 2106s of suite time against 1452s (+45%),
 and 2236s of wall clock against 1472s (+52%).
 
+### Where this spec stands (2026-09-07, 22:20)
+
+All five phases are implemented and committed: phase 2 `c770a44a28`, phase 3
+`1620f1491`, phase 4 `37502476d`, phase 5 `5d497dcc9`. **One artifact is
+missing and it is the only thing between here and closure.**
+
+`tmp/ze-suite-map.json` has never been written. Only a run of every gating suite
+publishes one, and the first attempt was killed by the OOM killer at suite 2 of
+27. A second run started at 22:20 under `ZE_COVER=1 ZE_SUFFIX=recordmap
+./le functional gating`, detached, logging to
+`tmp/session/2026-09-07-871bd039-337f-4814-a6a3-c4a31407fbaf/scratch/record-map.log`.
+
+Whoever picks this up reads the tail of that log and the artifact. The run ends
+in one of two ways, both by design: it names the suites that recorded nothing
+and says the map now records what it reached, or it refuses and names the first
+gating suite it did not run. AC-1 closes on the first. A run killed again leaves
+no map, which is safe: every reader widens on an absent map, so the functional
+stage runs every suite exactly as it did before this spec.
+
+The recording is the only open item. It also upgrades
+`test/runner/verify-scope-suite-map.ci` from a proof of the SELECTION, which is
+what it is today over a map the fixture writes, to a proof of the whole path.
+
 ### Phase 1b measurement (2026-09-07)
 
 Three suites, instrumented one at a time on the same tree: `encode` (BGP wire
