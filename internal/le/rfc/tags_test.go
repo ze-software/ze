@@ -187,7 +187,7 @@ func TestTheFirstMatchingCarrierWinsAndTheIncubatorIsSkipped(t *testing.T) {
 // to that suite's own verify-tier carrier, so an RFC requirement bound there is
 // counted rather than refused.
 // PREVENTS: the state these three suites were added to end
-// (plan/pre-release/spec-rfcgate-2-deferred-nonunit-evidence-backfill.md, Q2):
+// (plan/learned/006-rfc-evidence-oracle-selection-rule.md):
 // 206 gated MUSTs across RFC 5880/5881/5883, RFC 5798 and RFC 2131/2132 whose
 // only reachable carrier was `functional-unrun`, because the run list named no
 // suite that boots their subsystem. A suite dropped from

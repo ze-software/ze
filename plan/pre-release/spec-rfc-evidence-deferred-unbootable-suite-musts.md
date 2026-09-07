@@ -2,46 +2,58 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | ready |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-08-03 |
+| Updated | 2026-09-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-**Status set to `blocked` on 2026-08-05**, from `skeleton`. Reason: blocked: its own Task says the first deliverable is a decision, and the decision is the owner's. It was
-reachable from `/ze-status` as actionable until now, which is what a triage of every
-`*-deferred-*` spec found.
+**Status set to `blocked` on 2026-08-05**, from `skeleton`, because the first
+deliverable was a decision only the owner could make. **Unblocked on 2026-09-07:
+he made it on 2026-09-05 and the carrier half is built.** What remains is
+test-writing, which this spec owns outright.
 
 ## Task
 
-242 gated MUST-level requirements cannot be proven at verify tier at all,
-because no functional suite boots their subsystem: BFD 98, VRRP 80, dhcpserver
-28, geodns 18, dnsserver 18. `internal/le/functional/suites.go` `all_suites` names no
-`bfd`, `vrrp` or `dhcp` suite, so `carrier_for` resolves any `.ci` written there
-to `TIER_UNRUN` and the scanner REFUSES the tag. No test fixes this on its own.
+242 gated MUST-level requirements could not be proven at verify tier at all,
+because no functional suite booted their subsystem: BFD 98, VRRP 80, dhcpserver
+28, geodns 18, dnsserver 18. `internal/le/functional.Gating` is the only input
+`carriers` (`internal/le/rfc/carriers.go`) reads to grant a verify tier, so a
+`.ci` written outside it resolved to `functional-unrun` and the scanner REFUSED
+the tag.
 
-**This spec's first deliverable is a decision, and the decision is the owner's.**
-It was raised as Q2 of
-`plan/pre-release/spec-rfcgate-2-deferred-nonunit-evidence-backfill.md`, which is still open
-and carries no answer. The row that homes this work lives in
-the retired deferral shard "rfcgate-2-deferred-nonunit-evidence-backfill".
+**The decision was the owner's and he made it on 2026-09-05:** *"bfd (98 MUSTs),
+vrrp (80) and dhcp (28) have no suite: not acceptable, all RFC MUSTs need tests,
+so we need to add them."* That is route 1 below, for three of the five
+subsystems. The ranking and the selection rule that produced the question are in
+`plan/learned/006-rfc-evidence-oracle-selection-rule.md`.
 
-### The question to put to Thomas
+**The carrier half is built and is not this spec's work.** `bfd` and `dhcp` are
+declared new and `vrrp` gained the `Gating` membership it lacked, so `CarrierFor`
+answers `functional-bfd`, `functional-dhcp` and `functional-vrrp` at `verify`.
+`TestTheBFDDHCPAndVRRPSuitesCarryAVerifyTier` (`internal/le/rfc/tags_test.go`)
+pins it, and each suite carries one `.ci` proving it discriminates:
+`test/bfd/bfd-detection-interval.ci`, `test/dhcp/dhcp-range-inside-subnet.ci` and
+`test/vrrp/vrrp-config-invalid.ci`.
 
-Three routes, and `ai/rules/rfc-compliance.md` reserves the choice for him
-because two of them lower what Ze proves:
+**What this spec owes now:** the 206 tagged tests for RFC 5880/5881/5883, RFC
+5798 and RFC 2131/2132, each in both polarities, each with a discrimination
+record from `./le rfc discriminate-record`. `geodns` and `dnsserver` are outside
+the owner's sentence, so their 36 MUSTs stay unit-only and a fourth and fifth
+suite is a separate question to put to him.
+
+### The three routes, and which one was taken
 
 | Route | What it costs | What it buys |
 |-------|---------------|--------------|
-| Add a verify-tier suite per subsystem | new suite infrastructure per subsystem, and the runtime it adds to `./le verify current mode full` | every one of the 242 becomes provable on every push |
+| **TAKEN for bfd, dhcp and vrrp.** Add a verify-tier suite per subsystem | new suite infrastructure per subsystem, and the runtime it adds to `./le verify current mode full` | every one of the 206 becomes provable on every push |
 | Accept nightly-only tier for these | a tier that is scheduled and advisory, not merge-gating | reachable today for VRRP, which has `ze-qemu-vrrp-keepalived-test`; the others have no nightly path either |
 | Leave them unit-only by decision | the obligation stays proven at the wrong altitude | nothing new to build |
 
-Ask which way, never whether to skip. Do not write `{gap}` for any of the 242:
-an annotation that lowers what Ze owes is a compliance decision, not
-bookkeeping.
+Do not write `{gap}` for any of the 242: an annotation that lowers what Ze owes
+is a compliance decision, not bookkeeping.
 
 ### Constraints
 
@@ -74,7 +86,7 @@ bookkeeping.
   → Constraint: fill at design time, once the route is chosen.
 
 **Key insights:** (minimal context to resume after compaction)
-- The blocker is infrastructure, not test-writing skill. A perfect `.ci` in `test/bfd/` earns nothing today.
+- The infrastructure blocker is gone for bfd, dhcp and vrrp: a `.ci` in `test/bfd/` now earns `functional-bfd` at `verify`. What is left is writing 206 tagged tests in both polarities.
 
 ## Current Behavior (MANDATORY)
 

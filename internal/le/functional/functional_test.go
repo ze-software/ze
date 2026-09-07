@@ -34,7 +34,8 @@ func TestEveryGatingNameIsASuite(t *testing.T) {
 	// 27 since 2026-09-05, when bfd, dhcp and vrrp joined the run list: until
 	// then no suite booted those three subsystems, so a `.ci` written for one
 	// resolved to `functional-unrun` and internal/le/rfc refused the tag on it
-	// (plan/pre-release/spec-rfcgate-2-deferred-nonunit-evidence-backfill.md, Q2).
+	// (plan/learned/006-rfc-evidence-oracle-selection-rule.md, "The owner's
+	// answer on the unbootable subsystems").
 	if got := len(Gating); got != 27 {
 		t.Errorf("the native gating run declares %d suites, want 27", got)
 	}

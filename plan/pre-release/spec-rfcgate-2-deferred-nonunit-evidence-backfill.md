@@ -509,6 +509,13 @@ nobody asked for is scope this session did not take.
 | A-1: unit-only requirements are dominated by self-oracled tests | The L2TP crypto carries known-answer vectors (`TestChallengeResponseKnown`, `TestCHAPAuthenticationKnownVector`) that re-derive the RFC formula in the test body. Four of five mutations were caught by the unit suite | Two mutation cycles, and it inverted the tranche's headline claim | Mutation table above; the ranking now says to scan for the oracle before picking an RFC, rather than reasoning from protocol family |
 | A-4: RFC 2661 §4.2 tunnel auth carries a gated requirement | `RFC2661-4.2-1` is `[MAY]`, so it is not gated | The strongest assertion in the landed test binds no requirement id | Reading `rfc/short/rfc2661.md` line 487 |
 
+### Closure findings (2026-09-07)
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The tranche recorded its RED in a prose mutation table and landed three tags with no machine record | `ai/rules/rfc-compliance.md` requires a discrimination record in the same change as the tag. `./le rfc check` did not catch it because its ratchet only reads tags the commit under test adds against `HEAD^` | Reading `rfc/discrimination/rfc2661.json` at closure and finding it held records only for `RFC2661-6.1-1` and `RFC2661-6.2-1` | Three records written at closure. `./le rfc discriminate-record` refused the first with `citation-gone`, so the `.ci` gained one assertion per requirement |
+| approach | The bfd suite this spec added to `Gating` carried a BGP peer and an end-of-rib expectation the run cannot reach | The peer was there only to make the daemon stoppable, and it was there because `request shutdown` cannot stop a reactorless daemon during startup | `./le functional bfd` red twice in a row at closure | `cmd/ze/hub/main.go` wires `SetShutdownFunc` beside the plugin server; the BGP scaffolding is gone from the `.ci` |
+| escalation | `option=asn` half-applied in `ze-peer`, leaving the 2-octet AS and the AS4 capability disagreeing | `generateOpen` (`internal/test/peer/peer.go`) mirrors ze's OPEN and patched one of the two AS numbers, so ze answered OPEN Message Error / Bad Peer AS | `./le functional vrrp` red on `vrrp-show` at closure | `patchAS4Capability` moves both. 89 `test/plugin/*.ci` files carry the same shape and are the likely cause of the standing plugin red |
+
 ## Work Inherited From a Deferral Row
 
 <!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
@@ -520,3 +527,181 @@ nobody asked for is scope this session did not take.
 Deferred by spec-rfcgate-2-evidence.
 
 Back-fill non-unit evidence for the ~2571 requirements bound only to `*_test.go` (measured: `unit/verify 2571, functional/verify 6, editor/verify 0, interop/nightly 0`). `ai/rules/testing.md` "Back-Fill New Test Types" requires the applicable set be named or the remainder recorded; the classifier's estimate (at least 76% of 2720 gated MUSTs wire-visible) is a sizing input only and may never gate (A-4)
+
+## Implementation Summary
+
+### What Was Implemented
+- The measurement, the selection rule and the ranking (Task and "The selection
+  rule" above), now also carried by `plan/learned/006-rfc-evidence-oracle-selection-rule.md`
+  so they survive this spec's removal.
+- The tranche: `test/l2tp/rfc2661-emitted-control-shape.ci` binds RFC2661-4.1-1,
+  RFC2661-4.1-2 and RFC2661-x-1 at `functional/verify`.
+- Q1's answer, implemented in `e396d7424`: `answerRefusedSCCRQ` and
+  `sendUnassociatedStopCCN` (`internal/component/l2tp/reactor.go`) answer every
+  Section 6.1 and 6.2 mandatory-AVP absence with a rate-limited StopCCN.
+- Q2's answer, implemented in `9c7523b94`: `bfd`, `dhcp` and `vrrp` joined
+  `internal/le/functional.Gating`, so `CarrierFor` grants them `verify`.
+- At closure: three discrimination records for the tranche's tags, and the two
+  product defects the new gating suites exposed (below).
+
+### Bugs Found/Fixed
+- `request shutdown` could not stop a daemon with no BGP reactor during startup.
+  `cmd/ze/hub/main.go` wired `apiServer.SetShutdownFunc` hundreds of milliseconds
+  after a plugin can dispatch, and `handleDaemonShutdown`
+  (`internal/component/plugin/server/system.go`) answered "shutdown not
+  available". The wiring moved beside the server. Covered by
+  `test/bfd/bfd-detection-interval.ci`, which now carries no BGP peer at all.
+- `option=asn` half-applied in the test peer. `generateOpen`
+  (`internal/test/peer/peer.go`) mirrors ze's OPEN and rewrote only the 2-octet
+  AS field, leaving the AS4 capability carrying ze's AS, so ze answered OPEN
+  Message Error / Bad Peer AS (RFC 6793 Section 4.1). `patchAS4Capability` moves
+  both. Covered by `test/vrrp/vrrp-show.ci`, which went 6/7 to 7/7.
+
+### Documentation Updates
+- `docs/architecture/testing/ci-format.md`: a fixture-driven `.ci` needs no `bgp`
+  block to get a stoppable daemon, and `option=asn` moves both AS numbers. Both
+  claims carry a `<!-- source: -->` anchor.
+- `./le doc check verify` is red across the BGP command surface and `../gh-pages/`
+  before this change and is not run for it; `./le doc check links` is compared
+  before and after and adds no broken reference (Pre-Commit Verification below).
+
+### Deviations from Plan
+- The spec's Data Flow describes a Python peer. The `.ci` was migrated to the
+  native Go fixture `tunnelL2TPEmittedShape`
+  (`internal/test/fixture/tunnel_fixture_l2tp_session.go`) before closure. The
+  oracle argument is unchanged: the fixture hand-packs the datagram, parses ze's
+  reply with its own decoder, and recomputes the digest with `crypto/md5`, so it
+  shares no code with `internal/component/l2tp`.
+- The spec planned no closure work beyond recording. Closure added the two
+  product fixes above, because the gating suites this spec declared were red
+  without them.
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Measure the unit-only population without rendering the ledger | Done | Task, "Measured distribution" | 2922 gated, 1536 unit-only, 16 non-unit |
+| State a selection rule that tests the oracle, not the text | Done | "The selection rule"; `plan/learned/006-rfc-evidence-oracle-selection-rule.md` | Three ordered tests |
+| Bind a bounded tranche at non-unit tier | Done | `test/l2tp/rfc2661-emitted-control-shape.ci` | Three gated ids at `functional/verify` |
+| Leave the remainder navigable | Done | Work Not Done below | Four destination specs, each named by path |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | Task tables | Per-RFC and per-package split, plus the reachability split against the gating list |
+| AC-2 | Done | "The selection rule" | Keyed on the oracle; names what it excludes |
+| AC-3 | Done | "Risk ranking" and "Mutation verification" | Counts plus five mutation results, one of which inverted the ranking |
+| AC-4 | Done | `grep -n "RFC requirement" test/l2tp/rfc2661-emitted-control-shape.ci` | Three gated ids, each now carrying a record in `rfc/discrimination/rfc2661.json` |
+| AC-5 | Done | The `.ci` body | Every check names a byte that must be present and equal; the three added lines assert `PASS: <check>`, printed only when the check held |
+| AC-6 | Done | Work Not Done below | Ranked remainder homed in four specs |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `rfc2661-emitted-control-shape` | PASS | `test/l2tp/rfc2661-emitted-control-shape.ci` | `./le functional l2tp`: 25/25, 2 skip |
+| (no unit test) | N-A | - | This spec adds no production Go of its own |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `test/l2tp/rfc2661-emitted-control-shape.ci` | Created | In HEAD; three assertions added at closure |
+| (no production file) | Changed | Closure added `cmd/ze/hub/main.go` and `internal/test/peer/peer.go`, both named in Deviations |
+
+### Audit Summary
+- **Total items:** 6 ACs, 4 Task requirements, 2 tests, 2 file rows
+- **Done:** 12
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (the Python-to-Go fixture migration, and the two closure fixes)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A wire obligation is proven by something that puts bytes on a wire | functional | `test/l2tp/rfc2661-emitted-control-shape.ci` drives a UDP SCCRQ at the daemon's real listener and reads the SCCRP off the datagram. `./le functional l2tp`: 25/25 pass, 2 skip |
+| Judged by an oracle that is not the code under test | functional + mutation | The fixture recomputes the digest with `crypto/md5` and walks AVPs with `tunnelL2TPParseAVPs`, neither of which is `internal/component/l2tp`. `./le rfc discriminate-record` observed the `.ci` red under `writeSCCRPBody`, `WriteControlHeader` and `WriteAVPHeader` disabled in turn, 34-37s each, recorded in `rfc/discrimination/rfc2661.json` |
+| A requirement whose subsystem no suite boots gets a carrier | functional | `TestTheBFDDHCPAndVRRPSuitesCarryAVerifyTier` (`internal/le/rfc/tags_test.go`) pins `functional-bfd`, `functional-dhcp` and `functional-vrrp` at `verify`. `./le functional bfd` 1/1, `dhcp` 1/1, `vrrp` 7/7 |
+| The rule and the ranking outlive the spec | durable page | `plan/learned/006-rfc-evidence-oracle-selection-rule.md`, cited by the three tranche specs' Required Reading |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| The IKE and EAP tranche, 254 gated MUSTs, rank 1 by defect density | Another session was reviewing `internal/component/ike/**` while this spec ran | `plan/pre-release/spec-rfc-evidence-deferred-ike-eap-tranche.md` |
+| The IS-IS, RSVP-TE and LDP tranche, 84 gated MUSTs, rank 4 | Unexamined; runnable suites already exist | `plan/pre-release/spec-rfc-evidence-deferred-isis-rsvpte-ldp-tranche.md` |
+| The 206 tagged tests the new bfd, dhcp and vrrp carriers now make possible, and the 36 geodns/dnsserver MUSTs the owner's sentence does not cover | This spec delivered the carrier, which is what the owner's answer needed first | `plan/pre-release/spec-rfc-evidence-deferred-unbootable-suite-musts.md` |
+| The receive half of RFC2661-4.1-1: what ze does with an AVP whose reserved bits 2-5 are set | A 2026-08-02 probe produced no ze log line and no reply, and the cause was not isolated. Nothing is claimed in either direction | `plan/pre-release/spec-finish-l2tp.md` |
+| `./le rfc index-update`, so `ai/RFC-REQUIREMENTS.md` matches the three new records | Several sessions own that file this week and a render is a write (R-2) | `plan/pre-release/spec-rfc-evidence-deferred-unbootable-suite-musts.md`, whose own work regenerates it |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rfcgate-2-deferred-nonunit-evidence-backfill-d64e7b3f-bfdc-4614-8db4-f12043eb77cc.md` (6 files, verdict=clean) |
+| `./le spec session review check` | OK: 5 code files, clean, hashes match |
+| Rounds | 1 |
+| Reviewer lenses used | wiring + logic (steps 2, 14), removed-behavior (step 8), style pass (step 18), RFC compliance (step 21) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | Three tags bound at `functional/verify` with no discrimination record, so the RED behind them was prose only | `test/l2tp/rfc2661-emitted-control-shape.ci`, `rfc/discrimination/rfc2661.json` | Three `./le rfc discriminate-record` runs, each observing the `.ci` red under one disabled producer. The `.ci` gained one assertion per requirement, because a functional record is refused with `citation-gone` when it can cite only a whole-suite line. **Both files are HELD OUT of the closure commits and sit in the working tree**: `./le commit audit` reports the `.ci` as an RFC-tagged test changed, and that approval is Thomas's to give in `test/rfc-changed/<session>.md`, which an author must not write for their own change (`docs/contributing/rfc-implementation-guide.md`, "Who writes an owner-approval row"). The change is additive: three tags, three claims and every existing assertion are unchanged, and three `expect=stdout:contains=PASS: ...` lines are added |
+| 2 | BLOCKER | The gating suite this spec declared was deterministically red | `test/bfd/bfd-detection-interval.ci` | Root cause in `cmd/ze/hub/main.go`: `SetShutdownFunc` wired after a plugin can dispatch. Moved beside the plugin server; the BGP scaffolding left the `.ci` |
+| 3 | BLOCKER | A second gating suite this spec declared was red | `test/vrrp/vrrp-show.ci` | Root cause in `internal/test/peer/peer.go`: `generateOpen` patched the 2-octet AS and not the AS4 capability. `patchAS4Capability` added |
+| 4 | ISSUE | Three sibling specs and two Go comments cited this spec by path, and commit B removes it | `plan/pre-release/spec-rfc-evidence-deferred-{ike-eap,isis-rsvpte-ldp,unbootable-suite-musts}.md`, `plan/pre-release/spec-finish-l2tp.md`, `internal/le/functional/functional_test.go`, `internal/le/rfc/tags_test.go` | Repointed at `plan/learned/006-rfc-evidence-oracle-selection-rule.md` |
+| 5 | ISSUE | `spec-rfc-evidence-deferred-unbootable-suite-musts.md` said its owner question "is still open and carries no answer", which stopped being true on 2026-09-05 | that spec's Task and Status | Task rewritten around the answer; Status `blocked` to `ready` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/l2tp/rfc2661-emitted-control-shape.ci` | Yes | `ls -la` reports 2480 bytes before the closure additions |
+| `test/bfd/bfd-detection-interval.ci` | Yes | `ls -la test/bfd/` reports one file |
+| `test/dhcp/dhcp-range-inside-subnet.ci` | Yes | `ls -la test/dhcp/` reports one file |
+| `plan/learned/006-rfc-evidence-oracle-selection-rule.md` | Yes | written at closure |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-4 | Three gated ids at `functional/verify` | `grep -n "RFC requirement" test/l2tp/rfc2661-emitted-control-shape.ci` names RFC2661-4.1-2, RFC2661-x-1 and RFC2661-4.1-1, all `positive` |
+| AC-4 | The tier claim is read, not asserted | `TestTheBFDDHCPAndVRRPSuitesCarryAVerifyTier` calls `CarrierFor` and checks `tierVerify`; `internal/le/functional.Gating` holds `suiteBfd`, `suiteDhcp`, `suiteVrrp` |
+| AC-5 | Every landed assertion is positive | The three added lines assert `PASS: <check>`, and `tunnelL2TPEmittedShape` prints `PASS:` only in the `ok` arm of its `check` closure |
+| AC-6 | The remainder is navigable | Work Not Done names four specs, each of which exists on disk |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| UDP SCCRQ to ze's L2TP listener | `rfc2661-emitted-control-shape` | Yes: `cmd=foreground:...ze-test fixture l2tp/rfc2661-emitted-control-shape $PORT` against a daemon started from the same file |
+| SCCCN carrying an externally computed response | `rfc2661-emitted-control-shape` | Yes: `expect=stderr:contains=tunnel now established`, which only `VerifyChallengeResponse` accepting the digest produces |
+| `# RFC requirement:` line resolves to `functional/verify` | `rfc2661-emitted-control-shape` | Yes: `./le rfc discriminate-record` refused nothing on carrier grounds and sealed three records against `functional-l2tp` |
+| `request shutdown` on a reactorless daemon | `bfd-detection-interval` | Yes: the file carries no `bgp` block, and it timed out at 15s before the fix and passed in 6.3s after |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | Four of five mutations were caught by the unit suite; see the Mistake Log |
+| A-2 | confirmed | `CarrierFor("test/l2tp/...")` answers `functional-l2tp` at `verify`; three records sealed against it |
+| A-3 | confirmed | `./le functional l2tp` 25/25 pass, 2 skip, on this host |
+| A-4 | broken | `RFC2661-4.2-1` is `[MAY]`, so the digest assertion binds no id |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| RFC status row for RFC 2661 | `./le rfc check` names no rfc2661 violation, so the support level is unchanged and no `rfc/short/rfc2661.md` Meta edit is due | Yes |
+| `.ci` authoring: no BGP block needed for shutdown | `docs/architecture/testing/ci-format.md`, anchored to `cmd/ze/hub/main.go -- apiServer.SetShutdownFunc` | Yes |
+| `.ci` authoring: `option=asn` moves both AS numbers | same page, anchored to `internal/test/peer/peer.go -- generateOpen, patchAS4Capability` | Yes |
+| No other page describes a behavior this diff changed | `grep -rn "shutdownFunc\|request shutdown\|reactorless" docs/` returns six rows, all of which describe the command and not the wiring | Yes |
+| `./le doc check links` | 27 broken references before, and the same 27 after: the closure adds none | Yes |
+
+## Core Insight
+
+A gate that reads a tag's CARRIER can be satisfied while the sentence beside the
+tag is proven by nothing a machine read. The tranche recorded its RED in a
+markdown table, and `./le rfc check` never asked for more, because its
+discrimination ratchet fires only on tags a commit ADDS against `HEAD^`. So the
+tags landed honest and became unproven at the next commit, with nothing going
+red. The lesson is not about this spec: any ratchet scoped to the diff leaves
+the corpus it was built for unswept, and the sweep is a separate piece of work
+that nobody is prompted to do.

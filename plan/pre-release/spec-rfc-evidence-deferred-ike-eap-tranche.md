@@ -16,8 +16,9 @@ Bind the IKE and EAP unit-only cluster at `functional/verify` through the
 `ipsec` suite. 254 gated MUST-level requirements sit there: rfc7296 211,
 rfc3748 12, rfc5216 10, rfc2759 9, rfc4301 8, rfc4303 3, rfc7427 1.
 
-Deferred out of `plan/pre-release/spec-rfcgate-2-deferred-nonunit-evidence-backfill.md`,
-which is still open. The row that homes this work lives in
+Deferred out of spec-rfcgate-2-deferred-nonunit-evidence-backfill, which closed
+on 2026-09-07 into `plan/learned/006-rfc-evidence-oracle-selection-rule.md`. The
+row that homes this work lives in
 the retired deferral shard "rfcgate-2-deferred-nonunit-evidence-backfill".
 
 **Why this cluster is rank 1.** Five IKE defects shipped on 2026-08-01. Every
@@ -52,7 +53,7 @@ buys. Check whether that review has landed before starting.
 ### Architecture Docs
 - [ ] `internal/le/rfc/rfc.go` - `CARRIERS`, `carrier_for`, `functional_suites`
   → Constraint: a `.ci` in a suite `internal/le/functional/suites.go` `all_suites` does not name resolves to `TIER_UNRUN` and the scanner refuses the tag.
-- [ ] `plan/pre-release/spec-rfcgate-2-deferred-nonunit-evidence-backfill.md` - the selection rule and the ranking
+- [ ] `plan/learned/006-rfc-evidence-oracle-selection-rule.md` - the selection rule and the ranking
   → Decision: the rule tests the ORACLE, never the requirement text.
 - [ ] `plan/spec-rfcgate-2-evidence.md` history (spec closed) - the carrier, tier and ratchet machinery
   → Constraint: every ledger link carries a `kind/tier` cell and a per-tier monotonic ratchet holds it.

@@ -18,8 +18,9 @@ three subsystems already have runnable suites, so the tier is reachable today:
 `internal/le/functional/suites.go` `all_suites` names `isis`, `isis-wire`, `rsvpte` and
 `ldp`.
 
-Deferred out of `plan/pre-release/spec-rfcgate-2-deferred-nonunit-evidence-backfill.md`,
-which is still open. The row that homes this work lives in
+Deferred out of spec-rfcgate-2-deferred-nonunit-evidence-backfill, which closed
+on 2026-09-07 into `plan/learned/006-rfc-evidence-oracle-selection-rule.md`. The
+row that homes this work lives in
 the retired deferral shard "rfcgate-2-deferred-nonunit-evidence-backfill".
 
 **This cluster was ranked 4 and never examined.** That ranking came from
@@ -47,7 +48,7 @@ one, and let the scan set the order.
 ### Architecture Docs
 - [ ] `internal/le/rfc/rfc.go` - `CARRIERS`, `carrier_for`, `functional_suites`
   → Constraint: the four suites above are named in `all_suites`, so a `.ci` in any of them earns `functional/verify`.
-- [ ] `plan/pre-release/spec-rfcgate-2-deferred-nonunit-evidence-backfill.md` - the selection rule and the measured ranking
+- [ ] `plan/learned/006-rfc-evidence-oracle-selection-rule.md` - the selection rule and the measured ranking
   → Decision: the rule tests the ORACLE, never the requirement text.
 - [ ] `internal/le/functional/suites.go` - `all_suites`
   → Constraint: the suite list is the tier gate; read it rather than assuming.

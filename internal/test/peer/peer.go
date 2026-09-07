@@ -847,6 +847,13 @@ func (p *Peer) generateOpen(peerHeader, peerBody []byte) []byte {
 
 	if p.config.ASN > 0 && p.config.ASN <= 65535 {
 		binary.BigEndian.PutUint16(open[19+1:], uint16(p.config.ASN)) //nolint:gosec // ASN validated
+		// The OPEN above is a MIRROR of ze's, so its 4-octet AS capability still
+		// carries ze's ASN. Patching only the 2-octet field leaves the two
+		// disagreeing, and RFC 6793 Section 4.1 makes ze answer OPEN Message
+		// Error / Bad Peer AS: "if the value of the AS number field is not the
+		// same as the value of the AS number encoded in the AS4 capability, then
+		// the BGP speaker MUST send a NOTIFICATION". Both halves move together.
+		patchAS4Capability(open, uint32(p.config.ASN)) //nolint:gosec // G115: the branch bounds it at 65535
 	}
 
 	// Apply capability overrides (drop/add) before SendUnknownCapability.
@@ -867,6 +874,50 @@ func (p *Peer) generateOpen(peerHeader, peerBody []byte) []byte {
 	}
 
 	return open
+}
+
+// patchAS4Capability rewrites the AS number inside the OPEN's 4-octet AS
+// capability, in place and without changing any length.
+//
+// generateOpen mirrors ze's own OPEN and then overwrites the 2-octet AS field
+// with option=asn. The mirrored capability 65 still carries ZE's AS, so an
+// unpatched OPEN declares two different AS numbers and ze answers OPEN Message
+// Error / Bad Peer AS (RFC 6793 Section 4.1). A .ci that sets an AS ze does not
+// hold could then never establish, which is what test/vrrp/vrrp-show.ci hit.
+//
+// An OPEN carrying no capability 65 is left exactly as it was: a peer that
+// declares no 4-octet AS support has one AS number and it is already correct.
+func patchAS4Capability(open []byte, asn uint32) {
+	const openFixedLen = 29 // 19 header + version, AS, hold time, identifier, optional-parameter length
+	if len(open) < openFixedLen {
+		return
+	}
+	body := open[19:]
+	optParamLen := int(body[9])
+	pos := 10
+	for pos+2 <= len(body) && pos < 10+optParamLen {
+		paramLen := int(body[pos+1])
+		if pos+2+paramLen > len(body) {
+			return
+		}
+		if body[pos] != 2 {
+			pos += 2 + paramLen
+			continue
+		}
+		param := body[pos+2 : pos+2+paramLen]
+		for at := 0; at+2 <= len(param); {
+			capLen := int(param[at+1])
+			if at+2+capLen > len(param) {
+				return
+			}
+			if param[at] == 65 && capLen == 4 {
+				binary.BigEndian.PutUint32(param[at+2:at+6], asn)
+				return
+			}
+			at += 2 + capLen
+		}
+		pos += 2 + paramLen
+	}
 }
 
 // applyCapabilityOverrides modifies OPEN optional parameters by dropping/adding capabilities.

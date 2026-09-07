@@ -18,6 +18,16 @@
 # The profile deliberately configures neither default: detect-multiplier
 # defaults to 3 and required-min-rx-us to 300000 (ze-bfd-conf.yang), so a test
 # that used them could not tell a read value from a fallback.
+#
+# There is deliberately NO bgp block and no ze-peer. This file carried both until
+# 2026-09-07, purely so the daemon would stop: the fixture ends with `request
+# shutdown`, and handleDaemonShutdown (internal/component/plugin/server/
+# system.go) fell through to a shutdownFunc that cmd/ze/hub/main.go wired
+# hundreds of milliseconds AFTER a plugin can dispatch. A BGP reactor covered
+# the gap and the mirrored peer then expected an end-of-rib UPDATE the run never
+# reached, which is what made this test red. The wiring moved next to the server
+# it belongs to, so a reactorless daemon stops on request. Do not add a BGP peer
+# back: its absence is what proves that path still works.
 
 option=env:var=ze.bfd.test-parallel:value=true
 # BFD listens on the RFC 5881 / RFC 5883 FIXED ports, so every concurrently
@@ -29,13 +39,6 @@ option=env:var=ze.bfd.test-parallel:value=true
 # surface option=exclusive exists for: unique addresses cannot partition a port
 # number the RFC fixes. Tests outside the group still run alongside these.
 option=exclusive:group=bfd-ports
-
-stdin=peer:terminator=EOF_PEER
-option=tcp_connections:value=1
-option=timeout:value=15s
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-EOF_PEER
-
 
 stdin=ze-bfd:terminator=EOF_CONF
 plugin {
@@ -62,39 +65,8 @@ bfd {
 		profile slow-five
 	}
 }
-
-bgp {
-	peer peer1 {
-		connection {
-			remote {
-				ip 127.0.0.1
-			}
-			local {
-				ip 127.0.0.1
-				accept false
-			}
-		}
-		session {
-			asn {
-				local 1
-				remote 1
-			}
-			router-id 1.2.3.4
-			family {
-				ipv4/unicast { prefix { maximum 10000; } }
-			}
-			capability {
-				graceful-restart disable
-			}
-		}
-		behavior {
-			group-updates disable
-		}
-	}
-}
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze -:stdin=ze-bfd:timeout=15s
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bfd:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=OK: bfd session publishes detection-interval 600ms and tx-interval 1s

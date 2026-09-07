@@ -824,6 +824,33 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// stream events. This is the replacement for the standalone Bus.
 	registry.SetEventBus(apiServer)
 
+	// Reactor-independent `request shutdown`: a BGP daemon stops via the reactor,
+	// but a reactorless daemon (BFD-only, DHCP-only, OSPF-only) needs the command
+	// to reach the signal-based teardown at the end of this function. Wired
+	// ungated so `request shutdown` works whichever protocols are configured
+	// (non-blocking, mirrors monitorStdinEOF).
+	//
+	// It is wired HERE, beside the server it belongs to, rather than beside the
+	// signal.Notify that reads the channel. A plugin can dispatch a command as
+	// soon as it handshakes, which is hundreds of milliseconds before startup
+	// reaches the teardown block, so a shutdown function wired down there is
+	// absent exactly when a fast plugin asks. handleDaemonShutdown
+	// (internal/component/plugin/server/system.go) then answers "shutdown not
+	// available: no reactor and no shutdown function configured" and the daemon
+	// runs to its test timeout. Measured on test/bfd/bfd-detection-interval.ci,
+	// whose fixture answers 60ms after the BFD plugin reports running.
+	//
+	// signal.Notify stays where it is. Moving it here would swallow the operator's
+	// first Ctrl-C for the length of startup, and the buffered send below needs no
+	// receiver yet: waitLoop drains the queued SIGTERM when it starts.
+	sigCh := make(chan os.Signal, 1)
+	apiServer.SetShutdownFunc(func() {
+		select {
+		case sigCh <- syscall.SIGTERM:
+		default:
+		}
+	})
+
 	// Set config loader for SIGHUP reload support.
 	// Mirrors the initial-load fallback above: try the blob store first, and
 	// if the store is blob-only (e.g., gokrazy read-only root, ze-test tmpfs)
@@ -1245,20 +1272,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	// Signal handling: SIGINT/SIGTERM for shutdown, SIGHUP for config reload.
-	sigCh := make(chan os.Signal, 1)
+	// sigCh is created next to apiServer.SetShutdownFunc, far above, so a plugin
+	// that requests shutdown during startup has somewhere to put it.
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
-
-	// Reactor-independent `request shutdown`: a BGP daemon stops via the reactor,
-	// but a reactorless daemon (OSPF-only, etc.) needs the command to reach the
-	// signal-based teardown below. Wired ungated so `request shutdown` works
-	// regardless of which protocols are configured (non-blocking, mirrors
-	// monitorStdinEOF).
-	apiServer.SetShutdownFunc(func() {
-		select {
-		case sigCh <- syscall.SIGTERM:
-		default:
-		}
-	})
 
 	// SIGHUP reload worker: re-reads config from disk, auto-loads/stops plugins,
 	// refreshes the shared ConfigProvider, then notifies every registered

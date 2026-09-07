@@ -1430,6 +1430,22 @@ failed, so the daemon's exit code does not prove the observer's assertion. A
 failing observer returns an error, which `fixture.Run` hands to
 `fixture.ReportFailure`.
 
+**A fixture-driven `.ci` needs no `bgp` block and no `ze-peer` to get a daemon
+that stops.** `request shutdown` reaches a reactorless daemon through the
+shutdown callback the daemon wires beside its plugin server, before any plugin
+can dispatch, so a BFD-only or DHCP-only configuration stops on the fixture's
+request like a BGP one. Adding a BGP peer only to make the daemon stoppable adds
+a second protocol to the test's failure surface: `test/bfd/bfd-detection-interval.ci`
+was red for exactly that reason until 2026-09-07.
+<!-- source: cmd/ze/hub/main.go -- apiServer.SetShutdownFunc; internal/component/plugin/server/system.go -- handleDaemonShutdown -->
+
+**`option=asn` moves both AS numbers.** The test peer mirrors ze's OPEN, so
+setting the peer's AS rewrites the 2-octet AS field AND the 4-octet AS
+capability. RFC 6793 Section 4.1 makes ze answer OPEN Message Error / Bad Peer AS
+when the two disagree, so a half-applied option would leave every `.ci` that
+names an AS ze does not hold unable to establish.
+<!-- source: internal/test/peer/peer.go -- generateOpen, patchAS4Capability -->
+
 **The sentinel is written where the scenario fails, BEFORE `request shutdown`.**
 The runner reads it out of the DAEMON's stderr, and the daemon relays a plugin's
 stderr only while both processes live (`internal/component/plugin/process`,
