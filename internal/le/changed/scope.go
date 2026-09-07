@@ -107,6 +107,15 @@ func newScope(root string) Scope {
 	return Scope{Root: root, File: env.Get(scopeFileEntry.Key)}
 }
 
+// Packages answers the change-set package selection for the checkout at root,
+// honoring the file a verify run published.
+//
+// It is the entry point for a consumer outside this package. The functional
+// stage's suite selection reads it, and `le changed packages` answers with it,
+// so a stage and an operator asking what that stage will do cannot hold two
+// change sets that disagree.
+func Packages(root string) (ScopeReport, int) { return newScope(root).Resolve(nil) }
+
 // Resolve answers the native selector's change set and exit code.
 //
 // args use the deleted producer's flag grammar. The le action translates its

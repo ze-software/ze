@@ -178,6 +178,7 @@ const (
 const (
 	argAdd                       = "add"
 	argCommand                   = "command" // The command keyword.
+	argCommit                    = "commit"  // The git subcommand.
 	argConfig                    = "config"  // The git subcommand.
 	argInit                      = "init"
 	argInterface                 = "interface"
@@ -277,6 +278,7 @@ const (
 // Files, paths and expected text.
 const (
 	contentFeatureGate              = "fixture\n"
+	contentGitIgnoreTmp             = "tmp/\n"
 	descriptionCountersAlone        = "The counters alone"
 	dirBuilder                      = "builder"
 	dirCommon                       = "common"
@@ -288,6 +290,7 @@ const (
 	fileDaemonPID                   = "daemon.pid"
 	fileDaemonReady                 = "daemon.ready"
 	fileFeatureGates                = "feature-gates.txt"
+	fileGitIgnore                   = ".gitignore"
 	fileGoMod                       = "go.mod"
 	fileSampleGo                    = "sample.go"
 	fileTriggersMD                  = "TRIGGERS.md"

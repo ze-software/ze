@@ -32,11 +32,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/changed"
 	"github.com/ze-software/ze/internal/le/job"
 )
 
@@ -171,18 +173,214 @@ func everySuite(reason string) suiteSelection {
 
 // selectSuites answers which suites the gating run at root must run.
 //
-// Every answer today is verdictEverySuite. The map is read and validated, and
-// no change set is intersected with it yet, so a recorded map subtracts no
-// suite and an absent one costs nothing.
+// Three answers are needed before one suite can be ruled out: what the map
+// recorded, which packages this change set reaches, and which packages a commit
+// has touched since the recording. A route that cannot answer one of them
+// widens, because the map may only ever narrow FROM a package it records.
 func selectSuites(root string) suiteSelection {
+	// A RECORDING run runs every suite, whatever the map says. Only a run of
+	// every gating suite may publish (publish, below), so a recording run that
+	// narrowed would refuse its own map and the artifact could never be
+	// refreshed once one existed.
+	if covering() {
+		return everySuite(
+			"this run records the suite map, and only a run of every gating suite may publish one")
+	}
+
 	recorded, err := readSuiteMap(root)
 	if err != nil {
 		return everySuite(err.Error())
 	}
+
+	// A verify run selects its change set once, before its first stage, and
+	// names the answer to every stage it starts (publishChangeScope,
+	// internal/le/verify/engine/scope.go). changed.Packages reads that answer,
+	// so a gating run inside a verify run judges the tree that run selected
+	// rather than the tree as it stands this minute.
+	answer, code := changed.Packages(root)
+	if code != 0 {
+		return everySuite("the change-set selector refused this checkout, so no changed package is known")
+	}
+
 	var tb textbuf.Buffer
-	return everySuite(tb.Str("the suite map records ").Int(int64(len(recorded.Reached))).
-		Str(" suite(s) at commit ").Str(recorded.Head).
-		Str(", and no change set is compared against it yet").String())
+	if answer.Widened {
+		// The selector widened for a reason it already named. A widened answer
+		// that arrived through a verify run's published file carries no flag,
+		// and it needs none: "./..." names no package the map records, so the
+		// unanswerable-package branch below widens on it and names it.
+		return everySuite(tb.Str("the change-set selector widened to every package: ").
+			Str(answer.Reason).String())
+	}
+
+	touched, err := touchedSince(root, recorded.Head)
+	if err != nil {
+		return everySuite(tb.Str("the commits since the suite map was recorded at ").Str(recorded.Head).
+			Str(" cannot be read, so nothing it records is answerable: ").Err(err).String())
+	}
+	return recorded.suitesFor(answer.Packages, touched)
+}
+
+// suitesFor answers the run list for one change set, or widens.
+//
+// A package is ANSWERABLE only when this map records a suite reaching it AND no
+// commit since the recording touched it. One unanswerable package widens the
+// whole run and is NAMED, because the map cannot say which suites a change to
+// that package could break.
+//
+// A gating suite the map does not name is UNKNOWN, and every unknown suite
+// runs. A suite that recorded nothing was omitted rather than written empty
+// (publish, below), so nothing here rules it out: editor, web, runner and
+// policy are in that state on every run.
+//
+// Zero changed packages is a valid narrow answer. It says no changed path is
+// compiled or read by a Go package, and the unknown suites still run.
+func (m suiteMap) suitesFor(packages []string, touched map[string]bool) suiteSelection {
+	reachedBy := map[string][]string{}
+	for suite, recorded := range m.Reached {
+		for _, name := range recorded {
+			reachedBy[name] = append(reachedBy[name], suite)
+		}
+	}
+
+	selected := map[string]bool{}
+	for _, suite := range Gating {
+		if _, recorded := m.Reached[suite]; !recorded {
+			selected[suite] = true
+		}
+	}
+
+	var tb textbuf.Buffer
+	for _, name := range packages {
+		if touched[name] {
+			return everySuite(tb.Str("a commit since the suite map was recorded at ").Str(m.Head).
+				Str(" touched ").Str(name).
+				Str(", so what a suite reached there was observed on another tree").String())
+		}
+		reaching := reachedBy[name]
+		if len(reaching) == 0 {
+			return everySuite(tb.Str("the suite map records no suite reaching ").Str(name).
+				Str(", so no suite can be ruled out for it").String())
+		}
+		for _, suite := range reaching {
+			selected[suite] = true
+		}
+	}
+
+	// Gating decides the order and the population. A suite the map names and
+	// the gating list does not is not this run's to start.
+	suites := make([]string, 0, len(Gating))
+	for _, suite := range Gating {
+		if selected[suite] {
+			suites = append(suites, suite)
+		}
+	}
+	return suiteSelection{
+		Verdict: verdictSelected,
+		Suites:  suites,
+		Reason: tb.Str("the suite map recorded at ").Str(m.Head).Str(" answers for all ").
+			Int(int64(len(packages))).Str(" changed package(s)").String(),
+	}
+}
+
+// touchedSince answers the packages a commit has touched since the suite map
+// was recorded, in the change-set selector's own spelling.
+//
+// An error says the two commits cannot be compared, which is what the map's
+// commit looks like after a rebase drops it. The caller has then learned
+// nothing about any package and widens, rather than reading the empty result as
+// "no package moved" (job.PathsChangedBetween, internal/le/job/treehash.go).
+func touchedSince(root, head string) (map[string]bool, error) {
+	paths, err := job.PathsChangedBetween(root, head, "HEAD")
+	if err != nil {
+		return nil, err
+	}
+	touched := make(map[string]bool, len(paths))
+	for _, one := range paths {
+		touched[packageOf(one)] = true
+	}
+	return touched, nil
+}
+
+// packageOf spells the package directory one repository path sits in the way
+// the change-set selector spells a package.
+//
+// Git answers with forward slashes on every platform, so the path arithmetic is
+// path rather than filepath. A file at the module root belongs to ".", which is
+// the selector's own answer for one (rootPackage, internal/le/changed/selector.go).
+// Any file counts, not only a .go one: a package whose testdata moved is a
+// package whose recorded reach was observed on another tree.
+func packageOf(repoPath string) string {
+	dir := path.Dir(repoPath)
+	if dir == "." {
+		return "."
+	}
+	var tb textbuf.Buffer
+	return tb.Str("./").Str(dir).String()
+}
+
+// runPlan is the decision a gating run makes before it builds anything: the
+// suites it starts, the suites the operator left out, and the report that says
+// what the map ruled out and why.
+type runPlan struct {
+	Report  SuiteSelectionReport
+	Running []Suite
+	Skipped []Suite
+}
+
+// planRun answers the run list for the checkout at root, and runs nothing.
+//
+// `le functional select` prints this plan and runGating executes it, so the
+// answer an operator reads is the run's own decision rather than a second
+// derivation of it.
+func planRun(root string) (runPlan, error) {
+	suites, err := GatingSuites(Gating, Suites)
+	if err != nil {
+		return runPlan{}, err
+	}
+
+	selection := selectSuites(root)
+	running, skipped := gatingRunList(suites, Skipped(), selection)
+	return runPlan{
+		Report: SuiteSelectionReport{
+			Reason:   selection.Reason,
+			Narrowed: selection.Verdict == verdictSelected,
+			Running:  suiteNames(running),
+			Skipped:  suiteNames(skipped),
+			RuledOut: ruledOut(suites, running, skipped),
+		},
+		Running: running,
+		Skipped: skipped,
+	}, nil
+}
+
+// ruledOut names the gating suites the map left out: the ones this run neither
+// starts nor was told to skip.
+func ruledOut(suites, running, skipped []Suite) []string {
+	absent := make([]string, 0, len(suites))
+	for _, suite := range suites {
+		if slices.ContainsFunc(running, sameSuite(suite)) {
+			continue
+		}
+		if slices.ContainsFunc(skipped, sameSuite(suite)) {
+			continue
+		}
+		absent = append(absent, suite.Name)
+	}
+	return absent
+}
+
+// sameSuite matches one suite by name, which is its identity.
+func sameSuite(wanted Suite) func(Suite) bool {
+	return func(candidate Suite) bool { return candidate.Name == wanted.Name }
+}
+
+// suiteNames answers the names of a suite list, in its order.
+func suiteNames(suites []Suite) []string {
+	names := make([]string, 0, len(suites))
+	for _, suite := range suites {
+		names = append(names, suite.Name)
+	}
+	return names
 }
 
 // gatingRunList splits the gating suites into the ones this run runs and the

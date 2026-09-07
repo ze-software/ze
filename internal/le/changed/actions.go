@@ -103,7 +103,7 @@ func scopePackagesHere() (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	return newScope(root).Resolve(nil)
+	return Packages(root)
 }
 
 // scopeHere runs the selector directly. It deliberately does not call

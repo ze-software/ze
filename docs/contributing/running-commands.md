@@ -59,7 +59,7 @@ gap: they re-run the same non-equivalent launch.
 
 | Want | Use |
 |------|-----|
-| A whole suite | `./le functional plugin` (`./le functional list` names every suite) |
+| A whole suite | `./le functional plugin` (`./le functional list` names every suite, and `./le functional select` says which ones a gating run would start) |
 | One test, iterating | The owning compiled fixture's Go test, then rerun the whole `./le functional <suite>` |
 | A kernel-dependent suite in the VM | `./le qemu netns-test suites <comma-separated-suites>` |
 

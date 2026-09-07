@@ -35,6 +35,12 @@ const listVerb = "list"
 // from that same table (catalog.go).
 const gatingVerb = "gating"
 
+// selectVerb prints the run list a gating run would start for this checkout and
+// runs nothing. An operator whose run started fewer suites than they expected
+// reads here which suites the suite map ruled out and why, and a run that
+// widened says which package it could not answer for.
+const selectVerb = "select"
+
 // session is one invocation of the functional area: the toolchain it derived,
 // and the isolated binary set it builds at most once.
 type session struct {
@@ -147,6 +153,7 @@ func areaVerbs() []leaction.Row {
 	return []leaction.Row{
 		{Verb: listVerb, Why: "every suite and its budget"},
 		{Verb: gatingVerb, Why: "every gating suite, under its own budget"},
+		{Verb: selectVerb, Why: "the suites a gating run would start for this checkout, and why the rest are absent"},
 	}
 }
 
@@ -193,6 +200,19 @@ func Answer(args []string) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
+
+	// `select` answers before the toolchain is probed, because it builds
+	// nothing and a reader asking which suites would run must not wait on a Go
+	// toolchain to hear it.
+	if len(args) == 1 && args[0] == selectVerb {
+		plan, err := planRun(root)
+		if err != nil {
+			leaction.ReportError(err)
+			return nil, 1
+		}
+		return plan.Report, 0
+	}
+
 	tc, err := gotoolchain.New(root)
 	if err != nil {
 		leaction.ReportError(err)

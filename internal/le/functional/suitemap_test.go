@@ -10,12 +10,17 @@
 package functional
 
 import (
+	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/le/changed"
 	"github.com/ze-software/ze/internal/le/job"
 )
 
@@ -154,9 +159,10 @@ func TestAWideningIsNeverAnEmptySelection(t *testing.T) {
 	}
 }
 
-// TestAValidSuiteMapIsReadBack proves the format round-trips, and records what
-// this phase deliberately does not do: a well-formed map still runs every
-// suite, because no change set is compared against it yet.
+// TestAValidSuiteMapIsReadBack proves the format round-trips, and pins the
+// second half of the selection: a well-formed map narrows nothing on its own.
+// The change set is the other input, and a tree that cannot answer for one
+// widens however good the map is.
 func TestAValidSuiteMapIsReadBack(t *testing.T) {
 	root := writeSuiteMap(t,
 		`{"head":"447ba80f16","reached":{"encode":["./internal/component/bgp/wire"],`+
@@ -176,12 +182,14 @@ func TestAValidSuiteMapIsReadBack(t *testing.T) {
 		t.Errorf("the first ui package is %q, want the selector's spelling", recorded.Reached["ui"][0])
 	}
 
+	// The temporary directory is not a checkout, so the change-set selector
+	// refuses it and the selection widens on a map it read perfectly well.
 	selection := selectSuites(root)
 	if selection.Verdict != verdictEverySuite {
-		t.Fatalf("verdict %d, want verdictEverySuite: nothing narrows yet", selection.Verdict)
+		t.Fatalf("verdict %d, want verdictEverySuite: the change set is unknown", selection.Verdict)
 	}
-	if !strings.Contains(selection.Reason, "447ba80f16") {
-		t.Errorf("the reason is %q, which does not name the commit it read", selection.Reason)
+	if !strings.Contains(selection.Reason, "selector refused this checkout") {
+		t.Errorf("the reason is %q, which does not say the change set is what is missing", selection.Reason)
 	}
 }
 
@@ -217,15 +225,6 @@ func TestTheGatingRunListWidensAndNeverAddsBackASkip(t *testing.T) {
 			t.Errorf("the skip list is %v, want web alone", suiteNames(skipped))
 		}
 	})
-}
-
-// suiteNames renders a suite list for a failure message.
-func suiteNames(suites []Suite) []string {
-	names := make([]string, 0, len(suites))
-	for _, suite := range suites {
-		names = append(names, suite.Name)
-	}
-	return names
 }
 
 // fullRecording is what a whole instrumented gating run holds: one entry for
@@ -363,4 +362,321 @@ func TestOnlyAWholeGatingRunPublishesAMap(t *testing.T) {
 			t.Errorf("the map names %d suite(s), want all %d", len(recorded.Reached), len(Gating))
 		}
 	})
+}
+
+// gitCheckout builds a checkout the selection can be driven over: a Git
+// repository holding one Go file, and the commit it holds it at.
+//
+// The selection asks Git which files moved since the map was recorded, so a
+// bare directory answers nothing and every case here would widen for the wrong
+// reason.
+func gitCheckout(t *testing.T) (root, head string) {
+	t.Helper()
+	root = t.TempDir()
+	writeCheckoutFile(t, root, ".gitignore", "tmp/\n")
+	writeCheckoutFile(t, root, "internal/component/ssh/ssh.go", "package ssh\n")
+	writeCheckoutFile(t, root, "internal/component/cli/cli.go", "package cli\n")
+	commitCheckout(t, root, "fixture")
+
+	head = job.Head(root)
+	if head == job.Unknown {
+		t.Fatalf("the fixture checkout at %s names no commit", root)
+	}
+	return root, head
+}
+
+// writeCheckoutFile puts one file in the checkout, creating its directory.
+func writeCheckoutFile(t *testing.T, root, name, body string) {
+	t.Helper()
+	path := filepath.Join(root, filepath.FromSlash(name))
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatalf("create the directory for %s: %v", name, err)
+	}
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("write %s: %v", name, err)
+	}
+}
+
+// commitCheckout commits everything in the checkout under one message.
+func commitCheckout(t *testing.T, root, message string) {
+	t.Helper()
+	for _, args := range [][]string{
+		{"init", "--quiet"},
+		{"config", "user.email", "test@example.com"},
+		{"config", "user.name", "test"},
+		{"config", "commit.gpgsign", "false"},
+		{"add", "."},
+		{"commit", "--quiet", "--no-gpg-sign", "-m", message},
+	} {
+		if args[0] == "init" && dirExists(filepath.Join(root, ".git")) {
+			continue
+		}
+		command := exec.CommandContext(t.Context(), "git", args...)
+		command.Dir = root
+		if out, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, out)
+		}
+	}
+}
+
+// dirExists says whether the path is a directory that is already there.
+func dirExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+// recordedMap writes the map one gating run would have published at head.
+func recordedMap(t *testing.T, root, head string, reached map[string][]string) {
+	t.Helper()
+	body, err := json.Marshal(suiteMap{Head: head, Reached: reached})
+	if err != nil {
+		t.Fatalf("render the fixture map: %v", err)
+	}
+	path := filepath.Join(root, suiteMapPath)
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatalf("create the artifact directory: %v", err)
+	}
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatalf("write the fixture map: %v", err)
+	}
+}
+
+// changedPackage is the one package every case here changes. It is the package
+// spec-verify-scope-5-suite-coverage-map AC-3 names, and phase 1b measured it
+// as reached by the ui suite alone.
+const changedPackage = "./internal/component/ssh"
+
+// everySuiteReaching is the map a full run would publish when changedPackage is
+// reached by the named suites and every other gating suite reached something
+// else. The suites in silent are OMITTED, which is the state editor, web,
+// runner and policy are in on every run.
+func everySuiteReaching(reaching, silent []string) map[string][]string {
+	reached := map[string][]string{}
+	for _, name := range Gating {
+		if slices.Contains(silent, name) {
+			continue
+		}
+		if slices.Contains(reaching, name) {
+			reached[name] = []string{changedPackage, "./internal/le"}
+			continue
+		}
+		reached[name] = []string{"./internal/le"}
+	}
+	return reached
+}
+
+// changeSetIs names the change-set answer a verify run published, which is
+// where the selection reads the packages it intersects with the map
+// (publishChangeScope, internal/le/verify/engine/scope.go).
+func changeSetIs(t *testing.T, packages ...string) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "scope-packages.txt")
+	if err := os.WriteFile(path, []byte(strings.Join(packages, "\n")+"\n"), 0o600); err != nil {
+		t.Fatalf("write the change-set answer: %v", err)
+	}
+	nameForTest(t, changed.ScopeFileKey, path)
+}
+
+// nameForTest gives one environment key a value for this test alone.
+func nameForTest(t *testing.T, key, value string) {
+	t.Helper()
+	previous := env.Get(key)
+	if err := env.Set(key, value); err != nil {
+		t.Fatalf("name %s: %v", key, err)
+	}
+	t.Cleanup(func() {
+		if err := env.Set(key, previous); err != nil {
+			t.Fatalf("restore %s: %v", key, err)
+		}
+	})
+}
+
+// TestSuiteSelectionSkipsOnlyUnreachedSuites is the narrowing itself: a change
+// set of one package runs the suites recorded as reaching it, and the suites
+// the map never named, and nothing else.
+//
+// VALIDATES: spec-verify-scope-5-suite-coverage-map AC-3 and AC-4.
+func TestSuiteSelectionSkipsOnlyUnreachedSuites(t *testing.T) {
+	silent := []string{suiteEditor, suiteWeb, suiteRunner, suitePolicy}
+	root, head := gitCheckout(t)
+	recordedMap(t, root, head, everySuiteReaching([]string{suiteUi, suiteParse}, silent))
+
+	t.Run("a recorded package runs the suites that reached it, and the unknown suites", func(t *testing.T) {
+		changeSetIs(t, changedPackage)
+
+		selection := selectSuites(root)
+
+		if selection.Verdict != verdictSelected {
+			t.Fatalf("verdict %d with reason %q, want verdictSelected", selection.Verdict, selection.Reason)
+		}
+		// A suite the map does not name is UNKNOWN and always runs: the map
+		// learned nothing about it, so it can rule nothing out for it.
+		want := []string{suiteParse, suiteUi, suiteEditor, suitePolicy, suiteWeb, suiteRunner}
+		for _, name := range GatingNames() {
+			if got, expected := selection.runs(name), slices.Contains(want, name); got != expected {
+				t.Errorf("suite %s runs=%v, want %v", name, got, expected)
+			}
+		}
+		if !slices.Equal(selection.Suites, []string{suiteParse, suiteUi, suiteEditor, suitePolicy, suiteWeb, suiteRunner}) {
+			t.Errorf("the run list is %v, want it in gating order", selection.Suites)
+		}
+	})
+
+	t.Run("a package the map never recorded widens and is named", func(t *testing.T) {
+		changeSetIs(t, changedPackage, "./internal/component/nowhere")
+
+		selection := selectSuites(root)
+
+		if selection.Verdict != verdictEverySuite {
+			t.Fatalf("verdict %d, want verdictEverySuite", selection.Verdict)
+		}
+		if !strings.Contains(selection.Reason, "./internal/component/nowhere") {
+			t.Errorf("the reason is %q, and it must name the package it could not answer for", selection.Reason)
+		}
+		for _, name := range GatingNames() {
+			if !selection.runs(name) {
+				t.Errorf("suite %s does not run under a package the map cannot answer for", name)
+			}
+		}
+	})
+
+	t.Run("a change set holding no package still runs the suites the map never named", func(t *testing.T) {
+		changeSetIs(t)
+
+		selection := selectSuites(root)
+
+		if selection.Verdict != verdictSelected {
+			t.Fatalf("verdict %d with reason %q, want verdictSelected", selection.Verdict, selection.Reason)
+		}
+		if !slices.Equal(selection.Suites, []string{suiteEditor, suitePolicy, suiteWeb, suiteRunner}) {
+			t.Errorf("the run list is %v, want the four suites the map does not name", selection.Suites)
+		}
+	})
+
+	t.Run("a recording run runs every suite, because only a full run publishes", func(t *testing.T) {
+		changeSetIs(t, changedPackage)
+		nameForTest(t, "ze.cover", "1")
+
+		selection := selectSuites(root)
+
+		if selection.Verdict != verdictEverySuite {
+			t.Fatalf("verdict %d, want verdictEverySuite", selection.Verdict)
+		}
+		if !strings.Contains(selection.Reason, "records the suite map") {
+			t.Errorf("the reason is %q, which does not say this run is the recording one", selection.Reason)
+		}
+	})
+}
+
+// TestStaleMapTreatsTouchedPackagesAsUnknown drives the map's staleness rule: a
+// package the map records is answerable only while no commit since the
+// recording has touched it. The control case is the point of the test, because
+// a selection that widened on any commit at all would pass the first half.
+//
+// VALIDATES: spec-verify-scope-5-suite-coverage-map AC-5.
+func TestStaleMapTreatsTouchedPackagesAsUnknown(t *testing.T) {
+	silent := []string{suiteEditor, suiteWeb, suiteRunner, suitePolicy}
+
+	t.Run("a commit touching the package widens and names it", func(t *testing.T) {
+		root, head := gitCheckout(t)
+		recordedMap(t, root, head, everySuiteReaching([]string{suiteUi}, silent))
+		changeSetIs(t, changedPackage)
+
+		writeCheckoutFile(t, root, "internal/component/ssh/ssh.go", "package ssh\n\nfunc Listen() {}\n")
+		commitCheckout(t, root, "ssh moved under the map")
+
+		selection := selectSuites(root)
+
+		if selection.Verdict != verdictEverySuite {
+			t.Fatalf("verdict %d, want verdictEverySuite", selection.Verdict)
+		}
+		if !strings.Contains(selection.Reason, changedPackage) || !strings.Contains(selection.Reason, head) {
+			t.Errorf("the reason is %q, and it must name the package and the commit the map was recorded at",
+				selection.Reason)
+		}
+	})
+
+	t.Run("a commit touching another package leaves the answer narrow", func(t *testing.T) {
+		root, head := gitCheckout(t)
+		recordedMap(t, root, head, everySuiteReaching([]string{suiteUi}, silent))
+		changeSetIs(t, changedPackage)
+
+		writeCheckoutFile(t, root, "internal/component/cli/cli.go", "package cli\n\nfunc Prompt() {}\n")
+		commitCheckout(t, root, "another package moved")
+
+		selection := selectSuites(root)
+
+		if selection.Verdict != verdictSelected {
+			t.Fatalf("verdict %d with reason %q, want verdictSelected", selection.Verdict, selection.Reason)
+		}
+		if selection.runs(suiteEncode) {
+			t.Error("the encode suite runs, and the map records it as reaching no changed package")
+		}
+	})
+
+	t.Run("a commit the checkout no longer holds widens", func(t *testing.T) {
+		root, _ := gitCheckout(t)
+		recordedMap(t, root, "0000000000000000000000000000000000000000",
+			everySuiteReaching([]string{suiteUi}, silent))
+		changeSetIs(t, changedPackage)
+
+		selection := selectSuites(root)
+
+		if selection.Verdict != verdictEverySuite {
+			t.Fatalf("verdict %d, want verdictEverySuite", selection.Verdict)
+		}
+		if !strings.Contains(selection.Reason, "cannot be read") {
+			t.Errorf("the reason is %q, which does not say the commits could not be compared", selection.Reason)
+		}
+	})
+}
+
+// TestOperatorSkipStillWins drives the whole plan, which is what the gating run
+// executes and what `le functional select` prints. An operator's skip outranks
+// the map: a suite the map selected is still left out, and the map cannot add
+// back a suite the operator removed.
+//
+// VALIDATES: spec-verify-scope-5-suite-coverage-map AC-8.
+func TestOperatorSkipStillWins(t *testing.T) {
+	root, head := gitCheckout(t)
+	recordedMap(t, root, head,
+		everySuiteReaching([]string{suiteUi, suiteParse},
+			[]string{suiteEditor, suiteWeb, suiteRunner, suitePolicy}))
+	changeSetIs(t, changedPackage)
+	nameForTest(t, "ze.skip.suites", suiteUi)
+
+	plan, err := planRun(root)
+	if err != nil {
+		t.Fatalf("plan the run: %v", err)
+	}
+
+	if slices.Contains(plan.Report.Running, suiteUi) {
+		t.Errorf("the run list is %v, and the operator skipped %s", plan.Report.Running, suiteUi)
+	}
+	if !slices.Equal(plan.Report.Skipped, []string{suiteUi}) {
+		t.Errorf("the operator skips are %v, want %s alone", plan.Report.Skipped, suiteUi)
+	}
+	if !slices.Contains(plan.Report.Running, suiteParse) {
+		t.Errorf("the run list is %v, and the map records %s as reaching the changed package",
+			plan.Report.Running, suiteParse)
+	}
+	if !plan.Report.Narrowed {
+		t.Error("the report does not say the run narrowed")
+	}
+	// The three states are one population: every gating suite is in exactly one
+	// of them, so a suite cannot vanish from the plan unnoticed.
+	if total := len(plan.Report.Running) + len(plan.Report.Skipped) + len(plan.Report.RuledOut); total != len(Gating) {
+		t.Errorf("the plan accounts for %d suite(s), want all %d", total, len(Gating))
+	}
+	if !slices.Contains(plan.Report.RuledOut, suiteEncode) {
+		t.Errorf("the ruled-out suites are %v, and the map records %s as reaching no changed package",
+			plan.Report.RuledOut, suiteEncode)
+	}
+	// The rendering is what the operator reads, and both absences are named.
+	text := plan.Report.Text()
+	for _, want := range []string{"the suite map rules out", "ZE_SKIP_SUITES leaves out " + strconv.Itoa(1)} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the printed plan is %q, and it does not say %q", text, want)
+		}
+	}
 }

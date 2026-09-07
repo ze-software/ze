@@ -321,6 +321,10 @@ func warmCITestPackages(tc gotoolchain.Toolchain) error {
 // runGating runs every gating suite the operator and the suite map leave in,
 // in order, under its own budget.
 //
+// The run list is the plan `le functional select` prints, so an operator who
+// asked which suites would run reads the decision this loop then takes
+// (planRun, suitemap.go).
+//
 // One isolated binary set serves the whole run, built once and removed however
 // the run ends.
 //
@@ -333,7 +337,7 @@ func warmCITestPackages(tc gotoolchain.Toolchain) error {
 // A zero GatingReport is not an empty run because its Text renders "PASS all 0 suites" in green.
 // Returning it after a refused run list or failed build would falsely report a pass.
 func runGating(tc gotoolchain.Toolchain) (any, int) {
-	suites, err := GatingSuites(Gating, Suites)
+	plan, err := planRun(tc.Root)
 	if err != nil {
 		gaterun.Note(reportLine(err))
 		return nil, 1
@@ -345,13 +349,9 @@ func runGating(tc gotoolchain.Toolchain) (any, int) {
 	// while the suites run (newSuiteRecording, suitemap.go).
 	recording := newSuiteRecording(job.Head(tc.Root))
 
-	selection := selectSuites(tc.Root)
-	var tb textbuf.Buffer
-	gaterun.Note(tb.Str("functional: ").Str(selection.Reason).String())
-
-	running, skipped := gatingRunList(suites, Skipped(), selection)
-	run := NewRun(len(running))
-	for _, suite := range skipped {
+	gaterun.Note(plan.Report.Text())
+	run := NewRun(len(plan.Running))
+	for _, suite := range plan.Skipped {
 		run.Skip(suite)
 	}
 
@@ -371,7 +371,7 @@ func runGating(tc gotoolchain.Toolchain) (any, int) {
 		gaterun.Note(reportLine(err))
 		return nil, 1
 	}
-	for _, suite := range running {
+	for _, suite := range plan.Running {
 		run.Announce(suite)
 		cover, reduce := suiteCoverage(tc, suite, covers)
 		code, seconds := Execute(tc, suite, set, cover)

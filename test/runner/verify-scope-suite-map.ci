@@ -1,0 +1,38 @@
+# One recorded suite map, and the run list `le functional select` answers from it.
+#
+# The functional stage asks two questions before it builds anything: which
+# packages this change set reaches, and which packages each suite reached when
+# it last ran. This test drives the second half for real. The fixture writes a
+# map into a scratch checkout, publishes a change set through
+# ZE_VERIFY_SCOPE_PACKAGES, and pins what a gating run would then start.
+#
+# It proves the SELECTION and nothing about the RECORDING. A map written by a
+# fixture is not an instrumented run's observation, and treating it as one would
+# be a scenario that passes against a map nobody ever produced. What a suite
+# reached is asserted by the reduction's own tests
+# (`internal/le/functional/reach_test.go`).
+#
+# The three widening branches are what carry the safety argument, so each one is
+# a scenario of its own. A package the map never recorded, a package a commit
+# touched since the recording, and no map at all each run every suite, and each
+# one says which condition it met. A map that narrowed on a reason it could not
+# check is the failure this test exists to catch, and reading `narrowed` alone
+# would not catch it: `unknown-package-runs-every-suite-and-is-named` also
+# requires the answer to name the package.
+#
+# `operator-skip-outranks-the-map` is the fourth. ZE_SKIP_SUITES is read before
+# the map, so a recorded set can subtract a suite and can never add back one the
+# operator removed.
+
+option=timeout:value=180s
+
+
+
+
+cmd=foreground:seq=1:exec=ze-test fixture runner/verify-scope-suite-map
+expect=exit:code=0
+expect=stdout:contains=map-narrows-to-the-suites-that-reached-the-package
+expect=stdout:contains=unknown-package-runs-every-suite-and-is-named
+expect=stdout:contains=operator-skip-outranks-the-map
+expect=stdout:contains=a-commit-since-the-recording-makes-the-package-unknown
+expect=stdout:contains=an-absent-map-runs-every-suite

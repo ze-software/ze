@@ -15,6 +15,47 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// SuiteSelectionReport is the run list a gating run would start for this
+// checkout: what the suite map answered, which suites run, and which are absent
+// for which of the two reasons.
+//
+// The two absences are separate fields because they are separate decisions.
+// ZE_SKIP_SUITES is the operator's, and it outranks the map. RuledOut is the
+// map's, and it is empty whenever the run could not narrow.
+type SuiteSelectionReport struct {
+	// Reason is the sentence the suite map answered with, printed whether the
+	// run narrowed or widened.
+	Reason string `json:"reason"`
+	// Narrowed says the map ruled a suite out. A false answer means every
+	// gating suite the operator left in runs, whatever the change set holds.
+	Narrowed bool `json:"narrowed"`
+	// Running, Skipped and RuledOut name the three states a gating suite can be
+	// in, in the gating list's own order.
+	Running  []string `json:"running"`
+	Skipped  []string `json:"skipped"`
+	RuledOut []string `json:"ruled-out"`
+}
+
+// Text renders the run list for a person, which is what the gating run prints
+// before its first suite starts.
+func (s SuiteSelectionReport) Text() string {
+	var tb textbuf.Buffer
+	// The reason is a whole sentence about the map, and several of them are the
+	// reader's own refusals, which already open with the package name. A second
+	// prefix here would double it.
+	tb.Str(s.Reason).Byte('\n')
+	tb.Int(int64(len(s.Running))).Str(" suite(s) run: ").Join(s.Running, " ").Byte('\n')
+	if len(s.RuledOut) > 0 {
+		tb.Str("the suite map rules out ").Int(int64(len(s.RuledOut))).Str(" suite(s): ").
+			Join(s.RuledOut, " ").Byte('\n')
+	}
+	if len(s.Skipped) > 0 {
+		tb.Str("ZE_SKIP_SUITES leaves out ").Int(int64(len(s.Skipped))).Str(" suite(s): ").
+			Join(s.Skipped, " ").Byte('\n')
+	}
+	return tb.String()
+}
+
 // GatingReport is one gating run.
 type GatingReport struct {
 	// SuiteTotal is the denominator every progress line read, which is the

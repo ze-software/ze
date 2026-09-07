@@ -9,6 +9,7 @@ Functional tests exercise release-gate behavior across BGP wire encoding and dec
 ```bash
 # Quick start
 ./le functional gating             # Run all release-gate suites
+./le functional select             # Which suites a gating run would start, and why
 ./le functional encode             # Encoding tests only
 ./le functional plugin             # Plugin tests only
 ./le functional reload             # Reload tests only
@@ -81,20 +82,30 @@ by one piece and CI runs the six pieces on six shards. The rules, the four
 inputs that widen the scope back to 38, and the measured cost are
 [`architecture/testing/verify-freshness-scope.md`](architecture/testing/verify-freshness-scope.md).
 
-Suite selection is NOT scoped yet: every functional suite runs on every verify,
-whatever the change set says. `go list -deps ./cmd/ze` links 562 of the module's
-646 packages, so no static signal attributes a `.ci` file to a package.
-`plan/spec-verify-scope-5-suite-coverage-map.md` derives that map by observing
-which packages each suite reaches.
+Suite selection is scoped by the SUITE MAP. `go list -deps ./cmd/ze` links 562
+of the module's 646 packages, so no static signal attributes a `.ci` file to a
+package: the map is derived instead, by observing which packages each suite
+reaches when it runs.
 
-The gating run already consults that map, and today every answer is the wide
-one. `selectSuites` (`internal/le/functional/suitemap.go`) reads
-`tmp/ze-suite-map.json`, validates it, and answers `verdictEverySuite`: no
-change set is compared against it yet. The reader's fail-open rule is
+`selectSuites` (`internal/le/functional/suitemap.go`) reads
+`tmp/ze-suite-map.json` and intersects it with the change set. A suite runs when
+the map records it as reaching a changed package, and it also runs when the map
+does not name it at all. Every route that cannot answer widens to every suite:
+an absent or malformed map, a package the map never recorded, a package a commit
+has touched since the recording, and a change-set selector that refused the
+checkout. The full rule and the reason for each branch are
 [`architecture/testing/verify-freshness-scope.md`](architecture/testing/verify-freshness-scope.md).
-<!-- source: internal/le/functional/suitemap.go -- suiteMap, selectSuites -->
+<!-- source: internal/le/functional/suitemap.go -- suiteMap, selectSuites, suitesFor -->
 
-A gating run under `ZE_COVER=1` WRITES that artifact. Each suite records into
+`./le functional select` prints the run list a gating run would start for this
+checkout, and runs nothing. It names the suites that run, the suites the map
+ruled out, and the suites `ZE_SKIP_SUITES` left out, and it says which package
+it could not answer for when the run widened.
+<!-- source: internal/le/functional/actions.go -- selectVerb -->
+
+A gating run under `ZE_COVER=1` WRITES that artifact, and it runs every suite
+whatever the map says: only a run of every gating suite may publish, so a
+recording run that narrowed could never refresh the map. Each suite records into
 its own `GOCOVERDIR`, and `reduceCoverage` (`internal/le/functional/run.go`)
 reduces the directory to the packages that suite REACHED: a package it covered
 outside `register.go` and outside every `func init()` body. A suite that records
@@ -119,7 +130,7 @@ before presenting work as complete.
 <!-- source: internal/le/verify/engine/stages.go -- StagesForMode -->
 <!-- source: internal/le/verify/deps/actions.go -- Actions -->
 <!-- source: internal/le/repository/actions.go -- Answer -->
-<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
+<!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 <!-- source: internal/le/job/answer.go -- Answer -->
 <!-- source: internal/le/verify/status/answer.go -- Answer -->
 <!-- source: internal/le/staticcheckfeaturematrix/actions.go -- Answer -->
@@ -843,7 +854,7 @@ failure index. Use
 `tmp/ze-verify.log` only when the whole combined run is needed.
 Automation should read `tmp/ze-verify-failures.json`.
 <!-- source: internal/le/testunit/actions.go -- Actions -->
-<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
+<!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 
 ---
 

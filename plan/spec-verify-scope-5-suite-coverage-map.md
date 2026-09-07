@@ -104,7 +104,7 @@ which mode produces the map.
 |----------|-----|----------|
 | make ↔ instrumented binary | `-cover` at the build site, `GOCOVERDIR` per suite | No |
 | Suite run ↔ map | `go tool covdata` over the suite's directory | No |
-| Map ↔ functional stage | the derived artifact, read to compute `ZE_SKIP_SUITES` | No |
+| Map ↔ functional stage | the derived artifact, read to subtract from the run list | Yes |
 
 ### Integration Points
 - `Prepare` (`internal/le/functional/binaries.go`) and `(*Runner).Build` - the two binary producers.
@@ -308,7 +308,7 @@ box carried a load average of 20 to 60 across 32 cores for every `encode` and
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | `./le functional` | → | the per-suite `GOCOVERDIR` export in `runGating` | `TestEverySuiteRecordsACoverageProfile` |
-| a recorded map plus a package answer | → | the computed `ZE_SKIP_SUITES` | `TestSuiteSelectionSkipsOnlyUnreachedSuites` |
+| a recorded map plus a package answer | → | the run list `gatingRunList` computes | `TestSuiteSelectionSkipsOnlyUnreachedSuites` |
 | an absent or stale map | → | the fail-open branch | `TestAbsentMapRunsEverySuite` |
 | `./le rfc check` | → | `functionalSuitesFromGo` reading `Gating` | `test_functional_tier_is_unchanged_by_selection` |
 
