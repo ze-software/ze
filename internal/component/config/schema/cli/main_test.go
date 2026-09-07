@@ -13,22 +13,45 @@ import (
 )
 
 // captureStdout runs fn and returns whatever it wrote to os.Stdout.
+//
+// The reader MUST run while fn writes. A pipe holds 64 KiB on Linux, so reading
+// only after fn returned deadlocks fn the moment it writes more than that, and
+// one schema dump passes the bound: ze-bgp-conf.yang reached 84,229 bytes at
+// bdba58c05e, after which TestPrintedSchemaFormsStillRender/show hung for its
+// whole budget with the writer parked in os.File.Write offering 84,230 bytes.
+// The test read as a slow test rather than a broken one, so every run of this
+// package paid the full timeout.
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("pipe: %v", err)
 	}
+
+	// The reader owns r until it sends. Its stop path is w.Close() below, which
+	// ends the ReadAll; fn cannot outlive this helper, so neither can it.
+	type capture struct {
+		text string
+		err  error
+	}
+	drained := make(chan capture, 1)
+	go func() {
+		text, readErr := io.ReadAll(r)
+		drained <- capture{text: string(text), err: readErr}
+	}()
+
 	old := os.Stdout
 	os.Stdout = w
 	fn()
 	w.Close() //nolint:errcheck,gosec // test cleanup
 	os.Stdout = old
-	out, err := io.ReadAll(r)
-	if err != nil {
-		t.Fatalf("read pipe: %v", err)
+
+	out := <-drained
+	r.Close() //nolint:errcheck,gosec // test cleanup
+	if out.err != nil {
+		t.Fatalf("read pipe: %v", out.err)
 	}
-	return string(out)
+	return out.text
 }
 
 // TestRunNoArgs verifies missing args returns exit code 1.
