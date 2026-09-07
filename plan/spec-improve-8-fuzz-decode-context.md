@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-09-05 |
 
 Anchor refresh (2026-07-22 plan review, design unchanged and implementable):
 `ParseEVPN` drifted 187 -> 191 (`evpn/types.go`); all other cites verified
