@@ -1,0 +1,9 @@
+# must-fail: unknown expect type "stdoutt"
+#
+# One typo below the action word. The action is read, the TYPE is not, and the
+# assertion is the whole point of the line, so a runner that shrugs here runs a
+# test that asserts nothing.
+
+option=timeout:value=20s
+cmd=foreground:seq=1:exec=/bin/echo hello
+expect=stdoutt:contains=hello

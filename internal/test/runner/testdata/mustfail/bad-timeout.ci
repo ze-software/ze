@@ -1,0 +1,10 @@
+# must-fail: invalid timeout="15sec"
+#
+# Both readers of a cmd= timeout keep their own default when the value does not
+# parse (resolveOrchestratedTimeout, startBackgroundLifetime), so a value that
+# is not a Go duration buys the test a budget it never declared. It is refused
+# where the author can be told.
+
+option=timeout:value=20s
+cmd=foreground:seq=1:exec=/bin/echo hello:timeout=15sec
+expect=exit:code=0

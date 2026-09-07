@@ -1,0 +1,14 @@
+# must-fail: stdout unexpectedly contains "piped-marker"
+#
+# This one fails at RUN time, and it is the mirror of the defect this suite was
+# written for. The block IS piped, /bin/cat writes it back, and the reject= then
+# fires: the failure is the proof. A runner that stops piping the block makes
+# this file PASS, which is what the gate around it watches for.
+
+option=timeout:value=20s
+
+stdin=payload:text=piped-marker
+
+cmd=foreground:seq=1:exec=/bin/cat:stdin=payload
+expect=exit:code=0
+reject=stdout:contains=piped-marker

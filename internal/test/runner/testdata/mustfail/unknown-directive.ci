@@ -1,0 +1,9 @@
+# must-fail: unknown action "exepct"
+#
+# The runner must refuse a directive word no arm reads. Delete the gate in
+# parseLine and this file parses clean, with its only assertion dropped: that is
+# the state twenty lines across nine files were in before the parse suite grew
+# the same refusal.
+
+option=timeout:value=20s
+exepct=stdout:contains=ze

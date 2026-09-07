@@ -366,6 +366,35 @@ changing daemon source, run the owning `./le functional <suite>` action once
 (`internal/le/functional.Prepare` rebuilds the pair) before trusting a verdict:
 otherwise a fixed bug still reproduces against the stale binary.
 
+## The must-fail suite
+
+`internal/test/runner/testdata/mustfail/` holds one `.ci` per refusal or
+judgement the runner owes, and every one of them MUST fail.
+`TestCIMustFailFixturesAllFail` parses each fixture, runs it when it parses, and
+fails the build when one PASSES, naming it.
+
+Each fixture states the failure it expects on a `# must-fail: <text>` line, and
+the gate compares that text against the parse error or against `rec.Error`. A
+fixture that goes red for a NEW reason therefore fails the gate as loudly as one
+that goes green: a must-fail suite that stops discriminating is the same defect
+one level up.
+
+It exists because the runner has produced the same class four times in one week:
+a `.ci` reading green while asserting nothing, because the runner answered a
+directive it did not understand instead of refusing it. No static check finds
+that in general. The file is well formed and the assertion is real, and only the
+STIMULUS is wrong. The one general detector is a forced red, and the only way to
+keep a forced red is to store it.
+
+Four fixtures are parse-time refusals, which is where three of the four known
+instances lived. Two run a real child from `/bin`, so they judge the run path:
+that a named `stdin=` block reaches the child's standard input, and that a
+declared `expect=exit:code=` is still compared. Neither needs a built `ze`. The
+`ze`-specific stdin routing is proven by `TestCIStdinPipesForNonDaemonZeCommand`
+over `routeStdinBlock` instead, because reaching it from a `.ci` needs the
+binary.
+<!-- source: internal/test/runner/must_fail_test.go -- TestCIMustFailFixturesAllFail, mustFailMarker -->
+
 ## Per-step trace output
 
 The `.ci`, editor, and web execution paths record `trace.StepResult` slices.

@@ -1,0 +1,10 @@
+# must-fail: cmd=foreground: unknown key "env"
+#
+# A marker parser runs each value to the next KNOWN key, so an unknown key is
+# not dropped, it is swallowed into the value before it: without the refusal
+# this line's timeout= holds "20s:env=ZE_ANYTHING=1" and the file still runs.
+# test/plugin/forward-write-deadline.ci was exactly this line for a year.
+
+option=timeout:value=20s
+cmd=foreground:seq=1:exec=/bin/echo hello:timeout=20s:env=ZE_ANYTHING=1
+expect=exit:code=0

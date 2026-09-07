@@ -1,0 +1,10 @@
+# must-fail: expected exit code 0, got 1
+#
+# The anchor of the suite: it asserts nothing about a directive, only that the
+# runner still judges what it declared. /bin/false exits 1 against a declared 0.
+# A runner that stops evaluating expect=exit:code= turns this file green, and
+# every .ci that rests on an exit code with it.
+
+option=timeout:value=20s
+cmd=foreground:seq=1:exec=/bin/false
+expect=exit:code=0
