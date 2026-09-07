@@ -1,0 +1,73 @@
+# Test: ze config fmt -w - is a pipeline stage. It writes the formatted config
+# to standard output, always, even when the input needed no change.
+#
+# VALIDATES: a stdin-only OUTPUT route is reachable from a .ci. With a real
+#   path, `-w` rewrites the file in place, prints "Formatted: <path>" on stderr
+#   and writes nothing when the input already agrees with the serializer. With
+#   "-" it emits the config on stdout every time (cmdFmt,
+#   internal/component/config/cli/cmd_fmt.go).
+# PREVENTS: the branch being unreachable. The runner replaced the verb's own "-"
+#   with a file path until 2026-09-07, so this ran the in-place arm against a
+#   file and no .ci could assert the pipeline arm at all.
+#
+# Every stream assertion is FILE-level, over the concatenated output of both
+# commands (docs/architecture/testing/ci-format.md). So each needle here is
+# unique to the command it sits under: seq=1 carries 127.0.0.1 and 1.2.3.4,
+# seq=2 carries 127.0.0.2 and 5.6.7.8. Each command asserts its own exit code
+# with exit=, because expect=exit:code= reaches only the last one.
+#
+# Discrimination, one assertion per property of the branch:
+#   seq=1 pipes a mis-indented config whose `remote { ip ... }` block the
+#     serializer collapses to one `remote ip ...` line. That line is in no
+#     input, so the assertion fails against a command that echoes stdin.
+#   seq=2 pipes a config that is ALREADY formatted, so `hasChanges` is false.
+#     The in-place arm writes nothing at all in that case.
+#   the reject names the note the in-place arm prints for the changed input of
+#     seq=1, which a pipeline stage never emits.
+#   Delete the `cliio.IsStdin(configPath)` arm of cmdFmt, so the in-place arm
+#   runs, and the seq=2 assertion and the reject both go red.
+
+stdin=unformatted:terminator=EOF_UNFORMATTED
+bgp {
+peer peer1 {
+connection {
+remote {
+ip 127.0.0.1
+}
+}
+
+session {
+asn {
+local 65000
+remote 65001
+}
+router-id 1.2.3.4
+}
+}
+}
+EOF_UNFORMATTED
+
+stdin=formatted:terminator=EOF_FORMATTED
+bgp {
+	peer peer2 {
+		connection {
+			remote ip 127.0.0.2
+		}
+		session {
+			asn {
+				local 65010
+				remote 65011
+			}
+			router-id 5.6.7.8
+		}
+	}
+}
+EOF_FORMATTED
+
+cmd=foreground:seq=1:exec=ze config fmt -w -:stdin=unformatted:exit=0
+expect=stdout:contains=remote ip 127.0.0.1
+
+cmd=foreground:seq=2:exec=ze config fmt -w -:stdin=formatted:exit=0
+expect=stdout:contains=router-id 5.6.7.8
+
+reject=stderr:contains=Formatted

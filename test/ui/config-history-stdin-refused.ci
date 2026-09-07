@@ -1,0 +1,40 @@
+# Test: ze config history - is refused, and the message says why.
+#
+# VALIDATES: a stdin-only NEGATIVE assertion is reachable from a .ci. History
+#   lists the rollback/ revisions stored beside a config file, and a config read
+#   from standard input has none, so cmdHistory (internal/component/config/cli/
+#   cmd_history.go) refuses the "-" by name before it opens a store.
+# PREVENTS: the branch being unreachable. The runner replaced the "-" with a
+#   path, so history ran against a real file and the refusal could not be
+#   asserted from any .ci at all.
+#
+# Discrimination: delete the cliio.IsStdin guard in cmdHistory and this test goes
+#   red, because the command then opens the substituted path and exits 0 with a
+#   revision list. Exit 2 is exitError (internal/component/config/cli/main.go).
+#   The exit code alone does NOT discriminate: history against a substituted
+#   path also exits 2, and that arm was measured passing the exit assertion
+#   while the stderr line was absent. The stderr assertion is what makes this
+#   test about the stdin refusal.
+
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config history -:stdin=config
+expect=exit:code=2
+expect=stderr:contains=history needs on-disk revision history
