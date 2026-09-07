@@ -155,7 +155,7 @@ one are unchanged.
 |----------|--------|
 | What breaks if this is wrong? | Nothing on the wire. The failure mode is a wrong or missing report for `request commit end` and `request commit eor`, and a status that fails a script that used to pass. |
 | How is it reverted? | Single commit revert. No config migration, no persisted state, no peer-visible change. |
-| Who else touches this path? | A concurrent session is editing `reactor_api_batch.go` for the RFC 8669 Prefix-SID egress boundary. `plan/spec-rib-package-dead-surface.md` names `SendRoutes` in its wiring table. |
+| Who else touches this path? | A concurrent session is editing `reactor_api_batch.go` for the RFC 8669 Prefix-SID egress boundary. `spec-rib-package-dead-surface`, closed 2026-09-07, named `SendRoutes` in its wiring table. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
