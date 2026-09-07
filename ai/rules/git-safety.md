@@ -12,6 +12,8 @@
 
 **A finished chunk MUST be committed when it finishes, not when the session does, and one commit carries one logical change (owner directive, 2026-08-21).** The question after each piece of work is "does this stand on its own", never "am I finished for the day". A defect fix, a rule change, a gate repair and a spec's implementation are four commits, and the first three MUST NOT wait behind the fourth's review gate.
 
+**A file carrying another session's hunks MUST NOT be left out of your commit unless you have SHOWN that session is still running, and the check is whether its `tmp/session/<date>-<id>/` directory is still being written.** Leaving it out is a claim about a future you did not verify: that somebody else will commit it. Two sessions reading "leave another session's work alone" both defer, and the change then belongs to nobody and reaches no commit. Where the holder is gone, the work LANDS, under a subject that says whose hunks it carries; where you cannot tell whose it is, ask the owner rather than deferring by default. Deferring is correct only while a live session is going to commit it, and "modified by someone else" is the reason to look, never the answer.
+
 **A branch MUST NOT be changed, created, deleted, renamed or integrated from a tool call: stay on the branch you started on and ask the user to move it.** When the user integrates a worktree branch it lands on main via `git rebase <branch>`, never `git merge`, so history stays linear.
 
 **`--no-gpg-sign`, `-c commit.gpgsign=false` and `--no-verify` MUST NOT be used, and a hook MUST NOT be disabled to make a commit pass.** What to do when signing fails is `docs/contributing/committing.md`.

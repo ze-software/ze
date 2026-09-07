@@ -7,6 +7,7 @@ directives ## Directives
   commit-only-through-the-native-command
   push-only-on-the-owners-order
   land-each-chunk-as-it-finishes
+  never-defer-a-shared-file-to-an-absent-session
   stay-on-your-branch-and-integrate-by-rebase
   never-disable-gpg-signing-or-a-hook
   use-gh-for-pull-requests-and-issues
