@@ -210,7 +210,6 @@ func (s *shaperPlugin) applyTC(ifaceName string, qdiscType traffic.QdiscType, do
 		return errNoTrafficBackendLoadedConfigureTraffic
 	}
 
-	rateBps := downloadBps
 	qos := traffic.InterfaceQoS{
 		Interface: ifaceName,
 		Qdisc: traffic.Qdisc{
@@ -224,15 +223,15 @@ func (s *shaperPlugin) applyTC(ifaceName string, qdiscType traffic.QdiscType, do
 		qos.Qdisc.Classes = []traffic.TrafficClass{
 			{
 				Name: defaultClassName,
-				Rate: rateBps,
-				Ceil: rateBps,
+				Rate: downloadBps,
+				Ceil: downloadBps,
 			},
 		}
 	} else {
 		qos.Qdisc.Classes = []traffic.TrafficClass{
 			{
 				Name: defaultClassName,
-				Rate: rateBps,
+				Rate: downloadBps,
 			},
 		}
 	}

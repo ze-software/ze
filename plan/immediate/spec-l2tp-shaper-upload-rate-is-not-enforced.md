@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | plugin |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-09-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -527,3 +527,191 @@ CoA path now carries out the authorization change it already acknowledged.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `traffic.Policer`, `NewPolicer`, `PolicerBurstBytes`, `Policer.Set`, `Policer.Validate`, and `InterfaceQoS.Ingress` (`internal/component/traffic/model.go`). The data model can now express the upload direction, which it could not before.
+- `traffic.ParseFilterIDRate` (`internal/component/traffic/filterid_rate.go`): the one reader of a RADIUS Filter-Id rate, shared by the shaper and the CoA listener.
+- The tc ingress policer (`internal/plugins/traffic/netlink/policer_linux.go`): `ingressClsactQdisc`, `ingressPolicerFilter`, `(*backend).applyIngressPolicer`, `(*backend).removeIngressPolicer`, `isPolicerAbsent`. It adds the shared `clsact` qdisc rather than replacing it, installs a `matchall` filter carrying a `police` action at priority 200, and clears only that priority on teardown.
+- `qdiscAdd` and `filterDel` on the `tcOps` seam (`ops_linux.go`), called from `applyInterface` and `restoreOriginalLocked` (`backend_linux.go`).
+- The VPP refusal: `errIngressPolicerNotSupportedByBackend` at verify (`vpp/verify.go`) and at apply (`vpp/backend_linux.go`), and `vpp/translate.go`'s `burstBytes` became a caller of `traffic.PolicerBurstBytes` rather than a second copy of the derivation.
+- `(*shaperPlugin).applyTC` takes both rates and programs both directions; `onSessionUp`, `onSessionRateChange` and `handleSubscriberSessionUp` each pass an upload rate, and `shaperConfig.uploadRateOrDefault` applies the leaf's documented default.
+- `extractRates` and `extractVSARates` (`authradius/coa.go`, `extract_vsa.go`) return both directions, `mikrotikRateToFilterID` writes both halves, and `pppoe/subsystem.go` became the first producer of `subscriber.Session.DownloadRate` and `.UploadRate`.
+
+### Bugs Found/Fixed
+- **The CoA listener refused the value the Access-Accept path accepts.** `extractRate` open-coded `traffic.ParseRateBps` over the whole Filter-Id, so `rate:20mbit/5mbit` parsed at login and answered CoA-NAK mid-session. Fixed by making `traffic.ParseFilterIDRate` the one reader; covered by `TestExtractRatesReadsAsymmetricFilterID`.
+- **`subscriber.Session.UploadRate` had no producer.** Every PPPoE session handed the shaper a zero upload rate. Fixed in `pppoe/subsystem.go`; covered by `TestPPPoESessionUpCarriesRadiusRates`.
+- **`ParseRateBps` multiplied before it bounded** (`internal/component/traffic/config.go`), found by this closure's security review. `ParseRateBps("18446744074gbit")` returned `290448384, nil`: a plausible 290 Mbit/s that every downstream bound accepts, reachable from any RADIUS server that writes a Filter-Id or a MikroTik Rate-Limit. Fixed here by comparing the stated number against `math.MaxUint64/rs.mult` before the multiply; covered by `TestParseRateBpsRefusesOverflowingRate`, whose RED was observed with the guard disabled.
+
+### Documentation Updates
+- `docs/guide/l2tp.md`, Traffic shaping: both directions, the mechanism for each, and the accepted Filter-Id forms (`2be6e0b19`).
+- `docs/architecture/core-design.md`, the traffic-model section: `InterfaceQoS` carries both directions, and the tc and VPP answers. Landed in `e6ef65b0d` because another session held an unrelated hunk in that file when `2be6e0b19` was prepared. Anchor: `<!-- source: internal/plugins/traffic/netlink/policer_linux.go -- ingress policer translation, priority allocation, teardown -->`.
+- `docs/architecture/l2tp/cos-vendor-radius.md`, `bng-1-radius-attributes.md`, `bng-5-pppoe.md`, `docs/architecture/traffic/fw-7-traffic-vpp.md`, `tc-original-qdisc-restore.md` (`2be6e0b19`), each named by a `<!-- source: -->` anchor on a changed file.
+- `./le doc check verify` fails on 3939 findings, none of them from this change: the BGP command surface, the `docs/DESIGN.md` Shipped Plugins table, and the published `../gh-pages/reference/command-equivalents/` tree. Grepped for `l2tp|shaper|policer|component/traffic`: 86 hits, all under `../gh-pages/`, all about `show l2tp` commands this change did not touch.
+
+### Deviations from Plan
+- The `docs/architecture/core-design.md` edit shipped in a second commit (`e6ef65b0d`) rather than in `2be6e0b19`, because a concurrent session held an unrelated hunk in that file. The page is at HEAD and carries the anchor.
+- Two comment citations of this spec's PATH (`internal/component/l2tp/plugins/shaper/filter_rate_test.go`, `internal/plugins/traffic/vpp/verify.go`) were restated as the bare stem at closure, because commit B removes the file the path names.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | The Security Review Checklist asserted "`traffic.ParseRateBps` bounds the value", and the design rested on it: `ingressPolicerFilter` refuses a rate above the kernel's maximum, which only helps if the number reaching it is the number the RADIUS server stated | `ParseRateBps` multiplied the parsed count by the suffix with no check, so a large count wrapped modulo 2^64 into a small plausible rate that every later bound accepts | this closure's security review, by reading the producer rather than the checklist row | fixed at the source, both polarities tested, row in `plan/journal/bound-wraps-before-it-refuses.md` |
+| approach | `./le integration traffic` was taken as evidence that the policer reaches a real kernel | The action carries no `-v`, so it reports green over two tests that SKIP for want of CAP_NET_ADMIN. Both PASS under `sudo -n` | ran the two tests by name with `-v` before quoting the green | evidence re-taken under privilege, row in `plan/journal/gate-verdict-depends-on-the-machine.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| An interface enforces the upload rate | Done | `(*backend).applyIngressPolicer`, `internal/plugins/traffic/netlink/policer_linux.go` | matchall + police on the clsact ingress hook |
+| Both callers of `applyTC` pass the upload rate | Done | `onSessionUp`, `handleSubscriberSessionUp`, `onSessionRateChange`, `internal/component/l2tp/plugins/shaper/shaper.go` | all three, not two: the rate-change path was the third |
+| The RADIUS Filter-Id upload half reaches an interface | Done | `traffic.ParseFilterIDRate`, `internal/component/traffic/filterid_rate.go` | one reader for the shaper and the CoA listener |
+| `show l2tp shaper` stops reporting an unenforced rate | Done | `(*shaperPlugin).showSessions`, `shaper.go` | the `upload-rate-bps` key is unchanged and is now enforced, which is what the owner decision required |
+| The mechanism choice is settled and not duplicated | Done | Owner Decision, route A | `plan/to-review/spec-l2tp-12-xdp-policing.md` is the rejected alternative and is untouched |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestSessionUpEnforcesUploadRate`, `TestIngressPolicerFilterCarriesRateAndDrop`, `TestApplyInstallsIngressPolicer` | |
+| AC-2 | Done | `TestSessionUpFallsBackToDefaultRateForUpload` | `shaperConfig.uploadRateOrDefault` |
+| AC-3 | Done | `TestSessionUpEnforcesRadiusUploadHalf`, `TestFilterIDRateReachesBothDirections` | |
+| AC-4 | Done | `TestSubscriberSessionUpEnforcesUploadRate`, `TestSubscriberSessionUpFallsBackToConfiguredUploadRate`, `TestPPPoESessionUpCarriesRadiusRates` | |
+| AC-5 | Done | `TestExtractRatesReadsAsymmetricFilterID`, `TestRateChangeUpdatesUploadRate` | |
+| AC-6 | Done | `TestRateChangeKeepsUploadRateWhenPayloadOmitsIt` | |
+| AC-7 | Done | `TestRestoreOriginalRemovesPolicerButKeepsHook`, `TestNetlinkIntegration_IngressPolicerLeavesOtherHookOwnersAlone` | |
+| AC-8 | Done | `TestApplyWithoutIngressPolicerTouchesNoIngressHook` | |
+| AC-9 | Done | `TestIngressPolicerFilterRefusesUnrepresentableRate`, and `TestParseRateBpsRefusesOverflowingRate` for the parser that feeds it | the second test was added at closure; without it the bound was reachable with a wrapped number |
+| AC-10 | Done | `TestVerifyRejectsIngressPolicer`, `TestVerifyAcceptsAbsentIngressPolicer` | |
+| AC-11 | Done | `TestExtractRatesKeepsMikrotikUploadHalf`, `TestAccessAcceptKeepsMikrotikUploadHalf`, `TestExtractAuthMetadataMikrotikRate` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Every row of the Unit Tests table | Done | as named in that table | all present and PASS in the closure run of the five packages: 440 PASS, 0 FAIL, 0 SKIP |
+| `TestNetlinkIntegration_IngressPolicerReachesTheKernel` | Done | `internal/plugins/traffic/netlink/integration_linux_test.go` | PASS under `sudo -n`; SKIPs unprivileged, which is what the Mistake Log row records |
+| `TestNetlinkIntegration_IngressPolicerLeavesOtherHookOwnersAlone` | Done | same | PASS under `sudo -n` |
+| `shaper-upload-rate` | Done | `test/l2tp/shaper-upload-rate.ci` | PASS, case 26 of `./le functional l2tp` |
+| `TestParseRateBpsRefusesOverflowingRate` | Changed | `internal/component/traffic/config_test.go` | not in the plan; added by this closure's security review |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every file in Files to Modify | Done | `docs/architecture/core-design.md` landed in `e6ef65b0d`; the rest in `2be6e0b19` |
+| Every file in Files to Create | Done | `filterid_rate.go`, `policer_linux.go`, `test/l2tp/shaper-upload-rate.ci` all exist |
+| `internal/component/l2tp/plugins/shaper/filter_rate.go` | Done | removed, as planned |
+| `internal/component/traffic/config.go`, `config_test.go` | Changed | not in the plan; the `ParseRateBps` overflow guard the security review found |
+
+### Audit Summary
+- **Total items:** 11 AC, 5 Task requirements, 32 planned tests, 24 planned files
+- **Done:** all of them
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** 2, both recorded in Deviations and in the Mistake Log: the `core-design.md` page landed in a second commit, and the `ParseRateBps` overflow guard was added beyond the plan
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The configured `upload-rate` is enforced by an interface, not merely stored and shown | functional + kernel integration | `test/l2tp/shaper-upload-rate.ci` PASS (case 26, `./le functional l2tp`, 25/25 pass) carries the operator's config to the plugin; `TestNetlinkIntegration_IngressPolicerReachesTheKernel` PASS under `sudo -n` reads the `police` action back off a real ingress hook |
+| A RADIUS-authorized upload rate reaches the same interface | functional + unit over the entry point | `TestFilterIDRateReachesBothDirections` drives the shaper's own session-up path with `rate:20mbit/5mbit` and asserts both halves reach an interface; `TestPPPoESessionUpCarriesRadiusRates` does it for the PPPoE access type |
+| A mid-session CoA changes both directions rather than being NAK'd | unit over the CoA entry point | `TestExtractRatesReadsAsymmetricFilterID` (the value that was NAK'd) plus `TestRateChangeUpdatesUploadRate` and `TestRateChangeKeepsUploadRateWhenPayloadOmitsIt` |
+| The shared kernel hook keeps its other owners | kernel integration | `TestNetlinkIntegration_IngressPolicerLeavesOtherHookOwnersAlone` PASS under `sudo -n`: a foreign filter at another priority survives install and teardown |
+| One mechanism serves both access types, not two | design + test | `applyTC` is the single programmer for L2TP and PPPoE (`TestSessionUpEnforcesUploadRate` and `TestSubscriberSessionUpEnforcesUploadRate` reach it from the two different entry points). Route B stays unimplemented and is named as rejected |
+| A backend that cannot enforce it refuses rather than half-programs | unit, both polarities | `TestVerifyRejectsIngressPolicer` and `TestVerifyAcceptsAbsentIngressPolicer` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | Every AC has product code and a passing test. The three Known Limitations are decisions the owner took, not in-scope items left undone: the VPP ingress policer is refused by design (AC-10), the tc priority allocation stays declared per package because one shared declaration touches three plugins that this spec does not own, and `show l2tp shaper` reports the shaper's own state by design, with the kernel read covered by the integration test | -- |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/l2tp-shaper-upload-rate-is-not-enforced-d64e7b3f-bfdc-4614-8db4-f12043eb77cc.md`, 6 files, verdict=clean |
+| `./le spec session review check` | `review_gate: OK (5 code files, clean, hashes match ...)` |
+| Rounds | 2. Round 1 read the complete diff of `2be6e0b19` plus the closure edits and found one ISSUE and two NOTEs; round 2 re-read the fixes and re-ran the touched packages and the lint, and found nothing |
+| Reviewer lenses used | untrusted-input and bounds (a RADIUS server writes the rate string); shared-resource ownership (three subsystems on one clsact hook); zero-value-as-guard (`Policer.Set`); wiring from each entry point to the producer; `docs/contributing/ze-go-style.md` step-18 style pass over every changed Go file; closure-deletes-a-cited-document |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The bound at `ingressPolicerFilter` is defeated before it runs. `ParseRateBps` multiplies the parsed count by the suffix with no check, so `"18446744074gbit"` returned `290448384, nil`: a plausible 290 Mbit/s inside every downstream bound. The string comes from a RADIUS server, and the spec's own Security Review Checklist claimed this function bounds the value | `ParseRateBps`, `internal/component/traffic/config.go` | compare the stated count against `math.MaxUint64/rs.mult` before the multiply; `TestParseRateBpsRefusesOverflowingRate` pins the wrapping input and the largest that does not wrap, RED observed with the guard disabled |
+| 2 | NOTE | `rateBps := downloadBps` is an alias with no purpose, left by the rename. Two names for one fact (`docs/contributing/ze-go-style.md`, "State that goes stale") | `(*shaperPlugin).applyTC`, `internal/component/l2tp/plugins/shaper/shaper.go` | the alias is deleted and the three uses read `downloadBps` |
+| 3 | NOTE | Two comments cite this spec by PATH. Commit B removes the file, so `./le doc check links` and `DesignReferences` would resolve a path that is gone | `filter_rate_test.go`, `internal/plugins/traffic/vpp/verify.go` | restated as the bare stem `spec-l2tp-shaper-upload-rate-is-not-enforced`, which keeps the name and drops a resolution promise the tree cannot keep |
+
+Findings NOT fixed, because they are not this change: `./le repository check` reports `ExtractRemovePrivateASOps` (`internal/component/bgp/reactor/filter_delta.go`) has no cross-package non-test caller, in another session's uncommitted hunk. `./le verify lint run` reports roughly 70 findings across `bgp`, `cli`, `ike`, `internal/test/fixture` and `internal/le`, none in a file this spec touches after finding 1's `nestingReduce` was fixed. `./le doc check links` reports 27 broken references and `./le spec citation` 8 dangling ones, none naming this spec or a file it changed.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/traffic/filterid_rate.go` | Yes | `ls -l`: `-rw-rw-r-- 1 thomas thomas 1730 Sep 6 21:37` |
+| `internal/plugins/traffic/netlink/policer_linux.go` | Yes | `ls -l`: `-rw-rw-r-- 1 thomas thomas 7617 Sep 6 21:48` |
+| `test/l2tp/shaper-upload-rate.ci` | Yes | `ls -l`: `-rw-rw-r-- 1 thomas thomas 1649 Sep 6 21:51` |
+| `internal/component/l2tp/plugins/shaper/filter_rate.go` | No, as planned | `ls`: `No such file or directory`; superseded by `traffic.ParseFilterIDRate` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | a policer at the configured rate on the ingress hook | `--- PASS: TestSessionUpEnforcesUploadRate`, `--- PASS: TestApplyInstallsIngressPolicer (0.16s)` |
+| AC-2 | absent leaf falls back to the download rate | `--- PASS: TestSessionUpFallsBackToDefaultRateForUpload` |
+| AC-3 | `rate:20mbit/5mbit` reaches both directions | `--- PASS: TestSessionUpEnforcesRadiusUploadHalf`, `--- PASS: TestFilterIDRateReachesBothDirections` |
+| AC-4 | a PPPoE session gets both mechanisms from the same profile | `--- PASS: TestSubscriberSessionUpEnforcesUploadRate`, `--- PASS: TestPPPoESessionUpCarriesRadiusRates` |
+| AC-5 | CoA-ACK, both directions reprogrammed | `--- PASS: TestExtractRatesReadsAsymmetricFilterID`, `--- PASS: TestRateChangeUpdatesUploadRate` |
+| AC-6 | a download-only CoA keeps the existing upload rate | `--- PASS: TestRateChangeKeepsUploadRateWhenPayloadOmitsIt` |
+| AC-7 | teardown clears the policer and keeps the hook | `--- PASS: TestRestoreOriginalRemovesPolicerButKeepsHook (0.26s)`, and `--- PASS: TestNetlinkIntegration_IngressPolicerLeavesOtherHookOwnersAlone (0.08s)` under `sudo -n` |
+| AC-8 | no upload enforcement leaves the hook untouched | `--- PASS: TestApplyWithoutIngressPolicerTouchesNoIngressHook (0.15s)` |
+| AC-9 | a rate past the kernel's maximum is refused, never truncated | `--- PASS: TestIngressPolicerFilterRefusesUnrepresentableRate`, `--- PASS: TestParseRateBpsRefusesOverflowingRate` |
+| AC-10 | vpp refuses at verify and at apply | `--- PASS: TestVerifyRejectsIngressPolicer`, `--- PASS: TestVerifyAcceptsAbsentIngressPolicer` |
+| AC-11 | a MikroTik `10M/5M` keeps both halves | `--- PASS: TestExtractRatesKeepsMikrotikUploadHalf`, `--- PASS: TestAccessAcceptKeepsMikrotikUploadHalf` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `l2tp { shaper { upload-rate 2mbit; } }` in the operator's config | `test/l2tp/shaper-upload-rate.ci` | Yes. Read the file: it pipes the config into `ze -`, drives `ze-test fixture l2tp/shaper-upload-rate`, and asserts `upload-rate=2000000` on the daemon's own `l2tp-shaper: configured` line, which `runPlugin` writes from `pending.uploadRateOrDefault()`. PASS as case 26 of `./le functional l2tp` |
+| L2TP session-up | -- | Yes. `TestSessionUpEnforcesUploadRate` drives `onSessionUp` and reads `InterfaceQoS.Ingress` off the backend it installs |
+| PPPoE session-up | -- | Yes. `TestSubscriberSessionUpEnforcesUploadRate` drives the registered `subscriber.ShaperHandler` |
+| RADIUS Access-Accept `Filter-Id` | -- | Yes. `TestFilterIDRateReachesBothDirections` stores the metadata and enters through session-up, not through the parser |
+| RADIUS CoA-Request | -- | Yes. `TestExtractRatesReadsAsymmetricFilterID` reads the attributes off a built packet; `TestRateChangeUpdatesUploadRate` carries the payload to `applyTC` |
+| `InterfaceQoS.Ingress` set | -- | Yes. `TestNetlinkIntegration_IngressPolicerReachesTheKernel` reads the `police` action back from a namespace's own tc state |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `--- PASS: TestNetlinkIntegration_IngressPolicerReachesTheKernel (0.23s)` under `sudo -n`. The kernel accepts the matchall + police filter and reports it back |
+| A-2 | confirmed | `--- PASS: TestNetlinkIntegration_IngressPolicerLeavesOtherHookOwnersAlone (0.08s)` under `sudo -n` |
+| A-3 | confirmed | Both access types reach `applyTC`: `--- PASS: TestSessionUpEnforcesUploadRate` and `--- PASS: TestSubscriberSessionUpEnforcesUploadRate`, from two different entry points |
+| A-4 | confirmed | `--- PASS: TestVerifyRejectsIngressPolicer` and `--- PASS: TestVerifyAcceptsAbsentIngressPolicer`, and `applyInterface` carries the same refusal for a caller that bypasses verify |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/guide/l2tp.md` Traffic shaping describes both directions | read against `applyTC` and `uploadRateOrDefault`; the config example was checked against the YANG, which no leaf changed | Yes |
+| `docs/architecture/core-design.md` traffic-model section | the paragraph at the `<!-- source: internal/plugins/traffic/netlink/policer_linux.go -->` anchor names priority 200 behind mirror 1 and sampling 100, which is what `policerFilterPriority` and the two sibling constants say | Yes, at HEAD in `e6ef65b0d` |
+| `docs/architecture/l2tp/cos-vendor-radius.md`: "the MikroTik upload rate is discarded" | falsified by `mikrotikRateToFilterID`, which now writes both halves; the page was edited in `2be6e0b19` | Yes |
+| Categories answered No | `grep -rn ParseRateBps docs/ ai/` returns one hit, in `docs/architecture/l2tp/bng-1-radius-attributes.md`, which describes the open-coded call in the past tense and stays correct after the closure's parser fix. No CLI command, RPC, YANG leaf, plugin, wire format or metric changed, so rows 1-5, 7-8, 10-11, 13-15 stay No | Yes |
+| RFC status row | No RFC-level behavior newly implemented or newly proven. RFC 2865 Section 5.11 and RFC 5176 Section 2.3 were already claimed; the CoA path now carries out the change it already acknowledged | Yes, no `rfc/short/` Meta row edited |
+| `./le doc check verify` | fails on 3939 findings. Grepped for `l2tp|shaper|policer|component/traffic`: 86 hits, every one under `../gh-pages/reference/command-equivalents/` about `show l2tp` and `clear l2tp` commands this change does not touch. None from this spec | Yes, none owed here |
+
+## Core Insight
+
+A config leaf that is parsed, validated, stored and printed passes every signal
+an operator or a reviewer has. Only the producer at the far end says whether
+anything enforces it, and there is no signal at all when the answer is nothing.
+That is why `plan/journal/unwired-feature.md` had already named this exact leaf
+in a sweep two days before the spec was written, and why the sweep found it by
+asking who READS a leaf rather than by asking whether it works.
+
+The mechanism half has its own lesson. The two directions of one subscriber
+interface are not one problem solved twice. Egress owns a queue and can shape by
+delaying a packet; ingress has no queue, so the only enforcement there is to
+drop. A model that carries one `Qdisc` per interface cannot express the second
+one, and the missing enforcement was downstream of that missing field.

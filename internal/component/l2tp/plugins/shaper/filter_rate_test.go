@@ -18,8 +18,7 @@ import (
 // the chain: a RADIUS Access-Accept stores the Filter-Id, session-up reads it,
 // and BOTH halves reach an interface. The download half always did. The upload
 // half was parsed, logged, stored on the session and applied to nothing, which
-// is the defect
-// plan/immediate/spec-l2tp-shaper-upload-rate-is-not-enforced.md closes.
+// is the defect spec-l2tp-shaper-upload-rate-is-not-enforced closed.
 func TestFilterIDRateReachesBothDirections(t *testing.T) {
 	cases := []struct {
 		filterID string

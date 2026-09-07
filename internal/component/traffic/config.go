@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -167,16 +168,28 @@ var rateSuffixes = []struct {
 	{"bps", 8},
 }
 
+// ParseRateBps reads a rate token such as "20mbit" into bits per second.
+//
+// The multiplication is checked because the string can come from a remote
+// party: a RADIUS server writes the rate into a Filter-Id or a MikroTik
+// Rate-Limit, and ParseFilterIDRate hands each half to this function. An
+// unchecked "20000000000gbit" wraps modulo 2^64 into a small number that every
+// downstream bound accepts, so the subscriber is shaped and policed at a rate
+// nobody configured. Refusing names the input; wrapping hides it.
 func ParseRateBps(v string) (uint64, error) {
 	for _, rs := range rateSuffixes {
-		if strings.HasSuffix(v, rs.suffix) {
-			numStr := v[:len(v)-len(rs.suffix)]
-			n, err := strconv.ParseUint(numStr, 10, 64)
-			if err != nil {
-				return 0, fmt.Errorf("invalid rate %q: %w", v, err)
-			}
-			return n * rs.mult, nil
+		if !strings.HasSuffix(v, rs.suffix) {
+			continue
 		}
+		numStr := v[:len(v)-len(rs.suffix)]
+		n, err := strconv.ParseUint(numStr, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("invalid rate %q: %w", v, err)
+		}
+		if n > math.MaxUint64/rs.mult {
+			return 0, fmt.Errorf("invalid rate %q: %d%s overflows a 64-bit bit-per-second count", v, n, rs.suffix)
+		}
+		return n * rs.mult, nil
 	}
 	return 0, fmt.Errorf("invalid rate %q (must end with bit/kbit/mbit/gbit/bps/kbps/mbps/gbps)", v)
 }

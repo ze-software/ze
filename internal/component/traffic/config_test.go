@@ -126,3 +126,27 @@ func TestParseTrafficProtocolRejectsOutOfRange(t *testing.T) {
 		t.Fatal("expected error for protocol value 256")
 	}
 }
+
+// TestParseRateBpsRefusesOverflowingRate pins both polarities of the
+// multiplication guard. A RADIUS server writes the rate string, so the number
+// is remote input: 18446744074gbit wraps modulo 2^64 to 290448384, which is a
+// plausible 290 Mbit/s that every downstream bound accepts. The subscriber
+// would then be shaped and policed at a rate nobody configured, and no error
+// would say so.
+func TestParseRateBpsRefusesOverflowingRate(t *testing.T) {
+	const wrapsTo290Mbit = "18446744074gbit"
+	if got, err := ParseRateBps(wrapsTo290Mbit); err == nil {
+		t.Fatalf("ParseRateBps(%q) = %d, want an error naming the overflow", wrapsTo290Mbit, got)
+	}
+
+	// The largest rate that does not overflow is still accepted, so the guard
+	// refuses the wrap rather than shrinking the range.
+	const largestValid = "18446744073gbit"
+	got, err := ParseRateBps(largestValid)
+	if err != nil {
+		t.Fatalf("ParseRateBps(%q): %v", largestValid, err)
+	}
+	if want := uint64(18_446_744_073_000_000_000); got != want {
+		t.Errorf("ParseRateBps(%q) = %d, want %d", largestValid, got, want)
+	}
+}

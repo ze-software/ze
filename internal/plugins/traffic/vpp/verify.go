@@ -35,9 +35,8 @@ var (
 	// egress output arc and to the ingress policer-classify pipeline for
 	// FILTERED classes only. Accepting the field and programming the egress
 	// half alone would leave the upload rate stored, shown and unenforced,
-	// which is the exact defect
-	// plan/immediate/spec-l2tp-shaper-upload-rate-is-not-enforced.md closes on
-	// the tc side. Rejecting is the exact-or-reject posture the rest of this
+	// which is the exact defect spec-l2tp-shaper-upload-rate-is-not-enforced
+	// closed on the tc side. Rejecting is the exact-or-reject posture the rest of
 	// file takes.
 	errIngressPolicerNotSupportedByBackend = errors.New("ingress policer: not supported by backend vpp (tc polices ingress with a clsact matchall+police filter; the vpp backend binds policers to the egress output arc and to the ingress classify pipeline for filtered classes only, so an interface-wide upload rate has no faithful translation here)")
 	errQdiscPrioNotSupportedByBackend      = errors.New("qdisc prio: not supported by backend vpp (prio is a priority scheduler; VPP has no prio scheduler API, only classify+policer shaping -- use htb/tbf with per-class protocol/dscp filters instead, see plan/spec-followup-vpp-traffic.md AC-4)")
