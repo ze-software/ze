@@ -6,10 +6,44 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// markerSeq is the shared ":seq=" field marker used by the cmd= directive parsers.
-const markerSeq = ":seq="
+// The key vocabulary of a cmd= line. Each key is spelled once, as the marker
+// the parser searches for, and the two lists below are what the runner accepts.
+const (
+	markerSeq     = ":seq="
+	markerExec    = ":exec="
+	markerStdin   = ":stdin="
+	markerTimeout = ":timeout="
+	markerExit    = ":exit="
+	markerName    = ":name="
+	markerSignal  = ":signal="
+)
+
+// cmdExecKeys and cmdStopKeys are the keys each cmd= parser reads, declared
+// once. Every value below is bounded by this list, and checkMarkerKeys refuses
+// a key that is not in it, so what the runner accepts and what the parser reads
+// are one declaration rather than two (ai/rules/principles.md).
+var (
+	cmdExecKeys = []string{markerSeq, markerExec, markerStdin, markerTimeout, markerExit, markerName}
+	cmdStopKeys = []string{markerSeq, markerName, markerSignal}
+)
+
+// markerValue returns the value marker introduces in line, and reports whether
+// the line carries the marker at all. The value ends at the next occurrence of
+// ANY key, marker included, so a key written out of canonical order is never
+// swallowed into the value before it, and a repeated key ends its own value.
+func markerValue(line, marker string, keys []string) (string, bool) {
+	idx := strings.Index(line, marker)
+	if idx < 0 {
+		return "", false
+	}
+	start := idx + len(marker)
+	return line[start:nextMarker(line, start, keys...)], true
+}
 
 // parseCmdExec extracts fields from a cmd=background/foreground line using
 // marker-based parsing. This handles exec= values containing colons correctly.
@@ -17,39 +51,23 @@ const markerSeq = ":seq="
 // Format: cmd=background:seq=N:exec=COMMAND[:stdin=BLOCK][:timeout=DUR][:exit=N][:name=NAME].
 // name= assigns a handle a later cmd=stop directive can reference (see parseCmdStop).
 func parseCmdExec(mode, line string) (RunCommand, error) {
-	seqMarker := markerSeq
-	execMarker := ":exec="
-	stdinMarker := ":stdin="
-	timeoutMarker := ":timeout="
-	exitMarker := ":exit="
-	nameMarker := ":name="
-
-	seqIdx := strings.Index(line, seqMarker)
-	execIdx := strings.Index(line, execMarker)
-
-	if seqIdx < 0 {
-		return RunCommand{}, fmt.Errorf("cmd:%s missing seq=", mode)
-	}
-	if execIdx < 0 {
-		return RunCommand{}, fmt.Errorf("cmd:%s missing exec=", mode)
+	directive := cmdDirective(mode)
+	if err := checkMarkerKeys(directive, line, cmdExecKeys); err != nil {
+		return RunCommand{}, err
 	}
 
-	// Extract seq value: from after ":seq=" to the next known marker or end.
-	seqStart := seqIdx + len(seqMarker)
-	seqEnd := nextMarker(line, seqStart, execMarker, stdinMarker, timeoutMarker, exitMarker, nameMarker)
-	seqStr := line[seqStart:seqEnd]
+	seqStr, ok := markerValue(line, markerSeq, cmdExecKeys)
+	if !ok {
+		return RunCommand{}, fmt.Errorf("%s missing seq=", directive)
+	}
 	seq, err := strconv.Atoi(seqStr)
 	if err != nil || seq < 1 {
-		return RunCommand{}, fmt.Errorf("cmd:%s invalid seq=%q", mode, seqStr)
+		return RunCommand{}, fmt.Errorf("%s invalid seq=%q", directive, seqStr)
 	}
 
-	// Extract exec value: from after ":exec=" to the next known marker or end.
-	// This correctly preserves colons inside the exec value.
-	execStart := execIdx + len(execMarker)
-	execEnd := nextMarker(line, execStart, stdinMarker, timeoutMarker, exitMarker, nameMarker)
-	execVal := line[execStart:execEnd]
-	if execVal == "" {
-		return RunCommand{}, fmt.Errorf("cmd:%s missing exec=", mode)
+	execVal, ok := markerValue(line, markerExec, cmdExecKeys)
+	if !ok || execVal == "" {
+		return RunCommand{}, fmt.Errorf("%s missing exec=", directive)
 	}
 
 	rc := RunCommand{
@@ -58,32 +76,26 @@ func parseCmdExec(mode, line string) (RunCommand, error) {
 		Exec: execVal,
 	}
 
-	// Extract optional stdin=, timeout=, name= and exit= values.
-	if idx := strings.Index(line, stdinMarker); idx >= 0 {
-		start := idx + len(stdinMarker)
-		end := nextMarker(line, start, timeoutMarker, exitMarker, nameMarker)
-		rc.Stdin = line[start:end]
+	rc.Stdin, _ = markerValue(line, markerStdin, cmdExecKeys)
+	rc.Name, _ = markerValue(line, markerName, cmdExecKeys)
+
+	// Both readers of Timeout discard a bad duration in silence
+	// (resolveOrchestratedTimeout takes the test budget from a foreground line,
+	// startBackgroundLifetime takes a background line's lifetime), so the value
+	// is judged HERE, where the author can be told. Every one of the 1,106
+	// timeout= values in the corpus parses; the one that did not was a swallowed
+	// key, which the check above now refuses.
+	if timeout, ok := markerValue(line, markerTimeout, cmdExecKeys); ok {
+		if _, err := time.ParseDuration(timeout); err != nil {
+			return RunCommand{}, fmt.Errorf("%s invalid timeout=%q: %w", directive, timeout, err)
+		}
+		rc.Timeout = timeout
 	}
-	if idx := strings.Index(line, timeoutMarker); idx >= 0 {
-		start := idx + len(timeoutMarker)
-		end := nextMarker(line, start, exitMarker, nameMarker)
-		rc.Timeout = line[start:end]
-	}
-	if idx := strings.Index(line, nameMarker); idx >= 0 {
-		start := idx + len(nameMarker)
-		// Bound against every OTHER marker (execMarker included) so name= is
-		// order-independent: a line that writes name= before exec= must not let
-		// the name value swallow ":exec=...".
-		end := nextMarker(line, start, execMarker, stdinMarker, timeoutMarker, exitMarker)
-		rc.Name = line[start:end]
-	}
-	if idx := strings.Index(line, exitMarker); idx >= 0 {
-		start := idx + len(exitMarker)
-		end := nextMarker(line, start, stdinMarker, timeoutMarker, nameMarker)
-		codeStr := line[start:end]
+
+	if codeStr, ok := markerValue(line, markerExit, cmdExecKeys); ok {
 		code, err := strconv.Atoi(codeStr)
 		if err != nil || code < 0 || code > 255 {
-			return RunCommand{}, fmt.Errorf("cmd:%s invalid exit=%q (want 0..255)", mode, codeStr)
+			return RunCommand{}, fmt.Errorf("%s invalid exit=%q (want 0..255)", directive, codeStr)
 		}
 		rc.ExitCode = &code
 	}
@@ -101,32 +113,23 @@ func parseCmdExec(mode, line string) (RunCommand, error) {
 // (fail-closed, ai/rules/evidence.md). signal= defaults to "kill"
 // (SIGKILL) so the target goes silent for the DPD proof; "term" sends SIGTERM.
 func parseCmdStop(line string) (RunCommand, error) {
-	seqMarker := markerSeq
-	nameMarker := ":name="
-	signalMarker := ":signal="
-
-	seqIdx := strings.Index(line, seqMarker)
-	if seqIdx < 0 {
-		return RunCommand{}, fmt.Errorf("cmd:stop missing seq=")
-	}
-	nameIdx := strings.Index(line, nameMarker)
-	if nameIdx < 0 {
-		return RunCommand{}, fmt.Errorf("cmd:stop missing name=")
+	directive := cmdDirective(modeStop)
+	if err := checkMarkerKeys(directive, line, cmdStopKeys); err != nil {
+		return RunCommand{}, err
 	}
 
-	seqStart := seqIdx + len(seqMarker)
-	seqEnd := nextMarker(line, seqStart, nameMarker, signalMarker)
-	seqStr := line[seqStart:seqEnd]
+	seqStr, ok := markerValue(line, markerSeq, cmdStopKeys)
+	if !ok {
+		return RunCommand{}, fmt.Errorf("%s missing seq=", directive)
+	}
 	seq, err := strconv.Atoi(seqStr)
 	if err != nil || seq < 1 {
-		return RunCommand{}, fmt.Errorf("cmd:stop invalid seq=%q", seqStr)
+		return RunCommand{}, fmt.Errorf("%s invalid seq=%q", directive, seqStr)
 	}
 
-	nameStart := nameIdx + len(nameMarker)
-	nameEnd := nextMarker(line, nameStart, seqMarker, signalMarker)
-	name := line[nameStart:nameEnd]
-	if name == "" {
-		return RunCommand{}, fmt.Errorf("cmd:stop missing name=")
+	name, ok := markerValue(line, markerName, cmdStopKeys)
+	if !ok || name == "" {
+		return RunCommand{}, fmt.Errorf("%s missing name=", directive)
 	}
 
 	rc := RunCommand{
@@ -136,15 +139,19 @@ func parseCmdStop(line string) (RunCommand, error) {
 		Signal: signalKill,
 	}
 
-	if idx := strings.Index(line, signalMarker); idx >= 0 {
-		start := idx + len(signalMarker)
-		end := nextMarker(line, start, seqMarker, nameMarker)
-		sig := line[start:end]
+	if sig, ok := markerValue(line, markerSignal, cmdStopKeys); ok {
 		if sig != signalKill && sig != signalTerm {
-			return RunCommand{}, fmt.Errorf("cmd:stop invalid signal=%q (want %q or %q)", sig, signalKill, signalTerm)
+			return RunCommand{}, fmt.Errorf("%s invalid signal=%q (want %q or %q)", directive, sig, signalKill, signalTerm)
 		}
 		rc.Signal = sig
 	}
 
 	return rc, nil
+}
+
+// cmdDirective names the directive an author wrote, for a message that quotes
+// their spelling rather than the parser's mode word.
+func cmdDirective(mode string) string {
+	var b textbuf.Buffer
+	return b.Str("cmd=").Str(mode).String()
 }

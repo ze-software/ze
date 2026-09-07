@@ -301,7 +301,7 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*parsingTest, error) {
 
 	p := ciFileParser{test: test}
 	for _, line := range v.OtherLines {
-		trimmed := strings.TrimSpace(line)
+		trimmed := strings.TrimSpace(line.Text)
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}

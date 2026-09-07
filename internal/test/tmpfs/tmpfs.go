@@ -54,11 +54,22 @@ func (f *File) Reader() io.Reader {
 	return bytes.NewReader(f.Content)
 }
 
+// Line is one directive line with the number it holds in the SOURCE FILE.
+//
+// The number cannot be recovered from the slice position: comments, blank lines
+// and whole tmpfs= and stdin= blocks are consumed before a directive is
+// appended, so a parse refusal quoting an index sends its author to a line that
+// says something else. Every refusal an author reads is quoted against Num.
+type Line struct {
+	Num  int
+	Text string
+}
+
 // Tmpfs holds parsed virtual filesystem.
 type Tmpfs struct {
 	Files       []*File
 	StdinBlocks map[string][]byte // stdin= blocks: name -> content
-	OtherLines  []string          // Non-Tmpfs/stdin lines (cmd=, option=, expect=, run=, etc.)
+	OtherLines  []Line            // Non-Tmpfs/stdin lines (cmd=, option=, expect=, run=, etc.)
 }
 
 // New creates an empty Tmpfs for programmatic construction.
@@ -98,7 +109,7 @@ func (v *Tmpfs) Lookup(path string) *File {
 func (v *Tmpfs) resolveTmpfsPaths() []string {
 	result := make([]string, len(v.OtherLines))
 	for i, line := range v.OtherLines {
-		result[i] = strings.ReplaceAll(line, "tmpfs//", "")
+		result[i] = strings.ReplaceAll(line.Text, "tmpfs//", "")
 	}
 	return result
 }
@@ -196,7 +207,7 @@ func parseWithLimits(r io.Reader, limits Limits) (*Tmpfs, error) {
 		}
 
 		// Collect other lines for consumers
-		v.OtherLines = append(v.OtherLines, trimmed)
+		v.OtherLines = append(v.OtherLines, Line{Num: lineNum, Text: trimmed})
 	}
 
 	if err := scanner.Err(); err != nil {

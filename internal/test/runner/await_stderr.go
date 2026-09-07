@@ -51,9 +51,6 @@ func defaultAwaitStderrTimeout(testBudget time.Duration) time.Duration {
 	return min(derived, testBudget)
 }
 
-// awaitTypeStderr is the only supported await stream today.
-const awaitTypeStderr = "stderr"
-
 // parseAwait handles await=stderr:contains=TEXT[:timeout=DUR] lines. It makes
 // the runner BLOCK until the daemon's relayed stderr contains TEXT before it
 // tears the daemon down, so a test that observes an external plugin's
@@ -62,7 +59,7 @@ const awaitTypeStderr = "stderr"
 // expect=stderr:contains= (kv-split on ':', so the needle must not contain a
 // literal ':').
 func (et *EncodingTests) parseAwait(r *Record, awaitType string, kv map[string]string) error {
-	if awaitType != awaitTypeStderr {
+	if awaitType != directiveTypeStderr {
 		return fmt.Errorf("unknown await type %q (only await=stderr is supported)", awaitType)
 	}
 	contains := kv["contains"]

@@ -269,10 +269,14 @@ func scanCITest(text string, checked *counts, parsed *parseCounts) []string {
 	// are named by their own text, because their position among the directives
 	// is not their position in the file.
 	other := fs.OtherLines
-	if grants := strings.Join(other, "\n"); strings.Contains(grants, "attach") {
+	texts := make([]string, len(other))
+	for i, line := range other {
+		texts[i] = line.Text
+	}
+	if grants := strings.Join(texts, "\n"); strings.Contains(grants, "attach") {
 		directives := where{block: "directive", line: func(n int) string {
 			if n >= 1 && n <= len(other) {
-				return strconv.Quote(strings.TrimSpace(other[n-1]))
+				return strconv.Quote(strings.TrimSpace(other[n-1].Text))
 			}
 			return fmt.Sprintf("%d", n)
 		}}

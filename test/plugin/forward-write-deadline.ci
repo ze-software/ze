@@ -66,5 +66,12 @@ EOF_CONF
 
 # Process orchestration -- set write deadline env var to verify it is accepted
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s:env=ZE_FWD_WRITE_DEADLINE=10s
+# The write deadline under test. option=env is how a .ci sets an environment
+# variable for the child: `:env=` on the cmd= line is not a key the runner
+# reads, and it was swallowed into timeout= (which then parsed as nothing),
+# so this test ran the DEFAULT 30s deadline and asserted the env var it never
+# set. ze.fwd.write.deadline is the registered key (internal/component/config/
+# environment.go); ZE_FWD_WRITE_DEADLINE was never read by anything.
+option=env:var=ze.fwd.write.deadline:value=10s
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0

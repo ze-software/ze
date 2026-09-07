@@ -211,3 +211,155 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
 	require.Error(t, bad.Error, "bad.ci must carry the parse error")
 	assert.Equal(t, failParseError, bad.FailureType)
 }
+
+// TestUnknownDirectiveNamesLineAndAccepted drives the refusal from a file on
+// disk, which is the only way to judge the line number: the parser is handed a
+// slice the blocks and comments were already removed from.
+//
+// VALIDATES: AC-6 of spec-fixit-ci-runner-cannot-test-stdin. A directive the
+// runner cannot honor fails the file at parse time, and the message names the
+// directive, the line number, and what the runner accepts.
+// PREVENTS: the two halves this refusal was missing. It listed nothing, so an
+// author had to read the parser to learn the vocabulary; and it counted lines
+// in the compacted directive slice, so it named line 2 for a line that is
+// number 12 in the file the author is looking at.
+func TestUnknownDirectiveNamesLineAndAccepted(t *testing.T) {
+	ResetNickCounter()
+
+	tmpDir := t.TempDir()
+	ciFile := filepath.Join(tmpDir, "typo.ci")
+	// The blocks and comments are what makes the line number worth asserting:
+	// the bad directive is the SECOND surviving directive and the TWELFTH line.
+	ciContent := "# A comment.\n" +
+		"\n" +
+		"stdin=config:terminator=EOF_CONF\n" +
+		"bgp {\n" +
+		"}\n" +
+		"EOF_CONF\n" +
+		"\n" +
+		"# Another comment.\n" +
+		"option=timeout:value=20s\n" +
+		"\n" +
+		"# The typo below is the subject of this test.\n" +
+		"exepct=stdout:contains=ze\n"
+	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
+
+	et := NewEncodingTests(tmpDir)
+	_, err := et.parseAndAdd(ciFile)
+	require.Error(t, err, "a directive no arm reads must fail the file")
+	assert.Contains(t, err.Error(), `unknown action "exepct"`, "the refusal names what the author wrote")
+	assert.Contains(t, err.Error(), "(accepts action, await, cmd, command, expect, http, option, reject, stream)",
+		"the refusal lists what the runner accepts")
+	assert.Contains(t, err.Error(), "line 12:", "the refusal names the line of the FILE, not the index among directives")
+}
+
+// TestUnknownDirectiveTypeNamesAcceptedSet covers the five type switches under
+// the action word, each of which used to answer with the type alone.
+//
+// VALIDATES: AC-6 for every directive parser, not only the top-level word.
+func TestUnknownDirectiveTypeNamesAcceptedSet(t *testing.T) {
+	et := NewEncodingTests(t.TempDir())
+	r := &Record{Conf: map[string]any{}, Extra: map[string]string{}}
+
+	for _, row := range []struct {
+		name     string
+		parse    func() error
+		wants    string
+		accepted string
+	}{
+		{
+			name:     "option",
+			parse:    func() error { return et.parseOption(r, "x.ci", "flie", map[string]string{}) },
+			wants:    `unknown option type "flie"`,
+			accepted: "asn, bind, env, exclusive, file,",
+		},
+		{
+			name:     "expect",
+			parse:    func() error { return et.parseExpect(r, "stdoutt", map[string]string{}) },
+			wants:    `unknown expect type "stdoutt"`,
+			accepted: "bgp, command-error, event, exit, file, json, output, stderr, stdout, stream, syslog",
+		},
+		{
+			name:     "reject",
+			parse:    func() error { return et.parseReject(r, "stdoutt", map[string]string{}) },
+			wants:    `unknown reject type "stdoutt"`,
+			accepted: "(accepts bgp, stderr, stdout, syslog)",
+		},
+		{
+			name:     "action",
+			parse:    func() error { return et.parseAction(r, "sighub", map[string]string{}) },
+			wants:    `unknown action type "sighub"`,
+			accepted: "(accepts notification, rewrite, send, sighup, sigterm)",
+		},
+		{
+			name:     "cmd",
+			parse:    func() error { return et.parseCmd(r, "forground", map[string]string{}, "cmd=forground:seq=1:exec=x") },
+			wants:    `unknown cmd type "forground"`,
+			accepted: "(accepts api, background, foreground, stop)",
+		},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			err := row.parse()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), row.wants)
+			assert.Contains(t, err.Error(), row.accepted)
+		})
+	}
+}
+
+// TestDirectiveVocabularyIsLive is the one-declaration check. Each list in
+// record_parse_vocabulary.go gates its parser AND is printed by its refusal, so
+// a word that is listed and has no arm behind it would be advertised to authors
+// and then refused as unlisted. Nothing else would say so.
+//
+// VALIDATES: ai/rules/principles.md, one declaration. The reverse direction (an
+// arm whose word is not listed) needs no test: the gate refuses that word
+// before the switch, so every .ci writing it goes red.
+func TestDirectiveVocabularyIsLive(t *testing.T) {
+	et := NewEncodingTests(t.TempDir())
+
+	assertReaches := func(t *testing.T, kind, name string, err error) {
+		t.Helper()
+		if err == nil {
+			return // The arm accepted the minimal directive outright.
+		}
+		assert.NotContains(t, err.Error(), "unknown "+kind, "%s %q is listed but the gate refused it", kind, name)
+		assert.NotContains(t, err.Error(), "is listed as accepted and no parser reads it",
+			"%s %q is listed and no arm reads it", kind, name)
+	}
+
+	for _, name := range recordOptionTypes {
+		r := &Record{Conf: map[string]any{}, Extra: map[string]string{}}
+		assertReaches(t, "option type", name, et.parseOption(r, "x.ci", name, map[string]string{}))
+	}
+	for _, name := range recordExpectTypesParsed {
+		r := &Record{Conf: map[string]any{}, Extra: map[string]string{}}
+		assertReaches(t, "expect type", name, et.parseExpect(r, name, map[string]string{}))
+	}
+	for _, name := range recordRejectTypes {
+		r := &Record{Conf: map[string]any{}, Extra: map[string]string{}}
+		assertReaches(t, "reject type", name, et.parseReject(r, name, map[string]string{}))
+	}
+	for _, name := range recordActionTypes {
+		r := &Record{Conf: map[string]any{}, Extra: map[string]string{}}
+		assertReaches(t, "action type", name, et.parseAction(r, name, map[string]string{}))
+	}
+	for _, name := range recordCmdTypes {
+		r := &Record{Conf: map[string]any{}, Extra: map[string]string{}}
+		assertReaches(t, "cmd type", name, et.parseCmd(r, name, map[string]string{}, "cmd="+name+":seq=1:exec=x:name=n"))
+	}
+	// The action loop asks a narrower question: the word reached an arm. Its
+	// TYPE is deliberately nonsense, so the arm's own refusal is the expected
+	// answer and only the top-level gate's refusal is a finding.
+	for _, name := range recordActions {
+		r := &Record{Conf: map[string]any{}, Extra: map[string]string{}}
+		err := et.parseLine(r, "x.ci", name+"=zzz-not-a-type:seq=1")
+		if err == nil {
+			continue
+		}
+		assert.NotContains(t, err.Error(), `unknown action "`+name+`"`,
+			"action %q is listed but the gate refused it", name)
+		assert.NotContains(t, err.Error(), "is listed as accepted and no parser reads it",
+			"action %q is listed and no arm reads it", name)
+	}
+}

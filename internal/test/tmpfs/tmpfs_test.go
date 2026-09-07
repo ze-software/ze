@@ -456,9 +456,9 @@ expect:exit:code=0
 	require.NoError(t, err)
 	require.Len(t, v.Files, 1)
 	require.Len(t, v.OtherLines, 3)
-	assert.Equal(t, "option:asn:value=65533", v.OtherLines[0])
-	assert.Equal(t, "cmd:ze bgp validate tmpfs//peer.conf", v.OtherLines[1])
-	assert.Equal(t, "expect:exit:code=0", v.OtherLines[2])
+	assert.Equal(t, Line{Num: 5, Text: "option:asn:value=65533"}, v.OtherLines[0])
+	assert.Equal(t, Line{Num: 6, Text: "cmd:ze bgp validate tmpfs//peer.conf"}, v.OtherLines[1])
+	assert.Equal(t, Line{Num: 7, Text: "expect:exit:code=0"}, v.OtherLines[2])
 }
 
 // TestParseWithLimits verifies custom limits are respected.
@@ -511,9 +511,9 @@ func TestLargeReader(t *testing.T) {
 // PREVENTS: Leaving tmpfs// prefix in paths.
 func TestTmpfsResolve(t *testing.T) {
 	v := &Tmpfs{
-		OtherLines: []string{
-			"cmd:ze bgp validate tmpfs//peer.conf",
-			"cmd:ze bgp run tmpfs//test/fixtures/plugin.py",
+		OtherLines: []Line{
+			{Num: 1, Text: "cmd:ze bgp validate tmpfs//peer.conf"},
+			{Num: 2, Text: "cmd:ze bgp run tmpfs//test/fixtures/plugin.py"},
 		},
 	}
 

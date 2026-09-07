@@ -193,3 +193,80 @@ func TestParseStopBackgroundDirective(t *testing.T) {
 		})
 	}
 }
+
+// TestCmdUnknownKeyRefused drives the refusal from the whole parse pipeline, so
+// it proves an author writing the key in a .ci file is stopped rather than only
+// that the leaf parser can say no.
+//
+// VALIDATES: AC-7 of spec-fixit-ci-runner-cannot-test-stdin. A cmd= line that
+// carries a key the parser does not read is refused, and the message names the
+// key and lists the accepted set.
+// PREVENTS: the marker parser answering a directive it does not understand.
+// `:env=ZE_FWD_WRITE_DEADLINE=10s` on a cmd= line was swallowed into timeout=
+// for a year: the file declared a timeout it never got and an environment
+// variable that never reached the child, and every assertion still passed.
+func TestCmdUnknownKeyRefused(t *testing.T) {
+	ResetNickCounter()
+
+	tmpDir := t.TempDir()
+	ciFile := filepath.Join(tmpDir, "unknown-key.ci")
+	ciContent := "option=timeout:value=20s\n" +
+		"cmd=foreground:seq=1:exec=sh run.sh:timeout=15s:env=ZE_FWD_WRITE_DEADLINE=10s\n"
+	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
+
+	et := NewEncodingTests(tmpDir)
+	_, err := et.parseAndAdd(ciFile)
+	require.Error(t, err, "a cmd= line carrying a key the parser does not read must fail the file")
+	assert.Contains(t, err.Error(), `cmd=foreground: unknown key "env"`,
+		"the refusal names the directive the author wrote and the key it could not read")
+	assert.Contains(t, err.Error(), "(accepts exec, exit, name, seq, stdin, timeout)",
+		"the refusal lists what the runner accepts, so the author does not have to find the parser")
+	assert.Contains(t, err.Error(), "line 2", "the refusal names the line")
+}
+
+// TestCmdUnknownKeyNotSwallowedIntoExec is the discriminating half. Remove the
+// checkMarkerKeys call and this test still sees a parsed record, with the
+// unknown key sitting inside the value before it, which is the defect: an
+// assertion about a value nobody set.
+//
+// VALIDATES: AC-7's mechanism, that the value before an unknown key never
+// extends over it.
+func TestCmdUnknownKeyNotSwallowedIntoExec(t *testing.T) {
+	line := "cmd=foreground:seq=1:exec=sh run.sh:oops=1"
+
+	_, err := parseCmdExec(modeForeground, line)
+	require.Error(t, err, "the unknown key is refused rather than folded into exec=")
+	assert.Contains(t, err.Error(), `unknown key "oops"`)
+
+	// The value that would have swallowed it, proving the refusal is what stops
+	// the corruption rather than a bound that happens to end early.
+	got, ok := markerValue(line, markerExec, cmdExecKeys)
+	assert.True(t, ok)
+	assert.Equal(t, "sh run.sh:oops=1", got,
+		"marker parsing extends a value to the next KNOWN key, which is why an unknown one must be refused")
+}
+
+// TestCmdKeysAreOneDeclaration proves the accepted set the refusal prints is the
+// set the parser reads, rather than a second list beside it.
+//
+// VALIDATES: ai/rules/principles.md, one declaration. Each key in cmdExecKeys
+// is parsed into a field, so a key that is listed but dead, or read but
+// unlisted, fails here rather than in a .ci nobody re-reads.
+func TestCmdKeysAreOneDeclaration(t *testing.T) {
+	line := "cmd=background:seq=7:exec=sh run.sh:stdin=block:timeout=15s:exit=3:name=holder"
+
+	rc, err := parseCmdExec(modeBackground, line)
+	require.NoError(t, err)
+	assert.Equal(t, 7, rc.Seq)
+	assert.Equal(t, "sh run.sh", rc.Exec)
+	assert.Equal(t, "block", rc.Stdin)
+	assert.Equal(t, "15s", rc.Timeout)
+	assert.Equal(t, "holder", rc.Name)
+	require.NotNil(t, rc.ExitCode)
+	assert.Equal(t, 3, *rc.ExitCode)
+
+	// Every key the line above wrote is in the declared list, and the line above
+	// writes every key in it. A key added to cmdExecKeys with no field behind it
+	// is caught by the count.
+	assert.Len(t, cmdExecKeys, 6, "cmdExecKeys grew or shrank: give the new key a field and a case above")
+}

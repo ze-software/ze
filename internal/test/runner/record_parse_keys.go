@@ -73,3 +73,69 @@ var retiredKeys = map[string]string{
 	"not-contains": "reject=<stream>:contains=<text>",
 	"!contains":    "reject=<stream>:contains=<text>",
 }
+
+// checkMarkerKeys refuses a marker-parsed directive line that carries a key its
+// parser does not read. The known set is the ":key=" spellings the parser
+// reads, and the refusal is checkKeys's, so an author meets one message shape
+// on every directive.
+//
+// A marker parser needs its own check because it cannot drop an unknown key the
+// way the key=value parsers do: each value runs from its own marker to the next
+// KNOWN one, so an unknown key is swallowed into the value BEFORE it.
+// `cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s:env=ZE_FWD_WRITE_DEADLINE=10s`
+// parsed with timeout="15s:env=ZE_FWD_WRITE_DEADLINE=10s", which
+// time.ParseDuration then refused in silence (startBackgroundLifetime). The
+// line got neither the timeout it declared nor the environment variable, and
+// nothing said so. It was the only such line among 3,197 cmd= lines when this
+// check was written, and option=env:var=NAME:value=VALUE is how a .ci sets one.
+//
+// The scan reads the WHOLE line, the exec= value included, because that is
+// where a swallowed key hides. So a cmd= line cannot carry a ":<word>=" span
+// inside its command: put that command in a tmpfs= script and run the script.
+func checkMarkerKeys(directive, line string, markers []string) error {
+	found := make(map[string]string, len(markers))
+	for i := range len(line) {
+		if line[i] != ':' {
+			continue
+		}
+		key, ok := markerKeyAt(line[i:])
+		if !ok {
+			continue
+		}
+		found[key] = ""
+	}
+	known := make([]string, 0, len(markers))
+	for _, marker := range markers {
+		known = append(known, marker[1:len(marker)-1])
+	}
+	return checkKeys(directive, found, known...)
+}
+
+// markerKeyAt reads the key of a ":key=" span at the start of s, and reports
+// whether s opens with one. A key starts with a letter, so neither a port in a
+// URL (":8080/path") nor a bare colon in a command is read as a key.
+func markerKeyAt(s string) (string, bool) {
+	if len(s) < 3 || !isMarkerKeyFirst(s[1]) {
+		return "", false
+	}
+	for i := 2; i < len(s); i++ {
+		if s[i] == '=' {
+			return s[1:i], true
+		}
+		if isMarkerKeyByte(s[i]) {
+			continue
+		}
+		return "", false
+	}
+	return "", false
+}
+
+// isMarkerKeyFirst reports whether c can open a directive key.
+func isMarkerKeyFirst(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+}
+
+// isMarkerKeyByte reports whether c can continue a directive key.
+func isMarkerKeyByte(c byte) bool {
+	return isMarkerKeyFirst(c) || (c >= '0' && c <= '9') || c == '-' || c == '_'
+}

@@ -162,10 +162,13 @@ func (et *EncodingTests) parseAndAdd(ciFile string) (*Record, error) {
 
 	}
 
-	// Parse the non-Tmpfs lines (option:, expect:, cmd:, run=, etc.)
-	for lineNum, line := range v.OtherLines {
-		if err := et.parseLine(r, ciFile, line); err != nil {
-			return r, fmt.Errorf("line %d: %w", lineNum+1, err)
+	// Parse the non-Tmpfs lines (option:, expect:, cmd:, run=, etc.). The number
+	// quoted on a refusal is the line's own number in the file, which is why
+	// tmpfs.Line carries it: the blocks and comments this slice dropped are not
+	// counted, so its index names a different line.
+	for _, line := range v.OtherLines {
+		if err := et.parseLine(r, ciFile, line.Text); err != nil {
+			return r, fmt.Errorf("line %d: %w", line.Num, err)
 		}
 	}
 
@@ -258,6 +261,9 @@ func (et *EncodingTests) parseLine(r *Record, ciFile, line string) error {
 	}
 	action := actionType[0]
 	lineType := actionType[1]
+	if !slices.Contains(recordActions, action) {
+		return unknownDirective("action", action, recordActions)
+	}
 	kvPairs := ci.ParseKVPairs(parts[1:])
 
 	switch action {
@@ -280,14 +286,17 @@ func (et *EncodingTests) parseLine(r *Record, ciFile, line string) error {
 		// generic key=value splitter must not be applied (engine_steps.go).
 		return parseEngineCmd(r, action, line)
 	default:
-		return fmt.Errorf("unknown action %q in %q", action, line)
+		return errDirectiveUnlisted("action", action)
 	}
 }
 
 // parseOption handles option=type:key=value lines.
 func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[string]string) error {
+	if !slices.Contains(recordOptionTypes, optType) {
+		return unknownDirective("option type", optType, recordOptionTypes)
+	}
 	switch optType {
-	case "file":
+	case directiveTypeFile:
 		configName := kv["path"]
 		if configName == "" {
 			return errOptionFileMissingPath
@@ -325,9 +334,18 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		r.Options = append(r.Options, "option=bind:value="+value)
 
 	case "timeout":
+		if err := checkKeys("option=timeout", kv, "value"); err != nil {
+			return err
+		}
 		value := kv["value"]
 		if value == "" {
 			return errOptionTimeoutMissingValue
+		}
+		// resolveOrchestratedTimeout parses this and keeps the suggested budget
+		// when it fails, so a typo here buys a test a different timeout with no
+		// line said about it. Judged where the author can be told.
+		if _, err := time.ParseDuration(value); err != nil {
+			return fmt.Errorf("option=timeout:value=%q is not a duration: %w", value, err)
 		}
 		r.Extra["timeout"] = value
 
@@ -338,7 +356,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		}
 		r.Options = append(r.Options, "option=tcp_connections:value="+value)
 
-	case "open":
+	case directiveTypeOpen:
 		value := kv["value"]
 		if value == "" {
 			return errOptionOpenMissingValue
@@ -549,13 +567,19 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		}
 
 	default:
-		return fmt.Errorf("unknown option type %q", optType)
+		return errDirectiveUnlisted("option type", optType)
 	}
 	return nil
 }
 
 // parseExpect handles expect:type:... lines.
 func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]string) error {
+	if !slices.Contains(recordExpectTypesParsed, expType) {
+		// recordExpectTypes, not the arms alone: the three raw spellings
+		// parseLine intercepts are writable, so an author who mistyped one must
+		// see it in the accepted set.
+		return unknownDirective("expect type", expType, recordExpectTypes)
+	}
 	switch expType {
 	case directiveTypeBGP:
 		if err := checkKeys("expect=bgp", kv, "conn", "seq", "hex"); err != nil {
@@ -609,7 +633,7 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		}
 		r.ExpectExitCode = &code
 
-	case "stderr":
+	case directiveTypeStderr:
 		// Support both pattern= (regex) and contains= (substring). Stream
 		// NON-containment is reject=stderr:, never a negative key here
 		// (record_parse_keys.go).
@@ -626,7 +650,7 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 			r.ExpectStderrMatch = append(r.ExpectStderrMatch, contains)
 		}
 
-	case "stdout":
+	case directiveTypeStdout:
 		// Stream non-containment is reject=stdout:contains=, never a negative
 		// key here (record_parse_keys.go).
 		if err := checkKeys("expect=stdout", kv, "pattern", "contains"); err != nil {
@@ -645,7 +669,7 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 			r.ExpectStdoutMatch = append(r.ExpectStdoutMatch, contains)
 		}
 
-	case "syslog":
+	case directiveTypeSyslog:
 		if err := checkKeys("expect=syslog", kv, "pattern"); err != nil {
 			return err
 		}
@@ -655,7 +679,7 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		}
 		r.ExpectSyslog = append(r.ExpectSyslog, pattern)
 
-	case "file":
+	case directiveTypeFile:
 		if err := checkKeys("expect=file", kv,
 			"path", "glob", "contains", "not-contains", "exists", "absent", "count"); err != nil {
 			return err
@@ -676,7 +700,7 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		return parseEngineExpectEvent(r, kv)
 
 	default:
-		return fmt.Errorf("unknown expect type %q", expType)
+		return errDirectiveUnlisted("expect type", expType)
 	}
 	return nil
 }
@@ -717,8 +741,11 @@ func isTruthy(s string) bool {
 
 // parseReject handles reject:type:... lines.
 func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]string) error {
+	if !slices.Contains(recordRejectTypes, rejType) {
+		return unknownDirective("reject type", rejType, recordRejectTypes)
+	}
 	switch rejType {
-	case "stderr":
+	case directiveTypeStderr:
 		// pattern= is a regex over the daemon's stderr alone (validateLogging).
 		// contains= is a substring over the same accumulated stdout+stderr
 		// buffer its expect=stderr:contains= mirror reads, so the two answer one
@@ -739,7 +766,7 @@ func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]st
 			r.RejectStderr = append(r.RejectStderr, pattern)
 		}
 
-	case "syslog":
+	case directiveTypeSyslog:
 		if err := checkKeys("reject=syslog", kv, "pattern"); err != nil {
 			return err
 		}
@@ -749,7 +776,7 @@ func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]st
 		}
 		r.RejectSyslog = append(r.RejectSyslog, pattern)
 
-	case "stdout":
+	case directiveTypeStdout:
 		if err := checkKeys("reject=stdout", kv, "pattern", "contains"); err != nil {
 			return err
 		}
@@ -775,13 +802,16 @@ func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]st
 			"so it belongs inside that peer's stdin block, beside its expect=bgp lines")
 
 	default:
-		return fmt.Errorf("unknown reject type %q", rejType)
+		return errDirectiveUnlisted("reject type", rejType)
 	}
 	return nil
 }
 
 // parseAction handles action:type:... lines.
 func (et *EncodingTests) parseAction(r *Record, actType string, kv map[string]string) error {
+	if !slices.Contains(recordActionTypes, actType) {
+		return unknownDirective("action type", actType, recordActionTypes)
+	}
 	switch actType {
 	case "notification":
 		conn, seq, err := parseConnSeq(kv)
@@ -842,13 +872,16 @@ func (et *EncodingTests) parseAction(r *Record, actType string, kv map[string]st
 		r.Expects = append(r.Expects, eb.Reset().Str("action=sigterm:conn=").Int(int64(conn)).Str(":seq=").Int(int64(seq)).String())
 
 	default:
-		return fmt.Errorf("unknown action type %q", actType)
+		return errDirectiveUnlisted("action type", actType)
 	}
 	return nil
 }
 
 // parseCmd handles cmd:type:... lines.
 func (et *EncodingTests) parseCmd(r *Record, cmdType string, kv map[string]string, rawLine string) error {
+	if !slices.Contains(recordCmdTypes, cmdType) {
+		return unknownDirective("cmd type", cmdType, recordCmdTypes)
+	}
 	switch cmdType {
 	case "api":
 		conn, seq, err := parseConnSeq(kv)
@@ -881,7 +914,7 @@ func (et *EncodingTests) parseCmd(r *Record, cmdType string, kv map[string]strin
 		r.RunCommands = append(r.RunCommands, rc)
 
 	default:
-		return fmt.Errorf("unknown cmd type %q", cmdType)
+		return errDirectiveUnlisted("cmd type", cmdType)
 	}
 	return nil
 }
