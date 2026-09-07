@@ -13,6 +13,8 @@ import (
 	"github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
+	"github.com/ze-software/ze/internal/core/rib/routeinstall"
 	connectedevents "github.com/ze-software/ze/internal/plugins/connected/events"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
@@ -47,6 +49,12 @@ type routeObserver struct {
 
 	mu       sync.Mutex
 	prefixes map[netip.Prefix]int
+
+	// loc and remote are where a connected prefix is published: the shared
+	// Loc-RIB in-process, or the engine over RPC when connected runs forked.
+	// See locrib.go.
+	loc    *locrib.RIB
+	remote routeSink
 }
 
 func newRouteObserver(bus ze.EventBus) *routeObserver {
@@ -70,6 +78,11 @@ func (o *routeObserver) handleAddrAdded(payload any) {
 	count := o.prefixes[prefix]
 	o.mu.Unlock()
 	if count == 1 {
+		// The prefix becomes visible to route arbitration and to recursive
+		// next-hop resolution the first time an address covers it, and stays
+		// visible until the last one goes. Both halves are refcounted here so a
+		// second address in the same prefix inserts nothing new.
+		o.insertPath(prefix)
 		o.emit(redistevents.ActionAdd, prefix)
 	}
 }
@@ -91,6 +104,7 @@ func (o *routeObserver) handleAddrRemoved(payload any) {
 	}
 	o.mu.Unlock()
 	if count <= 0 {
+		o.removePath(prefix)
 		o.emit(redistevents.ActionRemove, prefix)
 	}
 }
@@ -189,6 +203,16 @@ func runConnectedPlugin(conn net.Conn) int {
 
 	bus := getEventBus()
 	obs := newRouteObserver(bus)
+	// Connected prefixes are published into the shared Loc-RIB. In-process that
+	// is locrib.Default(); forked, it answers nil and the operations travel to
+	// the engine over the route-install RPC, which rebuilds the Path in the
+	// engine's own Loc-RIB.
+	loc := locrib.Default()
+	var remote routeSink
+	if loc == nil {
+		remote = routeinstall.New(context.Background(), p)
+	}
+	obs.setLocRIB(loc, remote)
 
 	if bus != nil {
 		unsub1 := bus.Subscribe("interface", "addr-added", obs.handleAddrAdded)

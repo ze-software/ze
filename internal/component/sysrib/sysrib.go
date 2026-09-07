@@ -162,6 +162,16 @@ type protocolRoute struct {
 	backupNextHop netip.Addr
 	backupLabels  []uint32
 
+	// osInstalled is true when the OPERATING SYSTEM creates this protocol's
+	// forwarding entry, so Ze MUST NOT program one of its own. The protocol
+	// DECLARES it (redistevents.RegisterOSInstalled) and this is the answer read
+	// back by ID, never a guess from an invalid next-hop or a protocol name.
+	//
+	// It is not part of arbitration: an OS-installed route wins or loses on its
+	// administrative distance like any other. What it changes is what winning
+	// MEANS, in recordOSInstalledWinner.
+	osInstalled bool
+
 	// ecmpNextHops are INTRA-protocol equal-cost sibling next-hops for this
 	// prefix from the SAME protocol source, excluding nextHop (the winner).
 	//
@@ -426,6 +436,7 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 			pr := &protocolRoute{
 				protocol:         proto,
 				protocolType:     protoType,
+				osInstalled:      protocolInstalledByOS(proto),
 				nextHop:          c.NextHop,
 				nextHopInterface: c.Interface,
 				nextHopWeight:    c.Weight,
@@ -556,6 +567,10 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 		}
 	}
 
+	if winner.osInstalled {
+		return s.recordOSInstalledWinner(key, prev, winner, protocols)
+	}
+
 	if prev == nil {
 		s.best[key] = winner
 		ecmpPaths := ecmpCollect(protocols, winner)
@@ -647,6 +662,64 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 		Metric:    winner.metric,
 		ECMPPaths: ecmpPaths,
 		Backup:    backupPaths(winner),
+	}
+}
+
+// protocolInstalledByOS answers whether the OS creates this protocol's forwarding
+// entries, for a protocol named on an incoming change.
+//
+// An unknown name answers false, which means Ze programs the route normally. That
+// is failing OPEN and it is deliberate: reading "nobody declared this protocol"
+// as "do not program it" would blackhole every route from a protocol that forgot
+// to register, which is a far worse outcome than a duplicate entry for one that
+// declared nothing. The name is spoken once per protocol in effectivePriority's
+// warning when the declaration does not name it either.
+func protocolInstalledByOS(protocol string) bool {
+	id, ok := redistevents.ProtocolIDOf(protocol)
+	if !ok {
+		return false
+	}
+	osInstalled, _ := redistevents.OSInstalled(id)
+	return osInstalled
+}
+
+// recordOSInstalledWinner records a winner whose forwarding entry the OPERATING
+// SYSTEM creates, and answers with the change that leaves the kernel holding
+// exactly one route for the prefix.
+//
+// Ze installs nothing: the OS already has the route, and a second entry from Ze
+// would be the two-writer collision this arbitration exists to remove. The winner
+// still enters the system RIB, so `show rib` reports which protocol holds the
+// prefix and a later withdraw of the OS-installed path hands it to the next best.
+//
+// When Ze HAD programmed the prefix for a previous winner, that entry is now
+// stale beside the OS's own and is WITHDRAWN. Silence would leave both, which is
+// the defect wearing a quieter face.
+//
+// REQUIRES: the caller holds s.mu for writing.
+func (s *sysRIB) recordOSInstalledWinner(key prefixKey, prev, winner *protocolRoute, protocols map[string]*protocolRoute) *outgoingChange {
+	hadZeRoute := s.resolvedNH[key].IsValid()
+	s.best[key] = winner
+	s.lastECMP[key] = ecmpCollect(protocols, winner)
+
+	if r := getNHResolver(); r != nil && prev != nil {
+		if prev.nextHop.IsValid() {
+			r.Untrack(prev.nextHop, key.prefix)
+		}
+		if prev.srv6SID.IsValid() {
+			r.Untrack(prev.srv6SID, key.prefix)
+		}
+	}
+
+	if !hadZeRoute {
+		return nil
+	}
+	delete(s.resolvedNH, key)
+	logger().Info("sysrib: withdrawing the route Ze programmed, the operating system owns this prefix now",
+		"prefix", key.prefix, "protocol", winner.protocol)
+	return &outgoingChange{
+		Action: routeaction.Withdraw,
+		Prefix: key.prefix,
 	}
 }
 
@@ -937,6 +1010,12 @@ func (s *sysRIB) replayBest(req *replay.Request) {
 	for key, route := range s.best {
 		// RFC 9252 Section 5: skip routes with unresolvable SRv6 SIDs.
 		if route.srv6SID.IsValid() && !srv6SIDResolvable(route.srv6SID) {
+			continue
+		}
+		// A winner whose forwarding entry the OS creates was never programmed by
+		// Ze, so replaying it as an Add would tell a FIB plugin to install the
+		// route this arbitration exists to keep it from installing.
+		if route.osInstalled {
 			continue
 		}
 		changesByFamily[key.family] = append(changesByFamily[key.family], outgoingChange{

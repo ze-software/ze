@@ -1368,9 +1368,17 @@ paths on the distance stamped on the `locrib.Path`, and `(*sysRIB).run` consumes
 one already-arbitrated best per prefix, so a value resolved in sysrib alone
 would change no cross-protocol selection. `internal/core/rib/distance` carries
 the resolved table from sysrib, which publishes it on every configure and
-rollback, to the three producers that stamp: the BGP RIB plugin, IS-IS SPF and
-OSPF SPF. Each reads it at the stamp rather than at construction, so a reload
-takes effect.
+rollback, to the five producers that stamp: the BGP RIB plugin, IS-IS SPF, OSPF
+SPF, the static plugin and the connected plugin. Each reads it at the stamp
+rather than at construction, so a reload takes effect.
+
+The seam is PROCESS-GLOBAL, and sysrib is its only publisher, so a producer in a
+forked plugin process never sees a declaration. The engine closes that on the
+route-install path: `applyRouteInstall`
+(`internal/component/plugin/server/dispatch_route.go`) re-stamps the distance
+from the declaration when a forked plugin's route arrives, taking the wire value
+as the fallback so a protocol the declaration does not name keeps what its
+producer chose.
 
 Each producer keeps its classical value as a bootstrap, reachable only before the
 first configure. An unset seam reports that it did not answer rather than
@@ -1385,6 +1393,31 @@ at process start and the constants are never read. The check derives its
 population from the packages that call the seam rather than from a list of
 producers, so a protocol added to `rib { distance { } }` and a producer added
 beside it are both covered with no edit to the check.
+
+**Which protocols insert, and what winning means.** Every protocol that competes
+for a MAIN-table prefix inserts a `locrib.Path`: BGP, OSPF, IS-IS, static and
+connected. A named routing table is outside this, because the Loc-RIB is keyed by
+(family, prefix) and carries no table
+(`docs/architecture/static-routes.md`).
+
+A protocol whose forwarding entry the OPERATING SYSTEM creates DECLARES that at
+registration, with `redistevents.RegisterOSInstalled`, and sysrib reads the
+answer back by ID. Connected is the one that declares it: the kernel creates a
+route the moment an address is assigned. Such a protocol competes for a prefix on
+its administrative distance like any other, and what changes is what winning
+MEANS. `recordOSInstalledWinner` (`internal/component/sysrib/sysrib.go`) installs
+nothing and WITHDRAWS the entry Ze had programmed for a previous winner, because
+leaving it would put a second route beside the one the kernel already holds. The
+prefix stays in the system RIB, so `show rib` reports who holds it.
+
+The property is DECLARED rather than derived. An invalid next-hop, a route type
+and a protocol name each look like they could answer it, and the last would put a
+plugin's name inside a component (`ai/rules/plugins.md`). An unregistered protocol
+answers "not known", and sysrib programs it normally: reading "nobody declared
+this" as "do not program" would blackhole every route from a protocol that forgot
+to register.
+<!-- source: internal/core/redistevents/registry.go -- RegisterOSInstalled, OSInstalled -->
+<!-- source: internal/plugins/connected/locrib.go -- the connected path and its distance -->
 
 After distance selection, the system RIB performs two additional phases:
 

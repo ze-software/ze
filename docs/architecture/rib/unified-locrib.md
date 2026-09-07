@@ -53,8 +53,10 @@ through `Change.ECMP`.
 <!-- source: internal/core/rib/nexthop/nexthop.go -- the NextHop value type -->
 <!-- source: internal/core/rib/distance/distance.go -- the declaration seam producers read -->
 
-**The sources.** BGP, OSPF, IS-IS and the static plugin insert paths, and sysrib
-reads them. A static route enters only when it is in the MAIN table: the store is
+**The sources.** BGP, OSPF, IS-IS, the static plugin and the connected plugin
+insert paths, and sysrib reads them. A connected path names NO next-hop, which is
+what the recursive resolver treats as the end of a chain, so a protocol next-hop
+covered only by an interface prefix resolves rather than reporting unreachable. A static route enters only when it is in the MAIN table: the store is
 keyed by (family, prefix) and carries no table, so a named-table route would
 collide with the main-table route for the same prefix
 (`docs/architecture/static-routes.md`).

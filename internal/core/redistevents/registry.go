@@ -27,6 +27,7 @@ type protocolEntry struct {
 	id          ProtocolID
 	name        string
 	hasProducer bool
+	osInstalled bool
 }
 
 var (
@@ -79,6 +80,53 @@ func RegisterProducer(id ProtocolID) {
 		panic("BUG: redistevents.RegisterProducer: unknown ProtocolID")
 	}
 	entries[id].hasProducer = true
+}
+
+// RegisterOSInstalled records that the OPERATING SYSTEM creates this protocol's
+// forwarding entries, so Ze MUST NOT program one of its own. Called from the
+// protocol's own init(), beside RegisterProducer. Idempotent.
+//
+// The connected protocol is the one that declares it today: the kernel creates a
+// route the moment an address is assigned to an interface, and a second entry
+// from Ze for the same prefix would be the two-writer collision the shared
+// Loc-RIB exists to remove. The protocol still competes for the prefix on its
+// administrative distance; what changes is what WINNING means. A winner that
+// declares this produces a withdraw of Ze's own entry rather than an install.
+//
+// It is a property the PROTOCOL declares rather than one a consumer derives.
+// Deriving it from an invalid next-hop, from a route type or from the protocol's
+// name would each be a guess, and the last of them would put a plugin's name in a
+// component (ai/rules/plugins.md).
+//
+// Panics with the "BUG:" prefix if id is unknown, for RegisterProducer's reason:
+// the caller registers the protocol first, in the same init.
+func RegisterOSInstalled(id ProtocolID) {
+	mu.Lock()
+	defer mu.Unlock()
+	if int(id) <= 0 || int(id) >= len(entries) {
+		panic("BUG: redistevents.RegisterOSInstalled: unknown ProtocolID")
+	}
+	entries[id].osInstalled = true
+}
+
+// OSInstalled reports whether the OS creates this protocol's forwarding entries,
+// and whether the protocol is registered at all.
+//
+// The second return is what stops a false from meaning two things. An
+// unregistered id answers (false, false), and a caller MUST NOT read that false
+// as "Ze programs this protocol's routes": it is a protocol nobody declared, so
+// nothing is known about it. A caller that programs normally on an unknown id is
+// failing OPEN on purpose, which is the safe direction here -- reading unknown as
+// "do not program" would blackhole every route from a protocol that forgot to
+// register -- and it says so at the call site rather than here
+// (ai/rules/principles.md).
+func OSInstalled(id ProtocolID) (osInstalled, known bool) {
+	mu.RLock()
+	defer mu.RUnlock()
+	if int(id) <= 0 || int(id) >= len(entries) {
+		return false, false
+	}
+	return entries[id].osInstalled, true
 }
 
 // Producers returns a fresh slice of ProtocolIDs that have a registered

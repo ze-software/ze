@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | plugin |
 | Depends | spec-fib-depth (owns `BestChangeEntry.TableID` and the VRF dimension) |
-| Phase | 1/7 |
+| Phase | 6/7 |
 | Handoff | - |
 | Updated | 2026-09-07 |
 

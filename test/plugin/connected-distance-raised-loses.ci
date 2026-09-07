@@ -1,0 +1,106 @@
+# Test: an operator raises the connected administrative distance above BGP's, and
+#       BGP takes the prefix an interface address also covers.
+# VALIDATES: spec-connected-static-reach-the-locrib AC-3 -- `rib { distance {
+#            connected 250 } }` hands the prefix back to BGP, and Ze programs the
+#            BGP route, so the leaf decides a route-install outcome in both
+#            directions rather than only in the one its default happens to give.
+# PREVENTS: a connected prefix being invisible to arbitration, which is what made
+#           `rib { distance { connected N } }` decide nothing at all; and the
+#           opposite failure, Ze programming a second entry for a prefix the
+#           kernel already forwards on.
+#
+# The sibling test connected-distance-arbitration.ci is the same configuration
+# with `connected 0`, where the connected route takes the prefix and Ze programs
+# nothing. The two differ in one number, so what they prove is that the number
+# decides.
+#
+# Requires Linux and CAP_NET_ADMIN: the driver creates a dummy device and assigns
+# it an address WHILE the daemon runs, because the interface monitor emits
+# `interface`/`addr-added` from a netlink event and an address that was already
+# there at startup produces none. The check then reads the kernel routing table.
+option=needs-linux:caps=net-admin
+
+# ze-peer holds the session open so the BGP RIB reaches its initial-sync EOR; the
+# route itself is injected by the fixture rather than announced, so no UPDATE is
+# expected on the wire.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external connected-distance-test {
+		run "ze-test fixture plugin/connected-distance-raised-loses"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+	internal rib {
+		use rib
+	}
+	internal fib-kernel {
+		use fib-kernel
+	}
+}
+
+interface {
+	backend netlink
+}
+
+connected {
+}
+
+rib {
+	distance {
+		connected 250
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 2
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.connected:value=info
+option=env:var=ze.log.rib:value=info
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=OK: 10.9.0.0/24 is won by bgp, ze-programmed=yes
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

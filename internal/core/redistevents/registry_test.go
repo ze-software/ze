@@ -43,3 +43,31 @@ func TestWouldLoopNoAlloc(t *testing.T) {
 	})
 	assert.Zero(t, allocs, "WouldLoop must not allocate")
 }
+
+// TestOSInstalledIsDeclaredNotDerived pins the shape of the property: a protocol
+// SAYS the operating system creates its forwarding entries, and an id nobody
+// registered is reported as UNKNOWN rather than as "Ze programs it".
+//
+// The two answers have to stay apart. A consumer reading a bare false cannot tell
+// a protocol that declared nothing from one that does not exist, and the second
+// is a defect while the first is the ordinary case.
+func TestOSInstalledIsDeclaredNotDerived(t *testing.T) {
+	ResetForTest()
+
+	declared := RegisterProtocol("declares-os-installed")
+	silent := RegisterProtocol("declares-nothing")
+	RegisterOSInstalled(declared)
+
+	if osInstalled, known := OSInstalled(declared); !osInstalled || !known {
+		t.Errorf("OSInstalled(declared) = (%v, %v), want (true, true)", osInstalled, known)
+	}
+	if osInstalled, known := OSInstalled(silent); osInstalled || !known {
+		t.Errorf("OSInstalled(silent) = (%v, %v), want (false, true)", osInstalled, known)
+	}
+	if osInstalled, known := OSInstalled(ProtocolID(9999)); osInstalled || known {
+		t.Errorf("OSInstalled(unregistered) = (%v, %v), want (false, false)", osInstalled, known)
+	}
+	if osInstalled, known := OSInstalled(ProtocolUnspecified); osInstalled || known {
+		t.Errorf("OSInstalled(ProtocolUnspecified) = (%v, %v), want (false, false)", osInstalled, known)
+	}
+}
