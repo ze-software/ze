@@ -1,0 +1,12 @@
+# Test: ze bgp decode pcap - reads the capture from standard input
+# VALIDATES: spec-bgp-pcap-decode AC-15 -- the piped capture decodes like the
+# same capture given as a path. The "-" is handled at the CLI edge through
+# internal/core/cliio, which is the scanned surface ./le dash-stdio check reads.
+# Exercises: cmdDecode -> decodePcapInput -> cliio.OpenReader -> pcap.Reassemble
+
+stdin=capture:hex=d4c3b2a1020004000000000000000000ffff000065000000c061566900000000450000004500000045000045000040004006b6afc0000201c000020200b300b300000001000000015018ffff26da0000ffffffffffffffffffffffffffffffff001d0104fde8005a0102030400c161566900000000450000004500000045000045000040004006b6afc0000202c000020100b300b3000000010000001e5018ffff26bd0000ffffffffffffffffffffffffffffffff001d0104fde8005a0102030400c2615669000000003b0000003b0000004500003b000040004006b6b9c0000201c000020200b300b30000001e0000001e5018ffff26010000ffffffffffffffffffffffffffffffff001304c3615669000000003b0000003b0000004500003b000040004006b6b9c0000202c000020100b300b30000001e000000315018ffff25ee0000ffffffffffffffffffffffffffffffff001304
+
+cmd=foreground:seq=1:exec=ze bgp decode pcap -:stdin=capture
+expect=exit:code=0
+expect=stdout:contains=KEEPALIVE
+expect=stdout:contains=65000

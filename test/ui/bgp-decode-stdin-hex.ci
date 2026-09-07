@@ -1,0 +1,17 @@
+# Test: ze bgp decode - reads one hex message for each line of standard input
+# VALIDATES: spec-bgp-pcap-decode AC-16 -- the multi-payload form exabgp's
+# decode accepts. A blank line and a comment line are skipped.
+# Exercises: cmdDecode -> decodeHexStdin -> decodeHexPacket, once per line
+
+stdin=payloads:terminator=EOF_HEX
+ffffffffffffffffffffffffffffffff001d0104fde8005a0102030400
+# this comment line is skipped
+
+ffffffffffffffffffffffffffffffff001304
+ffffffffffffffffffffffffffffffff001304
+EOF_HEX
+
+cmd=foreground:seq=1:exec=ze bgp decode -:stdin=payloads
+expect=exit:code=0
+expect=stdout:contains=65000
+expect=stdout:contains=KEEPALIVE
