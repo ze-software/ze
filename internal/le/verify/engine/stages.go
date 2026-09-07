@@ -94,6 +94,7 @@ func fullStages() []Stage {
 		stage("doc check", "links"),
 		stage("repository", "tree-check"),
 		stage("plugin imports", "check"),
+		stage("plugin declarations", "check"),
 		stage("yang glue", "check"),
 		stage("feature-tags", "check"),
 		stage("doc check", "templ-output"),
@@ -121,10 +122,21 @@ func fullStages() []Stage {
 	return stages
 }
 
-// changedStages returns the cheaper per-edit population. Generated-file checks
-// stay expanded into their native actions. Full-only evidence and allocation
-// passes are omitted, while lint and unit testing use their changed-tree
-// identities.
+// changedStages returns the per-edit population: every full stage except the
+// three whose subject is the whole tree rather than the edit. Evidence vetting
+// and the allocation benchmarks read populations no edit narrows, and the
+// cached unit pass covers every package, so what an edit still owes is the
+// race pass over its own groups, which `verify deps/unit-race-changed` runs in
+// both modes.
+//
+// Every other stage keeps the identity it holds in full mode, and that is not
+// a naming detail. A stage narrows itself or it does not: the Staticcheck
+// matrix reads the run's feature-tag answer and judges fewer rows for it
+// (staticcheckfeaturematrix.DeriveScoped), while `verify lint/run` reads no
+// scope at all and loads the whole module whichever mode called it. Lint is a
+// large part of a run's wall clock, so this list makes the population smaller
+// without making the run proportionally faster. A stage that learns to narrow
+// itself narrows changed mode too, with no edit here.
 func changedStages() []Stage {
 	full := fullStages()
 	stages := make([]Stage, 0, len(full)-3)
