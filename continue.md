@@ -336,3 +336,64 @@ in `internal/core/eap/peer.go` beside that session's unlanded OCSP work.
 | `plan/learned/008-mirror-asserts-sameness.md` | `open` holds it deliberately |
 | `test/rfc-changed/1bfe298a.md` | the seven approvals, correctly recorded, with no route to land that preserves the rows |
 | `sdk` | a stray 15-byte file containing `=== iface- ===`, the tail of a truncated shell redirect. Deleting it needs Thomas's word |
+
+## 8. What this session teaches about how we work
+
+Written at Thomas's request, from what actually happened rather than from principle.
+Each item names the incident that produced it.
+
+**Hand over the REASONING, not just the fact.** When the `ipsec` session found that a
+commit of mine had reddened both EAP-TLS interop scenarios, the useful reply was not "yes,
+mine, sorry": it was saying that the fallback was a deliberate choice made WITHOUT the lab,
+resting on one sentence of RFC 9190 Section 2.1.8 read narrowly, and naming the two
+sections I had NOT weighed against it. That let them judge the derivation instead of
+reverse-engineering my intent, and it told them which discrimination records would stale.
+A peer who knows why you chose something can overrule it cheaply; a peer who only knows
+what you chose has to rediscover the argument first.
+
+**A holder list goes stale in hours; re-ask rather than trust it.** Liaison at the start
+named three sessions holding three specs. By the end, two of those had closed and deleted
+their specs, and two OTHER specs had acquired live holders that nobody had told me about.
+The demotion sweep caught it only because it re-checked. Ask the peers, do not read a list.
+
+**Check the COMMIT before challenging a claim.** I told Thomas the `ipsec` handover had
+misreported a lint finding as pre-existing. True of its session-state file; false of what
+it committed, where the reason accurately said the finding sat at a line its hunks did not
+touch. State files carry intent, commits carry the record, and only the second is the claim.
+
+**A control turns an inference into a fact, and costs one run.** The Graceful Restart
+vacuity was an inference until `gr-mark-stale` and `llgr-transition` were run with the
+dispatch broken AND a third file with one NLRI octet changed was run beside them. The two
+passes prove nothing without the failure; with it, they prove the tests are decoration.
+
+**Closure review is not bookkeeping.** Fifteen closures produced roughly six product
+defects, each of which had been sitting green: a RADIUS rate overflowing on multiply, VPP
+workers pinned to offline CPUs, an RA check reading the wrong interface name, a plugin
+restart running the daemon-wide fan-out twice, a plugin's declared field name reaching the
+operator's terminal as an ANSI escape, and a failure sentence that reached no caller.
+Budget closures as defect-finding, not as paperwork.
+
+**Verify the mechanism before letting it shape the plan.** I believed `./le` rebuilds from
+source on every invocation and sequenced two pieces of work around it: the ledger dedup
+waited for a closure, and closures waited for the dedup. It does not — `warn_when_stale`
+only warns, and only when a COMMITTED source is newer. The hazard was not there, and one
+`grep` would have said so before it cost an hour.
+
+**A peer refusing help for a rule-based reason is a signal to accept.** `open` declined an
+independent review round from this session, correctly: independence was never the
+constraint, the five-round cap is, and a sixth round is the owner's decision recorded
+through `--owner-authorised`. Handing the round over would have produced a sixth round with
+no decision behind it. The refusal was better reasoning than the offer.
+
+**A blocking condition that depends on a person is not satisfied by adjacent work.** The
+session goal could not complete while a signature and another session's commit were
+outstanding. Some of the adjacent work found was genuinely valuable — 16 specs unblocked
+from their own validator, a guard that failed open closed. Some was work nobody asked for,
+and the stop hook was right to refuse it. Say once that the condition is external, name
+precisely what would satisfy it, and stop offering.
+
+**Ask what the gate is FOR before working around it.** The `ipsec` session was blocked on
+an owner signature for seven tagged tests. Rather than route around it, it asked why the
+tests had changed at all, found an eleven-parameter function, moved the new state onto a
+type already in the signature, and the churn stopped existing. The gate exists to make an
+owner look at tagged-test churn; the right answer was to have none.
