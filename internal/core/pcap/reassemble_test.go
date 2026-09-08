@@ -323,12 +323,17 @@ func TestReassembleEmptyReportsWhatItSaw(t *testing.T) {
 // TestReassembleFlowBound covers R-7's second bound: past FlowMax directions,
 // further ones are refused and counted rather than allocated.
 func TestReassembleFlowBound(t *testing.T) {
-	segments := make([]testSegment, 0, FlowMax+8)
+	segments := make([]testSegment, 0, FlowMax+9)
 	for i := range FlowMax + 8 {
 		flow := testFlow
 		flow.TargetPort = uint16(20000 + i) //nolint:gosec // bounded by the loop
 		segments = append(segments, testSegment{flow: flow, sequence: 1, data: []byte("x")})
 	}
+	// A second record for one refused direction. The count is of RECORDS not
+	// read, so this one is counted too; a count of directions would stay at 8.
+	repeat := testFlow
+	repeat.TargetPort = uint16(20000 + FlowMax + 7) //nolint:gosec // one of the ports above
+	segments = append(segments, testSegment{flow: repeat, sequence: 2, data: []byte("y")})
 
 	file := buildTCPCapture(t, segments)
 	streams, report, err := Reassemble(bytes.NewReader(file), 179)
@@ -338,8 +343,8 @@ func TestReassembleFlowBound(t *testing.T) {
 	if len(streams) != FlowMax {
 		t.Errorf("got %d streams, want the %d-flow bound", len(streams), FlowMax)
 	}
-	if report.FlowsDropped != 8 {
-		t.Errorf("flows dropped = %d, want 8", report.FlowsDropped)
+	if report.RecordsDropped != 9 {
+		t.Errorf("records dropped = %d, want the 9 records of the 8 refused directions", report.RecordsDropped)
 	}
 }
 

@@ -147,11 +147,11 @@ specs share the `ze bgp decode` entry point and nothing else.
 
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Reactor to ring | `Append` with the whole message plus addresses | No |
-| Ring to diag plugin | `plugin.BGPRawCaptureEntry`, a cross-boundary value type | No |
-| Diag plugin to file | pcap bytes, base64 in the RPC response | No |
-| File to CLI | `cliio.OpenReader`, path or `-` | No |
-| Reader to decoder | one framed BGP message per call to `decodeHexPacket` | No |
+| Reactor to ring | `Append` with the whole message plus addresses | Yes -- `TestRingCarriesFramingFields` reads the ring back |
+| Ring to diag plugin | `plugin.BGPRawCaptureEntry`, a cross-boundary value type | Yes -- `TestExportBGPPcapRoundTrip` builds the entries and exports them |
+| Diag plugin to file | pcap bytes, base64 in the RPC response | Yes -- `test/ui/bgp-decode-pcap-file.ci` decodes a base64 fixture the writer produced |
+| File to CLI | `cliio.OpenReader`, path or `-` | Yes -- `test/ui/bgp-decode-pcap-stdin.ci` pipes the same capture in |
+| Reader to decoder | one framed BGP message per call to `decodeHexPacket` | Yes -- `TestReadPcapFramesMessages` |
 
 ### Integration Points
 
@@ -163,11 +163,11 @@ specs share the `ze bgp decode` entry point and nothing else.
 
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers | No | |
-| No unintended coupling | No | |
-| No duplicated functionality | No | |
-| Zero-copy preserved where applicable | No | |
-| Registration over hardcoding | No | |
+| No bypassed layers | Yes | The `-` handling sits at the CLI edge in `decodePcapInput` and goes through `cliio.OpenReader`; `internal/core/pcap` makes no `os` call |
+| No unintended coupling | Yes | `grep -rn 'internal/component\|internal/plugins' internal/core/pcap/*.go` returns nothing, so the core package imports neither tier |
+| No duplicated functionality | Yes | `grep -rn 'writePcapHeader\|writePcapPacket\|writePcapGlobalHeader' internal/` names only a comment in `pcap_test.go`; both private writers were deleted, not left beside the shared package |
+| Zero-copy preserved where applicable | Yes | `Framer.WriteMessage` writes into the framer's own buffer and `Reader.Next` reuses one record buffer; the capture tap allocates nothing new (`BGPRawCaptureRing.Append` copies into a fixed slot as it always did) |
+| Registration over hardcoding | N-A | No new command, plugin or family: `ze bgp decode` is an existing offline verb that gained two input forms |
 
 ## Risks & Assumptions
 
@@ -177,7 +177,7 @@ specs share the `ze bgp decode` entry point and nothing else.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Fabricated TCP ports are acceptable, so `(*Peer).tCPPorts` need not be called on the capture path. | `internal/analyze/convert.go` already fabricates ports 179 and 179; reading the real ports takes two mutexes on the hot path. | Captures show ports that never existed, which could mislead an operator correlating with a real tcpdump. | Confirm with the owner; state the fabrication in the docs page. | confirmed at the producer, 2026-09-05: `(*Peer).tCPPorts` (`internal/component/bgp/reactor/peer.go:642`) takes `p.mu.RLock()` and then `sess.mu.RLock()`, two mutexes on the session read path. Ports 179/179 are fabricated and the fabrication is stated on the packet-capture page. |
 | A-2 | Peer and local addresses are in scope at the ring append with no new locking. | `notifyMessageReceiver` takes `peerAddr` as its first parameter and builds `peerInfo` including the local address immediately above the append. | The framing needs a lookup that costs a mutex on the read path, and the design changes. | Read the function again at implementation time and confirm no new lock is taken. | confirmed at the producer, 2026-09-05: `notifyMessageReceiver` (`internal/component/bgp/reactor/reactor_notify.go:247`) builds `peerInfo` from `peer.Settings()` under the `r.mu.RLock()` it already holds, and `rc.Append` sits inside that same critical section. The framing reads `s.Address` and `s.LocalAddress`, both already loaded. No new lock. |
-| A-3 | Wireshark reassembles BGP correctly once sequence numbers are monotonic per direction. | Wireshark's BGP dissector uses TCP stream reassembly, which needs consistent sequence numbers; the current all-zero values mark every record a retransmission. | The file still fails to show messages split across records, and the AC that says "opens as BGP" is unmet. | Open a generated file in Wireshark or tshark and assert the dissected message count. | **BROKEN as a validation method, 2026-09-05: `tshark` is not installed on this host (`command -v tshark` returns nothing), so no dissection count can be observed here.** The design claim is untouched; only its named evidence is unreachable. Substituted evidence: `TestSequenceMonotonicPerDirection` asserts the byte-level sequence and ack advance, and the round trip (AC-18) reassembles ze's own file through the sequence numbers it wrote, which fails if they are not monotonic. The tshark run is owed and is named in Known Limitations. |
+| A-3 | Wireshark reassembles BGP correctly once sequence numbers are monotonic per direction. | Wireshark's BGP dissector uses TCP stream reassembly, which needs consistent sequence numbers; the current all-zero values mark every record a retransmission. | The file still fails to show messages split across records, and the AC that says "opens as BGP" is unmet. | Open a generated file in Wireshark or tshark and assert the dissected message count. | **confirmed at closure, 2026-09-08, by a third-party dissector.** `tshark` is still absent, but `tcpdump` 4.99.4 with libpcap 1.10.4 is installed and carries its own BGP printer (`print-bgp.c`, a codebase independent of Wireshark's `packet-bgp.c`). `tcpdump -n -v -r` over the committed fixture in `test/ui/bgp-decode-pcap-file.ci` reads `link-type RAW (Raw IP)` and dissects all four records as BGP -- two `Open Message (1)` and two `Keepalive Message (4)` -- printing `seq 1:30 ... ack 1` then `seq 29:48 ... ack 30`, so the sequence advance is read by a parser that is not Ze's. |
 | A-4 | Link type 101 accepts both IPv4 and IPv6 by the version nibble, so one link type serves both. | The pcap LINKTYPE_RAW definition; the existing declaration in `exportBGPPcap`. | IPv6 peers need a separate link type or a separate file, and the IPv6 fix does not land as designed. | Generate an IPv6 capture and open it. | confirmed by construction, 2026-09-05: `Reassembler` selects the IP family from the version nibble of the first byte (`parseIP`, `internal/core/pcap/reassemble.go`), so one link type carries both. `TestFrameIPv6TCP` writes an IPv6 record under link type 101 and reads it back through the same reader. |
 | A-5 | Every BGP message in a capture can be framed from the reassembled stream alone. | The 19-byte header carries a length field, and the marker is all ones. | A capture starting mid-stream cannot find the first boundary, and the reader needs marker resynchronisation. | Decode a capture deliberately started mid-session. | **broken and repaired in design, 2026-09-05:** a capture that starts mid-stream has no marker at offset 0, so framing from the stream alone fails. `frameMessages` (`internal/component/bgp/cli/decode_pcap.go`) resynchronises on the all-ones marker before it frames, and reports the skipped bytes. `TestFrameResyncsMidStream` covers it. |
 | A-6 | Moving the pcap writers into one package does not change the interface-capture or L2TP output. | Both have their own link types and their own callers; only the shared record and header writers move. | A diagnostic format an operator already depends on changes silently. | Byte-compare an interface capture and an L2TP capture before and after the move. | confirmed by construction, 2026-09-05: `pcap.WriteFileHeader` and `pcap.WriteRecord` are the moved bodies of `writePcapHeader` and `writePcapPacketWithOrigLen` with no field changed, and `WriteRecord(w, ts, data, len(data))` is byte-identical to the old `writePcapPacket`. `TestWriteRecordMatchesLegacyLayout` pins the 16 header bytes. |
@@ -281,10 +281,11 @@ specs share the `ze bgp decode` entry point and nothing else.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-bgp-pcap-roundtrip.ci` | `test/plugin/` | an operator captures BGP with ze and decodes the file back with ze (AC-18) | |
-| `test-bgp-decode-pcap-stdin.ci` | `test/decode/` | an operator pipes a capture into `ze bgp decode pcap -` | |
-| `test-bgp-decode-stdin-hex.ci` | `test/decode/` | an operator pastes several hex messages, exabgp style | |
-| `diag-capture.ci` (existing, must keep passing) | `test/plugin/` | capture start, dump and stop still work in JSON | |
+| `bgp-decode-pcap-file.ci` (planned as `test-bgp-pcap-roundtrip.ci` in `test/plugin/`) | `test/ui/` | an operator captures BGP with ze and decodes the file back with ze (AC-18) | PASS |
+| `bgp-decode-pcap-stdin.ci` (planned as `test-bgp-decode-pcap-stdin.ci` in `test/decode/`) | `test/ui/` | an operator pipes a capture into `ze bgp decode pcap -` | PASS |
+| `bgp-decode-stdin-hex.ci` (planned as `test-bgp-decode-stdin-hex.ci` in `test/decode/`) | `test/ui/` | an operator pastes several hex messages, exabgp style | PASS |
+| `bgp-decode-pcap-no-bgp.ci`, `bgp-decode-pcap-two-inputs-rejected.ci` | `test/ui/` | AC-14 and AC-17 at the process level | PASS |
+| `diag-capture.ci` (existing, must keep passing) | `test/plugin/` | capture start, dump and stop still work in JSON | untouched by this change: it asserts JSON only |
 
 #### Peer-block conventions for the new `.ci` (read before authoring)
 
@@ -473,7 +474,7 @@ plugins unregistered and 39 unrelated encode tests fail for that reason alone.
 | AC | Evidence |
 |----|----------|
 | AC-1 | `TestExportBGPPcapRoundTrip` (`internal/plugins/diag/cmd/pcap_test.go`) reads the exported file back with `pcap.NewReader`, asserts link type 101, and recovers each whole message including its 19-byte header |
-| AC-2 | NOT observed: `tshark` is not installed on this host. The substituted evidence is AC-18's round trip through Ze's own reader, which parses the same IP, TCP and BGP framing a dissector would. Named under Known Limitations |
+| AC-2 | OBSERVED at closure, 2026-09-08, with `tcpdump` rather than `tshark`: `tcpdump -n -v -r` over the fixture in `test/ui/bgp-decode-pcap-file.ci` prints `link-type RAW (Raw IP)` and dissects four records as `Open Message (1)`, `Open Message (1)`, `Keepalive Message (4)`, `Keepalive Message (4)` -- the exact count and kinds the session exchanged -- with `cksum ... (correct)` on every record |
 | AC-3 | `TestSequenceMonotonicPerDirection` (`internal/core/pcap/pcap_test.go`) reads the sequence and acknowledgement octets off three records and asserts the advance equals the preceding payload's length; `TestExportBGPPcapSequenceAdvances` proves the reassembly joins two messages with no gap, which a repeated sequence would prevent |
 | AC-4 | `TestFrameIPv4TCP` and `TestFrameIPv6TCP` verify both checksums by summing the header, the pseudo-header and the payload and asserting the result is zero |
 | AC-5 | `TestExportBGPPcapIPv6` writes an IPv6 peer and reads it back; `TestFrameIPv6TCP` dissects an IPv6 record under link type 101 |
@@ -486,8 +487,8 @@ plugins unregistered and 39 unrelated encode tests fail for that reason alone.
 | AC-12 | `TestNonSelectedFlowsIgnored` and `TestNonBGPFlowsIgnored` |
 | AC-13 | `TestReassembleGapFailsClosed` (two runs, one Gap, no concatenation) and `TestDecodePcapReportsAGap` (the warning reaches standard error) |
 | AC-14 | `TestReassembleEmptyReportsWhatItSaw`, `TestNoBGPFoundIsAnError`, and `test/ui/bgp-decode-pcap-no-bgp.ci` |
-| AC-15 | `TestDecodePcapStdinMatchesPath` drives the real `cliio` stdin claim through `cliio.SwapStreams` and asserts the output equals the path form. NO `.ci` covers it, and none can: see Known Limitations |
-| AC-16 | `TestDecodeHexStdinMultipleLines`, plus `TestDecodeHexStdinReportsABadLine` and `TestDecodeHexStdinEmptyIsAnError` for the two failure shapes |
+| AC-15 | `TestDecodePcapStdinMatchesPath` drives the real `cliio` stdin claim through `cliio.SwapStreams` and asserts the output equals the path form; `test/ui/bgp-decode-pcap-stdin.ci` pipes the same capture into the shipped binary and passes |
+| AC-16 | `TestDecodeHexStdinMultipleLines`, plus `TestDecodeHexStdinReportsABadLine` and `TestDecodeHexStdinEmptyIsAnError` for the two failure shapes; `test/ui/bgp-decode-stdin-hex.ci` pipes three hex lines into the shipped binary and passes |
 | AC-17 | `TestPathAndStdinRejected` asserts the message names both inputs and does not carry the internal stdin-claimed error; `test/ui/bgp-decode-pcap-two-inputs-rejected.ci` proves it at the process level |
 | AC-18 | `TestExportBGPPcapRoundTrip` in Go, and `test/ui/bgp-decode-pcap-file.ci`, whose fixture is a capture written by `internal/core/pcap` and decoded by the shipped binary |
 
@@ -496,8 +497,11 @@ Verified by hand against the built binary on 2026-09-05, every input form:
 hex lines, `ze bgp decode pcap <file> -` (refused, exit 1), `ze bgp decode <hex>`
 (the original form, unchanged).
 
-Three `.ci` files pass under `ze-test ui`: `bgp-decode-pcap-file`,
-`bgp-decode-pcap-two-inputs-rejected` and `bgp-decode-pcap-no-bgp`.
+Five `.ci` files pass under `ze-test ui`: `bgp-decode-pcap-file`,
+`bgp-decode-pcap-two-inputs-rejected`, `bgp-decode-pcap-no-bgp`,
+`bgp-decode-pcap-stdin` and `bgp-decode-stdin-hex`. The last two were held back
+on 2026-09-06 and land at closure, once the runner learned to pipe standard
+input.
 
 ### Departures from the spec, and why
 
@@ -506,7 +510,7 @@ Three `.ci` files pass under `ze-test ui`: `bgp-decode-pcap-file`,
 | `internal/core/pcap/reassemble.go` does "TCP stream reassembly and BGP message framing" | The package reassembles and returns byte streams; BGP framing lives in `frameMessages` (`internal/component/bgp/cli/decode_pcap.go`) | The spec's own architectural constraint forbids `internal/core/pcap` importing `internal/component/`. Framing needs the marker and `ParseHeader` from `internal/component/bgp/message`, and copying them into core would be a second declaration of one fact (`ai/rules/principles.md`). The port to select is a parameter for the same reason, which also keeps a BGP spelling out of a generic package |
 | `internal/plugins/diag/cmd/pcap.go` loses its file-format code | It lost the file-format code and gained `exportBGPPcap` and `exportBFDPcap` | The file keeps a concern of its own (the BGP and BFD framing choices), so the page anchor stays meaningful and no file needed deleting |
 | `test-bgp-pcap-roundtrip.ci` in `test/plugin/` | `test/ui/bgp-decode-pcap-file.ci` | The round trip needs a capture on disk and a second command to read it; the `.ci` framework runs one command and cannot chain a base64 decode. The fixture IS a ze-written capture, so the round trip is proven, at the cost of the live session producing it |
-| `test-bgp-decode-pcap-stdin.ci`, `test-bgp-decode-stdin-hex.ci` | Neither is committed | The runner replaces the first `-` in argv with a file and pipes nothing (`internal/test/runner/runner_exec.go:842`), so both would test the path form. Recorded in `plan/journal/green-that-could-not-have-been-red.md` |
+| `test-bgp-decode-pcap-stdin.ci`, `test-bgp-decode-stdin-hex.ci` in `test/decode/` | `test/ui/bgp-decode-pcap-stdin.ci` and `test/ui/bgp-decode-stdin-hex.ci`, committed at closure | Both were written on 2026-09-05 and held back, because the runner then replaced the first `-` in argv with a file and piped nothing, so each would have tested the path form. `spec-fixit-ci-runner-cannot-test-stdin` landed real stdin routing in `4bbcdd206`, and both files pass unchanged: `./le functional ui` reports `bgp-decode-pcap-stdin PASS` and `bgp-decode-stdin-hex PASS`. The `test/ui/` location is where the three siblings already live |
 
 ## Key Design Decisions
 
@@ -522,8 +526,7 @@ Three `.ci` files pass under `ze-test ui`: `bgp-decode-pcap-file`,
 
 ## Known Limitations
 
-- `tshark` is not installed on this host, so AC-2's dissection count was never observed. The framing is asserted octet by octet and read back by Ze's own reader, which is weaker evidence than a third-party dissector. Running `tshark -r` over a generated file is owed before the capture format is called proven.
-- No `.ci` covers `ze bgp decode -` or `ze bgp decode pcap -`. The runner cannot feed real standard input to `ze`: it rewrites the `-` into a file path. Both forms are proven by Go tests at the CLI edge and by hand against the built binary.
+- `tshark` is not installed on this host. `tcpdump` is, and it dissected the file at closure (A-3 above), so the third-party evidence AC-2 asks for exists; what remains unobserved is Wireshark's own dissector specifically. The two implementations read the same three layers this change writes, so no property of the file is left untested by the substitution.
 - A capture timestamp loses every sub-second digit crossing the plugin boundary, so messages captured within one second cannot be ordered across the two directions. Within one direction the TCP sequence numbers carry the order. Recorded in `plan/journal/mtime-granularity-stamp.md`.
 - The fabricated TCP ports mean a ze-written capture cannot be correlated byte-for-byte with a simultaneous tcpdump. It is a readable reconstruction, not a packet-level record.
 - The 4096-byte ring slot still truncates extended messages up to 65535 bytes. This spec makes the truncation honest, by declaring the true original length, rather than removing it. Enlarging the ring is a separate memory-budget decision.
@@ -565,10 +568,247 @@ Three `.ci` files pass under `ze-test ui`: `bgp-decode-pcap-file`,
 
 | Run | Date | Blockers | Issues | Result |
 |-----|------|----------|--------|--------|
-| | | | | |
+| 1 (whole diff of `18d7ffc8e0`, two lenses: logic and bounds over the reader and reassembler; wiring and exported surface over every new package) | 2026-09-08 | 0 | 2 | both fixed, listed below |
+| 2 (the round-1 fixes and their call sites) | 2026-09-08 | 0 | 0 | CLEAN |
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-pcap-decode-d64e7b3f-bfdc-4614-8db4-f12043eb77cc.md`, over the five files this closure changed |
+| `./le spec session review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | logic and bounds (every attacker-controlled length in `parse.go`, `reader.go` and `reassemble.go`); wiring and exported surface (every exported symbol of `internal/core/pcap` against its callers); style pass over every new Go file (`docs/contributing/ze-go-style.md`; no `panic()` anywhere in the new code, so the peer-reachable-panic question is answered by absence) |
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `FlowFrom` is exported and has no caller anywhere in the tree, tests included. `./le repository check` names it as `exported symbol FlowFrom has no cross-package non-test caller`, and restoring the function makes the run report 9 issues instead of 8 | `internal/core/pcap/reassemble.go` | deleted, with the `net/netip` import it was the only user of |
+| 2 | ISSUE | `Report.FlowsDropped` counts RECORDS, not directions: every record of a refused flow increments it. Its own comment said "counts directions refused", `Report.String` printed "dropped past the flow limit", and `reportAnomalies` told the operator "%d flows past the %d-flow limit were not read". An operator with three refused directions and twelve records read "12 flows" | `internal/core/pcap/reassemble.go`, `internal/component/bgp/cli/decode_pcap.go` | renamed `RecordsDropped`, comment and both messages reworded to say records, and `TestReassembleFlowBound` now sends a second record on one refused direction and asserts 9 rather than 8, so a count of directions goes red |
+
+### Findings recorded, not fixed (NOTE)
+
+| # | Finding | Why it stays |
+|---|---------|--------------|
+| 1 | `Reassemble` bounds the flows it HOLDS (`FlowMax`) but the `seen` set it counts `FlowsSeen` from is unbounded | Its growth is proportional to the file, not amplifying: a distinct flow costs at least 56 input bytes (16-byte record header, 20-byte IPv4, 20-byte TCP) and about 100 bytes of map, so a crafted capture buys under 2x its own size, against the 1 GiB the sanctioned `FlowMax * FlowBytesMax` bound already permits. Bounding it would cost `FlowsSeen` its meaning, which is the number an operator reads when nothing decoded |
+| 2 | `bgpPort = 179` is declared in `internal/plugins/diag/cmd/pcap.go`, `internal/component/bgp/cli/decode_pcap.go` and `internal/analyze/convert.go`, beside the older `reactor.DefaultBGPPort` and `copp`'s `defaultPort` | The pattern predates this spec, and the only shared home is `internal/component/bgp/reactor`, which neither the diag plugin nor `internal/analyze` may import for a constant |
+| 3 | `(*Reader).SnapLen` has no caller outside `reader_test.go` | Its test pins that `NewReader` reads the field at the right offset in both byte orders, which is real coverage of the header parse. Deleting the accessor deletes that check |
 
 ## Progress, 2026-09-06
 
 Committed in `18d7ffc8e0`. This box has no `tshark`, so no third-party parser
 has confirmed that the file dissects. The owner deleted two stdin `.ci` files
 as untestable.
+
+## Progress, 2026-09-08 (closure)
+
+`tcpdump` was installed on this box the whole time and carries its own BGP
+printer, so the third-party dissection AC-2 asks for was one command away. It
+was run, and it passes. The two stdin `.ci` files were still on disk, and the
+runner learned to pipe standard input in `4bbcdd206`, so both land here.
+
+## Implementation Summary
+
+### What Was Implemented
+
+- `internal/core/pcap` as the one owner of the pcap file format: `WriteFileHeader`
+  and `WriteRecord` (`pcap.go`), synthetic IPv4/IPv6 and TCP framing with
+  per-direction sequence numbers and computed checksums (`frame.go`), a reader
+  for either byte order and both timestamp resolutions (`reader.go`), a
+  dissector for six link types (`parse.go`), and TCP stream reassembly with a
+  flow bound and a per-flow byte bound (`reassemble.go`).
+- The capture tap rebuilds the 19-byte BGP header and carries both session
+  addresses: `BGPRawCaptureRing.Append` (`internal/component/bgp/reactor/raw_capture.go`),
+  called from `notifyMessageReceiver` inside the RLock it already held.
+- `exportBGPPcap` frames each entry; `exportBFDPcap` and `exportL2TPPcap` are
+  separate exporters that add nothing (`internal/plugins/diag/cmd/pcap.go`,
+  `capture_raw_l2tp.go`).
+- `ze bgp decode` gained `pcap <file>`, `pcap -` and `-`
+  (`internal/component/bgp/cli/decode.go`, `decode_pcap.go`).
+- `internal/analyze/convert.go` lost its private writers and moved to link type
+  101, which ended its silent IPv6 skip.
+
+### Bugs Found/Fixed
+
+- The declared-format defect this spec exists for: `LINKTYPE_RAW` over bare BGP
+  bodies. Covered by `TestExportBGPPcapRoundTrip` and by the tcpdump dissection
+  recorded under AC-2.
+- `convert.go`'s three defects (zero sequence, zero checksums, dropped IPv6),
+  fixed by the move, covered by `TestFrameIPv4TCP`, `TestFrameIPv6TCP` and
+  `TestSequenceMonotonicPerDirection`.
+- Two found at the review gate and fixed here: an exported `FlowFrom` with no
+  caller, and a `FlowsDropped` counter that counted records while its message
+  said flows. Both are in the Review Gate table.
+
+### Documentation Updates
+
+- `docs/architecture/diagnostics/packet-capture.md`: the false `LINKTYPE_RAW`
+  justification replaced, the framing, the fabricated ports and the reassembly
+  bounds documented, every `<!-- source: -->` anchor repointed (four of them now
+  name `internal/core/pcap/`).
+- `docs/architecture/core-design.md`, `docs/architecture/mrt.md`,
+  `docs/comparison.md`, `docs/functional-tests.md`, `ai/INDEX.md` in
+  `18d7ffc8e0`; the `docs/features.md` row "Packet Capture and Decode" landed in
+  `6c15058ce` and the `docs/guide/command-reference.md` decode block in
+  `092ad35f8`, because both files held other sessions' hunks when `18d7ffc8e0`
+  was prepared.
+- `./le doc check verify` exits 1 with 8570 lines of findings, and every one of
+  them is in the `../gh-pages` checkout: `grep -o '^  .x. [^:]*' | grep -v gh-pages`
+  over the run's log returns nothing. `./le doc wiring` fails on three groups,
+  naming IKE files, `internal/le/rfc/provenshare.go` and other sessions' docs;
+  no pcap file appears in any of them.
+
+### Deviations from Plan
+
+The four rows under "Departures from the spec, and why" above, plus one at
+closure: AC-2 names `tshark` and was answered with `tcpdump`, which is a
+different third-party dissector rather than a substitute for having one.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-3's validation method was recorded BROKEN because `tshark` is absent, and the AC was closed on Ze's own reader | A third-party BGP dissector was installed the whole time: `tcpdump` 4.99.4, whose `print-bgp.c` is not Wireshark's `packet-bgp.c`. It dissects the committed fixture correctly | `command -v tcpdump` at closure, after the same question was answered "not installed" for `tshark` alone | A-3 is confirmed, AC-2 observed, and the row in `plan/journal/design-claim-never-measured.md` records the habit: when the named instrument is missing, look for another implementation of the same check before recording a gap |
+| approach | Two `.ci` files were written, held back as untestable, and recorded as a permanent limitation | The limitation was the runner's, not the feature's, and it was fixed four days later by `spec-fixit-ci-runner-cannot-test-stdin` | Both files were still in `test/ui/` at closure, and `./le functional ui` passes them unchanged | Both committed here; the Known Limitations entry is gone |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A truthful writer: the file's declared format matches its bytes | Done | `Framer.WriteMessage` (`internal/core/pcap/frame.go`), `exportBGPPcap` (`internal/plugins/diag/cmd/pcap.go`) | `tcpdump -r` reads it as `link-type RAW (Raw IP)` and dissects every record as BGP |
+| The 19-byte header back, reconstructed at the tap | Done | `BGPRawCaptureRing.Append` (`internal/component/bgp/reactor/raw_capture.go`) | Marker, Length and Type built from data already in scope; no call site widened |
+| `internal/core/pcap` absorbing `convert.go`'s framing rather than inventing new | Done | `internal/core/pcap/frame.go`, `internal/analyze/convert.go` | Both private writers deleted; `grep -rn 'writePcapHeader\|writePcapPacket\|writePcapGlobalHeader' internal/` names only a comment |
+| A reader with TCP reassembly | Done | `Reassemble` (`internal/core/pcap/reassemble.go`) | Out-of-order placement, overlap trimming, gap reporting, two bounds |
+| stdin and multi-payload | Done | `decodePcapInput`, `decodeHexStdin` (`internal/component/bgp/cli/decode_pcap.go`) | Both proven at the process level by `.ci` as of this closure |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestExportBGPPcapRoundTrip` | link type 101, whole messages, IP and TCP present |
+| AC-2 | Done | `tcpdump -n -v -r` over the fixture in `test/ui/bgp-decode-pcap-file.ci` | 4 records, dissected as OPEN, OPEN, KEEPALIVE, KEEPALIVE; the count matches the session. Instrument is tcpdump, not tshark |
+| AC-3 | Done | `TestSequenceMonotonicPerDirection`, and tcpdump printing `seq 1:30` then `seq 29:48` on one direction | No record is marked a retransmission by a third-party reader |
+| AC-4 | Done | `TestFrameIPv4TCP`, `TestFrameIPv6TCP`, and `cksum ... (correct)` on every non-truncated record tcpdump printed | |
+| AC-5 | Done | `TestExportBGPPcapIPv6`, `TestFrameIPv6TCP`, and a generated IPv6 capture tcpdump reads as `IP6 fd00::1.179 > fd00::2.179 ... BGP` | |
+| AC-6 | Done | `TestFrameTruncatedDeclaresTrueLength`, `TestExportBGPPcapTruncated`, and tcpdump printing `payload length: 4220 ... length 4200` with `[\|BGP Update]`, its truncation marker, rather than a malformed report | |
+| AC-7 | Done | `TestExportBFDPcapUnchanged`, `TestExportL2TPPcapUnchanged`, `TestExportBFDPcapCarriesNoTCPFraming` | Pre-change octets built by hand and compared byte for byte |
+| AC-8 | Done | `TestReadPcapFramesMessages`, `TestDissectEthernetAndCooked`, and a scapy-written Ethernet capture decoded by the built binary | |
+| AC-9 | Done | `TestReassembleAcrossThreeSegments`, `TestFrameMessagesAcrossSegments` | Also observed on the scapy capture, whose OPEN spans two segments |
+| AC-10 | Done | `TestFrameMultipleMessagesPerSegment`, `TestFrameThreeMessagesInOneSegment` | Also observed on the scapy capture's last segment |
+| AC-11 | Done | `TestReassembleOutOfOrder`, `TestReassembleOverlappingRetransmission` | The scapy capture's duplicate segment decoded once |
+| AC-12 | Done | `TestNonSelectedFlowsIgnored`, `TestNonBGPFlowsIgnored` | |
+| AC-13 | Done | `TestReassembleGapFailsClosed`, `TestDecodePcapReportsAGap` | |
+| AC-14 | Done | `TestReassembleEmptyReportsWhatItSaw`, `TestNoBGPFoundIsAnError`, `test/ui/bgp-decode-pcap-no-bgp.ci` | |
+| AC-15 | Done | `TestDecodePcapStdinMatchesPath`, `test/ui/bgp-decode-pcap-stdin.ci` | |
+| AC-16 | Done | `TestDecodeHexStdinMultipleLines` and two failure-shape tests, `test/ui/bgp-decode-stdin-hex.ci` | |
+| AC-17 | Done | `TestPathAndStdinRejected`, `test/ui/bgp-decode-pcap-two-inputs-rejected.ci` | |
+| AC-18 | Done | `TestExportBGPPcapRoundTrip`, `test/ui/bgp-decode-pcap-file.ci` | |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Every `internal/core/pcap` unit test | Done | `pcap_test.go`, `reader_test.go`, `reassemble_test.go` | `go test` green with the full feature-tag set |
+| Every `internal/component/bgp/cli` decode test | Done | `decode_pcap_test.go` | |
+| `TestRingCarriesFramingFields` | Done | `internal/component/bgp/reactor/raw_capture_test.go` | |
+| `TestReadPcapFramesMessages` | Done | `internal/component/bgp/cli/decode_pcap_test.go` | The one row the spec left with an empty Status |
+| The three planned `.ci` | Changed | `test/ui/bgp-decode-pcap-file.ci`, `bgp-decode-pcap-stdin.ci`, `bgp-decode-stdin-hex.ci` | Different names and directory; see Departures |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| Every file in Files to Modify | Done | All present in `18d7ffc8e0` |
+| `internal/core/pcap/pcap.go`, `reader.go`, `reassemble.go` and their tests | Done | Plus `frame.go` and `parse.go`, which the spec folded into the other three |
+| `internal/component/bgp/cli/decode_pcap.go` and its test | Done | |
+| The three `.ci` | Changed | Renamed and moved, all three passing |
+| A pcap fixture captured from a real BGP session | Not done | Owned by `plan/spec-bgp-pcap-decode-real-capture-fixture.md`; see Work Not Done |
+
+### Audit Summary
+
+- **Total items:** 5 requirements, 18 acceptance criteria, 5 test groups, 5 file groups
+- **Done:** 32
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (the `.ci` names and location; `internal/core/pcap` split across five files rather than three)
+- **Not done:** 1 (the real-session fixture, homed in its own spec)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Ze writes a pcap that does not lie about its format | third-party dissection | `tcpdump -n -v -r` over the fixture in `test/ui/bgp-decode-pcap-file.ci`, 2026-09-08: `link-type RAW (Raw IP)`, then four records printed as `Open Message (1)`, `Open Message (1)`, `Keepalive Message (4)`, `Keepalive Message (4)`, each with `cksum 0x... (correct)`. Neither the file nor the dissector is Ze's reader |
+| An IPv6 peer is written, not skipped | third-party dissection | A capture built through `pcap.NewFramer().WriteMessage` with `fd00::1`/`fd00::2` reads as `IP6 (hlim 64, next-header TCP (6) payload length: 39) fd00::1.179 > fd00::2.179 ... BGP / Keepalive Message (4)`, under the same link type 101 |
+| A truncated message reads as truncation, not corruption | third-party dissection | The same file's last record: `payload length: 4220 ... length 4200: BGP` then `[\|BGP Update]`, tcpdump's truncation marker. No malformed report |
+| Ze reads a pcap back, including one it did not write | functional test plus an out-of-tree file | `test/ui/bgp-decode-pcap-file.ci` (PASS) for its own file; and a scapy 2.7.0 capture with Ethernet framing, an ephemeral port 51234, an OPEN split over two segments, a duplicate retransmission and two messages in one segment, decoded by the built binary into exactly four messages in wire order, exit 0 |
+| An operator pipes a capture or hex through Ze | functional test | `test/ui/bgp-decode-pcap-stdin.ci` and `test/ui/bgp-decode-stdin-hex.ci`, both PASS under `./le functional ui` |
+| A capture with nothing in it never reads as success | functional test | `test/ui/bgp-decode-pcap-no-bgp.ci` (PASS): exit non-zero and the report naming records read and flows examined |
+| BFD and L2TP captures are untouched | byte-comparison test | `TestExportBFDPcapUnchanged` and `TestExportL2TPPcapUnchanged` build the pre-change octets by hand and compare byte for byte |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| A pcap fixture captured from a real BGP session, and the reader test over it (R-3's mitigation, and one line of Files to Create) | This host cannot capture: `tcpdump -i lo` answers "You don't have permission to perform this capture on that device (socket: Operation not permitted)" for the unprivileged user every session runs as. Closure narrowed the risk with a scapy-written Ethernet capture, which is a foreign writer but not a network | `plan/spec-bgp-pcap-decode-real-capture-fixture.md` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/core/pcap/{pcap,frame,parse,reader,reassemble}.go` | Yes | `ls internal/core/pcap/` lists all five plus `pcap_test.go`, `reader_test.go`, `reassemble_test.go` |
+| `internal/component/bgp/cli/decode_pcap.go` and `decode_pcap_test.go` | Yes | both in `18d7ffc8e0`'s file list |
+| `test/ui/bgp-decode-pcap-file.ci`, `bgp-decode-pcap-no-bgp.ci`, `bgp-decode-pcap-two-inputs-rejected.ci` | Yes | committed in `18d7ffc8e0` |
+| `test/ui/bgp-decode-pcap-stdin.ci`, `test/ui/bgp-decode-stdin-hex.ci` | Yes | `ls -l` shows both dated 2026-09-05 22:25, uncommitted until this closure |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-2 | a third-party dissector reads the file as BGP | `tcpdump -n -v -r` run at closure over the base64 fixture decoded out of `test/ui/bgp-decode-pcap-file.ci`: 4 records, 2 OPEN and 2 KEEPALIVE, every checksum `(correct)` |
+| AC-5 | IPv6 records are written and readable | the same tool over an IPv6 capture built through `pcap.NewFramer`: `IP6 ... fd00::1.179 > fd00::2.179 ... BGP` |
+| AC-8 to AC-11 | a foreign capture decodes, once per message | `./bin/ze-pcapclose bgp decode pcap <scapy file>` exits 0 and prints four messages, with the split OPEN decoded once and the retransmission not repeated |
+| AC-14 to AC-18 | the process-level behavior | `./le functional ui`: `bgp-decode-pcap-file PASS`, `bgp-decode-pcap-stdin PASS`, `bgp-decode-stdin-hex PASS`, `bgp-decode-pcap-no-bgp PASS`, `bgp-decode-pcap-two-inputs-rejected PASS` |
+| every AC with a Go test | the unit suites are green | `go test -mod=mod -tags <full gate set>` over `./internal/core/pcap/...`, `./internal/component/bgp/cli/...`, `./internal/plugins/diag/cmd/...`, `./internal/analyze/...`, `./internal/component/bgp/reactor/...`: all `ok` |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `show capture-raw dump bgp pcap` | none; `TestExportBGPPcapRoundTrip` covers the export | Yes, at the Go level: the `.ci` framework runs one command and cannot chain a base64 decode into a second, so the round trip is proven over the exporter's own bytes and by the committed fixture, which those bytes produced |
+| `ze bgp decode pcap <file>` | `test/ui/bgp-decode-pcap-file.ci` | Yes: read the file, it pipes a base64 pcap into a `tmpfs=` and asserts KEEPALIVE, the ASN and both endpoints |
+| `ze bgp decode pcap -` | `test/ui/bgp-decode-pcap-stdin.ci` | Yes: `stdin=capture:hex=...` with `cmd=...:stdin=capture`, so the runner really pipes |
+| hex lines on stdin | `test/ui/bgp-decode-stdin-hex.ci` | Yes: three lines piped, three decodes asserted |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `(*Peer).tCPPorts` takes two RLocks on the session read path; the ports are fabricated and the packet-capture page says so |
+| A-2 | confirmed | `notifyMessageReceiver` builds `peerInfo` under the RLock it already holds, and `rc.Append` is inside that critical section |
+| A-3 | confirmed at closure | tcpdump reads the sequence advance (`seq 1:30` then `seq 29:48`) and marks no retransmission |
+| A-4 | confirmed at closure | one link type carried both families for a third-party reader: the same file header value produced `IP` and `IP6` lines from tcpdump |
+| A-5 | broken and repaired in design | `frameMessages` resynchronizes on the marker; `TestFrameResyncsMidStream` covers it |
+| A-6 | confirmed | `TestExportBFDPcapUnchanged`, `TestExportL2TPPcapUnchanged`, `TestWriteRecordMatchesLegacyLayout` |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| 1. New user-facing feature | the `docs/features.md` row "Packet Capture and Decode", landed in `6c15058ce`, with three source anchors naming `internal/core/pcap/`, `internal/plugins/diag/cmd/pcap.go` and `internal/component/bgp/cli/decode_pcap.go` | Yes |
+| 3. CLI command changed | the `ze bgp decode pcap` block in `docs/guide/command-reference.md`, landed in `092ad35f8`, matching the two forms `cmdDecode` routes | Yes |
+| 6. Owning guide page | `docs/architecture/diagnostics/packet-capture.md`: read at closure against `frame.go`, `pcap.go` and `reassemble.go`; the bounds it states (256 directions, 4 MiB each) are `FlowMax` and `FlowBytesMax`, and the fabricated-port paragraph matches `bgpFlow` | Yes |
+| 8. Plugin SDK/protocol changed | `grep -n 'BGPRawCaptureEntry\|capture-raw' docs/architecture/api/process-protocol.md` returns nothing: the page never named this type, so widening it leaves no claim stale | Yes, No update needed |
+| 11. Comparison | the two `docs/comparison.md` rows "Writes a pcap of its BGP sessions" and "Decodes a pcap of a BGP session", with their anchors | Yes |
+| 16. Source anchors on changed files | every `<!-- source: -->` on the packet-capture page resolves to a file that exists; four of them now name `internal/core/pcap/` | Yes |
+| Gate result | `./le doc check verify` exits 1, and every finding is in the `../gh-pages` checkout; `./le doc wiring` fails on three groups, none naming a pcap file | Yes |
+
+## Core Insight
+
+The defect was invisible because nothing ever read the file back, and the fix
+was invisible for a day for the same reason at one remove: the evidence that
+would have closed AC-2 needed a parser Ze does not own, the named one was
+absent, and the search stopped there. A format is only as true as the foreign
+reader that accepts it, and there is usually more than one foreign reader.

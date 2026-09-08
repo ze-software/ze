@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/netip"
 	"sort"
 	"time"
 )
@@ -85,9 +84,11 @@ type Report struct {
 	// FlowsSelected counts the directions whose source or target port matched
 	// the selector.
 	FlowsSelected int
-	// FlowsDropped counts directions refused because FlowMax was already
-	// reached.
-	FlowsDropped int
+	// RecordsDropped counts the records whose direction was refused because
+	// FlowMax was already reached. It counts records rather than directions:
+	// telling one refused direction from another would need a second map of
+	// every flow seen, which is the memory this bound exists to refuse.
+	RecordsDropped int
 	// BytesReassembled is the total length of every Stream returned.
 	BytesReassembled int
 	Gaps             []Gap
@@ -100,8 +101,8 @@ type Report struct {
 // out, so the answer names what was examined instead of printing nothing.
 func (r *Report) String() string {
 	return fmt.Sprintf(
-		"%d records read, %d skipped, %d TCP flows seen, %d selected, %d dropped past the flow limit, %d bytes reassembled, %d gaps",
-		r.RecordsRead, r.RecordsSkipped, r.FlowsSeen, r.FlowsSelected, r.FlowsDropped, r.BytesReassembled, len(r.Gaps))
+		"%d records read, %d skipped, %d TCP flows seen, %d selected, %d records dropped past the flow limit, %d bytes reassembled, %d gaps",
+		r.RecordsRead, r.RecordsSkipped, r.FlowsSeen, r.FlowsSelected, r.RecordsDropped, r.BytesReassembled, len(r.Gaps))
 }
 
 // heldSegment is one segment kept for reassembly, with its bytes copied out of
@@ -181,7 +182,7 @@ func Reassemble(source io.Reader, port uint16) ([]Stream, *Report, error) {
 		state := flows[seg.flow]
 		if state == nil {
 			if len(flows) == FlowMax {
-				report.FlowsDropped++
+				report.RecordsDropped++
 				continue
 			}
 			state = &flowState{}
@@ -322,15 +323,4 @@ func (f *flowState) build(flow Flow, report *Report) []Stream {
 		streams = append(streams, current)
 	}
 	return streams
-}
-
-// FlowFrom builds a Flow from two address-and-port pairs, for a caller that
-// holds them as values rather than off a wire.
-func FlowFrom(source, target netip.AddrPort) Flow {
-	return Flow{
-		SourceAddr: source.Addr(),
-		TargetAddr: target.Addr(),
-		SourcePort: source.Port(),
-		TargetPort: target.Port(),
-	}
 }

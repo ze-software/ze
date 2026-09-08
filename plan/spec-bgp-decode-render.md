@@ -64,7 +64,10 @@ depends on, and belongs to its own spec. The Python harness stays as it is: it
 cannot call Go, so its tree and this one can drift. That is accepted, recorded
 under Known Limitations.
 
-The pcap half of the original request is `plan/immediate/spec-bgp-pcap-decode.md`.
+The pcap half of the original request was `spec-bgp-pcap-decode`, closed on
+2026-09-08. Its result is in the tree: `ze bgp decode` takes `pcap <file>`,
+`pcap -` and `-`, and `internal/core/pcap` owns the file format, the reader and
+the TCP reassembly.
 
 ## Required Reading
 
@@ -305,6 +308,7 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
 - `internal/component/bgp/cli/decode.go` - route the human branch through the renderer; keep the JSON branch untouched
 - `internal/component/bgp/cli/decode_test.go` - update the human-output assertions, add the tree and determinism tests
 - `internal/core/textbuf/textbuf.go` - add the hex-dump helper
+- `docs/architecture/textbuf-string-building.md` - the page `textbuf.go`'s `// Design:` header declares, so the hex-dump helper is described there in the same work that adds it
 - `internal/core/slogutil/slogutil.go` - add the `bgp.wire` row to `subsystemDescriptions`
 - `internal/component/bgp/reactor/reactor.go` - register the wire observer and touch the logger at construction so the subsystem exists before the first message
 - `docs/guide/logging.md` - add the `bgp.wire` row, and fix the four `bgp log set` / `bgp log levels` invocations that are not commands

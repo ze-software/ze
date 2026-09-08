@@ -126,8 +126,8 @@ func reportAnomalies(report *pcap.Report, skipped, incomplete int) {
 	for _, flow := range report.Truncated {
 		fmt.Fprintf(os.Stderr, "warning: %s reached the %d-byte reassembly limit; its later bytes were not read\n", flow, pcap.FlowBytesMax)
 	}
-	if report.FlowsDropped > 0 {
-		fmt.Fprintf(os.Stderr, "warning: %d flows past the %d-flow limit were not read\n", report.FlowsDropped, pcap.FlowMax)
+	if report.RecordsDropped > 0 {
+		fmt.Fprintf(os.Stderr, "warning: %d records past the %d-flow limit were not read\n", report.RecordsDropped, pcap.FlowMax)
 	}
 	if skipped > 0 {
 		fmt.Fprintf(os.Stderr, "warning: %d bytes carried no BGP header and were skipped to find the next message\n", skipped)
