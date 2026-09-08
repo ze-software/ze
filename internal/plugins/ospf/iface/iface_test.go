@@ -211,6 +211,60 @@ func TestOSPFStopLeavesAllDRouters(t *testing.T) {
 	}
 }
 
+// recordNeighborSink records what an interface tells the engine's neighbor state machine.
+// InterfaceDown is the callback a stopping interface makes, and it is what the engine acts
+// on to drop the adjacencies that interface held.
+type recordNeighborSink struct {
+	down []string
+}
+
+func (s *recordNeighborSink) NeighborHello(NeighborEvent)                  {}
+func (s *recordNeighborSink) NeighborDown(string, types.RouterID)          {}
+func (s *recordNeighborSink) AdjOK(string, types.RouterID, types.RouterID) {}
+func (s *recordNeighborSink) InterfaceDown(name string) {
+	s.down = append(s.down, name)
+}
+
+// VALIDATES: Stop drops the adjacencies of an interface -- the neighbor count returns to
+// zero, the DR and the BDR are cleared, and the neighbor sink is told the interface is
+// down. A reference-bandwidth change restarts each auto-costed interface through
+// startInterfaceLocked, so this is what an operator sees on such a reload.
+// PREVENTS: a restart that re-prices the interface while its neighbors, its DR and its
+// BDR survive, which would leave the engine holding adjacencies no interface owns.
+func TestInterfaceStopClearsNeighbors(t *testing.T) {
+	cfg := baseConfig(t)
+	sink := &recordNeighborSink{}
+	ifc := New(cfg, &fakeSender{}, NopMetrics())
+	ifc.SetNeighborSink(sink)
+	ifc.Start()
+	peer := rid(t, "10.0.0.2")
+	if reason := ifc.ReceiveHello(peer, helloFor(cfg, cfg.RouterID), time.Now()); reason != "" {
+		t.Fatalf("ReceiveHello: %s", reason)
+	}
+	ifc.forceWaitTimer()
+	if got := ifc.Snapshot().NeighborCount; got != 1 {
+		t.Fatalf("neighbors before Stop = %d, want 1: the restart needs an adjacency to drop", got)
+	}
+	if ifc.DR() == (types.RouterID{}) {
+		t.Fatal("no DR before Stop: the restart needs a DR to clear")
+	}
+
+	ifc.Stop()
+
+	if got := ifc.Snapshot().NeighborCount; got != 0 {
+		t.Errorf("neighbors after Stop = %d, want 0: a restarted interface keeps no adjacency", got)
+	}
+	if ifc.DR() != (types.RouterID{}) {
+		t.Errorf("DR after Stop = %s, want cleared", ifc.DR())
+	}
+	if ifc.BDR() != (types.RouterID{}) {
+		t.Errorf("BDR after Stop = %s, want cleared", ifc.BDR())
+	}
+	if len(sink.down) != 1 || sink.down[0] != cfg.Name {
+		t.Errorf("InterfaceDown calls = %v, want one for %q", sink.down, cfg.Name)
+	}
+}
+
 func TestOSPFInterfaceEvents(t *testing.T) {
 	cfg := baseConfig(t)
 	sink := &recordSink{}

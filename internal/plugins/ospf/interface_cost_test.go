@@ -9,7 +9,9 @@ package ospf
 import (
 	"testing"
 
+	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 	"github.com/ze-software/ze/internal/plugins/ospf/transport"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // stubLinkSpeed makes interfaceLinkSpeedMbps answer from a table for the duration of one
@@ -147,4 +149,62 @@ func topologyCost(t *testing.T, eng *engine, name string) uint16 {
 	}
 	t.Fatalf("interface %q is absent from the origination topology", name)
 	return 0
+}
+
+// VALIDATES: the two AC-9 consumers no test observed -- the LDP-sync restore value and the
+// RFC 3630 section 2.5.5 TE metric fallback -- carry the derived cost. eth0 is priced 100
+// (100000 Mbps over a 1 Gbit/s link) and eth1 is priced 10 (over a 10 Gbit/s link), and
+// both numbers are 1 without the derivation.
+// PREVENTS: a consumer that reads ic.Cost again and prices a link at 1 while the Router-LSA
+// advertises the derived cost, which would restore the wrong metric after LDP converges and
+// publish a TE metric that disagrees with the link's own cost.
+func TestDerivedCostReachesLDPSyncAndTEMetric(t *testing.T) {
+	stubLinkSpeed(t, map[string]uint64{"eth0": 1000, "eth1": 10000})
+	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"1.1.1.1","router-address":"9.9.9.9","opaque":true,"reference-bandwidth":"100000","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"name":"eth0","area":"0","network-type":"broadcast","ldp-sync":{"enable":true}},"eth1":{"name":"eth1","area":"0","network-type":"point-to-point","traffic-engineering":{"enable":true}}}}}}`), nil)
+	if err != nil {
+		t.Fatalf("parseOSPFConfig: %v", err)
+	}
+	eng := newEngine(transport.New(&fakeBackend{}))
+	eng.setConfig(cfg)
+	if err := eng.openInterfaces(); err != nil {
+		t.Fatalf("openInterfaces: %v", err)
+	}
+	defer eng.shutdown()
+
+	// The LDP-sync restore value, read through the `show ospf ldp-sync` row. eth0 is
+	// broadcast, so the row reports the stored cost rather than the point-to-point
+	// LSInfinity cost-out.
+	rows := eng.ldpSyncSnapshot()
+	if len(rows) != 1 {
+		t.Fatalf("ldp-sync rows = %d, want 1 for eth0", len(rows))
+	}
+	row, ok := rows[0].(ldpSyncSnapshotEntry)
+	if !ok {
+		t.Fatalf("ldp-sync row type = %T, want ldpSyncSnapshotEntry", rows[0])
+	}
+	if row.Interface != "eth0" {
+		t.Fatalf("ldp-sync row interface = %q, want eth0", row.Interface)
+	}
+	if row.EffectiveMetric != 100 {
+		t.Errorf("ldp-sync restore value = %d, want the derived 100: LDP-sync must restore the auto-cost, not 1", row.EffectiveMetric)
+	}
+
+	// The RFC 3630 section 2.5.5 TE metric fallback, read out of the originated Link LSA.
+	eng.teOrig.setTopology(func() []ospflsdb.InterfaceInfo {
+		return []ospflsdb.InterfaceInfo{p2pTopo("eth1", [4]byte{10, 0, 1, 1}, types.RouterID{2, 2, 2, 2}, "10.0.1.2")}
+	})
+	teMetric, found := 0, false
+	for _, o := range eng.teOriginateType1(cfg.RouterID) {
+		lsa := decodeOrigTELSA(t, o)
+		if !lsa.IsLink || !lsa.Link.HasTEMetric {
+			continue
+		}
+		teMetric, found = int(lsa.Link.TEMetric), true
+	}
+	if !found {
+		t.Fatal("no TE Link LSA carrying a TE metric was originated for eth1")
+	}
+	if teMetric != 10 {
+		t.Errorf("TE metric = %d, want the derived 10: the RFC 3630 fallback must carry the cost the Router-LSA advertises", teMetric)
+	}
 }

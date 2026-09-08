@@ -83,6 +83,11 @@ The speed comes from the kernel, and which devices answer is the kernel's decisi
 <!-- source: internal/plugins/ospf/types/metric.go -- DefaultMetric -->
 <!-- source: internal/plugins/ospf/instance.go -- interfaceRuntimeConfigLocked, lsdbTopology, interfaceGlobalParamsChanged -->
 
+Three conditions report no speed for any interface, not only for one device. A VPP interface has no `/sys/class/net` entry, so the VPP backend answers 0 for every interface. A host that is not Linux runs the stub backend, which answers 0 for every interface. Ze itself answers 0 when no interface backend is loaded. Auto-cost prices nothing under these three conditions, and every interface with no `cost` leaf costs 1. Set `cost` on each interface you must price there.
+<!-- source: internal/plugins/iface/vpp/query.go -- vppBackendImpl.LinkSpeedDuplex -->
+<!-- source: internal/plugins/iface/netlink/backend_other.go -- stubBackend.LinkSpeedDuplex -->
+<!-- source: internal/component/iface/dispatch.go -- LinkSpeedDuplex -->
+
 ## Multiple address families (RFC 5838)
 
 The OSPFv3 (IPv6) family carries several address families over one link, each as a separate
