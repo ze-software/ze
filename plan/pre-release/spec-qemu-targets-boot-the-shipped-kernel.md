@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | 5/5 |
 | Handoff | - |
-| Updated | 2026-08-24 |
+| Updated | 2026-09-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -386,3 +386,225 @@ lab was already red.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### The gap between implementation and closure, and what it did to this spec
+
+The implementation landed on 2026-08-24 as `8de1ffec6` (`test(qemu): boot ze's
+own kernel everywhere, and ship MPLS on it`) and was never closed. Four days
+later `eae282592` (`feat(le): make le a ze personality and retire make and
+scripts`) retired the makefile and `scripts/evidence/`, so EVERY artifact this
+spec names by path is gone: `mk/test-integration.mk`, `scripts/evidence/qemu-run.py`,
+`scripts/evidence/qemu_kernel_wiring_test.go`, `tools/kernel-builder/run.py`,
+and with them the four wiring tests the TDD plan names.
+
+Closure therefore re-located every producer and re-verified each AC against the
+code that holds the behavior TODAY. The population AC-2, AC-3 and AC-4 counted
+("thirteen `qemu-run.py` invocations") no longer exists as a population: the
+seven targets became native `./le qemu` actions and CI workflow jobs, and the
+guarantee moved from a makefile-shape check to a guest-side runtime assertion.
+
+### What Was Implemented
+
+- **The ownership repair.** `repairOwnership`
+  (`internal/appliance/kernelbuilder/driver.go`) runs
+  `docker run --rm --platform <p> -v <out>:/out <image> chown -R <uid>:<gid> /out`.
+  Its caller `runDocker` runs it on a `context.WithoutCancel` context after
+  the build command returns, pass or fail, and joins both errors so neither is
+  lost.
+- **The guest-side kernel check.** `Run.assertRuntimeKernel`
+  (`internal/le/qemu/run_exec.go`) reads `internal/appliance/kernel.version`,
+  runs `uname -r` over SSH, and fails the run when the release does not match.
+  `Run.Execute` reaches it at every boot where `Plan.Kernel` is not empty.
+- **The CI precondition.** Every `qemu-nightly.yml` job that runs `./le qemu run`
+  also restores the kernel cache, runs `./le build-artifacts host` and
+  `./ze-host appliance kernel --target runtime --arch amd64`, and passes
+  `kernel tmp/kernel/build/vmlinuz`.
+- **MPLS in the shipped kernel.** `CONFIG_MPLS`, `CONFIG_LWTUNNEL`,
+  `CONFIG_MPLS_ROUTING`, `CONFIG_MPLS_IPTUNNEL` and `CONFIG_NET_MPLS_GSO` are
+  `=y` in `gokrazy/kernel/runtime.config` and listed in
+  `gokrazy/kernel/runtime.require`.
+
+### Bugs Found/Fixed
+
+- Ze shipped MPLS forwarding code on a kernel with no `AF_MPLS` table. Found by
+  the first LDP lab run on ze's own kernel. Row in `plan/journal/unwired-feature.md`.
+- One functional run wrote a 518-byte fake `vmlinuz` into the REAL durable
+  kernel cache, after which the guard refused every QEMU target. Row in
+  `plan/journal/suite-shares-one-persistent-store.md`.
+- The kernel build left `root:root` paths under `tmp/` that no automated caller
+  could remove. Row in `plan/journal/container-build-leaves-root-owned-scratch.md`.
+- The workflow-precondition test had read a renamed makefile path and died on
+  its first statement, checking nothing. Row in `plan/journal/test-against-broken-path.md`.
+
+### Documentation Updates
+
+- `docs/architecture/testing/qemu-integration.md`, section "A run boots ze's
+  kernel when it is given one". Verified this closure: its `<!-- source: -->`
+  anchors resolve, and `Run.kernelPath`, `Run.scratchShare`
+  (both `internal/le/qemu/run.go`) and `runtimeKernelOutputDir`
+  (`internal/appliance/cmd_kernel.go`) all exist.
+- `ai/rules/points/platform-linux/linux-only-functional-ci-tests-run-via-qemu-never-natively/both-functional-targets-boot-zes-runtime-kernel.md`,
+  rendered into `ai/rules/platform-linux.md`. It cites `Run.assertRuntimeKernel`
+  by its current name, so the migration carried it forward.
+- `./le doc check verify` was NOT run for this closure: it exits 1 with 3939
+  findings across the tree, none in these two pages. Carried as verification debt.
+
+### Deviations from Plan
+
+- A-1 broke. `--user` cannot work, so the fix is an ownership repair. AC-1's
+  first clause ("runs the container as the invoking user") is VOID and its
+  second clause ("leaves no root-owned path under `tmp/`") is met.
+- Every named artifact was retired by `eae282592` after the implementation
+  landed. The behavior survived the migration; the file paths did not.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1 assumed `--user` would make the build write host-owned output | Docker creates a named volume `root:root 0755`, so `--user` denies the build `/build` and `/tmp/kbuild` on a clean machine too | probed with `--user 1000:1000` against volumes created fresh for the probe | fix shape changed to `repairOwnership` |
+| assumption | A-4 assumed a functional test could drive the real kernel stage | It poisons the developer's durable cache | one `./le functional install` wrote a fake `vmlinuz` into `~/.cache/ze/runtime-kernel/` | `XDG_CACHE_HOME` isolated in the fixture |
+| approach | The spec was left open for 15 days after its implementation landed | A migration retired every artifact it names, so closure had to re-locate all seven ACs' producers | `gopls` and `grep` at closure found no `qemu-run.py`, no `mk/`, and none of the four named wiring tests | closed here, and the cost of the delay is what the Core Insight records |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Every QEMU target boots the kernel ze ships | Done | `Run.assertRuntimeKernel` and `Run.Execute` (`internal/le/qemu/run_exec.go`) | Enforced per BOOT rather than per target, which is stronger than the makefile check it replaced. It is reached only when the caller passes `kernel <path>` |
+| Remove the friction that made stock the quick path | Done | `repairOwnership` (`internal/appliance/kernelbuilder/driver.go`) | A developer can now delete `tmp/` and rebuild without `sudo` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done (clause 2; clause 1 void) | `repairOwnership` (`internal/appliance/kernelbuilder/driver.go`); `assertOwnershipRepairCalls` (`internal/test/fixture/install_fixture.go`) | A-1 broke `--user`. The repair reaches the same host-visible outcome |
+| AC-2 | Done, in a migrated home | `TestQEMUNightlyScheduleActionsCachesAndBudgets` (`internal/le/workflowcheck/workflowcheck_test.go`) | The thirteen makefile invocations are gone. Every workflow job that runs `./le qemu run` passes `kernel tmp/kernel/build/vmlinuz` |
+| AC-3 | Done, in a migrated home | same test, plus `Run.assertRuntimeKernel` | The makefile guard became the guest-side check, which cannot be bypassed by a recipe that forgets a prerequisite |
+| AC-4 | Done, in a migrated home | same test | Every such job also holds `./le build-artifacts host` |
+| AC-5 | Done, in a migrated home | same test, PASS this closure | The four tests the TDD plan names were deleted with the makefile they parsed |
+| AC-6 | Done | `probeVRRPKernel` (`internal/le/qemu/vrrp_keepalived_linux.go`) | Its refusal reads "It already boots ze's runtime kernel". No stock-kernel precedent is cited anywhere in the file |
+| AC-7 | Done, recorded, NOT re-measured | Failure Routing table in this spec | `./le qemu run` needs a built kernel, which needs 40G under `/var/lib/docker`; this host has 10.5G free. The 2026-08-24 result stands as the last measurement |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestQemuFunctionalTargetsBootTheRuntimeKernel` | Changed | deleted with `scripts/evidence/qemu_kernel_wiring_test.go` | Replaced by `Run.assertRuntimeKernel` at every boot |
+| `TestQemuTargetsGuardTheStagedKernel` | Changed | same | Same replacement |
+| `TestQemuTargetsDependOnHostBuild` | Changed | `TestQEMUNightlyScheduleActionsCachesAndBudgets` | Now asserted over the workflow rather than the makefile |
+| `TestKernelBuilderRunsAsInvokingUser` | Changed | `assertOwnershipRepairCalls` (`internal/test/fixture/install_fixture.go`), plus `TestRunDockerArgvAndOwnershipRepair` and `TestRunDockerRepairsOwnershipAfterFailure` (`internal/appliance/kernelbuilder/driver_test.go`) | A-1 broke `--user`, so the test asserts the repair argv and its ordering instead |
+| `test/install/kernel-build-output-ownership.ci` | Done | exists; drives `kernelBuildOwnershipFixture` | Asserts the repair after a successful AND a failed build |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `tools/kernel-builder/run.py` | Changed | retired by `eae282592`; behavior at `internal/appliance/kernelbuilder/driver.go` |
+| the makefile QEMU targets | Changed | retired; the targets are native `./le qemu` actions |
+| `internal/le/qemu/run.go` | Done | the guest check lives in the sibling `run_exec.go` after a file split |
+| `.github/workflows/qemu-nightly.yml` | Done | `protocol-labs` carries the restore, the stage and the save |
+| `test/install/kernel-build-output-ownership.ci` | Done | present |
+| `test/install/ze-kernel-overlay.ci` | Done | present; cache isolation moved into the Go fixture |
+| the platform-linux rule point | Done | present, and cites the current producer |
+| `docs/architecture/testing/qemu-integration.md` | Done | present, anchors resolve |
+
+### Audit Summary
+- **Total items:** 21
+- **Done:** 15
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 6 (each because `eae282592` retired the artifact, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Every QEMU target boots the kernel ze ships | functional (guest-side assertion at every boot) | `Run.assertRuntimeKernel` (`internal/le/qemu/run_exec.go`) reads `uname -r` over SSH and returns a failure string unless it matches `internal/appliance/kernel.version`. `Run.Execute` calls it before the guest command runs, so no verdict is produced on the wrong kernel |
+| CI proves it, not just the developer | functional (workflow gate) | `TestQEMUNightlyScheduleActionsCachesAndBudgets` (`internal/le/workflowcheck/workflowcheck_test.go`) PASSED this closure. It fails naming the job when a `./le qemu run` job loses the host build, the kernel stage, or the kernel path |
+| A developer deletes `tmp/` and re-runs without `sudo` | functional (`.ci` plus a real build) | `test/install/kernel-build-output-ownership.ci` drives `kernelBuildOwnershipFixture`, which asserts the three docker calls in order and that the third is `chown -R <uid>:<gid> /out`, after a successful build AND after a failed one |
+| The lab moved onto ze's kernel finds what stock hid | goal-validation by discovery | The first LDP lab run on ze's kernel found ze shipping MPLS code on a kernel with no `AF_MPLS`. Fixed in `gokrazy/kernel/runtime.config`, pinned by `runtime.require` so a later build FAILS rather than shipping without the symbol |
+
+## Work Not Done
+
+Nothing in scope was left undone. Two defects were met during closure that this
+spec did not create and does not own; both are journal rows, and neither is a
+reduction of this spec's scope.
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| (none) | every AC has a producer verified from source at closure | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/qemu-targets-boot-the-shipped-kernel-d64e7b3f-bfdc-4614-8db4-f12043eb77cc.md` |
+| `review check` | clean |
+| Rounds | 1. The implementation itself took five rounds in the authoring session (recorded in `8de1ffec6`'s body). This gate is a fresh independent pass over the surviving code and found no BLOCKER and no ISSUE |
+| Reviewer lenses used | wiring and reachability, functional-test coverage, documentation drift, removed-behavior audit across the `eae282592` migration, security (container mount and argv), Go style (`docs/contributing/ze-go-style.md`) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | no BLOCKER and no ISSUE | - | - |
+
+### Notes recorded, not blocking
+| # | Finding | Location |
+|---|---------|----------|
+| N-1 | `assertRuntimeKernel` returns an empty string and a nil error both for a passing check and, on the error path, for a run that never checked. The one call site reads the error first, so the ambiguity is contained, but the shape is the "zero that behaves correctly" the style guide names | `Run.assertRuntimeKernel` and `Run.Execute` (`internal/le/qemu/run_exec.go`) |
+| N-2 | The workflow gate is a per-JOB containment check, so it cannot prove the kernel path sits on the same `./le qemu run` invocation as the stage. The guest-side assertion is what makes that unfakeable | `TestQEMUNightlyScheduleActionsCachesAndBudgets` (`internal/le/workflowcheck/workflowcheck_test.go`) |
+| N-3 | The kernel probe interpolates `kernel.version` into a shell `case` pattern with no quoting. The file is tracked in the checkout under test, so this is not an untrusted-input path | `Run.assertRuntimeKernel` (`internal/le/qemu/run_exec.go`) |
+| N-4 | The `os.UserHomeDir` error is dropped with no comment, so a home-dir failure silently skips the space reclaim. Not this spec's code, and it arrived with `7711a363b` | `runDocker` (`internal/appliance/kernelbuilder/driver.go`) |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/install/kernel-build-output-ownership.ci` | yes | `ls -la` returned a 641-byte file dated Aug 30 |
+| `test/install/ze-kernel-overlay.ci` | yes | `ls -la` returned a 222-byte file dated Aug 30 |
+| `docs/architecture/testing/qemu-integration.md` | yes | its kernel section was read from source this closure |
+| `gokrazy/kernel/runtime.require` | yes | `grep -n "MPLS\|LWTUNNEL"` returned the five symbols |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | the build leaves no root-owned path | `repairOwnership` read from source in `internal/appliance/kernelbuilder/driver.go`; `runDocker` runs it after the build on a `WithoutCancel` context, so a canceled build is repaired too |
+| AC-2 | every QEMU run names the kernel | `grep -n "qemu run" .github/workflows/qemu-nightly.yml` returned 7 invocations, each followed by `kernel tmp/kernel/build/vmlinuz` |
+| AC-3 | every run is guarded | `Run.Execute` (`internal/le/qemu/run_exec.go`) calls `assertRuntimeKernel` whenever `Plan.Kernel` is set |
+| AC-4 | every run depends on the host build | test PASS: `--- PASS: TestQEMUNightlyScheduleActionsCachesAndBudgets (0.01s)` |
+| AC-5 | the wiring test asserts all three | same test, read from source: it names the job and the missing string in its failure |
+| AC-6 | no stale stock-kernel precedent | the kernel-probe refusal in `internal/le/qemu/vrrp_keepalived_linux.go` reads "It already boots ze's runtime kernel" |
+| AC-7 | one moved target run on the runtime kernel | recorded 2026-08-24 in the Failure Routing table. NOT re-measured: the kernel build needs 40G and this host has 10.5G free under `/var/lib/docker` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze appliance kernel` to `kernelbuilder.Build` to `repairOwnership` | `test/install/kernel-build-output-ownership.ci` | yes. The `.ci` runs `ze-test fixture install/kernel-build-output-ownership`, registered to `kernelBuildOwnershipFixture` (`internal/test/fixture/install_fixture.go`), which asserts three docker calls in order and the chown argv of the third |
+| `./le qemu run kernel <path>` to `Run.Execute` to `assertRuntimeKernel` | none (guest-side, runs at every boot) | yes. Read from source: a mismatch sets `RunVerdictFail`, sets `GuestExitCode` to 1, and returns BEFORE `runGuestCommand` |
+| `ze appliance kernel` (real stage) | `test/install/ze-kernel-overlay.ci` | yes. The fixture sets `XDG_CACHE_HOME` to its own temp dir, so the real durable cache is untouched |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | `--user` denies the build its named volumes; `repairOwnership` is the fix that shipped |
+| A-2 | confirmed | `kernelCacheVariantFor` (`internal/appliance/cache.go`) hashes the builder sources, so the builder edit moved the key and cost one rebuild per machine |
+| A-3 | confirmed | no reason for stock survives in any recipe; the four comments that went false were corrected |
+| A-4 | broken | the overlay fixture now isolates `XDG_CACHE_HOME` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/testing/qemu-integration.md` names the guest check and its precondition | `Run.assertRuntimeKernel`, `Run.kernelPath`, `Run.scratchShare` (`internal/le/qemu/`) and `runtimeKernelOutputDir` (`internal/appliance/cmd_kernel.go`) all exist | yes |
+| the platform-linux rule point names the current producer | `ai/rules/platform-linux.md` cites `Run.assertRuntimeKernel` (`internal/le/qemu/run_exec.go`) | yes |
+| `docs/architecture/testing/interop.md` needs no edit | `grep -n 'qemu\|QEMU\|kernel'` over that file returns nothing; it documents the Docker labs | yes |
+
+## Core Insight
+
+A proof is about the platform it ran on, not the platform it was written for. A
+lab on stock Alpine answered a question about stock Alpine, and the first run on
+ze's own kernel found that ze ships MPLS forwarding code on a kernel with no
+`AF_MPLS` table. The check that makes this durable is not a list of targets that
+must pass a flag: that list was deleted four days after it was written. It is
+the guest, at every boot, being asked what kernel it is running.

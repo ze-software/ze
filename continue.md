@@ -77,7 +77,7 @@ Closed here: `isis-per-level-hello-timers`, `l2tp-shaper-upload-rate-is-not-enfo
 | `plan/immediate/spec-bgp-pcap-decode.md` | Proof gap for the gate to rule on: AC-2 evidence was substituted because the host has no tshark |
 | `plan/immediate/spec-commit-end-reports-what-each-peer-took.md` | Proof gap: its own `.ci` is committed and was never run |
 | `spec-image-server-listen-interface-drops-entries` | CLOSED 2026-09-08. The tree no longer holds the file, so the name is written bare |
-| `plan/pre-release/spec-qemu-targets-boot-the-shipped-kernel.md` | Clean, evidence tables filled for all 7 ACs |
+| `spec-qemu-targets-boot-the-shipped-kernel` | CLOSED 2026-09-08. The tree no longer holds the file, so the name is written bare. All 7 ACs re-verified against the producers that survived the `eae282592` migration |
 
 **The 45 that are NOT closable.** 42 are partly built and 3 were never started
 (`finish-l2tp`, `mpls-9-rsvp-te-one-to-one-backup`, `bgp-deferred-confederation-otc`).
