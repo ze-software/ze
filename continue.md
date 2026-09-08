@@ -206,17 +206,70 @@ wording decision from Thomas).
   A peer proposing KeepAlive Time 0 is accepted, sets hold time to 0, and dies on the next
   read deadline reported as a keepalive expiry. Both are inside the liveness spec's scope.
 
-## 6. Pre-existing reds, none of them this sweep's
+## 6. THE RED LIST: what to focus on next session
 
-`internal/component/bgp/plugins/rib` does not build (another session's mid-edit
-`shapeMap`/`shapeTab`). `./le spec citation` fails on 8 dangling refs in
-`spec-remove-takes-the-working-tree-copy.md` and `spec-verification-debt-clearing.md`.
-`./le repository check` flags `ExtractRemovePrivateASOps` and `internal/le/rfc/carriers.go`.
-`./le doc check verify` is red across the BGP command surface and `../gh-pages/`.
+**This is the work. Everything else in this file is context.** The verification-debt
+ledger holds 1080 open rows, and not one of them clears until the whole verification runs
+green, so these reds ARE the push gate.
+
+### The sweep that measured it
+
+Thomas ran `debt-clear` as a 45-piece sweep on the other machine (macOS) on 2026-09-08,
+00:16 to 01:40 UTC. Result: **30 pieces green, 15 red, 0 rows cleared, 1080 still open.**
+Its own result file is machine-local at
+`tmp/session/2026-09-08-78638422-.../scratch/sweep-result-20260908-011648.txt`; the numbers
+below are copied here because that path does not exist on this box.
+
+    red this sweep, re-run them: 1 3 4 5 7 10 12 22 23 24 33 40 41 44 45
+    proven: 2 6 8 9 11 13 14 15 16 17 18 19 20 21 25 26 27 28 29 30 31 32 34 35 36 37 38 39 42 43
+
+**Piece 1 is the one that matters:** it carries lint (60 findings) and the full unit run
+(**36 failing packages**). The other fourteen are functional and test-health stages. 36
+failing packages at a committed SHA is the product being red, not scaffolding noise.
+
+### Read the sweep with this caveat, or you will chase a past
+
+It ran over `6b7077807`, which is an **ancestor of this machine's HEAD by 51 commits**. The
+two checkouts also disagree about origin: the Mac had `origin/main` at `6b7077807`, this box
+has it at `e9a8155a3`, thirteen commits later. Settle that first, or the next sweep measures
+a different past again — the branch is Thomas's to move.
+
+Several commits since plausibly move those reds, though NONE has been measured against a
+sweep piece and no such claim should be made without running it:
+
+| Landed since the sweep | Plausibly touches |
+|---|---|
+| `patchAS4Capability` in the test peer | the standing ~100-case plugin red; 89 `.ci` share the shape |
+| `TestReclaimRunsOnlyForAVMBackedRuntime` pin (`20c836767`) | one unit failure, deterministic on any host without `colima` |
+| `ParseRateBps` overflow guard, `restartHandshake` ordering, the control-character refusal | their own packages' tests |
+
+**So the first action is the same command at the current HEAD.** It re-measures the fifteen,
+tests resumption (it should skip the thirty proven), and does it against a tree where a third
+of this session's fixes exist.
+
+### One defect in the sweep itself
+
+An abandoned worktree, `r20`, was left at **0.8 GB** because it held five *untracked* files,
+so the sweep does not reclaim its own space when a piece is killed. Every killed piece leaks
+another 0.8 GB. The rule it applies is the right rule in the wrong place: untracked output
+inside a throwaway verify worktree is generated, which is the one category
+`ai/rules/never-destroy-work.md` explicitly permits acting on.
+
+### Reds seen from this machine, independent of the sweep
+
 `TestNativeImplementationFixture` in `internal/le/rfc` and `internal/le/rules` fails on
 hand-pinned digest drift, a class with 22 rows in `plan/journal/hardcoded-count-in-test.md`.
-`exabgp api-reload` fails intermittently on an unchanged tree. The `ui` suite fails 15
-cases, `le-ste-answers` hangs past 340s.
+`./le spec citation` fails on 8 dangling refs in `spec-remove-takes-the-working-tree-copy.md`
+and `spec-verification-debt-clearing.md`. `./le doc check verify` is red across the BGP
+command surface and `../gh-pages/`. `exabgp api-reload` fails intermittently on an unchanged
+tree. The `ui` suite fails cases including `le-ste-answers`, which hangs past 340s.
+`./le verify lint run` was last seen red on `internal/component/plugin/leaf_test.go` (nilnil,
+from `8788a29f8`) plus darwin-flavor findings.
+
+Two entries that WERE in this list are now gone and are recorded here so nobody re-chases
+them: `internal/component/bgp/plugins/rib` built again once its session committed, and
+`ExtractRemovePrivateASOps` was reported for having no cross-package NON-TEST caller while
+having three in-package ones, so landing it changed nothing.
 
 ## 6b. Graceful Restart: its own handover
 
