@@ -395,6 +395,7 @@ honest (`ai/rules/principles.md`).
 - The announce half of a named commit has no producer: `(*Transaction).QueueAnnounce` is called by nothing outside its own tests, so `request commit end` can carry withdrawals and cannot carry announcements. This spec makes the announced count honest by construction, so it stays correct when a producer is wired. The find is recorded in `plan/journal/unwired-feature.md` (2026-09-05).
 - `SendRoutes` drops the work for a peer that is not established, where `AnnounceNLRIBatch` queues it for establishment. This spec reports the drop and does not change it.
 - An error answer loses its payload at TWO boundaries, and the design named only the second. The FIRST producer is `responseToDispatchOutput` (`internal/component/plugin/server/dispatch.go`): it copies `resp.Status`, then `if resp.Error != "" { output.Error = resp.Error; return output }`, and the `json.Marshal(resp.Data)` below that return is never reached. So `DispatchCommandOutput.Data` is nil for EVERY command that answers with an error, on every dispatch path, and the payload is already gone before the SDK sees the answer. `answerValue` (`pkg/plugin/sdk/sdk_engine.go`) then discards the collapsed document a second time, and `dispatchCommandResult` does the same for the in-process bridge. The shape matters more than the count: a value is deleted at a layer no caller suspects, so the surface above reports an ABSENCE that is really a DELETION, and a reader of the payload cannot tell "the command had nothing to say" from "the command said it and a middle layer dropped it". That is why this spec states every refused peer and its reason in the error SENTENCE: the sentence is the only field that survives all three. The peer rows on the `plugin.Response` are what the handler test asserts, because the handler is above the first deletion. The find is recorded in `plan/journal/error-path-discards-data-already-received.md` (2026-09-05), whose row named `answerValue` alone and is now understated by one layer.
+- Corrected at closure, 2026-09-08. The paragraph above concludes that the error SENTENCE survives all three layers. It does not. `(*Server).dispatchCommandResponse` (`internal/component/plugin/server/dispatch.go`) sits ABOVE all three, and when a handler returns a non-nil Go error beside its response it returns `nil, dispatchErr` and discards the whole `*plugin.Response`, so `resp.Error` never reaches `responseToDispatchOutput`. `test/plugin/commit-end-per-peer-report.ci` found it on its first run: the plugin received `rpc error: commit not carried in full by every matched peer`, the sentinel, naming no peer, so AC-3 was unmet over the real dispatch path. The repair is in the handler, where the answer's wording belongs: `handleNamedCommitEnd` returns `shortfallError`, whose own text IS the sentence and which unwraps to `errCommitNotCarriedInFull`, so the sentence is what every transport carries. The boundary defect stays unfixed for the reason the two before it stay unfixed, and its row is in the same journal file (2026-09-08).
 
 ## RFC Documentation (Scope: protocol)
 Not applicable. No RFC requirement is implemented, changed or newly proven by
@@ -446,3 +447,197 @@ this spec, and no wire behavior changes.
 
 Committed in `2175296427`, with `bc987697e1` for the commit message-suffix fix.
 Its `.ci` is committed and unrun.
+
+## Progress, 2026-09-08
+
+The `.ci` was run at closure. It went RED at HEAD over a real defect and is GREEN
+after the fix. See Implementation Summary, Bugs Found/Fixed.
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `TransactionResult` (`internal/component/bgp/types/types.go`) gained `RoutesQueued`, `WithdrawalsQueued`, `EORSent`, `EORRequested` and `Peers []PeerCommitResult`, and lost `RoutesDiscarded` and `TransactionID`, neither of which had a writer or a reader. `PeerCommitResult` and the six closed reason constants are declared beside it.
+- `SendRoutes` (`internal/component/bgp/reactor/reactor_api_batch.go`) assigns no delivered count before the peer loop. It sums the rows `commitToPeer` answers, and `commitToPeer` holds the branches that used to be bare `continue` statements: a nil send context, a `(*CommitService).Commit` error whose partial stats are now added rather than dropped, a route shortfall from `enforcePathsLimit`, and a refused End-of-RIB.
+- `sendWithdrawals` answers a `withdrawOutcome` instead of an UPDATE count, so a family the build buffer refuses and an UPDATE the peer rejects are counted apart and neither reads as withdrawn.
+- `handleNamedCommitEnd` (`internal/component/bgp/plugins/cmd/commit/commit.go`) renders the rows under `peers`, keyed by address, in the shape `handleBgpPeerList` (`internal/component/bgp/plugins/cmd/peer/peer.go`) already answers. Every key is kebab-case. A shortfall answers `StatusError` with `shortfallSentence` naming each refused peer.
+- `docs/architecture/api/commands.md` and `docs/guide/route-injection.md` publish the answer shape and no longer show a batching route with no producer.
+
+### Bugs Found/Fixed
+- **The error sentence reached no caller (found by running the `.ci`, fixed at closure).** `handleNamedCommitEnd` wrote the sentence into `Response.Error` and returned `errCommitNotCarriedInFull` beside it. `(*Server).dispatchCommandResponse` (`internal/component/plugin/server/dispatch.go`) returns the error and discards the whole response before `responseToDispatchOutput` is reached, so the plugin received the sentinel text and no peer name. AC-3 was unmet over the real dispatch path. Fixed by `shortfallError` (`commit.go`), whose own `Error()` IS the sentence and which unwraps to the sentinel so `errors.Is` still separates a shortfall from a command that could not run. Covered by `TestCommitEndAnswersErrorAndKeepsThePeerRows`, which now asserts `resp.Error` equals `err.Error()`, and by `test/plugin/commit-end-per-peer-report.ci`.
+- **The handler test asserted the field no caller receives.** It checked `resp.Error` and never `err.Error()`, so it stayed green while the operator-facing sentence was being discarded one layer up. Fixed in the same edit.
+
+### Documentation Updates
+- `docs/architecture/api/commands.md`, `Named Commits (Batching)`: the answer-key table, the closed reason vocabulary, the status rule, and the removal of the `group start` / `group end` pair no handler answered. Four `<!-- source: -->` anchors name `commit.go`, `reactor_api_batch.go`, `types.go` and `commit_manager.go`.
+- `docs/guide/route-injection.md`, `Commit Workflow`: a named commit holds withdrawals only, and `end` / `eor` answer one row per matched peer. Anchor names the commit command directory and the transaction package.
+- Both pages remain correct after the closure fix: `commands.md` states the sentence is all a plugin receives, which the fix makes true rather than aspirational.
+- `./le doc check verify` exits 1 with 3939 findings across the tree, none of them in these two pages and none attributable to this change. Recorded as verification debt.
+
+### Deviations from Plan
+- The spec planned five reactor unit tests; six exist. `TestSendRoutesReasonsAndShortfallAgree` was added to hold the reason-iff-shortfall invariant in both directions.
+- The spec's Known Limitations named three layers that drop an error answer's payload. Closure found a fourth, above all of them, that drops the sentence as well. Corrected in that section and journalled.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The handler put the operator-facing sentence in `Response.Error`, on the reasoning that the sentence is the field every transport carries | Every transport carries the Go ERROR's text. The response, both its Error and its Data, is discarded one layer above the handler whenever an error is returned beside it | Running `test/plugin/commit-end-per-peer-report.ci` for the first time at closure | `shortfallError` carries the sentence as its own text; the handler unit test now asserts the two are equal; row added to `plan/journal/error-path-discards-data-already-received.md` |
+| escalation | A committed `.ci` was never run, and every unit test around it was green | The unit tests asserted a field no caller reads, so they could not see the defect. Only the functional test reaching through the real dispatcher could | The same run | The proof gap is closed by running it. The wider lesson is in the journal row: a handler test that asserts the response rather than the error tests the half the transport throws away |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| An answer that states, per peer, what that peer took | Done | `commitToPeer` (`reactor_api_batch.go`), `peerRows` (`commit.go`) | One row per matched peer, keyed by address |
+| A status that is not `done` when a matched peer took nothing | Done | `shortfallSentence` and the branch above it (`commit.go`) | `StatusError` plus `shortfallError` |
+| No count assigned before the work it counts | Done | `SendRoutes` (`reactor_api_batch.go`) | `grep "RoutesAnnounced = len\|RoutesWithdrawn = len"` answers nothing |
+| `eor-sent` reports what left, not what was requested | Done | `commitToPeer` End-of-RIB branch, `EORRequested` field | Two separate keys |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestSendRoutesNamesTheNotEstablishedPeer`, `test/plugin/commit-end-per-peer-report.ci` | The `.ci` drives exactly this: one established peer, one that never connects |
+| AC-2 | Done | `TestSendRoutesCountsOnlyTheWithdrawalsThatLeft`, `TestSendRoutesReasonsAndShortfallAgree` | Queued keys are separate from delivered keys |
+| AC-3 | Done | `TestCommitEndAnswersErrorAndKeepsThePeerRows`, `test/plugin/commit-end-per-peer-report.ci` | Unmet until the closure fix; the `.ci` is what found it |
+| AC-4 | Done | `TestCommitEndAnswersDoneWhenEveryPeerTookEverything` | |
+| AC-5 | Done | `TestSendRoutesKeepsThePartialUpdatesOfARefusedCommit` | Partial stats counted, `announce-refused` on the row |
+| AC-6 | Done | `TestSendRoutesReportsTheEORThatLeft`, `TestCommitEORReportsTheMarkersThatLeft` | |
+| AC-7 | Done | `TestCommitAnswerKeysAreKebabCase`, `TestCommitEndAnswerRendersAsRows` | |
+| AC-8 | Done | `docs/guide/route-injection.md`, `docs/architecture/api/commands.md` | Neither page shows an announcement joining a named commit |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestSendRoutesNamesTheNotEstablishedPeer` | Done | `reactor_api_batch_report_test.go` | PASS |
+| `TestSendRoutesKeepsThePartialUpdatesOfARefusedCommit` | Done | same | PASS |
+| `TestSendRoutesCountsOnlyTheWithdrawalsThatLeft` | Done | same | PASS |
+| `TestSendRoutesReportsTheEORThatLeft` | Done | same | PASS |
+| `TestSendRoutesReasonsAndShortfallAgree` | Changed | same | Added beyond the plan; holds the reason-iff-shortfall invariant |
+| `TestCommitEndAnswersErrorAndKeepsThePeerRows` | Done | `commit_report_test.go` | PASS; extended at closure to assert `err.Error()` |
+| `TestCommitEndAnswersDoneWhenEveryPeerTookEverything` | Done | same | PASS |
+| `TestCommitEORReportsTheMarkersThatLeft` | Done | same | PASS |
+| `TestCommitAnswerKeysAreKebabCase` | Changed | `commit_report_test.go`, not `schema_test.go` | PASS; the plan named a file that does not exist in this package |
+| `TestCommitEndAnswerRendersAsRows` | Done | `commit_report_test.go` | PASS |
+| `commit-end-per-peer-report` | Done | `test/plugin/commit-end-per-peer-report.ci` | Case 168, PASS in 5.6s |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/types/types.go` | Done | |
+| `internal/component/bgp/types/reactor.go` | Done | Doc comment states what the result reports |
+| `internal/component/bgp/reactor/reactor_api_batch.go` | Done | |
+| `internal/component/bgp/plugins/cmd/commit/commit.go` | Done | Plus the closure fix |
+| `.../cmd/commit/yang/ze-bgp-cmd-commit-api.yang` | Done | |
+| the four `mock_reactor_test.go` files | Done | commit, raw, update, peer |
+| `internal/test/fixture/plugin_fixture_04_cli.go` | Done | Driver plus registration in `plugin_fixture_04.go` |
+| `docs/architecture/api/commands.md` | Done | |
+| `docs/guide/route-injection.md` | Done | |
+| `test/plugin/commit-end-per-peer-report.ci` | Done | |
+
+### Audit Summary
+- **Total items:** 33
+- **Done:** 30
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (one extra reactor test, one test file relocated from the planned `schema_test.go`, and the closure fix to the error's text)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An answer that states, per peer, what that peer took | functional | `./bin/ze-test bgp plugin commit-end-per-peer-report`: `pass 1/1 100.0% 5.6s`, case 168. The fixture reads the answer through the real dispatcher, requires a row naming `127.0.0.2` with `not-established`, and requires `127.0.0.1` to be absent from the shortfall |
+| A status that is not `done` when a matched peer took nothing | functional | Same run. The fixture fails unless the command answers `error`; the daemon log shows `dispatch-command failed ... command="request commit end peer-report"` |
+| The wire is unchanged by the reporting fix | functional, byte-level | Same run. `ze-peer` asserts the `seq=2` hex `FFFF...001B020004180A37000000` and received exactly that: the withdrawal of 10.55.0.0/24 still reaches the established peer |
+| The count is derived from what left, never from the queue | discrimination | `TestCommitEndAnswersErrorAndKeepsThePeerRows` was observed RED against a reverted fix (`expected: "commit end short not carried in full by: 10.0.0.3 (not-established)"`, `actual: "commit not carried in full by every matched peer"`) and GREEN after restoring it. The `.ci` was observed RED at HEAD before the fix and GREEN after |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Nothing. Every AC is implemented and proven | | |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/commit-end-reports-what-each-peer-took-d64e7b3f-bfdc-4614-8db4-f12043eb77cc.md` |
+| `./le spec session review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | logic+wiring, security+edge-cases, CLI answer contract and Go style |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | The error sentence naming each refused peer reached no caller, so AC-3 was unmet over the real dispatch path | `handleNamedCommitEnd` (`internal/component/bgp/plugins/cmd/commit/commit.go`), discarded by `(*Server).dispatchCommandResponse` (`internal/component/plugin/server/dispatch.go`) | `shortfallError`, whose `Error()` is the sentence and whose `Unwrap()` is the sentinel |
+| 2 | ISSUE | The handler test asserted `resp.Error`, the field no caller receives, so it could not see finding 1 | `TestCommitEndAnswersErrorAndKeepsThePeerRows` (`commit_report_test.go`) | An assertion that `resp.Error` and `err.Error()` are equal |
+
+Two NOTEs, recorded and not blocking. `peerRows` keys the answer by peer address,
+so two configured peers sharing a remote address would collapse into one row;
+that is the shape `handleBgpPeerList` (`internal/component/bgp/plugins/cmd/peer/peer.go`)
+already publishes, so it is the established multi-peer surface rather than this
+change's defect. And `commitToPeer`'s announce `switch` reports only
+`announce-refused` when a commit both errored and dropped routes, which keeps the
+shortfall invariant true while the vocabulary does not compose.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/commit-end-per-peer-report.ci` | Yes | `ls -la` answers `-rw-rw-r-- 2791 Sep 6 09:01` |
+| `internal/test/fixture/plugin_fixture_04_cli.go` | Yes | `ls -la` answers `-rw-rw-r-- 19875 Sep 6 22:18` |
+| `internal/component/bgp/reactor/reactor_api_batch_report_test.go` | Yes | `ls -la` answers `-rw-rw-r-- 13627 Sep 6 09:10` |
+| `internal/component/bgp/plugins/cmd/commit/commit_report_test.go` | Yes | `ls -la` answers `-rw-rw-r-- 9272 Sep 8 05:13` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | One row per matched peer, the down peer stating `not-established` | `commit-end-per-peer-report` PASS, case 168, 5.6s |
+| AC-2 | The queue size is never presented as delivered | `grep -n "RoutesAnnounced = len\|RoutesWithdrawn = len" reactor_api_batch.go` answers nothing |
+| AC-3 | Status `error`, sentence naming each refused peer | `TestCommitEndAnswersErrorAndKeepsThePeerRows` PASS; the same test RED against the reverted fix |
+| AC-4 | Status `done` when every peer took everything | `TestCommitEndAnswersDoneWhenEveryPeerTookEverything` PASS |
+| AC-5 | Partial UPDATEs of a refused commit counted | `TestSendRoutesKeepsThePartialUpdatesOfARefusedCommit` PASS |
+| AC-6 | End-of-RIB markers that LEFT | `TestSendRoutesReportsTheEORThatLeft`, `TestCommitEORReportsTheMarkersThatLeft` PASS |
+| AC-7 | Every key kebab-case, rows render | `TestCommitAnswerKeysAreKebabCase`, `TestCommitEndAnswerRendersAsRows` PASS; `grep -n '"[a-z]*_[a-z_]*":' commit.go` answers nothing |
+| AC-8 | Neither page shows an announcement joining a named commit | Both `docs/guide/route-injection.md` and `docs/architecture/api/commands.md` state that `(*Transaction).QueueAnnounce` has no non-test caller |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Operator types `request commit end <name>` over a two-peer selector | `test/plugin/commit-end-per-peer-report.ci` | Yes. Read the file: it configures peer1 at 127.0.0.1 against `ze-peer` and peer2 at 127.0.0.2 where nothing listens, drives start / withdraw / end through the fixture, and asserts both UPDATEs on the wire by hex |
+| Plugin dispatches `request commit eor <name>` over the hub | `TestCommitEORReportsTheMarkersThatLeft` | Yes, PASS |
+| Reactor accounting with one established and one non-established peer | `TestSendRoutesNamesTheNotEstablishedPeer` | Yes, PASS |
+| Commit refused mid-way | `TestSendRoutesKeepsThePartialUpdatesOfARefusedCommit` | Yes, PASS |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `(*Transaction).QueueAnnounce` still has no non-test caller; the `.ci` drives the withdrawal half, which is the reachable one |
+| A-2 | confirmed | `TestCommitEndAnswersErrorAndKeepsThePeerRows` reads `Data` off a response whose `Status` is `StatusError` |
+| A-3 | confirmed | `(*Peer).sendContext` reads `p.sendCtx.Load()`, written only by `setEncodingContexts` at Established. The `.ci`'s peer2 exercises the nil case for real |
+| A-4 | broken in one direction, and the correction is finding 1 | No shipped reader outside `handleNamedCommitEnd` consumes `RoutesAnnounced`, which holds. What did not hold is the neighbouring belief that the response's own `Error` field reaches a caller: `dispatchCommandResponse` discards it. Recorded in the Mistake Log and the journal |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `commands.md` answer-key table | Every key matches a `jsonKey*` constant in `commit.go` and a field on `TransactionResult` | Yes |
+| `commands.md` closed reason vocabulary | The six tokens match the `CommitReason*` constants in `types.go` exactly | Yes |
+| `commands.md` "the sentence is all a plugin receives" | True after the closure fix: `shortfallError.Error()` is the sentence, and it is the Go error the dispatch layer propagates | Yes |
+| `route-injection.md` "a named commit cannot collect an ANNOUNCEMENT" | `grep -rn QueueAnnounce` answers only `commit_manager_test.go` for `(*Transaction).QueueAnnounce` | Yes |
+| Rows 1, 2, 3, 5, 7, 8, 9, 10, 11, 13, 14, 15 answered No | No config leaf, no CLI token, no plugin, no wire form, no RFC requirement, no counter, no registration changed. `git show --stat 217529642` carries no YANG config file, no `register.go`, and no wire package | Yes |
+
+## Core Insight
+
+A handler's answer has two channels and only one of them survives. `Response.Error`
+and `Response.Data` are what the handler composes; the Go `error` returned beside
+them is what the layers above propagate. `(*Server).dispatchCommandResponse`
+discards the response whole the moment an error accompanies it, so a sentence
+written into `Response.Error` is written into the channel that is thrown away.
+The spec reasoned carefully about two layers that drop `Data` and concluded the
+sentence survives, and it was wrong for a reason no unit test could show: the
+test asserted the same discarded field. Only a test reaching through the real
+dispatcher could tell the two channels apart. That is the argument for the
+functional test, stated once and concretely: it is not extra coverage of the same
+logic, it is the only instrument that reads the channel a caller reads.

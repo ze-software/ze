@@ -58,12 +58,35 @@ var (
 	errExpectedRouteKeyword     = errors.New("expected 'route' keyword")
 	errMissingPrefix            = errors.New("missing prefix")
 
-	// errCommitNotCarriedInFull is the Go error beside the error status a
-	// shortfall answers with. The operator-facing detail is the response's own
-	// sentence, which names each peer; this exists so a Go caller can tell a
-	// shortfall from a command that could not run at all.
+	// errCommitNotCarriedInFull is what a shortfall error unwraps to, so a Go
+	// caller can tell a shortfall from a command that could not run at all. It
+	// is never returned on its own: the text an operator reads is the sentence
+	// naming each peer, and shortfallError below says why that sentence has to
+	// be the error's own text rather than the response's.
 	errCommitNotCarriedInFull = errors.New("commit not carried in full by every matched peer")
 )
+
+// shortfallError is the error a shortfall answers with, and its text IS the
+// operator-facing sentence naming each peer that took less than the commit
+// queued.
+//
+// The sentence cannot live in the response alone. Every layer above the handler
+// drops the response when the handler returns an error beside it:
+// (*Server).dispatchCommandResponse (internal/component/plugin/server/dispatch.go)
+// returns the error and discards the whole *plugin.Response before
+// responseToDispatchOutput is reached, so the Error and Data fields go together.
+// The Go error's own text is the one thing every transport carries, so the
+// detail an operator needs belongs there.
+type shortfallError struct {
+	sentence string
+}
+
+// Error answers the sentence naming each peer and its reason.
+func (e shortfallError) Error() string { return e.sentence }
+
+// Unwrap answers the sentinel, so errors.Is keeps telling a shortfall from a
+// command that could not run.
+func (e shortfallError) Unwrap() error { return errCommitNotCarriedInFull }
 
 // Sentinel errors for commit handlers.
 var (
@@ -350,12 +373,14 @@ func handleNamedCommitEnd(ctx *pluginserver.CommandContext, name string, sendEOR
 	// transport that carries an error answer drops Data with it
 	// (responseToDispatchOutput in internal/component/plugin/server/dispatch.go,
 	// answerValue in pkg/plugin/sdk/sdk_engine.go), so the sentence is the only
-	// part a plugin or a remote operator receives.
+	// part a plugin or a remote operator receives. It is returned as the error's
+	// own text as well, because the layer above discards this response whole
+	// whenever an error comes back with it (shortfallError).
 	return &plugin.Response{
 		Status: plugin.StatusError,
 		Error:  short,
 		Data:   data,
-	}, errCommitNotCarriedInFull
+	}, shortfallError{sentence: short}
 }
 
 // peerRows renders the reactor's per-peer rows as the answer's `peers` payload:

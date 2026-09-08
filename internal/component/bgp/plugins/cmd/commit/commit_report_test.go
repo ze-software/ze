@@ -70,6 +70,13 @@ func TestCommitEndAnswersErrorAndKeepsThePeerRows(t *testing.T) {
 	assert.Contains(t, resp.Error, bgptypes.CommitReasonNotEstablished)
 	assert.NotContains(t, resp.Error, "10.0.0.2", "a peer that took everything is not named")
 
+	// The same sentence is the ERROR's own text. Asserting resp.Error alone
+	// passes over a caller that never sees it: dispatchCommandResponse
+	// (internal/component/plugin/server/dispatch.go) discards the whole response
+	// when a handler returns an error beside it, so a plugin driving this
+	// command receives err.Error() and nothing else.
+	assert.Equal(t, resp.Error, err.Error(), "the transport that survives carries the sentence")
+
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "the payload survives on the response itself")
 	peers, ok := data[jsonKeyPeers].(map[string]any)
