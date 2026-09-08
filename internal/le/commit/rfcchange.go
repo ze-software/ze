@@ -57,7 +57,7 @@ func rfcChangeProblems(
 		} else if removed[oldPath] {
 			newPath = ""
 		}
-		oldText, problem := committedText(root, "HEAD", oldPath)
+		oldText, _, problem := committedText(root, "HEAD", oldPath)
 		if problem != "" {
 			return nil, nil, []string{"RFC-tagged change gate could not run: " + problem}
 		}
@@ -182,14 +182,21 @@ func fileStem(path string) string {
 	return strings.TrimSuffix(name, filepath.Ext(name))
 }
 
-func committedText(root, revision, path string) (string, string) {
+// committedText answers a path's bytes at a revision, whether the revision
+// CARRIES the path, and the reason the read failed.
+//
+// present is what tells an absent path from an empty file, and a caller that
+// treats the two alike answers a question about a file the commit never held.
+// A revision that does not resolve is not present and is not a problem: the
+// gate below asks about HEAD in a checkout that may hold no commit yet.
+func committedText(root, revision, path string) (text string, present bool, problem string) {
 	resolve := exec.CommandContext(context.Background(), "git", "rev-parse", "--verify", "-q", revision+"^{commit}") // #nosec G204 -- fixed Git query; revision is an argv operand.
 	resolve.Dir = root
 	if err := resolve.Run(); err != nil {
 		if _, ok := errors.AsType[*exec.ExitError](err); ok {
-			return "", ""
+			return "", false, ""
 		}
-		return "", err.Error()
+		return "", false, err.Error()
 	}
 	list := exec.CommandContext(context.Background(), "git", "ls-tree", "--name-only", revision, "--", path) // #nosec G204 -- fixed Git query; revision and path are argv.
 	list.Dir = root
@@ -198,11 +205,11 @@ func committedText(root, revision, path string) (string, string) {
 	list.Stdout = &names
 	list.Stderr = &complaint
 	if err := list.Run(); err != nil {
-		return "", "git ls-tree " + revision + " -- " + path + " failed: " +
+		return "", false, "git ls-tree " + revision + " -- " + path + " failed: " +
 			strings.TrimSpace(complaint.String())
 	}
 	if strings.TrimSpace(names.String()) == "" {
-		return "", ""
+		return "", false, ""
 	}
 	object := revision + ":" + path
 	command := exec.CommandContext(context.Background(), "git", "show", object) // #nosec G204 -- fixed Git query; object is data.
@@ -212,7 +219,7 @@ func committedText(root, revision, path string) (string, string) {
 	command.Stdout = &stdout
 	command.Stderr = &complaint
 	if err := command.Run(); err != nil {
-		return "", "git show " + object + " failed: " + strings.TrimSpace(complaint.String())
+		return "", false, "git show " + object + " failed: " + strings.TrimSpace(complaint.String())
 	}
-	return stdout.String(), ""
+	return stdout.String(), true, ""
 }

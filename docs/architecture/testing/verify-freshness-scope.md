@@ -210,19 +210,40 @@ One row holds ONE gate and ONE reason, and covers every commit the session made 
 
 The row keeps the date and the subject of the FIRST commit it covers, and its subject cell then carries `(+N more)` for the N commits that followed. Each of those commits writes the shard, so `git log -- plan/verification-debt/<session>.md` names them all and gives their dates and subjects back. A cleared row is never extended, so a gate owed again after it was cleared opens a row of its own. The shards written before this rule were collapsed once to the same shape: 3587 rows became the 1270 distinct (shard, gate, reason, status) triples they carried, over 216 shards, and no triple was lost.
 
-`clearDebt` (`internal/le/commit/actions.go`) re-runs each DISTINCT gate the open rows name, once per pass whatever the row count, and writes `cleared` only on exit 0. Every runnable gate runs inside ONE throwaway worktree at HEAD, so a cleared row says the gate was green over the COMMIT rather than over the several sessions' uncommitted files this checkout holds. When no worktree can be made, NOTHING clears and the pass exits 1: that is a refusal to fall back to the working tree, not a gate failure. A pass whose every row names an unrunnable gate materialises no worktree at all.
+`clearDebt` (`internal/le/commit/actions.go`) runs ONE verification per pass, whatever the row count, and marks EVERY runnable gate name passed on exit 0. It writes `cleared` only after that exit. Every runnable gate runs inside ONE throwaway worktree at HEAD, so a cleared row says the gate was green over the COMMIT rather than over the several sessions' uncommitted files this checkout holds. When no worktree can be made, NOTHING clears and the pass exits 1: that is a refusal to fall back to the working tree, not a gate failure. A pass whose every row names an unrunnable gate materialises no worktree at all.
 
 `./le commit debt-clear part <n> of <m>` runs ONE piece of that verification. The whole population is 50 stages and it uses the whole machine, so on a box several sessions share it is killed before a single row is reachable: on 2026-09-07 the OOM killer ended a pass with 3302 rows open across 216 shards, and nothing cleared. A piece that exits 0 records itself in `tmp/ze-verify-debt-parts.json`, so a piece killed mid-flight costs that piece rather than the pass.
 
 Nothing clears until EVERY piece of the cut has exited 0 over ONE commit. The record is pinned to the commit the pieces judged and to the count they were dealt into, and either one moving starts it again: a verdict is evidence about the tree it ran on, and two cuts deal the stages differently, so pieces of two commits or of two cuts never add up to a population. The record is dropped once its pieces have cleared their rows, so a row written later at the same HEAD cannot clear on a verification that ran before it existed. Reads and writes take the same advisory lock the ledger shards take.
+
+Which gates a verification can re-run is DECLARED by `debtGates` (`internal/le/commit/debt.go`), on a `Runnable` flag beside each gate's Name. A row naming `independent critical review` or `owner approval for an RFC-tagged test change` prints UNRUNNABLE and stays open, because no command produces either: both are acts a person performs.
+
+A gate string that is neither a declared Name nor a declared alias prints UNRECOGNIZED and is never cleared by a green verify. A name nobody declared says nothing about what ran. The legacy spellings the ledger already holds are declared as ALIASES on the gate they name, so those rows still clear, and `TestEveryLedgerGateNameIsDeclared` (`internal/le/commit/ledger_test.go`) turns a spelling nobody declared into a red test rather than a silent open row. It found the fifth one on 2026-09-08.
+
+A red verification exits non-zero. The pass cleared nothing, so the exit code and the ledger agree.
+
+### Discharging a row no gate can run
+
+`./le commit debt-discharge shard <name> line <n> kind <kind> ...` records HOW an unrunnable row's obligation was met. It writes one row per debt row into `plan/verification-debt/discharged/<session>.md`, and the debt shard is not touched: the on-disk vocabulary stays `open` and `cleared`, and `discharged` exists in memory alone, produced by the overlay in `ListDebt`. That is why the push gate, the clearing verb, the status answer and the session-start hook each need no edit to follow it.
+
+| Kind | What it asserts | What re-derives it |
+|------|-----------------|--------------------|
+| `not-applicable` | the gate never bound this commit | today's `closedSpecStem` over the commit's file list for a review row, and the owner-approval gate's own tagged-unit reading for an RFC row |
+| `closed` | the spec the commit CLOSED recorded a review that ran | the removed spec's bytes at the closure commit's PARENT: its Status, then its `## Review Gate` rows |
+| `reviewed` | a review artifact covers the commit | the artifact's verdict and its hash for each code-bearing path AT that commit, falling back to the committed Review Gate when the artifact is gone |
+| `owner` | Thomas ordered or reviewed the commit himself | nothing. It is an ATTESTATION, and `debt-status` splits the discharged count by kind so an attested population is visible beside a derived one |
+
+The record stores the INPUT alone, the kind and its evidence, and never a verdict. Every read re-runs the derivation, so a discharge whose evidence stops holding returns its row to `open` with no file edited. The row's SHA-256 pins the discharge to the exact debt row it answers: an edited row drops its discharge, counts open again, and `debt-status` names the record as invalid.
+
+`tmp/review/` is NOT the durable record of a review. It is untracked and is emptied, so a review recorded months ago has no artifact left. The Review Gate is committed prose and closure removes the spec, so `git show <closure-sha>^:<spec-path>` recovers it for ever. The `closed` and `reviewed` kinds read it there. Its verdict row carries two era spellings, so the predicate reads the section's ROWS: a filled artifact reference and a rounds count, with no row saying the review was not recorded or not run.
+
+A missing Review Gate has two meanings and they never share a branch. On a `skeleton` or `design` spec it means there was nothing to review, and the discharge is accepted. On an implemented one it means the review is missing, and the discharge is refused. The removed spec's own Status at the parent is what separates them; the absence of the gate is never read as the answer.
 
 ### Asking before the run ends
 
 `DeclaredGroups` (`internal/le/verify/engine/artifacts.go`) reads one stage's declaration back out of that stage's own log, and `writeRunArtifacts` calls it once per red stage when the run ends. `./le verify reds file <path>` calls it too, over whatever logs the run has written so far, so an agent gets a per-path answer without starting or waiting for a whole-tree run (`docs/contributing/running-commands.md`).
 
 That query is not a certificate and MUST NOT be read as one. It answers about PATHS, it states how many stages have not reported, and only a whole run with every red attributed elsewhere exits 0. `structuralGateReds` still reads the PUBLISHED index and therefore sees nothing at all until the run ends: the freshness certificate is what keeps that empty answer from reading as a pass, and `TestStructuralRedsSeeNothingUntilARunPublishesItsIndex` (`internal/le/commit/commit_test.go`) pins both halves.
-
-The pass clears no row whose gate no command produces. A row naming `independent critical review` prints UNRUNNABLE and stays open, and so does a row naming a gate string the runner table does not hold. Those are answered by doing the work the row names, which for a review is `/ze-review` recorded through `internal/le/spec/session/review.go`.
 
 <!-- source: internal/le/doc/wiring/groups.go -- Group, declareFailureGroup -->
 <!-- source: internal/le/commit/actions.go -- Answer, clearDebt, clearDebtWith -->
@@ -231,7 +252,8 @@ The pass clears no row whose gate no command produces. A row naming `independent
 <!-- source: internal/le/verify/engine/artifacts.go -- writeRunArtifacts, DeclaredGroups -->
 <!-- source: internal/le/verify/reds.go -- readReds, verdictOf -->
 <!-- source: internal/le/verify/engine/stages.go -- Structural -->
-<!-- source: internal/le/commit/debt.go -- Debt, ListDebt, recordDebt, extendDebtRow -->
+<!-- source: internal/le/commit/debt.go -- Debt, ListDebt, readDebt, recordDebt, extendDebtRow, debtGates -->
+<!-- source: internal/le/commit/discharge.go -- dischargeDebt, applyDischarges, verifyDischarge, reviewGateRecorded -->
 
 ## Producer contract
 

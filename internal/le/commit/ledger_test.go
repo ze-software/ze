@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/testweakened"
 )
 
@@ -199,4 +200,39 @@ func readLedgerFile(t *testing.T, root, path string) string {
 		t.Fatal(err)
 	}
 	return string(content)
+}
+
+// TestEveryLedgerGateNameIsDeclared reads the gate string of every row in the
+// repository's own ledger and requires debtGates to declare it, as a Name or as
+// an alias.
+//
+// This is what keeps the alias declaration honest as the ledger grows. Making
+// an unrecognized name fail closed strands the rows that carry it, so a spelling
+// nobody declared has to become a RED TEST rather than a silent open row. It
+// found one on 2026-09-08: `./le verify current mode full structural gates
+// (red)` on 157 rows, a fifth legacy spelling the spec had measured as four.
+//
+// An empty ledger PASSES and does not skip. Emptying the ledger is what this
+// work exists to do, so a skip on zero rows would turn the guard off at the
+// moment it succeeds. An unresolvable checkout is a defect here rather than an
+// environment this test tolerates: the package under test is inside the
+// checkout it reads.
+func TestEveryLedgerGateNameIsDeclared(t *testing.T) {
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("resolve the checkout the ledger lives in: %v", err)
+	}
+	rows, err := readDebtRows(root)
+	if err != nil {
+		t.Fatalf("read the ledger: %v", err)
+	}
+	undeclared := make(map[string]int)
+	for index := range rows {
+		if debtGateAt(rows[index].Gate) < 0 {
+			undeclared[rows[index].Gate]++
+		}
+	}
+	for gate, count := range undeclared {
+		t.Errorf("%d ledger row(s) name gate %q, which debtGates declares neither as a Name nor as an alias", count, gate)
+	}
 }

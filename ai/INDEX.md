@@ -283,7 +283,7 @@ all render it.
 | `./le cli-grammar` | `internal/le/cligrammar.Answer` | every built-in command, every registered root, every demo call site and every offline flag still obeys the CLI grammar: keyword before value, no flag in the command model, no dead launch form, and each flag in its own register |
 | `./le command list` | `internal/le/command/list.Answer` | every registered command, by verb, read from the live handlers and schemas |
 | `./le command ownership` | `internal/le/command/ownership.Answer` | each command is owned by exactly one plugin or component: owners are cmd/ze-free, root handlers are internal, and every central root states why it has no owner |
-| `./le commit` | `internal/le/commit.Answer` | prepare explicit commits without touching the shared staging index |
+| `./le commit` | `internal/le/commit.Answer` | prepare explicit commits without touching the shared staging index; `debt-list`, `debt-status`, `debt-clear` and `debt-discharge` (keywords `shard`, `line`, `kind`, `commit`, `artifact`, `owner`) answer the verification-debt ledger |
 | `./le config claims` | `internal/le/config/claims.Answer` | every config subtree an operator can write is delivered to a plugin, a hub handler, or a recorded exception |
 | `./le config coercion` | `internal/le/config/coercion.Answer` | config parsers coerce the string form every YANG leaf is delivered as, so an operator's value is never silently replaced by the default |
 | `./le consistency` | `internal/le/consistency.Answer` | where the code and the documentation disagree: design refs, cross-refs, JSON tags, file sizes |

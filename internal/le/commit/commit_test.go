@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -753,8 +754,8 @@ func debtClearStatuses(t *testing.T, root string) map[string]string {
 		t.Fatalf("read the fixture ledger: %v", err)
 	}
 	status := make(map[string]string, len(rows))
-	for _, row := range rows {
-		status[row.Gate] = row.Status
+	for index := range rows {
+		status[rows[index].Gate] = rows[index].Status
 	}
 	return status
 }
@@ -839,4 +840,135 @@ func TestOneOpenRowPerGateAndReason(t *testing.T) {
 	if rows[1].Subject != "fourth commit" || rows[1].Reason != other[0].Reason {
 		t.Fatalf("the second reason's row = %#v", rows[1])
 	}
+}
+
+// TestUnrunnableGatesComeFromTheGateTable pins that the runnable/unrunnable
+// split is DERIVED from debtGates rather than compared against two literals.
+//
+// It is table-driven over every declared gate, so a gate whose Runnable flag
+// changes moves this test with it, and a gate added to the table without one is
+// judged here rather than nowhere. Two string literals in clearDebtWith could
+// not answer for a seventh gate at all.
+func TestUnrunnableGatesComeFromTheGateTable(t *testing.T) {
+	green := func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
+		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true}
+	}
+	for _, gate := range debtGates {
+		root := debtGateFixture(t, gate.Name)
+		result, code := clearDebtWith(root, uncutDebtPart(), green)
+		if code != 0 {
+			t.Fatalf("%s answered %d: %#v", gate.Name, code, result)
+		}
+		if gate.Runnable {
+			if !slices.Contains(result.Runnable, gate.Name) {
+				t.Errorf("%s is declared runnable and the pass names it %v", gate.Name, result.Unrunnable)
+			}
+			continue
+		}
+		if !slices.Contains(result.Unrunnable, gate.Name) {
+			t.Errorf("%s is declared unrunnable and the pass names it runnable: %#v", gate.Name, result)
+		}
+		if result.Cleared != 0 {
+			t.Errorf("%s cleared %d row(s) on a green verify", gate.Name, result.Cleared)
+		}
+	}
+}
+
+// TestUnrecognizedGateNameIsNeverClearedByAGreenVerify is the fail-closed half.
+//
+// A gate string nobody declared says nothing about what ran, so a green
+// verification must not clear it. The other polarity is the declared ALIAS: the
+// legacy spellings the ledger already holds still clear, which is what makes
+// this a declaration rather than a widened fallback.
+func TestUnrecognizedGateNameIsNeverClearedByAGreenVerify(t *testing.T) {
+	green := func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
+		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true}
+	}
+	const undeclared = "a gate string no table declares"
+
+	root := debtGateFixture(t, undeclared)
+	result, code := clearDebtWith(root, uncutDebtPart(), green)
+	if code != 0 {
+		t.Fatalf("an undeclared gate answered %d: %#v", code, result)
+	}
+	if !slices.Contains(result.Unrecognized, undeclared) {
+		t.Errorf("the pass names %v as unrecognized, want the undeclared gate among them", result.Unrecognized)
+	}
+	if len(result.Runnable) != 0 || result.Cleared != 0 {
+		t.Errorf("an undeclared gate ran %v and cleared %d row(s), want neither", result.Runnable, result.Cleared)
+	}
+	if status := debtClearStatuses(t, root)[undeclared]; status != statusOpen {
+		t.Errorf("the undeclared row is %q after a green verify, want open", status)
+	}
+
+	// A declared alias is the other polarity: a legacy spelling still clears.
+	alias := ""
+	for _, gate := range debtGates {
+		if gate.Runnable && len(gate.Aliases) != 0 {
+			alias = gate.Aliases[0]
+			break
+		}
+	}
+	if alias == "" {
+		t.Fatal("debtGates declares no alias for a runnable gate, so the accepting polarity cannot run")
+	}
+	root = debtGateFixture(t, alias)
+	result, code = clearDebtWith(root, uncutDebtPart(), green)
+	if code != 0 {
+		t.Fatalf("a declared alias answered %d: %#v", code, result)
+	}
+	if result.Cleared != 1 {
+		t.Fatalf("a declared alias cleared %d row(s) on a green verify, want 1: %#v", result.Cleared, result)
+	}
+}
+
+// TestDebtClearingReportsRedVerificationAsFailure pins that the exit code and
+// the ledger agree. A red run cleared nothing, and exiting zero over zero
+// cleared rows told a caller reading only the code that there was nothing to do.
+func TestDebtClearingReportsRedVerificationAsFailure(t *testing.T) {
+	red := func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
+		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true, Code: 1}
+	}
+	root := debtClearFixture(t)
+	result, code := clearDebtWith(root, uncutDebtPart(), red)
+	if code == 0 {
+		t.Fatalf("a red verification exited 0 over %d cleared row(s): %#v", result.Cleared, result)
+	}
+	if result.Cleared != 0 {
+		t.Fatalf("a red verification cleared %d row(s)", result.Cleared)
+	}
+}
+
+// TestPushProceedsWhenEveryRemainingRowIsDischarged drives the push gate over
+// the overlaid ledger. The gate holds no rule of its own: it reads openDebt,
+// which reads ListDebt, which is where a discharge stops counting.
+func TestPushProceedsWhenEveryRemainingRowIsDischarged(t *testing.T) {
+	root := newCommitRepository(t)
+	shard, line := debtRowFor(t, root, "the commit the owner ordered", "independent critical review")
+	if err := refusePushWithDebt(root, nil); err == nil {
+		t.Fatal("the push gate allowed a push with one open row")
+	}
+	if _, exit := discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
+		"kind", kindOwner, "owner", "the owner's sentence"); exit != 0 {
+		t.Fatalf("the discharge exited %d", exit)
+	}
+	if err := refusePushWithDebt(root, nil); err != nil {
+		t.Fatalf("the push gate still refuses with every row discharged: %v", err)
+	}
+	// The gate still refuses the rows this commit is about to write, which is
+	// the half a narrowed overlay must not have bought.
+	if err := refusePushWithDebt(root, []Debt{{Gate: "independent critical review"}}); err == nil {
+		t.Fatal("the push gate allowed a push while this commit owes a gate")
+	}
+}
+
+// debtGateFixture is a checkout holding ONE open debt row naming one gate.
+func debtGateFixture(t *testing.T, gate string) string {
+	t.Helper()
+	root := newCommitRepository(t)
+	owed := []Debt{{Gate: gate, Reason: "the fixture's reason"}}
+	if _, err := recordDebt(root, "12345678", "a commit", owed); err != nil {
+		t.Fatalf("record the fixture debt row: %v", err)
+	}
+	return root
 }

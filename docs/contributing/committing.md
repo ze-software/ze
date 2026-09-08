@@ -82,6 +82,14 @@ records verification debt rather than dropping a local commit, refuses
 `push` while any debt row is open, and enforces discovery-index freshness. Run
 `./le discovery-index update` when it complains.
 
+A row clears by RUNNING the gate it names: `./le commit debt-clear`. Two gates
+name an act a person performs, an independent review and an owner approval, so
+no verification produces them and no clearing pass can reach a row naming one.
+Those rows are answered by `./le commit debt-discharge`, which records HOW the
+obligation was met and re-derives that record from git on every read. The four
+kinds and what re-derives each one are in
+`docs/architecture/testing/verify-freshness-scope.md`.
+
 ## Worked invocations
 
 ```bash

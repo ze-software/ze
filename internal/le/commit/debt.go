@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -16,30 +17,86 @@ import (
 
 const debtDir = "plan/verification-debt"
 
+// debtGates declares every gate a commit can owe: the keyword that overrides
+// it, the name its row carries, whether a verification can RE-RUN it, and the
+// names earlier eras of this command wrote for the same gate.
+//
+// Runnable is what `le commit debt-clear` reads. A review and an owner approval
+// are acts a person performs, so no verification produces them and a green run
+// says nothing about a row that names one. Declaring the fact here rather than
+// comparing two string literals at the point of use keeps ONE statement of
+// which gates a machine can answer.
+//
+// Aliases are DECLARED, never a widened fallback. A gate string that is neither
+// a Name nor an alias is unrecognized, and an unrecognized row is not cleared
+// by a green verify: a name nobody declared says nothing about what ran.
 var debtGates = []struct {
-	Key  string
-	Name string
+	Key      string
+	Name     string
+	Runnable bool
+	Aliases  []string
 }{
-	{gateUnverified, "full native verification (not FRESH-green)"},
-	{gateStructuralRedOK, "native structural checks (red)"},
-	{gateMissingFullVerifyOK, "full native verification over this commit's Go"},
-	{gateStaleIndexOK, "discovery-index freshness"},
-	{gateReviewOverride, "independent critical review"},
-	{gateBrokenHeadFix, "repository tracked-build/check (HEAD does not compile)"},
-	{gateRFCChangeOK, "owner approval for an RFC-tagged test change"},
+	{gateUnverified, "full native verification (not FRESH-green)", true, []string{
+		"./le verify current mode full (not FRESH-green)",
+	}},
+	{gateStructuralRedOK, "native structural checks (red)", true, []string{
+		"./le verify current mode full structural gates (red)",
+	}},
+	{gateMissingFullVerifyOK, "full native verification over this commit's Go", true, []string{
+		"full ./le verify current mode full over this commit's Go",
+	}},
+	{gateStaleIndexOK, "discovery-index freshness", true, nil},
+	{gateReviewOverride, "independent critical review", false, nil},
+	{gateBrokenHeadFix, "repository tracked-build/check (HEAD does not compile)", true, []string{
+		"repository-tracked-build/check (HEAD does not compile)",
+		"./le repository tracked-build check (HEAD does not compile)",
+	}},
+	{gateRFCChangeOK, "owner approval for an RFC-tagged test change", false, nil},
 }
 
-// Debt is one open or cleared verification obligation.
+// debtGateAt answers the row of debtGates a ledger gate string names, and -1
+// when the string is declared neither as a Name nor as an alias.
+//
+// The -1 is the refusal and every caller MUST read it: index 0 is a real gate,
+// so a caller that skips the check indexes the table with -1 and panics rather
+// than answering about the wrong gate.
+func debtGateAt(name string) int {
+	for index, gate := range debtGates {
+		if gate.Name == name || slices.Contains(gate.Aliases, name) {
+			return index
+		}
+	}
+	return -1
+}
+
+// Debt is one verification obligation: open, cleared, or discharged.
+//
+// open and cleared are the only statuses the ledger WRITES. discharged exists
+// in memory alone, produced by the discharge overlay in readDebt, so the 3526
+// rows on disk stay behind one parser and no consumer needs a second rule.
 type Debt struct {
-	Shard   string `json:"shard"`
-	Line    int    `json:"line"`
-	Date    string `json:"date"`
-	Session string `json:"session"`
-	Subject string `json:"subject"`
-	Gate    string `json:"gate"`
-	Reason  string `json:"reason"`
-	Status  string `json:"status"`
-	Raw     string `json:"-"`
+	Shard             string `json:"shard"`
+	Line              int    `json:"line"`
+	Date              string `json:"date"`
+	Session           string `json:"session"`
+	Subject           string `json:"subject"`
+	Gate              string `json:"gate"`
+	Reason            string `json:"reason"`
+	Status            string `json:"status"`
+	DischargeKind     string `json:"discharge-kind,omitempty"`
+	DischargeEvidence string `json:"discharge-evidence,omitempty"`
+	Raw               string `json:"-"`
+}
+
+// DebtLedger is every debt row with the discharge overlay applied, beside the
+// discharge records that could NOT be applied.
+//
+// The invalid records travel with the rows because a record that no longer
+// derives leaves its row open, and a reader who sees only the open row has no
+// way to learn that a discharge was claimed for it.
+type DebtLedger struct {
+	Rows    []Debt
+	Invalid []string
 }
 
 func debtPath(session string) string {
@@ -84,8 +141,8 @@ func recordDebt(root, session, subject string, owed []Debt) (string, error) {
 		lines = strings.Split(strings.TrimSuffix(string(content), "\n"), "\n")
 	}
 	stamp := time.Now().UTC().Format(time.DateOnly)
-	for _, row := range owed {
-		gate, reason := debtCell(row.Gate), debtCell(row.Reason)
+	for index := range owed {
+		gate, reason := debtCell(owed[index].Gate), debtCell(owed[index].Reason)
 		at := openDebtRowAt(lines, gate, reason)
 		if at < 0 {
 			lines = append(lines, debtRow(stamp, debtCell(session), debtCell(subject), gate, reason))
@@ -190,8 +247,30 @@ func debtCell(value string) string {
 	return strings.Join(strings.Fields(strings.ReplaceAll(value, "|", "/")), " ")
 }
 
-// ListDebt returns every valid debt row from every shard in stable order.
+// ListDebt returns every valid debt row from every shard in stable order, with
+// the discharge overlay applied. It is the ONE producer of "is this row open":
+// openDebt, clearDebtRows, refusePushWithDebt and the session-start hook all
+// read it and hold no rule of their own.
 func ListDebt(root string) ([]Debt, error) {
+	ledger, err := readDebt(root)
+	return ledger.Rows, err
+}
+
+// readDebt is ListDebt with the unapplied discharge records kept, for the one
+// caller that reports them. Splitting the two keeps every other consumer on a
+// signature that cannot ignore the overlay.
+func readDebt(root string) (DebtLedger, error) {
+	rows, err := readDebtRows(root)
+	if err != nil {
+		return DebtLedger{}, err
+	}
+	invalid := applyDischarges(root, rows)
+	return DebtLedger{Rows: rows, Invalid: invalid}, nil
+}
+
+// readDebtRows returns every valid debt row from every shard in stable order,
+// exactly as the shards hold it.
+func readDebtRows(root string) ([]Debt, error) {
 	dir := filepath.Join(root, filepath.FromSlash(debtDir))
 	entries, err := os.ReadDir(dir)
 	if errors.Is(err, os.ErrNotExist) {
@@ -244,7 +323,7 @@ func parseDebtRow(shard string, line int, text string) (Debt, bool) {
 		cells[index] = strings.TrimSpace(cells[index])
 	}
 	status := strings.ToLower(cells[6])
-	if status != statusOpen && status != "cleared" {
+	if status != statusOpen && status != statusCleared {
 		return Debt{}, false
 	}
 	return Debt{
@@ -259,9 +338,9 @@ func openDebt(root string) ([]Debt, error) {
 		return nil, err
 	}
 	open := make([]Debt, 0)
-	for _, row := range rows {
-		if row.Status == statusOpen {
-			open = append(open, row)
+	for index := range rows {
+		if rows[index].Status == statusOpen {
+			open = append(open, rows[index])
 		}
 	}
 	return open, nil
@@ -273,7 +352,8 @@ func clearDebtRows(root string, passed map[string]bool) (int, error) {
 		return 0, err
 	}
 	byShard := make(map[string]map[int]string)
-	for _, row := range rows {
+	for index := range rows {
+		row := &rows[index]
 		if passed[row.Gate] {
 			if byShard[row.Shard] == nil {
 				byShard[row.Shard] = make(map[int]string)
@@ -308,7 +388,7 @@ func clearDebtRows(root string, passed map[string]bool) (int, error) {
 			if len(cells) != 8 {
 				continue
 			}
-			cells[6] = " cleared "
+			cells[6] = " " + statusCleared + " "
 			lines[index] = strings.Join(cells, "|")
 			cleared++
 		}
@@ -342,6 +422,8 @@ func clearDebtRows(root string, passed map[string]bool) (int, error) {
 // and the two command keywords this package repeats.
 const (
 	statusOpen              = "open"
+	statusCleared           = "cleared"
+	statusDischarged        = "discharged"
 	keywordSession          = "session"
 	actionReviewCheck       = "review-check"
 	verifyFresh             = "fresh"

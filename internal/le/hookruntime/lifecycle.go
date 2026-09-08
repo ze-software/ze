@@ -188,15 +188,15 @@ func hookSessionStart(ctx context, out io.Writer) int {
 	}
 	if debts, err := commit.ListDebt(ctx.root); err == nil {
 		open := make([]commit.Debt, 0)
-		for _, debt := range debts {
-			if strings.EqualFold(debt.Status, "open") {
-				open = append(open, debt)
+		for index := range debts {
+			if strings.EqualFold(debts[index].Status, "open") {
+				open = append(open, debts[index])
 			}
 		}
 		if len(open) != 0 {
 			fmt.Fprintf(out, "Warning: verification debt: %d gate(s) owed, --push is refused until cleared\n", len(open)) //nolint:errcheck // hook protocol
-			for _, debt := range open[:min(5, len(open))] {
-				fmt.Fprintf(out, "   - %s  (%s)\n", debt.Gate, debt.Subject) //nolint:errcheck // hook protocol
+			for index := range open[:min(5, len(open))] {
+				fmt.Fprintf(out, "   - %s  (%s)\n", open[index].Gate, open[index].Subject) //nolint:errcheck // hook protocol
 			}
 		}
 	}

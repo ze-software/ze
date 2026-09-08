@@ -180,7 +180,7 @@ const (
 const (
 	argAdd                       = "add"
 	argCommand                   = "command" // The command keyword.
-	argCommit                    = "commit"  // The git subcommand.
+	argCommit                    = "commit"  // The git subcommand, and the `le` area of the same name.
 	argConfig                    = "config"  // The git subcommand.
 	argInit                      = "init"
 	argInterface                 = "interface"

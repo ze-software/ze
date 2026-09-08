@@ -1,0 +1,23 @@
+# Discharging a verification-debt row whose obligation a machine can re-derive.
+#
+# The fixture drives the REAL `le commit debt-discharge` against a scratch
+# checkout and judges the LEDGER it leaves behind. The row names a gate no
+# verification can re-run, so `debt-clear` can never reach it: the only route to
+# a non-open state is a discharge whose evidence today's producers re-derive.
+#
+# The last step is the one a stub cannot fake. Nothing is deleted and the record
+# still says what it said, but the DEBT ROW is edited, so its digest no longer
+# matches and the row counts open again. That is the fail-closed reading every
+# consumer inherits from ListDebt.
+#
+# Both polarities of each verifier are proved by the unit tests in
+# internal/le/commit/discharge_test.go, which build their own git fixtures.
+
+option=timeout:value=60s
+
+cmd=foreground:seq=1:exec=ze-test fixture runner/verify-scope-debt-discharge
+expect=exit:code=0
+expect=stdout:contains=discharge-fixtures-ready
+expect=stdout:contains=native-debt-discharge-wrote-a-record
+expect=stdout:contains=discharged-row-no-longer-counted-open
+expect=stdout:contains=tampered-row-counted-open-again

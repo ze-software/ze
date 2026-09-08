@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 5/6 |
 | Handoff | - |
-| Updated | 2026-09-07 |
+| Updated | 2026-09-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -170,8 +170,8 @@ has been DISCHARGED, and the discharge is recoverable.
 | A-1 | Re-running today's `closureStem` over a 2026-08 commit answers the empty string for the 26 "no spec closes here" rows | `closureStem` reads only REMOVED spec paths since 2026-08-31, and each of the 26 reason cells states no spec was removed | Those rows need `kind owner` instead, and the owner-attested residue grows from 17 to about 43 | Run the discharge pass; a refusal names the stem it found | unvalidated |
 | A-2 | The commit a debt row belongs to can be identified by the operator from the row's Date, Session and Subject | The row carries no SHA; a subject search over the log is the practical route | The pass cannot proceed row by row and the ledger needs a widened row after all | The first discharge pass; a subject that matches no commit, or two, is reported rather than guessed | unvalidated |
 | A-3 | The 6 "a review ran" rows are reached by a derived kind without the tmp artifact: `not-applicable` where their commit closes no spec, `reviewed` against a committed Review Gate otherwise | Their reason cells describe baseline and repair commits ("a commit baseline before review", "this repair commit", "the final committed le cutover"), which remove no spec; and `git show <closure-sha>^:<spec-path>` recovers a Review Gate permanently | Whichever of the 6 neither route reaches falls back to `kind owner`, raising the attested count above 17 | The pass, row by row; each refusal names what the derivation found | unvalidated |
-| A-6 | A Review Gate recovered from a closure commit's parent can be judged without matching one field label | Measured 2026-09-07: the verdict row is spelled `review_gate.py check` in `d95ef465ff^:plan/spec-finish-ci-coverage.md` and `review check` in `plan/immediate/spec-traffic-vpp-deferred-reply-timeout.md`. Across the specs on disk the label splits between those two spellings, and every gate read carries a filled Artifact row and a Rounds row whichever it uses | The verifier matches one spelling and reads the other as absent, which either strands rows or, worse, discharges on a section it never read | `TestClosedDischargeRequiresARecordedReviewGate` over both spellings | unvalidated |
-| A-4 | The four legacy gate spellings measured today are the complete set in the ledger | Measured 2026-09-07 across 208 shards: `./le verify current mode full (not FRESH-green)` on 614 rows, `full ./le verify current mode full over this commit's Go` on 311, `repository-tracked-build/check (HEAD does not compile)` on 3 and `./le repository tracked-build check (HEAD does not compile)` on 2 | A fifth spelling stays open and is named by the new unrecognized report, which is the fail-closed behavior AC-15 asks for | `TestEveryLedgerGateNameIsDeclared` | unvalidated |
+| A-6 | A Review Gate recovered from a closure commit's parent can be judged without matching one field label | Measured 2026-09-07: the verdict row is spelled `review_gate.py check` in `d95ef465ff^:plan/spec-finish-ci-coverage.md` and `review check` in `plan/immediate/spec-traffic-vpp-deferred-reply-timeout.md`. Across the specs on disk the label splits between those two spellings, and every gate read carries a filled Artifact row and a Rounds row whichever it uses | The verifier matches one spelling and reads the other as absent, which either strands rows or, worse, discharges on a section it never read | `TestClosedDischargeRequiresARecordedReviewGate` over both spellings | confirmed: the test drives `review_gate.py check` and `review check` through one predicate over the section's rows, and both discharge |
+| A-4 | The four legacy gate spellings measured today are the complete set in the ledger | Measured 2026-09-07 across 208 shards. Re-measured 2026-09-08 over the ledger on disk: FIVE legacy spellings, not four. `./le verify current mode full (not FRESH-green)` on 178 rows, `./le verify current mode full structural gates (red)` on 157, `full ./le verify current mode full over this commit's Go` on 118, `./le repository tracked-build check (HEAD does not compile)` on 5 and `repository-tracked-build/check (HEAD does not compile)` on 3 | A fifth spelling stays open and is named by the new unrecognized report, which is the fail-closed behavior AC-15 asks for | `TestEveryLedgerGateNameIsDeclared` | broken: the structural-gate spelling was the fifth, and it is declared as an alias per the Failure Routing row |
 | A-5 | The owner will supply one authorization sentence covering the 17 rows he ordered or reviewed himself (12 plus 5) | Those rows quote his order in their own reason cell, and one of them states that an owner-approval row an author wrote for himself is a forgery | Those 17 rows stay open and the push gate stays shut | Owner answer, recorded verbatim in the discharge record | unvalidated |
 
 ### Risks
@@ -224,7 +224,7 @@ has been DISCHARGED, and the discharge is recoverable.
 | AC-12 | A ledger whose only remaining rows are discharged, and an authorized push | `refusePushWithDebt` allows the push; `openDebt`, `clearDebtRows` and the session hook each treat the row as not open, with no second copy of the rule |
 | AC-13 | Any read of a discharged row | The kind's derivation runs again from the recorded evidence; no verdict is read from the record, and a record whose derivation now fails leaves the row `open` |
 | AC-14 | `debt-clear` over rows naming the review gate or the owner-approval gate | Those gates are named unrunnable because `debtGates` declares them unrunnable; the two string literals in `clearDebtWith` no longer exist |
-| AC-15 | `debt-clear` over a row naming a gate string that is neither a declared gate Name nor a declared alias | The row is NOT cleared by a green verify, and the report names it as unrecognized. The four legacy spellings measured on 2026-09-07 are declared aliases and do clear |
+| AC-15 | `debt-clear` over a row naming a gate string that is neither a declared gate Name nor a declared alias | The row is NOT cleared by a green verify, and the report names it as unrecognized. The five legacy spellings measured on 2026-09-08 are declared aliases and do clear |
 | AC-16 | `debt-clear` whose verification run was red | Exit is non-zero and the report states that nothing cleared, so the exit code and the ledger agree |
 | AC-17 | `debt-status` and `debt-list` | `debt-status` reports open, cleared and discharged, with the discharged count split by kind; `debt-list` rows carry a discharge kind and a discharge evidence field; both answer structured data, so `\| json`, `\| yaml` and `\| table` each render it, and every JSON key is kebab-case |
 | AC-18 | `docs/architecture/testing/verify-freshness-scope.md` after the change | Its debt section states that ONE verification runs per pass and marks every runnable gate name passed, states the discharge verb and its kinds, and no longer claims a runner table the code does not have |
@@ -236,25 +236,27 @@ has been DISCHARGED, and the discharge is recoverable.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestDebtDischargeIsReachableFromTheCommitVerbTable` | `internal/le/commit/discharge_test.go` | AC-1, the verb is listed and dispatched | |
-| `TestDischargeRefusesAnUnknownKindAndWritesNothing` | `internal/le/commit/discharge_test.go` | AC-1 | |
-| `TestNotApplicableDischargeDerivesTheClosureStem` | `internal/le/commit/discharge_test.go` | AC-2 and AC-3, both polarities over a fixture checkout with and without a removed spec | |
-| `TestNotApplicableDischargeReadsRFCTagCarriersAtTheCommit` | `internal/le/commit/discharge_test.go` | AC-4, both polarities | |
-| `TestReviewedDischargeJudgesTheArtifactAgainstTheCommitBytes` | `internal/le/commit/discharge_test.go` | AC-5 and AC-6, including a hash that matches the working tree but not the commit | |
-| `TestReviewedDischargeFallsBackToTheCommittedReviewGate` | `internal/le/commit/discharge_test.go` | AC-6b: the tmp artifact is deleted and the discharge still derives, and a commit removing no spec is refused | |
-| `TestClosedDischargeRequiresARecordedReviewGate` | `internal/le/commit/discharge_test.go` | AC-7 over both spellings of the verdict row, and AC-7b over an absent gate, the unfilled template, and a "not recorded" gate | |
-| `TestSkeletonClosureDischargesAndAnImplementedOneDoesNot` | `internal/le/commit/discharge_test.go` | AC-20 and its fail-open twin: `skeleton` at the parent discharges, `in-progress` with the same missing gate refuses | |
-| `TestOwnerDischargeRecordsTheAuthorisationVerbatim` | `internal/le/commit/discharge_test.go` | AC-8 and AC-9 | |
-| `TestDischargedRowsReportDischargedFromOneProducer` | `internal/le/commit/discharge_test.go` | AC-10 and AC-12 over `openDebt` and `clearDebtRows` | |
-| `TestATamperedDischargeRecordLeavesTheRowOpen` | `internal/le/commit/discharge_test.go` | AC-11, the fail-closed guard, driven from `ListDebt` | |
-| `TestDischargeVerdictIsNeverReadFromTheRecord` | `internal/le/commit/discharge_test.go` | AC-13: the evidence is invalidated after the record is written and the row returns to open | |
-| `TestPushProceedsWhenEveryRemainingRowIsDischarged` | `internal/le/commit/commit_test.go` | AC-12 at the push gate | |
-| `TestUnrunnableGatesComeFromTheGateTable` | `internal/le/commit/commit_test.go` | AC-14, no literal survives | |
-| `TestUnrecognizedGateNameIsNeverClearedByAGreenVerify` | `internal/le/commit/commit_test.go` | AC-15, fail closed | |
-| `TestEveryLedgerGateNameIsDeclared` | `internal/le/commit/ledger_test.go` | AC-15, every gate string in `plan/verification-debt/` resolves to a declared Name or alias | |
-| `TestDebtClearingReportsRedVerificationAsFailure` | `internal/le/commit/commit_test.go` | AC-16, extends the red half of `TestDebtClearingHonorsTheGateExit` | |
-| `TestSessionHookCountsNoDischargedRowAsOwed` | `internal/le/hookruntime/lifecycle_test.go` | AC-12 at the third consumer | |
-| `TestDebtStatusSplitsDischargedByKind` | `internal/le/commit/discharge_test.go` | AC-17 | |
+| `TestDebtDischargeIsReachableFromTheCommitVerbTable` | `internal/le/commit/discharge_test.go` | AC-1, the verb is listed and dispatched | PASS |
+| `TestDischargeRefusesAnUnknownKindAndWritesNothing` | `internal/le/commit/discharge_test.go` | AC-1 | PASS |
+| `TestNotApplicableDischargeDerivesTheClosureStem` | `internal/le/commit/discharge_test.go` | AC-2 and AC-3, both polarities over a fixture checkout with and without a removed spec | PASS, red under PROBE-6 |
+| `TestNotApplicableDischargeReadsRFCTagCarriersAtTheCommit` | `internal/le/commit/discharge_test.go` | AC-4, both polarities | PASS, red under PROBE-7 |
+| `TestReviewedDischargeJudgesTheArtifactAgainstTheCommitBytes` | `internal/le/commit/discharge_test.go` | AC-5 and AC-6, including a hash that matches the working tree but not the commit | PASS, red under PROBE-5 |
+| `TestReviewedDischargeFallsBackToTheCommittedReviewGate` | `internal/le/commit/discharge_test.go` | AC-6b: the tmp artifact is deleted and the discharge still derives, and a commit removing no spec is refused | PASS |
+| `TestClosedDischargeRequiresARecordedReviewGate` | `internal/le/commit/discharge_test.go` | AC-7 over both spellings of the verdict row, and AC-7b over an absent gate, the unfilled template, and a "not recorded" gate | PASS, red under PROBE-3 |
+| `TestSkeletonClosureDischargesAndAnImplementedOneDoesNot` | `internal/le/commit/discharge_test.go` | AC-20 and its fail-open twin: `skeleton` at the parent discharges, `in-progress` with the same missing gate refuses | PASS, red under PROBE-3 |
+| `TestOwnerDischargeRecordsTheAuthorisationVerbatim` | `internal/le/commit/discharge_test.go` | AC-8 and AC-9 | PASS |
+| `TestDischargedRowsReportDischargedFromOneProducer` | `internal/le/commit/discharge_test.go` | AC-10 and AC-12 over `openDebt` and `clearDebtRows` | PASS, red under PROBE-8 |
+| `TestATamperedDischargeRecordLeavesTheRowOpen` | `internal/le/commit/discharge_test.go` | AC-11, the fail-closed guard, driven from `ListDebt` | PASS, red under PROBE-2 |
+| `TestDischargeVerdictIsNeverReadFromTheRecord` | `internal/le/commit/discharge_test.go` | AC-13: the evidence is invalidated after the record is written and the row returns to open | PASS |
+| `TestPushProceedsWhenEveryRemainingRowIsDischarged` | `internal/le/commit/commit_test.go` | AC-12 at the push gate | PASS, red under PROBE-8 |
+| `TestUnrunnableGatesComeFromTheGateTable` | `internal/le/commit/commit_test.go` | AC-14, no literal survives | PASS, red under PROBE-1 |
+| `TestUnrecognizedGateNameIsNeverClearedByAGreenVerify` | `internal/le/commit/commit_test.go` | AC-15, fail closed | PASS, red under PROBE-1 |
+| `TestEveryLedgerGateNameIsDeclared` | `internal/le/commit/ledger_test.go` | AC-15, every gate string in `plan/verification-debt/` resolves to a declared Name or alias | PASS over the live ledger; it found the fifth spelling |
+| `TestDebtClearingReportsRedVerificationAsFailure` | `internal/le/commit/commit_test.go` | AC-16, extends the red half of `TestDebtClearingHonorsTheGateExit` | PASS, red under PROBE-4 |
+| `TestSessionHookCountsNoDischargedRowAsOwed` | `internal/le/hookruntime/lifecycle_test.go` | AC-12 at the third consumer | PASS, red under PROBE-8 |
+| `TestDebtStatusSplitsDischargedByKind` | `internal/le/commit/discharge_test.go` | AC-17 | PASS, red under PROBE-8 |
+| `TestDischargedDebtRowsCarryTheirKindAndEvidence` | `internal/le/commit/discharge_test.go` | AC-17's debt-list half: the row's kebab-case discharge fields | PASS |
+| `TestADischargeRefusesACommitTheRowDoesNotName` | `internal/le/commit/discharge_test.go` | R-5: the pairing guard, both polarities | PASS, red under PROBE-9 |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -266,7 +268,7 @@ has been DISCHARGED, and the discharge is recoverable.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `verify-scope-debt-discharge` | `test/runner/verify-scope-debt-discharge.ci` | An agent discharges a row whose commit closes no spec, sees the ledger stop counting it as open, then tampers with the record and sees the row counted open again | |
+| `verify-scope-debt-discharge` | `test/runner/verify-scope-debt-discharge.ci` | An agent discharges a row whose commit closes no spec, sees the ledger stop counting it as open, then tampers with the record and sees the row counted open again | written and compiling (`go vet ./internal/test/fixture/` clean); NOT RUN. The suite drives `bin/le`, and `bin/le` cannot be built from this working tree: another session's uncommitted edit to `internal/component/config/transaction/orchestrator.go:249` calls `o.operationNodes`, which `TxCoordinator` does not have, and passes three arguments to `runOperationPath`, which takes two. That is a peer's in-flight work, not this change. Run `./le functional runner` once it compiles |
 | `verify-scope-debt-clear` | `test/runner/verify-scope-debt-clear.ci` | Existing scenario: a row no gate can re-run is named and left open. Its expectations are re-read against the derived unrunnable set | |
 
 ### Interop Tests (Scope: protocol)

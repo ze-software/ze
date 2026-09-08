@@ -14,6 +14,7 @@ import (
 
 func init() {
 	Register("runner/verify-scope-debt-clear", verifyScopeDebtClearDriver)
+	Register("runner/verify-scope-debt-discharge", verifyScopeDebtDischargeDriver)
 	Register("runner/verify-scope-wiring-attribution", verifyScopeWiringDriver)
 	Register("runner/exec-quoted-argument", execQuotedArgumentDriver)
 }
@@ -103,7 +104,7 @@ func gitFixture(ctx context.Context, root string, files map[string]string) error
 			return err
 		}
 	}
-	for _, args := range [][]string{{argInit, "-q", "."}, {argConfig, "user.email", "tester@example.com"}, {argConfig, "user.name", "Tester"}, {argConfig, "commit.gpgsign", valueFalse}, {argAdd, "-A"}, {"commit", "-q", "-m", "base"}} {
+	for _, args := range [][]string{{argInit, "-q", "."}, {argConfig, "user.email", "tester@example.com"}, {argConfig, "user.name", "Tester"}, {argConfig, "commit.gpgsign", valueFalse}, {argAdd, "-A"}, {argCommit, "-q", "-m", "base"}} {
 		if output, code, err := rawCommand(ctx, root, os.Environ(), "git", args...); err != nil || code != 0 {
 			return fmt.Errorf("git %s exit=%d: %w\n%s", strings.Join(args, " "), code, err, output)
 		}
@@ -144,7 +145,7 @@ func verifyScopeDebtClearDriver(ctx context.Context, args []string) error {
 	ledgerHeader := "| Date | Session | Subject | Gate owed | Reason | Status |\n|------|---------|---------|-----------|--------|--------|\n"
 	if err := gitFixture(ctx, repo, map[string]string{
 		fileGoMod: "module fixture/debt\n\ngo 1.24\n", fileFeatureGates: contentFeatureGate,
-		".gitignore":                        "tmp/\n",
+		fileGitIgnore:                       contentGitIgnoreTmp,
 		"plan/verification-debt/fixture.md": ledgerHeader + "| 2026-08-19 | fixture | a commit | independent critical review | no reviewer | open |\n",
 	}); err != nil {
 		return err
@@ -154,7 +155,7 @@ func verifyScopeDebtClearDriver(ctx context.Context, args []string) error {
 	// envRootedAt, never os.Environ(): the harness exports ZE_REPO_ROOT naming
 	// THIS checkout, and a le that reads it re-judges the real ledger and starts
 	// a native verification over the shared tree.
-	out, code, err := rawCommand(ctx, repo, envRootedAt(repo), le, "commit", "debt-clear")
+	out, code, err := rawCommand(ctx, repo, envRootedAt(repo), le, argCommit, "debt-clear")
 	if err != nil || code != 0 {
 		return fmt.Errorf("debt-clear over an unrunnable row exit=%d: %w %s", code, err, out)
 	}
@@ -178,7 +179,7 @@ func verifyScopeDebtClearDriver(ctx context.Context, args []string) error {
 	// The cut grammar, through the real binary. `part` without `of` cannot say
 	// how many pieces the stages were dealt into, so it is refused before any
 	// row is read and before any gate starts.
-	out, code, err = rawCommand(ctx, repo, envRootedAt(repo), le, "commit", "debt-clear", "part", "1")
+	out, code, err = rawCommand(ctx, repo, envRootedAt(repo), le, argCommit, "debt-clear", "part", "1")
 	if err != nil {
 		return fmt.Errorf("debt-clear part 1: %w %s", err, out)
 	}
@@ -211,7 +212,7 @@ func verifyScopeWiringDriver(ctx context.Context, args []string) error {
 	if err := gitFixture(ctx, repo, map[string]string{
 		fileGoMod:                      "module fixture/wiring\n\ngo 1.24\n",
 		fileFeatureGates:               contentFeatureGate,
-		".gitignore":                   "tmp/\n",
+		fileGitIgnore:                  contentGitIgnoreTmp,
 		"docs/architecture/fixture.md": "# Fixture\n",
 		"mine.go":                      "// Design: docs/architecture/fixture.md -- fixture\npackage mine\n",
 		"theirs.go":                    "// Design: docs/architecture/fixture.md -- fixture\npackage theirs\n",
@@ -250,7 +251,7 @@ func verifyScopeWiringDriver(ctx context.Context, args []string) error {
 		return os.WriteFile(filepath.Join(repo, "tmp", "ze-verify-failures.json"), data, 0o600)
 	}
 	runCreate := func(session string) (string, int, error) {
-		return rawCommand(ctx, repo, env, leBinary, "commit", "create",
+		return rawCommand(ctx, repo, env, leBinary, argCommit, "create",
 			"session", session, "subject", "fixture change", "file", "mine.go",
 			"unverified", "another session edited the tree",
 			"stale-index-ok", "scratch checkout intentionally has no generated discovery index",
@@ -294,5 +295,111 @@ func verifyScopeWiringDriver(ctx context.Context, args []string) error {
 		return fmt.Errorf("blind wiring red did not refuse: exit=%d %w %s", code, err, output)
 	}
 	fmt.Fprintln(os.Stdout, "unattributable-wiring-red-is-charged") //nolint:errcheck // progress output
+	return nil
+}
+
+// verifyScopeDebtDischargeDriver drives the REAL `le commit debt-discharge`
+// against a scratch checkout and judges the LEDGER it leaves behind.
+//
+// The ledger is the assertion because it is the product's own artifact. The
+// scenario is the whole loop an operator runs: a row no gate can re-run is
+// discharged from the commit it names, the ledger stops counting it, and then
+// the record is tampered with and the row counts open again. That last step is
+// what a stub cannot fake: nothing is deleted, and the row returns to open
+// purely because the derivation is re-run on every read.
+func verifyScopeDebtDischargeDriver(ctx context.Context, args []string) error {
+	if len(args) != 0 {
+		return errors.New("debt-discharge fixture takes no arguments")
+	}
+	le, err := nativeLEBinary()
+	if err != nil {
+		return err
+	}
+	repo, err := os.MkdirTemp("", "ze-verify-scope-discharge-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(repo) //nolint:errcheck // fixture cleanup
+
+	const subject = "a commit that closes no spec"
+	const shard = "plan/verification-debt/fixture.md"
+	ledgerHead := "| Date | Session | Subject | Gate owed | Reason | Status |\n" +
+		"|------|---------|---------|-----------|--------|--------|\n"
+	if err := gitFixture(ctx, repo, map[string]string{
+		fileGoMod: "module fixture/discharge\n\ngo 1.24\n", fileFeatureGates: contentFeatureGate,
+		fileGitIgnore: contentGitIgnoreTmp,
+		shard:         ledgerHead + "| 2026-09-08 | fixture | " + subject + " | independent critical review | no reviewer | open |\n",
+	}); err != nil {
+		return err
+	}
+	// The commit the discharge names: it carries a file and removes no spec, so
+	// today's closure producer answers that no review was ever owed for it.
+	if err := os.WriteFile(filepath.Join(repo, "note.md"), []byte("# note\n"), 0o600); err != nil {
+		return err
+	}
+	for _, command := range [][]string{{argAdd, "--", "note.md"}, {argCommit, "-q", "-m", subject}} {
+		out, code, err := rawCommand(ctx, repo, os.Environ(), "git", command...)
+		if err != nil || code != 0 {
+			return fmt.Errorf("git %s in the fixture checkout: %w %s", command[0], err, out)
+		}
+	}
+	head, code, err := rawCommand(ctx, repo, os.Environ(), "git", "rev-parse", "HEAD")
+	if err != nil || code != 0 {
+		return fmt.Errorf("git rev-parse HEAD: %w %s", err, head)
+	}
+	sha := strings.TrimSpace(head)
+	fmt.Fprintln(os.Stdout, "discharge-fixtures-ready") //nolint:errcheck // progress output
+
+	out, code, err := rawCommand(ctx, repo, envRootedAt(repo), le, argCommit, "debt-status")
+	if err != nil || code != 0 {
+		return fmt.Errorf("debt-status before the discharge exit=%d: %w %s", code, err, out)
+	}
+	if !strings.Contains(out, "1 open") {
+		return fmt.Errorf("debt-status before the discharge did not count the row open: %s", out)
+	}
+
+	out, code, err = rawCommand(ctx, repo, envRootedAt(repo), le, argCommit, "debt-discharge",
+		"shard", "fixture.md", "line", "3", "kind", "not-applicable", argCommit, sha)
+	if err != nil || code != 0 {
+		return fmt.Errorf("debt-discharge exit=%d: %w %s", code, err, out)
+	}
+	if !strings.Contains(out, "discharged 1 row(s)") {
+		return fmt.Errorf("debt-discharge did not discharge the row: %s", out)
+	}
+	record := filepath.Join(repo, "plan", "verification-debt", "discharged")
+	entries, err := os.ReadDir(record)
+	if err != nil || len(entries) == 0 {
+		return fmt.Errorf("no discharge record under %s: %w", record, err)
+	}
+	fmt.Fprintln(os.Stdout, "native-debt-discharge-wrote-a-record") //nolint:errcheck // progress output
+
+	out, code, err = rawCommand(ctx, repo, envRootedAt(repo), le, argCommit, "debt-status")
+	if err != nil || code != 0 {
+		return fmt.Errorf("debt-status after the discharge exit=%d: %w %s", code, err, out)
+	}
+	if !strings.Contains(out, "0 open") || !strings.Contains(out, "1 discharged") {
+		return fmt.Errorf("the ledger still counts the discharged row open: %s", out)
+	}
+	if !strings.Contains(out, "not-applicable 1") {
+		return fmt.Errorf("debt-status does not split the discharged count by kind: %s", out)
+	}
+	fmt.Fprintln(os.Stdout, "discharged-row-no-longer-counted-open") //nolint:errcheck // progress output
+
+	// The record still says what it said. Only the ROW moved, so its digest no
+	// longer matches, and the derivation refuses to apply a record that answers
+	// bytes the ledger no longer holds.
+	if err := os.WriteFile(filepath.Join(repo, filepath.FromSlash(shard)),
+		[]byte(ledgerHead+"| 2026-09-08 | fixture | "+subject+
+			" | independent critical review | a reason somebody edited | open |\n"), 0o600); err != nil {
+		return err
+	}
+	out, code, err = rawCommand(ctx, repo, envRootedAt(repo), le, argCommit, "debt-status")
+	if err != nil || code != 0 {
+		return fmt.Errorf("debt-status after the tamper exit=%d: %w %s", code, err, out)
+	}
+	if !strings.Contains(out, "1 open") || !strings.Contains(out, "INVALID DISCHARGE") {
+		return fmt.Errorf("a tampered row stayed discharged: %s", out)
+	}
+	fmt.Fprintln(os.Stdout, "tampered-row-counted-open-again") //nolint:errcheck // progress output
 	return nil
 }

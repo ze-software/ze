@@ -356,7 +356,7 @@ and name, plus periodic progress while tests are still running.
 | Chaos | `ze-test bgp chaos` | `test/chaos/*.ci` | Runs Ze plus chaos peers end-to-end through the BGP `.ci` runner. |
 | Chaos web | `ze-test bgp chaos-web` | `test/chaos-web/*.ci` | Runs chaos dashboard HTTP endpoint checks through the BGP `.ci` runner. |
 | ExaBGP compatibility | `ze-test exabgp` | `test/exabgp-compat/encoding/*.ci` | Runs the ExaBGP compatibility fixtures through the Go `ze-test` runner, starts the mock BGP peer, runs the ExaBGP wrapper client, and checks the expected wire output. |
-| Runner | `ze-test runner` | `test/runner/*.ci` | Exercises the `.ci` orchestration grammar and the native verify-freshness, structural-red attribution, verification-debt, in-flight failure-query, and change-set-selection fixtures. The compiled Go fixtures use throwaway Git repositories and need no interpreter. |
+| Runner | `ze-test runner` | `test/runner/*.ci` | Exercises the `.ci` orchestration grammar and the native verify-freshness, structural-red attribution, verification-debt (`verify-scope-debt-clear` runs the gate a row names, `verify-scope-debt-discharge` records how an unrunnable row's obligation was met and then tampers with the record to see the row counted open again), in-flight failure-query, and change-set-selection fixtures. The compiled Go fixtures use throwaway Git repositories and need no interpreter. |
 <!-- source: internal/test/cli/cmd_bgp.go -- BGP suite routing -->
 <!-- source: internal/test/cli/ci_runner.go -- shared .ci suites -->
 <!-- source: internal/test/cli/cmd_editor.go -- .et suite runner -->

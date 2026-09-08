@@ -31,6 +31,7 @@ var commandVerbs = []struct {
 	{"debt-list", false, "list every verification-debt row"},
 	{"debt-status", false, "summarize open and cleared verification debt"},
 	{"debt-clear", true, "run owed native gates against HEAD and clear rows only after exit zero; part <n> of <m> runs one piece, all of <m> sweeps every piece in order, and nothing clears until every piece has passed at one commit"},
+	{"debt-discharge", true, "record how a row's obligation was met, for a gate no verification can re-run; kind not-applicable, closed and reviewed are re-derived from the named commit on every read, and kind owner is an attestation"},
 }
 
 // CommandRow is one closed verb exposed by `le commit`.
@@ -47,28 +48,59 @@ type commandList struct {
 }
 
 // debtStatus is the debt population summary.
+//
+// Discharged is split by kind because the kind alone says whether a machine
+// derived the discharge. An attested population that grows while the derived
+// one does not is the tell that kind owner has become the lazy route, and this
+// answer is where it shows.
 type debtStatus struct {
-	Open    int `json:"open"`
-	Cleared int `json:"cleared"`
-	Total   int `json:"total"`
+	Open       int            `json:"open"`
+	Cleared    int            `json:"cleared"`
+	Discharged int            `json:"discharged"`
+	ByKind     map[string]int `json:"discharged-by-kind,omitempty"`
+	Invalid    []string       `json:"invalid-records,omitempty"`
+	Total      int            `json:"total"`
+}
+
+// summarizeDebt counts one ledger read. A row is open, cleared or discharged,
+// and ListDebt is the one producer that decides which.
+func summarizeDebt(ledger DebtLedger) debtStatus {
+	status := debtStatus{Total: len(ledger.Rows), Invalid: ledger.Invalid}
+	for index := range ledger.Rows {
+		row := &ledger.Rows[index]
+		switch row.Status {
+		case statusOpen:
+			status.Open++
+		case statusDischarged:
+			status.Discharged++
+			if status.ByKind == nil {
+				status.ByKind = make(map[string]int)
+			}
+			status.ByKind[row.DischargeKind]++
+		default:
+			status.Cleared++
+		}
+	}
+	return status
 }
 
 // debtClearResult records the fixed commit judged and the rows changed. Part,
 // Of and Proven are empty for an uncut pass, which proves the whole population
 // in one run and has no progress to carry.
 type debtClearResult struct {
-	Commit      string   `json:"commit,omitempty"`
-	Open        int      `json:"open"`
-	Cleared     int      `json:"cleared"`
-	Remaining   int      `json:"remaining"`
-	Part        int      `json:"part,omitempty"`
-	Of          int      `json:"of,omitempty"`
-	Proven      []int    `json:"proven-parts,omitempty"`
-	Skipped     []int    `json:"skipped-parts,omitempty"`
-	Failed      []int    `json:"failed-parts,omitempty"`
-	Runnable    []string `json:"runnable,omitempty"`
-	Unrunnable  []string `json:"unrunnable,omitempty"`
-	Diagnostics []string `json:"diagnostics,omitempty"`
+	Commit       string   `json:"commit,omitempty"`
+	Open         int      `json:"open"`
+	Cleared      int      `json:"cleared"`
+	Remaining    int      `json:"remaining"`
+	Part         int      `json:"part,omitempty"`
+	Of           int      `json:"of,omitempty"`
+	Proven       []int    `json:"proven-parts,omitempty"`
+	Skipped      []int    `json:"skipped-parts,omitempty"`
+	Failed       []int    `json:"failed-parts,omitempty"`
+	Runnable     []string `json:"runnable,omitempty"`
+	Unrunnable   []string `json:"unrunnable,omitempty"`
+	Unrecognized []string `json:"unrecognized,omitempty"`
+	Diagnostics  []string `json:"diagnostics,omitempty"`
 }
 
 // messageResult is a validated message preview.
@@ -159,19 +191,11 @@ func Answer(args []string) (any, int) {
 		if len(args) != 1 {
 			return commandError(fmt.Errorf("debt-status takes no arguments, got %q", args[1]), 2)
 		}
-		rows, err := ListDebt(root)
+		ledger, err := readDebt(root)
 		if err != nil {
 			return commandError(err, 2)
 		}
-		status := debtStatus{Total: len(rows)}
-		for _, row := range rows {
-			if row.Status == statusOpen {
-				status.Open++
-			} else {
-				status.Cleared++
-			}
-		}
-		return status, 0
+		return summarizeDebt(ledger), 0
 	case "debt-clear":
 		values, err := parseKeywords(args[1:], map[string]keywordRule{
 			"part": {Value: true}, "of": {Value: true}, "all": {Value: false},
@@ -184,6 +208,17 @@ func Answer(args []string) (any, int) {
 			return commandError(err, 2)
 		}
 		result, code := clearDebt(root, part)
+		return result, code
+	case "debt-discharge":
+		request, err := parseDischarge(args[1:])
+		if err != nil {
+			return commandError(err, 2)
+		}
+		session, err := lepath.CommitSession(root, "")
+		if err != nil {
+			return commandError(err, 2)
+		}
+		result, code := dischargeDebt(root, session, request)
 		return result, code
 	default:
 		return commandError(fmt.Errorf("commit has no verb %q", args[0]), 2)
@@ -311,15 +346,25 @@ func clearDebtWith(root string, part debtPart, runner verifyengine.ActionRunner)
 	if len(rows) == 0 {
 		return result, 0
 	}
+	// Which gates a verification can re-run is DECLARED by debtGates, and read
+	// back here. It was two string literals in this function, so a gate renamed
+	// in the table stayed silently runnable, and a gate string nobody declared
+	// cleared on a green verify under a name the table never emits.
 	runnableSet := make(map[string]bool)
 	unrunnableSet := make(map[string]bool)
-	for _, row := range rows {
-		if row.Gate == "independent critical review" ||
-			row.Gate == "owner approval for an RFC-tagged test change" {
-			unrunnableSet[row.Gate] = true
+	unrecognizedSet := make(map[string]bool)
+	for index := range rows {
+		gate := rows[index].Gate
+		at := debtGateAt(gate)
+		if at < 0 {
+			unrecognizedSet[gate] = true
 			continue
 		}
-		runnableSet[row.Gate] = true
+		if !debtGates[at].Runnable {
+			unrunnableSet[gate] = true
+			continue
+		}
+		runnableSet[gate] = true
 	}
 	for gate := range runnableSet {
 		result.Runnable = append(result.Runnable, gate)
@@ -327,10 +372,15 @@ func clearDebtWith(root string, part debtPart, runner verifyengine.ActionRunner)
 	for gate := range unrunnableSet {
 		result.Unrunnable = append(result.Unrunnable, gate)
 	}
+	for gate := range unrecognizedSet {
+		result.Unrecognized = append(result.Unrecognized, gate)
+	}
 	slices.Sort(result.Runnable)
 	slices.Sort(result.Unrunnable)
+	slices.Sort(result.Unrecognized)
 	passed := make(map[string]bool)
 	proven := false
+	red := false
 	if len(result.Runnable) != 0 {
 		// A sweep skips what an earlier sweep already proved at this commit, so
 		// a run killed at its fattest stage resumes rather than starting again.
@@ -355,6 +405,7 @@ func clearDebtWith(root string, part debtPart, runner verifyengine.ActionRunner)
 			}
 			if report.Code != 0 {
 				result.Remaining = result.Open
+				red = true
 				if !part.All {
 					if report.Verify == nil {
 						return result, 1
@@ -390,6 +441,13 @@ func clearDebtWith(root string, part debtPart, runner verifyengine.ActionRunner)
 	}
 	if !proven {
 		result.Remaining = result.Open
+		// A red verification cleared nothing, so the exit code says so. Exiting
+		// zero over zero cleared rows made the command's answer and its exit
+		// code disagree, and a caller reading only the code read the red as a
+		// pass with nothing to do.
+		if red {
+			return result, 1
+		}
 		return result, 0
 	}
 	cleared, err := clearDebtRows(root, passed)
@@ -456,8 +514,29 @@ func (l commandList) Text() string {
 
 func (s debtStatus) Text() string {
 	var text textbuf.Buffer
-	return text.Str("verification debt: ").Int(int64(s.Open)).Str(" open, ").
-		Int(int64(s.Cleared)).Str(" cleared\n").String()
+	text.Str("verification debt: ").Int(int64(s.Open)).Str(" open, ").
+		Int(int64(s.Cleared)).Str(" cleared, ").Int(int64(s.Discharged)).Str(" discharged")
+	kinds := make([]string, 0, len(s.ByKind))
+	for kind := range s.ByKind {
+		kinds = append(kinds, kind)
+	}
+	slices.Sort(kinds)
+	for index, kind := range kinds {
+		if index == 0 {
+			text.Str(" (")
+		} else {
+			text.Str(", ")
+		}
+		text.Str(kind).Byte(' ').Int(int64(s.ByKind[kind]))
+	}
+	if len(kinds) != 0 {
+		text.Byte(')')
+	}
+	text.Byte('\n')
+	for _, line := range s.Invalid {
+		text.Str("INVALID DISCHARGE  ").Str(line).Byte('\n')
+	}
+	return text.String()
 }
 
 func (r debtClearResult) Text() string {
@@ -467,6 +546,10 @@ func (r debtClearResult) Text() string {
 	}
 	for _, gate := range r.Unrunnable {
 		text.Str("UNRUNNABLE  ").Str(gate).Byte('\n')
+	}
+	for _, gate := range r.Unrecognized {
+		text.Str("UNRECOGNIZED  ").Str(gate).
+			Str("  (declare it as a debtGates Name or alias)").Byte('\n')
 	}
 	for _, line := range r.Diagnostics {
 		text.Str(line).Byte('\n')

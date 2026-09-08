@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/journal"
 	specsession "github.com/ze-software/ze/internal/le/spec/session"
 	"github.com/ze-software/ze/internal/le/spec/specpath"
@@ -129,6 +130,18 @@ func closureStem(root string, paths, removed []string) (string, error) {
 		}
 	}
 
+	return closedSpecStem(paths, removed)
+}
+
+// closedSpecStem answers the one spec a file population closes, from the
+// population alone.
+//
+// It is split out of closureStem because a discharge re-derives the closure of
+// a commit made months ago, and closureStem's journal read judges the WORKING
+// TREE: a shard deleted since would refuse the discharge for a reason that has
+// nothing to do with whether the commit closed a spec. Both callers read this
+// one statement of the rule, so neither holds a copy of it.
+func closedSpecStem(paths, removed []string) (string, error) {
 	moved := relocatedSpecs(paths, removed)
 	stems := make(map[string]bool)
 	for _, path := range removed {
@@ -177,25 +190,37 @@ func CheckReview(root, stem string, paths []string) ReviewResult {
 		return ReviewResult{Spec: stem, Problems: []string{"resolve review artifact path: " + err.Error()}}
 	}
 	result := ReviewResult{Spec: stem, Artifact: artifact}
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(artifact))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
+	if err != nil {
+		result.Problems = []string{"no independent-review artifact at " + artifact}
+		return result
+	}
+	judgeReviewCoverage(&result, string(content), paths, func(path string) string {
+		return reviewHash(filepath.Join(root, filepath.FromSlash(path)))
+	})
+	return result
+}
+
+// judgeReviewCoverage fills the verdict, the coverage and the problems of one
+// review artifact over one file population. hashOf answers the digest each
+// covered path MUST carry, which is what makes the judgement usable twice: the
+// working tree answers for a prospective commit, and a commit's own blobs
+// answer for a discharge months later.
+func judgeReviewCoverage(result *ReviewResult, artifactText string, paths []string, hashOf func(string) string) {
 	for _, path := range unique(paths) {
 		if isReviewCode(path) {
 			result.CodeFiles = append(result.CodeFiles, path)
 		}
 	}
 	slices.Sort(result.CodeFiles)
-	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(artifact))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
-	if err != nil {
-		result.Problems = []string{"no independent-review artifact at " + artifact}
-		return result
-	}
-	header := reviewHeaderPattern.FindStringSubmatch(string(content))
+	header := reviewHeaderPattern.FindStringSubmatch(artifactText)
 	if len(header) != 2 {
-		result.Problems = []string{"review artifact has no valid ze-review header: " + artifact}
-		return result
+		result.Problems = []string{"review artifact has no valid ze-review header: " + result.Artifact}
+		return
 	}
 	result.Verdict = strings.ToLower(header[1])
 	hashes := make(map[string]string)
-	for line := range strings.SplitSeq(string(content), "\n") {
+	for line := range strings.SplitSeq(artifactText, "\n") {
 		match := reviewFilePattern.FindStringSubmatch(line)
 		if len(match) == 3 {
 			hashes[match[2]] = match[1]
@@ -207,7 +232,7 @@ func CheckReview(root, stem string, paths []string) ReviewResult {
 			result.Unreviewed = append(result.Unreviewed, path)
 			continue
 		}
-		if recorded != reviewHash(filepath.Join(root, filepath.FromSlash(path))) {
+		if recorded != hashOf(path) {
 			result.Stale = append(result.Stale, path)
 		}
 	}
@@ -215,13 +240,27 @@ func CheckReview(root, stem string, paths []string) ReviewResult {
 		result.Problems = append(result.Problems, "review artifact verdict is "+result.Verdict+", not clean")
 	}
 	if len(result.Unreviewed) != 0 {
-		result.Problems = append(result.Problems, fmt.Sprintf("%d code file(s) were not covered by the review: %s", len(result.Unreviewed), strings.Join(result.Unreviewed, ", ")))
+		result.Problems = append(result.Problems, countedPaths(len(result.Unreviewed),
+			" code file(s) were not covered by the review: ", result.Unreviewed))
 	}
 	if len(result.Stale) != 0 {
-		result.Problems = append(result.Problems, fmt.Sprintf("%d reviewed file(s) changed after the review: %s", len(result.Stale), strings.Join(result.Stale, ", ")))
+		result.Problems = append(result.Problems, countedPaths(len(result.Stale),
+			" reviewed file(s) changed after the review: ", result.Stale))
 	}
 	result.Clean = len(result.Problems) == 0
-	return result
+}
+
+// countedPaths renders "<n><what><path>, <path>" for a problem line.
+func countedPaths(count int, what string, paths []string) string {
+	var text textbuf.Buffer
+	text.Int(int64(count)).Str(what)
+	for index, path := range paths {
+		if index != 0 {
+			text.Str(", ")
+		}
+		text.Str(path)
+	}
+	return text.String()
 }
 
 func reviewHash(path string) string {
