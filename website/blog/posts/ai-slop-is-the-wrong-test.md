@@ -16,7 +16,7 @@ Ze is an AI-written network operating system. I decide the architecture, the tra
 
 I use AI to help write these articles too. I am lazy, and my time is limited, so I want to spend it on the judgement and the corrections, with help putting them into words. That does not transfer responsibility for either the software or the articles to the model.
 
-"AI slop" tells me how someone thinks the code was produced, but gives me little to investigate. A claim that Ze mishandles a packet or that a test cannot catch the error gives me something I can answer. I want the argument about generated code to reach that level, because accepting code on the strength of a working demo is a failure whether a person typed it or a model produced it.
+Calling it "AI slop" is easy, but the label says little about what is wrong. Slop is code accepted without enough scrutiny: merged because it compiled, or trusted because the demo worked once. Human-written code can be slop too. AI makes it much cheaper to produce.
 
 *This article was drafted and revised with OpenAI Codex. The ideas, experience and conclusions are mine.*
 
