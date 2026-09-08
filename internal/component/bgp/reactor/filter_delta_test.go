@@ -1883,6 +1883,36 @@ func TestPrependAtTwoOctetWidthCarriesTheRealASNInAS4Path(t *testing.T) {
 			},
 		},
 		{
+			// The received AS4_PATH is SHORTER than the received AS_PATH, which
+			// is what an OLD speaker sends once a route has crossed two-octet
+			// Autonomous Systems. RFC 6793 Section 4.2.3 makes the receiver take
+			// the leading part of AS_PATH to make the counts equal, so an
+			// AS4_PATH holding only the received one plus the local AS leaves
+			// the receiver reading the AS_TRANS ze just wrote. What ze records
+			// is the whole path.
+			name:    "carries_the_whole_path_when_the_received_as4_path_is_shorter",
+			asn4:    false,
+			localAS: 131072,
+			asPath: []byte{
+				byte(attribute.ASSequence), 3,
+				0xFB, 0xF4, // 64500
+				0x5B, 0xA0, // AS_TRANS, the sender's non-mappable AS
+				0xFB, 0xF0, // 64496
+			},
+			as4Path: []byte{
+				byte(attribute.ASSequence), 2,
+				0x00, 0x02, 0x00, 0x01, // 131073, the sender's real AS
+				0x00, 0x00, 0xFB, 0xF0, // 64496
+			},
+			wantAS4: []byte{
+				byte(attribute.ASSequence), 4,
+				0x00, 0x02, 0x00, 0x00, // 131072, the real local AS
+				0x00, 0x00, 0xFB, 0xF4, // 64500, from the leading part of AS_PATH
+				0x00, 0x02, 0x00, 0x01, // 131073
+				0x00, 0x00, 0xFB, 0xF0, // 64496
+			},
+		},
+		{
 			name:     "mappable_local_as_needs_no_as4_path",
 			asn4:     false,
 			localAS:  65000,

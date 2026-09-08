@@ -250,7 +250,7 @@ func (e *ASPathEdit) recordPrepend(mods *filterapi.ModAccumulator, section []byt
 	e.encode = asPathEncodeGen{path: path, asn4: in.DstASN4}
 	mods.OpGen(byte(attribute.AttrASPath), &e.encode)
 
-	e.recordAS4Path(mods, spans, AS4PathForRewrite(path, recvAS4, in.Prepend, in.SrcASN4, in.DstASN4))
+	e.recordAS4Path(mods, spans, AS4PathForRewrite(path, recvAS4, in.SrcASN4, in.DstASN4))
 	e.recordAggregator(mods, section, spans, in)
 	return true, nil
 }

@@ -700,6 +700,11 @@ func ExtractASPathPrependOps(scratch *valueScratch, modAttrs *filterAttrs, attrs
 	segment.WriteToWithASN4(buf, 0, asn4)
 	mods.Op(byte(attribute.AttrASPath), filterapi.AttrModPrepend, buf)
 
+	// RFC 6793 Section 4.2.2: "The NEW BGP speaker MUST also send the AS path
+	// information in the AS4_PATH attribute (encoded with four-octet AS
+	// numbers), except for the case where all of the AS path information is
+	// composed of mappable four-octet AS numbers only. In this case, the NEW
+	// BGP speaker MUST NOT send the AS4_PATH attribute."
 	if as4Value != nil {
 		mods.Op(byte(attribute.AttrAS4Path), filterapi.AttrModSet, as4Value)
 	}
@@ -729,8 +734,22 @@ func prependAS4PathValue(scratch *valueScratch, attrs *attribute.AttributesWire,
 	// MUST NOT be carried in an UPDATE message between NEW BGP speakers."
 	// AS4PathForRewrite returns nil here too; returning first also spares the
 	// four-octet path a parse it would throw away.
-	if asn4 || attrs == nil {
+	if asn4 {
 		return nil, true
+	}
+
+	// A body whose attribute section did not index leaves the AS-path family
+	// unreadable, and at two-octet width the prepend then writes AS_TRANS for a
+	// non-mappable local AS with the real number carried nowhere. That is the
+	// RFC 6793 Section 4.2.2 violation this derivation exists to prevent, so an
+	// absent section fails closed like an unparseable AS_PATH does below.
+	//
+	// Debug rather than Warn: a withdrawal-only UPDATE carries no attribute
+	// section by construction and has no AS_PATH to prepend to, so this line
+	// describes the ordinary case as often as it describes a defect.
+	if attrs == nil {
+		fwdLogger().Debug("as-path-prepend: no attribute section, no prepend recorded")
+		return nil, false
 	}
 
 	// What the outgoing AS_PATH will hold once the prepend applies. Read from
@@ -776,7 +795,7 @@ func prependAS4PathValue(scratch *valueScratch, attrs *attribute.AttributesWire,
 		}
 	}
 
-	out := wireu.AS4PathForRewrite(path, recvAS4, asns, asn4, asn4)
+	out := wireu.AS4PathForRewrite(path, recvAS4, asn4, asn4)
 	if out == nil {
 		return nil, true
 	}

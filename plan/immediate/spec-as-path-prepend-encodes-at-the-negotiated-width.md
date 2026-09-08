@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-09-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -123,10 +123,10 @@ AS4_PATH as RFC 6793 Section 4.2.2 requires.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The three call sites each hold, at the point of the call, the width of the payload the prepend is spliced into | `filter_ordered.go` reads `srcASN4` from `wireUpdate.SourceCtxID()` on import and takes `asn4` as a parameter on export; `policy_dryrun.go` takes `asn4` as a parameter | The fix would encode against the wrong width and change nothing | Reading the producer of each value, then the unit tests at both widths | unvalidated |
-| A-2 | Nothing between the export filter override and the socket re-encodes the AS_PATH | `session_write.go` `writeRawUpdateBody` copies `body` behind a header; `peer_run.go` installs `exportFilterForBody` as `egressRouteFilter` | The wire claim in Blast Radius is too strong and must be reduced to a local-store claim | Reading `writeRawUpdateBody` and both `egressRouteFilter` call sites | unvalidated |
-| A-3 | A mappable local AS prepended at two-octet width needs no AS4_PATH edit | RFC 6793 Section 4.2.3 reconstructs by taking the LEADING part of AS_PATH, which is where the prepend lands | The fix would leave a count skew for every mappable prepend | `as4PathForRewrite` returning nil for that case, asserted in the unit test | unvalidated |
-| A-4 | `ExtractRemovePrivateASOps` records an AS4_PATH operation only when the payload already carries an AS4_PATH | `filter_delta.go` guards that branch on `len(rawAS4Path) > 0` | The two extractors could both record an AS4_PATH Set and the last one would win | Reading the guard, plus the combination test | unvalidated |
+| A-1 | The three call sites each hold, at the point of the call, the width of the payload the prepend is spliced into | `filter_ordered.go` reads `srcASN4` from `wireUpdate.SourceCtxID()` on import and takes `asn4` as a parameter on export; `policy_dryrun.go` takes `asn4` as a parameter | The fix would encode against the wrong width and change nothing | Reading the producer of each value, then the unit tests at both widths | CONFIRMED 2026-09-08: `TestImportChainPassesTheSourceContextWidthToThePrepend` and `TestExportChainPassesItsWidthToThePrepend` drive the chains themselves, at both widths, and both go RED when either call site passes a literal `true` or a literal `false` |
+| A-2 | Nothing between the export filter override and the socket re-encodes the AS_PATH | `session_write.go` `writeRawUpdateBody` copies `body` behind a header; `peer_run.go` installs `exportFilterForBody` as `egressRouteFilter` | The wire claim in Blast Radius is too strong and must be reduced to a local-store claim | Reading `writeRawUpdateBody` and both `egressRouteFilter` call sites | CONFIRMED 2026-09-08: FRR accepts the prepended path over a real session in the interop scenario, so the bytes the filter wrote are the bytes that reached the socket |
+| A-3 | A mappable local AS prepended at two-octet width needs no AS4_PATH edit | RFC 6793 Section 4.2.3 reconstructs by taking the LEADING part of AS_PATH, which is where the prepend lands | The fix would leave a count skew for every mappable prepend | `AS4PathForRewrite` returning nil for that case, asserted in the unit test | CONFIRMED: `TestPrependAtTwoOctetWidthEncodesTwoOctetASNs` records no AS4_PATH operation |
+| A-4 | `ExtractRemovePrivateASOps` records an AS4_PATH operation only when the payload already carries an AS4_PATH | `filter_delta.go` guards that branch on `len(rawAS4Path) > 0` | The two extractors could both record an AS4_PATH Set and the last one would win | Reading the guard, plus the combination test | CONFIRMED: `TestPrependAS4PathDoesNotUndoRemovePrivateAS` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -159,7 +159,7 @@ AS4_PATH as RFC 6793 Section 4.2.2 requires.
 | AC-1 | `as-path-prepend 3`, local AS 65000, payload width four octets | The recorded AS_PATH operation carries 14 bytes: segment type 2, count 3, and three four-octet copies of 65000. No AS4_PATH operation is recorded |
 | AC-2 | `as-path-prepend 3`, local AS 65000, payload width two octets | The recorded AS_PATH operation carries 8 bytes: segment type 2, count 3, and three two-octet copies of 65000. No AS4_PATH operation is recorded, because every AS number in the path is mappable |
 | AC-3 | `as-path-prepend 2`, local AS 4200000000, payload width two octets, payload AS_PATH holds one mappable AS number and no AS4_PATH | The AS_PATH operation carries segment type 2, count 2, and two copies of 23456. An AS4_PATH operation is recorded carrying the whole path with the real 4200000000 at its leading edge |
-| AC-4 | `as-path-prepend 1`, local AS 4200000000, payload width two octets, payload already carries an AS4_PATH | The recorded AS4_PATH holds the real local AS prepended to the received AS4_PATH, so the AS number count of AS_PATH minus that of AS4_PATH is unchanged by the prepend |
+| AC-4 | `as-path-prepend 1`, local AS 4200000000, payload width two octets, payload already carries an AS4_PATH | The recorded AS4_PATH is what RFC 6793 Section 4.2.3 reconstruction must arrive at: the real local AS at the head, then the leading part of AS_PATH the received AS4_PATH does not cover, then the received AS4_PATH. Corrected 2026-09-08 -- the earlier wording, "the real local AS prepended to the received AS4_PATH, so the count difference is unchanged", described the defect: an unchanged difference is exactly what makes the receiver read the AS_TRANS ze wrote |
 | AC-5 | `as-path-prepend 1`, local AS 4200000000, payload width four octets | The AS_PATH operation carries the real 4200000000 in four octets, and no AS4_PATH operation is recorded |
 | AC-6 | The import chain runs a filter returning `as-path-prepend N` on a session whose source context did not negotiate four-octet support | The rebuilt payload's AS_PATH parses at two-octet width and its leading segment holds N copies of the local AS |
 | AC-7 | The export chain runs a filter returning `as-path-prepend N` for a destination whose payload is two-octet | The wire override's AS_PATH parses at two-octet width and its leading segment holds N copies of the local AS |
@@ -201,7 +201,7 @@ AS4_PATH as RFC 6793 Section 4.2.2 requires.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `as-path-prepend-two-octet-peer` | `test/interop/scenarios/` | FRR | An `as-path-prepend` policy toward a peer that did not send the four-octet AS capability keeps the session established and produces a path FRR decodes | written, never executed. Attempted 2026-09-06 and killed by the kernel for low memory during the image build; see below. The command is `INTEROP_SCENARIO=as-path-prepend-two-octet-peer ./le integration interop` -- `./le integration scenario ...` is NOT an action and fails immediately |
+| `as-path-prepend-two-octet-peer` | `test/interop/scenarios/` | FRR | An `as-path-prepend` policy toward a peer that did not send the four-octet AS capability keeps the session established and produces a path FRR decodes | PASSED 2026-09-08, first execution. `INTEROP_SCENARIO=as-path-prepend-two-octet-peer ./le integration interop` -- `./le integration scenario ...` is NOT an action and fails immediately. The verdict is in the `\| json` payload; the text renderer prints only `Failed: interop` (`plan/journal/failing-gate-prints-no-cause.md`) |
 
 ## Files to Modify
 - `internal/component/bgp/reactor/filter_delta.go` - `ExtractASPathPrependOps` takes the wire attributes and the width, encodes at that width, and records the AS4_PATH operation when RFC 6793 Section 4.2.2 requires one
@@ -319,16 +319,9 @@ AS4_PATH as RFC 6793 Section 4.2.2 requires.
 ## Known Limitations
 
 - The forwarded rail toward a NON-EBGP destination does not call `aspathEdit.Record` at all (`reactor_api_forward.go` guards it on `facts.isEBGP`), so a width difference between an iBGP source and an iBGP destination is not transcoded on that rail. That is a separate question from this spec's defect, it predates it, and this spec neither fixes nor relies on it.
-- The interop scenario named above is WRITTEN and has NEVER been executed.
-  `test/interop/scenarios/as-path-prepend-two-octet-peer` holds its `ze.conf`
-  and its `frr.conf`, and its assertions are the
-  `as-path-prepend-two-octet-peer` entry in `scenarioOperations`
-  (`internal/le/interoplab/bgp/checkers.go`). No lab has run it, so nothing yet
-  says the FRR configuration establishes, that the redistributed prefix
-  arrives, or that the four assertions read what they are written to read. The
-  command is `./le integration scenario as-path-prepend-two-octet-peer`. Until
-  it runs, the fix stands on unit tests alone, at both widths and both
-  directions, asserting on the bytes.
+- The interop scenario is no longer a limitation. It ran on 2026-09-08 and
+  PASSED, so the fix stands on FRR's reading of a real session as well as on the
+  unit tests.
 
 ## RFC Documentation (Scope: protocol)
 
@@ -439,3 +432,62 @@ The scenario's verdict therefore remains UNKNOWN. One earlier run did reach a
 verdict and failed on `advertised-as=65001 configured-as=65004`, which was
 attributed to the test injector's then-uncommitted ASN handling; that work has
 since landed, and whether the attribution was right is unmeasured.
+
+## Progress, 2026-09-08
+
+**The interop scenario ran, and it passes.** First execution since it was
+written on 2026-09-06. What had blocked it for two days was the Docker VM rather
+than the lab: colima was running 2 CPUs and 1.9 GiB on a 64 GiB, 16-core host,
+so the fleet was killed before it could reach an assertion. At 8 CPUs and 24 GiB
+the same command reaches a verdict in about two minutes.
+
+**Its first verdict was RED, and the cause was the scenario's own frr.conf.**
+`dont-capability-negotiate` suppresses only what FRR SENDS. FRR still reads ze's
+four-octet AS capability and resolves the peer AS to 4200000001, so
+`remote-as 23456` drew `2/2 (OPEN Message Error/Bad Peer AS)` on every OPEN and
+the session never left Active. FRR's `enforce-first-as`, on by default in 10.3,
+then rejects the route for a leading AS_TRANS that RFC 6793 Section 4.2.2
+requires. Both are FRR-side strictness against a corner it does not model, and
+both are now configured in the scenario with the measurement in the comment.
+Ze's OPEN is conformant at the producer: `(*Session).buildOpen`
+(`session_negotiate.go`) writes AS_TRANS in My AS and the real ASN in the
+capability.
+
+**The scenario DISCRIMINATES.** With `ExtractASPathPrependOps` forced back to a
+four-octet segment and the image rebuilt, the run went RED at assertion 2,
+`wait for FRR route 10.99.0.0/24 timed out before the peer became ready`: FRR
+cannot read the prefix at all. Restoring the fix returned `"passed": 1` on a
+different image digest.
+
+**Two defects the review found in the landed code are fixed here.**
+
+The AS4_PATH ze emitted after a prepend was wrong whenever the source's AS4_PATH
+was SHORTER than its AS_PATH, which is what an OLD speaker sends once a route has
+crossed two-octet-only Autonomous Systems. Prepending the local AS numbers to
+both attributes keeps the AS number count difference intact, which AC-4 asserted,
+and still reconstructs wrongly: RFC 6793 Section 4.2.3 makes the receiver take
+that unchanged leading count from AS_PATH, where the AS_TRANS placeholders now
+sit. Measured: received AS_PATH `[64500, 23456, 64496]` with AS4_PATH
+`[4200000002, 64496]`, prepend 4200000001, and the peer reconstructed
+`[23456, 4200000001, 4200000002, 64496]` -- AS_TRANS at the head and AS 64500
+lost. `AS4PathForRewrite` now runs the path through `attribute.MergeAS4Path`,
+which is ze's declaration of the receiver's rule, so what ze emits is what the
+receiver must arrive at. `joinSequences` keeps the bytes identical for every path
+that needs no cut. The defect was shared with `ASPathEdit.recordPrepend` on the
+forwarded rail, so the one fix covers both.
+
+`prependAS4PathValue` treated an absent attribute section as "no AS4_PATH owed"
+and let the prepend record AS_TRANS with the real AS carried nowhere. It now
+fails closed, like the unparseable-AS_PATH branch beside it.
+
+**The Wiring Test rows for both chains are now driven from the entry point.**
+`TestImportChainPassesTheSourceContextWidthToThePrepend` and
+`TestExportChainPassesItsWidthToThePrepend` (`filter_ordered_test.go`) run
+`runIngressPolicyChain` and `runEgressPolicyChainASN4` themselves. Both go RED
+when either call site passes a literal `true` instead of the width it holds, and
+GREEN with it restored. The earlier tests supplied the width themselves, so the
+wiring claim they were written for was unproven.
+
+**Left for the owner:** `zzprobe_announce_extended_test.go` is a self-declared
+throwaway probe committed with `3f25545edb`. It asserts nothing. Deleting a test
+file needs approval, which has not been given, so it stays.

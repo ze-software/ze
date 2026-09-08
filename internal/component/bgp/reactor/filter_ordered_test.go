@@ -5,7 +5,10 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -507,4 +510,113 @@ func TestPolicyChainCreatesNoAttributeOnAWithdrawal(t *testing.T) {
 		assert.Contains(t, rebuiltAttrs(t, res.wireOverride.Payload()), byte(5),
 			"the filter's LOCAL_PREF (code 5) reaches a body that advertises something")
 	})
+}
+
+// prependingFilter returns a seam that answers every filter call with a text
+// delta carrying the as-path-prepend directive, which is what reaches
+// ExtractASPathPrependOps through the chain's own parse of the modified text.
+func prependingFilter(count string) PolicyFilterFunc {
+	return func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+		return PolicyResponse{Action: PolicyModify, Delta: "as-path-prepend " + count}
+	}
+}
+
+// asPathBodyAtWidth answers an UPDATE body whose AS_PATH is encoded at the given
+// width, holding AS 64496.
+func asPathBodyAtWidth(asn4 bool) []byte {
+	value := []byte{byte(attribute.ASSequence), 1, 0xFB, 0xF0}
+	if asn4 {
+		value = []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFB, 0xF0}
+	}
+	_, payload := prependFixture(value, nil)
+	return payload
+}
+
+// widthName names a subtest after the width it drives, so a failure says which
+// polarity broke.
+func widthName(asn4 bool) string {
+	if asn4 {
+		return "four_octet_session"
+	}
+	return "two_octet_session"
+}
+
+// TestImportChainPassesTheSourceContextWidthToThePrepend drives the ingress
+// entry point rather than the extractor, so the width the extractor receives is
+// the one runIngressPolicyChain reads from the source encoding context instead
+// of one the test supplies.
+//
+// VALIDATES: the Wiring Test row for the import chain. A literal width at that
+// call site leaves the rebuilt AS_PATH undecodable at the session's own width.
+// PREVENTS: a stored route whose AS_PATH does not decode at its own context's
+// width.
+func TestImportChainPassesTheSourceContextWidthToThePrepend(t *testing.T) {
+	for _, asn4 := range []bool{false, true} {
+		t.Run(widthName(asn4), func(t *testing.T) {
+			ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(asn4))
+			require.NoError(t, err, "the source session negotiated a width")
+
+			addr := netip.MustParseAddr("10.0.0.20")
+			peer := NewPeer(&PeerSettings{
+				Address:       addr,
+				LocalAS:       65000,
+				PeerAS:        65001,
+				ImportFilters: []filterapi.FilterRef{{Name: "prepend-twice"}},
+			})
+			r := &Reactor{
+				api:              &pluginserver.Server{},
+				policyFilterSeam: prependingFilter("2"),
+				attrModHandlers:  attrModHandlersWithDefaults(),
+			}
+
+			body := asPathBodyAtWidth(asn4)
+			res := r.runIngressPolicyChain(peer, addr, 65001, wireu.NewWireUpdate(body, ctxID), body)
+
+			require.True(t, res.accept, "the import chain accepted the modified route")
+			require.NotNil(t, res.modifiedPayload, "the import chain rebuilt the payload")
+
+			value, found := attrValueFromPayload(t, res.modifiedPayload, attribute.AttrASPath)
+			require.True(t, found, "the rebuilt payload carries an AS_PATH")
+			path, err := attribute.ParseASPath(value, asn4)
+			require.NoError(t, err, "the rebuilt AS_PATH decodes at the source session's width")
+			assert.Equal(t, []uint32{65000, 65000, 64496}, flatASNs(path),
+				"the local AS leads the path twice, at the session's width")
+		})
+	}
+}
+
+// TestExportChainPassesItsWidthToThePrepend is the egress twin. The width is
+// the chain's own asn4 argument, which exportFilterForBody fills with the
+// destination's send context and runEgressPolicyChain with the source's.
+//
+// VALIDATES: the Wiring Test row for the export chain.
+// PREVENTS: an UPDATE a two-octet peer answers with a NOTIFICATION.
+func TestExportChainPassesItsWidthToThePrepend(t *testing.T) {
+	for _, asn4 := range []bool{false, true} {
+		t.Run(widthName(asn4), func(t *testing.T) {
+			ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(asn4))
+			require.NoError(t, err, "the destination session negotiated a width")
+
+			r := &Reactor{
+				api:              &pluginserver.Server{},
+				policyFilterSeam: prependingFilter("2"),
+				attrModHandlers:  attrModHandlersWithDefaults(),
+			}
+			filters := []filterapi.FilterRef{{Name: "prepend-twice"}}
+
+			body := asPathBodyAtWidth(asn4)
+			res := r.runEgressPolicyChainASN4(filters, "10.0.0.21", 65001, 65000,
+				wireu.NewWireUpdate(body, ctxID), asn4)
+
+			require.True(t, res.accept, "the export chain accepted the modified route")
+			require.NotNil(t, res.wireOverride, "the export chain produced a wire override")
+
+			value, found := attrValueFromPayload(t, res.wireOverride.Payload(), attribute.AttrASPath)
+			require.True(t, found, "the override carries an AS_PATH")
+			path, err := attribute.ParseASPath(value, asn4)
+			require.NoError(t, err, "the override's AS_PATH decodes at the destination's width")
+			assert.Equal(t, []uint32{65000, 65000, 64496}, flatASNs(path),
+				"the local AS leads the path twice, at the session's width")
+		})
+	}
 }

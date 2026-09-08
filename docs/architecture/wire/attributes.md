@@ -439,6 +439,15 @@ every other AS_PATH goes through, and the real value is then carried in AS4_PATH
 A MAPPABLE local AS records no AS4_PATH operation: RFC 6793 Section 4.2.3
 reconstructs by taking AS numbers from the leading part of AS_PATH, which is
 where a prepend lands, so the receiver recovers them without one.
+
+When the source UPDATE already carried an AS4_PATH, the AS4_PATH ze emits holds
+the WHOLE path rather than the received one with the local AS numbers on top.
+Section 4.2.3 makes the receiver take as many AS numbers from the leading part
+of AS_PATH as make the two counts equal, so prepending to both attributes leaves
+that count unchanged and the receiver reads the AS_TRANS placeholders ze just
+wrote in place of the real local AS. `attribute.MergeAS4Path` is ze's
+declaration of the receiver's rule, and the send path runs the path through it
+so that what ze emits is what the receiver must arrive at.
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractASPathPrependOps -->
 <!-- source: internal/component/bgp/wireu/aspath_as4.go -- AS4PathForRewrite -->
 

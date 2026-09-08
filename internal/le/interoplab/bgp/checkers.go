@@ -103,15 +103,19 @@ var scenarioOperations = map[string][]operation{
 	// to be two-octet and has to carry AS_TRANS. Ze's unit tests pin the octets
 	// ze writes; only a second implementation says whether they can be read.
 	//
-	// NEVER EXECUTED, and it has never reached a verdict. Written on
-	// 2026-09-06 with the scenario directory
+	// Written on 2026-09-06 with the scenario directory
 	// test/interop/scenarios/as-path-prepend-two-octet-peer, for
-	// spec-as-path-prepend-encodes-at-the-negotiated-width. Three attempts on
-	// 2026-09-06 were each killed by the kernel for memory. The cost is the
-	// container fleet rather than the image build: this lab brings up FRR,
-	// GoBGP and BIRD beside ze. The command that runs it is
+	// spec-as-path-prepend-encodes-at-the-negotiated-width, and first executed
+	// on 2026-09-08. The command that runs it is
 	// `INTEROP_SCENARIO=as-path-prepend-two-octet-peer ./le integration interop`;
 	// `./le integration scenario` is not an action and fails immediately.
+	//
+	// FRR NEEDS THE REAL FOUR-OCTET ASN IN remote-as EVEN HERE, because
+	// dont-capability-negotiate suppresses only what FRR sends: it still reads
+	// ze's four-octet AS capability and answers a disagreeing remote-as with
+	// "2/2 (OPEN Message Error/Bad Peer AS)". FRR's enforce-first-as is off in
+	// this scenario for a second FRR-side reason, a leading AS_TRANS that
+	// RFC 6793 Section 4.2.2 requires and FRR reads as an incorrect first AS.
 	//
 	// THE TWO ABSENCES ARE WHAT MAKE THE RUN DISCRIMINATE. A prepend encoded at
 	// four octets over a two-octet payload has two possible ends. It malforms

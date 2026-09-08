@@ -940,3 +940,43 @@ func TestRewriteASPath_AS4PathMappabilityBoundary(t *testing.T) {
 		})
 	}
 }
+
+// TestRFC6793PrependedAS4PathReconstructsTheWholePath drives RewriteASPath over
+// an UPDATE whose AS4_PATH is SHORTER than its AS_PATH, which is what an OLD
+// speaker sends once a route has crossed two-octet-only Autonomous Systems.
+//
+// The receiver's own rule is the assertion. attribute.MergeAS4Path is ze's
+// declaration of RFC 6793 Section 4.2.3, so the test reconstructs the path a
+// peer would read out of the two attributes ze emits, and compares it with the
+// path ze meant to send. Prepending the local AS numbers to the received
+// AS4_PATH alone keeps the AS number count difference intact and still
+// reconstructs wrongly: the leading part the receiver takes from AS_PATH is
+// then the AS_TRANS placeholders ze just wrote.
+func TestRFC6793PrependedAS4PathReconstructsTheWholePath(t *testing.T) {
+	attrs := concatAttrs(
+		buildOriginAttr(),
+		buildASPathAttr([]attribute.ASPathSegment{
+			{Type: attribute.ASSequence, ASNs: []uint32{64500, rfc6793ASTrans, 64496}},
+		}, false),
+		buildAS4PathAttr([]attribute.ASPathSegment{
+			{Type: attribute.ASSequence, ASNs: []uint32{rfc6793NonMappableB, 64496}},
+		}),
+	)
+	payload := buildPayload(nil, attrs, nil)
+
+	dst := make([]byte, len(payload)+256)
+	n, err := RewriteASPath(dst, payload, rfc6793NonMappable, false, false)
+	require.NoError(t, err)
+	result := dst[:n]
+
+	asPath := parseASPathFromPayload(t, result, false)
+	as4 := parseAS4PathFromPayload(t, result)
+	require.NotNil(t, as4, "the prepended AS is non-mappable, so an AS4_PATH is owed")
+
+	reconstructed := attribute.MergeAS4Path(asPath, as4)
+	require.Len(t, reconstructed.Segments, 1)
+	assert.Equal(t,
+		[]uint32{rfc6793NonMappable, 64500, rfc6793NonMappableB, 64496},
+		reconstructed.Segments[0].ASNs,
+		"the peer reconstructs the local AS at the head and loses no AS number behind it")
+}
