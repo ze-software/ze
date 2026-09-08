@@ -7,28 +7,44 @@ shortcut (`docs/contributing/rfc-implementation-guide.md`).
 
 ## The approval
 
-Thomas approved these six on 2026-09-08. He was shown the table of six test
-names and files, the statement that every one of them adds the single line
-`Resumption: NewResumption(time.Now, true)` to a `MethodConfig` literal because
-the struct gained a required field, and the statement that no requirement id,
-tag comment, assertion, byte offset or quoted requirement moves in any of them.
-He answered: "ok".
+Thomas approved these two on 2026-09-08. He was shown the two test names, the
+statement that they were red because they REQUIRED the L bit and read the TLS
+record at a hard-coded offset 5, the statement that the edit changes the header
+DECODE only, and the statement that no assertion about the alert's own behaviour
+was weakened. He answered: "I approve".
 
-The six share one cause. `MethodConfig` (`internal/core/eap/eap.go`) gained a
-`Resumption` field in this commit, and an EAP-TLS authenticator is refused
-without one, so every existing test that builds that struct had to name it. The
-value each of them passes, `NewResumption(time.Now, true)`, is a live store on
-the real clock, which is what these tests would get from the engine in
-production (`resumptionFor`, `internal/component/ike/engine/resumption.go`).
+## Why the change was owed
 
-Nothing else in any of the six moved. Each diff is one added line inside a
-struct literal, plus the `time` import that line needs.
+RFC 9190 Section 2.1.9: "Implementations MUST NOT set the L bit in unfragmented
+messages, but they MUST accept unfragmented messages with and without the L bit
+set."
+
+`tlsFragmenter.nextFragment` (`internal/core/eap/eap_tls.go`) set `eapTLSFlagL`
+and the four-octet length whenever the fragment was the FIRST one. A message that
+fits in one fragment is both first and last, so ze set the L bit on every
+unfragmented EAP-TLS message it emitted, on both roles. That is the MUST NOT.
+
+Both tests below asserted the violating shape. Each opened with
+`if len(td) < 1+4+tlsRecordHeaderLen || td[0]&eapTLSFlagL == 0 { t.Fatalf(...) }`
+and then read the record at `td[5:]`. An EAP-TLS alert is 25 octets and never
+fragments, so once the producer was corrected both tests failed, and they failed
+because they were pinning the defect rather than because the fix was wrong.
+
+`ai/rules/rfc-compliance.md` governs that case directly: a test that pins
+non-conformant behaviour is the violation with a green bar on top, so the code is
+fixed and then the test is corrected.
+
+## What changed in them, exactly
+
+The header DECODE, and nothing else. `tlsBytesFromTypeData` now finds the record
+behind a one-octet or five-octet EAP-TLS header, which is what Section 2.1.9's
+second clause obliges this side to read. The declared-length check survives,
+conditioned on the L bit actually being set. A check that the M flag is clear was
+ADDED, so each test now also proves it is looking at a whole alert rather than
+one fragment of a message. No assertion about the alert's ordering against
+EAP-Failure moved, which is what `RFC5216-2.1.3-4` is about.
 
 | Test | Reason |
 |------|--------|
-| TestRFC3748KeyDerivingMethodAuthenticatesBothEnds | `rfc3748_walk_test.go`. One line added to the rogue authenticator's `MethodConfig`. The test still runs a full EAP-TLS handshake against an untrusted chain and still asserts both ends refuse it. |
-| TestRFC5216PeerRepliesBeforeItTerminates | `rfc5216_peer_wait_test.go`. One line added to the authenticator's `MethodConfig`. The RFC 5216 Section 2.1.3 reply-before-terminate assertion is untouched. |
-| TestRFC5216ServerRepliesEAPFailureToPeerAlert | `rfc5216_termination_test.go`. One line added to the authenticator's `MethodConfig`. The EAP-Failure-for-peer-alert assertion is untouched. |
-| TestEAPTLSPeerRejectsUntrustedServerChain | `eap_tls_handshake_test.go`. One line added to the authenticator's `MethodConfig`. The peer still rejects a chain outside its trust anchor. |
-| TestEAPTLSPeerWithoutCARefusesToStart | `eap_tls_handshake_test.go`. One line added to the authenticator's `MethodConfig`. The peer still refuses to start with no configured trust anchor, which is the RFC 5216 Section 5.3 path-validation guard. |
-| TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse | `rfc5216_success_flight_test.go`. One line added to the authenticator's `MethodConfig`. The test still asserts the peer sends its TLS alert in place of the no-data response. |
+| TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure | `internal/core/eap/eap_tls_alert_flight_test.go`. Required the L bit and read the record at offset 5; both are properties of the defect this commit fixes. Header decode made flags-aware, declared-length check kept behind an L-bit test, M-flag check added. The RFC5216-2.1.3-4 assertion, that the authenticator puts the TLS alert on the wire before it reports the failure, is untouched. |
+| TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure | Same file, same cause, same edit. It scans a whole flight for the first TLS record, and the scan's `len(p.TypeData) > 5 && p.TypeData[0]&eapTLSFlagL != 0` guard would have skipped every unfragmented record once the producer was corrected, so the test would have silently found no alert rather than failing loudly. The ordering assertion against EAP-Failure is untouched. |

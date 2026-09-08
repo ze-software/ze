@@ -459,6 +459,18 @@ still goes out. A resumed authentication re-checks the cached chain against the 
 `ca-certificate` and `crl`, so a certificate that was revoked or expired since the first
 handshake is refused.
 
+Ze caps the TLS version at 1.3 on both EAP-TLS roles. RFC 9190 Section 1 requires that
+cap, because EAP-TLS couples the TLS state machine to the EAP one and a version nobody
+integrated into the EAP half breaks the pair. Ze offers no setting that raises the cap.
+TLS 1.2 stays reachable under it, and an EAP-TLS peer that speaks only TLS 1.2 still
+authenticates with the RFC 5216 key derivation.
+
+Ze puts the four-octet TLS Message Length only on the first fragment of a message it had
+to fragment. RFC 9190 Section 2.1.9 forbids the L bit on a message that fits in one
+EAP-TLS packet, so in a packet capture the TLS data of such a message starts one octet
+after the EAP Type, not five. Ze accepts an unfragmented message from the far end with
+the L bit or without it, which the same sentence requires.
+
 ## Ze does not send `local-id` as the EAP-TLS identity
 
 RFC 9190 Section 2.1.8 says that "a client supporting TLS 1.3 MUST NOT send its username (or

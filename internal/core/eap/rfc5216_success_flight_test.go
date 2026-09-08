@@ -177,14 +177,28 @@ func driveTunedEAPTLSFlight(
 // length-prefixed TLS message and returns each record's content type in order.
 //
 // It reports nil for a message that is not a complete first-and-only fragment
-// (no L flag, an M flag, or a declared length the payload does not match), so a
-// caller can tell "these are the records" from "this is not a whole message".
+// (an M flag, or a declared length the payload does not match), so a caller can
+// tell "these are the records" from "this is not a whole message".
+//
+// RFC 9190 Section 2.1.9 forbids the L bit on an unfragmented message, so ze's
+// own whole messages carry a bare flags octet and open their first record at
+// offset 1. A message that still declares its length is decoded too, because
+// the same sentence obliges a receiver to accept both shapes.
 func tlsRecordContentTypes(td []byte) []byte {
-	if len(td) < 1+4+tlsRecordHeaderLen || td[0]&eapTLSFlagL == 0 || td[0]&eapTLSFlagM != 0 {
+	if len(td) < 1 || td[0]&eapTLSFlagM != 0 {
 		return nil
 	}
-	body := td[5:]
-	if int(binary.BigEndian.Uint32(td[1:5])) != len(body) {
+	body := td[1:]
+	if td[0]&eapTLSFlagL != 0 {
+		if len(td) < 1+4 {
+			return nil
+		}
+		body = td[5:]
+		if int(binary.BigEndian.Uint32(td[1:5])) != len(body) {
+			return nil
+		}
+	}
+	if len(body) < tlsRecordHeaderLen {
 		return nil
 	}
 

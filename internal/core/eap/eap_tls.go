@@ -144,7 +144,33 @@ func (f *tlsFragmenter) startSending(data []byte) {
 }
 
 // nextFragment returns the next outbound fragment as EAP-TLS TypeData.
-// RFC 5216 Section 2.1.5: first fragment has L+M, middle has M, last has neither.
+//
+// RFC 5216 Section 2.1.5 gives a fragmented message L+M on its first fragment, M
+// on each middle one and neither on the last. RFC 9190 Section 2.1.9 amends that
+// for the message that needs no fragmenting at all: "Implementations MUST NOT
+// set the L bit in unfragmented messages, but they MUST accept unfragmented
+// messages with and without the L bit set."
+//
+// So the L bit, and the four-octet TLS Message Length it announces, go out on
+// the first fragment of a message that CONTINUES and nowhere else. A message
+// that fits in one fragment is both the first and the last, and it leaves as a
+// bare flags octet with its TLS data behind it.
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|L M S R R R R R|   TLS Message Length (only while L is set)    |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|  ...length    |               TLS Data ...
+//	+-+-+-+-+-+-+-+-+
+//
+// Offset 0 is the flags octet. Offsets 1 to 4 are the TLS Message Length and
+// exist only while the L bit is set, so the TLS data starts at offset 5 on a
+// fragmented message's first fragment and at offset 1 on every other message.
+//
+// The fragment boundary is independent of that header: chunkSize is measured
+// against eapTLSFragmentSize alone, so dropping four octets of header changes
+// which flags a fragment carries and never how the message is cut.
 func (f *tlsFragmenter) nextFragment() []byte {
 	remaining := len(f.outBuf) - f.outOffset
 	if remaining <= 0 {
@@ -155,9 +181,14 @@ func (f *tlsFragmenter) nextFragment() []byte {
 	chunkSize := min(remaining, eapTLSFragmentSize)
 	isLast := f.outOffset+chunkSize >= len(f.outBuf)
 
+	// RFC 9190 Section 2.1.9: "Implementations MUST NOT set the L bit in
+	// unfragmented messages". A first fragment that is also the last one IS an
+	// unfragmented message.
+	declaresLength := isFirst && !isLast
+
 	var flags uint8
 	headerSize := 1
-	if isFirst {
+	if declaresLength {
 		flags |= eapTLSFlagL
 		headerSize = 5
 	}
@@ -168,7 +199,7 @@ func (f *tlsFragmenter) nextFragment() []byte {
 
 	td := make([]byte, headerSize+chunkSize)
 	td[0] = flags
-	if isFirst {
+	if declaresLength {
 		binary.BigEndian.PutUint32(td[1:5], uint32(len(f.outBuf)))
 	}
 	copy(td[headerSize:], f.outBuf[f.outOffset:f.outOffset+chunkSize])
@@ -380,6 +411,15 @@ func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 		ClientCAs:    pool,
 		MinVersion:   tls.VersionTLS12,
+
+		// RFC 9190 Section 1: "Therefore, implementations MUST limit the maximum
+		// TLS version they use to 1.3, unless later versions are explicitly
+		// enabled by the administrator." Ze offers the administrator no leaf that
+		// raises this ceiling, so the exception has nothing to switch on. Naming
+		// the ceiling here rather than leaving it to the crypto/tls default is
+		// also what keeps a toolchain that adds a version from moving it
+		// (docs/contributing/ze-go-style.md).
+		MaxVersion: tls.VersionTLS13,
 
 		// RFC 9190 Section 5.4: "When EAP-TLS is used with TLS 1.3, the
 		// revocation status of all the certificates in the certificate chains

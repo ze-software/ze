@@ -137,14 +137,23 @@ func TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure(t *testing.T)
 		t.Fatal("the authenticator sent a bare fragment ACK instead of the fatal TLS alert: " +
 			"the peer learns that the exchange ended and never learns why")
 	}
-	if len(td) < 1+4+tlsRecordHeaderLen || td[0]&eapTLSFlagL == 0 {
-		t.Fatalf("the alert message is %d octets with flags %#02x, want the L flag and a "+
-			"length-prefixed TLS record", len(td), td[0])
+	if td[0]&eapTLSFlagM != 0 {
+		t.Fatalf("the alert message sets the M flag (%#02x), so it is one fragment of a message "+
+			"and not the whole alert", td[0])
 	}
-	declared := int(binary.BigEndian.Uint32(td[1:5]))
-	record := td[5:]
-	if declared != len(record) {
-		t.Errorf("the alert declares %d octets and carries %d", declared, len(record))
+	// RFC 9190 Section 2.1.9 forbids the L bit on an unfragmented message, and an
+	// alert is far short of a fragment, so the TLS record opens at offset 1. The
+	// declared length is still checked wherever the L bit is set, because the same
+	// sentence obliges this side to read both shapes.
+	record := tlsBytesFromTypeData(td)
+	if len(record) < tlsRecordHeaderLen {
+		t.Fatalf("the alert message is %d octets with flags %#02x, want a whole TLS record "+
+			"behind the EAP-TLS header", len(td), td[0])
+	}
+	if td[0]&eapTLSFlagL != 0 {
+		if declared := int(binary.BigEndian.Uint32(td[1:5])); declared != len(record) {
+			t.Errorf("the alert declares %d octets and carries %d", declared, len(record))
+		}
 	}
 	if ct := record[0]; ct != tlsRecordAlert && ct != tlsRecordApplicationData {
 		t.Errorf("the alert's TLS record content type is %d, want %d (alert) or %d "+
@@ -241,10 +250,14 @@ func TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure(t *testing.T) {
 		if p.Code == CodeFailure && failureAt < 0 {
 			failureAt = i
 		}
-		// A TLS record, not the bare fragment ACK a quiet round produces.
-		if p.Code == CodeRequest && p.Type == TypeTLS && len(p.TypeData) > 5 &&
-			p.TypeData[0]&eapTLSFlagL != 0 && alertAt < 0 && failureAt < 0 {
-			ct := p.TypeData[5]
+		// A TLS record, not the bare fragment ACK a quiet round produces. The
+		// record opens behind the EAP-TLS header, whose size RFC 9190 Section
+		// 2.1.9 makes one octet on an unfragmented message and five on a
+		// fragmented one.
+		body := tlsBytesFromTypeData(p.TypeData)
+		if p.Code == CodeRequest && p.Type == TypeTLS && len(body) > 0 &&
+			alertAt < 0 && failureAt < 0 {
+			ct := body[0]
 			if ct == tlsRecordAlert || ct == tlsRecordApplicationData {
 				alertAt = i
 			}

@@ -1239,11 +1239,37 @@ func (ps *PeerSession) startTLSClient() error {
 	check := &serverChainCheck{roots: rootCAs, crls: crls, requireStatus: ps.tlsCfg.CertificateStatusRequest}
 	ps.serverCheck = check
 
-	tlsCfg := &tls.Config{
+	ps.tlsTransport = newEAPTLSTransport()
+	ps.tlsConn = tls.Client(ps.tlsTransport, ps.tlsClientConfig(cert, rootCAs, check))
+	ps.tlsStarted.Store(true)
+
+	go ps.runTLSClient()
+
+	return nil
+}
+
+// tlsClientConfig builds the peer role's tls.Config for one EAP-TLS exchange.
+//
+// It is the peer's counterpart to newTLSMethod (eap_tls.go), and the two are
+// read against each other whenever a question is about what BOTH roles accept:
+// the version range, the trust anchor, and the chain callbacks. Naming it makes
+// each role's answer reachable on its own.
+func (ps *PeerSession) tlsClientConfig(cert tls.Certificate, rootCAs *x509.CertPool, check *serverChainCheck) *tls.Config {
+	return &tls.Config{
 		Certificates:       []tls.Certificate{cert},
 		InsecureSkipVerify: true, //nolint:gosec // EAP has no server hostname; the chain is always verified in VerifyPeerCertificate
 		MinVersion:         tls.VersionTLS12,
-		RootCAs:            rootCAs,
+
+		// RFC 9190 Section 1: "Therefore, implementations MUST limit the maximum
+		// TLS version they use to 1.3, unless later versions are explicitly
+		// enabled by the administrator." Ze offers the administrator no leaf that
+		// raises this ceiling, so the exception has nothing to switch on. Naming
+		// the ceiling here rather than leaving it to the crypto/tls default is
+		// also what keeps a toolchain that adds a version from moving it
+		// (docs/contributing/ze-go-style.md).
+		MaxVersion: tls.VersionTLS13,
+
+		RootCAs: rootCAs,
 		// RFC 9190 Section 2.1.3: "It is up to the EAP-TLS peer to use
 		// resumption". This cache IS that decision, and it belongs to ONE
 		// peering: Conn.clientSessionCacheKey keys on ServerName and falls back
@@ -1258,14 +1284,6 @@ func (ps *PeerSession) startTLSClient() error {
 		VerifyPeerCertificate: check.verifyPeerCertificate,
 		VerifyConnection:      check.verifyConnection,
 	}
-
-	ps.tlsTransport = newEAPTLSTransport()
-	ps.tlsConn = tls.Client(ps.tlsTransport, tlsCfg)
-	ps.tlsStarted.Store(true)
-
-	go ps.runTLSClient()
-
-	return nil
 }
 
 // runTLSClient is the peer's TLS engine goroutine: it drives the handshake and

@@ -187,11 +187,13 @@ func TestAuthenticatorSendsFinalFlightBeforeCompleting(t *testing.T) {
 	if res.Response == nil {
 		t.Fatal("Process returned no response, so the final TLS flight was dropped")
 	}
-	// TypeData is the L-prefixed first fragment: 5 header octets then the flight.
-	if len(res.Response.TypeData) < 5 {
+	// The flight fits in one EAP-TLS message, and RFC 9190 Section 2.1.9 forbids
+	// the L bit there, so the TLS bytes open at offset 1 behind a bare flags octet.
+	body := tlsBytesFromTypeData(res.Response.TypeData)
+	if len(body) == 0 {
 		t.Fatalf("TypeData is %d octets, too short to carry the flight", len(res.Response.TypeData))
 	}
-	if got := string(res.Response.TypeData[5:]); got != string(final) {
+	if got := string(body); got != string(final) {
 		t.Fatalf("sent %q, want the engine's final flight %q", got, final)
 	}
 }

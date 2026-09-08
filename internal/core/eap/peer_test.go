@@ -426,8 +426,14 @@ func TestTLSFragmenterSmallDataNoFragment(t *testing.T) {
 	if td[0]&eapTLSFlagM != 0 {
 		t.Fatal("small data should not have M flag")
 	}
-	if td[0]&eapTLSFlagL == 0 {
-		t.Fatal("first (and only) fragment should have L flag")
+	// RFC 9190 Section 2.1.9: "Implementations MUST NOT set the L bit in
+	// unfragmented messages". This message is the first fragment and the last
+	// one, so it declares no length and its TLS data opens at offset 1.
+	if td[0]&eapTLSFlagL != 0 {
+		t.Fatalf("the single fragment set the L flag, flags=%#02x", td[0])
+	}
+	if len(td) != 1+len(data) {
+		t.Fatalf("the single fragment is %d octets for %d of TLS data, want %d", len(td), len(data), 1+len(data))
 	}
 	if f.waitFragAck {
 		t.Fatal("single fragment should not require ACK")

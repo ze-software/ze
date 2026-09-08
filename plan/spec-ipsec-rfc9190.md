@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 6/8 |
+| Phase | 8/8 |
 | Updated | 2026-09-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -273,6 +273,12 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | `TestPostAuthenticationCheckClosesTheSAWhenTheResponderReportsRevoked`, `TestPostAuthenticationCheckLeavesTheSAUpWhenTheResponderReportsGood` | `internal/component/ike/engine/rfc9190_postauth_test.go` | AC-5, RFC9190-5.4-4 and RFC5216-5.4-2 in both polarities, over a REAL EAP-TLS exchange driven through both config builders | done, phase 6 |
 | `TestPostAuthenticationCheckRefusesAnInsecureResponderURL`, `TestPostAuthenticationCheckReadsAnHTTPSResponder` | same | AC-5, RFC9190-5.4-5 in both polarities: an http responder is refused before any connection opens, and an https one is asked | done, phase 6 |
 | `TestPostAuthenticationCheckIsNotStartedWithoutAnEAPTLSPeerSession`, `TestPostAuthenticationCheckReportsUncheckedWithNoResponder`, `TestServerCertRecheckStopReleasesAFetchInFlight` | same | the check's three other states: nothing to check, no answer obtained, and the stop path that releases a fetch in flight | done, phase 6 |
+| `TestEAPTLSSetsNoLengthBitOnAnUnfragmentedMessage` | `internal/core/eap/rfc9190_fragmentation_test.go` | RFC9190-2.1.9-1 negative: a message that fits in one fragment leaves `nextFragment` with the L bit clear and its TLS data at offset 1, and no whole message or continuation fragment of a live exchange carries the bit from either seat | done, phase 8 |
+| `TestEAPTLSKeepsTheLengthBitOnAFragmentedMessage` | same | RFC9190-2.1.9-1 positive: the prohibition covers unfragmented messages alone, so a genuinely fragmented message still declares its length on its first fragment. A fix that dropped the bit everywhere would pass the row above | done, phase 8 |
+| `TestEAPTLSAcceptsAnUnfragmentedMessageWithAndWithoutTheLengthBit` | same | RFC9190-2.1.9-2 positive: `reassemble` yields the same octets from both shapes the sentence permits | done, phase 8 |
+| `TestEAPTLSRefusesAnUnfragmentedMessageThatContradictsItself` | same | RFC9190-2.1.9-2 negative: an L bit with no length behind it, and a payload longer than the length declared, are each refused, so acceptance is not blanket | done, phase 8 |
+| `TestEAPTLSCapsBothRolesAtTLS13` | `internal/core/eap/rfc9190_version_cap_test.go` | RFC9190-1-1 positive: `newTLSMethod` and `PeerSession.tlsClientConfig` each set `MaxVersion` to `tls.VersionTLS13`, and the peer's ClientHello offers nothing above it | done, phase 8 |
+| `TestEAPTLSVersionCapLeavesTLS12Reachable` | same | RFC9190-1-1 negative: the ceiling is a range end and not a pin, so a TLS 1.2 exchange still completes and both ends derive the same MSK. A role that met the MUST by pinning `MaxVersion` to `MinVersion` would pass the row above | done, phase 8 |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -313,6 +319,10 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 - `internal/core/eap/nai.go` - created, phase 5b. The RFC 9190 Section 2.1.8
   anonymous NAI, and the RFC 7542 Section 2.2 grammar it must match.
 - `internal/core/eap/rfc9190_nai_test.go` - created, phase 5b.
+- `internal/core/eap/rfc9190_fragmentation_test.go` - created, phase 8. The RFC 9190
+  Section 2.1.9 L-bit pair on send and the accept-both-shapes pair on receive.
+- `internal/core/eap/rfc9190_version_cap_test.go` - created, phase 8. The RFC 9190
+  Section 1 TLS version ceiling on both roles.
 - `rfc/full/rfc7542.txt` - fetched, phase 5b. RFC 9190 Section 2.1.8 makes the
   NAI grammar normative, and a summary is never the authority for it.
 - `internal/component/pki/config_crl_test.go` - created, phase 4.
@@ -458,9 +468,68 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
    is what holds their antecedent false. RFC9190-5.8-4 (record padding) is a SHOULD
    that `crypto/tls` exposes no control for; it is untouched by this step.
 6. Write `rfc/extraction/rfc9190.json` by hand and run `./le rfc check`.
+   DONE 2026-09-08. 52 sites in 36 sections, register `prose`, 48 mapped and 4 excluded
+   (0.08 of every site). `./le rfc check` reports no finding against
+   `rfc/extraction/rfc9190.json`. The four exclusions are the IETF Trust boilerplate at
+   `front:1`, the indicative consequence of the Section 2.1.3 MAY at `2.1.3:2`, step 3 of the
+   Section 2.5 procedure at `2.5:2` (`duplicate-of` RFC9190-2.5-1), and the accounting
+   rationale at `5.7:5`. No site carries `binds-another-role` and none carries
+   `feature-out-of-scope`.
+
+   THE WALK FOUND AN OBLIGATION THE SUMMARY HAD MISSED, which is the forward arithmetic
+   doing the job it exists for. RFC 9190 Section 1: *"Therefore, implementations MUST limit
+   the maximum TLS version they use to 1.3, unless later versions are explicitly enabled by
+   the administrator."* It is now declared as RFC9190-1-1 and site `1:1` maps it. Ze does not
+   meet it: `newTLSMethod` (`internal/core/eap/eap_tls.go`) and `startTLSClient`
+   (`internal/core/eap/peer.go`) are the two `tls.Config` builders, both set `MinVersion`, and
+   neither sets `MaxVersion`.
+
+   THE SECTION 5.8 CLASSIFICATION IS A MAPPING, NOT AN EXCLUSION, and the reason is
+   mechanical rather than a change of mind. The antecedent is false, verified at the producer:
+   `anonymousNAI` (`internal/core/eap/nai.go`) has exactly two return values, `"@"+realm` and
+   the constant `anonymousUser`, and `NewPeerSessionTLS` (`peer.go`) is the one constructor of
+   an EAP-TLS peer session and applies it unconditionally, so ze never emits a
+   privacy-friendly username. But `rfc/short/rfc9190.md` DECLARES RFC9190-5.8-1, 5.8-2 and
+   5.8-3, and `evaluateExtraction` (`internal/le/rfc/signoff.go`) refuses a sign-off in which
+   a declared gated requirement is the target of no site and appears in no `unsourced-ids`.
+   Excluding the three sites would therefore fail the gate. The precedent is RFC 8671 site
+   `5.2:2`, which is MAPPED for the same reason while its sibling `5.2:1`, whose id is not
+   declared, is excluded `feature-out-of-scope`. The scope decision is recorded in the reason
+   at site `5.8:1`, and the annotation that would retire the three rows is the owner's to
+   authorise.
 7. Move the row from `rfc/not-enrolled.txt` to `rfc/enrolled.txt`, add the status row.
+   NOT DONE, and it must not be done yet. Measured 2026-09-08 by counting
+   `RFC requirement: RFC9190-<id> <polarity>` tags under `internal/`, `test/`, `cmd/` and
+   `pkg/` against this summary's gated rows: of 52 gated MUST-level requirements, 16 carry
+   both polarities, 7 carry a positive only, and 29 carry no tagged test at all. Enrolling
+   over 36 unproven MUSTs would publish a `Supported` row `ai/rules/rfc-compliance.md` names
+   as the exact failure it forbids, and the remedy that rule allows is to write the tests, not
+   to lower the row.
+
+   TWO OF THE 36 ARE UNMET IN CODE rather than merely unproven, so a test written today would
+   be RED. RFC9190-2.1.9-1: *"Implementations MUST NOT set the L bit in unfragmented
+   messages"* (Section 2.1.9). `tlsFragmenter.nextFragment` (`internal/core/eap/eap_tls.go`)
+   is the one producer of outbound EAP-TLS TypeData on BOTH roles, and it sets `eapTLSFlagL`
+   and the four-octet length whenever `isFirst` holds, with no test of `isLast`, so every
+   unfragmented message ze sends carries the L bit. The fix is to gate both writes on
+   `isFirst && !isLast`; it is wire-visible on every EAP-TLS message, so it owes
+   `./le functional ipsec` and the `eap-tls`, `eap-tls13` and `responder-eap-tls13` scenarios.
+   RFC9190-1-1 is the second, described in step 6.
 8. 5.10-1 needs no classification: it is proven in both polarities by
    `internal/core/eap/rfc9190_attack_mitigation_test.go` and needs no annotation.
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The Section 2.5 protected success indication is sent by ze's EAP-TLS server and required by its peer | interop | `test/interop-ipsec/scenarios/responder-eap-tls13` against strongSwan 5.9.14, green. Reverting `tlsMethod.indicateSuccess` makes charon log `missing protected success indication for EAP-TLS with TLS 1.3` and no SA establishes; restored, `CHILD_SA ze-child{1} established` |
+| Resumption and NewSessionTicket work on both roles across an SA teardown | functional | `test/ipsec/ipsec-eap-tls13-resumption.ci`, two ze daemons across `clear vpn ipsec sa`. Red phase measured 2026-09-08: with `resumptionFor` building a fresh store per lookup it fails at 8.1s (`resumed=true` never logged); restored, green at 6.1s |
+| OCSP stapling is honoured in both directions, and a chain with no valid status is refused | functional | `test/ipsec/ipsec-eap-tls13-ocsp-stapling.ci` and `test/ipsec/ipsec-eap-tls13-ocsp-required.ci`. Red phases measured 2026-09-08: `cert.OCSPStaple = nil` reddens the first with `stapled no OCSP response`; `checkStapledChainStatus` returning nil reddens the second at 90.1s because the SA establishes instead |
+| Section 5.4 revocation is enforced against a real third-party peer | interop | `test/interop-ipsec/scenarios/responder-eap-tls13-revoked-client`, green. Red phase measured 2026-09-05: with `checkChainRevocation` returning nil charon reaches `CHILD_SA ze-child{1} established`; restored, charon logs `received fatal TLS alert 'bad certificate'` and neither end installs an XFRM state |
+| Ze emits an anonymous NAI on every EAP-TLS exchange, so no permanent identifier reaches the wire | functional | `TestEAPTLSPeerAnonymizesEveryConfiguredIdentity` over 12 identity shapes, with `TestNAIGrammarMatchesRFC7542Section22` refusing 19 strings as its negative, and `TestEAPMSCHAPv2PeerSendsItsConfiguredIdentity` showing a password method is unchanged. Producer verified: `anonymousNAI` (`internal/core/eap/nai.go`) has two return values and `NewPeerSessionTLS` (`peer.go`) is its only caller |
+| Section 5.10-1, "MUST mitigate known attacks", is proven rather than declared untestable | functional | 16 tagged units in `internal/core/eap/rfc9190_attack_mitigation_test.go` over the nine RFC 7457 Section 2 attacks an EAP-TLS implementation can hold a property against, both polarities, each with a record in `rfc/discrimination/rfc9190.json` |
+| Every normative sentence of RFC 9190 is accounted for, so nothing the summary missed can hide | extraction sign-off | `rfc/extraction/rfc9190.json`, signed 2026-09-08: 52 sites in 36 sections, 48 mapped and 4 excluded, `./le rfc check` reporting no finding against it. It FOUND a miss: RFC9190-1-1, the Section 1 MUST on the maximum TLS version, was undeclared until this walk |
+| RFC 9190 is enrolled with no `{gap}` and no `{not-applicable}` covering a feature ze could have built | `./le rfc check` | NOT ACHIEVED. Of 52 gated MUST-level requirements, 16 carry both polarities, 7 a positive only, and 29 no tagged test; two of the 36 (RFC9190-2.1.9-1 and RFC9190-1-1) are unmet in code. Measured 2026-09-08 by counting `RFC requirement:` tags under `internal/`, `test/`, `cmd/` and `pkg/`. `rfc/not-enrolled.txt` still carries the row, and its reason states the same three numbers |
 
 ## Critical Review Checklist
 
@@ -510,5 +579,7 @@ before claiming.
 - [ ] Tests PASS after implementation
 - [ ] A-1 validated against strongSwan's source before Section 2.5 lands
 - [ ] Scenarios eap-tls and eap-tls13 green at every phase boundary
-- [ ] `rfc/extraction/rfc9190.json` hand-classified
-- [ ] `./le rfc check` green with RFC 9190 enrolled
+- [ ] `rfc/extraction/rfc9190.json` hand-classified -- DONE 2026-09-08, 52 sites in 36
+  sections, 48 mapped and 4 excluded, and `./le rfc check` reports no finding against it
+- [ ] `./le rfc check` green with RFC 9190 enrolled -- NOT DONE. 36 of 52 gated MUSTs
+  lack a second polarity and two of them are unmet in code, so enrolment is refused
