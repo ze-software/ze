@@ -323,6 +323,24 @@ func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 		return nil, fmt.Errorf("eap-tls: load server cert: %w", err)
 	}
 
+	// RFC 9190 Section 2.1.2: "To enable resumption when using EAP-TLS with TLS
+	// 1.3, the EAP-TLS server MUST send one or more post-handshake
+	// NewSessionTicket messages ... in the initial authentication."
+	//
+	// The keys are the peering's, not this session's, and the caller is the only
+	// thing that knows which peering this is. A session with none is REFUSED
+	// rather than falling back to a key crypto/tls would mint per tls.Config: a
+	// ticket minted under such a key is undecryptable in every later session, so
+	// the fallback would satisfy the MUST on the wire and deliver nothing
+	// (ai/rules/principles.md).
+	if config.Resumption == nil {
+		return nil, errors.New("eap-tls: no resumption state, so the RFC 9190 Section 2.1.2 session ticket would be unredeemable")
+	}
+	ticketKeys, err := config.Resumption.TicketKeys()
+	if err != nil {
+		return nil, err
+	}
+
 	// Parse the revocation material HERE rather than at the handshake. A CRL the
 	// operator pasted wrong is a configuration error, and it is reported when the
 	// session is built, where the message can name the config, instead of as a
@@ -345,25 +363,6 @@ func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 		ClientCAs:    pool,
 		MinVersion:   tls.VersionTLS12,
 
-		// ISSUE NO SESSION TICKET, BECAUSE NOTHING COULD EVER REDEEM ONE.
-		//
-		// This function builds a fresh tls.Config for every EAP session, and Go
-		// keys ticket encryption on the Config instance: Config.ticketKeys
-		// (crypto/tls/common.go) reads c.sessionTicketKeys, then falls back to
-		// c.autoSessionTicketKeys, which it fills with 32 random octets the first
-		// time a ticket is issued. Neither SessionTicketKey nor
-		// SetSessionTicketKeys is set here, so each session gets its own random
-		// key and a ticket minted under one is undecryptable under every other.
-		//
-		// Left on, ze would emit a NewSessionTicket the peer stores, offers on its
-		// next EAP-TLS exchange, and is always refused for. Turning it off makes
-		// that dead end EXPLICIT: six RFC 9190 MUSTs are conditional on resumption
-		// (5.6-2, 5.7-1, 5.7-2, 5.7-3, 5.7-4, 5.7-6) and are unreachable while
-		// this line stands. Should a shared ticket key ever be introduced, this
-		// line must be removed deliberately, and removing it arms those six
-		// obligations in the same commit rather than silently.
-		SessionTicketsDisabled: true,
-
 		// RFC 9190 Section 5.4: "When EAP-TLS is used with TLS 1.3, the
 		// revocation status of all the certificates in the certificate chains
 		// MUST be checked (except the trust anchor)."
@@ -382,6 +381,27 @@ func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 		},
 	}
 
+	// SetSessionTicketKeys rather than a Config field, because it is the only
+	// route Go offers and it is what makes the key the PEERING's instead of this
+	// tls.Config's. crypto/tls encrypts under the first key and tries every key
+	// to decrypt, so a ticket a previous exchange with this peer minted is
+	// redeemable here (Config.SetSessionTicketKeys, crypto/tls/common.go).
+	tlsCfg.SetSessionTicketKeys(ticketKeys)
+
+	// RFC 9190 Section 2.1.3: "the EAP-TLS server MAY choose to require a full
+	// handshake". The operator's session-resumption leaf is that choice, and it
+	// governs ACCEPTING alone: the ticket above goes out either way, because
+	// Section 2.1.2 puts no condition on issuing one.
+	//
+	// The refusal is UnwrapSession rather than VerifyConnection. crypto/tls reads
+	// a nil session from UnwrapSession as "no such session" and runs the full
+	// handshake Section 5.7 asks for, where an error out of VerifyConnection
+	// would send a fatal bad_certificate alert instead (refuseResumption,
+	// resumption.go).
+	if !config.Resumption.Enabled() {
+		tlsCfg.UnwrapSession = refuseResumption
+	}
+
 	return &tlsMethod{
 		tlsConfig: tlsCfg,
 		state:     tlsStateStart,
@@ -389,6 +409,19 @@ func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 }
 
 func (m *tlsMethod) Type() uint8 { return TypeTLS }
+
+// resumed reports whether this exchange resumed a ticket the authenticator
+// issued in an earlier one (RFC 9190 Section 2.1.3). It implements
+// resumingMethod (eap.go), which is what Session.Resumed reads.
+//
+// It answers false before the handshake completes, because ConnectionState.
+// DidResume is written during it. The caller reads it after Succeeded.
+func (m *tlsMethod) resumed() bool {
+	if m.conn == nil {
+		return false
+	}
+	return m.conn.ConnectionState().DidResume
+}
 
 // DerivesKey answers true: deriveMSK exports the key RFC 5216 Section 2.3
 // defines from the TLS master secret. TypeDerivesKey holds the single
@@ -613,6 +646,14 @@ func (m *tlsMethod) Process(response *Packet) MethodResult {
 // invoked from readClientCertificate (crypto/tls/handshake_server_tls13.go),
 // which runs before readClientFinished. So a round that sees handshaked has both
 // processed the client Finished and sent the last handshake message.
+//
+// THE RFC 9190 SECTION 2.1.2 NEWSESSIONTICKET IS ALREADY IN THE TRANSPORT WHEN
+// THIS RUNS, for that same reason: sendSessionTickets writes its record from
+// readClientCertificate, one call before HandshakeContext returns. Process has
+// collected it with waitServerData, and the ciphertext this function returns is
+// appended to it. Ticket and indication therefore leave in ONE EAP-Request,
+// which is the flight RFC 9190 Figure 2 draws, and the exchange keeps the round
+// count it had while ze issued no ticket.
 //
 // It is written ONCE. Step 3 of the procedure says the server "must not send any
 // more EAP-Requests and may only send an EAP-Success" after the request carrying

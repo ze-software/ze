@@ -21,6 +21,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"testing"
+	"time"
 )
 
 // VALIDATES: an authenticator built with no CACertPEM refuses a client whose
@@ -36,6 +37,7 @@ func TestEAPTLSAuthenticatorWithoutCARejectsEveryClient(t *testing.T) {
 	serverCfg := MethodConfig{
 		ServerCertPEM: pki.serverCertPEM,
 		ServerKeyPEM:  pki.serverKeyPEM,
+		Resumption:    NewResumption(time.Now, true),
 	}
 
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
@@ -81,6 +83,7 @@ func TestNewTLSMethodNeverPassesNilClientCAs(t *testing.T) {
 		{"without a trust anchor", MethodConfig{
 			ServerCertPEM: pki.serverCertPEM,
 			ServerKeyPEM:  pki.serverKeyPEM,
+			Resumption:    NewResumption(time.Now, true),
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

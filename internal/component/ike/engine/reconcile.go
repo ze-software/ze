@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
+	"github.com/ze-software/ze/internal/core/eap"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -22,6 +23,13 @@ type PeerSession struct {
 	ikeGroup ipsec.IKEGroup // retained so the responder can negotiate on inbound
 	espGroup ipsec.ESPGroup
 	sa       *SA
+
+	// resumption is this peering's EAP-TLS session-resumption state. Every SA
+	// this session creates carries it, so a ticket one authentication issued is
+	// redeemable by the next (resumption.go). It is nil for no peer:
+	// resumptionFor always answers a store, whatever the auth mode, because the
+	// mode can change under a reload while the peer name does not.
+	resumption *eap.Resumption
 
 	// responderBusy gates a `respond` peer to ONE in-flight half-open handshake --
 	// its documented meaning. The shared dispatchInbound goroutine CAS-sets it true
@@ -356,6 +364,10 @@ func reconcilePeers(
 		newPeer, ok := desired[name]
 		if !ok {
 			removing = append(removing, toStop{name, ps})
+			// The peer is gone from the config, so nothing will ever redeem its
+			// tickets. A peer that merely CHANGED keeps its entry: resumptionFor
+			// compares the auth config and replaces the store itself.
+			forgetResumption(name)
 			continue
 		}
 		// The groups are looked up here, not in the start loop alone, because a peer
@@ -462,16 +474,20 @@ func startPeerSession(
 	log *slog.Logger,
 ) *PeerSession {
 	ps := &PeerSession{
-		peerName:  name,
-		peerCfg:   peer,
-		ikeGroup:  ikeGroup,
-		espGroup:  espGroup,
-		ike:       tr,
-		natt:      natt,
-		inbound:   make(chan transport.Packet, inboundQueueDepth),
-		stopCh:    make(chan struct{}),
-		done:      make(chan struct{}),
-		supersede: make(chan struct{}, 1),
+		peerName: name,
+		peerCfg:  peer,
+		ikeGroup: ikeGroup,
+		espGroup: espGroup,
+		// The EAP-TLS resumption store is looked up rather than built, so a
+		// session the operator bounced with `clear vpn ipsec sa` still redeems
+		// the tickets its predecessor issued (resumptionFor, resumption.go).
+		resumption: resumptionFor(name, peer.Auth),
+		ike:        tr,
+		natt:       natt,
+		inbound:    make(chan transport.Packet, inboundQueueDepth),
+		stopCh:     make(chan struct{}),
+		done:       make(chan struct{}),
+		supersede:  make(chan struct{}, 1),
 	}
 	go ps.run(peer, ikeGroup, table, tr, bus, log)
 	return ps

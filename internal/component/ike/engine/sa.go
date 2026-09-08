@@ -286,6 +286,14 @@ type SA struct {
 	EAPSession any
 	EAPMSK     [64]byte
 
+	// Resumption is the peering's EAP-TLS session-resumption state, shared by
+	// every SA this peer ever has. It carries the session-ticket keys the
+	// authenticator role issues under (RFC 9190 Section 2.1.2) and the ticket
+	// cache the peer role redeems from, so a ticket minted for one SA is
+	// redeemable on the next. An SA whose peer runs no EAP-TLS carries nil, and
+	// so does one an IKE-SA rekey created before the config named a store.
+	Resumption *eap.Resumption
+
 	// InitialContact records that the peer's first IKE_AUTH carried an INITIAL_CONTACT
 	// notify (RFC 7296 Section 2.4): it asserts this is the only IKE SA to the peer
 	// identity, authorizing us to delete any stale SA to it without waiting for a

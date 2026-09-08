@@ -317,6 +317,13 @@ type MethodConfig struct {
 	// rather than completing one whose revocation status nobody read
 	// (checkChainRevocation, revocation.go).
 	CRLPEM []byte
+
+	// Resumption carries the session-ticket keys this peering issues its
+	// NewSessionTicket messages under, and the operator's session-resumption
+	// setting. RFC 9190 Section 2.1.2 makes issuance a MUST on the EAP-TLS
+	// server, so newTLSMethod REFUSES an EAP-TLS config that carries none rather
+	// than falling back to a per-session key nothing could ever redeem.
+	Resumption *Resumption
 }
 
 // Begin returns the initial EAP-Request/Identity packet.
@@ -417,6 +424,27 @@ func (s *Session) Succeeded() bool { return s.state == stateSuccess }
 // discarded and recorded here while the exchange continues (nakUnexpected), so a
 // caller reads Succeeded rather than this to learn the outcome.
 func (s *Session) Err() error { return s.err }
+
+// resumingMethod is implemented by an EAP method whose underlying session CAN be
+// resumed. EAP-TLS is the only one, so the assertion in Session.Resumed answers
+// for the rest without naming them.
+type resumingMethod interface {
+	resumed() bool
+}
+
+// Resumed reports whether this exchange resumed a previous one rather than
+// running a full handshake.
+//
+// It is meaningful once Succeeded reports true. A method that carries no
+// resumption at all answers false, which is the true answer for it and not a
+// missing one: MD5-Challenge and MS-CHAPv2 have no session to resume.
+func (s *Session) Resumed() bool {
+	if s == nil || s.method == nil {
+		return false
+	}
+	m, ok := s.method.(resumingMethod)
+	return ok && m.resumed()
+}
 
 // MSK returns the Master Session Key after successful authentication.
 //

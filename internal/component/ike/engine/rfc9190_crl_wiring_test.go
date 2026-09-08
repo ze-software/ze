@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/pki"
+	"github.com/ze-software/ze/internal/core/eap"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -147,7 +148,7 @@ func TestEAPTLSConfigsCarryTheCARevocationLists(t *testing.T) {
 		Mode:          ipsec.AuthEAPTLS,
 		Certificate:   "crl-cert",
 		CACertificate: "crl-ca",
-	}}}
+	}}, Resumption: eap.NewResumption(time.Now, true)}
 
 	serverCfg, err := eapTLSServerConfig(sa)
 	if err != nil {
@@ -178,7 +179,7 @@ func TestEAPTLSConfigsCarryNoListWhenTheCAHasNone(t *testing.T) {
 		Mode:          ipsec.AuthEAPTLS,
 		Certificate:   "crl-cert",
 		CACertificate: "crl-ca",
-	}}}
+	}}, Resumption: eap.NewResumption(time.Now, true)}
 
 	serverCfg, err := eapTLSServerConfig(sa)
 	if err != nil {

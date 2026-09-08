@@ -28,6 +28,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/wire"
@@ -104,6 +105,7 @@ func ikev2MethodSelectionConfig(t *testing.T) eap.MethodConfig {
 		ServerCertPEM: pki.certPEM,
 		ServerKeyPEM:  pki.keyPEM,
 		CACertPEM:     pki.caPEM,
+		Resumption:    eap.NewResumption(time.Now, true),
 	}
 }
 

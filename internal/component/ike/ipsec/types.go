@@ -447,6 +447,25 @@ type AuthConfig struct {
 	// non-conforming one. As a result, certurl.go is unreachable.
 	HashAndURL bool
 
+	// SessionResumption lets an EAP-TLS exchange with this peer resume an earlier
+	// one instead of running a full handshake. The YANG default is true, and
+	// parseAuthConfig writes that default, so a config an operator never touched
+	// arrives here true.
+	//
+	// It governs ACCEPTING a resumed session as the authenticator and OFFERING a
+	// ticket as the peer, which RFC 9190 Section 2.1.3 leaves to each end. It
+	// NEVER governs issuing one: Section 2.1.2 makes that a MUST with no
+	// condition attached, so ze sends a NewSessionTicket either way.
+	//
+	// A zero value means no resumption, which is what ze did before resumption
+	// existed and is conformant on its own. Only parseAuthConfig produces an
+	// AuthConfig an operator wrote (rfc9190_resumption_wiring_test.go pins that
+	// the default reaches both roles as true).
+	//
+	// It sits BESIDE HashAndURL so it fills the tail padding of that word rather
+	// than adding one (TestSiteToSitePeerStaysUnderTheHugeParamThreshold).
+	SessionResumption bool
+
 	// CertificateURL is the http URL at which ze's own certificate is published,
 	// sent beside the SHA-1 in a Hash and URL CERT payload.
 	CertificateURL string

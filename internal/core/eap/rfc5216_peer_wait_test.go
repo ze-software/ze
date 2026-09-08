@@ -31,6 +31,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestRFC5216PeerRepliesBeforeItTerminates drives an exchange in which the PEER
@@ -61,6 +62,7 @@ func TestRFC5216PeerRepliesBeforeItTerminates(t *testing.T) {
 		ServerKeyPEM:  pki.untrustedServerKeyPEM,
 		CACertPEM:     pki.trustedCAPEM, // the client certificate stays valid
 		CRLPEM:        pki.trustedCRLPEM,
+		Resumption:    NewResumption(time.Now, true),
 	}
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
 		CertPEM:   pki.clientCertPEM,

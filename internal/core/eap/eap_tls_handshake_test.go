@@ -60,8 +60,19 @@ type eapTLSPKI struct {
 	untrustedServerKeyPEM  []byte
 }
 
-// newCA returns a self-signed CA certificate and its signing key.
+// newCA returns a self-signed CA certificate and its signing key, valid for an
+// hour either side of now.
 func newCA(t *testing.T, cn string, serial int64) (*x509.Certificate, *ecdsa.PrivateKey, []byte) {
+	t.Helper()
+	return newCAValidFor(t, cn, serial, time.Hour)
+}
+
+// newCAValidFor is newCA with the validity window named.
+//
+// A resumption test drives the authenticator's tls.Config.Time days ahead, to
+// reach the RFC 9190 Section 5.7 ticket ceiling, and every certificate has to
+// outlive that clock or the test would be measuring expiry instead.
+func newCAValidFor(t *testing.T, cn string, serial int64, validity time.Duration) (*x509.Certificate, *ecdsa.PrivateKey, []byte) {
 	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -70,8 +81,8 @@ func newCA(t *testing.T, cn string, serial int64) (*x509.Certificate, *ecdsa.Pri
 	tmpl := &x509.Certificate{
 		SerialNumber:          big.NewInt(serial),
 		Subject:               pkix.Name{CommonName: cn},
-		NotBefore:             time.Now().Add(-time.Hour),
-		NotAfter:              time.Now().Add(time.Hour),
+		NotBefore:             time.Now().Add(-validity),
+		NotAfter:              time.Now().Add(validity),
 		IsCA:                  true,
 		BasicConstraintsValid: true,
 		// CRLSign is here because these CAs issue the revocation lists RFC 9190
@@ -90,8 +101,16 @@ func newCA(t *testing.T, cn string, serial int64) (*x509.Certificate, *ecdsa.Pri
 	return cert, key, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
 }
 
-// newLeaf returns a leaf certificate + key (both PEM) signed by caCert/caKey.
+// newLeaf returns a leaf certificate + key (both PEM) signed by caCert/caKey,
+// valid for an hour either side of now.
 func newLeaf(t *testing.T, caCert *x509.Certificate, caKey *ecdsa.PrivateKey, cn string, serial int64, eku []x509.ExtKeyUsage) (certPEM, keyPEM []byte) {
+	t.Helper()
+	return newLeafValidFor(t, caCert, caKey, cn, serial, eku, time.Hour)
+}
+
+// newLeafValidFor is newLeaf with the validity window named, for the resumption
+// tests that move the authenticator clock forward. See newCAValidFor.
+func newLeafValidFor(t *testing.T, caCert *x509.Certificate, caKey *ecdsa.PrivateKey, cn string, serial int64, eku []x509.ExtKeyUsage, validity time.Duration) (certPEM, keyPEM []byte) {
 	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -100,8 +119,8 @@ func newLeaf(t *testing.T, caCert *x509.Certificate, caKey *ecdsa.PrivateKey, cn
 	tmpl := &x509.Certificate{
 		SerialNumber: big.NewInt(serial),
 		Subject:      pkix.Name{CommonName: cn},
-		NotBefore:    time.Now().Add(-time.Hour),
-		NotAfter:     time.Now().Add(time.Hour),
+		NotBefore:    time.Now().Add(-validity),
+		NotAfter:     time.Now().Add(validity),
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:  eku,
 	}
@@ -127,6 +146,13 @@ func newLeaf(t *testing.T, caCert *x509.Certificate, caKey *ecdsa.PrivateKey, cn
 // revocation.go).
 func newCRL(t *testing.T, caCert *x509.Certificate, caKey *ecdsa.PrivateKey, revoked ...int64) []byte {
 	t.Helper()
+	return newCRLValidFor(t, caCert, caKey, time.Hour, revoked...)
+}
+
+// newCRLValidFor is newCRL with the nextUpdate window named, so a list stays
+// current for a test whose certificates outlive an hour.
+func newCRLValidFor(t *testing.T, caCert *x509.Certificate, caKey *ecdsa.PrivateKey, validity time.Duration, revoked ...int64) []byte {
+	t.Helper()
 	entries := make([]x509.RevocationListEntry, 0, len(revoked))
 	for _, serial := range revoked {
 		entries = append(entries, x509.RevocationListEntry{
@@ -136,8 +162,8 @@ func newCRL(t *testing.T, caCert *x509.Certificate, caKey *ecdsa.PrivateKey, rev
 	}
 	der, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{
 		Number:                    big.NewInt(1),
-		ThisUpdate:                time.Now().Add(-time.Hour),
-		NextUpdate:                time.Now().Add(time.Hour),
+		ThisUpdate:                time.Now().Add(-validity),
+		NextUpdate:                time.Now().Add(validity),
 		RevokedCertificateEntries: entries,
 	}, caCert, caKey)
 	if err != nil {
@@ -148,29 +174,52 @@ func newCRL(t *testing.T, caCert *x509.Certificate, caKey *ecdsa.PrivateKey, rev
 
 func newEAPTLSPKI(t *testing.T) *eapTLSPKI {
 	t.Helper()
-	trustedCA, trustedKey, trustedPEM := newCA(t, "eap-tls-trusted-ca", 1)
-	untrustedCA, untrustedKey, _ := newCA(t, "eap-tls-untrusted-ca", 100)
+	return newEAPTLSPKIValidFor(t, time.Hour)
+}
+
+// newEAPTLSPKIValidFor builds the harness PKI with every certificate and
+// revocation list valid for the window named, for the resumption tests that
+// drive the authenticator clock days ahead of now.
+func newEAPTLSPKIValidFor(t *testing.T, validity time.Duration) *eapTLSPKI {
+	t.Helper()
+	trustedCA, trustedKey, trustedPEM := newCAValidFor(t, "eap-tls-trusted-ca", 1, validity)
+	untrustedCA, untrustedKey, _ := newCAValidFor(t, "eap-tls-untrusted-ca", 100, validity)
 
 	p := &eapTLSPKI{
 		trustedCAPEM:  trustedPEM,
 		trustedCA:     trustedCA,
 		trustedCAKey:  trustedKey,
-		trustedCRLPEM: newCRL(t, trustedCA, trustedKey),
+		trustedCRLPEM: newCRLValidFor(t, trustedCA, trustedKey, validity),
 	}
-	p.serverCertPEM, p.serverKeyPEM = newLeaf(t, trustedCA, trustedKey, "eap-tls-server", 2, []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth})
-	p.clientCertPEM, p.clientKeyPEM = newLeaf(t, trustedCA, trustedKey, "eap-tls-client", 3, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth})
-	p.untrustedClientCertPEM, p.untrustedClientKeyPEM = newLeaf(t, untrustedCA, untrustedKey, "rogue-client", 4, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth})
-	p.untrustedServerCertPEM, p.untrustedServerKeyPEM = newLeaf(t, untrustedCA, untrustedKey, "rogue-server", 5, []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth})
+	serverAuth := []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
+	clientAuth := []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
+	p.serverCertPEM, p.serverKeyPEM = newLeafValidFor(t, trustedCA, trustedKey, "eap-tls-server", 2, serverAuth, validity)
+	p.clientCertPEM, p.clientKeyPEM = newLeafValidFor(t, trustedCA, trustedKey, "eap-tls-client", 3, clientAuth, validity)
+	p.untrustedClientCertPEM, p.untrustedClientKeyPEM = newLeafValidFor(t, untrustedCA, untrustedKey, "rogue-client", 4, clientAuth, validity)
+	p.untrustedServerCertPEM, p.untrustedServerKeyPEM = newLeafValidFor(t, untrustedCA, untrustedKey, "rogue-server", 5, serverAuth, validity)
 	return p
 }
 
 // serverConfig builds the authenticator MethodConfig from the trusted PKI.
+//
+// Resumption is set because newTLSMethod refuses a config without one: RFC 9190
+// Section 2.1.2 makes the NewSessionTicket a MUST, and the keys behind it belong
+// to the peering. A test that wants two exchanges to share a store passes it to
+// serverConfigResuming instead.
 func (p *eapTLSPKI) serverConfig() MethodConfig {
+	return p.serverConfigResuming(NewResumption(time.Now, true))
+}
+
+// serverConfigResuming builds the authenticator MethodConfig over a named
+// resumption store, so a second exchange can be driven against the ticket keys
+// the first one issued under.
+func (p *eapTLSPKI) serverConfigResuming(r *Resumption) MethodConfig {
 	return MethodConfig{
 		ServerCertPEM: p.serverCertPEM,
 		ServerKeyPEM:  p.serverKeyPEM,
 		CACertPEM:     p.trustedCAPEM,
 		CRLPEM:        p.trustedCRLPEM,
+		Resumption:    r,
 	}
 }
 
@@ -458,6 +507,7 @@ func TestEAPTLSPeerRejectsUntrustedServerChain(t *testing.T) {
 		ServerKeyPEM:  pki.untrustedServerKeyPEM,
 		CACertPEM:     pki.trustedCAPEM, // still verifies the (valid) client
 		CRLPEM:        pki.trustedCRLPEM,
+		Resumption:    NewResumption(time.Now, true),
 	}
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
 		CertPEM:   pki.clientCertPEM,
@@ -490,6 +540,7 @@ func TestEAPTLSPeerWithoutCARefusesToStart(t *testing.T) {
 		ServerKeyPEM:  pki.untrustedServerKeyPEM,
 		CACertPEM:     pki.trustedCAPEM,
 		CRLPEM:        pki.trustedCRLPEM,
+		Resumption:    NewResumption(time.Now, true),
 	}
 	noAnchor := func() *PeerSession {
 		return NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{

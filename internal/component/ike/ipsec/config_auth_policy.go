@@ -33,6 +33,31 @@ func parseIdentityPolicy(peerName string, t *config.Tree, auth *AuthConfig) erro
 	return nil
 }
 
+// parseSessionResumption reads the session-resumption leaf, whose YANG default
+// is true.
+//
+// THE DEFAULT IS WRITTEN HERE rather than left to the Go zero value, because the
+// two disagree: config.Tree.Get answers "absent" for a leaf the operator never
+// set, and a bool that stayed false would turn resumption off for every peer
+// that never named it. The same reason puts DefaultCertificateCount in
+// AuthConfig.EffectiveCertificateCount, and this leaf can state its default
+// directly because the parser is the only producer of an operator's AuthConfig.
+func parseSessionResumption(peerName string, t *config.Tree, auth *AuthConfig) error {
+	auth.SessionResumption = true
+	v, ok := t.Get("session-resumption")
+	if !ok || v == "" {
+		return nil
+	}
+	enabled, err := strconv.ParseBool(v)
+	if err != nil {
+		return fmt.Errorf(
+			"ipsec peer %q session-resumption: %q is not a boolean (%w); give true or false",
+			peerName, v, err)
+	}
+	auth.SessionResumption = enabled
+	return nil
+}
+
 // parseCertificatePolicy reads the X.509 chain and Hash-and-URL policy:
 // certificate-count, hash-and-url, certificate-url and certificate-url-allow.
 //

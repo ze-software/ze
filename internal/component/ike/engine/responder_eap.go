@@ -89,6 +89,24 @@ func eapTLSServerConfig(sa *SA) (eap.MethodConfig, error) {
 	// answer nil, which refuses a TLS 1.3 client rather than admitting one whose
 	// status nobody read (eap.checkChainRevocation).
 	cfg.CRLPEM = ca.CRLPEM()
+
+	// RFC 9190 Section 2.1.2: "the EAP-TLS server MUST send one or more
+	// post-handshake NewSessionTicket messages ... in the initial
+	// authentication." The ticket is encrypted under a key that belongs to the
+	// PEERING and not to this exchange, so the store the peer session holds is
+	// what makes the ticket redeemable on the next authentication
+	// (resumptionFor, resumption.go).
+	//
+	// An SA that reached here with no store is a wiring defect, never an
+	// operator error, and it is refused rather than papered over with a
+	// per-exchange key: that key would issue a conformant-looking ticket nothing
+	// could ever redeem (ai/rules/principles.md).
+	if sa.Resumption == nil {
+		return eap.MethodConfig{}, fmt.Errorf(
+			"ike: EAP-TLS peer %q has no session resumption state, so the RFC 9190 Section 2.1.2 session ticket would be unredeemable",
+			sa.PeerName)
+	}
+	cfg.Resumption = sa.Resumption
 	return cfg, nil
 }
 
@@ -282,11 +300,13 @@ func (ps *PeerSession) handleResponderEAP(sa *SA, msg *wire.Message, rawMsg []by
 	if next == nil {
 		if sess.Succeeded() {
 			sa.EAPMSK = sess.MSK()
+			recordEAPTLSAuthentication(sa, sess.Resumed(), log)
 		}
 		return
 	}
 	if next.Code == eap.CodeSuccess {
 		sa.EAPMSK = sess.MSK()
+		recordEAPTLSAuthentication(sa, sess.Resumed(), log)
 	}
 	ps.sendResponderEAP(sa, msg.Header.MessageID, next, tr, remote, log)
 

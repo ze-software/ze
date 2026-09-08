@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
-	"time"
 )
 
 const maxEAPRounds = 20
@@ -74,6 +73,16 @@ type PeerResult struct {
 	// command or a format string out of it.
 	Notification string
 
+	// Indication is the application data an EAP-TLS authenticator sent after its
+	// handshake completed, decrypted by this peer. RFC 9190 Section 2.5 defines
+	// one such payload, the single octet 0x00 that is the protected success
+	// result indication, so a caller logs it to tell an authenticator that sent
+	// one from an authenticator that did not.
+	//
+	// It is REPORTED and never required. The published RFC puts no obligation on
+	// the peer, so an empty value ends no exchange (PeerSession.indication).
+	Indication []byte
+
 	MSK       [64]byte
 	Done      bool
 	Discarded bool
@@ -93,6 +102,13 @@ type PeerTLSConfig struct {
 	// session rather than completing one whose revocation status nobody read
 	// (checkChainRevocation, revocation.go).
 	CRLPEM []byte
+
+	// Resumption is this peering's ticket cache and the operator's
+	// session-resumption setting. RFC 9190 Section 2.1.3 leaves the choice to
+	// the peer -- "It is up to the EAP-TLS peer to use resumption" -- so a nil
+	// value is a peer that offers no ticket and runs a full handshake every
+	// time, which is what ze did before resumption existed.
+	Resumption *Resumption
 }
 
 // PeerSession manages the EAP peer (client/initiator) side of an exchange.
@@ -137,6 +153,21 @@ type PeerSession struct {
 	// tlsErr holds the TLS handshake goroutine's error, so a failure reports its
 	// cause rather than only the "no MSK" consequence.
 	tlsErr atomic.Pointer[error]
+
+	// indication holds the application data the authenticator sent after its
+	// handshake completed, decrypted. RFC 9190 Section 2.5 defines exactly one
+	// such payload, the single octet 0x00 that IS the protected success result
+	// indication, so this is what ze OBSERVED the authenticator claim.
+	//
+	// consumePostHandshakeRecords writes it and readAndSendTLS reports it in
+	// PeerResult.Indication, so the operator's log line names what arrived. It
+	// is not ENFORCED: the published RFC puts no obligation on the peer, and
+	// errata 7577, which proposes one, is Reported rather than Verified. An
+	// exchange with no indication therefore leaves this nil and still succeeds.
+	//
+	// Atomic because the TLS reader goroutine writes it and the session's own
+	// goroutine reads it, like tlsErr above.
+	indication atomic.Pointer[[]byte]
 
 	// pendingErr holds a TLS failure whose EAP-Response has already gone out, so
 	// the round that follows can report it.
@@ -1078,72 +1109,6 @@ func (ps *PeerSession) handleTLSRequest(req *Packet) PeerResult {
 	return result
 }
 
-// serverChainCheck holds the checks a ze EAP-TLS peer runs on the
-// authenticator's certificate chain.
-//
-// It spans the two crypto/tls callbacks because neither one alone sees
-// everything the checks need. verifyPeerCertificate is where the chain is BUILT:
-// EAP carries no server hostname, so the config sets InsecureSkipVerify and
-// crypto/tls builds none of its own. verifyConnection is where the NEGOTIATED
-// VERSION is known, and RFC 9190 Section 5.4's "When EAP-TLS is used with TLS
-// 1.3" turns on it.
-//
-// crypto/tls calls the two in that order on one goroutine, a few statements
-// apart (Conn.verifyServerCertificate, crypto/tls/handshake_client.go), so
-// chains is written before it is read and needs no lock.
-type serverChainCheck struct {
-	roots *x509.CertPool
-	crls  crlSet
-
-	// chains is what verifyPeerCertificate built, leaf first and trust anchor
-	// last, for verifyConnection to check the revocation status over.
-	chains [][]*x509.Certificate
-}
-
-// verifyPeerCertificate validates the authenticator's presented certificate
-// chain against the configured roots, without any DNS or hostname check
-// (EAP-TLS has no server hostname), and keeps the verified chain for
-// verifyConnection.
-//
-// RFC 5216 Section 5.3: the peer validates the authenticator's certificate.
-func (c *serverChainCheck) verifyPeerCertificate(rawCerts [][]byte, _ [][]*x509.Certificate) error {
-	if len(rawCerts) == 0 {
-		return fmt.Errorf("eap-tls: authenticator presented no certificate")
-	}
-	certs := make([]*x509.Certificate, 0, len(rawCerts))
-	for _, raw := range rawCerts {
-		cert, err := x509.ParseCertificate(raw)
-		if err != nil {
-			return fmt.Errorf("eap-tls: parse authenticator certificate: %w", err)
-		}
-		certs = append(certs, cert)
-	}
-	opts := x509.VerifyOptions{Roots: c.roots, Intermediates: x509.NewCertPool()}
-	for _, cert := range certs[1:] {
-		opts.Intermediates.AddCert(cert)
-	}
-	chains, err := certs[0].Verify(opts)
-	if err != nil {
-		return fmt.Errorf("eap-tls: authenticator certificate chain verification failed: %w", err)
-	}
-	c.chains = chains
-	return nil
-}
-
-// verifyConnection checks the revocation status of the chain
-// verifyPeerCertificate built.
-//
-// RFC 9190 Section 5.4: "When EAP-TLS is used with TLS 1.3, the revocation
-// status of all the certificates in the certificate chains MUST be checked
-// (except the trust anchor)."
-//
-// crypto/tls sends a fatal bad_certificate alert for a non-nil return
-// (Conn.verifyServerCertificate, crypto/tls/handshake_client.go), which is the
-// abort Section 5.4 asks for.
-func (c *serverChainCheck) verifyConnection(cs tls.ConnectionState) error {
-	return checkChainRevocation(c.crls, c.chains, cs.Version, time.Now())
-}
-
 func (ps *PeerSession) startTLSClient() error {
 	if ps.tlsCfg == nil {
 		return fmt.Errorf("eap-tls: no TLS config")
@@ -1190,36 +1155,98 @@ func (ps *PeerSession) startTLSClient() error {
 		InsecureSkipVerify: true, //nolint:gosec // EAP has no server hostname; the chain is always verified in VerifyPeerCertificate
 		MinVersion:         tls.VersionTLS12,
 		RootCAs:            rootCAs,
-		// Go does not call VerifyPeerCertificate for a resumed session, and
-		// that callback is the only certificate check this config has. A
-		// client with no ClientSessionCache resumes nothing already; refusing
-		// tickets here states the requirement instead of leaving it to that
-		// default, so adding a cache later cannot skip the chain check.
-		SessionTicketsDisabled: true,
-		VerifyPeerCertificate:  check.verifyPeerCertificate,
-		VerifyConnection:       check.verifyConnection,
+		// RFC 9190 Section 2.1.3: "It is up to the EAP-TLS peer to use
+		// resumption". This cache IS that decision, and it belongs to ONE
+		// peering: Conn.clientSessionCacheKey keys on ServerName and falls back
+		// to the transport's remote address, EAP-TLS sets no ServerName, and
+		// eapTLSTransport.RemoteAddr answers the constant "eap". A cache shared
+		// across peerings would file every ticket under that one key and offer
+		// one authenticator's ticket, with its cached chain, to another.
+		//
+		// Go skips VerifyPeerCertificate on a resumed session, so the chain
+		// check that callback performs is rebuilt in verifyConnection above.
+		ClientSessionCache:    peerSessionCache(ps.tlsCfg.Resumption),
+		VerifyPeerCertificate: check.verifyPeerCertificate,
+		VerifyConnection:      check.verifyConnection,
 	}
 
 	ps.tlsTransport = newEAPTLSTransport()
 	ps.tlsConn = tls.Client(ps.tlsTransport, tlsCfg)
 	ps.tlsStarted.Store(true)
 
-	go func() {
-		// Keep the handshake error. Discarding it left every TLS failure
-		// (rejected certificate, unsupported version, bad record) reported as
-		// the same downstream symptom, "no MSK exists", which names the
-		// consequence and not the cause.
-		if err := ps.tlsConn.HandshakeContext(context.Background()); err != nil {
-			ps.tlsErr.Store(&err)
-		}
+	go ps.runTLSClient()
+
+	return nil
+}
+
+// runTLSClient is the peer's TLS engine goroutine: it drives the handshake and
+// then reads whatever the authenticator sends after it.
+//
+// It mirrors tlsMethod.runTLSServer on the authenticator side, and it lives
+// LONGER than that one does. Close releases it: eapTLSTransport.Read answers
+// io.EOF once the transport is closed, which ends the read below.
+func (ps *PeerSession) runTLSClient() {
+	// Keep the handshake error. Discarding it left every TLS failure (rejected
+	// certificate, unsupported version, bad record) reported as the same
+	// downstream symptom, "no MSK exists", which names the consequence and not
+	// the cause.
+	if err := ps.tlsConn.HandshakeContext(context.Background()); err != nil {
+		ps.tlsErr.Store(&err)
 		// Publish the outcome BEFORE the wakeup: handshakeFinished releases a
 		// waiter in readAndSendTLS, and handleTLSRequest reads tlsDone straight
 		// after that wait to decide whether to capture the MSK.
 		ps.tlsDone.Store(true)
 		ps.tlsTransport.handshakeFinished()
-	}()
+		return
+	}
+	ps.tlsDone.Store(true)
 
-	return nil
+	// A COMPLETED handshake does NOT end this goroutine, and does not mark the
+	// transport finished: it moves into the post-handshake read below, which
+	// parks in eapTLSTransport.Read and sets readIdle there. readIdle settles
+	// waitServerData exactly as finished does, and it is set on this goroutine
+	// AFTER the tlsDone above, so a waiter that observes the settle still
+	// observes the outcome.
+	ps.consumePostHandshakeRecords()
+	ps.tlsTransport.handshakeFinished()
+}
+
+// consumePostHandshakeRecords reads the records the authenticator sends after
+// its handshake is complete, so crypto/tls processes them.
+//
+// IT IS WHAT STORES THE RFC 9190 SECTION 2.1.2 TICKET. A NewSessionTicket is a
+// post-handshake handshake message, and Go handles one only from inside Read:
+// Conn.Read drives readRecord and then handlePostHandshakeMessage
+// (crypto/tls/conn.go), which is the call that reaches the ClientSessionCache.
+// A peer that stopped reading when HandshakeContext returned received every
+// ticket and stored none, so no exchange it ever had could resume.
+//
+// It also consumes the Section 2.5 protected success result indication, the
+// single 0x00 octet of application data, and DISCARDS it. Requiring that octet
+// is a separate obligation the published RFC does not state (errata 7577
+// proposes one and is Reported rather than Verified), so this read must not
+// start enforcing it as a side effect. readAndSendTLS still answers the
+// indication with the no-data EAP-Response Section 2.5 step 4 asks for.
+//
+// The buffer is one octet because the only application data an EAP-TLS
+// authenticator sends is that one octet. A larger record is read out in
+// one-octet pieces rather than refused, because refusing here would poison the
+// connection over data ze has no use for.
+func (ps *PeerSession) consumePostHandshakeRecords() {
+	buf := make([]byte, 1)
+	for {
+		n, err := ps.tlsConn.Read(buf)
+		if err != nil {
+			return
+		}
+		if n > 0 {
+			// Copy: buf is reused on the next pass, and the reader of this
+			// pointer runs on the session's goroutine.
+			seen := make([]byte, n)
+			copy(seen, buf[:n])
+			ps.indication.Store(&seen)
+		}
+	}
 }
 
 // readAndSendTLS reads TLS engine output and sends it (possibly fragmented).
@@ -1249,17 +1276,17 @@ func (ps *PeerSession) readAndSendTLS(identifier uint8) PeerResult {
 		// EAP-Request carries the protected success result indication, an
 		// encrypted TLS record holding application data 0x00, and the peer
 		// answers it with "an EAP-Response of EAP-Type=EAP-TLS and no data".
-		// THAT IS THE SAME PACKET THIS BRANCH ALREADY BUILDS, and it is right by
-		// arithmetic rather than by design: handleTLSRequest feeds the record to
-		// the transport, no goroutine is left reading the tls.Conn once
-		// HandshakeContext has returned, so the engine produces nothing and
-		// tlsDone is already set. This peer therefore ANSWERS the indication
-		// correctly without ever DECRYPTING it, and so cannot tell an
-		// authenticator that sent one from an authenticator that did not.
-		// Requiring it (spec-ipsec-rfc9190 AC-2) is a separate change and needs a
-		// reader on the connection; the published RFC states no peer-side
-		// obligation, and errata 7577, which proposes one, is still Reported
-		// rather than Verified (rfc/short/rfc9190.md).
+		// THAT IS THE SAME PACKET THIS BRANCH ALREADY BUILDS: handleTLSRequest
+		// feeds the record to the transport, consumePostHandshakeRecords reads
+		// the indication and the NewSessionTicket beside it and produces nothing
+		// to send, and tlsDone is already set.
+		//
+		// The reader DECRYPTS the indication and discards it, so this peer still
+		// cannot tell an authenticator that sent one from an authenticator that
+		// did not. Requiring it (spec-ipsec-rfc9190 AC-2) is a separate change:
+		// the published RFC states no peer-side obligation, and errata 7577,
+		// which proposes one, is still Reported rather than Verified
+		// (rfc/short/rfc9190.md).
 		//
 		// A handshake that is still running means the engine settled and wrote
 		// nothing. The bounded wait's backstop fired on a wedged client, or the
@@ -1272,7 +1299,7 @@ func (ps *PeerSession) readAndSendTLS(identifier uint8) PeerResult {
 			ps.state = peerStateFailed
 			return PeerResult{Err: errTLSClientStalled}
 		}
-		return PeerResult{
+		result := PeerResult{
 			Response: &Packet{
 				Code:       CodeResponse,
 				Identifier: identifier,
@@ -1280,6 +1307,10 @@ func (ps *PeerSession) readAndSendTLS(identifier uint8) PeerResult {
 				TypeData:   []byte{0},
 			},
 		}
+		if seen := ps.indication.Load(); seen != nil {
+			result.Indication = *seen
+		}
+		return result
 	}
 
 	ps.startSending(clientData)
@@ -1291,6 +1322,19 @@ func (ps *PeerSession) readAndSendTLS(identifier uint8) PeerResult {
 			TypeData:   ps.nextFragment(),
 		},
 	}
+}
+
+// Resumed reports whether this exchange resumed a ticket a previous EAP-TLS
+// exchange with the same authenticator issued (RFC 9190 Section 2.1.3).
+//
+// It is meaningful once PeerResult.Done reports true. A peer running a method
+// with no session to resume answers false, which is that method's true answer
+// and not a missing one.
+func (ps *PeerSession) Resumed() bool {
+	if ps == nil || ps.tlsConn == nil {
+		return false
+	}
+	return ps.tlsConn.ConnectionState().DidResume
 }
 
 // deriveTLSMSK derives the peer's EAP-TLS MSK from the completed TLS connection.

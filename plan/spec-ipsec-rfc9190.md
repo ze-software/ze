@@ -5,8 +5,8 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 4/8 |
-| Updated | 2026-09-07 |
+| Phase | 5/8 |
+| Updated | 2026-09-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -66,7 +66,7 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | Group | Sections | State |
 |-------|----------|-------|
 | Protected success indication | 2.5 | SERVER side implemented 2026-08-12 (phase 1). The peer side ANSWERS it but does not consume it, which the published RFC does not require |
-| Session resumption and NewSessionTicket | 2.1.2, 2.1.3, 5.7 | absent |
+| Session resumption and NewSessionTicket | 2.1.2, 2.1.3, 5.7 | IMPLEMENTED 2026-09-08 (phase 5), both roles, with the §5.4 revocation check carried across a resumed handshake. No interop counterpart exists; see the Interop Tests table |
 | OCSP stapling and revocation | 5.4 (five MUSTs) | absent |
 | Anonymous and privacy-friendly NAIs | 2.1.8, 5.8 | absent |
 | Key derivation and the export | 2.3 | IMPLEMENTED, untagged |
@@ -197,14 +197,14 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | AC-5 | A stapled OCSP response is present, and absent | ze honours Section 5.4 in both cases |
 | AC-6 | An anonymous NAI | ze accepts it per Section 2.1.8 |
 | AC-7 | `./le rfc check` | RFC 9190 is enrolled, and no gated MUST carries `{gap}` or `{not-applicable}` for a feature this spec built |
-| AC-8 | Scenarios eap-tls and eap-tls13 | both green at every phase boundary |
+| AC-8 | Scenarios eap-tls and eap-tls13 | both green at every phase boundary. Phase 5, 2026-09-08: eap-tls, eap-tls13 AND responder-eap-tls13 all green after resumption landed, which is the evidence that issuing a ticket is invisible to a peer that never offers `psk_dhe_ke` |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | Authenticates a road-warrior with EAP-TLS over TLS 1.3 | IKE_AUTH → EAP-TLS → RFC 9190 MSK → IKEv2 AUTH | scenario `eap-tls13` |
-| 2 | Reconnects and resumes rather than re-running the full handshake | ticket → resumed TLS → MSK | a new interop scenario |
+| 2 | Reconnects and resumes rather than re-running the full handshake | ticket → resumed TLS → MSK | `test/ipsec/ipsec-eap-tls13-resumption.ci`, two ze daemons across a `clear vpn ipsec sa` |
 
 ## 🧪 TDD Test Plan
 
@@ -215,8 +215,24 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | `TestEAPTLS13RefusedClientGetsNoSuccessIndication` | same | AC-1 negative (RFC9190-2.5-2) | done, phase 1 |
 | `TestEAPTLS13RequiresProtectedSuccessIndication` | same | AC-2 | not started. The peer answers the indication without decrypting it. The published RFC puts no obligation on the peer; errata 7577 proposes one and is Reported, not Verified |
 | `TestEAPTLS12SendsNoProtectedSuccessIndication` | same | AC-3 | done, phase 1 |
-| `TestEAPTLSIssuesNoUnredeemableSessionTicket` | same | pins `SessionTicketsDisabled`, which keeps AC-4's six §5.6/§5.7 MUSTs provably dead until resumption is built | done, phase 1 |
-| `TestEAPTLS13ResumptionUsesATicket` | same | AC-4 | |
+| ~~`TestEAPTLSIssuesNoUnredeemableSessionTicket`~~ | same | REWRITTEN phase 5 as `TestEAPTLS13TicketAndIndicationShareOneEAPRequest`, per the OWNER RULING above: it pinned `SessionTicketsDisabled`, which under that ruling pins a non-conformance. The replacement asserts RFC 9190 Figure 2, that the ticket and the 0x00 indication leave in ONE EAP-Request. It carried no `RFC requirement:` tag; the commit gate reads removed test functions, so name it in the commit body | rewritten, phase 5 |
+| `TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems` | `internal/core/eap/rfc9190_resumption_test.go` | AC-4, RFC9190-2.1.2-1 and 2.1.3-1: a ticket is issued and the next exchange resumes on it | done, phase 5 |
+| `TestEAPTLS13ResumedSessionDerivesTheRFC9190MSK` | same | AC-4, both ends derive the SAME 64-octet MSK from a resumed session | done, phase 5 |
+| `TestEAPTLS13ResumedExchangeStillSendsTheSuccessIndication` | same | AC-4 x AC-1: RFC 9190 Figure 3 carries the 0x00 indication on a resumed exchange too | done, phase 5 |
+| `TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain`, `TestEAPTLS13ResumptionRefusesARevokedClientChain` | same | AC-4 x AC-5, the fail-open regression: §5.4 still refuses a revoked chain when the handshake RESUMED | done, phase 5 |
+| `TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain` | same | AC-4 x AC-5 negative: a gate that refused every resumption would pass both rows above | done, phase 5 |
+| `TestEAPTLS13PeerRefusesAResumptionItCannotRebuildAChainFor` | `internal/core/eap/rfc9190_resumption_refusal_test.go` | AC-4, the rebuild fails closed: no chain is never a clean answer | done, phase 5 |
+| `TestVerifyConnectionRefusesAnEmptyChainSetOnAFullHandshake` | same | AC-4, the gate was EXTENDED and not loosened: a non-resumed empty chain set still refuses | done, phase 5 |
+| `TestEAPTLS13ResumptionStillNeedsARevocationSource` | same | AC-4 x AC-5, `errNoRevocationSource` is still reached on a resumed TLS 1.3 session | done, phase 5 |
+| `TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey`, `TestResumptionCacheIsPerPeering` | same | AC-4, per-peering isolation. `clientSessionCacheKey` collapses every EAP-TLS connection onto the constant key `"eap"`, so one shared store would offer peer A's ticket to peer B | done, phase 5 |
+| `TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode` | same | AC-8 in unit form: a client that never offers `psk_dhe_ke` (charon's shape) gets no ticket, so issuance is invisible to it | done, phase 5 |
+| `TestEAPTLS13RefusesATicketPastTheSection57Lifetime`, `TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling`, `TestResumptionCacheDropsAnExpiredEntryOnPut` | same | RFC9190-5.7-5: the 604800s bound is on STORING, which crypto/tls does not answer, so ze's cache does | done, phase 5 |
+| `TestEAPTLS13RefusesAResumptionWhoseCachedCertificateExpired`, `TestEAPTLS13RefusesAResumptionAgainstAReplacedTrustAnchor` | same | RFC9190-5.7-2 and 5.7-6: the cached chain is re-judged against the CURRENT material | done, phase 5 |
+| `TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket`, `TestResumptionOffOffersNoTicketOnThePeer` | same | the `session-resumption` leaf gates USING a ticket and never ISSUING one, which §2.1.2 makes unconditional | done, phase 5 |
+| `TestEAPTLSResumptionRotatesItsTicketKey` | same | `SetSessionTicketKeys` turns Go's own rotation off, so ze reproduces the 24h/7d schedule it displaces | done, phase 5 |
+| `TestEAPTLS12ExchangeIsUnchangedByResumptionState` | same | AC-3 under resumption: TLS 1.2 issues no ticket and derives the RFC 5216 MSK | done, phase 5 |
+| `TestResumptionStoreIsOnePerPeerAndOutlivesTheSA`, `TestResumptionStoreIsReplacedWhenTheAuthenticationChanges`, `TestResumptionStoreIsDroppedForAPeerTheConfigNoLongerNames`, `TestEAPTLSConfigsCarryTheResumptionStore`, `TestEAPTLSConfigsRefuseAnSAWithNoResumptionStore`, `TestEAPTLSAuthenticationIsCountedByOutcome` | `internal/component/ike/engine/rfc9190_resumption_wiring_test.go` | the wiring test: the store outlives `clear vpn ipsec sa`, which destroys the peer session (`TerminateAllSAs`, `register.go`), and is invalidated when the operator edits the authentication | done, phase 5 |
+| `TestSessionResumptionDefaultsToTheYANGDefault`, `TestSessionResumptionReadsBothPolarities`, `TestSessionResumptionRefusesANonBoolean`, `TestSessionResumptionIsPartOfPeerEquality` | `internal/component/ike/ipsec/config_session_resumption_test.go` | the `session-resumption` leaf an operator writes | done, phase 5 |
 | `TestEAPTLS13RefusesARevokedClientCertificate` | `internal/core/eap/rfc9190_revocation_test.go` | AC-5, RFC9190-5.4-1 positive on the authenticator | done, phase 4 |
 | `TestEAPTLS13RefusesARevokedServerCertificate` | same | AC-5, RFC9190-5.4-1 positive on the peer | done, phase 4 |
 | `TestEAPTLS13RefusesARevokedIntermediate` | same | AC-5, "all the certificates in the certificate chains" rather than the leaf alone | done, phase 4 |
@@ -236,14 +252,14 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ipsec-eap-tls13-resumption` | `test/ipsec/ipsec-eap-tls13-resumption.ci` | a peer reconnects and resumes rather than re-handshaking. `option=env:var=ze_test_ike_dataplane:value=noop`, following `test/ipsec/ipsec-child-rekey.ci` | |
+| `ipsec-eap-tls13-resumption` | `test/ipsec/ipsec-eap-tls13-resumption.ci` | a peer reconnects and resumes rather than re-handshaking, across the `clear vpn ipsec sa` that destroys and rebuilds the peer session | done, phase 5. Discrimination measured 2026-09-08: with `resumptionFor` building a fresh store per lookup it goes RED at 8.1s (`resumed=true` never logged); restored, GREEN at 6.1s |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | `eap-tls13` | `test/interop-ipsec/scenarios/` | strongSwan | Ze as EAP-TLS CLIENT on TLS 1.3 | exists, green after phase 1 |
 | `responder-eap-tls13` | same | strongSwan | Ze as EAP-TLS SERVER sends the indication and a real client accepts it. Reverting the write makes charon log `missing protected success indication` and the SA never establishes | done, phase 1 |
-| a resumption scenario | same | strongSwan | AC-4 against a real peer | |
+| ~~a resumption scenario~~ | - | - | **No third-party implementation can drive ze's RFC 9190 resumption, so AC-4 has no interop counterpart in existence. Owner ruling 2026-09-08: ze-to-ze evidence stands.** strongSwan 5.9.14's TLS client never sends `psk_key_exchange_modes` (`src/libtls/tls_peer.c` `send_client_hello` writes eight extensions, none of them that) and its `tls_cache_create` (`src/libtls/tls_cache.c`) has no caller in its tree, so ze issues it no ticket: `shouldSendSessionTickets` (`crypto/tls/handshake_server_tls13.go`) requires the client to have offered `psk_dhe_ke`. Libreswan states in its own comment `programs/pluto/ikev2_eap.c` "EAP responder transitions, there is no initiator code", and exports the MSK with the RFC 5216 label `"client EAP encryption"` at 64 octets unconditionally, so it is not RFC 9190 conformant and would not agree with ze on a TLS 1.3 MSK. OpenIKED speaks EAP-MSCHAPv2 only. This is a fact about the world, NOT a `{gap}` and NOT a `{not-applicable}`: the behavior exists and is proven, only a second implementation is missing | recorded, phase 5 |
 | `responder-eap-tls13-revoked-client` | same | strongSwan | RFC9190-5.4-1 against a real peer, with Ze in the EAP-TLS SERVER role. It is `responder-eap-tls13` with ONE file changed, the CRL naming the strongSwan client certificate's serial number | done, phase 4. Red phase measured 2026-09-05: with `checkChainRevocation` made to return nil, charon logs `received protected success indication via TLS` and `CHILD_SA ze-child{1} established`; with it restored, charon logs `received fatal TLS alert 'bad certificate'` and `EAP_TLS method failed`, and neither end installs an XFRM state |
 
 ## Files to Modify
@@ -297,6 +313,24 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 2. Validate A-1 by reading strongSwan's `eap_tls.c` before assuming it can check ours.
    DONE 2026-08-12, and the reading is quoted in the A-1 row.
 3. Resumption and NewSessionTicket.
+   DONE 2026-09-08 (phase 5), both roles. The ticket key and the client cache belong to
+   the PEERING and not to the SA or the peer session: `resumptionFor`
+   (`internal/component/ike/engine/resumption.go`) keys them by peer name and invalidates
+   on an authentication edit, because `TerminateAllSAs` (`register.go`) deletes the
+   `PeerSession` and `clear vpn ipsec sa` is the operator command most likely to precede a
+   second authentication. `Resumption` (`internal/core/eap/resumption.go`) owns the
+   §5.7-5 604800s STORAGE bound, which `crypto/tls` does not answer, and reproduces the
+   24h/7d key rotation that `SetSessionTicketKeys` turns off.
+
+   THE PEER-SIDE CHAIN REBUILD IS THE ONE SECURITY-RELEVANT ADDITION.
+   `rebuildResumedChains` (`internal/core/eap/peer_chain.go`) exists because Go skips
+   `verifyPeerCertificate` entirely on a resumed handshake, which is where this role BUILDS
+   the chain the §5.4 check reads. It reads `cs.PeerCertificates` and NOT
+   `cs.VerifiedChains`: `Conn.verifyServerCertificate` assigns `c.verifiedChains` only
+   under `else if !c.config.InsecureSkipVerify`, and this peer sets `InsecureSkipVerify`
+   because EAP-TLS carries no server hostname, so `cs.VerifiedChains` is empty on a FULL ze
+   handshake too and reading it would leave every resumed session refused. It is gated on
+   `cs.DidResume`, so a non-resumed empty chain set still refuses exactly as before.
 4. OCSP stapling and revocation.
    PARTLY DONE 2026-09-05: RFC9190-5.4-1 alone, the chain revocation check, on BOTH
    roles, with CRL as the revocation source RFC 9190 Section 5.4 permits. It landed as
@@ -344,7 +378,10 @@ carried no such table, which `/ze-implement` needs before it may run.
 - `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`)
 - `./le rfc check` shows RFC 9190 enrolled, with no annotation covering a
   feature this spec built.
-- Scenarios eap-tls and eap-tls13 green, plus the new resumption scenario.
+- Scenarios eap-tls, eap-tls13 and responder-eap-tls13 green. They are the evidence that
+  issuing a ticket is INVISIBLE to a peer that does not resume; there is no
+  resumption scenario and the Interop Tests table records why.
+- `test/ipsec/ipsec-eap-tls13-resumption.ci` green, with its red phase measured.
 
 ## Quality Gates
 

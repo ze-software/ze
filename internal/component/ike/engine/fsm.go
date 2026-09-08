@@ -6,6 +6,7 @@ package engine
 import (
 	"crypto/x509"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -126,6 +127,10 @@ func (ps *PeerSession) runInitiator(
 	if err != nil {
 		return fmt.Errorf("ike: create SA: %w", err)
 	}
+	// The peering's EAP-TLS resumption state, so a ticket an earlier
+	// authentication with this peer stored is offered on this one
+	// (buildPeerTLSConfig).
+	sa.Resumption = ps.resumption
 	// Give the SA both sockets before anything sends. RFC 7296 Section 2.23 MUST: an
 	// endpoint that discovers a NAT "MUST send all subsequent traffic from port 4500",
 	// and sa.sendPath needs that socket in hand at the moment the verdict lands.
@@ -1049,6 +1054,7 @@ func handleEAPResponse(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport.U
 	if result.Done {
 		// RFC 7296 Section 2.16: EAP succeeded, send AUTH derived from MSK.
 		sa.EAPMSK = result.MSK
+		recordEAPTLSAuthentication(sa, ps.Resumed(), log)
 		sa.advanceMsgID()
 		authMsg, err := buildEAPAuthMessage(sa)
 		if err != nil {
@@ -1087,6 +1093,17 @@ func handleEAPResponse(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport.U
 	// string, a path or a command.
 	if result.Notified {
 		log.Info("ike: EAP notification from the authenticator", "peer", sa.PeerName, "message", result.Notification)
+	}
+
+	// RFC 9190 Section 2.5: an EAP-TLS 1.3 authenticator sends an encrypted TLS
+	// record carrying application data 0x00 as its protected success result
+	// indication. Ze does not REQUIRE it -- the published RFC puts no obligation
+	// on the peer -- so the line exists to tell an operator whether the far end
+	// sent one. The octets are chosen by the authenticator, so they are logged
+	// as a value.
+	if len(result.Indication) > 0 {
+		log.Debug("ike: EAP-TLS protected success indication received",
+			"peer", sa.PeerName, "data", hex.EncodeToString(result.Indication))
 	}
 
 	if result.Response != nil {
@@ -1182,6 +1199,21 @@ func buildPeerTLSConfig(sa *SA, log *slog.Logger) *eap.PeerTLSConfig {
 	// refuses a TLS 1.3 authenticator rather than trusting a chain whose
 	// revocation status nobody read (eap.checkChainRevocation).
 	cfg.CRLPEM = ca.CRLPEM()
+
+	// RFC 9190 Section 2.1.3: "It is up to the EAP-TLS peer to use resumption."
+	// The store carries the operator's answer and the tickets this peering has
+	// been issued, so a ticket an earlier authentication stored is offered here
+	// (eap.PeerTLSConfig.Resumption).
+	//
+	// An SA that reached here with no store is a wiring defect, never an
+	// operator error. It is refused rather than silently running a full
+	// handshake forever, which is the shape a feature loses when nothing tells
+	// the operator it is off (ai/rules/principles.md).
+	if sa.Resumption == nil {
+		log.Warn("ike: EAP-TLS peer has no session resumption state", "peer", sa.PeerName)
+		return nil
+	}
+	cfg.Resumption = sa.Resumption
 
 	return cfg
 }

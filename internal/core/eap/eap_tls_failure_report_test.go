@@ -23,6 +23,7 @@ import (
 	"encoding/binary"
 	"strings"
 	"testing"
+	"time"
 )
 
 // authDrive is what driving an EAP-TLS exchange from the authenticator side
@@ -126,6 +127,7 @@ func (p *impostorPKI) serverConfig() MethodConfig {
 		ServerKeyPEM:  p.serverKeyPEM,
 		CACertPEM:     p.caPEM,
 		CRLPEM:        p.crlPEM,
+		Resumption:    NewResumption(time.Now, true),
 	}
 }
 

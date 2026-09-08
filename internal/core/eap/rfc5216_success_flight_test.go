@@ -43,6 +43,7 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"testing"
+	"time"
 )
 
 // tlsRecordChangeCipherSpec is the TLS record content type of a
@@ -82,6 +83,27 @@ type eapTLSFlight struct {
 // the handshake had already begun and would do nothing.
 func driveEAPTLSFlight(t *testing.T, cfg MethodConfig, peer *PeerSession, maxTLSVersion uint16, maxRounds int) *eapTLSFlight {
 	t.Helper()
+	return driveTunedEAPTLSFlight(t, cfg, peer, maxTLSVersion, maxRounds, nil)
+}
+
+// driveTunedEAPTLSFlight is driveEAPTLSFlight with one hook into the
+// authenticator's own tls.Config, applied before Begin starts the TLS engine.
+//
+// It exists for the tests that have to move the AUTHENTICATOR's clock: a session
+// ticket's age, and the expiry of the certificate a ticket carries, are both
+// judged against tls.Config.Time (serverHandshakeStateTLS13.checkForResumption,
+// crypto/tls/handshake_server_tls13.go), and nothing else in ze can reach it.
+// The hook touches this method's own config copy, so no production default
+// moves.
+func driveTunedEAPTLSFlight(
+	t *testing.T,
+	cfg MethodConfig,
+	peer *PeerSession,
+	maxTLSVersion uint16,
+	maxRounds int,
+	tune func(*tls.Config),
+) *eapTLSFlight {
+	t.Helper()
 
 	sess, err := NewSession(TypeTLS, cfg)
 	if err != nil {
@@ -97,6 +119,9 @@ func driveEAPTLSFlight(t *testing.T, cfg MethodConfig, peer *PeerSession, maxTLS
 		t.Fatalf("authenticator method is %T, want *tlsMethod", sess.method)
 	}
 	method.tlsConfig.MaxVersion = maxTLSVersion
+	if tune != nil {
+		tune(method.tlsConfig)
+	}
 
 	fl := &eapTLSFlight{sess: sess, successAt: -1, failureAt: -1}
 	req := sess.Begin()
@@ -363,6 +388,7 @@ func TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse(t *testing.T) {
 		ServerKeyPEM:  pki.untrustedServerKeyPEM,
 		CACertPEM:     pki.trustedCAPEM, // the client certificate stays valid
 		CRLPEM:        pki.trustedCRLPEM,
+		Resumption:    NewResumption(time.Now, true),
 	}
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
 		CertPEM:   pki.clientCertPEM,

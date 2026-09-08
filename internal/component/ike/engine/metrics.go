@@ -21,6 +21,52 @@ type IPsecMetrics struct {
 	cookieChallenges      metrics.GaugeVec
 	cookieVerifyFailures  metrics.GaugeVec
 	saInitRetries         metrics.GaugeVec
+	eapTLSResumptionHits  metrics.GaugeVec
+	eapTLSResumptionMiss  metrics.GaugeVec
+}
+
+// eapTLSResumptionStats counts how each completed EAP-TLS authentication was
+// reached: a resumed TLS session, or a full handshake (RFC 9190 Section 2.1.3).
+//
+// It records here for the reason errorNotifyStats does: the two call sites are
+// free functions on the dispatch and owner paths (handleEAPResponse in fsm.go
+// for the peer role, handleEAPRound in responder_eap.go for the authenticator)
+// and hold no registry handle. Update publishes the totals.
+//
+// The pair is what an operator reads to know resumption is working at all. A
+// hit count stuck at zero with a rising miss count is the signal that the
+// session-resumption leaf is off, that the peer never offers a ticket, or that
+// the authenticator refuses every one it is shown.
+var eapTLSResumptionStats = struct {
+	mu     sync.Mutex
+	hits   map[string]uint64
+	misses map[string]uint64
+}{
+	hits:   map[string]uint64{},
+	misses: map[string]uint64{},
+}
+
+// countEAPTLSAuthentication records one completed EAP-TLS authentication under
+// the peer it authenticated, and under whether it resumed.
+func countEAPTLSAuthentication(peer string, resumed bool) {
+	eapTLSResumptionStats.mu.Lock()
+	defer eapTLSResumptionStats.mu.Unlock()
+	if resumed {
+		eapTLSResumptionStats.hits[peer]++
+		return
+	}
+	eapTLSResumptionStats.misses[peer]++
+}
+
+// eapTLSResumptionCounts reports one peer's resumed and full-handshake totals.
+//
+// It fails closed for the READER, not for a guard: an unrecorded peer reads two
+// zeros, which are the true counts. A test that asserts a resumption happened
+// must therefore assert a RISE (ai/rules/evidence.md).
+func eapTLSResumptionCounts(peer string) (hits, misses uint64) {
+	eapTLSResumptionStats.mu.Lock()
+	defer eapTLSResumptionStats.mu.Unlock()
+	return eapTLSResumptionStats.hits[peer], eapTLSResumptionStats.misses[peer]
 }
 
 // errorNotifyStats counts the error notifications this node emits, and the ones a
@@ -178,6 +224,24 @@ func RegisterMetrics(reg metrics.Registry) *IPsecMetrics {
 		saInitRetries: reg.GaugeVec("ze_ipsec_sa_init_retries_total",
 			"Cumulative IKE_SA_INIT retries sent, by peer and by the notify that caused them",
 			[]string{metricLabelPeer, "cause"}),
+		eapTLSResumptionHits: reg.GaugeVec("ze_ipsec_eap_tls_resumption_hits_total",
+			"Cumulative EAP-TLS authentications that resumed an earlier TLS session, by peer",
+			[]string{metricLabelPeer}),
+		eapTLSResumptionMiss: reg.GaugeVec("ze_ipsec_eap_tls_resumption_misses_total",
+			"Cumulative EAP-TLS authentications that ran a full TLS handshake, by peer",
+			[]string{metricLabelPeer}),
+	}
+}
+
+// publishEAPTLSResumptionCounts copies the resumption counters into their gauges.
+func (m *IPsecMetrics) publishEAPTLSResumptionCounts() {
+	eapTLSResumptionStats.mu.Lock()
+	defer eapTLSResumptionStats.mu.Unlock()
+	for peer, count := range eapTLSResumptionStats.hits {
+		m.eapTLSResumptionHits.With(peer).Set(float64(count))
+	}
+	for peer, count := range eapTLSResumptionStats.misses {
+		m.eapTLSResumptionMiss.With(peer).Set(float64(count))
 	}
 }
 
@@ -229,6 +293,7 @@ func espInstalled(peers map[string]*PeerSession, name string) bool {
 func (m *IPsecMetrics) Update() {
 	m.publishErrorNotifyCounts()
 	m.publishCookieCounts()
+	m.publishEAPTLSResumptionCounts()
 	// RFC 7296 Section 2.23 needs the kernel to decapsulate ESP that arrives inside
 	// UDP. A failure to arm that is invisible on the wire: the tunnel establishes and
 	// carries nothing. The count rises on every listener rebuild that fails, so a

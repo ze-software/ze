@@ -32,6 +32,7 @@ package eap
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 // eapTLSExchange is what driving one EAP-TLS conversation to its end revealed.
@@ -136,6 +137,7 @@ func TestRFC5216ServerRepliesEAPFailureToPeerAlert(t *testing.T) {
 		ServerKeyPEM:  pki.untrustedServerKeyPEM,
 		CACertPEM:     pki.trustedCAPEM, // the client certificate stays valid
 		CRLPEM:        pki.trustedCRLPEM,
+		Resumption:    NewResumption(time.Now, true),
 	}
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
 		CertPEM:   pki.clientCertPEM,

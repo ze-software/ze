@@ -1088,6 +1088,32 @@ module ze-ipsec-conf {
                                  the shape of local-id.";
                         }
 
+                        leaf session-resumption {
+                            type boolean;
+                            default true;
+                            description "Let an EAP-TLS exchange with this peer resume an earlier one.";
+                            ze:help
+                                "RFC 9190 Section 2.1.3 leaves resumption to each end: 'It is up
+                                 to the EAP-TLS peer to use resumption', and 'the EAP-TLS server
+                                 MAY choose to require a full handshake'. This leaf is that
+                                 choice, and it covers both roles of this peer.
+
+                                 With it true, an authentication that follows an earlier one
+                                 skips the certificate exchange and reuses the session the ticket
+                                 carries. Ze still checks the cached chain against the current
+                                 ca-certificate and crl before it accepts the session, on both
+                                 roles, so a revoked or expired certificate is refused on a
+                                 resumed authentication as it is on a full one.
+
+                                 With it false every authentication runs a full handshake. Ze
+                                 still SENDS a session ticket, because RFC 9190 Section 2.1.2
+                                 makes that a MUST with no condition on it; the ticket is simply
+                                 never accepted back.
+
+                                 Changing this leaf, the certificate, the ca-certificate or the
+                                 crl discards every ticket ze holds for this peer.";
+                        }
+
                         leaf certificate-count {
                             type uint8 { range "1..4"; }
                             default 4;

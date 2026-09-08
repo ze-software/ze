@@ -33,6 +33,7 @@ import (
 	"bytes"
 	"errors"
 	"testing"
+	"time"
 )
 
 // mschapv2Flight records one complete EAP-MSCHAPv2 conversation between the real
@@ -523,6 +524,7 @@ func TestRFC3748KeyDerivingMethodAuthenticatesBothEnds(t *testing.T) {
 		ServerKeyPEM:  pki.untrustedServerKeyPEM,
 		CACertPEM:     pki.trustedCAPEM,
 		CRLPEM:        pki.trustedCRLPEM,
+		Resumption:    NewResumption(time.Now, true),
 	}
 	bad := runEAPTLSHandshake(t, rogue, NewPeerSessionTLS("eap-tls-client", peerCfg))
 	if bad.peerDone {

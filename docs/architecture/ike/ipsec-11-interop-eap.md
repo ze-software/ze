@@ -30,6 +30,12 @@ authenticator such as strongSwan. The responder half is described in
   checked (except the trust anchor)". The obligation binds both roles, so one
   function serves both: `checkChainRevocation` runs from the authenticator's
   `tls.Config.VerifyConnection` and from the peer's.
+- RFC 9190 Section 2.1.3 leaves resumption to each end: "It is up to the EAP-TLS
+  peer to use resumption". The peer offers a ticket when its peering carries a
+  resumption store, which is what the `session-resumption` leaf decides.
+- RFC 9190 Section 5.7 caps how long a peer keeps what a resumption needs at
+  604800 seconds, "regardless of the PSK or ticket lifetime". `eap.Resumption`
+  drops a stored ticket at that age on both `Put` and `Get`.
 
 ## Decisions
 
@@ -46,7 +52,42 @@ so the multi-round EAP loop is a state rather than a flag.
 
 <!-- source: internal/component/ike/engine/sa.go -- SAState, SAState.String -->
 
+**The peer's ticket cache belongs to ONE peering, and that is a security
+requirement.** `Conn.clientSessionCacheKey` keys on `ServerName` and falls back
+to the transport's remote address when there is none. EAP-TLS carries no server
+hostname, so ze sets none, and `eapTLSTransport.RemoteAddr` answers the constant
+`"eap"`. Every EAP-TLS connection in the process therefore files its ticket under
+one key, so a cache shared between peerings would offer one authenticator's
+ticket, with its cached certificate chain, on another's session. The engine looks
+the store up by peer name and rebuilds it whenever the peer's authentication
+config changes.
+
+<!-- source: internal/core/eap/resumption.go -- Resumption, Resumption.ClientCache -->
+<!-- source: internal/component/ike/engine/resumption.go -- resumptionFor, forgetResumption -->
+
 ## Traps this code exists to avoid
+
+**A resumed session skips every certificate check unless the peer rebuilds the
+chain.** Go hands a resumed client no server Certificate message and calls
+`VerifyPeerCertificate` never, so `serverChainCheck.chains` is empty; and
+`Conn.loadSession` skips its own cached-chain sweep because this peer sets
+`InsecureSkipVerify`. `serverChainCheck.rebuildResumedChains` is therefore the
+ONLY thing that revalidates the cached chain on this role. It rebuilds from
+`ConnectionState.PeerCertificates` at the CURRENT time and hands the result to
+the Section 5.4 revocation gate. Reading `ConnectionState.VerifiedChains` instead
+would answer nothing, because `InsecureSkipVerify` stops crypto/tls filling that
+field on a full ze handshake too.
+
+<!-- source: internal/core/eap/peer_chain.go -- serverChainCheck.verifyConnection, serverChainCheck.rebuildResumedChains -->
+
+**A peer that stops reading after the handshake stores no ticket.** A
+NewSessionTicket is a post-handshake message, and Go processes one only from
+inside `Conn.Read`. `PeerSession.consumePostHandshakeRecords` is the reader that
+keeps running after `HandshakeContext` returns; it also decrypts the RFC 9190
+Section 2.5 indication, reports it in `PeerResult.Indication` for the operator's
+log line, and requires nothing of it.
+
+<!-- source: internal/core/eap/peer.go -- PeerSession.runTLSClient, PeerSession.consumePostHandshakeRecords -->
 
 **EAP-TLS fragment reassembly needs a bound.** The reassembly buffer and the
 peer-side buffered total are both capped. An unbounded reassembler is a memory

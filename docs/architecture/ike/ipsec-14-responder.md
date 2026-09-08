@@ -44,7 +44,59 @@ assignment.
 
 <!-- source: internal/component/ike/engine/responder.go -- selectResponderESP, matchOfferedESPProposal, buildAuthResponse -->
 
+- RFC 9190 Section 2.1.2 requires the EAP-TLS server to send one or more
+  post-handshake NewSessionTicket messages in the initial authentication. The
+  purpose clause ("To enable resumption") is not an antecedent a server escapes
+  by declining resumption (owner ruling, 2026-09-05), so ze issues a ticket
+  whatever the `session-resumption` leaf says.
+- RFC 9190 Section 2.1.3 permits the server to require a full handshake instead.
+  That is what `session-resumption false` does, and it refuses by answering no
+  session from `tls.Config.UnwrapSession`, which crypto/tls turns into a full
+  handshake. Refusing from `VerifyConnection` would send a fatal alert where
+  Section 5.7 asks for the full handshake.
+
 ## Decisions
+
+**The session-ticket key belongs to the PEERING, not to the EAP exchange.**
+`newTLSMethod` builds a fresh `tls.Config` per EAP session and Go keys ticket
+encryption on the Config instance, so a per-session key issues tickets nothing
+can ever redeem. The engine holds one `eap.Resumption` per configured peer,
+keyed by peer name, and `eapTLSServerConfig` REFUSES an SA that reached it
+without one rather than falling back to that dead key.
+
+The store outlives the peer session on purpose. `clear vpn ipsec sa` destroys
+every session and rebuilds it, so a store held on the session alone would be
+discarded by the operator command most likely to be followed by a second
+authentication. It is discarded when the peer leaves the config, and rebuilt
+whenever the peer's authentication config changes: a resumed handshake presents
+no certificate, so an operator who replaces the certificate, the CA or the
+revocation lists must not have the old decision carried past the edit.
+
+The key ROTATES. `Config.SetSessionTicketKeys` turns Go's own rotation off, so
+`Resumption.TicketKeys` reproduces its schedule, minting a new encryption key
+every 24 hours and keeping a retired one for 7 days. No key outlives the tickets
+it protects, because crypto/tls refuses a ticket older than the same 7 days.
+
+<!-- source: internal/core/eap/resumption.go -- Resumption.TicketKeys, resumptionKeyRotation -->
+<!-- source: internal/component/ike/engine/resumption.go -- resumptionFor, resumptionStates -->
+<!-- source: internal/component/ike/engine/responder_eap.go -- eapTLSServerConfig -->
+
+**Resumption is one operator setting for both roles.** The `session-resumption`
+leaf sits in the peer's `authentication` container, defaults to true, and gates
+accepting a resumed session as the authenticator and offering a ticket as the
+peer. It never gates issuing one. `parseSessionResumption` writes the default
+rather than leaving it to the Go zero value, because `config.Tree.Get` answers
+"absent" for a leaf the operator never set.
+
+Whether an authentication resumed is reported in one log line per exchange and
+in `ze_ipsec_eap_tls_resumption_hits_total` and
+`ze_ipsec_eap_tls_resumption_misses_total`, both labelled by peer. Nothing else
+reports it: no CLI command prints `DidResume`, and `show vpn ipsec sa` carries no
+EAP field.
+
+<!-- source: internal/component/ike/ipsec/config_auth_policy.go -- parseSessionResumption -->
+<!-- source: internal/component/ike/engine/resumption.go -- recordEAPTLSAuthentication -->
+<!-- source: internal/component/ike/engine/metrics.go -- countEAPTLSAuthentication -->
 
 **Mirror the initiator FSM.** The responder SA is created by the dispatch
 goroutine on an unsolicited IKE_SA_INIT request from a peer configured to

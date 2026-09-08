@@ -2,6 +2,116 @@
   "rfc": "rfc9190",
   "records": [
     {
+      "rid": "RFC9190-2.1.2-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_resumption_refusal_test.go::TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode",
+      "unit-sha": "537a951cb8626f18",
+      "claim-sha": "701854fc23ae435b",
+      "route": "revert",
+      "producer": "internal/core/eap/resumption.go::TicketKeys",
+      "producer-sha": "c7e047f9231e686f",
+      "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.1.2-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems",
+      "unit-sha": "144c79f5935885d9",
+      "claim-sha": "7158d7ed1ff91ba3",
+      "route": "revert",
+      "producer": "internal/core/eap/resumption.go::TicketKeys",
+      "producer-sha": "c7e047f9231e686f",
+      "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.1.2-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket",
+      "unit-sha": "ffc72b0f32677f29",
+      "claim-sha": "89d9749a4c0a1d4d",
+      "route": "revert",
+      "producer": "internal/core/eap/resumption.go::refuseResumption",
+      "producer-sha": "73e1e7af48601352",
+      "break": "body of refuseResumption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.1.2-2",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems",
+      "unit-sha": "144c79f5935885d9",
+      "claim-sha": "18e0c39213bf1db2",
+      "route": "revert",
+      "producer": "internal/core/eap/resumption.go::TicketKeys",
+      "producer-sha": "c7e047f9231e686f",
+      "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.1.2-3",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems",
+      "unit-sha": "144c79f5935885d9",
+      "claim-sha": "00a46d92e20c9a9a",
+      "route": "revert",
+      "producer": "internal/core/eap/resumption.go::TicketKeys",
+      "producer-sha": "c7e047f9231e686f",
+      "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.1.3-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems",
+      "unit-sha": "144c79f5935885d9",
+      "claim-sha": "5bd42148a322b300",
+      "route": "revert",
+      "producer": "internal/core/eap/resumption.go::TicketKeys",
+      "producer-sha": "c7e047f9231e686f",
+      "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.1.3-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket",
+      "unit-sha": "ffc72b0f32677f29",
+      "claim-sha": "b2ff4aeb22ba8540",
+      "route": "revert",
+      "producer": "internal/core/eap/resumption.go::refuseResumption",
+      "producer-sha": "73e1e7af48601352",
+      "break": "body of refuseResumption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.1.3-2",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems",
+      "unit-sha": "144c79f5935885d9",
+      "claim-sha": "078271c80f1e2382",
+      "route": "revert",
+      "producer": "internal/core/eap/resumption.go::TicketKeys",
+      "producer-sha": "c7e047f9231e686f",
+      "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.5-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumedExchangeStillSendsTheSuccessIndication",
+      "unit-sha": "a01fc263dcd8a128",
+      "claim-sha": "7d897bf6536ffe53",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::indicateSuccess",
+      "producer-sha": "e55eb8085c523b86",
+      "break": "body of indicateSuccess replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.4-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_resumption_refusal_test.go::TestEAPTLS13ResumptionStillNeedsARevocationSource",
+      "unit-sha": "d1e3692439dc9529",
+      "claim-sha": "77997e0a31a3ef45",
+      "route": "revert",
+      "producer": "internal/core/eap/revocation.go::checkChainRevocation",
+      "producer-sha": "bc6548ee07f24385",
+      "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9190-5.4-1",
       "polarity": "negative",
       "unit": "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS12CompletesWithNoRevocationList",
@@ -63,8 +173,8 @@
       "unit-sha": "dba4137bdae29380",
       "claim-sha": "b4f69204f7c31464",
       "route": "revert",
-      "producer": "internal/core/eap/peer.go::verifyConnection",
-      "producer-sha": "15a717f2da706f91",
+      "producer": "internal/core/eap/peer_chain.go::verifyConnection",
+      "producer-sha": "77378c8cfa918cb4",
       "break": "body of verifyConnection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -88,6 +198,149 @@
       "producer": "internal/core/eap/revocation.go::checkChainRevocation",
       "producer-sha": "bc6548ee07f24385",
       "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.7-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_resumption_refusal_test.go::TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey",
+      "unit-sha": "62ea00b282ce0de9",
+      "claim-sha": "9e2125d5a92c1ab8",
+      "route": "revert",
+      "producer": "internal/core/eap/resumption.go::TicketKeys",
+      "producer-sha": "c7e047f9231e686f",
+      "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.7-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumptionRefusesARevokedClientChain",
+      "unit-sha": "9d58a499b224a892",
+      "claim-sha": "35cb94c3ada28271",
+      "route": "revert",
+      "producer": "internal/core/eap/revocation.go::checkChainRevocation",
+      "producer-sha": "bc6548ee07f24385",
+      "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.7-2",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_resumption_refusal_test.go::TestEAPTLS13PeerRefusesAResumptionItCannotRebuildAChainFor",
+      "unit-sha": "362173f13d976e1b",
+      "claim-sha": "1ddf92bb4c0064e8",
+      "route": "revert",
+      "producer": "internal/core/eap/peer_chain.go::rebuildResumedChains",
+      "producer-sha": "cdfc0917c1f27ecd",
+      "break": "body of rebuildResumedChains replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.7-2",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_resumption_refusal_test.go::TestEAPTLS13RefusesAResumptionAgainstAReplacedTrustAnchor",
+      "unit-sha": "f7ecae19a036b98a",
+      "claim-sha": "2fac8cd0524961aa",
+      "route": "revert",
+      "producer": "internal/core/eap/revocation.go::checkChainRevocation",
+      "producer-sha": "bc6548ee07f24385",
+      "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.7-2",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain",
+      "unit-sha": "1da8618372822a15",
+      "claim-sha": "494e50c32430eb99",
+      "route": "revert",
+      "producer": "internal/core/eap/peer_chain.go::rebuildResumedChains",
+      "producer-sha": "cdfc0917c1f27ecd",
+      "break": "body of rebuildResumedChains replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.7-2",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain",
+      "unit-sha": "ff0ef45632508ece",
+      "claim-sha": "54f58fbb18e61d89",
+      "route": "revert",
+      "producer": "internal/core/eap/peer_chain.go::rebuildResumedChains",
+      "producer-sha": "cdfc0917c1f27ecd",
+      "break": "body of rebuildResumedChains replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.7-3",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumptionRefusesARevokedClientChain",
+      "unit-sha": "9d58a499b224a892",
+      "claim-sha": "13c20a629a76d5bb",
+      "route": "revert",
+      "producer": "internal/core/eap/revocation.go::checkChainRevocation",
+      "producer-sha": "bc6548ee07f24385",
+      "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.7-5",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_resumption_refusal_test.go::TestEAPTLS13RefusesATicketPastTheSection57Lifetime",
+      "unit-sha": "8416c2268e64221e",
+      "claim-sha": "c4fa6b3f805e7935",
+      "route": "revert",
+      "producer": "internal/core/eap/resumption.go::TicketKeys",
+      "producer-sha": "c7e047f9231e686f",
+      "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.7-5",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling",
+      "unit-sha": "5889f21fc17e4dd7",
+      "claim-sha": "3cc674949c503a25",
+      "route": "revert",
+      "producer": "internal/core/eap/resumption.go::dropExpired",
+      "producer-sha": "ba6b6807ad41a78f",
+      "break": "body of dropExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.7-5",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling",
+      "unit-sha": "5889f21fc17e4dd7",
+      "claim-sha": "4f0dfbc8c9a3d3a6",
+      "route": "revert",
+      "producer": "internal/core/eap/resumption.go::dropExpired",
+      "producer-sha": "ba6b6807ad41a78f",
+      "break": "body of dropExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.7-6",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_resumption_refusal_test.go::TestEAPTLS13RefusesAResumptionWhoseCachedCertificateExpired",
+      "unit-sha": "32a0e43b6e24e993",
+      "claim-sha": "7c5066a25db6244d",
+      "route": "revert",
+      "producer": "internal/core/eap/resumption.go::TicketKeys",
+      "producer-sha": "c7e047f9231e686f",
+      "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.7-6",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain",
+      "unit-sha": "1da8618372822a15",
+      "claim-sha": "479368149f8b542f",
+      "route": "revert",
+      "producer": "internal/core/eap/peer_chain.go::rebuildResumedChains",
+      "producer-sha": "cdfc0917c1f27ecd",
+      "break": "body of rebuildResumedChains replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.7-6",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain",
+      "unit-sha": "ff0ef45632508ece",
+      "claim-sha": "aa41cc42ff835adf",
+      "route": "revert",
+      "producer": "internal/core/eap/peer_chain.go::rebuildResumedChains",
+      "producer-sha": "cdfc0917c1f27ecd",
+      "break": "body of rebuildResumedChains replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

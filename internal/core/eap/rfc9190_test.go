@@ -74,37 +74,26 @@ func eapTLSAppDataRecords(p *Packet) int {
 	return n
 }
 
-// readPeerPlaintext decrypts whatever the authenticator's last EAP-Request left
-// in the peer's transport, using the peer's own tls.Conn and therefore the
-// session's real traffic keys.
+// readPeerPlaintext answers the application data the peer DECRYPTED out of the
+// authenticator's closing EAP-Request, under the session's real traffic keys.
 //
-// The read runs on its own goroutine behind a deadline. eapTLSTransport.Read
-// parks forever on an empty buffer, so a regression that sends no record at all
-// would hang the test rather than fail it, and a hung test reports nothing.
+// It reads PeerSession.indication rather than calling Read on the peer's
+// tls.Conn, because the peer's own reader has already consumed the record:
+// consumePostHandshakeRecords (peer.go) drives that Read, which is what lets
+// crypto/tls process the RFC 9190 Section 2.1.2 NewSessionTicket in the same
+// flight. A second Read from here would park forever on an empty transport.
+//
+// The value is still the plaintext the peer's TLS engine produced. Nothing in
+// the test decrypts anything itself, so an authenticator that sent no record, or
+// a record with other contents, still fails the caller's assertion.
 func readPeerPlaintext(t *testing.T, peer *PeerSession) []byte {
 	t.Helper()
-
-	type readResult struct {
-		data []byte
-		err  error
-	}
-	done := make(chan readResult, 1)
-	go func() {
-		buf := make([]byte, 16)
-		n, err := peer.tlsConn.Read(buf)
-		done <- readResult{data: buf[:n], err: err}
-	}()
-
-	select {
-	case r := <-done:
-		if r.err != nil {
-			t.Fatalf("the peer could not decrypt the authenticator's record: %v", r.err)
-		}
-		return r.data
-	case <-time.After(5 * time.Second):
+	seen := peer.indication.Load()
+	if seen == nil {
 		t.Fatal("the peer's TLS engine produced no plaintext: the authenticator sent no application data record")
 		return nil
 	}
+	return *seen
 }
 
 // driveRejectedEAPTLS13 drives the real authenticator against the real peer over
@@ -336,43 +325,43 @@ func TestEAPTLS12SendsNoProtectedSuccessIndication(t *testing.T) {
 	}
 }
 
-// TestEAPTLSIssuesNoUnredeemableSessionTicket asserts the authenticator mints no
-// TLS session ticket.
+// TestEAPTLS13TicketAndIndicationShareOneEAPRequest asserts the RFC 9190
+// Section 2.1.2 NewSessionTicket and the Section 2.5 protected success
+// indication leave in the SAME EAP-Request, so resumption costs the conversation
+// no round.
 //
-// newTLSMethod builds a fresh tls.Config for every EAP session, and Go keys
-// ticket encryption on the Config instance (Config.ticketKeys, crypto/tls
-// common.go, fills autoSessionTicketKeys with random octets per Config). A
-// ticket issued in one EAP session is therefore undecryptable in every other, so
-// resumption is unreachable by construction and six RFC 9190 MUSTs conditional
-// on it (5.6-2, 5.7-1, 5.7-2, 5.7-3, 5.7-4, 5.7-6) are dead.
+// It replaces TestEAPTLSIssuesNoUnredeemableSessionTicket, which asserted that
+// the authenticator minted no ticket at all. That test pinned
+// SessionTicketsDisabled in newTLSMethod, and Thomas ruled on 2026-09-05 that
+// Section 2.1.2's purpose clause is not an antecedent a server escapes by
+// declining resumption: issuing the ticket is a MUST, so the old assertion
+// pinned a non-conformance (plan/spec-ipsec-rfc9190.md, OWNER RULING).
 //
-// VALIDATES: the closing EAP-Request carries ONE record. Go writes a
-// NewSessionTicket as its own record from readClientCertificate, in the same
-// HandshakeContext call, so a config that issued one would put two records in
-// that packet.
-// PREVENTS: SessionTicketsDisabled being dropped from newTLSMethod, which would
-// silently arm those six obligations while nothing could still redeem a ticket.
-func TestEAPTLSIssuesNoUnredeemableSessionTicket(t *testing.T) {
+// VALIDATES: with a peer that offers psk_key_exchange_modes, the closing
+// EAP-Request carries two application_data records -- the encrypted
+// NewSessionTicket and the indication -- and EAP-Success still follows it
+// immediately, so the packet count is what Figure 2 draws.
+// PREVENTS: the ticket being emitted on a round of its own, which would add an
+// EAP-Request after the indication and break step 3 of Section 2.5 ("must not
+// send any more EAP-Requests"), and an exchange whose ticket never leaves.
+func TestEAPTLS13TicketAndIndicationShareOneEAPRequest(t *testing.T) {
 	pki := newEAPTLSPKI(t)
-	method, err := newTLSMethod(pki.serverConfig())
-	if err != nil {
-		t.Fatalf("newTLSMethod: %v", err)
-	}
-	if !method.tlsConfig.SessionTicketsDisabled {
-		t.Fatal("newTLSMethod leaves session tickets enabled, so it issues tickets no other session can redeem")
-	}
+	peer := NewPeerSessionTLS("eap-tls-client", pki.resumptionPeerConfig(NewResumption(time.Now, true)))
+	fl := driveEAPTLSFlight(t, pki.serverConfigResuming(NewResumption(time.Now, true)), peer, tls.VersionTLS13, eapTLS13Rounds)
 
-	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
-	})
-	fl := driveEAPTLSFlight(t, pki.serverConfig(), peer, tls.VersionTLS13, eapTLS13Rounds)
+	if fl.peerErr != nil {
+		t.Fatalf("the peer failed a handshake both sides should accept: %v", fl.peerErr)
+	}
 	if fl.successAt < 1 {
 		t.Fatalf("no EAP-Success after a data packet: successAt=%d", fl.successAt)
 	}
-	if types := tlsRecordContentTypes(fl.serverSent[fl.successAt-1].TypeData); len(types) != 1 {
-		t.Fatalf("the closing EAP-Request carries %d TLS records (% x), want 1: a second one is a NewSessionTicket", len(types), types)
+	// Step 3 of Section 2.5: EAP-Success is the last thing the authenticator
+	// sends, so the ticket cannot have taken a round of its own after it.
+	if fl.successAt != len(fl.serverSent)-1 {
+		t.Fatalf("the authenticator sent %d more packet(s) after EAP-Success", len(fl.serverSent)-1-fl.successAt)
+	}
+	closing := fl.serverSent[fl.successAt-1]
+	if n := eapTLSAppDataRecords(closing); n != 2 {
+		t.Fatalf("the closing EAP-Request carries %d application_data records, want 2: the NewSessionTicket and the indication", n)
 	}
 }

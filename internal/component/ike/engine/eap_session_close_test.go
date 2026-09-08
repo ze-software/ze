@@ -134,6 +134,7 @@ func TestForgetKeysClosesResponderEAPSession(t *testing.T) {
 		ServerCertPEM: pki.certPEM,
 		ServerKeyPEM:  pki.keyPEM,
 		CACertPEM:     pki.caPEM,
+		Resumption:    eap.NewResumption(time.Now, true),
 	})
 	if err != nil {
 		t.Fatalf("create authenticator session: %v", err)
@@ -222,6 +223,7 @@ func TestRunResponderStopReleasesAbandonedEAPSession(t *testing.T) {
 		ServerCertPEM: pki.certPEM,
 		ServerKeyPEM:  pki.keyPEM,
 		CACertPEM:     pki.caPEM,
+		Resumption:    eap.NewResumption(time.Now, true),
 	})
 	if err != nil {
 		t.Fatalf("create authenticator session: %v", err)
