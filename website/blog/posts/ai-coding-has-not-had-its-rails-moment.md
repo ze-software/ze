@@ -28,6 +28,8 @@ That arrangement was familiar inside Exa. Rails made a shared layout part of the
 
 A developer who knows Rails can enter an unfamiliar Rails application with some useful knowledge already, and the framework relies on the same conventions. The application still has to supply its own behaviour, but neither the person nor the tool has to begin by inventing where a model belongs.
 
+Younger programmers may never have worked with Rails, but they will recognise the same benefit in React projects today. Familiar component conventions give them a starting point in a codebase they have never seen before.
+
 I want that familiarity for the decisions around an AI-assisted change. The agent should have a predictable route from the source file to the design which governs it, and from that design to the evidence required when it changes.
 
 ## A harness cannot supply project decisions
