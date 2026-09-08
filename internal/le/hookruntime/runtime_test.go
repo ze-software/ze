@@ -304,3 +304,45 @@ func TestPostFormatGoLeavesGeneratedSourceAlone(t *testing.T) {
 		t.Errorf("authored source was left unformatted, so the marker is not what decided it:\n%q", got)
 	}
 }
+
+// VALIDATES: a Write or an Edit naming a spec the hook cannot read is refused
+// and says so, while a spec that reads is still validated and passes.
+// PREVENTS: the silent version of no validation at all, one line below the
+// repair the function already carries a comment about. The read failure
+// returned 0, which the hook protocol reads as "checked, allowed", so a payload
+// naming an unreadable spec reported success having validated nothing
+// (ai/rules/evidence.md).
+func TestValidateSpecRefusesASpecItCannotRead(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "plan"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	absent := filepath.Join(root, "plan", "spec-this-does-not-exist.md")
+	code, _, message := runHook(t, root, "validate-spec", map[string]any{
+		"tool_name":  "Edit",
+		"tool_input": map[string]any{"file_path": absent, "new_string": "x"},
+	})
+	if code != 2 {
+		t.Fatalf("an unreadable spec passed with code = %d, want 2 (message %q)", code, message)
+	}
+	if !strings.Contains(message, "NOTHING WAS CHECKED") || !strings.Contains(message, "plan/spec-this-does-not-exist.md") {
+		t.Fatalf("the refusal named neither the failure nor the path: %q", message)
+	}
+
+	present := filepath.Join(root, "plan", "spec-kind.md")
+	// A skeleton carries no design document, so the anchor audit stays out of
+	// this test: what it pins is that a spec the hook CAN read is validated and
+	// passes, which is the polarity the refusal above must not have taken away.
+	readable := strings.Replace(specFixture("internal/le/hookruntime/lifecycle.go"), "| Status | design |", "| Status | skeleton |", 1)
+	if err := os.WriteFile(present, []byte(readable), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, _, message = runHook(t, root, "validate-spec", map[string]any{
+		"tool_name":  "Edit",
+		"tool_input": map[string]any{"file_path": present, "new_string": "x"},
+	})
+	if code != 0 {
+		t.Fatalf("a readable spec was refused with code = %d: %q", code, message)
+	}
+}

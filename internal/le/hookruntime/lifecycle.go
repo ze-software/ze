@@ -504,9 +504,14 @@ func hookValidateSpec(ctx context, errOut io.Writer) int {
 	if !specpath.IsSpec(relativePath(ctx)) {
 		return 0
 	}
+	// The path IS a spec and the write already happened, so a read that fails
+	// here validated nothing. Returning 0 is the same failure as the predicate
+	// above, one line below its repair: the hook protocol reads it as
+	// "checked, allowed" (ai/rules/evidence.md).
 	body, err := os.ReadFile(absolutePath(ctx))
 	if err != nil {
-		return 0
+		fmt.Fprintln(errOut, "❌ validate-spec: "+relativePath(ctx)+" could not be read -- NOTHING WAS CHECKED.\n  "+err.Error()) //nolint:errcheck // hook protocol
+		return 2
 	}
 	errors, warnings := validateSpecText(ctx.root, string(body))
 	status := ""
