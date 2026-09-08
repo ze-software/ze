@@ -10,10 +10,43 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/le/discoveryindex"
 	"github.com/ze-software/ze/internal/le/lepath"
 	specsession "github.com/ze-software/ze/internal/le/spec/session"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
+
+// TestDiscoveryIndexGateReadsOnlyTheHeaderTheMapDerivesFrom drives the commit
+// gate over three files in one package. The map takes its text from one of
+// them, so only that one may demand a refreshed index.
+//
+// The gate hands the source test whatever text it read, and it used to read the
+// WHOLE file and search it for the marker as a substring. Any Go file that
+// mentioned a package header therefore demanded the index, and so did one whose
+// header sits past the window packageDoc reads. This is the entry point that
+// refused a `go mod vendor` result and refused the repair of its own predicate
+// (plan/journal/gate-fires-outside-its-population.md).
+func TestDiscoveryIndexGateReadsOnlyTheHeaderTheMapDerivesFrom(t *testing.T) {
+	root := t.TempDir()
+	writeCommitFixture(t, root, "ai/.keep", "")
+	writeCommitFixture(t, root, "internal/core/x/x.go", "// Package x does x.\npackage x\n")
+	writeCommitFixture(t, root, "internal/core/x/mentions.go",
+		"// mentions.go explains the `// Package` header it reads.\npackage x\n")
+	writeCommitFixture(t, root, "internal/core/x/late.go",
+		strings.Repeat("// filler\n", discoveryindex.HeaderLines)+"// Package x does x.\npackage x\n")
+	if _, err := discoveryindex.Update(root); err != nil {
+		t.Fatalf("seed the fixture index: %v", err)
+	}
+
+	for _, path := range []string{"internal/core/x/mentions.go", "internal/core/x/late.go"} {
+		if err := checkDiscoveryIndex(root, []string{path}); err != nil {
+			t.Errorf("committing %s alone was refused, and the map takes no text from it: %v", path, err)
+		}
+	}
+	if err := checkDiscoveryIndex(root, []string{"internal/core/x/x.go"}); err == nil {
+		t.Error("the file the map derives its row from did not demand a refreshed index")
+	}
+}
 
 func TestNormalizePathRefusesNonFilePopulations(t *testing.T) {
 	t.Parallel()

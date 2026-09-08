@@ -328,6 +328,42 @@ func TestIsSourceAgreesWithTheWalkAboutTheFilesTheMapDescribes(t *testing.T) {
 	}
 }
 
+// TestIsSourceAgreesWithPackageDocAboutTheTextTheMapDerives derives the wanted
+// answer from packageDoc over real files rather than restating it. A file the
+// map takes no text from is not a source of that text.
+//
+// A substring search for the marker said otherwise until 2026-09-08. It matched
+// a mention of the header in prose, a constant holding it, and a header past
+// the window packageDoc reads, so sources.go read as a source of the map on the
+// strength of naming the thing it looks for, and the commit repairing this
+// gate's other over-fire was refused by it.
+func TestIsSourceAgreesWithPackageDocAboutTheTextTheMapDerives(t *testing.T) {
+	const dir = "internal/core/x"
+	bodies := map[string]string{
+		"header.go":   "// Package x does x.\npackage x\n",
+		"mentions.go": "// mentions.go explains the `// Package` header it reads.\npackage x\n\nconst marker = \"// Package\"\n",
+		"bare.go":     "// Package x\npackage x\n",
+		"late.go":     strings.Repeat("// filler\n", HeaderLines) + "// Package x does x.\npackage x\n",
+	}
+	files := map[string]string{"ai/.keep": ""}
+	for name, body := range bodies {
+		files[dir+"/"+name] = body
+	}
+	root := tree(t, files)
+
+	for name, body := range bodies {
+		rel := dir + "/" + name
+		doc, err := packageDoc(filepath.Join(root, filepath.FromSlash(rel)))
+		if err != nil {
+			t.Fatalf("packageDoc(%s): %v", rel, err)
+		}
+		want := doc != ""
+		if got := IsSource(rel, HeaderText(body)); got != want {
+			t.Errorf("IsSource(%q) = %v, but packageDoc reads %q from it", rel, got, doc)
+		}
+	}
+}
+
 func TestReportIsStructuredDataWithKebabCaseKeys(t *testing.T) {
 	raw, err := json.Marshal(Report{
 		File:     OutputRel,

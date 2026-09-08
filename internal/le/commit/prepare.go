@@ -398,7 +398,7 @@ func checkDiscoveryIndex(root string, paths []string) error {
 	required := false
 	for _, path := range paths {
 		content, _ := os.ReadFile(filepath.Join(root, filepath.FromSlash(path))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
-		if discoveryindex.IsSource(path, string(content)) {
+		if discoveryindex.IsSource(path, discoveryindex.HeaderText(string(content))) {
 			required = true
 			break
 		}

@@ -17,9 +17,47 @@ import (
 // can change every byte of the index, so it feeds the index it writes.
 const generator = "internal/le/discoveryindex/discoveryindex.go"
 
-// packageMarker is the header a Go file carries when the index derives a line
-// from it.
-const packageMarker = "// Package"
+// HeaderText answers the first HeaderLines lines of content, which is the
+// window packageDoc reads a package header from. A caller that asks IsSource
+// about a `.go` file bounds its text with this, so the trigger and the
+// generator judge the same bytes.
+//
+// The bound belongs to the caller rather than to feeds, because a caller can
+// supply the working tree, HEAD, or both joined, and only a caller knows which
+// trees it read. Handing feeds a whole FILE is what made any Go file that
+// merely SPELLS a package header read as a source of the map, this one included
+// (plan/journal/gate-fires-outside-its-population.md).
+func HeaderText(content string) string {
+	end, lines := 0, 0
+	for end < len(content) {
+		idx := strings.IndexByte(content[end:], '\n')
+		if idx < 0 {
+			break
+		}
+		end += idx + 1
+		lines++
+		if lines == HeaderLines {
+			return content[:end]
+		}
+	}
+	return content
+}
+
+// hasPackageHeader reports whether text carries a line packageDoc would read a
+// package summary from.
+//
+// It asks packageLine, which is the generator's own test, so a file the map
+// derives no text from cannot read as a source of that text. A substring search
+// for the marker answered yes to a mention of it in prose, to a constant
+// holding it, and to a comment quoting it.
+func hasPackageHeader(text string) bool {
+	for line := range strings.SplitSeq(text, "\n") {
+		if _, ok := packageLine(strings.TrimSpace(line)); ok {
+			return true
+		}
+	}
+	return false
+}
 
 // outputs names every generated index these rules cover.
 //
@@ -57,10 +95,11 @@ func inPopulation(path string) bool {
 // feeds answers the indexes that committing path can drift, sorted, or nothing
 // when path feeds none.
 //
-// headerText is used only for a non-test `.go` file. It searches for the
-// `// Package` marker from which the index derives text. The caller supplies
-// content from the working tree, HEAD, or both. A change can add or remove the
-// marker, and only the caller knows which trees are available.
+// headerText is used only for a non-test `.go` file, and it is the file's
+// header rather than its body: the caller bounds it with HeaderText. It is
+// searched for the package header line from which the index derives text. The
+// caller supplies the working tree, HEAD, or both, because a change can add or
+// remove that line and only the caller knows which trees are available.
 func feeds(path, headerText string) []string {
 	// A committed index feeds only itself: committing it is how its own
 	// freshness is satisfied, and it never obliges any OTHER index to ride
@@ -89,7 +128,7 @@ func feeds(path, headerText string) []string {
 	}
 
 	if strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go") &&
-		strings.Contains(headerText, packageMarker) {
+		hasPackageHeader(headerText) {
 		return []string{OutputRel}
 	}
 	return nil

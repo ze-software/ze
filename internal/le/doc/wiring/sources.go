@@ -215,8 +215,13 @@ func isDiscoverySource(root, path string) (bool, error) {
 		if err != nil {
 			return false, err
 		}
+		// Each tree is bounded to its own header before they are joined. The
+		// join is not a file, so a line bound applied after it would fall
+		// inside the working-tree copy and hide the HEAD one, which is the
+		// half that carries a header a change REMOVED.
 		var tb textbuf.Buffer
-		header = tb.Str(current).Byte('\n').Str(readHeadOrEmpty(root, path)).String()
+		header = tb.Str(discoveryindex.HeaderText(current)).Byte('\n').
+			Str(discoveryindex.HeaderText(readHeadOrEmpty(root, path))).String()
 	}
 	return discoveryindex.IsSource(path, header), nil
 }
