@@ -404,6 +404,23 @@ actions.
 <!-- source: internal/le/deployment/actions.go -- gokrazy-l2tp-ppp-test, docker-l2tp-ppp-test, docker-pppoe-accel-test -->
 <!-- source: internal/le/qemu/actions.go -- pppoe-accel-test, vrrp-keepalived-test -->
 
+`./le qemu vrrp-keepalived-test` runs four scenarios, selectable with
+`scenarios=<csv>`.
+
+| Scenario | What it proves |
+|----------|----------------|
+| `QS-1` | Ze wins the election against keepalived and the advertisement fields match the RFC. |
+| `QS-2` | Ze dies, keepalived promotes within the master-down band and sends a gratuitous ARP; Ze returns and preempts. |
+| `QS-3` | The skew-time term of the master-down interval is honored. |
+| `tracked-uplink-hands-the-vip-to-keepalived` | Ze at priority 200 tracks a veth worth a decrement of 150. The veth goes down, Ze advertises 50, and keepalived at 100 takes the VIP; the veth returns and Ze preempts. keepalived's own notify script is the assertion, so ANOTHER implementation acts on the decremented priority. |
+
+The first three names predate the rule that an interop scenario is NAMED rather
+than numbered (`ai/rules/interop-and-goal-validation.md`). Renaming them is not
+the tracking scenario's work, and the fourth does not copy the pattern.
+
+<!-- source: internal/le/qemu/guestlabs.go -- vrrpScenarioNames -->
+<!-- source: internal/le/qemu/vrrp_keepalived_linux.go -- runTrackedUplink -->
+
 ## Reference Implementations
 
 | What | File |

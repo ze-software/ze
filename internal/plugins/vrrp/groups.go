@@ -59,6 +59,24 @@ const (
 	defaultAdvertIntervalMs = 1000
 	ownerPriority           = 255 // RFC 9568 Section 5.2.4: reserved for the address owner.
 	maxVIPs                 = 16
+	// maxTrackedInterfaces mirrors the max-elements on the track interface
+	// list. Re-checked here for a producer that skipped schema validation, the
+	// way maxVIPs is.
+	maxTrackedInterfaces = 16
+	// backupPriorityMin is the lowest priority a router backing up a virtual
+	// router may advertise.
+	//
+	// RFC 9568 Section 5.2.4: "VRRP Routers backing up a Virtual Router MUST
+	// use priority values between 1-254 (decimal)." Zero is excluded because
+	// the same section gives it a meaning of its own: "The priority value zero
+	// (0) has special meaning, indicating that the current Active Router has
+	// stopped participating in VRRP", so a decrement must never reach it.
+	backupPriorityMin = 1
+	// trackDecrementMin and trackDecrementMax mirror the YANG range on
+	// priority-decrement. A decrement of 0 configures tracking that can never
+	// change the priority, and 255 is the owner's reserved value.
+	trackDecrementMin = 1
+	trackDecrementMax = 254
 )
 
 // Interval bounds per version, in milliseconds.
@@ -131,6 +149,12 @@ type GroupSpec struct {
 	AcceptMode          bool
 	IsOwner             bool // VIP equals a real address on the same unit+family.
 
+	// TrackedInterfaces are the interfaces whose loss lowers the priority this
+	// group advertises, sorted by name so one configuration always extracts to
+	// one spec. Empty when the group carries no `track` container, which is
+	// every group that does not ask for tracking.
+	TrackedInterfaces []TrackedInterface
+
 	// realAddresses are the unit's configured addresses for this family, kept
 	// for owner detection. Not part of the key.
 	realAddresses []netip.Addr
@@ -144,16 +168,47 @@ type GroupSpec struct {
 	realPrefixes []netip.Prefix
 }
 
-// EffectivePriority is the priority the FSM runs with.
+// TrackedInterface is one interface whose operational state lowers the priority
+// a group advertises. The tracked object is the interface's OPERATIONAL state
+// and nothing else: an interface that is up while it blackholes traffic still
+// counts as up.
+type TrackedInterface struct {
+	// Name is the interface to watch. It is a name the iface resolver answers,
+	// which is a logical interface name when the interface tree carries one and
+	// the kernel device name otherwise (osDeviceFor,
+	// internal/component/iface/resolve.go).
+	Name string
+	// PriorityDecrement is subtracted from the configured priority while this
+	// interface is down. It has no default: a default would pick the operator's
+	// failover policy.
+	PriorityDecrement uint8
+}
+
+// EffectivePriority is the priority the FSM runs with, given the summed
+// decrement of the tracked interfaces that are down.
 //
-// RFC 9568 Section 5.2.4 requires the priority of the router that owns the
-// virtual router's IPvX addresses to be 255, so ownership overrides whatever
-// priority the operator configured.
-func (g GroupSpec) EffectivePriority() uint8 {
+// The decrement is a uint16 because 16 tracked interfaces of 254 do not fit a
+// uint8.
+//
+// RFC 9568 Section 5.2.4: "The priority value for the VRRP Router that owns the
+// IPvX address associated with the Virtual Router MUST be 255 (decimal)." The
+// owner branch runs before any subtraction, so tracking can never lower an
+// owner. Configuring both is refused at verify (validateGroup), and this branch
+// is the second half of the pair: the rule holds even for a spec a producer
+// built without passing through the verifier.
+//
+// RFC 9568 Section 5.2.4: "VRRP Routers backing up a Virtual Router MUST use
+// priority values between 1-254 (decimal)." So a decrement at or past the
+// configured priority floors at 1 rather than reaching 0, which the same
+// section reserves for the Active Router that stopped participating.
+func (g GroupSpec) EffectivePriority(decrement uint16) uint8 {
 	if g.IsOwner {
 		return ownerPriority
 	}
-	return g.Priority
+	if uint16(g.Priority) <= decrement+backupPriorityMin {
+		return backupPriorityMin
+	}
+	return uint8(uint16(g.Priority) - decrement)
 }
 
 // EffectiveAcceptMode is the accept-mode the FSM runs with.
@@ -468,7 +523,54 @@ func applyGroupLeaves(spec *GroupSpec, groupCfg map[string]any) error {
 		}
 		spec.Version = n
 	}
+	tracked, err := trackedInterfaces(groupCfg["track"])
+	if err != nil {
+		return err
+	}
+	spec.TrackedInterfaces = tracked
 	return nil
+}
+
+// trackedInterfaces extracts the `track interface` list, sorted by name.
+//
+// The sort is what makes extraction deterministic: the list arrives as a JSON
+// object keyed by interface name, and Go map iteration order is random, so an
+// unsorted result would make two extractions of one tree produce two specs and
+// every config diff report a change.
+//
+// An absent container is no tracking, not an error: a group that does not ask
+// for tracking is the common case.
+func trackedInterfaces(v any) ([]TrackedInterface, error) {
+	container, ok := v.(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+	byName, ok := container["interface"].(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+	out := make([]TrackedInterface, 0, len(byName))
+	for name, raw := range byName {
+		entry, ok := raw.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("track interface %q is not a configuration node", name)
+		}
+		// priority-decrement is mandatory in the schema, so this only fires for
+		// a producer that skipped schema validation. It is still a hard error:
+		// a default here would pick the operator's failover policy, and a
+		// decrement of 0 configures tracking that can never take effect.
+		configured, ok := entry["priority-decrement"]
+		if !ok {
+			return nil, fmt.Errorf("track interface %q: priority-decrement is required: it is how far this interface's loss lowers the advertised priority, and Ze has no default for it (RFC 9568 Section 8.3.2)", name)
+		}
+		decrement, err := asUint(configured, 255)
+		if err != nil {
+			return nil, fmt.Errorf("track interface %q: priority-decrement: %w", name, err)
+		}
+		out = append(out, TrackedInterface{Name: name, PriorityDecrement: uint8(decrement)})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
 }
 
 // parseVersion accepts the enum in the shapes a config tree can carry.
@@ -578,7 +680,43 @@ func validateGroup(g GroupSpec) error {
 		return fmt.Errorf("%s: accept-mode is a VRRPv3 feature and cannot be combined with version 2; remove accept-mode or configure version 3", where)
 	}
 
+	if err := validateTracking(g, where); err != nil {
+		return err
+	}
+
 	return validateInterval(g, where)
+}
+
+// validateTracking applies the cross-leaf rules the track container needs
+// sibling context for: ownership, which lives on the group rather than on the
+// container, and the list maximum the YANG grammar states per leaf.
+func validateTracking(g GroupSpec, where string) error {
+	if len(g.TrackedInterfaces) == 0 {
+		return nil
+	}
+
+	// RFC 9568 Section 5.2.4: "The priority value for the VRRP Router that owns
+	// the IPvX address associated with the Virtual Router MUST be 255
+	// (decimal)." A decrement can never take effect on that router, so ze
+	// refuses the leaf rather than accepting it and ignoring it: a group that
+	// reports tracking in `show configuration` and never lowers its priority
+	// reads to an operator as a broken failover.
+	if g.IsOwner {
+		return fmt.Errorf("%s: track cannot be combined with an address-owner group, whose priority is fixed at 255 (RFC 9568 Section 5.2.4) so no decrement can take effect; remove track, or move the virtual address off this unit's address list",
+			where)
+	}
+
+	if len(g.TrackedInterfaces) > maxTrackedInterfaces {
+		return fmt.Errorf("%s: %d track interface entries exceed the maximum of %d", where, len(g.TrackedInterfaces), maxTrackedInterfaces)
+	}
+
+	for _, t := range g.TrackedInterfaces {
+		if t.PriorityDecrement < trackDecrementMin || t.PriorityDecrement > trackDecrementMax {
+			return fmt.Errorf("%s: track interface %q: priority-decrement %d is out of range; configure %d..%d",
+				where, t.Name, t.PriorityDecrement, trackDecrementMin, trackDecrementMax)
+		}
+	}
+	return nil
 }
 
 // validateInterval narrows the YANG-native interval range to what the group's

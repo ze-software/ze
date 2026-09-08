@@ -23,6 +23,7 @@ import (
 	"errors"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -81,10 +82,14 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb: "vrrp-keepalived-test",
-		Why: "run ze VRRP against a real keepalived peer inside the guest across the" +
-			" QS-1 election, QS-2 failover/preemption, and QS-3 Priority-0 paths",
+		Why: "run ze VRRP against a real keepalived peer inside the guest, across every" +
+			" scenario the lab declares",
 		Parameters: []leaction.Parameter{
-			{Keyword: "scenarios", Value: "QS-1,QS-2,QS-3"},
+			// The placeholder is derived from vrrpScenarioNames, the same list
+			// the run itself selects from. Spelled out here it went stale the
+			// day a fourth scenario was added, and the new one was then
+			// undiscoverable from `./le qemu`.
+			{Keyword: "scenarios", Value: strings.Join(vrrpScenarioNames, ",")},
 		},
 		AnswerArgs: runVRRPHere,
 	},

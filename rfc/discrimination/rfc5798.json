@@ -82,22 +82,22 @@
       "rid": "RFC5798-5.2.4-1",
       "polarity": "positive",
       "unit": "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection",
-      "unit-sha": "9b31a949dfd7f7a4",
+      "unit-sha": "a47e6e04094a5a9b",
       "claim-sha": "1ece2453b812ac22",
       "route": "revert",
       "producer": "internal/plugins/vrrp/groups.go::EffectivePriority",
-      "producer-sha": "99e0f26d5988669f",
+      "producer-sha": "6cbc3832c7c5ed6c",
       "break": "body of EffectivePriority replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5798-5.2.4-1",
       "polarity": "negative",
       "unit": "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection",
-      "unit-sha": "9b31a949dfd7f7a4",
+      "unit-sha": "a47e6e04094a5a9b",
       "claim-sha": "8da2250105e47351",
       "route": "revert",
       "producer": "internal/plugins/vrrp/groups.go::EffectivePriority",
-      "producer-sha": "99e0f26d5988669f",
+      "producer-sha": "6cbc3832c7c5ed6c",
       "break": "body of EffectivePriority replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

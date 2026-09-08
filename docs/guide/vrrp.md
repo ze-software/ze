@@ -89,6 +89,59 @@ to win the higher number.
 | `accept-mode` | false | VRRPv3 only. Whether a non-owner Active accepts packets addressed to the virtual IP. False is the RFC default and means a ping to the virtual IP gets no reply from a non-owner. Forwarding, ARP and Neighbor Discovery are unaffected. |
 | `advertise-interval-milliseconds` | 1000 | How often the Active router advertises. |
 | `version` | 3 | `2` opts this group into VRRPv2. |
+| `track` | absent | Interfaces whose loss lowers the priority this group advertises. See [Tracking an interface](#tracking-an-interface). |
+
+### Tracking an interface
+
+A group can watch other interfaces and lower the priority it advertises while
+one of them is down. That is how a router hands the gateway over when an uplink
+fails, rather than only when VRRP itself stops.
+
+```
+vrrp {
+    group uplink {
+        vrid 10;
+        virtual-address [ 192.0.2.1 ];
+        priority 200;
+        track {
+            interface eth1 {
+                priority-decrement 150;
+            }
+        }
+    }
+}
+```
+
+While `eth1` is down this router advertises 50 instead of 200, so a Backup
+configured at 100 takes the gateway. When `eth1` returns, the router advertises
+200 again and takes it back (subject to `preempt`).
+
+| Leaf | Default | Meaning |
+|------|---------|---------|
+| `interface <name>` | none | The interface to watch. Up to 16 for one group. The name is an interface from the interface tree, or a kernel device name. |
+| `priority-decrement` | none (mandatory) | 1..254. The priority subtracted while this interface is down. |
+
+Four rules decide what tracking does:
+
+- **Decrements add up.** Two tracked interfaces down cost the sum of their
+  decrements.
+- **The result never falls below 1.** RFC 9568 Section 5.2.4 keeps a Backup
+  router in 1..254, and 0 says the Active router stopped participating, so a
+  decrement at or past the configured priority leaves this router at 1.
+- **A name Ze cannot resolve counts as DOWN.** An uplink Ze cannot find is not
+  carrying traffic. Ze logs the resolver error, so a typo shows up in the log
+  rather than in an unexplained priority.
+- **Tracking is refused on the address owner.** That router advertises 255 (RFC
+  9568 Section 5.2.4), so no decrement could take effect. Ze rejects the
+  configuration rather than accepting it and ignoring it.
+
+Ze reads the tracked interface's OPERATIONAL state and nothing else. An
+interface that is up while it blackholes traffic still counts as up. `show vrrp`
+reports `effective-priority` beside the configured `priority`, and lists the
+tracked interfaces that are down now under `tracked-down`.
+
+Ze tracks an interface. It does not track a route or run a health-check script:
+both need machinery Ze does not have, and neither is configurable.
 
 ### Choosing a version
 
@@ -276,14 +329,14 @@ gateway by pinging its virtual IP. The router that owns the address as a real
 interface address accepts on it whatever the leaf says. The rules appear in
 `show firewall ruleset` under the `vrrp` table.
 
-**No priority tracking.** A group's `priority` is fixed at the value you
-configure. Ze does not decrement it in response to an uplink going down, a route
-disappearing, or a health check failing, so it will not on its own hand the
-gateway to a Backup when an upstream path fails while the VRRP interface itself
-stays up. The interface, route, and script tracking that Junos, Nokia, and VyOS
-use to drive that priority-decrement failover is not implemented in this
-release; failover is driven only by VRRP's own triggers: loss of the Active
-router's adverts, carrier loss on the VRRP interface, or a graceful stop.
+**Tracking watches an interface, not a route or a script.** `track interface`
+lowers the advertised priority while a watched interface is down, which is the
+failover Junos, Nokia and VyOS drive the same way. Route tracking and
+health-check-script tracking are not implemented: a tracked route needs a watch
+keyed on a prefix, and a health check needs a script runner with its own timers
+and security surface. Apart from tracking, failover is driven by VRRP's own
+triggers: loss of the Active router's adverts, carrier loss on the VRRP
+interface, or a graceful stop.
 
 **Netlink backend only.** VRRP needs macvlan devices and raw sockets, which the
 VPP backend does not provide. A VPP-backed config carrying a VRRP group is
@@ -303,7 +356,7 @@ filters link-local multicast will break the election.
 
 | Code | Meaning |
 |------|---------|
-| `doctor-vrrp-config-invalid` | A cross-leaf rule was broken (for example `accept-mode` with `version 2`). |
+| `doctor-vrrp-config-invalid` | A cross-leaf rule was broken (for example `accept-mode` with `version 2`, or `track` on the address-owner group). |
 | `doctor-vrrp-backend-unusable` | The tree configures VRRP on a backend that cannot run it. |
 | `doctor-vrrp-raw-socket` | The raw socket VRRP needs cannot be opened, usually missing `CAP_NET_RAW`. |
 

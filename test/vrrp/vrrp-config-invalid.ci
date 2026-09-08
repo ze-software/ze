@@ -280,3 +280,63 @@ EOF_VPP
 cmd=foreground:seq=11:exec=ze config validate -:stdin=vpp-backend:exit=1
 expect=exit:code=1
 expect=stdout:contains=backend
+
+# --- track on the address-owner group: its priority is fixed at 255 -----------
+# (RFC 9568 Section 5.2.4), so no decrement can ever take effect. Ze refuses
+# the leaf rather than accepting it and ignoring it, which would read to an
+# operator as a failover that silently never happens.
+stdin=track-owner:terminator=EOF_TRKOWN
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                address [ 192.0.2.1/24 ];
+                vrrp {
+                    group owner {
+                        vrid 10;
+                        virtual-address [ 192.0.2.1 ];
+                        track {
+                            interface eth1 {
+                                priority-decrement 50;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_TRKOWN
+
+cmd=foreground:seq=12:exec=ze config validate -:stdin=track-owner:exit=1
+expect=exit:code=1
+expect=stdout:contains=track cannot be combined with an address-owner group
+
+# --- priority-decrement 0 configures tracking that can never take effect. -----
+stdin=track-zero:terminator=EOF_TRKZERO
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                vrrp {
+                    group bad {
+                        vrid 10;
+                        virtual-address [ 192.0.2.1 ];
+                        track {
+                            interface eth1 {
+                                priority-decrement 0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_TRKZERO
+
+cmd=foreground:seq=13:exec=ze config validate -:stdin=track-zero:exit=1
+expect=exit:code=1
+expect=stdout:contains=priority-decrement

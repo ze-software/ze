@@ -30,6 +30,12 @@ const (
 	vrrpQS1 = "QS-1"
 	vrrpQS2 = "QS-2"
 	vrrpQS3 = "QS-3"
+	// vrrpTrackedUplink is NAMED rather than numbered
+	// (ai/rules/interop-and-goal-validation.md): a number goes stale in two ways
+	// a name cannot, because a deleted scenario leaves a hole no reader can tell
+	// from a reservation. The three above predate that rule and renaming them is
+	// not this scenario's work.
+	vrrpTrackedUplink = "tracked-uplink-hands-the-vip-to-keepalived"
 
 	netnsFirewall = "firewall"
 	netnsPolicy   = "policy"
@@ -39,7 +45,7 @@ const (
 )
 
 var (
-	vrrpScenarioNames  = []string{vrrpQS1, vrrpQS2, vrrpQS3}
+	vrrpScenarioNames  = []string{vrrpQS1, vrrpQS2, vrrpQS3, vrrpTrackedUplink}
 	defaultNetnsSuites = []string{netnsFirewall, netnsPolicy, netnsOSPF, netnsOSPFv3}
 	netnsSuiteNames    = []string{netnsFirewall, netnsPolicy, netnsOSPF, netnsOSPFv3, netnsPPPoE}
 )
@@ -118,8 +124,14 @@ func vrrpDescription(name string) string {
 		return "node-death failover and ze preempt return (AC-2)"
 	case vrrpQS3:
 		return "graceful stop: Priority-0 skew path (AC-3)"
+	case vrrpTrackedUplink:
+		return "tracked veth down: ze drops to prio 50 and keepalived prio 100 takes the VIP (AC-6, AC-7)"
 	default:
-		return ""
+		// Every name that reaches here passed parseClosedCSV against
+		// vrrpScenarioNames, so a missing case is a scenario added without its
+		// sentence. Answering the name keeps the header from going blank and
+		// says which case is absent, rather than printing "===  ===".
+		return name
 	}
 }
 

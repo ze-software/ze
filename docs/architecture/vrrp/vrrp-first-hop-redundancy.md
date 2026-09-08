@@ -130,7 +130,7 @@ among them, so an error does not mean the device is gone. Acting on it as though
 it did converts one transient netlink read into a permanent outage, because the
 resolver cache is dropped on every iface apply and `apply` runs only on a config
 event. The device actually disappearing is handled by `parentReady` and
-`watchParent`, which stand the router down and start it again with no commit and
+`watchLinks`, which stand the router down and start it again with no commit and
 no macvlan churn.
 
 So a selector that answers no device, or more than one, keeps a group that is
@@ -214,10 +214,56 @@ and a `ze:backend "netlink"` annotation on the vrrp containers that iface's
 generic gate enforces. The schema-level gate survives a regression in the plugin
 check.
 
+### Priority tracking reads one state, and dispatches only on a change
+
+<!-- source: internal/plugins/vrrp/instance.go -- evaluateTracking, watchDevices -->
+<!-- source: internal/plugins/vrrp/groups.go -- EffectivePriority -->
+
+`track interface <name> priority-decrement <n>` lowers the priority a group
+advertises while that interface is down. Four properties carry it.
+
+**One watch covers the parent and every tracked interface.** `watchDevices`
+derives the sorted, deduplicated device set from the spec, and `watchLinks`
+subscribes to all of them and fans their events into one channel. The parent and
+the tracked interfaces are watched for the same reason, and a tracked interface
+CAN be the parent, so a merged watch removes a second select arm and a double
+subscription. `reconfigure` compares the set before and after a commit and
+signals `rewatch` when they differ, so an interface a commit starts tracking is
+watched from that commit.
+
+**The decrement enters at one point.** `EffectivePriority` takes the summed
+decrement and returns the priority the FSM runs with. Its owner branch runs
+first and returns 255 unchanged (RFC 9568 Section 5.2.4), so tracking can never
+lower an address owner even for a spec built without passing the verifier. Its
+floor is 1, never 0: the same section keeps a Backup in 1-254 and reserves 0 for
+the Active router that stopped participating. The argument is a `uint16` because
+16 entries of 254 do not fit a `uint8`.
+
+**Only a CHANGED down set dispatches.** `evaluateTracking` re-reads every
+tracked interface and rebuilds the set that is down. It dispatches
+`fsm.ConfigUpdated` only when that set moved, because `masterConfigUpdated`
+sends an advertisement at once, and the watch fires for every event on every
+watched device. Dispatching unconditionally would put an advertisement on the
+wire for each link event the segment produces. The FSM takes no new event and no
+new action: a tracked change is an ordinary config change.
+
+**A name that resolves to no device counts as DOWN.** `linkUp` returns the
+resolver's error rather than folding it into false, and the instance applies the
+decrement and logs the error at Warn. An uplink Ze cannot find is not carrying
+traffic, so reading the failure as "up" would be a zero value that looks like an
+answer (`ai/rules/principles.md`). The cost is that a typo lowers this router's
+priority for good, which is why the log line names the tracked interface.
+
+Tracking is refused on the address-owner group at verify (`validateGroup`)
+rather than accepted and ignored: a group that reports tracking in `show
+configuration` and never lowers its priority reads to an operator as a failover
+that silently never happens.
+
 ### Not implemented in this design
 
 No VRRPv2 authentication: auth type 0 only, since RFC 9568 deprecates the others.
-No sync groups, no unicast peers, no priority tracking.
+No sync groups and no unicast peers. Tracking watches an interface's operational
+state; a tracked route and a health-check script are not implemented.
 
 ## Consequences
 
@@ -246,10 +292,12 @@ No sync groups, no unicast peers, no priority tracking.
 <!-- source: internal/plugins/vrrp/transport/transport.go -- RxItem.Key per-instance routing -->
 <!-- source: internal/plugins/vrrp/instance.go -- parentReady -->
 
-- `accept-mode false` is not enforced in the dataplane. VIPs are ordinary kernel
-  addresses on the macvlan, so the Active router answers VIP traffic whatever the
-  leaf says. The leaf drives FSM and owner semantics only. An interop scenario
-  that needs a pingable VIP sets `accept-mode true`.
+- `accept-mode false` IS enforced in the dataplane: the Active router installs a
+  drop for the virtual addresses in the `ze_vrrp` firewall table, ahead of the
+  ICMPv6 135/136 carve-out RFC 9568 Section 6.1 requires. The virtual addresses
+  are still ordinary kernel addresses on the macvlan, because ARP and Neighbor
+  Discovery follow from their presence. So an interop scenario that needs a
+  pingable VIP still has to set `accept-mode true`.
 - Transport metrics were once silently dead: `ConfigureMetrics` installed the
   engine registry and never forwarded it to the shared transport, so the five
   `ze_vrrp_*` series sat on a no-op registry. `sharedTransport.SetMetrics(reg)`

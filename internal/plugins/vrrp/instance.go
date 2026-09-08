@@ -17,6 +17,7 @@ package vrrp
 
 import (
 	"net/netip"
+	"slices"
 	"sync"
 	"time"
 
@@ -62,6 +63,11 @@ type instance struct {
 	events chan fsm.Event
 	stop   chan struct{}
 	done   chan struct{}
+	// rewatch asks the worker to re-subscribe its link watch, because the set
+	// of devices it must watch changed. Buffered by one and non-blocking to
+	// send: the worker re-derives the wanted set when it wakes, so two signals
+	// reach the same subscription as one.
+	rewatch chan struct{}
 
 	// Timers are owned solely by this worker; nil when unarmed.
 	masterDown clock.Timer
@@ -72,6 +78,12 @@ type instance struct {
 	// gates the FSM so link churn cannot restart a running router, and so a
 	// router never advertises from a parent it cannot actually serve.
 	started bool
+
+	// trackDown names the tracked interfaces that are down right now, in
+	// spec.TrackedInterfaces order (sorted by name). It is the state
+	// evaluateTracking recomputes on every link event, and the decrement the
+	// FSM runs with is derived from it rather than stored beside it.
+	trackDown []string
 
 	// prio0Sent/prio0Received count Priority-0 advertisements. The transport
 	// never parses payloads, so these are engine-owned (D-F).
@@ -108,10 +120,21 @@ type engineDeps struct {
 	// macvlan's oper-state UP when its parent dies (measured, spec-vrrp-3 A-4
 	// broken), so watching the macvlan would never notice a dead link.
 	parentReady func(device, family string) bool
-	// watchParent delivers a notification on every link change for the device.
-	// The instance re-evaluates readiness from scratch on each one, so a coarse
-	// "something changed" signal is enough and cannot go stale.
-	watchParent func(device string) (<-chan struct{}, func())
+	// linkUp reports whether a tracked device is operationally up.
+	//
+	// The resolver error is returned rather than folded into false, because the
+	// two are different facts: a device that is down, and a name that answers
+	// no device at all. The caller counts both as DOWN and logs the second, so
+	// a typo in a tracked name is visible in the log rather than inferred from
+	// a priority (ai/rules/principles.md).
+	linkUp func(device string) (bool, error)
+	// watchLinks delivers a notification on every link change for ANY of the
+	// devices: the parent this instance advertises from, plus every tracked
+	// interface. The instance re-evaluates readiness and tracking from scratch
+	// on each one, so a coarse "something changed" signal is enough and cannot
+	// go stale. The returned cancel MUST be called when the device set changes
+	// or the worker stops, or the subscriptions outlive the instance.
+	watchLinks func(devices []string) (<-chan struct{}, func())
 	// refreshAddresses tells the transport to re-resolve the parent's source
 	// address (RFC 9568 Section 7.2: adverts are sourced from the sending
 	// interface's primary address, which the transport caches).
@@ -131,6 +154,7 @@ func newInstance(spec GroupSpec, key transport.InstanceKey, dev string, clk cloc
 		events:  make(chan fsm.Event, eventQueueDepth),
 		stop:    make(chan struct{}),
 		done:    make(chan struct{}),
+		rewatch: make(chan struct{}, 1),
 	}
 }
 
@@ -189,27 +213,154 @@ func eventName(ev fsm.Event) string {
 func (in *instance) run() {
 	defer close(in.done)
 
-	// Watch the parent for link changes before the first readiness check, so a
-	// change racing startup is not missed.
-	var changes <-chan struct{}
-	if in.deps.watchParent != nil {
-		ch, cancel := in.deps.watchParent(in.spec.ParentDevice)
-		changes = ch
-		defer cancel()
+	// Watch the parent and every tracked interface for link changes before the
+	// first evaluation, so a change racing startup is not missed.
+	var (
+		changes <-chan struct{}
+		cancel  func()
+	)
+	watch := func() {
+		if in.deps.watchLinks == nil {
+			return
+		}
+		if cancel != nil {
+			cancel()
+		}
+		changes, cancel = in.deps.watchLinks(in.watchedDevices())
 	}
+	watch()
+	defer func() {
+		if cancel != nil {
+			cancel()
+		}
+	}()
 
+	// Tracking first: the decrement belongs in the config the Startup that
+	// evaluateReadiness dispatches carries, or the first advertisement would go
+	// out at the undecremented priority and be corrected a moment later.
+	in.evaluateTracking()
 	in.evaluateReadiness()
 	for {
 		select {
 		case <-in.stop:
 			in.stopInstance()
 			return
+		case <-in.rewatch:
+			watch()
+			in.evaluateTracking()
+			in.evaluateReadiness()
 		case <-changes:
+			in.evaluateTracking()
 			in.evaluateReadiness()
 		case ev := <-in.events:
 			in.dispatch(ev)
 		}
 	}
+}
+
+// watchedDevices is the set of kernel devices this instance needs link events
+// for: the parent it advertises from, plus every tracked interface. Sorted and
+// deduplicated, so a tracked interface that IS the parent is subscribed once
+// and two configurations naming the same devices compare equal.
+func (in *instance) watchedDevices() []string {
+	in.mu.Lock()
+	defer in.mu.Unlock()
+	return watchDevices(in.spec)
+}
+
+// watchDevices derives the watched device set from a spec. Free function
+// because reconfigure compares the set BEFORE and AFTER the assignment, and
+// only one of those two specs is the instance's own.
+func watchDevices(spec GroupSpec) []string {
+	devices := make([]string, 0, len(spec.TrackedInterfaces)+1)
+	if spec.ParentDevice != "" {
+		devices = append(devices, spec.ParentDevice)
+	}
+	for _, t := range spec.TrackedInterfaces {
+		devices = append(devices, t.Name)
+	}
+	slices.Sort(devices)
+	return slices.Compact(devices)
+}
+
+// evaluateTracking re-reads every tracked interface and rebuilds the set that
+// is down, dispatching ConfigUpdated only when that set CHANGED.
+//
+// The change test is what keeps link churn off the wire: the watch fires for
+// every event on every watched device, and masterConfigUpdated (fsm/fsm.go)
+// sends an advertisement at once, so dispatching unconditionally would make an
+// Active router advertise on every event the segment produces.
+//
+// It is idempotent, and it re-decides from current state rather than following
+// the events, so a coalesced burst reaches the same answer as replaying each
+// event would.
+func (in *instance) evaluateTracking() {
+	in.mu.Lock()
+	defer in.mu.Unlock()
+	in.evaluateTrackingLocked()
+}
+
+// evaluateTrackingLocked is evaluateTracking's body for callers holding mu.
+func (in *instance) evaluateTrackingLocked() {
+	down := in.trackedDownLocked()
+	if slices.Equal(down, in.trackDown) {
+		return
+	}
+	in.trackDown = down
+	logger().Info("vrrp: tracked interface state changed, advertising a new priority",
+		"interface", in.spec.Interface, "group", in.spec.Name, "vrid", in.spec.VRID, "family", in.spec.Family,
+		"tracked-down", down, "priority", in.spec.EffectivePriority(in.trackDecrementLocked()))
+	// A router that has not started carries the new decrement into the Startup
+	// that readiness dispatches next, so there is nothing to tell the FSM yet.
+	if !in.started {
+		return
+	}
+	in.dispatchLocked(fsm.ConfigUpdated{Config: in.fsmConfig()})
+}
+
+// trackedDownLocked reads the operational state of every tracked interface and
+// returns the names that are down, in spec order (sorted by name).
+//
+// A name the resolver cannot answer counts as DOWN. An uplink Ze cannot find is
+// not carrying traffic, so reading the failure as "up" would be a zero value
+// that looks like an answer (ai/rules/principles.md). The error is logged at
+// Warn, because a typo in a tracked name lowers this router's priority for good
+// and the cause belongs in the log rather than in an operator's inference.
+func (in *instance) trackedDownLocked() []string {
+	if len(in.spec.TrackedInterfaces) == 0 {
+		return nil
+	}
+	down := make([]string, 0, len(in.spec.TrackedInterfaces))
+	for _, t := range in.spec.TrackedInterfaces {
+		up, err := in.deps.linkUp(t.Name)
+		if err != nil {
+			logger().Warn("vrrp: tracked interface cannot be resolved, counting it as down",
+				"interface", in.spec.Interface, "group", in.spec.Name, "vrid", in.spec.VRID,
+				"tracked", t.Name, "priority-decrement", t.PriorityDecrement, "error", err)
+			down = append(down, t.Name)
+			continue
+		}
+		if !up {
+			down = append(down, t.Name)
+		}
+	}
+	return down
+}
+
+// trackDecrementLocked sums the decrements of the tracked interfaces that are
+// down. uint16 because 16 entries of 254 do not fit a uint8.
+//
+// A name in trackDown that the current spec no longer tracks contributes
+// nothing, which is what makes the value safe to read between a reconfigure and
+// the re-evaluation its rewatch triggers.
+func (in *instance) trackDecrementLocked() uint16 {
+	var decrement uint16
+	for _, t := range in.spec.TrackedInterfaces {
+		if slices.Contains(in.trackDown, t.Name) {
+			decrement += uint16(t.PriorityDecrement)
+		}
+	}
+	return decrement
 }
 
 // evaluateReadiness starts or stops the virtual router to match the parent's
@@ -452,7 +603,7 @@ func (in *instance) fsmConfig() fsm.Config {
 	return fsm.Config{
 		Version:          in.spec.Version,
 		IsOwner:          in.spec.IsOwner,
-		Priority:         in.spec.EffectivePriority(),
+		Priority:         in.spec.EffectivePriority(in.trackDecrementLocked()),
 		Preempt:          in.spec.Preempt,
 		PreemptDelayMs:   int(in.spec.PreemptDelaySeconds) * 1000,
 		AdvertIntervalMs: int(in.spec.AdvertIntervalMs),
@@ -479,11 +630,30 @@ func (in *instance) primaryIP() netip.Addr {
 // Applied synchronously under mu rather than queued as an event: the FSM must
 // see the new config and the instance's spec change together, or an advert sent
 // in between would carry a priority from one config and VIPs from the other.
+//
+// The tracked set is re-read here rather than left to the next link event,
+// because a commit that starts tracking an interface that is ALREADY down owes
+// its decrement now: the interface has no state change left to deliver.
 func (in *instance) reconfigure(spec GroupSpec) {
 	in.mu.Lock()
-	defer in.mu.Unlock()
+	before := watchDevices(in.spec)
 	in.spec = spec
+	after := watchDevices(spec)
+	in.trackDown = in.trackedDownLocked()
 	in.dispatchLocked(fsm.ConfigUpdated{Config: in.fsmConfig()})
+	in.mu.Unlock()
+
+	if slices.Equal(before, after) {
+		return
+	}
+	// The watch was subscribed to the OLD device set, so an interface this
+	// commit started tracking would never deliver a link event. A signal
+	// rather than a re-subscription here keeps the subscription owned by the one
+	// goroutine that reads from it (ai/rules/goroutine-lifecycle.md).
+	select {
+	case in.rewatch <- struct{}{}:
+	default: // a re-subscription is already pending; it re-derives the set itself
+	}
 }
 
 // onPacket decodes one raw datagram addressed to this instance's family and
@@ -572,6 +742,7 @@ func (in *instance) snapshot() instanceView {
 		ConfiguredIntervalMs: s.ConfiguredIntervalMs,
 		ActiveIntervalMs:     s.ActiveIntervalMs,
 		VIPs:                 addrStrings(in.spec.VIPs),
+		TrackedDown:          slices.Clone(in.trackDown),
 		LastAdvertSource:     addrString(s.LastAdvertSrc),
 		Since:                s.Since,
 	}

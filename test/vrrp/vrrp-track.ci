@@ -1,0 +1,85 @@
+# Test: priority-decrement tracking reaches the wire. An operator who writes
+# `track interface <name> priority-decrement <n>` gets an advertised priority
+# that falls by n while that interface is down, and rises again when it returns.
+#
+# VALIDATES:
+#   AC-6 -- a non-owner group at priority 200 tracking zetrk1 with a decrement
+#   of 150 advertises 50 once zetrk1 goes down. The proof is the PRIORITY BYTE
+#   of the advertisement, captured off the parent's veth peer: that byte is what
+#   a neighboring router elects on, so it is the only observation that shows
+#   the decrement reached the wire rather than only the configuration.
+#   ADVERT-PRIORITY 200 tracked-interface-up establishes the undecremented
+#   baseline first, so the 50 that follows is a CHANGE rather than a value that
+#   might always have been there.
+#
+#   AC-7 -- zetrk1 comes back up and the group advertises 200 again. A one-way
+#   decrement would leave a healthy router permanently unable to win an
+#   election, so the recovery leg is not optional.
+#
+#   RFC 9568 Section 5.2.4 -- "VRRP Routers backing up a Virtual Router MUST use
+#   priority values between 1-254 (decimal)." Both observed values sit in that
+#   range, and neither is 0 (which the same section reserves for the Active
+#   Router that stopped participating) nor 255 (the address owner's).
+#
+# PREVENTS: a decrement that reaches GroupSpec and never the advertisement,
+#   which is a failover an operator configured and Ze silently never performs;
+#   and a decrement that is never withdrawn, which is the same failure with the
+#   router stuck on the losing side of it.
+#
+# The tracked interface carries no address and no relationship to the group's
+# family: Ze reads its operational state ONLY. That is the point of tracking a
+# separate veth rather than the parent.
+#
+# option=needs-linux: the proof needs veth creation, macvlan creation, a raw
+# proto-112 socket and an AF_PACKET capture. None of them exists on darwin.
+# Runs as root in the QEMU Linux VM.
+# caps=net-admin because the setup fixture creates the two veth pairs, the
+# driver takes one down and up again, and the daemon programs netlink. Without
+# the declaration an unprivileged Linux host does not skip: the calls are
+# refused and the test fails for a capability the host never had
+# (internal/test/runner/record_parse.go, option=needs-linux).
+option=needs-linux:caps=net-admin
+# option=exclusive: reconcileOwnedDevices (iface/config_apply.go) deletes every
+# "ze:owned:" macvlan absent from ITS registry, so two ze daemons owning
+# macvlans in one network namespace remove each other's devices. The group is
+# named for the resource rather than for vrrp: any plugin registering an owned
+# macvlan contends for the same alias namespace.
+option=exclusive:group=iface-owned-macvlan
+
+
+stdin=ze-bgp:terminator=EOF_CONF
+interface {
+	backend netlink;
+	ethernet zeptrk0 {
+		unit 0 {
+			ipv4 {
+				address [ 203.0.113.251/24 ];
+				vrrp {
+					group uplink {
+						vrid 12;
+						virtual-address [ 203.0.113.1 ];
+						priority 200;
+						advertise-interval-milliseconds 1000;
+						track {
+							interface zetrk1 {
+								priority-decrement 150;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.vrrp:value=info
+
+cmd=foreground:seq=1:exec=ze-test fixture vrrp/vrrp-track-setup
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=3:exec=ze-test fixture vrrp/vrrp-track-driver:timeout=180s
+expect=exit:code=0
+expect=stdout:contains=ADVERT-PRIORITY 200 tracked-interface-up
+expect=stdout:contains=ADVERT-PRIORITY 50 tracked-interface-down
+expect=stdout:contains=ADVERT-PRIORITY 200 tracked-interface-restored
+expect=stderr:contains=vrrp: tracked interface state changed

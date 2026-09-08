@@ -53,6 +53,16 @@ const (
 	vrrpQS3NoSkewPath = 3.61
 )
 
+// The tracked-uplink scenario's arithmetic. ze runs at 200 and tracks a veth
+// worth 150, so its priority falls to 50 while that veth is down: below
+// keepalived's 100, which is what makes keepalived take the VIP. The gap is
+// wide on purpose, so the takeover cannot be read as a tie-break
+// (RFC 9568 Section 8.3.2).
+const (
+	vrrpTrackDecrement = 150
+	vrrpTrackLowered   = vrrpZePriority - vrrpTrackDecrement
+)
+
 const (
 	vrrpCaptureReadyTimeout = 20 * time.Second
 	vrrpZeStartTimeout      = 45 * time.Second
@@ -85,6 +95,11 @@ type vrrpNames struct {
 	zeVeth, zeBridge                 string
 	kaVeth, kaBridge                 string
 	obVeth, obBridge, bridge         string
+	// trackVeth and trackPeer are the veth pair inside the ze namespace that
+	// the tracked-uplink scenario watches. A veth pair rather than a dummy,
+	// because a dummy device reports oper-state UNKNOWN even when it is
+	// administratively up, and tracking reads oper-state.
+	trackVeth, trackPeer string
 }
 
 func newVRRPNames() vrrpNames {
@@ -102,13 +117,14 @@ func newVRRPNames() vrrpNames {
 		zeVeth:  name("zvz"), zeBridge: name("zvzb"),
 		kaVeth: name("zvk"), kaBridge: name("zvkb"),
 		obVeth: name("zvo"), obBridge: name("zvob"),
-		bridge: name("zvbr"),
+		bridge:    name("zvbr"),
+		trackVeth: name("zvt"), trackPeer: name("zvtp"),
 	}
 }
 
 func (n vrrpNames) namespaces() []string { return []string{n.zeNS, n.kaNS, n.obNS, n.lanNS, n.probeNS} }
 func (n vrrpNames) links() []string {
-	return []string{n.zeVeth, n.zeBridge, n.kaVeth, n.kaBridge, n.obVeth, n.obBridge}
+	return []string{n.zeVeth, n.zeBridge, n.kaVeth, n.kaBridge, n.obVeth, n.obBridge, n.trackVeth, n.trackPeer}
 }
 
 func vrrpSkew(priority int) float64       { return float64(256-priority) / 256 }
@@ -130,6 +146,39 @@ func vrrpZeConfig(names vrrpNames) []byte {
 		Str("                        preempt true;\n").
 		Str("                        accept-mode true;\n").
 		Str("                        advertise-interval-milliseconds ").Int(vrrpAdvertMS).Str(";\n").
+		Str("                    }\n").
+		Str("                }\n").
+		Str("            }\n").
+		Str("        }\n").
+		Str("    }\n").
+		Str("}\n").
+		Bytes()
+}
+
+// vrrpZeTrackConfig is vrrpZeConfig with a track container on the group. The
+// tracked interface carries no address and is not the VRRP parent: ze reads its
+// operational state only.
+func vrrpZeTrackConfig(names vrrpNames) []byte {
+	var tb textbuf.Buffer
+	return tb.Str("interface {\n").
+		Str("    backend netlink;\n").
+		Str("    ethernet ").Str(names.zeVeth).Str(" {\n").
+		Str("        unit 0 {\n").
+		Str("            ipv4 {\n").
+		Str("                address [ ").Str(vrrpZeAddress).Byte('/').Str(vrrpPrefixLength).Str(" ];\n").
+		Str("                vrrp {\n").
+		Str("                    group lab {\n").
+		Str("                        vrid ").Int(vrrpVRID).Str(";\n").
+		Str("                        virtual-address [ ").Str(vrrpVIP).Str(" ];\n").
+		Str("                        priority ").Int(vrrpZePriority).Str(";\n").
+		Str("                        preempt true;\n").
+		Str("                        accept-mode true;\n").
+		Str("                        advertise-interval-milliseconds ").Int(vrrpAdvertMS).Str(";\n").
+		Str("                        track {\n").
+		Str("                            interface ").Str(names.trackVeth).Str(" {\n").
+		Str("                                priority-decrement ").Int(vrrpTrackDecrement).Str(";\n").
+		Str("                            }\n").
+		Str("                        }\n").
 		Str("                    }\n").
 		Str("                }\n").
 		Str("            }\n").
@@ -449,6 +498,9 @@ func (l *vrrpLab) setup(ctx context.Context) error {
 	if err := l.addLeaf(ctx, l.names.obNS, l.names.obVeth, l.names.obBridge, vrrpOBAddress); err != nil {
 		return err
 	}
+	if err := l.addTrackedLink(ctx); err != nil {
+		return err
+	}
 	ping, err := guestRun(ctx, l.names.obNS, []string{pingCommand, "-c", "1", "-W", "3", vrrpKAAddress}, nil)
 	if err != nil {
 		return err
@@ -465,6 +517,38 @@ func (l *vrrpLab) setup(ctx context.Context) error {
 		return err
 	}
 	return os.Chmod(l.notify, 0o700) // #nosec G302 -- keepalived executes this notify script, and only the owner may access it
+}
+
+// addTrackedLink builds the veth pair the tracked-uplink scenario watches,
+// inside the ze namespace and off the LAN bridge. It exists for every scenario
+// so setup has one shape; only the tracking config names it.
+//
+// A veth pair rather than a dummy device: a dummy reports oper-state UNKNOWN
+// even when it is administratively up, and tracking reads oper-state, so a
+// dummy would count as down from the start and prove nothing.
+func (l *vrrpLab) addTrackedLink(ctx context.Context) error {
+	var tb textbuf.Buffer
+	for _, step := range [][]string{
+		{"ip", ipObjectLink, ipVerbAdd, l.names.trackVeth, ipKeywordType, "veth", "peer", "name", l.names.trackPeer},
+		{"ip", ipObjectLink, ipVerbSet, l.names.trackVeth, "up"},
+		{"ip", ipObjectLink, ipVerbSet, l.names.trackPeer, "up"},
+	} {
+		if err := guestRequired(ctx, l.names.zeNS, step,
+			tb.Str("prepare tracked link ").Str(l.names.trackVeth).String()); err != nil {
+			return err
+		}
+		tb.Reset()
+	}
+	return nil
+}
+
+// setTrackedLink brings the tracked veth up or down, which is the uplink
+// failure the scenario simulates.
+func (l *vrrpLab) setTrackedLink(ctx context.Context, up string) error {
+	var tb textbuf.Buffer
+	return guestRequired(ctx, l.names.zeNS,
+		[]string{"ip", ipObjectLink, ipVerbSet, l.names.trackVeth, up},
+		tb.Str(up).Byte(' ').Str(l.names.trackVeth).String())
 }
 
 func linkMAC(ctx context.Context, namespace, device string) (string, error) {
@@ -1028,6 +1112,97 @@ func (l *vrrpLab) runQS3(ctx context.Context) error {
 	return nil
 }
 
+// runTrackedUplink is the tracked-uplink-hands-the-vip-to-keepalived scenario.
+//
+// It proves what no ze-only test can: ANOTHER implementation acts on the
+// decremented priority. ze runs the group at 200 with a tracked veth worth 150
+// and holds the VIP; the veth goes down, ze advertises 50, and keepalived at
+// 100 promotes itself and takes the VIP. keepalived's own notify script is the
+// assertion, so the verdict comes from the peer daemon rather than from ze's
+// account of itself.
+//
+// The return leg matters as much: the veth comes back, ze advertises 200 again
+// and preempts. A decrement that is never withdrawn is the same defect as one
+// that never applies, with the router stuck on the losing side of it.
+func (l *vrrpLab) runTrackedUplink(ctx context.Context) error {
+	var tb textbuf.Buffer
+	if err := l.startCapture(ctx); err != nil {
+		return err
+	}
+	if _, err := l.startZe(ctx, vrrpZeTrackConfig(l.names)); err != nil {
+		return err
+	}
+	if err := l.waitZeState(ctx, "master"); err != nil {
+		return err
+	}
+	if err := l.startKeepalived(ctx, vrrpKeepalivedConfig(l.names, l.notify, l.marker, vrrpKAPriority)); err != nil {
+		return err
+	}
+	if err := l.waitKAState(ctx, "BACKUP"); err != nil {
+		return err
+	}
+	if err := l.assertZeAdvertPriority(ctx, vrrpZePriority); err != nil {
+		return fmt.Errorf("before the tracked link failed: %w", err)
+	}
+	l.details = append(l.details, tb.Str("  tracking: ze holds the VIP at prio ").
+		Int(vrrpZePriority).Str(" while ").Str(l.names.trackVeth).Str(" is up").String())
+	tb.Reset()
+
+	if err := l.setTrackedLink(ctx, "down"); err != nil {
+		return err
+	}
+	if err := l.assertZeAdvertPriority(ctx, vrrpTrackLowered); err != nil {
+		return fmt.Errorf("after the tracked link failed: %w", err)
+	}
+	if err := l.waitKAState(ctx, "MASTER"); err != nil {
+		return fmt.Errorf("ze advertised %d but keepalived did not take the VIP: %w", vrrpTrackLowered, err)
+	}
+	l.details = append(l.details, tb.Str("  tracking: ").Str(l.names.trackVeth).
+		Str(" down, ze advertised prio ").Int(vrrpTrackLowered).
+		Str(" and keepalived (prio ").Int(vrrpKAPriority).Str(") took the VIP").String())
+	tb.Reset()
+
+	if err := l.setTrackedLink(ctx, "up"); err != nil {
+		return err
+	}
+	if err := l.assertZeAdvertPriority(ctx, vrrpZePriority); err != nil {
+		return fmt.Errorf("after the tracked link returned: %w", err)
+	}
+	if err := l.waitKAState(ctx, "BACKUP"); err != nil {
+		return fmt.Errorf("ze advertised %d again but keepalived did not stand down: %w", vrrpZePriority, err)
+	}
+	l.details = append(l.details, tb.Str("  tracking: ").Str(l.names.trackVeth).
+		Str(" up, ze advertised prio ").Int(vrrpZePriority).
+		Str(" again and keepalived returned to BACKUP").String())
+	return nil
+}
+
+// assertZeAdvertPriority waits for a ze-sourced advertisement carrying want,
+// and names the last priority it did see when the wait runs out. That last
+// value is what turns "nothing matched" into a usable failure: a router still
+// advertising 200 is a decrement that never happened, and one advertising
+// nothing is a router that stopped.
+func (l *vrrpLab) assertZeAdvertPriority(ctx context.Context, want int) error {
+	seen := -1
+	err := waitGuest(ctx, vrrpWireEventTimeout, guestPollInterval, func() (bool, error) {
+		adverts := l.zeAdverts()
+		for index := range adverts {
+			if adverts[index].priority == want {
+				return true, nil
+			}
+			seen = adverts[index].priority
+		}
+		return false, nil
+	})
+	if err == nil {
+		return nil
+	}
+	if seen < 0 {
+		return fmt.Errorf("no ze-sourced advert reached the observer, so priority %d was never observed", want)
+	}
+	return fmt.Errorf("ze's advertised priority stayed at %d, want %d", seen, want)
+}
+
 func vrrpDiagnosticOutput(namespace string, argv []string) string {
 	result, _ := guestRun(context.Background(), namespace, argv, nil)
 	var tb textbuf.Buffer
@@ -1100,6 +1275,8 @@ func runVRRPGuest(ctx context.Context, root string, selected []string) (guestLab
 				scenarioErr = lab.runQS2(ctx)
 			case vrrpQS3:
 				scenarioErr = lab.runQS3(ctx)
+			case vrrpTrackedUplink:
+				scenarioErr = lab.runTrackedUplink(ctx)
 			}
 		}
 		if scenarioErr != nil {

@@ -88,16 +88,21 @@ type instanceView struct {
 	Version uint8  `json:"version"`
 	// Priority is the configured value; EffectivePriority is what the FSM runs
 	// with, which differs for an address owner (RFC 9568 forces 255).
-	Priority             uint8     `json:"priority"`
-	EffectivePriority    uint8     `json:"effective-priority"`
-	IsOwner              bool      `json:"is-owner"`
-	Preempt              bool      `json:"preempt"`
-	AcceptMode           bool      `json:"accept-mode"`
-	ConfiguredIntervalMs int       `json:"configured-interval-milliseconds"`
-	ActiveIntervalMs     int       `json:"active-interval-milliseconds"`
-	VIPs                 []string  `json:"virtual-addresses"`
-	LastAdvertSource     string    `json:"last-advertisement-source,omitempty"`
-	Since                time.Time `json:"since"`
+	Priority             uint8    `json:"priority"`
+	EffectivePriority    uint8    `json:"effective-priority"`
+	IsOwner              bool     `json:"is-owner"`
+	Preempt              bool     `json:"preempt"`
+	AcceptMode           bool     `json:"accept-mode"`
+	ConfiguredIntervalMs int      `json:"configured-interval-milliseconds"`
+	ActiveIntervalMs     int      `json:"active-interval-milliseconds"`
+	VIPs                 []string `json:"virtual-addresses"`
+	// TrackedDown names the tracked interfaces that are down now, so an
+	// operator who reads an effective-priority under the configured one sees
+	// which interface cost it. Omitted when nothing is down, which keeps the
+	// payload of a group that tracks nothing exactly as it was.
+	TrackedDown      []string  `json:"tracked-down,omitempty"`
+	LastAdvertSource string    `json:"last-advertisement-source,omitempty"`
+	Since            time.Time `json:"since"`
 }
 
 // statisticsView is one virtual router's counters. Timer-derived fields are

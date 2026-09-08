@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -782,8 +783,8 @@ func TestOwnerAutoDetection(t *testing.T) {
 	if len(specs) != 1 || !specs[0].IsOwner {
 		t.Fatalf("VIP equal to real unit address must mark owner: %+v", specs)
 	}
-	if specs[0].EffectivePriority() != 255 {
-		t.Errorf("owner effective priority must be 255, got %d", specs[0].EffectivePriority())
+	if specs[0].EffectivePriority(0) != 255 {
+		t.Errorf("owner effective priority must be 255, got %d", specs[0].EffectivePriority(0))
 	}
 	if !specs[0].EffectiveAcceptMode() {
 		t.Errorf("owner accept-mode must be forced true")
@@ -795,8 +796,8 @@ func TestOwnerAutoDetection(t *testing.T) {
 	if specs2[0].IsOwner {
 		t.Fatalf("non-matching VIP must not be owner: %+v", specs2)
 	}
-	if specs2[0].EffectivePriority() != 100 {
-		t.Errorf("non-owner effective priority must equal configured, got %d", specs2[0].EffectivePriority())
+	if specs2[0].EffectivePriority(0) != 100 {
+		t.Errorf("non-owner effective priority must equal configured, got %d", specs2[0].EffectivePriority(0))
 	}
 }
 
@@ -1551,4 +1552,194 @@ func mapValues(m map[string]string) []string {
 		out = append(out, v)
 	}
 	return out
+}
+
+// track builds the `track` container a group carries, from name -> decrement
+// pairs. The decrement arrives as a JSON number, which is the shape a
+// schema-validated tree delivers.
+func track(decrements map[string]uint8) map[string]any {
+	interfaces := make(map[string]any, len(decrements))
+	for name, decrement := range decrements {
+		interfaces[name] = map[string]any{"priority-decrement": float64(decrement)}
+	}
+	return map[string]any{"interface": interfaces}
+}
+
+// TestEffectivePriorityWithTracking covers the arithmetic every tracked
+// interface feeds: the summed decrement comes off the configured priority, the
+// result never falls below 1, and an address owner is untouched.
+//
+// VALIDATES: AC-6, AC-8, AC-9, and the boundary rows of the spec's test plan
+// (decrement 1, decrement 254, the sum at and past the configured priority).
+// PREVENTS: a floor at 0, which on the wire says the Active Router stopped
+// participating (RFC 9568 Section 5.2.4), and a decrement that reaches an owner.
+func TestEffectivePriorityWithTracking(t *testing.T) {
+	// RFC requirement: RFC9568-5.2.4-1 positive -- the address owner runs with priority 255 whatever the tracked interfaces say, because the owner branch of EffectivePriority (groups.go) returns before any subtraction
+	// RFC requirement: RFC9568-5.2.4-2 positive -- a backing-up router's advertised priority stays within 1-254: a decrement at or past the configured priority floors at 1, and it never reaches 0 or 255
+	cases := []struct {
+		name      string
+		priority  uint8
+		owner     bool
+		decrement uint16
+		want      uint8
+	}{
+		{name: "no tracked interface is down", priority: 200, decrement: 0, want: 200},
+		{name: "the smallest decrement", priority: 200, decrement: 1, want: 199},
+		{name: "one interface down", priority: 200, decrement: 150, want: 50},
+		{name: "two interfaces down sum", priority: 200, decrement: 80, want: 120},
+		{name: "the largest single decrement", priority: 255 - 1, decrement: 254, want: 1},
+		{name: "the decrement equals the priority", priority: 100, decrement: 100, want: 1},
+		{name: "the decrement passes the priority", priority: 100, decrement: 4064, want: 1},
+		{name: "the owner ignores every decrement", priority: 200, owner: true, decrement: 4064, want: ownerPriority},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			g := GroupSpec{Priority: tc.priority, IsOwner: tc.owner}
+			if got := g.EffectivePriority(tc.decrement); got != tc.want {
+				t.Errorf("EffectivePriority(%d) with priority %d = %d, want %d", tc.decrement, tc.priority, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestTrackedInterfacesExtracted proves the `track interface` list reaches the
+// spec with each entry's decrement, sorted by name so one configuration always
+// extracts to one spec, and that a group with no container carries no entry.
+//
+// VALIDATES: AC-6.
+// PREVENTS: a map-ordered list, which would make two extractions of one tree
+// disagree, and an absent container read as an error.
+func TestTrackedInterfacesExtracted(t *testing.T) {
+	tree := oneGroup(familyIPv4, "10", map[string]any{
+		"virtual-address": vips("192.0.2.1"),
+		"priority":        float64(200),
+		"track":           track(map[string]uint8{"wan1": 150, "eth1": 30, "peer0": 254}),
+	})
+	specs, err := extractGroupSpecs([]configSection{mkSection(t, tree)})
+	if err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	want := []TrackedInterface{
+		{Name: "eth1", PriorityDecrement: 30},
+		{Name: "peer0", PriorityDecrement: 254},
+		{Name: "wan1", PriorityDecrement: 150},
+	}
+	if got := specs[0].TrackedInterfaces; !slices.Equal(got, want) {
+		t.Errorf("tracked interfaces = %+v, want %+v (sorted by name)", got, want)
+	}
+
+	bare := oneGroup(familyIPv4, "10", map[string]any{"virtual-address": vips("192.0.2.1")})
+	specs, err = extractGroupSpecs([]configSection{mkSection(t, bare)})
+	if err != nil {
+		t.Fatalf("extract a group with no track container: %v", err)
+	}
+	if len(specs[0].TrackedInterfaces) != 0 {
+		t.Errorf("a group with no track container carries %d tracked interfaces, want 0", len(specs[0].TrackedInterfaces))
+	}
+}
+
+// TestTrackedInterfaceRejectsAnUnusableDecrement proves the boundary rows the
+// YANG range states are re-checked by the verifier, which is the producer a
+// tree that skipped schema validation reaches.
+//
+// VALIDATES: the `priority-decrement` boundary row (1..254, invalid at 0 and
+// 255) and the tracked-list maximum.
+// PREVENTS: a zero decrement, which configures tracking that can never change
+// the priority, and a list past the maximum the YANG states.
+func TestTrackedInterfaceRejectsAnUnusableDecrement(t *testing.T) {
+	for _, decrement := range []uint8{0, 255} {
+		tree := oneGroup(familyIPv4, "10", map[string]any{
+			"virtual-address": vips("192.0.2.1"),
+			"track":           track(map[string]uint8{"eth1": decrement}),
+		})
+		specs, err := extractGroupSpecs([]configSection{mkSection(t, tree)})
+		if err != nil {
+			continue // rejected at extraction, which is also a refusal
+		}
+		if err := validateGroups(specs, backendNetlink); err == nil {
+			t.Errorf("priority-decrement %d must be refused; configure 1..254", decrement)
+		}
+	}
+
+	many := make(map[string]uint8, maxTrackedInterfaces+1)
+	for i := range maxTrackedInterfaces + 1 {
+		many[fmt.Sprintf("eth%d", i)] = 1
+	}
+	tree := oneGroup(familyIPv4, "10", map[string]any{
+		"virtual-address": vips("192.0.2.1"),
+		"track":           track(many),
+	})
+	specs, err := extractGroupSpecs([]configSection{mkSection(t, tree)})
+	if err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	err = validateGroups(specs, backendNetlink)
+	if err == nil || !strings.Contains(err.Error(), strconv.Itoa(maxTrackedInterfaces)) {
+		t.Errorf("%d tracked interfaces must be refused naming the maximum %d, got %v", maxTrackedInterfaces+1, maxTrackedInterfaces, err)
+	}
+}
+
+// TestTrackedInterfaceRequiresADecrement proves a track entry with no
+// priority-decrement is refused rather than run as a decrement of 0.
+//
+// The leaf is `mandatory true` in the schema, so this only reaches an operator
+// through a producer that skipped schema validation. It is still a hard error:
+// a default here would pick the operator's failover policy.
+//
+// VALIDATES: AC-6.
+// PREVENTS: a silent decrement of 0, which is tracking that does nothing.
+func TestTrackedInterfaceRequiresADecrement(t *testing.T) {
+	tree := oneGroup(familyIPv4, "10", map[string]any{
+		"virtual-address": vips("192.0.2.1"),
+		"track":           map[string]any{"interface": map[string]any{"eth1": map[string]any{}}},
+	})
+	if _, err := extractGroupSpecs([]configSection{mkSection(t, tree)}); err == nil {
+		t.Fatal("a tracked interface with no priority-decrement must be rejected")
+	}
+}
+
+// TestTrackOnOwnerGroupIsRejected proves tracking is refused on the group that
+// owns its virtual address, and accepted on every other group.
+//
+// RFC 9568 Section 5.2.4: "The priority value for the VRRP Router that owns the
+// IPvX address associated with the Virtual Router MUST be 255 (decimal)." A
+// decrement can never take effect there, and Ze refuses a leaf it cannot honor
+// exactly rather than accepting it and ignoring it.
+//
+// VALIDATES: AC-10.
+// PREVENTS: a group that reports tracking in `show configuration` and never
+// lowers its priority, which reads to an operator as a broken failover.
+func TestTrackOnOwnerGroupIsRejected(t *testing.T) {
+	owner := oneGroup(familyIPv4, "10", map[string]any{
+		"virtual-address": vips("192.0.2.10"),
+		"track":           track(map[string]uint8{"eth1": 50}),
+	}, "192.0.2.10/24")
+	specs, err := extractGroupSpecs([]configSection{mkSection(t, owner)})
+	if err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	if !specs[0].IsOwner {
+		t.Fatal("the test tree must produce an address-owner group")
+	}
+	err = validateGroups(specs, backendNetlink)
+	if err == nil {
+		t.Fatal("track on the address-owner group must be refused")
+	}
+	for _, want := range []string{"g10", "track", "255"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal %q must name %q", err.Error(), want)
+		}
+	}
+
+	nonOwner := oneGroup(familyIPv4, "10", map[string]any{
+		"virtual-address": vips("192.0.2.99"),
+		"track":           track(map[string]uint8{"eth1": 50}),
+	}, "192.0.2.10/24")
+	specs, err = extractGroupSpecs([]configSection{mkSection(t, nonOwner)})
+	if err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	if err := validateGroups(specs, backendNetlink); err != nil {
+		t.Errorf("track on a non-owner group must be accepted, got %v", err)
+	}
 }

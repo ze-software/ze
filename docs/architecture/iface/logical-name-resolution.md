@@ -95,6 +95,18 @@ nothing re-runs the consumer until its own config changes. Take the error as
 <!-- source: internal/plugins/vrrp/engine.go -- apply, the binding step -->
 <!-- source: internal/plugins/vrrp/groups.go -- parentDevice, deviceResolver -->
 
+A tracked interface is the second name VRRP resolves, and it takes the OTHER
+route. `track interface <name>` names a device VRRP only READS, so it calls
+`Resolve` and `Subscribe` directly rather than `ResolveDevice`: nothing is built
+on the answer, and a name the interface tree does not carry must still resolve
+to the kernel device wearing it (`osDeviceFor`). A resolution failure here is
+NOT taken as "could not ask this pass": the tracked interface counts as DOWN and
+its decrement applies, because an uplink Ze cannot find is not carrying traffic.
+That reverses the rule above deliberately, and it can because nothing is torn
+down: the priority moves and moves back.
+
+<!-- source: internal/plugins/vrrp/register.go -- linkUp, watchLinks -->
+
 A consumer that must stay PURE is the exception, and it holds no resolver at
 all: VRRP's config verifier and its `ze doctor` check judge the CONFIGURATION,
 so asking the kernel there would make `ze config validate` refuse a

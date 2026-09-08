@@ -29,7 +29,7 @@ var vrrpDiagnosticCodes = []diagnostic.CodeMeta{
 	{
 		Code:        codeVRRPConfigInvalid,
 		Title:       "VRRP configuration is not usable",
-		Description: "A VRRP group fails a cross-leaf rule that per-leaf YANG constraints cannot express: an advertise interval the configured version cannot encode on the wire, accept-mode combined with version 2, an IPv6 group whose first virtual-address is not link-local, or one virtual address claimed by two groups on the same unit. The affected group does not run; correct the reported group.",
+		Description: "A VRRP group fails a cross-leaf rule that per-leaf YANG constraints cannot express: an advertise interval the configured version cannot encode on the wire, accept-mode combined with version 2, an IPv6 group whose first virtual-address is not link-local, one virtual address claimed by two groups on the same unit, or track configured on the group that owns its virtual address, whose priority is fixed at 255. The affected group does not run; correct the reported group.",
 		Examples:    []string{"ze doctor --json", "ze explain doctor-vrrp-config-invalid"},
 	},
 	{

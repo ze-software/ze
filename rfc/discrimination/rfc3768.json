@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc3768",
+  "records": [
+    {
+      "rid": "RFC3768-5.3.4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection",
+      "unit-sha": "a47e6e04094a5a9b",
+      "claim-sha": "b7bbc7778bc15990",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/groups.go::EffectivePriority",
+      "producer-sha": "6cbc3832c7c5ed6c",
+      "break": "body of EffectivePriority replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3768-5.3.4-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection",
+      "unit-sha": "a47e6e04094a5a9b",
+      "claim-sha": "034c63e1a2748791",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/groups.go::EffectivePriority",
+      "producer-sha": "6cbc3832c7c5ed6c",
+      "break": "body of EffectivePriority replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

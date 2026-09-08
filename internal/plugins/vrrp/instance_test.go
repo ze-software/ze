@@ -10,7 +10,9 @@
 package vrrp
 
 import (
+	"fmt"
 	"net/netip"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -770,5 +772,259 @@ func TestInstanceSnapshotReportsEffectivePriority(t *testing.T) {
 	}
 	if !v.IsOwner || v.State != "master" {
 		t.Errorf("snapshot wrong: %+v", v)
+	}
+}
+
+// links is a fake iface resolver for the tracked interfaces: it answers
+// linkUp for each device, and can answer a device with a resolver error, which
+// is how a name that resolves to no device arrives.
+type links struct {
+	mu    sync.Mutex
+	up    map[string]bool
+	fails map[string]bool
+}
+
+func newLinks(up ...string) *links {
+	l := &links{up: make(map[string]bool), fails: make(map[string]bool)}
+	for _, device := range up {
+		l.up[device] = true
+	}
+	return l
+}
+
+func (l *links) set(device string, up bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.up[device] = up
+}
+
+func (l *links) unresolvable(device string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.fails[device] = true
+}
+
+func (l *links) linkUp(device string) (bool, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.fails[device] {
+		return false, fmt.Errorf("resolve %s: no such network interface", device)
+	}
+	return l.up[device], nil
+}
+
+// trackingSpec is a non-owner group at priority 200 tracking two interfaces,
+// which is the shape AC-6 to AC-9 are written against.
+func trackingSpec() GroupSpec {
+	spec := testSpec()
+	spec.TrackedInterfaces = []TrackedInterface{
+		{Name: "eth1", PriorityDecrement: 50},
+		{Name: "wan0", PriorityDecrement: 30},
+	}
+	return spec
+}
+
+// newTrackingInstance builds a running Active instance over a fake link state.
+func newTrackingInstance(t *testing.T, spec GroupSpec, l *links) (*instance, *fakeDeps) {
+	t.Helper()
+	f := &fakeDeps{}
+	deps := f.deps()
+	deps.linkUp = l.linkUp
+	deps.parentReady = func(string, string) bool { return true }
+	clk := sim.NewFakeClock(time.Unix(0, 0).UTC())
+	in := newInstance(spec, transport.InstanceKey{Interface: spec.Interface, VRID: spec.VRID, Family: packet.V4}, "zv4-2-10", clk, deps)
+	in.startup()
+	promoteToActive(t, in, clk)
+	return in, f
+}
+
+// TestTrackedInterfaceDownDecrementsTheAdvertisedPriority proves a tracked
+// interface going down lowers the priority on the wire, that two interfaces
+// down cost the sum of their decrements, and that `show vrrp` names them.
+//
+// VALIDATES: AC-6, AC-8.
+// PREVENTS: a decrement that reaches the config spec and never the wire, which
+// is what makes a tracked failover silently not happen.
+func TestTrackedInterfaceDownDecrementsTheAdvertisedPriority(t *testing.T) {
+	l := newLinks("eth1", "wan0")
+	in, f := newTrackingInstance(t, trackingSpec(), l)
+
+	if got := f.snapshot().adverts; len(got) == 0 || got[len(got)-1].priority != 200 {
+		t.Fatalf("an Active router with every tracked interface up must advertise 200, got %+v", got)
+	}
+
+	l.set("eth1", false)
+	in.evaluateTracking()
+
+	if got := f.snapshot().adverts; got[len(got)-1].priority != 150 {
+		t.Errorf("advertised priority = %d after eth1 went down, want 150 (200 less its decrement of 50)", got[len(got)-1].priority)
+	}
+	if v := in.snapshot(); v.EffectivePriority != 150 || !slices.Equal(v.TrackedDown, []string{"eth1"}) {
+		t.Errorf("show vrrp reports effective-priority %d and tracked-down %v, want 150 and [eth1]", v.EffectivePriority, v.TrackedDown)
+	}
+
+	// AC-8: a second interface down costs the SUM of the two decrements.
+	l.set("wan0", false)
+	in.evaluateTracking()
+
+	if got := f.snapshot().adverts; got[len(got)-1].priority != 120 {
+		t.Errorf("advertised priority = %d with both tracked interfaces down, want 120 (200 less 50 and 30)", got[len(got)-1].priority)
+	}
+	if v := in.snapshot(); !slices.Equal(v.TrackedDown, []string{"eth1", "wan0"}) {
+		t.Errorf("tracked-down = %v, want [eth1 wan0]", v.TrackedDown)
+	}
+}
+
+// TestTrackedInterfaceUpRestoresThePriority proves the decrement is withdrawn
+// when the interface returns, so a recovered uplink takes its priority back.
+//
+// VALIDATES: AC-7.
+// PREVENTS: a one-way decrement, which would leave a healthy router permanently
+// unable to win an election.
+func TestTrackedInterfaceUpRestoresThePriority(t *testing.T) {
+	l := newLinks("eth1", "wan0")
+	in, f := newTrackingInstance(t, trackingSpec(), l)
+
+	l.set("eth1", false)
+	in.evaluateTracking()
+	l.set("eth1", true)
+	in.evaluateTracking()
+
+	if got := f.snapshot().adverts; got[len(got)-1].priority != 200 {
+		t.Errorf("advertised priority = %d after eth1 returned, want 200", got[len(got)-1].priority)
+	}
+	if v := in.snapshot(); len(v.TrackedDown) != 0 {
+		t.Errorf("tracked-down = %v after eth1 returned, want empty", v.TrackedDown)
+	}
+}
+
+// TestUnresolvableTrackedInterfaceCountsAsDown proves a tracked name the
+// resolver cannot answer applies its decrement.
+//
+// An uplink Ze cannot find is not carrying traffic, so reading the resolver's
+// failure as "up" would be a zero value that looks like an answer
+// (ai/rules/principles.md).
+//
+// VALIDATES: AC-11.
+// PREVENTS: a typo in a tracked name that silently disables the failover it was
+// configured to cause.
+func TestUnresolvableTrackedInterfaceCountsAsDown(t *testing.T) {
+	l := newLinks("eth1", "wan0")
+	in, f := newTrackingInstance(t, trackingSpec(), l)
+
+	l.unresolvable("wan0")
+	in.evaluateTracking()
+
+	if got := f.snapshot().adverts; got[len(got)-1].priority != 170 {
+		t.Errorf("advertised priority = %d with an unresolvable tracked name, want 170 (200 less its decrement of 30)", got[len(got)-1].priority)
+	}
+	if v := in.snapshot(); !slices.Equal(v.TrackedDown, []string{"wan0"}) {
+		t.Errorf("tracked-down = %v, want [wan0]: a name that resolves to no device counts as down", v.TrackedDown)
+	}
+}
+
+// TestTrackingDoesNotAdvertiseWhenNothingChanged proves a wake-up that leaves
+// every tracked interface in the state it was already in sends nothing.
+//
+// The iface monitor fires on every link change for every watched device, so an
+// unrelated device's churn reaches this instance. Dispatching ConfigUpdated on
+// each one would make an Active router advertise on every event on the segment.
+//
+// VALIDATES: AC-12, R-5.
+// PREVENTS: advertisement counters that climb with link churn.
+func TestTrackingDoesNotAdvertiseWhenNothingChanged(t *testing.T) {
+	l := newLinks("eth1", "wan0")
+	in, f := newTrackingInstance(t, trackingSpec(), l)
+
+	before := len(f.snapshot().adverts)
+	in.evaluateTracking()
+	in.evaluateTracking()
+	l.set("eth1", false)
+	in.evaluateTracking()
+	after := len(f.snapshot().adverts)
+	in.evaluateTracking()
+	in.evaluateTracking()
+
+	if after != before+1 {
+		t.Errorf("adverts = %d after one real change, want %d: a wake-up that changes nothing must not advertise", after, before+1)
+	}
+	if got := len(f.snapshot().adverts); got != after {
+		t.Errorf("adverts = %d after two more unchanged wake-ups, want %d", got, after)
+	}
+}
+
+// TestReconfigureWatchesANewlyTrackedInterface proves a commit that adds a
+// tracked interface re-subscribes the watch, and that a commit that changes no
+// device set does not.
+//
+// The subscription is made when the worker starts, so an interface tracked by a
+// later commit would never deliver a link event without this.
+//
+// VALIDATES: AC-13, R-6.
+// PREVENTS: tracking that works after a restart and not after a commit.
+func TestReconfigureWatchesANewlyTrackedInterface(t *testing.T) {
+	l := newLinks("eth0", "eth1", "wan0")
+	f := &fakeDeps{}
+	deps := f.deps()
+	deps.linkUp = l.linkUp
+	deps.parentReady = func(string, string) bool { return true }
+
+	var (
+		mu      sync.Mutex
+		watched [][]string
+	)
+	woken := make(chan struct{}, 1)
+	deps.watchLinks = func(devices []string) (<-chan struct{}, func()) {
+		mu.Lock()
+		watched = append(watched, devices)
+		mu.Unlock()
+		select {
+		case woken <- struct{}{}:
+		default:
+		}
+		return make(chan struct{}), func() {}
+	}
+	watchCount := func() int {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(watched)
+	}
+	lastWatch := func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return watched[len(watched)-1]
+	}
+
+	spec := testSpec()
+	clk := sim.NewFakeClock(time.Unix(0, 0).UTC())
+	in := newInstance(spec, transport.InstanceKey{Interface: "eth0", VRID: 10, Family: packet.V4}, "zv4-2-10", clk, deps)
+	go in.run()
+	defer in.shutdown()
+
+	<-woken
+	if got := lastWatch(); !slices.Equal(got, []string{"eth0"}) {
+		t.Fatalf("first watch covers %v, want [eth0]: the parent alone, with nothing tracked", got)
+	}
+
+	tracked := spec
+	tracked.TrackedInterfaces = []TrackedInterface{{Name: "wan0", PriorityDecrement: 50}}
+	in.reconfigure(tracked)
+
+	<-woken
+	if got := lastWatch(); !slices.Equal(got, []string{"eth0", "wan0"}) {
+		t.Errorf("watch after the commit covers %v, want [eth0 wan0]", got)
+	}
+	count := watchCount()
+
+	// A commit that changes no device set must not re-subscribe.
+	tracked.Priority = 150
+	in.reconfigure(tracked)
+	select {
+	case <-woken:
+		t.Errorf("a commit that changed no tracked device re-subscribed the watch: %v", lastWatch())
+	case <-time.After(100 * time.Millisecond):
+	}
+	if got := watchCount(); got != count {
+		t.Errorf("watch calls = %d, want %d: only a changed device set re-subscribes", got, count)
 	}
 }

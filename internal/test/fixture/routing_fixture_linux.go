@@ -23,6 +23,8 @@ func init() {
 	Register("vrrp/vrrp-macvlan-parent-selector-driver", vrrpSelectorDriver)
 	Register("vrrp/vrrp-accept-mode-setup", vrrpAcceptModeSetup)
 	Register("vrrp/vrrp-accept-mode-driver", vrrpAcceptModeDriver)
+	Register("vrrp/vrrp-track-setup", vrrpTrackSetup)
+	Register("vrrp/vrrp-track-driver", vrrpTrackDriver)
 }
 
 func addRoutingLink(link netlink.Link) error {

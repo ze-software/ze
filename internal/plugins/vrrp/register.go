@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -41,12 +42,24 @@ import (
 // form ("vrrp" has no sub-part, so the two coincide here).
 const pluginName = "vrrp"
 
+// trackInterfaceValidator is the ze:validate name the `track interface name`
+// leaf carries in ze-vrrp-conf.yang. It names a COMPLETION, not a rule.
+const trackInterfaceValidator = "vrrp-track-interface"
+
 func init() { registerVRRP() }
 
 func registerVRRP() {
 	_ = events.RegisterNamespace(Namespace, EventStateChange)
 	registerVRRPDiagnosticCodes()
 	registerVRRPDoctor()
+	// A SUGGESTION, so it refuses nothing: RegisterSuggestion declares a
+	// validator with a nil ValidateFn (ai/patterns/config-option.md step 5b),
+	// and every name zt:node-name admits stays valid. That is the point. A
+	// tracked interface need not appear anywhere in the interface tree, because
+	// the resolver falls back to the kernel device of that name (osDeviceFor,
+	// internal/component/iface/resolve.go), and a device that has not
+	// enumerated yet must still be configurable.
+	configyang.RegisterSuggestion(trackInterfaceValidator, trackableDevices, nil)
 
 	reg := registry.Registration{
 		Name:        pluginName,
@@ -439,7 +452,8 @@ func liveDeps() engineDeps {
 		recordRxError:     sharedTransport.RecordRxError,
 		emitState:         emitStateChange,
 		parentReady:       parentReady,
-		watchParent:       watchParent,
+		linkUp:            linkUp,
+		watchLinks:        watchLinks,
 		refreshAddresses:  sharedTransport.RefreshParentAddresses,
 	}
 }
@@ -486,36 +500,109 @@ func parentReady(device, family string) bool {
 	return false
 }
 
-// watchParent turns the iface resolver's link events into the coarse
-// "something changed" notifications the instance re-evaluates readiness on.
+// trackableDevices offers the kernel devices present on this host for the
+// `track interface` name.
 //
-// The channel is buffered and lossy on purpose: readiness is recomputed from
-// current state on every wake-up, so a coalesced burst of events reaches the
-// same answer as replaying each one.
-func watchParent(device string) (<-chan struct{}, func()) {
-	events, cancel := iface.Subscribe(device)
+// The kernel is the right source rather than the interface tree: linkUp
+// resolves a tracked name against the kernel in the end (osDeviceFor,
+// internal/component/iface/resolve.go), so these are the names that will
+// answer. It is a suggestion and refuses nothing, so a device that has not
+// enumerated yet is missing from the dropdown and still valid to type.
+//
+// An enumeration failure offers nothing rather than guessing: an empty
+// completion list is a dropdown with no entries, which is what the operator
+// should see when Ze cannot read the kernel's device table.
+func trackableDevices() []string {
+	devices, err := net.Interfaces()
+	if err != nil {
+		logger().Warn("vrrp: cannot list the host's interfaces for track completion", "error", err)
+		return nil
+	}
+	names := make([]string, 0, len(devices))
+	for _, d := range devices {
+		names = append(names, d.Name)
+	}
+	return names
+}
+
+// linkUp reports whether a tracked device is operationally up.
+//
+// It reads the resolver `show interface` reads, so a tracked name is whatever
+// that resolver answers: a logical interface name when the interface tree
+// carries one, and the kernel device name otherwise (osDeviceFor,
+// internal/component/iface/resolve.go).
+//
+// The error is returned rather than folded into false. A device that is down
+// and a name that answers no device are different facts, and the caller owes
+// the operator the second one in the log (trackedDownLocked, instance.go).
+func linkUp(device string) (bool, error) {
+	b, err := iface.Resolve(device)
+	if err != nil {
+		return false, err
+	}
+	return strings.EqualFold(b.State, ifaceStateUp), nil
+}
+
+// watchLinks turns the iface resolver's link events for a SET of devices into
+// the coarse "something changed" notifications the instance re-evaluates
+// readiness and tracking on.
+//
+// One merged watch rather than one per device: the parent and the tracked
+// interfaces are watched for the same reason, a tracked interface CAN be the
+// parent, and the instance re-decides from current state on every wake-up. So
+// its reader needs one select arm and cannot care which device moved.
+//
+// The channel is buffered and lossy on purpose: a coalesced burst of events
+// reaches the same answer as replaying each one would.
+//
+// The caller MUST call the returned cancel when it stops reading, which is when
+// its device set changes or its worker exits. Cancel stops every subscription
+// and waits for the fan-in goroutines to exit, so none outlives the watch it
+// belongs to (ai/rules/goroutine-lifecycle.md). The returned channel is
+// deliberately NOT closed: a closed channel is permanently ready, so a reader
+// still selecting on a superseded watch would spin on it.
+func watchLinks(devices []string) (<-chan struct{}, func()) {
 	out := make(chan struct{}, 1)
 	done := make(chan struct{})
-	go func() {
-		defer close(out)
-		for {
-			select {
-			case _, ok := <-events:
-				if !ok {
-					return
-				}
-				select {
-				case out <- struct{}{}:
-				default: // a wake-up is already pending; one is enough
-				}
-			case <-done:
-				return
-			}
-		}
-	}()
+	cancels := make([]func(), 0, len(devices))
+	var wg sync.WaitGroup
+
+	for _, device := range devices {
+		events, cancel := iface.Subscribe(device)
+		cancels = append(cancels, cancel)
+		wg.Add(1)
+		go forwardLinkEvents(events, out, done, &wg)
+	}
+
 	return out, func() {
 		close(done)
-		cancel()
+		for _, cancel := range cancels {
+			cancel()
+		}
+		wg.Wait()
+	}
+}
+
+// forwardLinkEvents is one watched device's fan-in: every link event on it
+// becomes one pending wake-up on the shared channel. One goroutine per watched
+// device for the lifetime of the watch, never one per event
+// (ai/rules/goroutine-lifecycle.md). It returns when its subscription closes or
+// when watchLinks' cancel closes done.
+func forwardLinkEvents(events <-chan iface.LinkEvent, out chan<- struct{}, done <-chan struct{}, wg *sync.WaitGroup) {
+	defer wg.Done()
+	for {
+		select {
+		case _, ok := <-events:
+			if !ok {
+				return
+			}
+			select {
+			case out <- struct{}{}:
+			default: // a wake-up is already pending; one is enough
+			}
+		case <-done:
+			return
+		}
 	}
 }
 

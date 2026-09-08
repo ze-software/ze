@@ -1,0 +1,49 @@
+{
+  "rfc": "rfc9568",
+  "records": [
+    {
+      "rid": "RFC9568-5.2.4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/groups_test.go::TestEffectivePriorityWithTracking",
+      "unit-sha": "54c31fff0fef51dd",
+      "claim-sha": "b86fa3f806613b0c",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/groups.go::EffectivePriority",
+      "producer-sha": "6cbc3832c7c5ed6c",
+      "break": "body of EffectivePriority replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-5.2.4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection",
+      "unit-sha": "a47e6e04094a5a9b",
+      "claim-sha": "c4c84385e2ebe89d",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/groups.go::EffectivePriority",
+      "producer-sha": "6cbc3832c7c5ed6c",
+      "break": "body of EffectivePriority replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-5.2.4-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection",
+      "unit-sha": "a47e6e04094a5a9b",
+      "claim-sha": "0285c81dba9d5c4a",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/groups.go::EffectivePriority",
+      "producer-sha": "6cbc3832c7c5ed6c",
+      "break": "body of EffectivePriority replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-5.2.4-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/groups_test.go::TestEffectivePriorityWithTracking",
+      "unit-sha": "54c31fff0fef51dd",
+      "claim-sha": "cee17484a028cf39",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/groups.go::EffectivePriority",
+      "producer-sha": "6cbc3832c7c5ed6c",
+      "break": "body of EffectivePriority replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

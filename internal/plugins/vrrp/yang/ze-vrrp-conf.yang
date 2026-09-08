@@ -158,6 +158,51 @@ module ze-vrrp-conf {
                              address gets no reply. The address owner accepts
                              whatever this leaf says.";
                 }
+
+                container track {
+                    description "Interfaces whose loss lowers the priority this group advertises.";
+                    ze:help "Ze sums the priority-decrement of every tracked
+                             interface that is down, and subtracts the sum from
+                             the configured priority. The result never falls
+                             below 1 (RFC 9568 Section 5.2.4), and Ze advertises
+                             the new priority at once. Tracking is refused on the
+                             group that owns its virtual address, because that
+                             group advertises 255 whatever a decrement says.";
+
+                    list interface {
+                        key "name";
+                        max-elements 16;
+                        description "One tracked interface and the priority its loss costs.";
+                        ze:help "Ze reads the interface's operational state only,
+                                 so this interface does not need an address of
+                                 the group's family. Two interfaces that are down
+                                 cost the sum of their decrements.";
+
+                        leaf name {
+                            type zt:node-name;
+                            ze:validate "vrrp-track-interface";
+                            description "Interface to watch, by interface-tree name or kernel device name.";
+                            ze:help "Ze resolves the name through the resolver
+                                     show interface uses, so a kernel device the
+                                     interface tree does not carry still
+                                     resolves. A name that resolves to no device
+                                     counts as DOWN, and Ze logs the resolver
+                                     error at warn.";
+                        }
+
+                        leaf priority-decrement {
+                            type uint8 {
+                                range "1..254";
+                            }
+                            mandatory true;
+                            description "Priority subtracted from this group while this interface is down.";
+                            ze:help "There is no default, because a default
+                                     picks the operator's failover policy. RFC
+                                     9568 Section 8.3.2 says how far apart two
+                                     routers' priorities belong.";
+                        }
+                    }
+                }
             }
         }
     }
@@ -280,6 +325,51 @@ module ze-vrrp-conf {
                              of every other packet to a virtual address, and leaves
                              forwarding for the virtual MAC untouched. The address
                              owner accepts whatever this leaf says.";
+                }
+
+                container track {
+                    description "Interfaces whose loss lowers the priority this group advertises.";
+                    ze:help "Ze sums the priority-decrement of every tracked
+                             interface that is down, and subtracts the sum from
+                             the configured priority. The result never falls
+                             below 1 (RFC 9568 Section 5.2.4), and Ze advertises
+                             the new priority at once. Tracking is refused on the
+                             group that owns its virtual address, because that
+                             group advertises 255 whatever a decrement says.";
+
+                    list interface {
+                        key "name";
+                        max-elements 16;
+                        description "One tracked interface and the priority its loss costs.";
+                        ze:help "Ze reads the interface's operational state only,
+                                 so this interface does not need an address of
+                                 the group's family. Two interfaces that are down
+                                 cost the sum of their decrements.";
+
+                        leaf name {
+                            type zt:node-name;
+                            ze:validate "vrrp-track-interface";
+                            description "Interface to watch, by interface-tree name or kernel device name.";
+                            ze:help "Ze resolves the name through the resolver
+                                     show interface uses, so a kernel device the
+                                     interface tree does not carry still
+                                     resolves. A name that resolves to no device
+                                     counts as DOWN, and Ze logs the resolver
+                                     error at warn.";
+                        }
+
+                        leaf priority-decrement {
+                            type uint8 {
+                                range "1..254";
+                            }
+                            mandatory true;
+                            description "Priority subtracted from this group while this interface is down.";
+                            ze:help "There is no default, because a default
+                                     picks the operator's failover policy. RFC
+                                     9568 Section 8.3.2 says how far apart two
+                                     routers' priorities belong.";
+                        }
+                    }
                 }
             }
         }
