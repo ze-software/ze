@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 1/6 |
+| Phase | 6/6 |
 | Handoff | - |
 | Updated | 2026-09-08 |
 
@@ -299,11 +299,11 @@ distinction untestable.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Four of the five mirrored values have a consumer that acts on them, as Graceful Restart does | only Graceful Restart is producer-verified; the other four are read from the capability list by inspection | some of the five are inert, and reconciling them changes nothing an operator or a test can observe | read the consumer of each received capability and name what it decides | **broken, and refined**: three act (64, 71, 76) and one is display-only and offline (75, reached from `capabilityToZeJSON` for `ze bgp decode`, absent from `capability.Parse`). The Hold Time acts, in `session_negotiate` |
-| A-2 | Giving code 64 a non-empty family list makes `decodeGR` yield families and `onSessionDown` pass its empty-`staleFamilies` guard, so `retain-routes` and `mark-stale` are dispatched for the first time | the guard's own text in `gr_state.go`, and the measurement showing the path dead with an empty list | the GR receiving path stays unreachable and the five `llgr-*.ci` stay vacuous after the change, which is this spec failing at its purpose | run `test/plugin/gr-mark-stale.ci` after the change with the GR plugin's dispatch broken, and require RED | unvalidated |
-| A-3 | A fixed harness default hold time, chosen above the value ze advertises in every existing `.ci`, leaves the negotiated hold time exactly what it is today | RFC 4271 Section 4.2 takes the minimum, so a larger harness value is never selected | ze's KEEPALIVE cadence changes across the suite and timing-sensitive tests flake | run the full `.ci` suite and compare verdicts | unvalidated |
-| A-4 | No `.ci` asserts ze's software version inside ze-peer's OPEN | measured: no test covers code 75 at all | a `.ci` breaks when ze-peer stops reporting ze's build as its own | the same suite run | unvalidated |
-| A-5 | `enforcePathsLimit` is observable from a `.ci`: a ze-peer declaring a limit of 1 for a family receives one path where ze holds several | `CommitService.enforcePathsLimit` drops past the peer's limit, and `pathsLimitSend` is the remote's | AC-5 has no functional test, and PATHS-LIMIT ownership is provable only by unit test | write the `.ci` and require it RED with the limit mirrored | unvalidated |
-| A-6 | The added capability octets keep every OPEN under the one-octet parameter length, or `encodeOpen`'s RFC 9072 framing absorbs the rest | `encodeOpen` already switches to extended framing above 255 octets and refuses above 65535 | an OPEN silently changes framing in a test that asserts OPEN hex | the suite run, plus the existing `encodeOpen` bound test | unvalidated |
+| A-2 | Giving code 64 a non-empty family list makes `decodeGR` yield families and `onSessionDown` pass its empty-`staleFamilies` guard, so `retain-routes` and `mark-stale` are dispatched for the first time | the guard's own text in `gr_state.go`, and the measurement showing the path dead with an empty list | the GR receiving path stays unreachable and the five `llgr-*.ci` stay vacuous after the change, which is this spec failing at its purpose | run `test/plugin/gr-mark-stale.ci` after the change with the GR plugin's dispatch broken, and require RED | **confirmed.** With `handleStructuredState` returning immediately, the three new files go RED and `gr-mark-stale`, `llgr-transition` and `llgr-rib-stale` stay GREEN. The RED names the guard. The break had to be put in `handleStructuredState`: the same break in `handleStateEvent`, the JSON path, changed no verdict at all |
+| A-3 | A fixed harness default hold time, chosen above the value ze advertises in every existing `.ci`, leaves the negotiated hold time exactly what it is today | RFC 4271 Section 4.2 takes the minimum, so a larger harness value is never selected | ze's KEEPALIVE cadence changes across the suite and timing-sensitive tests flake | run the full `.ci` suite and compare verdicts | **confirmed.** The default is 65535, the largest the field states, so the minimum is ze's own in every file. `plugin` was run twice, once with the resolution and once with the mirror restored: 14 failures common to both runs, 2 unique to one and 12 to the other, and every one of the 14 re-ran green in isolation. `encode` 61/61, `decode` 39/39, `runner` 10/10 |
+| A-4 | No `.ci` asserts ze's software version inside ze-peer's OPEN | measured: no test covers code 75 at all | a `.ci` breaks when ze-peer stops reporting ze's build as its own | the same suite run | **confirmed.** No verdict moved in any suite |
+| A-5 | `enforcePathsLimit` is observable from a `.ci`: a ze-peer declaring a limit of 1 for a family receives one path where ze holds several | `CommitService.enforcePathsLimit` drops past the peer's limit, and `pathsLimitSend` is the remote's | AC-5 has no functional test, and PATHS-LIMIT ownership is provable only by unit test | write the `.ci` and require it RED with the limit mirrored | **broken.** `enforcePathsLimit`'s drop cannot fire from any producer. `CommitService.Commit` has one caller, `commitToPeer`, reached only from `handleNamedCommitEnd` over `tx.Routes()`, and a `Transaction` keys its announcements by `nlriIndex`, which is AFI, SAFI and `NLRI.WriteTo` with no Path Identifier, so a second path for a prefix replaces the first before the commit ends. `update text` is not a second producer: it reaches `AnnounceNLRIBatch`. Recorded in `plan/journal/unwired-feature.md`. PATHS-LIMIT ownership is proven by unit test and on the wire (`4C05 0001010001` against ze's `4C05 0001010 00A`) |
+| A-6 | The added capability octets keep every OPEN under the one-octet parameter length, or `encodeOpen`'s RFC 9072 framing absorbs the rest | `encodeOpen` already switches to extended framing above 255 octets and refuses above 65535 | an OPEN silently changes framing in a test that asserts OPEN hex | the suite run, plus the existing `encodeOpen` bound test | **confirmed.** The largest OPEN observed on the wire in these runs is 0x0038, 56 octets, and no framing changed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -355,18 +355,28 @@ distinction untestable.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestPeerOpenGracefulRestartIsTheHarnessOwn` | `internal/test/peer/open_test.go` | AC-1 | |
-| `TestPeerOpenGracefulRestartCarriesDeclaredFamilies` | `internal/test/peer/open_test.go` | AC-2 | |
-| `TestPeerOpenLLGRIsTheHarnessOwn` | `internal/test/peer/open_test.go` | AC-3 | |
-| `TestPeerOpenSoftwareVersionIsTheHarnessOwn` | `internal/test/peer/open_test.go` | AC-4 | |
-| `TestPeerOpenPathsLimitIsTheHarnessOwn` | `internal/test/peer/open_test.go` | AC-5 | |
-| `TestPeerOpenHoldTimeIsDeclared` | `internal/test/peer/open_test.go` | AC-6 | |
-| `TestPeerOpenDefaultsInheritNoOctetFromZe` | `internal/test/peer/open_test.go` | AC-7 | |
-| `TestPeerOpenStatedCapabilityBeatsOwnedValue` | `internal/test/peer/open_test.go` | AC-8 | |
-| `TestPeerOptionGracefulRestartParses` | `internal/test/peer/expect_test.go` | the option grammar for 64 | |
-| `TestPeerOptionLLGRParses` | `internal/test/peer/expect_test.go` | the option grammar for 71 | |
-| `TestPeerOptionPathsLimitParses` | `internal/test/peer/expect_test.go` | the option grammar for 76 | |
-| `TestPeerOptionHoldTimeParses` | `internal/test/peer/expect_test.go` | the option grammar for the Hold Time | |
+| `TestPeerOpenGracefulRestartIsTheHarnessOwn` | `internal/test/peer/open_test.go` | AC-1 | green |
+| `TestPeerOpenGracefulRestartCarriesDeclaredFamilies` | `internal/test/peer/open_test.go` | AC-2 | green |
+| `TestPeerOpenLLGRIsTheHarnessOwn` | `internal/test/peer/open_test.go` | AC-3 | green |
+| `TestPeerOpenSoftwareVersionIsTheHarnessOwn` | `internal/test/peer/open_test.go` | AC-4 | green |
+| `TestPeerOpenPathsLimitIsTheHarnessOwn` | `internal/test/peer/open_test.go` | AC-5 | green |
+| `TestPeerOpenHoldTimeIsDeclared` | `internal/test/peer/open_test.go` | AC-6 | green |
+| `TestPeerOpenDefaultsInheritNoOctetFromZe` | `internal/test/peer/open_test.go` | AC-7 | green |
+| `TestPeerOpenStatedCapabilityBeatsOwnedValue` | `internal/test/peer/open_test.go` | AC-8 | green |
+| `TestPeerOptionGracefulRestartParses` | `internal/test/peer/expect_test.go` | the option grammar for 64 | green |
+| `TestPeerOptionLLGRParses` | `internal/test/peer/expect_test.go` | the option grammar for 71 | green |
+| `TestPeerOptionPathsLimitParses` | `internal/test/peer/expect_test.go` | the option grammar for 76 | green |
+| `TestPeerOptionHoldTimeParses` | `internal/test/peer/expect_test.go` | the option grammar for the Hold Time | green |
+
+**RED observed, 2026-09-08.** With the four owned cases removed from
+`ownedCapabilities` and `encodeOpen` restored to copying ze's Hold Time octets,
+`go test -run TestPeerOpen ./internal/test/peer/` fails these ten, each on the
+fact it owns: `GracefulRestartIsTheHarnessOwn`, `GracefulRestartCarriesDeclaredFamilies`,
+`GracefulRestartDefaultsToItsOwnFamilies`, `GracefulRestartForwardStateIsDeclarable`,
+`LLGRIsTheHarnessOwn`, `SoftwareVersionIsTheHarnessOwn`, `PathsLimitIsTheHarnessOwn`,
+`HoldTimeIsDeclared`, `DefaultsInheritNoOctetFromZe`, `RefusesADeclarationZeCannotCarry`.
+`StatedCapabilityBeatsOwnedValue` stays green under the revert, which is correct:
+a stated capability wins whether or not the builder resolves that code.
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -379,12 +389,12 @@ distinction untestable.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `gr-peer-restart-time-drives-timer` | `test/plugin/gr-peer-restart-time-drives-timer.ci` | A peer declaring a restart time ze does not share restarts, and ze times the wait by the PEER's value | |
-| `gr-peer-families-drive-mark-stale` | `test/plugin/gr-peer-families-drive-mark-stale.ci` | A peer declaring GR families goes down, and ze marks those families stale rather than doing nothing | |
-| `llgr-peer-stale-time-drives-timer` | `test/plugin/llgr-peer-stale-time-drives-timer.ci` | A peer declaring an LLGR stale time ze does not share goes down, and ze holds its routes for the PEER's stale time | |
-| `open-hold-time-peer-lower-wins` | `test/plugin/open-hold-time-peer-lower-wins.ci` | A peer offering a hold time below ze's negotiates the peer's value, which is RFC 4271 Section 4.2's minimum | |
-| `paths-limit-peer-declared` | `test/plugin/paths-limit-peer-declared.ci` | A peer declaring it accepts one path per prefix receives one path, not every path ze holds | |
-| the 32 `.ci` carrying a mirrored code 64 | `test/plugin/`, `test/bgp/` | unchanged verdicts under the new defaults (AC-7) | |
+| `gr-peer-restart-time-drives-timer` | `test/plugin/gr-peer-restart-time-drives-timer.ci` | A peer declaring a restart time ze does not share restarts, and ze times the wait by the PEER's value | green; RED with the `bgp-gr` state dispatch broken |
+| `gr-peer-families-drive-mark-stale` | `test/plugin/gr-peer-families-drive-mark-stale.ci` | A peer declaring GR families goes down, and ze dispatches over those families rather than doing nothing | green; RED with the dispatch broken. Its restart time equals ze's, so only the family tuple can produce the row |
+| `llgr-peer-stale-time-drives-timer` | `test/plugin/llgr-peer-stale-time-drives-timer.ci` | A peer declaring a graceful-restart and an LLGR time ze does not share goes down, and ze enters LLGR on the peer's numbers | green; RED with the dispatch broken |
+| `open-hold-time-peer-lower-wins` | `test/plugin/open-hold-time-peer-lower-wins.ci` | A peer offering a hold time below ze's negotiates the peer's value, which is RFC 4271 Section 4.2's minimum | green; RED before the `zeTestMergePeerFileConfig` fix, where the declared hold time never reached the peer process and the run timed out waiting for a NOTIFICATION 180 seconds away |
+| `paths-limit-peer-declared` | not written | A peer declaring it accepts one path per prefix receives one path, not every path ze holds | **not reachable**: `enforcePathsLimit`'s drop has no producer that can offer it two paths for one prefix (A-5). The harness half of AC-5 is proven by unit test and on the wire |
+| the 32 `.ci` carrying a mirrored code 64 | `test/plugin/`, `test/bgp/` | unchanged verdicts under the new defaults (AC-7) | green: `plugin` compared against a mirror-restored baseline run, `encode` 61/61, `decode` 39/39, `runner` 10/10 |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -437,13 +447,13 @@ distinction untestable.
 | 7 | Wire format changed? | No | Ze's encoding is unchanged. Only what the TEST peer writes changes |
 | 8 | Plugin SDK/protocol changed? | No | No SDK or process-protocol change |
 | 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc4724.md` and `rfc/short/rfc9494.md` gain no new claim, but the code-64 and code-71 receiving behavior becomes PROVEN for the first time. Any `Support` row change is decided when the tests are green, never before. **Another session holds `rfc/`: coordinate before editing, or leave the row to a follow-up commit that says so** |
-| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` - the four new `option=open:` values |
+| 10 | Test infrastructure changed? | Yes, and the page is deliberately UNCHANGED | `docs/functional-tests.md` states in its own words that it does not list the directives a peer block may carry, that `ClaimLine` is the definition and `ci-format.md` the documentation, and that the list it used to keep drifted and omitted six options. Adding four rows there would rebuild the list that page removed. The four values are documented in `ci-format.md`, "Sender Facts" |
 | 11 | Affects daemon comparison? | No | No feature difference against another daemon |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/testing/ci-format.md`, "Capability Control" and the Options table |
 | 13 | Route metadata keys added/changed? | No | No metadata key changes |
 | 14 | Prometheus counters added/changed? | No | No counter is defined or renamed |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | No registration changes |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED, not answered from memory: run `./le spec citation anchors spec plan/pre-release/spec-test-peer-open-mirrors-five-more-sender-facts.md` at implementation. Known today: `ci-format.md` carries a source anchor naming `internal/test/peer/open.go` and `buildOpen`, which this spec changes |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes, and they resolve | `./le docs-to-code index-check` names seven unresolved anchors and none is in a file this spec touched. The `ci-format.md` anchor on `internal/test/peer/open.go -- buildOpen` still resolves, and the new section carries anchors on `expect.go` and `open_capability.go` |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `ci-format.md`'s capability examples use codes 65 and 9. Verify each against the reconciliation rules once the new codes are owned |
 
 ### Discovery (`ai/rules/repo-maintenance.md` Mechanical Checklist)
@@ -550,6 +560,29 @@ distinction untestable.
 | No option for software version (75): a fixed harness string | a fifth typed option | 75 has no session consumer at all, since `capability.Parse` has no code 75 arm. Nothing a test can assert varies with the value, so an option would be machinery with no user, which `ai/rules/simplicity.md` cuts |
 | A fixed harness default hold time, chosen ABOVE what ze advertises | keep mirroring when the `.ci` says nothing | Mirroring on the default is the defect, in the case that covers most files. A fixed larger default owns the octets and still leaves RFC 4271's minimum at ze's value, so no existing test changes cadence |
 | Leave ze's empty code-64 family list alone | fix `parseGRCapValue` here so the mirror carries families | That is a change to the SHIPPED daemon's advertised capability, with an operator-visible blast radius, and it would still leave ze-peer asserting ze's values. Two different problems, and folding one into the other costs this spec its single focus (`ai/rules/rule-precedence.md`) |
+
+## Implementation Outcome (2026-09-08)
+
+| AC | Verdict | Evidence |
+|----|---------|----------|
+| AC-1 | met | `TestPeerOpenGracefulRestartIsTheHarnessOwn`, and `gr-peer-restart-time-drives-timer.ci`, where `show bgp rib status` answers `gr-state.127.0.0.1.restart-time: 7` against ze's configured 120 |
+| AC-2 | met | `TestPeerOpenGracefulRestartCarriesDeclaredFamilies` and `...DefaultsToItsOwnFamilies`, and `gr-peer-families-drive-mark-stale.ci`, whose restart time equals ze's so only the family tuple can produce the row |
+| AC-3 | met for the octets and the decode, NOT for the timer's own number | `TestPeerOpenLLGRIsTheHarnessOwn` holds the stale time and the F bit. `llgr-peer-stale-time-drives-timer.ci` shows ze entering LLGR on the peer's restart time, which needs the peer's code-71 tuple to name a family with a non-zero stale time. The stale time's NUMBER has no functional witness: every effect of the LLST timer acts on an Adj-RIB-In `RIBManager.handleState` already released on peer-down |
+| AC-4 | met | `TestPeerOpenSoftwareVersionIsTheHarnessOwn` |
+| AC-5 | met for the capability, NOT for the enforcement | `TestPeerOpenPathsLimitIsTheHarnessOwn`, and the wire: ze-peer sends `4C05 0001010001` where ze sends `4C05 0001010 00A`. The enforcement half is unreachable and A-5 carries the producer chain |
+| AC-6 | met | `TestPeerOpenHoldTimeIsDeclared` and `open-hold-time-peer-lower-wins.ci` |
+| AC-7 | met | `TestPeerOpenDefaultsInheritNoOctetFromZe`, plus four suites compared against a mirror-restored baseline |
+| AC-8 | met | `TestPeerOpenStatedCapabilityBeatsOwnedValue`, one subtest per newly owned code |
+| AC-9 | met | With `handleStructuredState` returning immediately: `gr-peer-restart-time-drives-timer`, `gr-peer-families-drive-mark-stale` and `llgr-peer-stale-time-drives-timer` FAIL; `gr-mark-stale`, `llgr-transition` and `llgr-rib-stale` PASS. The same break in `handleStateEvent` moved no verdict at all, which is how that JSON path was found to be dead |
+
+### Defects this work walked into, and where they are recorded
+
+Both are in `plan/journal/unwired-feature.md` and neither is fixed here.
+
+| Surface | What it is |
+|---------|-----------|
+| `CommitService.enforcePathsLimit` | Its per-prefix drop has no producer that can reach it. A named commit keys its announcements by prefix with no Path Identifier, so a second path replaces the first before `Commit` ever runs |
+| `RIBManager.handleState` on peer-down | It releases the peer's Adj-RIB-In unless `retainedPeers` already holds the peer, and `retain-routes` is dispatched by another plugin process reacting to the same event. Measured twice: `mark-stale` ran over an empty RIB. RFC 4724's retention therefore does not happen, which is why the two GR files assert the dispatch rather than the marking |
 
 ## Known Limitations
 - Ze's own Graceful Restart capability carries a restart time and zero
