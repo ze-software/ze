@@ -163,12 +163,44 @@ line before doing it.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Where data enters: wire bytes, API command, config, plugin message]
-- [Format at entry]
+- Wire bytes. An IKE_AUTH message carrying an EAP payload, arriving on the IKE
+  UDP transport. The responder side enters at
+  `(*PeerSession).handleResponderEAP`
+  (`internal/component/ike/engine/responder_eap.go`), dispatched from
+  `internal/component/ike/engine/responder.go`. The initiator side enters at
+  `startEAPExchange` and the round handler beside it
+  (`internal/component/ike/engine/fsm.go`).
+- Format at entry: `*wire.PayloadEAP`, converted by `wireEAPToPacket` into an
+  `eap.Packet` holding Code, Identifier, Type and TypeData.
+- A second carrier reaches the same authenticator session with no IKE in front
+  of it: `internal/component/radius/authenticator_eap.go` calls
+  `(*Session).Process` for an EAP-Message attribute. Step 3's sibling audit and
+  any receive-side check owe both carriers.
+- The open item (step 4) is a RECEIVE-side decision, so its entry point is the
+  terminal packet arriving at `(*PeerSession).Process`
+  (`internal/core/eap/peer.go`) after `wireEAPToPacket`.
 
 ### Transformation Path
-1. [Stage 1: for example "Wire parsing in internal/component/bgp/message/"]
-2. [Stage 2: ...]
+1. `handleResponderEAP` takes the SA's `EAPSession` as `*eap.Session` and calls
+   `sess.Process(wireEAPToPacket(eapPayload))`.
+2. `(*Session).Process` (`internal/core/eap/eap.go`) discards an undefined Code
+   by returning nil, answers a non-Response Code with `s.failure(response)`,
+   and otherwise compares the Identifier against the outstanding Request before
+   dispatching to `handleIdentity` or `handleMethod`.
+3. `(*Session).handleMethod` runs the method and, on `result.Done`, builds the
+   terminal packet. The fixed producer assigns `response.Identifier` rather
+   than incrementing.
+4. `(*Session).failure(answered *Packet)` stamps `answered.Identifier` when a
+   packet is in hand, and falls back to `s.identifier + 1` only for a caller
+   with none. All five call sites had the answered Response in scope.
+5. The returned `*eap.Packet` goes back to `sendResponderEAP`, which encodes it
+   through `eapToWire` into the IKE response. `next.Code == eap.CodeSuccess`
+   also lifts the MSK onto `sa.EAPMSK`.
+6. On the far side, `(*PeerSession).Process` counts the round against
+   `maxEAPRounds`, discards an undefined Code, honours a parked TLS cause, then
+   switches on `request.Code`. It does NOT compare `request.Identifier` against
+   the Request it answers, which is why Ze against Ze never saw the sender-side
+   defect, and it is the exact line step 4 decides about.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |

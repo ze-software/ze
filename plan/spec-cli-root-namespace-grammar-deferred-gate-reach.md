@@ -162,12 +162,48 @@ answer gets decided by the migration rather than by the rule.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Where data enters: wire bytes, API command, config, plugin message]
-- [Format at entry]
+- A developer or CI typing `le cli-grammar`. The command is registered by
+  `init()` in `internal/le/cligrammar/register.go` as a `leroot.GroupGate`
+  command in `registry.SectionTest`, mode `offline`, answered by `Answer`
+  (`internal/le/cligrammar/actions.go`). It takes no argument, so the checkout
+  it runs in IS the input.
+- Format at entry: the checkout root from `lepath.Root()`, plus
+  `leroot.Owned()`, the list of le's own registered command names. The data the
+  gate then reads is the tree's `.yang` files and the `.go` sources under
+  `cmd/ze` and `internal`, as text parsed into Go ASTs.
+- The registration sites this spec is about are the 33
+  `registry.MustRegisterLocalMeta("<path>", ...)` calls in plugin `register.go`
+  files (for example `internal/plugins/skills/register.go`,
+  `internal/plugins/explain/register.go`). They enter the gate as AST call
+  expressions, or they do not enter it at all, which is the defect.
 
 ### Transformation Path
-1. [Stage 1: for example "Wire parsing in internal/component/bgp/message/"]
-2. [Stage 2: ...]
+1. `Answer` calls `Check(tree, DefaultFloor, leroot.Owned())`
+   (`internal/le/cligrammar/cligrammar.go`).
+2. `Check` builds the YANG command tree through `yang.DefaultLoader` and
+   `yang.BuildCommandTree`, and `walk` judges it against R1-R8. This is the
+   YANG-mapped surface, and the owner ruling above puts root flags outside it.
+3. `scanGoSurface(tree)` (`internal/le/cligrammar/flags.go`) walks `cmd/ze` and
+   `internal`, parses each non-test `.go` file, and dispatches on the selector
+   name of each `registry.`/`cmdregistry.` call. Three names fill
+   `surface.Roots`: `RegisterRootHandler`, `MustRegisterRootHandler` and
+   `RegisterRoot`. `RegisterLocalMeta` and `MustRegisterLocalMeta` match no
+   case, so a local meta path is dropped here. This is the exact line the
+   remaining work lands on, and the comment above `scanGoSurface` records the
+   exclusion as deliberate.
+4. Each population is floored before it is used: `Check` refuses with exit 2
+   when the YANG file count, the parsed Go file count, the root count, the flag
+   set count, the demo script count or the le root count is below
+   `DefaultFloor`. A widened scan owes its own floor, or it can read nothing
+   and still report OK.
+5. `grammar.CheckRootNamespace(roots, namespaces)` produces the R9 findings,
+   filtered through `rootNamespaceExempt`, and the same function runs a second
+   time over `leRoots` with `leNamespaces` and `leNamespaceExempt`. Local metas
+   reach neither call.
+6. `Answer` returns the `Result` with exit 0 when valid, 1 when a finding
+   stands, and 2 when the tree could not be read. `leroot.RegisterShape` files
+   the answer as `command.ShapeDoc`, so `| json`, `| yaml` and `| table`
+   render it.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |

@@ -87,12 +87,44 @@ measure what each costs before choosing.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Where data enters: wire bytes, API command, config, plugin message]
-- [Format at entry]
+- Wire bytes. An IKE request datagram read by `(*UDPTransport).Run`
+  (`internal/component/ike/transport/udp.go`) from the socket
+  `net.ListenUDP("udp4", addr)` opened in `newTransport`. Two sockets exist per
+  engine, the plain IKE one and the NAT-T one, and `Run` is the receive loop of
+  both.
+- Format at entry: `n, remoteAddr, err := t.conn.ReadFromUDP(buf)`. This is the
+  reason the address half is unmet: `ReadFromUDP` reports the SOURCE address of
+  the datagram and never its DESTINATION, so the address the peer wrote to is
+  not delivered to Ze at this call at all.
+- The bind address enters from config, at `internal/component/ike/engine/register.go`,
+  through `ikeListenHost(ifaceHost, peerLocal)`
+  (`internal/component/ike/engine/testport.go`), which returns `"0.0.0.0"` when
+  no `interface` is configured and no peer names a `local-address`. That
+  wildcard is what makes several local addresses reachable on one socket.
 
 ### Transformation Path
-1. [Stage 1: for example "Wire parsing in internal/component/bgp/message/"]
-2. [Stage 2: ...]
+1. `Run` builds a `transport.Packet` with `RemoteAddr: remoteAddr`,
+   `NATT: t.natT`, and `LocalAddr: t.localUDPAddr()`.
+2. `localUDPAddr` returns `t.conn.LocalAddr().(*net.UDPAddr)`, which is the
+   SOCKET's bound address. Under the wildcard bind it is `0.0.0.0:500`, so
+   `pkt.LocalAddr` does not carry the observed destination address even though
+   the field exists. The port half of `RFC7296-2.11-3` is met because the port
+   IS a property of the socket; the address half is not, for the same reason.
+3. The packet goes onto the buffered `inbound` channel and out through `Recv`,
+   read by `dispatchInbound` (`internal/component/ike/engine/register.go`),
+   which routes it to the responder handlers.
+4. Every reply leaves through `(*UDPTransport).Send(data, remote)`, which calls
+   `t.conn.WriteToUDP(data, remote)`. `WriteToUDP` names the destination only,
+   so the kernel route table picks the source address. No caller passes a local
+   address, and nothing reads `pkt.LocalAddr` on the send side.
+5. On a single-address host the chosen source is right by accident. On a
+   multi-homed host the peer can see a reply from an address it never wrote to.
+6. Both proposed routes act at step 1 and step 4 together: `IP_PKTINFO` plus
+   `sendmsg` would make `ReadFromUDP` deliver the real destination and let
+   `Send` name a source per datagram, while one socket per local address would
+   make `t.conn.LocalAddr()` already correct. Either changes what
+   `newTransport` opens, which is the listener-lifecycle cost the owner
+   question turns on.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |

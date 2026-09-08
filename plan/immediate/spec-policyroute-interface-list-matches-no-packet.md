@@ -102,12 +102,40 @@ rather than one rule with many matches.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Where data enters: wire bytes, API command, config, plugin message]
-- [Format at entry]
+- Operator config. The `interface` leaf-list under `policy > route <name>`
+  (`internal/plugins/policyroute/yang/ze-policyroute-conf.yang`), committed by
+  the operator with two or more entries.
+- The subtree reaches the plugin process because `runPolicyRoutePlugin`
+  (`internal/plugins/policyroute/register.go`) registers `ConfigRoots` and
+  `WantsConfig` as `configRoot` (`"policy"`).
+- Format at entry: `[]sdk.ConfigSection` at `p.OnConfigVerify` and
+  `p.OnConfigure`, each section's `Data` holding the `policy` subtree. Both
+  callbacks skip a section whose `Root` is not `configRoot`.
+- A second packet-side entry exists and is NOT where the defect lives: the
+  installed nftables rule is evaluated by the kernel on every ingress packet.
+  That is where the operator observes the symptom.
 
 ### Transformation Path
-1. [Stage 1: for example "Wire parsing in internal/component/bgp/message/"]
-2. [Stage 2: ...]
+1. `parsePolicyConfig` turns the section data into `[]PolicyRoute`, one per
+   `route` list entry, carrying the interface entries as a slice.
+2. `applyPolicies` (`register.go`) calls `(*allocator).translate`, which calls
+   `(*allocator).translatePolicy` per policy
+   (`internal/plugins/policyroute/translate.go`).
+3. The per-rule match builder appends one `firewall.MatchInputInterface` per
+   interface entry into ONE `[]firewall.Match`, and that slice becomes the
+   `Matches` field of a single `firewall.Term`. This is the stage the defect
+   lives at: an OR in the schema becomes several matches on one term.
+4. `applyPolicies` hands the resulting tables to `firewall.RegisterTables`
+   under the owner name `policy-routes`, then calls `firewall.ApplyAll`.
+5. `lowerTermForNFProto` (`internal/plugins/firewall/nft/lower_linux.go`)
+   ranges over `term.Matches`, calls `lowerMatch` on each, and concatenates
+   every returned expression into ONE expression list, which becomes one
+   nftables rule.
+6. nftables ANDs the expressions of a rule, so the installed rule asks for an
+   input interface equal to both names at once. No packet satisfies it, and the
+   traffic follows the main table.
+7. `rm.applyAll` installs the ip rules and tables, so the routing side is built
+   and reachable. Only the rule that would mark the packet never fires.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |

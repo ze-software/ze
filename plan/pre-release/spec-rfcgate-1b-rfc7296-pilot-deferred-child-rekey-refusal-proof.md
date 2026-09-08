@@ -118,12 +118,47 @@ as startable.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Where data enters: wire bytes, API command, config, plugin message]
-- [Format at entry]
+- Wire bytes. A peer-initiated CREATE_CHILD_SA request carrying a REKEY_SA
+  notify, decrypted and dispatched in `internal/component/ike/engine/inbound.go`
+  at the `hasRekeySANotify(inner)` arm.
+- Format at entry: the decrypted inner payload list, `[]wire.PayloadEntry`,
+  from which the handler takes `*wire.PayloadSA` (the offer), `*wire.PayloadKE`,
+  `*wire.PayloadNonce` and the two `*wire.PayloadTS`.
+- Operator config is the second entry, and it is where the blocker lives:
+  `peer.ESPGroup` is a NAMED reference resolved from the `esp-group` config
+  (`internal/component/ike/ipsec/config.go`). It is the only operator-reachable
+  input to the match this spec needs to fail.
+- The test carriers enter one level out: `test/ipsec/ipsec-child-rekey-no-proposal.ci`
+  drives the ze-to-ze proof, and the strongSwan scenario drives the same
+  exchange from another implementation.
 
 ### Transformation Path
-1. [Stage 1: for example "Wire parsing in internal/component/bgp/message/"]
-2. [Stage 2: ...]
+1. At IKE_AUTH, `selectResponderESP` (`internal/component/ike/engine/responder.go`)
+   walks `sa.ESPGroup.Proposals`, matches the peer's SAi2 with
+   `espDHMatch{Unbound: true}`, and on a match assigns
+   `sa.ESPGroup.Proposals = []ipsec.ESPProposal{our}`. The group is NARROWED to
+   the one negotiated suite here, and this assignment is why no static config
+   reaches the state the proof needs.
+2. A disjoint `esp-group` therefore returns `crypto.ErrNoProposalChosen` from
+   this function instead, and the IKE SA never establishes, so the later rekey
+   is never reached. That is the first half of the measured blocker.
+3. Later, the rekey request reaches the `hasRekeySANotify` arm of
+   `inbound.go`, which resolves the simultaneous-rekey collision, takes
+   `old := ps.getChildSA()`, and calls `respondChildRekey(sa, inner, old, ...)`.
+4. `respondChildRekey` (`internal/component/ike/engine/rekey.go`) resolves the
+   DH group with `childRekeyDHGroup`, refuses a missing Ni, SPI, TSi or TSr with
+   `errMalformedRequest` (INVALID_SYNTAX, a DIFFERENT notify from the one this
+   spec proves), then calls
+   `matchOfferedESPProposal(offer, old.ESPGroup.Proposals[0], espDHMatch{Want: group})`.
+5. `Proposals[0]` is the element step 1 narrowed to, so the match is against the
+   already-negotiated suite. This is the second half of the blocker: the refusal
+   branch is unreachable from configuration alone.
+6. On no match the function returns `crypto.ErrNoProposalChosen`. `inbound.go`
+   logs it and calls `ps.respondError(sa, msg.Header.MessageID,
+   wire.ExchangeCreateChildSA, notifyForRefusal(err), nil, tr, log)`, then
+   returns an empty `ownedOutcome{}`, which leaves the IKE SA established. That
+   pair, the NO_PROPOSAL_CHOSEN datagram and the surviving IKE SA, is what the
+   two carriers have to observe end to end.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |

@@ -108,12 +108,41 @@ no operator meets it as a bug; relocating it is the owner's re-reading to make
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Where data enters: wire bytes, API command, config, plugin message]
-- [Format at entry]
+- Operator config, at commit. The `ttl` leaf inside the `gre`, `gretap` or
+  `ipip` case of the tunnel `kind` choice, under `interface`
+  (`internal/component/iface/yang/ze-iface-conf.yang`), on a daemon whose
+  `interface > backend` leaf names `vpp`.
+- Format at entry: the `interface` subtree as `[]sdk.ConfigSection`, each
+  leaf value arriving as a string. `parseTunnelLeaves`
+  (`internal/component/iface/config.go`) reads `caseMap["ttl"]`,
+  `strconv.ParseUint`s it into `spec.TTL` and sets `spec.TTLSet`.
+- The second entry point is the packet: the outer IPv4 header VPP writes on
+  every encapsulated packet is where the operator observes the value, or its
+  absence.
 
 ### Transformation Path
-1. [Stage 1: for example "Wire parsing in internal/component/bgp/message/"]
-2. [Stage 2: ...]
+1. `parseTunnelLeaves` fills `iface.TunnelSpec.TTL` and `TTLSet`
+   (`internal/component/iface/tunnel.go`), which is backend-neutral.
+2. `validateBackendGate` (`internal/component/iface/register.go`) runs
+   `config.ValidateBackendFeaturesJSON` over the same section against the
+   `ze:backend` annotation on the leaf. The three leaves carry
+   `ze:backend "netlink"` since `d4a3b84f21`, so a VPP-backed commit naming any
+   `ttl` value is refused here, with the leaf path and the active backend. The
+   spec's remaining work sits BEHIND this refusal.
+3. On the netlink backend the spec reaches
+   `internal/plugins/iface/netlink/tunnel_linux.go`, which writes
+   `link.Ttl = spec.TTL` under `if spec.TTLSet` for each kind, and the value
+   reaches the kernel link.
+4. On the VPP backend the spec reaches
+   `(*vppBackendImpl).CreateTunnel` (`internal/plugins/iface/vpp/tunnel.go`),
+   which dispatches on `spec.Kind` to `createGRETunnel` or `createIPIPTunnel`.
+5. Those two build a `gre.GreTunnel` (type, mode, src, dst) and an
+   `ipip.IpipTunnel`, and send `gre.GreTunnelAddDel` / the ipip add message on
+   the binapi channel. Neither struct has a field for a hop limit, so
+   `spec.TTL` has no destination and the path ends without carrying it.
+6. The one vendored type with a `HopLimit` field is `tunnel_types.Tunnel`
+   (`vendor/go.fd.io/govpp/binapi/tunnel_types/tunnel_types.ba.go`), and no gre
+   or ipip message takes it. This is the boundary the design decision sits on.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |

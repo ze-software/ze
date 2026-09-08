@@ -94,12 +94,38 @@ feature is absent, is the open question this spec carries.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Where data enters: wire bytes, API command, config, plugin message]
-- [Format at entry]
+- Operator config. `fib { p4 { target ... device-id ... flush-on-stop ... } }`
+  reaches the plugin process because `runFIBP4Plugin`
+  (`internal/plugins/fib/p4/register.go`) declares `ConfigRoots: []string{"fib/p4"}`
+  at registration and `WantsConfig: []string{"fib/p4"}` in the `sdk.Registration`
+  it passes to `p.Run`.
+- Format at entry: the `fib/p4` subtree, as `[]sdk.ConfigSection` at the
+  `p.OnConfigVerify` callback and `[]sdk.ConfigDiffSection` at `p.OnConfigApply`.
+  Both callbacks name that argument `_`, so this is where the three leaves stop.
+- Route data enters separately, on the event bus, not from config:
+  `sysribevents.BestChange`, subscribed by `(*fibP4).run`
+  (`internal/plugins/fib/p4/fibp4.go`) as `*sysribevents.BestChangeBatch`.
+- The operator's read path enters at `p.OnExecuteCommand` with `show fib p4`.
 
 ### Transformation Path
-1. [Stage 1: for example "Wire parsing in internal/component/bgp/message/"]
-2. [Stage 2: ...]
+1. `p.OnStarted` starts the worker as `go f.run(ctx, false)`. The `false` is a
+   literal, so `flushOnStop` never carries the `flush-on-stop` leaf.
+2. `(*fibP4).run` takes the event bus from `getEventBus`, subscribes
+   `(*fibP4).processEvent` to `sysribevents.BestChange`, then emits
+   `sysribevents.ReplayRequest` with `replay.Broadcast` to pull the full table.
+3. `(*fibP4).processEvent` walks `batch.Changes` under the mutex, updates the
+   `installed` prefix-to-next-hop map, and calls `addRoute`, `delRoute` or
+   `replaceRoute` on the `p4Backend`.
+4. That backend is whatever `newBackend("", 0)` returned. `newBackend`
+   (`internal/plugins/fib/p4/backend.go`) discards both arguments and returns
+   `&noopBackend{}`, whose three route methods log one line and return nil. The
+   path ends here: no P4Runtime gRPC call is made, and `target` and `device-id`
+   have no reader on it.
+5. `<-ctx.Done()` releases `run`, which calls `flushRoutes` only when its
+   literal `false` parameter says so, so `(*fibP4).flushRoutes` is unreachable
+   from configuration.
+6. `(*fibP4).showInstalled` reads the same map, so `show fib p4` reports the
+   routes the plugin WOULD have programmed.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
