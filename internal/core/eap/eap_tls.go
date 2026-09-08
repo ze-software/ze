@@ -323,6 +323,24 @@ func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 		return nil, fmt.Errorf("eap-tls: load server cert: %w", err)
 	}
 
+	// RFC 9190 Section 5.4: "EAP-TLS servers supporting TLS 1.3 MUST implement
+	// Certificate Status Requests (OCSP stapling) as specified in [RFC6066] and
+	// Section 4.4.2.1 of [RFC8446]."
+	//
+	// This assignment IS that implementation on this role. crypto/tls owns the
+	// extension mechanics: it records the client's status_request
+	// (clientHelloMsg.ocspStapling) and writes this response into the leaf
+	// CertificateEntry when the client asked for one and this field is set
+	// (certificateMsgTLS13.marshal, crypto/tls/handshake_messages.go). A client
+	// that asked for nothing is sent nothing, so the field costs a peer that does
+	// not use Certificate Status Requests exactly nothing.
+	//
+	// An operator who configured no response leaves it nil, and the extension is
+	// then answered with no status, which RFC 6066 Section 8 permits. The peer
+	// then falls back to the certificate revocation lists Section 5.4's first
+	// sentence already requires (checkChainRevocation, revocation.go).
+	cert.OCSPStaple = config.OCSPStaple
+
 	// RFC 9190 Section 2.1.2: "To enable resumption when using EAP-TLS with TLS
 	// 1.3, the EAP-TLS server MUST send one or more post-handshake
 	// NewSessionTicket messages ... in the initial authentication."

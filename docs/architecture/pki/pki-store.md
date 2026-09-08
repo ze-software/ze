@@ -57,6 +57,24 @@ whose revocation status nothing can answer, and completes for one a current list
 says nothing about. RFC 9190 Section 5.4 is what makes the check mandatory, and
 `internal/core/eap/revocation.go` performs it for both EAP-TLS roles.
 
+**A certificate carries the OCSP response that speaks for IT, in an
+`ocsp-response` leaf.** A revocation list belongs to the CA that signed it and an
+OCSP response answers about one certificate, so the two live in different blocks
+and the second is a single leaf rather than a list. `parseDeviceCert` refuses a
+response whose serial number is not this certificate's, for the reason the `crl`
+leaf refuses another CA's list: a paste under the wrong entry would read as a
+working status and answer nothing. It checks no signature, because the issuer is
+not resolved at that point and RFC 6960 Section 3.2 makes judging a response the
+relying party's job; Ze does that as an EAP-TLS peer
+(`eap.CheckCertificateStatus`). The DER the responder signed is what is stored,
+because that is what crypto/tls puts on the wire, and re-encoding a parsed
+structure would not reproduce the signed bytes. The consumer is the EAP-TLS
+authenticator, which RFC 9190 Section 5.4 requires to implement Certificate
+Status Requests on TLS 1.3; a certificate with no response answers one with no
+status, which RFC 6066 Section 8 permits.
+
+<!-- source: internal/component/pki/config.go -- parseDeviceCert, ocspResponseDER -->
+
 **Private key detection tries PKCS8, then SEC1, then PKCS1.** Real keys arrive
 in all three encodings depending on the tool that produced them, so requiring
 one format rejects valid input.

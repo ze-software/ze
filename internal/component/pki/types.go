@@ -51,6 +51,13 @@ type CACertEntry struct {
 //
 // Intermediates and RawIntermediates are index-aligned: RawIntermediates[i] is the DER
 // that parsed into Intermediates[i].
+//
+// RawOCSPResponse holds the operator's stapled OCSP response as the DER the
+// responder signed, and nil when the entry carries none. RFC 9190 Section 5.4
+// requires an EAP-TLS server on TLS 1.3 to implement Certificate Status
+// Requests, and this is what it answers one with. It is stored as DER because
+// that is what crypto/tls puts on the wire (tls.Certificate.OCSPStaple), so
+// re-encoding a parsed structure would not reproduce the signed bytes.
 type CertificateEntry struct {
 	Name             string
 	Certificate      *x509.Certificate
@@ -58,6 +65,7 @@ type CertificateEntry struct {
 	PrivateKey       crypto.PrivateKey
 	Intermediates    []*x509.Certificate
 	RawIntermediates [][]byte
+	RawOCSPResponse  []byte
 }
 
 // CertSummary is the JSON-serializable summary for show pki certificates.

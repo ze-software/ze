@@ -1,0 +1,219 @@
+# Functional test: an EAP-TLS 1.3 peer that USES Certificate Status Requests
+# accepts an authenticator that staples a valid OCSP response, through two real
+# ze daemons. Spec: spec-ipsec-rfc9190, AC-5.
+#
+# RFC 9190 Section 5.4 makes stapling mandatory on an EAP-TLS 1.3 server ("MUST
+# implement Certificate Status Requests") and binds the peer that uses one: it
+# "MUST treat a CertificateEntry (but not the trust anchor) without a valid
+# CertificateStatus extension as invalid". The unit tests in internal/core/eap
+# drive both roles over an in-memory transport. This test is what proves the two
+# leaves an operator writes reach them: pki certificate ocsp-response on the
+# authenticator, and certificate-status-request on the peer.
+#
+# ITS PAIR IS ipsec-eap-tls13-ocsp-required.ci, which is this configuration with
+# the ocsp-response leaf removed and nothing else changed. There the SA never
+# establishes. A peer that accepted every chain would pass this test and fail
+# that one, and a peer that refused every chain would do the reverse.
+#
+# THE OBSERVABLE IS THE ESTABLISHED SA. aes-cbc appears in `show vpn ipsec sa`
+# only once IKE_AUTH finished, and IKE_AUTH cannot finish without the EAP MSK,
+# so it is a completed EAP-TLS exchange whose stapled status the peer accepted.
+option=env:var=ze_test_ike_port:value=$PORT2
+# noop dataplane: unprivileged XFRM install is EPERM-fatal by design
+# (engine/child.go); control-plane tests opt out of the kernel entirely.
+option=env:var=ze_test_ike_dataplane:value=noop
+# The EAP-TLS outcome is logged at Info, and the default level is WARN.
+option=env:var=ze_log_ike:value=info
+option=timeout:value=90s
+
+# THE `crl` LEAF IS LOAD-BEARING on both ends, and it is not what this test
+# measures. Both daemons are Go, so they negotiate TLS 1.3, where RFC 9190
+# Section 5.4 makes the revocation status of every certificate on the chain
+# mandatory to check. A ca holding no list cannot answer that, and ze would
+# refuse the exchange for THAT reason rather than for the certificate status
+# (checkChainRevocation, internal/core/eap/revocation.go). The list here revokes
+# nothing, which is the answer a CA publishes while it has withdrawn nothing.
+#
+# ── Responder daemon (background): the EAP-TLS authenticator on 127.0.0.2 ──
+stdin=responder:terminator=EOF_RESPONDER
+pki {
+	ca ocsp-test-ca {
+		certificate MIIBaDCCAQ2gAwIBAgIDAQABMAoGCCqGSM49BAMCMBoxGDAWBgNVBAMTD3plLW9jc3AtdGVzdC1jYTAeFw0yNjA5MDgwMDAwMDBaFw00NjA5MDMwMDAwMDBaMBoxGDAWBgNVBAMTD3plLW9jc3AtdGVzdC1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABOnQGJfPIa7Fdab5noc108KNx2yHzekLrpUEypx4/U3UFcyI5KJlOhxnHNdzkAMFiEwHARt1fKG4BGAZU2C1U4WjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBT7gJ5yurlA6KsuzDUBYqyLxRxy2zAKBggqhkjOPQQDAgNJADBGAiEAj7U3XohYAw4wLVtl103UykR7K2PuVTMbPW6WGS3J8AACIQCEGGsU+DTf13XZXWbz8B3yY9D9Id7W5d1u5bfo3N+1fg==
+		crl MIHRMHoCAQEwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPemUtb2NzcC10ZXN0LWNhFw0yNjA5MDgwMDAwMDBaFw00NjA5MDMwMDAwMDBaoC8wLTAfBgNVHSMEGDAWgBT7gJ5yurlA6KsuzDUBYqyLxRxy2zAKBgNVHRQEAwIBATAKBggqhkjOPQQDAgNHADBEAiAYVgLacJ6tYZ/wrP0tForGOgOVj76SD9EkeJB07tyEXwIgVGSHQEYv9xLnxnuX1MYL/txZCLfILCANgvJGfLRNbNs=
+	}
+	certificate eap-server {
+		certificate MIIBhjCCASugAwIBAgIDAQACMAoGCCqGSM49BAMCMBoxGDAWBgNVBAMTD3plLW9jc3AtdGVzdC1jYTAeFw0yNjA5MDgwMDAwMDBaFw00NjA5MDMwMDAwMDBaMBgxFjAUBgNVBAMTDXplLWVhcC1zZXJ2ZXIwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATL+v7HDrFTrHsCoz228qYTnGaWgMBeeZRFeNK8KQyfdFAYqm5tGMW8zXvsIDS7ym2To8npjxxmh5No3OXI/nuLo2IwYDAOBgNVHQ8BAf8EBAMCB4AwEwYDVR0lBAwwCgYIKwYBBQUHAwEwHwYDVR0jBBgwFoAU+4Cecrq5QOirLsw1AWKsi8UcctswGAYDVR0RBBEwD4INemUtZWFwLXNlcnZlcjAKBggqhkjOPQQDAgNJADBGAiEA46pqswa0yqw+lVjUBqtykigoRkQOwOrVq2BdfJaKKr8CIQCJsSb40oB6rkqC3kGdJlIY+zb99hRhddrZuE9cYWeo5A==
+		ocsp-response MIIBDQoBAKCCAQYwggECBgkrBgEFBQcwAQEEgfQwgfEwgZehHDAaMRgwFgYDVQQDEw96ZS1vY3NwLXRlc3QtY2EYDzIwMjYwOTA4MDIyMDAwWjBmMGQwPDAJBgUrDgMCGgUABBQMkC566SbJXJIMdcxWAKnqt4399gQUDgW3CC5MyszBgzW4i+0rq4v9ny8CAwEAAoAAGA8yMDI2MDkwODAwMDAwMFqgERgPMjA0NjA5MDMwMDAwMDBaMAoGCCqGSM49BAMCA0kAMEYCIQC/ydm+vyMcVXfUCUr3SoCHM9y3PqIqn/0rseUhQT00iQIhANru9H6SKtMmWJ9yGjwopboqdsiF7nqPznuRy9r1F3Ra
+		private {
+			key MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgLpZ+bbZJWIyDymyLcoSpBABu1Yq0CJShZ+azquz8JiehRANCAATL+v7HDrFTrHsCoz228qYTnGaWgMBeeZRFeNK8KQyfdFAYqm5tGMW8zXvsIDS7ym2To8npjxxmh5No3OXI/nuL
+		}
+	}
+}
+
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 2.2.2.2
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer initiator {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				authentication {
+					mode eap-tls
+					local-id "ze-eap-server"
+					remote-id "ze-eap-client"
+					certificate eap-server
+					ca-certificate ocsp-test-ca
+				}
+			}
+		}
+	}
+}
+EOF_RESPONDER
+
+# ── Initiator daemon (foreground): the EAP-TLS peer on 127.0.0.1 ──
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external engine-steps {
+		run "ze-test engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+pki {
+	ca ocsp-test-ca {
+		certificate MIIBaDCCAQ2gAwIBAgIDAQABMAoGCCqGSM49BAMCMBoxGDAWBgNVBAMTD3plLW9jc3AtdGVzdC1jYTAeFw0yNjA5MDgwMDAwMDBaFw00NjA5MDMwMDAwMDBaMBoxGDAWBgNVBAMTD3plLW9jc3AtdGVzdC1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABOnQGJfPIa7Fdab5noc108KNx2yHzekLrpUEypx4/U3UFcyI5KJlOhxnHNdzkAMFiEwHARt1fKG4BGAZU2C1U4WjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBT7gJ5yurlA6KsuzDUBYqyLxRxy2zAKBggqhkjOPQQDAgNJADBGAiEAj7U3XohYAw4wLVtl103UykR7K2PuVTMbPW6WGS3J8AACIQCEGGsU+DTf13XZXWbz8B3yY9D9Id7W5d1u5bfo3N+1fg==
+		crl MIHRMHoCAQEwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPemUtb2NzcC10ZXN0LWNhFw0yNjA5MDgwMDAwMDBaFw00NjA5MDMwMDAwMDBaoC8wLTAfBgNVHSMEGDAWgBT7gJ5yurlA6KsuzDUBYqyLxRxy2zAKBgNVHRQEAwIBATAKBggqhkjOPQQDAgNHADBEAiAYVgLacJ6tYZ/wrP0tForGOgOVj76SD9EkeJB07tyEXwIgVGSHQEYv9xLnxnuX1MYL/txZCLfILCANgvJGfLRNbNs=
+	}
+	certificate eap-client {
+		certificate MIIBhTCCASugAwIBAgIDAQADMAoGCCqGSM49BAMCMBoxGDAWBgNVBAMTD3plLW9jc3AtdGVzdC1jYTAeFw0yNjA5MDgwMDAwMDBaFw00NjA5MDMwMDAwMDBaMBgxFjAUBgNVBAMTDXplLWVhcC1jbGllbnQwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARtPLwVhJFBs11Lqg2/ECgf7gYIqClDvnkDGLEYnmDEqcbev/a2F7nxYZgzQuGSZSNX+TfM/3bI3yTJ4L5XrRazo2IwYDAOBgNVHQ8BAf8EBAMCB4AwEwYDVR0lBAwwCgYIKwYBBQUHAwIwHwYDVR0jBBgwFoAU+4Cecrq5QOirLsw1AWKsi8UcctswGAYDVR0RBBEwD4INemUtZWFwLWNsaWVudDAKBggqhkjOPQQDAgNIADBFAiEA/ak9mt3JyZPjHevRt1DjHlNIlCiRQfDirSYKS+s8x1cCID6wTMhv9amQ7tEIwW4k7mWUuzEetWGOFH3BMQ1gdvJG
+		private {
+			key MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg8cmSmEkwYa3J9Nbs3ppthbjQvItkUQbzsSjjZ/BBN8+hRANCAARtPLwVhJFBs11Lqg2/ECgf7gYIqClDvnkDGLEYnmDEqcbev/a2F7nxYZgzQuGSZSNX+TfM/3bI3yTJ4L5XrRaz
+		}
+	}
+}
+
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.1.1.1
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode eap-tls
+					local-id "ze-eap-client"
+					# remote-id is set on purpose. Without it ze warns that every
+					# certificate this authority issued authenticates as this peer,
+					# and a functional test must not model that configuration.
+					remote-id "ze-eap-server"
+					certificate eap-client
+					ca-certificate ocsp-test-ca
+					certificate-status-request true
+				}
+			}
+		}
+	}
+}
+EOF_CONFIG
+
+cmd=background:seq=1:exec=ze -:stdin=responder
+cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=80s
+
+# 1. The authentication completes. The peer asked for a Certificate Status
+#    Request, the authenticator answered with the response the operator
+#    configured, and the peer accepted it.
+command=show vpn ipsec sa | json
+expect=output:contains=aes-cbc:timeout=30
+expect=output:contains=sha256:timeout=5
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+# The peer never reports the refusal its pair asserts.
+reject=stderr:pattern=stapled no OCSP response
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

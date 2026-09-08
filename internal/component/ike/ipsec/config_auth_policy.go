@@ -58,6 +58,29 @@ func parseSessionResumption(peerName string, t *config.Tree, auth *AuthConfig) e
 	return nil
 }
 
+// parseCertificateStatusRequest reads the certificate-status-request leaf, whose
+// YANG default is false.
+//
+// The default needs no write here, unlike session-resumption above: the YANG
+// default and the Go zero value agree, so a peer the operator never touched
+// checks revocation by crl alone. It is still REFUSED rather than defaulted when
+// the value does not parse, because a leaf an operator set and ze then ignored
+// is the shape ai/rules/protocol.md forbids.
+func parseCertificateStatusRequest(peerName string, t *config.Tree, auth *AuthConfig) error {
+	v, ok := t.Get("certificate-status-request")
+	if !ok || v == "" {
+		return nil
+	}
+	enabled, err := strconv.ParseBool(v)
+	if err != nil {
+		return fmt.Errorf(
+			"ipsec peer %q certificate-status-request: %q is not a boolean (%w); give true or false",
+			peerName, v, err)
+	}
+	auth.CertificateStatusRequest = enabled
+	return nil
+}
+
 // parseCertificatePolicy reads the X.509 chain and Hash-and-URL policy:
 // certificate-count, hash-and-url, certificate-url and certificate-url-allow.
 //

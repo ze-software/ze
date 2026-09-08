@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 5/8 |
+| Phase | 6/8 |
 | Updated | 2026-09-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -35,8 +35,9 @@ Two consequences the implementation must carry:
   resumption lands rather than defended.
 
 RFC 9190 §5.4 is not affected by this ruling and was never ambiguous: three
-unconditional MUSTs on revocation and OCSP stapling, which no layer performs
-today. They are gaps, never exclusions.
+unconditional MUSTs on revocation and OCSP stapling, which no layer performed
+when this ruling was written. They were gaps, never exclusions, and phases 4 and
+6 built all five.
 
 ## Task
 
@@ -67,7 +68,7 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 |-------|----------|-------|
 | Protected success indication | 2.5 | SERVER side implemented 2026-08-12 (phase 1). The peer side ANSWERS it but does not consume it, which the published RFC does not require |
 | Session resumption and NewSessionTicket | 2.1.2, 2.1.3, 5.7 | IMPLEMENTED 2026-09-08 (phase 5), both roles, with the §5.4 revocation check carried across a resumed handshake. No interop counterpart exists; see the Interop Tests table |
-| OCSP stapling and revocation | 5.4 (five MUSTs) | absent |
+| OCSP stapling and revocation | 5.4 (five MUSTs) | IMPLEMENTED. 5.4-1 landed 2026-09-05 (phase 4), and 5.4-2 through 5.4-5 landed 2026-09-08 (phase 6): the authenticator staples the operator's `ocsp-response`, the peer enforces the stapled status under `certificate-status-request`, and it re-checks the chain over https once the Child SA is up. That last one also closed RFC5216-5.4-2, which was a published gap on an enrolled RFC |
 | Anonymous and privacy-friendly NAIs | 2.1.8, 5.8 | IMPLEMENTED 2026-09-08 (phase 5b), peer and server. The peer derives an anonymous NAI in `NewPeerSessionTLS` rather than at the send site, so no caller reaches the Identity Response with the configured `local-id` in it. Section 5.8's three MUSTs open "If anonymous NAIs are not used", and ze now uses one on every EAP-TLS exchange, so their antecedent is false: they are exclusions for the extraction, never gaps |
 | Key derivation and the export | 2.3 | IMPLEMENTED, untagged |
 | Not mechanically testable as written | 5.10-1 ("MUST mitigate known attacks") | needs an owner reading at enrolment |
@@ -194,7 +195,7 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | AC-2 | EAP-TLS completes on TLS 1.3, ze as peer | ze requires the indication and fails the exchange without it |
 | AC-3 | A TLS 1.2 EAP-TLS exchange | no indication is sent, and the RFC 5216 MSK is derived exactly as today |
 | AC-4 | A peer offers a session ticket | ze resumes, and the resumed session derives a correct MSK |
-| AC-5 | A stapled OCSP response is present, and absent | ze honours Section 5.4 in both cases |
+| AC-5 | A stapled OCSP response is present, and absent | ze honours Section 5.4 in both cases. Done phase 6: the authenticator staples what the operator configured, the peer refuses an entry with no valid status once certificate-status-request is set, and it re-checks the chain over https once the Child SA is up |
 | AC-6 | An anonymous NAI | ze accepts it per Section 2.1.8 |
 | AC-7 | `./le rfc check` | RFC 9190 is enrolled, and no gated MUST carries `{gap}` or `{not-applicable}` for a feature this spec built |
 | AC-8 | Scenarios eap-tls and eap-tls13 | both green at every phase boundary. Phase 5, 2026-09-08: eap-tls, eap-tls13 AND responder-eap-tls13 all green after resumption landed, which is the evidence that issuing a ticket is invisible to a peer that never offers `psk_dhe_ke` |
@@ -250,6 +251,18 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | `TestEAPTLS12CompletesWithNoRevocationList` | same | AC-5, RFC9190-5.4-1 negative: Section 5.4 opens "When EAP-TLS is used with TLS 1.3", so RFC 5216 Section 5.4 governs TLS 1.2 | done, phase 4 |
 | `TestParseCACRLAcceptsPEMAndBase64`, `TestCACRLPEMRoundTripsToTheConsumer`, `TestCACRLPEMIsNilWhenNoListIsConfigured`, `TestParseCACRLRefusesAnotherCAsList`, `TestParseCACRLRefusesACertificatePastedIntoTheCRLLeaf` | `internal/component/pki/config_crl_test.go` | the `crl` leaf-list an operator writes, and what the consumer receives | done, phase 4 |
 | `TestEAPTLSConfigsCarryTheCARevocationLists`, `TestEAPTLSConfigsCarryNoListWhenTheCAHasNone` | `internal/component/ike/engine/rfc9190_crl_wiring_test.go` | the wiring test: what the operator wrote reaches BOTH EAP-TLS roles | done, phase 4 |
+| `TestEAPTLS13StaplesTheConfiguredOCSPResponse` | `internal/core/eap/rfc9190_ocsp_test.go` | AC-5, RFC9190-5.4-2 positive: the peer's ConnectionState carries back the exact DER the operator configured | done, phase 6 |
+| `TestEAPTLS13StaplesNothingWhenTheCertificateCarriesNoResponse` | same | AC-5, RFC9190-5.4-2 negative: the staple is the operator's response and not a fixed answer | done, phase 6 |
+| `TestEAPTLS13PeerRefusesAnAuthenticatorThatStaplesNothing`, `TestEAPTLS13PeerRefusesARevokedStapledStatus`, `TestEAPTLS13PeerRefusesAnIntermediateItCannotReadTheStatusOf` | same | AC-5, RFC9190-5.4-3 positive: absent, revoked, and unreadable-because-Go-drops-it are each an invalid CertificateEntry | done, phase 6 |
+| `TestEAPTLS13PeerCompletesWithAValidStapledStatus`, `TestEAPTLS13PeerWithoutTheStatusLeafAcceptsAnAuthenticatorThatStaplesNothing` | same | AC-5, RFC9190-5.4-3 negative: a peer that refused every chain, and a leaf that gated nothing, would each pass the rows above | done, phase 6 |
+| `TestCertificateStatusRefusesAnExpiredResponse`, `TestCertificateStatusRefusesAResponseDatedAhead`, `TestCertificateStatusRefusesAResponseAboutAnotherCertificate`, `TestCertificateStatusRefusesAnUnknownStatus`, `TestCertificateStatusRefusesAnUndelegatedResponder` | same | AC-5, RFC9190-5.4-3 positive: the four properties `CheckCertificateStatus` requires together | done, phase 6 |
+| `TestCertificateStatusAcceptsADelegatedResponder`, `TestStapledChainStatusExceptsTheTrustAnchor` | same | AC-5, RFC9190-5.4-3 negative: a delegated responder RFC 6960 Section 4.2.2.2 defines is accepted, and the anchor is asked for no status | done, phase 6 |
+| `TestEAPTLS13PeerKeepsTheChainItAcceptedForTheLaterCheck`, `TestEAPTLS12PeerKeepsTheChainItAcceptedForTheLaterCheck`, `TestEAPTLSPeerPublishesNoChainWhenTheHandshakeRefusedIt` | same | AC-5, RFC9190-5.4-4 and RFC5216-5.4-2: the post-authentication check reads the chain the handshake accepted, on both TLS versions, and reads none from a handshake that failed | done, phase 6 |
+| `TestParseCertificateOCSPResponseAcceptsPEMAndBase64`, `TestCertificateOCSPResponseIsNilWhenNoneIsConfigured`, `TestParseCertificateOCSPResponseRefusesAnotherCertificatesResponse`, `TestParseCertificateOCSPResponseRefusesACertificatePastedIntoTheLeaf`, `TestParseCertificateOCSPResponseRefusesAWrongPEMLabel` | `internal/component/pki/config_ocsp_test.go` | the `ocsp-response` leaf an operator writes, and what the consumer receives | done, phase 6 |
+| `TestEAPTLSConfigsCarryTheStapledOCSPResponse`, `TestEAPTLSConfigsCarryNoStapleWhenTheCertificateHasNone`, `TestEAPTLSPeerConfigCarriesTheCertificateStatusRequestLeaf` | `internal/component/ike/engine/rfc9190_ocsp_wiring_test.go` | the wiring test: the response reaches the authenticator and the status leaf reaches the peer | done, phase 6 |
+| `TestPostAuthenticationCheckClosesTheSAWhenTheResponderReportsRevoked`, `TestPostAuthenticationCheckLeavesTheSAUpWhenTheResponderReportsGood` | `internal/component/ike/engine/rfc9190_postauth_test.go` | AC-5, RFC9190-5.4-4 and RFC5216-5.4-2 in both polarities, over a REAL EAP-TLS exchange driven through both config builders | done, phase 6 |
+| `TestPostAuthenticationCheckRefusesAnInsecureResponderURL`, `TestPostAuthenticationCheckReadsAnHTTPSResponder` | same | AC-5, RFC9190-5.4-5 in both polarities: an http responder is refused before any connection opens, and an https one is asked | done, phase 6 |
+| `TestPostAuthenticationCheckIsNotStartedWithoutAnEAPTLSPeerSession`, `TestPostAuthenticationCheckReportsUncheckedWithNoResponder`, `TestServerCertRecheckStopReleasesAFetchInFlight` | same | the check's three other states: nothing to check, no answer obtained, and the stop path that releases a fetch in flight | done, phase 6 |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -260,6 +273,8 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `ipsec-eap-tls13-resumption` | `test/ipsec/ipsec-eap-tls13-resumption.ci` | a peer reconnects and resumes rather than re-handshaking, across the `clear vpn ipsec sa` that destroys and rebuilds the peer session | done, phase 5. Discrimination measured 2026-09-08: with `resumptionFor` building a fresh store per lookup it goes RED at 8.1s (`resumed=true` never logged); restored, GREEN at 6.1s |
+| `ipsec-eap-tls13-ocsp-stapling` | `test/ipsec/ipsec-eap-tls13-ocsp-stapling.ci` | an operator configures an ocsp-response on the authenticator and certificate-status-request on the peer, and the tunnel comes up | done, phase 6. Discrimination measured 2026-09-08: with `cert.OCSPStaple = nil` in `newTLSMethod` it goes RED, and the red is its pair's own message, `reject=stderr pattern found: stapled no OCSP response` |
+| `ipsec-eap-tls13-ocsp-required` | `test/ipsec/ipsec-eap-tls13-ocsp-required.ci` | the same configuration with the ocsp-response leaf removed and nothing else changed: no SA is established and the peer's log names the missing CertificateStatus | done, phase 6. Discrimination measured 2026-09-08: with `checkStapledChainStatus` returning nil it goes RED at 90.1s, because the await for the refusal never matches and the SA establishes instead |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -344,16 +359,43 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
    handshake too and reading it would leave every resumed session refused. It is gated on
    `cs.DidResume`, so a non-resumed empty chain set still refuses exactly as before.
 4. OCSP stapling and revocation.
-   PARTLY DONE 2026-09-05: RFC9190-5.4-1 alone, the chain revocation check, on BOTH
-   roles, with CRL as the revocation source RFC 9190 Section 5.4 permits. It landed as
-   its own package because the remaining four requirements each need a surface it does
-   not: 5.4-2 needs an OCSP response encoder and a fetch-and-refresh path on the
-   authenticator, 5.4-3 needs per-CertificateEntry status that Go does not surface
-   (`crypto/tls/handshake_messages.go` skips extensions on every entry after the leaf,
-   both directions, so only `ConnectionState.OCSPResponse` is readable), and 5.4-4 with
-   5.4-5 need a post-authentication check over a secure transport, wired to a point
-   after the CHILD_SA is up. Those four are STILL OPEN and are gaps, never exclusions:
-   Ze fills the role every one of them addresses.
+   DONE. RFC9190-5.4-1 landed 2026-09-05 (the chain revocation check on both roles, with
+   CRL as the source Section 5.4 permits). The remaining four landed 2026-09-08.
+
+   5.4-2 is the `ocsp-response` leaf on a `pki certificate` reaching
+   `tls.Certificate.OCSPStaple` (`newTLSMethod`, `internal/core/eap/eap_tls.go`), which is
+   what crypto/tls answers a client's status_request with. No fetch-and-refresh path was
+   built and none is owed: RFC 6066 and RFC 8446 Section 4.4.2.1 fix how the response is
+   CARRIED and say nothing about how a server obtains one, so an operator-supplied
+   response implements the requirement. The response's validity is the relying party's
+   judgement (RFC 6960 Section 3.2), and ze makes it as a peer.
+
+   5.4-3 is `checkStapledChainStatus` (`internal/core/eap/ocsp.go`), gated on the
+   `certificate-status-request` leaf, which is what makes ze a peer that USES Certificate
+   Status Requests and so the antecedent of that sentence's MUST. The Go limitation is
+   REAL and was re-read on 2026-09-08 against `$(go env GOROOT)/src/crypto/tls/handshake_messages.go`:
+   `unmarshalCertificate` still skips the extensions of every entry after the leaf, and
+   `marshalCertificate` writes none for them either. It is handled by FAILING CLOSED
+   rather than by recording a gap: an intermediate below the trust anchor is a
+   CertificateEntry whose status ze cannot see, Section 5.4 makes an entry without a
+   valid status invalid, and "not sent" and "not visible" are the same bytes to this
+   role. A chain carrying one is therefore refused while the leaf is on. What would lift
+   that restriction is a crypto/tls exposing per-entry extensions, and nothing in ze can.
+
+   5.4-4 and 5.4-5 are `startServerCertRecheck`
+   (`internal/component/ike/engine/postauth_revocation.go`), started by `runEstablished`
+   after the Child SA is installed, because the tunnel the EAP exchange was run to obtain
+   IS the connectivity Section 5.4 waits for. It reads the chain the peer accepted
+   (`eap.PeerSession.ServerChains`), asks each certificate's own OCSP responder over
+   https, refusing an http url before any connection opens, and sends a verdict the owner
+   loop turns into a closed SA. A responder that answers nothing leaves the SA up with a
+   warning: 5.4-6 and 5.4-7, the SHOULD NOTs that would govern distrusting the network,
+   are not implemented and are not these requirements.
+
+   IT ALSO CLOSED RFC5216-5.4-2, which is the same obligation stated without a version
+   condition: proven on TLS 1.2 by `TestEAPTLS12PeerKeepsTheChainItAcceptedForTheLaterCheck`
+   and on the engine path by the two `TestPostAuthenticationCheck*` tests, each with a
+   discrimination record in `rfc/discrimination/rfc5216.json`.
 
    IT ALSO CLOSED A GAP ON ANOTHER RFC, 2026-09-07. `rfc/short/rfc5216.md` recorded
    RFC5216-5.4-1, "CRL checking MUST be supported", as `{gap: no CRL logic exists

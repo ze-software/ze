@@ -44,6 +44,50 @@
       "producer": "internal/core/eap/revocation.go::revocationEntry",
       "producer-sha": "6e32d12c4965fd39",
       "break": "body of revocationEntry replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-5.4-2",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc9190_postauth_test.go::TestPostAuthenticationCheckClosesTheSAWhenTheResponderReportsRevoked",
+      "unit-sha": "f3c0190ec93a0a19",
+      "claim-sha": "304dddbc7dded092",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/postauth_revocation.go::checkServerChainStatus",
+      "producer-sha": "2e54dce5530ff92b",
+      "break": "body of checkServerChainStatus replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-5.4-2",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc9190_postauth_test.go::TestPostAuthenticationCheckLeavesTheSAUpWhenTheResponderReportsGood",
+      "unit-sha": "f71ddbe05c17ac15",
+      "claim-sha": "0546d6c747823e7d",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/postauth_revocation.go::checkServerChainStatus",
+      "producer-sha": "2e54dce5530ff92b",
+      "break": "body of checkServerChainStatus replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-5.4-2",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_ocsp_test.go::TestEAPTLS12PeerKeepsTheChainItAcceptedForTheLaterCheck",
+      "unit-sha": "fc6b9dff292aa682",
+      "claim-sha": "5f91afc077309905",
+      "route": "revert",
+      "producer": "internal/core/eap/peer_chain.go::verifyConnection",
+      "producer-sha": "cba739e85fedbc8a",
+      "break": "body of verifyConnection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-5.4-2",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_ocsp_test.go::TestEAPTLSPeerPublishesNoChainWhenTheHandshakeRefusedIt",
+      "unit-sha": "a714a6e958cb8133",
+      "claim-sha": "2d79b0430554eb28",
+      "route": "revert",
+      "producer": "internal/core/eap/peer_chain.go::verifyPeerCertificate",
+      "producer-sha": "21a7756cc3463e46",
+      "break": "body of verifyPeerCertificate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

@@ -114,6 +114,28 @@ func (ps *PeerSession) runEstablished(
 	emitChildUp(bus, ps.peerName, child, log)
 	emitRouteAdd(bus, child.TSRemote, log)
 
+	// RFC 9190 Section 5.4: "EAP-TLS peer implementations MUST also support
+	// checking for certificate revocation after authentication completes and
+	// network connectivity is available." RFC 5216 Section 5.4 asks the same with
+	// no TLS version attached.
+	//
+	// IT STARTS HERE AND NOT EARLIER, and the ordering is the requirement rather
+	// than a convenience. The check needs a network, and this Child SA is the
+	// network the EAP-TLS exchange was run to obtain, so it cannot run inside the
+	// handshake and it must not hold the Child SA up. Everything above has
+	// installed the SA and announced its routes, so connectivity now exists.
+	//
+	// It answers nothing for a responder-role SA and for a password EAP method,
+	// and the nil it returns then makes verdict() a nil channel that the loop
+	// below selects on forever (startServerCertRecheck, postauth_revocation.go).
+	//
+	// It rides on the SA rather than on maintainSA's parameter list, so an IKE SA
+	// rekey inside the loop carries it to the replacement SA (SA.certRecheck,
+	// rekey.go). The stop is deferred on the check started HERE, which is the one
+	// this call owns whatever the loop later does to sa.
+	sa.certRecheck = startServerCertRecheck(sa, ocspClient(), log)
+	defer sa.certRecheck.stop()
+
 	// RFC 3948 Section 2.3: start NAT keepalive when NAT is detected.
 	//
 	// The keepalive holds the NAT binding open, so it MUST leave from the same port
@@ -190,6 +212,27 @@ func (ps *PeerSession) maintainSA(
 			}
 			ps.cleanupChild(dp, bus, log)
 			return nil
+		case err := <-sa.certRecheck.verdict():
+			// RFC 9190 Section 5.4: the post-authentication check found the
+			// authenticator's certificate revoked, so the peer it authenticated is
+			// no longer the peer it agreed to talk to. The tunnel comes down here
+			// rather than at the next rekey.
+			//
+			// It takes the same exit the DPD timeout takes: cleanupChild removes
+			// the Child SA and the non-nil return makes PeerSession.run reconnect,
+			// which runs a fresh authentication that the same revoked certificate
+			// will fail inside the handshake (checkChainRevocation). The error is
+			// its own rather than errSADeletedByPeer, because no peer deleted
+			// anything here and the log an operator reads names the reason.
+			//
+			// The field is read on every pass, so the rekey below, which swaps sa,
+			// keeps the check that the replacement SA carries. An SA with nothing to
+			// check carries nil, and verdict() then answers a nil channel this case
+			// waits on forever (postauth_revocation.go).
+			log.Warn("ike: closing the SA, the authenticator certificate is revoked",
+				"peer", ps.peerName, "error", err)
+			ps.cleanupChild(dp, bus, log)
+			return errServerCertRevoked
 		case <-ps.supersede:
 			// RFC 7296 Section 2.4: a parallel IKE_SA_INIT authenticated (the new SA
 			// reached IKE_AUTH), so relinquish this old SA and let runResponder promote

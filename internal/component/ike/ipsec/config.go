@@ -712,6 +712,9 @@ func parseAuthConfig(peerName string, t *config.Tree) (AuthConfig, error) {
 	if err := parseSessionResumption(peerName, t, &auth); err != nil {
 		return auth, err
 	}
+	if err := parseCertificateStatusRequest(peerName, t, &auth); err != nil {
+		return auth, err
+	}
 
 	// A pre-shared-secret peer and an EAP password mode read the same leaf,
 	// because the password IS the shared secret in both. IsEAPPasswordMode

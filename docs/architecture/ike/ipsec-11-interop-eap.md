@@ -30,6 +30,21 @@ authenticator such as strongSwan. The responder half is described in
   checked (except the trust anchor)". The obligation binds both roles, so one
   function serves both: `checkChainRevocation` runs from the authenticator's
   `tls.Config.VerifyConnection` and from the peer's.
+- RFC 9190 Section 5.4 also requires that "EAP-TLS servers supporting TLS 1.3
+  MUST implement Certificate Status Requests (OCSP stapling)". The response an
+  operator writes under `pki certificate <name> ocsp-response` is what Ze answers
+  one with, and a certificate carrying none answers with no status, which RFC 6066
+  Section 8 permits.
+- RFC 9190 Section 5.4 binds a peer that uses Certificate Status Requests to
+  check a chain: "it MUST treat a CertificateEntry (but not the trust anchor)
+  without a valid CertificateStatus extension as invalid and abort the handshake
+  with an appropriate alert". The `certificate-status-request` leaf is what makes
+  Ze such a peer, and it is false by default.
+- RFC 9190 Section 5.4 requires an EAP-TLS peer to "support checking for
+  certificate revocation after authentication completes and network connectivity
+  is available", and to "use a secure transport" for it. That check runs after the
+  Child SA is installed, over https. RFC 5216 Section 5.4 asks for the same thing
+  with no TLS version attached.
 - RFC 9190 Section 2.1.3 leaves resumption to each end: "It is up to the EAP-TLS
   peer to use resumption". The peer offers a ticket when its peering carries a
   resumption store, which is what the `session-resumption` leaf decides.
@@ -142,6 +157,51 @@ completes.
 
 <!-- source: internal/core/eap/revocation.go -- crlSet, parseCRLs, checkChainRevocation, crlSet.checkChain, crlSet.currentListFrom, revocationEntry -->
 <!-- source: internal/component/ike/engine/responder_eap.go -- eapTLSServerConfig -->
+
+**One judge decides what an OCSP response says, whatever brought it.** A stapled
+response arrives inside the handshake and a fetched one arrives after it, and
+both are put to `CheckCertificateStatus`. It requires four things together: the
+issuer signed the response, or a responder that issuer delegated to by the OCSP
+signing extended key usage RFC 6960 Section 4.2.2.2 names; the response answers
+about this certificate's serial number; it speaks for now, so a `thisUpdate`
+ahead of the clock and a passed `nextUpdate` are both refused, exactly as a CRL's
+`nextUpdate` is; and the status is good, because "revoked" and "unknown" are both
+statements that the certificate cannot be relied on.
+
+<!-- source: internal/core/eap/ocsp.go -- CheckCertificateStatus, delegatedOCSPSigner -->
+
+**A status a peer cannot READ is treated as a status that is not there.** Under
+`certificate-status-request` the peer refuses any CertificateEntry except the
+trust anchor whose CertificateStatus is not valid, and Go surfaces the stapled
+status of the LEAF entry alone: `unmarshalCertificate`
+(`crypto/tls/handshake_messages.go`) skips the extensions of every later entry,
+because "this library only supports OCSP and SCT for leaf certificates". RFC 8446
+Section 4.4.2.1 lets a conformant server answer for the whole chain, so an
+intermediate below the trust anchor is an entry whose status exists on the wire
+and not in Ze's hands. Section 5.4's own sentence decides it: an entry without a
+valid status is invalid, and "not sent" and "not visible" are the same bytes to
+this role. A deployment that turns the leaf on therefore needs its authenticator
+certificate signed directly by the trust anchor. What would lift that is a
+crypto/tls that exposes each entry's extensions, and nothing in Ze can.
+
+<!-- source: internal/core/eap/ocsp.go -- checkStapledChainStatus, checkStapledChain -->
+
+**The later revocation check belongs to the engine, because it needs the tunnel
+the EAP exchange was run to obtain.** RFC 9190 Section 5.4 asks the peer to check
+again "after authentication completes and network connectivity is available", and
+the EAP-TLS peer has no network of its own. `runEstablished` starts the check
+after the Child SA is installed and its routes are announced, so the ordering is
+the requirement rather than a convenience, and the check must not hold the SA up
+because the SA is what gives it a network. It reads the chain the handshake
+accepted (`PeerSession.ServerChains`), asks each certificate's own responder over
+https, and reports one of three outcomes: a revocation closes the SA through the
+owner loop, a good answer is logged, and an answer nobody gave leaves the SA up
+with a warning. The https requirement is Section 5.4's "An EAP peer MUST use a
+secure transport", and a certificate naming an http responder is refused before
+any connection opens.
+
+<!-- source: internal/component/ike/engine/postauth_revocation.go -- startServerCertRecheck, checkServerChainStatus, fetchCertificateStatus, ocspClient -->
+<!-- source: internal/core/eap/peer_chain.go -- PeerSession.ServerChains -->
 
 **A round-trip cap keeps a broken authenticator from looping forever.**
 

@@ -1114,6 +1114,35 @@ module ze-ipsec-conf {
                                  crl discards every ticket ze holds for this peer.";
                         }
 
+                        leaf certificate-status-request {
+                            type boolean;
+                            default false;
+                            description "Check this peer's EAP-TLS certificate chain by the OCSP response it staples.";
+                            ze:help
+                                "RFC 9190 Section 5.4 recommends OCSP stapling for checking an
+                                 EAP-TLS server's certificate chain, and puts a MUST on the peer
+                                 that uses it: 'it MUST treat a CertificateEntry (but not the trust
+                                 anchor) without a valid CertificateStatus extension as invalid and
+                                 abort the handshake with an appropriate alert'. This leaf is what
+                                 makes Ze such a peer.
+
+                                 With it true, Ze refuses an authenticator that staples nothing,
+                                 staples a response about another certificate, staples an expired
+                                 one, or staples one that reports the certificate revoked or
+                                 unknown. It also refuses a chain carrying an intermediate below
+                                 the trust anchor, because Ze reads a stapled status for the leaf
+                                 certificate alone and Section 5.4 makes an entry whose status it
+                                 cannot read invalid.
+
+                                 With it false, which is the default, Ze checks the same chain
+                                 against the crl of the ca it validates against. Section 5.4
+                                 requires that check on TLS 1.3 either way.
+
+                                 It governs the peer role. As the authenticator Ze answers a
+                                 Certificate Status Request whenever the pki certificate it
+                                 presents carries an ocsp-response, whatever this leaf says.";
+                        }
+
                         leaf certificate-count {
                             type uint8 { range "1..4"; }
                             default 4;

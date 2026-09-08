@@ -324,6 +324,23 @@ type MethodConfig struct {
 	// server, so newTLSMethod REFUSES an EAP-TLS config that carries none rather
 	// than falling back to a per-session key nothing could ever redeem.
 	Resumption *Resumption
+
+	// OCSPStaple holds the DER-encoded OCSP response this authenticator answers a
+	// Certificate Status Request with, and nil when the operator configured none.
+	//
+	// RFC 9190 Section 5.4: "EAP-TLS servers supporting TLS 1.3 MUST implement
+	// Certificate Status Requests (OCSP stapling)". crypto/tls carries the
+	// extension mechanics and sends this response in the leaf CertificateEntry
+	// when the client asked for one, so this field is what makes the obligation
+	// reachable by an operator (newTLSMethod, eap_tls.go).
+	//
+	// The RESPONDER's signature and validity are the relying party's judgement,
+	// not the presenter's (RFC 6960 Section 3.2), so the authenticator sends what
+	// the responder signed and CheckCertificateStatus (ocsp.go) judges it on the
+	// peer. What ze checks here is only that the operator pasted a response about
+	// THIS certificate, and it checks that at config load where the message can
+	// name the config (parseDeviceCert, internal/component/pki/config.go).
+	OCSPStaple []byte
 }
 
 // Begin returns the initial EAP-Request/Identity packet.

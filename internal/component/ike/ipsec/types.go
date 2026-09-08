@@ -466,6 +466,27 @@ type AuthConfig struct {
 	// than adding one (TestSiteToSitePeerStaysUnderTheHugeParamThreshold).
 	SessionResumption bool
 
+	// CertificateStatusRequest makes a ze EAP-TLS peer check this peer's
+	// certificate chain by the OCSP response it staples, on top of the crl check
+	// that runs either way.
+	//
+	// RFC 9190 Section 5.4 puts a MUST on a peer that "uses Certificate Status
+	// Requests to check the revocation status of the EAP-TLS server's
+	// certificate chain": every CertificateEntry except the trust anchor then
+	// needs a valid CertificateStatus, or the handshake aborts. This leaf is what
+	// makes ze such a peer, so it also decides whether that MUST binds.
+	//
+	// The YANG default is FALSE, because turning it on refuses every
+	// authenticator that staples nothing, and Section 5.4 makes stapling
+	// RECOMMENDED rather than required. It governs the PEER role alone: as the
+	// authenticator ze answers a Certificate Status Request whenever the pki
+	// certificate it presents carries an ocsp-response, which Section 5.4 makes
+	// unconditional.
+	//
+	// It sits BESIDE SessionResumption and HashAndURL so the three bools share
+	// one word (TestSiteToSitePeerStaysUnderTheHugeParamThreshold).
+	CertificateStatusRequest bool
+
 	// CertificateURL is the http URL at which ze's own certificate is published,
 	// sent beside the SHA-1 in a Hash and URL CERT payload.
 	CertificateURL string

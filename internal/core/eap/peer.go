@@ -109,6 +109,23 @@ type PeerTLSConfig struct {
 	// value is a peer that offers no ticket and runs a full handshake every
 	// time, which is what ze did before resumption existed.
 	Resumption *Resumption
+
+	// CertificateStatusRequest is the operator's answer to whether this peer
+	// checks the authenticator's chain by the stapled OCSP response.
+	//
+	// RFC 9190 Section 5.4 puts its MUST on a peer that "uses Certificate Status
+	// Requests to check the revocation status of the EAP-TLS server's
+	// certificate chain", and this field is what makes ze one. The status_request
+	// extension itself is on the wire either way: crypto/tls sets
+	// clientHelloMsg.ocspStapling unconditionally (makeClientHello,
+	// crypto/tls/handshake_client.go), and asking without reading the answer is
+	// not checking a revocation status.
+	//
+	// It is false by default, and the peer then checks revocation by the
+	// certificate revocation lists the same section's first sentence requires
+	// (checkChainRevocation, revocation.go). Section 5.4's stapling sentence is
+	// RECOMMENDED rather than required, so the operator chooses.
+	CertificateStatusRequest bool
 }
 
 // PeerSession manages the EAP peer (client/initiator) side of an exchange.
@@ -149,6 +166,17 @@ type PeerSession struct {
 	tlsTransport *eapTLSTransport
 	tlsStarted   atomic.Bool
 	tlsDone      atomic.Bool
+
+	// serverCheck holds the certificate checks this peer ran on the
+	// authenticator's chain, and the chain they accepted (peer_chain.go).
+	//
+	// It outlives the handshake because ServerChains reads it afterwards: RFC
+	// 9190 Section 5.4 asks the peer to check revocation again once network
+	// connectivity exists, and the chain to check is the one this session
+	// accepted. Written by startTLSClient on the session's own goroutine before
+	// the TLS engine starts, so a reader that has seen a completed handshake sees
+	// it too.
+	serverCheck *serverChainCheck
 
 	// tlsErr holds the TLS handshake goroutine's error, so a failure reports its
 	// cause rather than only the "no MSK" consequence.
@@ -225,12 +253,28 @@ func NewPeerSession(method uint8, identity, password string) *PeerSession {
 }
 
 // NewPeerSessionTLS creates an EAP-TLS peer session with certificate material.
+//
+// The identity the operator configured never leaves this constructor. RFC 9190
+// Section 2.1.8: "A client supporting TLS 1.3 MUST NOT send its username (or any
+// other permanent identifiers) in cleartext in the Identity Response (or any
+// message used instead of the Identity Response)." anonymousNAI (nai.go) derives
+// the anonymous NAI that goes on the wire instead, and it keeps the realm the
+// exchange routes on.
+//
+// Deriving it HERE is what makes the obligation unconditional for the role: this
+// is the one constructor of an EAP-TLS peer, so no caller can reach the Identity
+// Response with the configured identity still in it. NewPeerSession above
+// carries the identity unchanged, because RFC 9190 governs EAP-TLS and the
+// password methods put their own username inside the method exchange.
+//
+// userName is not set for the same reason. It is the MS-CHAPv2 name field
+// (handleMSCHAPv2Request), which this method never reaches, so setting it would
+// leave the operator's username on an EAP-TLS session that must not emit one.
 func NewPeerSessionTLS(identity string, cfg *PeerTLSConfig) *PeerSession {
 	return &PeerSession{
-		identity: identity,
+		identity: anonymousNAI(identity),
 		method:   TypeTLS,
 		state:    peerStateIdentity,
-		userName: stripDomain(identity),
 		tlsCfg:   cfg,
 	}
 }
@@ -1148,7 +1192,8 @@ func (ps *PeerSession) startTLSClient() error {
 	if err != nil {
 		return err
 	}
-	check := &serverChainCheck{roots: rootCAs, crls: crls}
+	check := &serverChainCheck{roots: rootCAs, crls: crls, requireStatus: ps.tlsCfg.CertificateStatusRequest}
+	ps.serverCheck = check
 
 	tlsCfg := &tls.Config{
 		Certificates:       []tls.Certificate{cert},

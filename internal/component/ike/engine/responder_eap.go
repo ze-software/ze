@@ -61,6 +61,17 @@ func eapTLSServerConfig(sa *SA) (eap.MethodConfig, error) {
 	cfg := eap.MethodConfig{
 		ServerCertPEM: pem.EncodeToMemory(&pem.Block{Type: pemBlockCertificate, Bytes: entry.Raw}),
 		ServerKeyPEM:  pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER}),
+
+		// RFC 9190 Section 5.4: "EAP-TLS servers supporting TLS 1.3 MUST
+		// implement Certificate Status Requests (OCSP stapling)". The response
+		// the operator configured on this certificate is what ze answers one
+		// with, and an entry holding none answers with no status, which RFC 6066
+		// Section 8 permits (newTLSMethod, eap/eap_tls.go).
+		//
+		// It is read from the certificate entry rather than from the peer,
+		// because the response is ABOUT that certificate: every peer ze presents
+		// this certificate to gets the same one.
+		OCSPStaple: entry.RawOCSPResponse,
 	}
 	// RFC 5216 Section 5.3: "Both sides MUST perform certificate path validation."
 	// The authenticator validates the client chain against this trust anchor and has

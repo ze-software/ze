@@ -18,10 +18,17 @@ import (
 // PEM block types this package writes. RFC 7468 names CERTIFICATE for a DER
 // X.509 certificate, X509 CRL for a certificate revocation list, and PRIVATE KEY
 // for a PKCS#8 key.
+//
+// OCSP RESPONSE is not one of RFC 7468's labels: an OCSP response is carried as
+// raw DER by RFC 6960 and by every tool that writes one. Ze READS that label and
+// never writes it, because an operator who wraps the certificate and the
+// revocation list in PEM wraps the response beside them, and OpenSSL prints this
+// spelling.
 const (
-	pemBlockCertificate = "CERTIFICATE"
-	pemBlockCRL         = "X509 CRL"
-	pemBlockPrivateKey  = "PRIVATE KEY"
+	pemBlockCertificate  = "CERTIFICATE"
+	pemBlockCRL          = "X509 CRL"
+	pemBlockOCSPResponse = "OCSP RESPONSE"
+	pemBlockPrivateKey   = "PRIVATE KEY"
 )
 
 var (

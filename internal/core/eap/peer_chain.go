@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"sync/atomic"
 	"time"
 )
 
@@ -28,9 +29,49 @@ type serverChainCheck struct {
 	roots *x509.CertPool
 	crls  crlSet
 
+	// requireStatus is the operator's certificate-status-request answer. It is
+	// what makes this peer one that "uses Certificate Status Requests to check
+	// the revocation status of the EAP-TLS server's certificate chain" in RFC
+	// 9190 Section 5.4's sense, and so the antecedent of that sentence's MUST
+	// (checkStapledChainStatus, ocsp.go).
+	requireStatus bool
+
 	// chains is what verifyPeerCertificate built, leaf first and trust anchor
 	// last, for verifyConnection to check the revocation status over.
 	chains [][]*x509.Certificate
+
+	// verified publishes the chain this session finally accepted, for the
+	// post-authentication revocation check to re-read once the tunnel is up
+	// (RFC 9190 Section 5.4, engine/postauth_revocation.go).
+	//
+	// It is a separate field from chains, and atomic, because the two are read
+	// from different goroutines: chains is written and read inside the TLS
+	// handshake, and this one is read by the IKE session goroutine after the
+	// handshake has finished. It carries the chain a RESUMED session rebuilt as
+	// well, which chains does not hold.
+	verified atomic.Pointer[[][]*x509.Certificate]
+}
+
+// ServerChains answers the authenticator certificate chains this EAP-TLS peer
+// verified and accepted, leaf first and trust anchor last, and nil when the
+// session ran no EAP-TLS handshake or the handshake refused the chain.
+//
+// RFC 9190 Section 5.4: "EAP-TLS peer implementations MUST also support checking
+// for certificate revocation after authentication completes and network
+// connectivity is available." That later check needs the chain this session
+// accepted, and the IKE engine is what knows when connectivity exists
+// (startServerCertRecheck, internal/component/ike/engine/postauth_revocation.go).
+//
+// Safe for concurrent use.
+func (ps *PeerSession) ServerChains() [][]*x509.Certificate {
+	if ps.serverCheck == nil {
+		return nil
+	}
+	chains := ps.serverCheck.verified.Load()
+	if chains == nil {
+		return nil
+	}
+	return *chains
 }
 
 // verifyPeerCertificate validates the authenticator's presented certificate
@@ -92,7 +133,28 @@ func (c *serverChainCheck) verifyConnection(cs tls.ConnectionState) error {
 		}
 		chains = rebuilt
 	}
-	return checkChainRevocation(c.crls, chains, cs.Version, now)
+	if err := checkChainRevocation(c.crls, chains, cs.Version, now); err != nil {
+		return err
+	}
+
+	// RFC 9190 Section 5.4 binds this check to a peer that USES Certificate
+	// Status Requests, and the operator's certificate-status-request leaf is what
+	// says whether this peer is one (checkStapledChainStatus, ocsp.go).
+	//
+	// It runs AFTER the revocation walk above, so a peer with both configured
+	// reports the revoked certificate rather than the missing staple: a chain a
+	// CRL already refuses is refused for the reason the operator can act on.
+	if c.requireStatus {
+		if err := checkStapledChainStatus(chains, cs.OCSPResponse, now); err != nil {
+			return err
+		}
+	}
+
+	// Published for the post-authentication check, and only once every check
+	// above accepted the chain. A chain this session refused is one no later
+	// check should re-read (ai/rules/principles.md).
+	c.verified.Store(&chains)
+	return nil
 }
 
 // rebuildResumedChains path-validates the certificates a resumed session

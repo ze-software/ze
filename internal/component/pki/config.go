@@ -15,6 +15,8 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/crypto/ocsp"
+
 	"github.com/ze-software/ze/internal/component/config"
 )
 
@@ -37,6 +39,12 @@ var (
 	errPKICRLPEMBlock    = errors.New("pki: crl leaf holds a PEM block that is not an X509 CRL")
 	errPKICRLPEMExtra    = errors.New("pki: crl leaf holds more than one PEM block, and this leaf names one revocation list")
 	errPKICRLIssuer      = errors.New("pki: crl is not signed by this ca, so it cannot answer for the certificates this ca issued")
+	errPKIOCSPDecode     = errors.New("pki: ocsp-response leaf is neither a PEM OCSP RESPONSE nor base64 DER")
+	errPKIOCSPNotPEM     = errors.New("pki: ocsp-response leaf opens a PEM block that does not decode")
+	errPKIOCSPPEMBlock   = errors.New("pki: ocsp-response leaf holds a PEM block that is not an OCSP RESPONSE")
+	errPKIOCSPPEMExtra   = errors.New("pki: ocsp-response leaf holds more than one PEM block, and this leaf names one response")
+	errPKIOCSPParse      = errors.New("pki: ocsp-response leaf does not decode as an OCSP response")
+	errPKIOCSPSerial     = errors.New("pki: ocsp-response answers about another certificate, so it says nothing about this one")
 	errPKINameInvalid    = errors.New("pki: name contains invalid characters (allowed: alphanumeric, dash, underscore, dot)")
 	errPKINameTooLong    = errors.New("pki: name exceeds 255 characters")
 )
@@ -240,6 +248,38 @@ func parseCACert(name string, tree *config.Tree) (*CACertEntry, error) {
 	return entry, nil
 }
 
+// ocspResponseDER decodes what a pki `ocsp-response` leaf holds, in the same two
+// forms revocationListDER takes.
+//
+// An OCSP response has no PEM label of its own in RFC 7468, and `openssl ocsp
+// -respout` writes raw DER, so base64 is the form an operator arrives with. The
+// PEM arm is here because the two leaves beside it take PEM and an operator who
+// wraps one wraps them all; `pemBlockOCSPResponse` is the label OpenSSL prints.
+func ocspResponseDER(value string) ([]byte, error) {
+	if !strings.Contains(value, pemPreamble) {
+		der, err := base64.StdEncoding.DecodeString(value)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", errPKIOCSPDecode, err)
+		}
+		return der, nil
+	}
+
+	block, rest := pem.Decode([]byte(value))
+	if block == nil {
+		return nil, errPKIOCSPNotPEM
+	}
+	if block.Type != pemBlockOCSPResponse {
+		return nil, fmt.Errorf("%w: %s", errPKIOCSPPEMBlock, block.Type)
+	}
+	// A second block is refused rather than ignored, for the reason
+	// certificateDER gives: a whole file pasted into one leaf would store its
+	// first document and drop the rest with no message.
+	if extra, _ := pem.Decode(rest); extra != nil {
+		return nil, fmt.Errorf("%w: the second is %s", errPKIOCSPPEMExtra, extra.Type)
+	}
+	return block.Bytes, nil
+}
+
 // revocationListDER decodes what a pki `crl` leaf-list entry holds, in the same
 // two forms certificateDER takes: an operator who holds certificates in PEM
 // holds the revocation list beside them in PEM too.
@@ -310,6 +350,34 @@ func parseDeviceCert(name string, tree *config.Tree) (*CertificateEntry, error) 
 		}
 		entry.Intermediates = append(entry.Intermediates, interCert)
 		entry.RawIntermediates = append(entry.RawIntermediates, interDER)
+	}
+
+	// RFC 9190 Section 5.4: "EAP-TLS servers supporting TLS 1.3 MUST implement
+	// Certificate Status Requests (OCSP stapling)". The response is read HERE so
+	// a paste that answers about another certificate is refused at config load,
+	// where the message names the entry. Left to the handshake it would surface
+	// as a peer refusing a certificate that is in fact valid, and only on a peer
+	// strict enough to check.
+	if ocspValue, oOk := tree.Get("ocsp-response"); oOk && ocspValue != "" {
+		staple, oErr := ocspResponseDER(ocspValue)
+		if oErr != nil {
+			return nil, oErr
+		}
+		// The issuer is not resolved here, so the signature is not checked here:
+		// ParseConfig reads the certificate list before the ca that issued this
+		// entry is known to it, and the RELYING PARTY is what RFC 6960 Section
+		// 3.2 makes responsible for judging a response anyway. Ze does that as a
+		// peer (eap.CheckCertificateStatus). What this entry owes is that the
+		// operator pasted a response about the certificate beside it.
+		resp, oErr := ocsp.ParseResponse(staple, nil)
+		if oErr != nil {
+			return nil, fmt.Errorf("%w: %w", errPKIOCSPParse, oErr)
+		}
+		if resp.SerialNumber == nil || resp.SerialNumber.Cmp(cert.SerialNumber) != 0 {
+			return nil, fmt.Errorf("%w: it answers about serial %s and this certificate is serial %s",
+				errPKIOCSPSerial, resp.SerialNumber, cert.SerialNumber)
+		}
+		entry.RawOCSPResponse = staple
 	}
 
 	privContainer := tree.GetContainer("private")

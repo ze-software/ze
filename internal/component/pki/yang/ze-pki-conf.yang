@@ -9,6 +9,10 @@ module ze-pki-conf {
                  private keys. Used by IPsec, TLS, and other subsystems
                  that need X.509 identity.";
 
+    revision 2026-09-08 {
+        description "Stapled OCSP response on a device certificate, for RFC 9190 Section 5.4 (spec-ipsec-rfc9190).";
+    }
+
     revision 2026-09-05 {
         description "CA revocation lists, for RFC 9190 Section 5.4 (spec-ipsec-rfc9190).";
     }
@@ -103,6 +107,20 @@ module ze-pki-conf {
                     building, and sends them after it in the IKE_AUTH chain. RFC 7296 Section 3.6 requires an
                     implementation be capable of being configured to send up to four X.509 certificates. This device
                     certificate plus three intermediates is that maximum. A single value is still valid.";
+            }
+
+            leaf ocsp-response {
+                type string;
+                description "OCSP response about this certificate, stapled to a peer that asks for it.";
+                ze:help "An OCSP response the certificate's issuer signed about this certificate, as base64-encoded
+                    DER or as an 'OCSP RESPONSE' PEM document. Ze sends it in the certificate message when a peer
+                    asks for a Certificate Status Request, which RFC 9190 Section 5.4 makes mandatory for an EAP-TLS
+                    server on TLS 1.3. Fetch it from the responder your CA publishes, with 'openssl ocsp -respout'.
+                    Ze refuses a response about another certificate. A response carries a nextUpdate: a peer that
+                    checks the status refuses this certificate once that time passes, so replace the value before
+                    it does. An entry with no response answers a Certificate Status Request with no status, which
+                    RFC 6066 Section 8 permits, and the peer then checks revocation against the crl of the ca that
+                    issued this certificate.";
             }
 
             container private {

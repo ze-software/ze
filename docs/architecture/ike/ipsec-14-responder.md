@@ -81,6 +81,18 @@ it protects, because crypto/tls refuses a ticket older than the same 7 days.
 <!-- source: internal/component/ike/engine/resumption.go -- resumptionFor, resumptionStates -->
 <!-- source: internal/component/ike/engine/responder_eap.go -- eapTLSServerConfig -->
 
+**The authenticator answers a Certificate Status Request with what the operator
+configured, and with nothing else.** RFC 9190 Section 5.4 requires an EAP-TLS
+server on TLS 1.3 to implement Certificate Status Requests, and crypto/tls owns
+the extension mechanics: it sends the response in the leaf CertificateEntry when
+the client asked for one. What `eapTLSServerConfig` supplies is that response,
+read from the `ocsp-response` leaf of the pki certificate this peer presents,
+because the response is about that CERTIFICATE rather than about this peering.
+An entry holding none answers with no status, which RFC 6066 Section 8 permits,
+and the peer then checks the chain against the CA's `crl`. Nothing here judges
+the response: RFC 6960 Section 3.2 makes that the relying party's job, and ze
+does it as a peer (`eap.CheckCertificateStatus`).
+
 **Resumption is one operator setting for both roles.** The `session-resumption`
 leaf sits in the peer's `authentication` container, defaults to true, and gates
 accepting a resumed session as the authenticator and offering a ticket as the

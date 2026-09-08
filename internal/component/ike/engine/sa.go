@@ -294,6 +294,20 @@ type SA struct {
 	// so does one an IKE-SA rekey created before the config named a store.
 	Resumption *eap.Resumption
 
+	// certRecheck is the post-authentication revocation check of the EAP-TLS
+	// authentication this SA rests on (RFC 9190 Section 5.4,
+	// postauth_revocation.go). runEstablished starts it once the Child SA is
+	// installed, and owns its stop; the owner loop selects on its verdict. It is
+	// nil for an SA with nothing to check: a responder-role SA, or an EAP method
+	// that presents no certificate.
+	//
+	// An IKE SA rekey carries it over, because CREATE_CHILD_SA re-authenticates
+	// nothing (RFC 7296 Section 2.18). The rekeyed SA rests on the certificate the
+	// old one authenticated with, so a verdict about that certificate is still its
+	// verdict, and a rekey landing before the responder answers MUST NOT be a way
+	// to keep a revoked certificate's tunnel up.
+	certRecheck *serverCertRecheck
+
 	// InitialContact records that the peer's first IKE_AUTH carried an INITIAL_CONTACT
 	// notify (RFC 7296 Section 2.4): it asserts this is the only IKE SA to the peer
 	// identity, authorizing us to delete any stale SA to it without waiting for a

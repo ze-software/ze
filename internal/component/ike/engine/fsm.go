@@ -36,6 +36,14 @@ var (
 	// errSAExpired reports a refusal to protect a message with an IKE SA whose
 	// negotiated lifetime has run out (RFC 7296 Section 2.8).
 	errSAExpired = errors.New("ike: security association lifetime expired")
+	// errServerCertRevoked reports that the post-authentication revocation check
+	// found the authenticator's certificate revoked, so the owner loop gave the SA
+	// up (RFC 9190 Section 5.4, postauth_revocation.go).
+	//
+	// It is NON-NIL for the reason errSADeletedByPeer below is: the reconnect has
+	// to come from the loop's own return. The reconnect then runs a fresh
+	// authentication, which the same certificate fails inside the handshake.
+	errServerCertRevoked = errors.New("ike: the authenticator certificate was revoked")
 	// errSADeletedByPeer reports that the peer deleted an ESTABLISHED IKE SA, so the
 	// owner loop gave it up.
 	//
@@ -1199,6 +1207,13 @@ func buildPeerTLSConfig(sa *SA, log *slog.Logger) *eap.PeerTLSConfig {
 	// refuses a TLS 1.3 authenticator rather than trusting a chain whose
 	// revocation status nobody read (eap.checkChainRevocation).
 	cfg.CRLPEM = ca.CRLPEM()
+
+	// RFC 9190 Section 5.4 makes a peer that USES Certificate Status Requests
+	// refuse any CertificateEntry except the trust anchor that carries no valid
+	// CertificateStatus. The operator's certificate-status-request leaf is what
+	// makes ze such a peer, so the leaf decides whether that MUST binds here
+	// (eap.checkStapledChainStatus).
+	cfg.CertificateStatusRequest = sa.PeerCfg.Auth.CertificateStatusRequest
 
 	// RFC 9190 Section 2.1.3: "It is up to the EAP-TLS peer to use resumption."
 	// The store carries the operator's answer and the tickets this peering has
