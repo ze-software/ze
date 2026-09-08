@@ -76,7 +76,7 @@ Closed here: `isis-per-level-hello-timers`, `l2tp-shaper-upload-rate-is-not-enfo
 | `plan/spec-plugin-declares-answer-shape.md` | Was in flight when stopped. The `catalog` session cleared it and asked that its closure take `plan/.citation-baseline` too. Carry its AC-18 evidence: commit `0f991285e` satisfies AC-18, mechanism `registry.Registration.Commands`/`.Pipes` read through `command.DeclaredForCommand` (`internal/component/command/declared.go:68`); and its Known Limitations paragraph saying the catalog "cannot show a plugin's declaration" is now false |
 | `plan/immediate/spec-bgp-pcap-decode.md` | Proof gap for the gate to rule on: AC-2 evidence was substituted because the host has no tshark |
 | `plan/immediate/spec-commit-end-reports-what-each-peer-took.md` | Proof gap: its own `.ci` is committed and was never run |
-| `plan/immediate/spec-image-server-listen-interface-drops-entries.md` | Clean. Its `Phase: 1/2` metadata is stale |
+| `spec-image-server-listen-interface-drops-entries` | CLOSED 2026-09-08. The tree no longer holds the file, so the name is written bare |
 | `plan/pre-release/spec-qemu-targets-boot-the-shipped-kernel.md` | Clean, evidence tables filled for all 7 ACs |
 
 **The 45 that are NOT closable.** 42 are partly built and 3 were never started

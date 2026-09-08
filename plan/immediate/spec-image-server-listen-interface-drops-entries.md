@@ -5,9 +5,9 @@
 | Status | in-progress |
 | Scope | plugin |
 | Depends | - |
-| Phase | 1/2 |
+| Phase | 4/4 |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-09-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -508,3 +508,225 @@ binds, and the HTTP surface itself is `net/http` and is unchanged.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/plugins/imageserver/register.go` gained `listenTarget`, `listenTargets`,
+  `startTargets`, `serveTarget` and `listenAddr`. `startServer` now calls
+  `startTargets(cfg, zefsPath, listenTargets(cfg.ListenInterfaces, log), log)`,
+  and `stopServer` closes every server in `httpServers`.
+- A resolve failure and a bind failure are each logged with the interface name
+  and skipped. An empty listener set logs
+  `imageserver: no interfaces bound; server not serving` and returns before the
+  `started` line, which is the sentence `startServer` in
+  `internal/plugins/tftpserver/register.go` already uses.
+- Each listener builds its own mux through `newMux(cfg, zefsPath, target.ip)`,
+  so `serveBootIPXE` (`internal/plugins/imageserver/handler.go`) writes that
+  listener's own address into `ze.server=`.
+- The `ze:help` on `listen-interface` and `listen-port`
+  (`internal/plugins/imageserver/yang/ze-image-server-conf.yang`) now describes
+  one listener per entry.
+- Landed at `f4aa60f61`, "fix(imageserver): bind every listen-interface entry".
+
+### Bugs Found/Fixed
+- The spec's own defect: `startServer` read `cfg.ListenInterfaces[0]` and dropped
+  every later entry with no log line. Covered by `TestListenTargetsKeepsEveryEntry`,
+  `TestStartTargetsBindsEveryTarget` and `test/install/image-multi-interface.ci`.
+- No further bug was found during closure.
+
+### Documentation Updates
+- `docs/architecture/provisioning/image-server.md`, two Decisions rows: "One
+  listener for each `listen-interface` entry" and "Each listener serves a boot
+  script naming its own address". The page carries
+  `<!-- source: internal/plugins/imageserver/register.go -- plugin registration and listener lifecycle -->`
+  at line 7, which is the anchor this change had to keep true.
+- No other page describes the image server's listen surface.
+  `grep -rn "image-server" docs/` returns only that page plus four cross-links in
+  `docs/architecture/provisioning/{pxe-staging,tftp-server,dhcp-server,README}.md`,
+  none of which states a listener count. The two `listen-interface` hits in
+  `docs/guide/configuration.md` (3261, 3290, 3319) are the DHCP server.
+- `./le doc check verify` exits 1 with 3939 pre-existing findings across the BGP
+  command surface, the published wiki and `../gh-pages/`. `grep -i imageserver`
+  over its log names none of them. Not this spec's, not repaired here.
+
+### Deviations from Plan
+- None. The four Implementation Steps phases landed as written.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The discrimination cut (`names = names[:1]`, `targets = targets[:1]`) was applied to `register.go` and the agent holding it was stopped before it read the red | The tree held the exact defect the spec existed to fix, wrapped in passing tests | The resuming agent read the file; no gate would have caught it | Escalated into `ai/rules/testing.md` and `ai/rules/points/testing/mutation-testing/an-applied-discrimination-cut-is-marked-so-it-cannot-reach-a-commit.md`. Re-checked at closure: `grep -rn "names\[:1\]\|targets\[:1\]" internal/plugins/imageserver/` returns nothing |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The `leaf-list` means "serve on each", so every entry gets a listener | Done | `listenTargets`, `startTargets` (`internal/plugins/imageserver/register.go`) | The alternative, narrowing to a single `leaf`, was rejected in Key Design Decisions |
+| One answer covering both plugins | Done | `internal/plugins/tftpserver/register.go` already loops over the same leaf; the image server now matches it | No edit to the TFTP server was owed: it was already on the answer |
+| No entry dropped in silence | Done | `listenTargets` logs `resolve interface failed` per entry; `startTargets` logs `listen failed` per entry | `test/install/image-multi-interface.ci` asserts both entry names reach stderr |
+| No `started` over a server that serves nothing | Done | The `len(httpServers) == 0` branch in `startServer` | `reject=stderr:pattern=imageserver: started` in the `.ci` |
+| No migration owed | Done | The schema was not narrowed, so a committed one-entry configuration behaves exactly as before | `TestListenTargetsWithNoNameBindsEveryAddress` pins the no-entry case |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestStartTargetsBindsEveryTarget` | Two targets, two servers, distinct addresses, both answer 200 on `/install/boot/boot.ipxe` |
+| AC-2 | Done | `TestListenTargetsKeepsEveryEntry`, `TestStartTargetsSkipsUnbindableTarget` | The unresolvable name is logged and the resolvable entries still yield targets; the unbindable target is logged and the usable one still serves |
+| AC-3 | Done | `test/install/image-multi-interface.ci` | Both entries name devices that do not exist; the log carries `no interfaces bound` and never `imageserver: started` |
+| AC-4 | Done | `TestListenTargetsWithNoNameBindsEveryAddress` | `listenTargets(nil)` returns one target whose ip is empty, and `newMux` registers no `boot.ipxe` for an empty `serverAddr` |
+| AC-5 | Done | `TestServeTargetAdvertisesItsOwnAddress` | 127.0.0.1 and 127.0.0.2 each serve a script carrying their own `ze.server=` |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestListenTargetsKeepsEveryEntry` | Done | `internal/plugins/imageserver/listen_test.go` | PASS |
+| `TestListenTargetsWithNoNameBindsEveryAddress` | Done | `internal/plugins/imageserver/listen_test.go` | PASS |
+| `TestStartTargetsBindsEveryTarget` | Done | `internal/plugins/imageserver/listen_test.go` | PASS |
+| `TestStartTargetsSkipsUnbindableTarget` | Done | `internal/plugins/imageserver/listen_test.go` | PASS |
+| `TestServeTargetAdvertisesItsOwnAddress` | Done | `internal/plugins/imageserver/listen_linux_test.go` | PASS |
+| `image-multi-interface` | Done | `test/install/image-multi-interface.ci` | PASS, 9.2s, in `./le functional install` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/plugins/imageserver/register.go` | Done | Modified at `f4aa60f61` |
+| `internal/plugins/imageserver/yang/ze-image-server-conf.yang` | Done | Both `ze:help` texts rewritten |
+| `docs/architecture/provisioning/image-server.md` | Done | Two Decisions rows added |
+| `internal/plugins/imageserver/listen_test.go` | Done | Created |
+| `internal/plugins/imageserver/listen_linux_test.go` | Done | Created |
+| `test/install/image-multi-interface.ci` | Done | Created |
+
+### Audit Summary
+- **Total items:** 22 (5 requirements, 5 ACs, 6 tests, 6 files)
+- **Done:** 22
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An operator who names two interfaces gets HTTP on both, which is what the `leaf-list` and its plural description promise | functional + unit | `TestStartTargetsBindsEveryTarget`: `startTargets` returns 2 servers on distinct addresses and both answer 200. Against the pre-fix behavior (`targets = targets[:1]`) it failed with `startTargets bound 1 servers, want 2` |
+| No entry is dropped in silence | functional | `test/install/image-multi-interface.ci` drives a real `ze -` daemon from a committed config and asserts `ze-no-such-iface0` AND `ze-no-such-iface1` both reach stderr. The pre-fix code logged the first and returned. PASS at 9.2s in `./le functional install` |
+| The schema no longer contradicts itself | grep | `grep -c "FIRST interface" internal/plugins/imageserver/yang/ze-image-server-conf.yang` returns `0`; `listen-port` now reads "on the IPv4 address of each listen-interface" |
+| A client on the second network is told to fetch the kernel from the address it reached | unit, over the real HTTP path | `TestServeTargetAdvertisesItsOwnAddress` binds 127.0.0.1 and 127.0.0.2, fetches `/install/boot/boot.ipxe` from each, and asserts `ze.server=` matches that listener. It failed with `startTargets bound 1 servers, want 2` under the cut |
+| The two provisioning plugins agree about the leaf | source | `startServer` (`internal/plugins/tftpserver/register.go`:92,107,116,121) loops the entries, logs `tftpserver: listen failed` per interface and reports `tftpserver: no interfaces bound; server not serving`. The image server now emits the same three sentences under `imageserver:` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Nothing. Every AC, test and file in the plan landed, and the two Known Limitations (IPv6 serving, re-resolving an address that arrives after the commit) are capabilities this spec never held and did not narrow | - | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/image-server-listen-interface-drops-entries-d64e7b3f-bfdc-4614-8db4-f12043eb77cc.md` |
+| `./le spec session review check` | clean: `review_gate: OK (5 code files, clean, hashes match ...)` |
+| Rounds | 1 |
+| Reviewer lenses used | logic+wiring, security+edge-cases, feature risk (goroutine lifecycle and listener teardown) |
+
+Run 1, over `git diff f4aa60f61~1..f4aa60f61`: **0 BLOCKER, 0 ISSUE, 1 NOTE.**
+
+- Step 0: `./le repository check` exits 1 with 8 findings, all in
+  `bgp/reactor/filter_delta.go`, `ike/ipsec/types.go` and `component/pki/`. None
+  in `internal/plugins/imageserver`. `./le commit audit` reports 10 weakened
+  tests, all in `internal/component/ike/engine/` and
+  `internal/test/runner/tunnel_endpoint_lint_test.go`, none in this spec's files.
+- Step 1 size: 154 lines in one product file plus 206 test lines and a 42-line
+  `.ci`. Proportional to the defect.
+- Step 2 wiring: `listenTargets`, `startTargets`, `serveTarget` and `listenAddr`
+  each have a non-test caller in `register.go` (lines 124, 219, 222, 237), and
+  `startServer` is reached from `p.OnConfigure`. Proven end to end by the `.ci`.
+- Step 8 removed-behavior: the deleted `bindIP`/single-`http.Server` block's two
+  invariants are both re-established. The synchronous bind is still synchronous
+  (`serveTarget` binds before it starts the goroutine, and its comment is
+  carried over), and the resolve-failure report survives as a per-entry
+  `resolve interface failed`, which is what `test/install/image-resolve-failure.ci`
+  still asserts. No existing test file was edited, so no assertion was dropped.
+- Step 14 guard audit: the `len(httpServers) == 0` branch fails closed. It logs
+  and returns rather than serving, and it does NOT fall back to the wildcard
+  address when the operator named interfaces that all failed. It is driven from
+  its entry point by the `.ci`, not from a helper.
+- Steps 12 and 13 security and allocation: `make([]listenTarget, 0, len(names))`
+  and `make([]*http.Server, 0, len(targets))` are sized by the operator's own
+  committed config, and `listen-interface` is a set `leaf-list` that the config
+  layer deduplicates (`internal/component/config/tree.go`, `AppendSlice`), so a
+  repeated entry cannot reach a second bind. Each entry binds one address the
+  operator named; nothing binds an address they did not.
+- Step 18 style pass, run over `register.go`: no `panic()` anywhere in the
+  package. Both loops are bounded by the config entry count. The `go func()` in
+  `serveTarget` is a one-time component lifecycle step, which
+  `ai/rules/goroutine-lifecycle.md` permits, and it ends when its own server is
+  closed. `startTargets` and `serveTarget` both state the Close obligation in
+  their doc comments, and `stopServer` is the side that performs it. `srv.Addr`
+  is reassigned from `ln.Addr()` with a comment saying why, which is the
+  deliberate-copy exception.
+- Step 21 RFC: skipped. No protocol code. HTTP is `net/http` and no byte on the
+  wire changed shape.
+- NOTE (does not block): `listenTarget.iface` holds an interface NAME.
+  `internal/plugins/tftpserver/register.go` spells the same value `ifName`. Both
+  read; the field is unexported and used in one file.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | No BLOCKER or ISSUE was found | - | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/plugins/imageserver/listen_test.go` | Yes | `-rw-rw-r-- 1 thomas thomas 5232 Sep 6 10:07` |
+| `internal/plugins/imageserver/listen_linux_test.go` | Yes | `-rw-rw-r-- 1 thomas thomas 1535 Sep 6 10:07` |
+| `test/install/image-multi-interface.ci` | Yes | `-rw-rw-r-- 1 thomas thomas 1986 Sep 6 10:10` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Two resolving entries answer HTTP on both | `--- PASS: TestStartTargetsBindsEveryTarget (0.00s)` |
+| AC-2 | A bad second entry is named and the first still serves | `--- PASS: TestListenTargetsKeepsEveryEntry (0.00s)`, `--- PASS: TestStartTargetsSkipsUnbindableTarget (0.00s)` |
+| AC-3 | Nothing binds: `no interfaces bound`, never `started` | `9.2s 10/42 PASS 10 image-multi-interface` in `./le functional install` |
+| AC-4 | No entry: one wildcard listener, no boot script | `--- PASS: TestListenTargetsWithNoNameBindsEveryAddress (0.00s)` |
+| AC-5 | Each listener's script names its own address | `--- PASS: TestServeTargetAdvertisesItsOwnAddress (0.01s)` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| A committed config naming two `listen-interface` entries, read by a running `ze` daemon | `test/install/image-multi-interface.ci` | Yes. Read in full: it feeds a `service { image-server { ... } }` block to `ze -` on stdin, sets `ze.log.imageserver=info`, awaits `no interfaces bound` on stderr, then asserts both entry names and rejects `imageserver: started` |
+| `imageConfig.ListenInterfaces` holding several entries -> `listenTargets` | (unit) | Yes. `TestListenTargetsKeepsEveryEntry` PASS |
+| A resolved target set -> `startTargets` -> `serveTarget` | (unit) | Yes. `TestStartTargetsBindsEveryTarget` PASS |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `startServer` (`internal/plugins/tftpserver/register.go`:92) loops `for _, ifName := range cfg.ListenInterfaces` over the same leaf name |
+| A-2 | confirmed | `TestServeTargetAdvertisesItsOwnAddress` binds 127.0.0.1 and 127.0.0.2 on one port and both serve. PASS |
+| A-3 | confirmed | `serveBootIPXE` (`internal/plugins/imageserver/handler.go`) writes `h.serverAddr` into `ze.server=` and into `baseURL`; `newMux` takes it per listener. `TestServeTargetAdvertisesItsOwnAddress` reads both scripts back |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| #5 / #12 / #16, `docs/architecture/provisioning/image-server.md` | "One listener for each `listen-interface` entry" at line 16 matches `listenTargets` plus `startTargets`; "Each listener serves a boot script naming its own address" matches `newMux(cfg, zefsPath, target.ip)` and `serveBootIPXE` | Yes |
+| #2, config syntax | No leaf added, removed or retyped. `git show f4aa60f61 -- .../ze-image-server-conf.yang` changes only two `ze:help` strings | Yes |
+| #6, user guide | `grep -rn "image-server" docs/` returns the architecture page plus four cross-links; `docs/guide/ze-install.md` is not among them and names no listener count | Yes |
+| #17, config examples | The two `listen-interface` hits in `docs/guide/configuration.md` (3261, 3319) are inside the `dhcp-server` block, not the image server | Yes |
+| `docs/DESIGN.md` anchor on `register.go` | The anchor is the Shipped Plugins inventory row, which names the plugin and no listener count. Unchanged by this work | Yes |
+| `./le doc check verify` | Exits 1 with 3939 findings; `grep -i "image-server\|imageserver"` over the log returns none. Pre-existing, across the BGP command surface, the wiki and `../gh-pages/` | Yes, none of this spec's |
+
+## Core Insight
+
+The bind address was not only a socket parameter. `serveBootIPXE` writes it into
+`/install/boot/boot.ipxe` as `ze.server=`, so the address a listener binds is
+also CONTENT the client acts on. That is what made a single shared mux wrong
+rather than merely wasteful: a client reaching the second install network would
+have been told to fetch the kernel from the first network's address, and the
+install would have stalled with both listeners healthy. A fan-out that only
+duplicated sockets would have passed every socket-level test and shipped that
+bug.
