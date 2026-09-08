@@ -126,6 +126,21 @@ indistinguishable, which is the defect this spec exists to remove.
 - [ ] `docs/architecture/testing/interop.md` - the interop lab.
   → Constraint: a scenario directory is NAMED, carries declarative inputs only, and
   MUST have a Go checker in `internal/le/interoplab/bgp/checkers.go`.
+- [ ] `docs/architecture/ospf/ospf-af-unify.md` - declared by `origination_v6_external.go`,
+  where `v6InjectExternal` gains the tag.
+  → Constraint: the owner chose ONE `ospf` engine with address-family seams and forbids a
+  second OSPFv3 engine, so the tag threads through the shared injection seam rather than a
+  v6-only path. "The LSDB originates with caller-provided wire bytes" puts the tag into the
+  v6 encoder's bytes, which is why the Type-7 proof is an encoder assertion and not an
+  LSDB one.
+- [ ] `docs/architecture/ospf/ospf-ext-15-multi-af.md` - declared by `register_multiaf.go`,
+  where `v6InjectorAF` forwards the tag.
+  → Constraint: the page's one trap is this exact seam. An unconditionally wired
+  IPv4-over-OSPFv3 injector silently DROPPED OSPFv2 redistribution, and the fix was a
+  wrapper that reports whether its address-family engine exists so `injectorFor`
+  (`redistribute/consumer.go`, also edited here) falls back to the OSPFv2 engine, evaluated
+  PER INJECTION so a runtime family add or remove stays correct. Widening the injector
+  signature must not collapse that check into a construction-time one.
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc2328.md` - OSPFv2, the AS-External-LSA this change fills a field of.

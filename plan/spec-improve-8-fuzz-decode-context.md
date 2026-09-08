@@ -55,6 +55,9 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
   → Constraint: `internal/le/fuzz/actions.go` enumerates targets individually (multi-target packages cannot use `-fuzz=.`); every new target MUST be added there or it never runs in `ze-fuzz-test`
 - [ ] `ai/rules/performance.md` - decode-under-fuzz must respect wire package norms
   → Constraint: fuzz targets call producers as-is; no test-only decode wrappers that would diverge from production paths
+- [ ] `docs/architecture/wire/capabilities.md` - declared by every file in `internal/core/bgp/capability/`, the package AC-3 adds a fuzz target to
+  → Constraint: the TLV is Code (1) + Length (1) + Value (0-255 bytes), so a one-byte length caps every value and the fuzzer cannot reach a longer one through `Parse`. The seed corpus therefore has to carry a length byte that OVERRUNS the remaining buffer, which is the truncation the parser must refuse rather than a length the format forbids.
+  → Constraint: negotiation is "intersection of peer caps; unknown ignored; last wins". An unknown code and a repeated code are both LEGAL input, so neither is a finding: the fuzz target asserts that `Parse` and `ParseFromOptionalParams` do not panic and do not read past their slice, never that they reject unfamiliar bytes.
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc6793.md` (4-octet ASN) - the asn4 dimension being fuzzed

@@ -201,7 +201,7 @@ no wire behavior.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

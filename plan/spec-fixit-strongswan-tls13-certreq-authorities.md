@@ -320,7 +320,7 @@ gains an RFC comment and no `RFC8446-*` requirement id is claimed by this spec.
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-4 demonstrated. AC-5 recorded with its trigger
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 

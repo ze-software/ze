@@ -90,6 +90,16 @@ Known Limitations.
   → Constraint: the link speed is read on each origination pass rather than cached, so a renegotiating link re-prices with nothing to invalidate
 - [ ] `docs/guide/ospf.md` - the operator-facing description of interface cost
   → Constraint: the guide states the clamp, the unknown-speed fallback and the reload behavior, so each is a published promise
+- [ ] `docs/architecture/ospf/ospf-1-types.md` - declared by `types/metric.go` and `types/metric_test.go`
+  → Constraint: "Constraints on callers" gives the leaf package ownership of metrics and forbids a higher OSPF package from redeclaring them, which is the rule the four deleted cost copies broke. "The package has no runtime dependency" keeps `DefaultMetric` a pure arithmetic function, so `interfaceLinkSpeedMbps` reads the link outside `types` and passes the speed in.
+- [ ] `docs/architecture/ospf/ospf-ext-11-ldp-igp-sync.md` - declared by `ldp_sync.go`, whose cost copy this spec deletes
+  → Constraint: "Restore recomputes the configured cost at origination time. The stored cost is never overwritten." Deleting the copy must keep that property: restore calls the one cost function and re-derives, so a link that renegotiated its speed while held out is priced at its new speed. "Point-to-point cost-out must NOT override the interface cost" keeps max-metric a per-interface FLAG on the transit link, not a written cost.
+- [ ] `docs/architecture/ospf/ospf-ext-2-traffic-engineering.md` - declared by `te_originate.go`, where the TE metric fallback is threaded
+  → Constraint: "Origination is pull-model through the carrier. A withdraw diff on unchanged config floods nothing." The TE metric fallback therefore reads the derived cost at origination rather than snapshotting it, which matches the no-cache decision above, and a cost that moves with link speed produces a real diff and does flood.
+- [ ] `docs/architecture/testing/interop.md` - declared by `internal/le/interoplab/bgp/checkers.go` and `check_extras.go`, both of which this spec edits
+  → Constraint: "Typed checker operations" makes `checkers.go` the complete scenario catalogue, and an absent value never proves a negative assertion by itself: the operation must also name positive evidence that the query mechanism ran. The `ospf-auto-cost-frr` scenario asserts a cost VALUE FRR reports, which is a positive, so the trap it must avoid is a scenario that would pass at any speed.
+- [ ] `docs/features/interfaces.md` - declared by `internal/plugins/iface/netlink/show_linux.go`
+  → Constraint: the Physical Layer row records "Speed / duplex / autoneg" as `missing`, and that row is about the OPERATOR surface (it sits beside ethtool integration and ring buffer sizing). `LinkSpeedDuplex` is an internal sysfs read whose doc comment already names OSPF auto-cost as a consumer, so this spec adds a consumer and no operator-facing speed surface. The row is NOT flipped by this work.
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc2328.md` - Appendix C.3 defines the interface output cost

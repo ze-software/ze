@@ -90,6 +90,8 @@ Known Limitations.
   → Constraint: the send side and the receive side point the same way and do the opposite thing: `selectSendKey` keeps signing with an expired key, `verify` refuses one
 - [ ] `docs/guide/ospf.md` - the operator-facing description of key chains and rotation
   → Constraint: the guide states the drop is counted under the `accept-lifetime` reason of `ze_ospf_auth_failures_total`, so the reason string is a documented interface and not a free label
+- [ ] `docs/architecture/testing/interop.md` - the interop scenario surface, declared as the design document by `internal/le/interoplab/bgp/checkers.go` and `check_extras.go`, both of which this spec edits
+  → Constraint: "Typed checker operations" makes `checkers.go` the complete scenario catalogue, and states that an absent value never proves a negative assertion by itself: the operation must also name positive evidence that the query mechanism ran, or a failed query reads as protocol absence. The out-of-window drop this spec asserts is exactly that kind of negative, so the scenario asks FRR a question it answers in both states and reads the absence out of the answer.
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc7474.md` - RFC7474-4-1 is the requirement this spec implements

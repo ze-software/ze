@@ -88,6 +88,8 @@ an indefinite block.
 ### Architecture Docs
 - [ ] `docs/architecture/fleet-config.md` - security section (cert verification default), roles
   → Constraint: cert verification is the documented default; the current self-signed cert breaks it.
+- [ ] `docs/architecture/api/process-protocol.md` - the plugin hub's own TLS model, declared as the design document by `internal/component/plugin/types.go`
+  → Constraint: "Plugin Transport / External Plugins (TLS connect-back)" has the engine create a `PluginAcceptor` holding the certificate authority root that issued the served certificate, and has the forked child validate the engine chain against that root, carried to it as `ZE_PLUGIN_CA_PEM`. The managed listener's trust decision is a second answer to the same question, so this spec states where it diverges rather than inventing a model.
 - [ ] The managed-hub-server record (retired with the learned corpus) - what was built and why the dedicated listener
 
 ### RFC Summaries (MUST for protocol work)

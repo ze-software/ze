@@ -437,7 +437,7 @@ it.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-4 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)

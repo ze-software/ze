@@ -419,8 +419,8 @@ covered: `test/plugin/fib-table.ci`, `fib-ecmp-realtime.ci`,
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
-- [ ] `./le verify current mode full` passes; AC-4 verified under `./le qemu run command "./le qemu all-tests"`
+- [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
+- [ ] AC-4 verified under `./le qemu run command "./le qemu all-tests"`
 - [ ] No production behavior changed (or defect + fix documented in Deviations)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken

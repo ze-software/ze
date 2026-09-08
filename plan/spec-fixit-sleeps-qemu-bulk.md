@@ -382,7 +382,7 @@ Every open question above is resolved for readiness. Empirical confirmations tha
 - [ ] Tests written -- each converted `.ci` IS its own functional test and keeps its exact assertions; infra changes (if any) get red-first unit tests.
 - [ ] Tests FAIL -- infra unit tests are red-first (TDD); a converted `.ci` that fails surfaces a real race, fixed at the source, never with a re-added sleep.
 - [ ] Tests PASS -- each converted test green under QEMU, both before (AC-1) and after (AC-4) conversion.
-- [ ] `./le verify current mode full` and `./le qemu run command "./le qemu all-tests"` -- affected suites green before each batch's commit; skip counts read, not just exit codes.
+- [ ] `./le verify worktree` and `./le qemu run command "./le qemu all-tests"` -- affected suites green before each batch's commit; skip counts read, not just exit codes. `worktree` runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`).
 
 ### Quality Gates
 - [ ] `test/.ci-sleep-baseline` lowered by exactly the number of sleeps removed, same change.
