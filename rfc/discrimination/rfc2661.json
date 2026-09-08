@@ -2,6 +2,30 @@
   "rfc": "rfc2661",
   "records": [
     {
+      "rid": "RFC2661-4.1-1",
+      "polarity": "positive",
+      "unit": "test/l2tp/rfc2661-emitted-control-shape.ci",
+      "unit-sha": "317633569dc6a222",
+      "claim-sha": "4c895343921b0e6a",
+      "route": "revert",
+      "producer": "internal/component/l2tp/avp.go::WriteAVPHeader",
+      "producer-sha": "22f1927f30a428fe",
+      "break": "body of WriteAVPHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=stdout:contains=PASS: all SCCRP AVP reserved bits 2-5 clear"
+    },
+    {
+      "rid": "RFC2661-4.1-2",
+      "polarity": "positive",
+      "unit": "test/l2tp/rfc2661-emitted-control-shape.ci",
+      "unit-sha": "317633569dc6a222",
+      "claim-sha": "f725c2644926dbd6",
+      "route": "revert",
+      "producer": "internal/component/l2tp/tunnel_fsm.go::writeSCCRPBody",
+      "producer-sha": "0e95e041fa000906",
+      "break": "body of writeSCCRPBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=stdout:contains=PASS: Message Type AVP is first in SCCRP"
+    },
+    {
       "rid": "RFC2661-6.1-1",
       "polarity": "negative",
       "unit": "internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go::TestSCCRQMissingMandatoryAVPIsAnswered",
@@ -79,6 +103,18 @@
       "producer": "internal/component/l2tp/tunnel_initiator.go::handleSCCRP",
       "producer-sha": "4ea9bf1241f47cb2",
       "break": "body of handleSCCRP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2661-x-1",
+      "polarity": "positive",
+      "unit": "test/l2tp/rfc2661-emitted-control-shape.ci",
+      "unit-sha": "317633569dc6a222",
+      "claim-sha": "22ac5c430613e3f2",
+      "route": "revert",
+      "producer": "internal/component/l2tp/header.go::WriteControlHeader",
+      "producer-sha": "dbf0242ff433065e",
+      "break": "body of WriteControlHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=stdout:contains=PASS: SCCRP header reserved bits 8-11 zero"
     }
   ]
 }

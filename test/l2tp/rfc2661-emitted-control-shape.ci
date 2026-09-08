@@ -55,3 +55,10 @@ expect=stdout:contains=OK: all RFC 2661 emitted-shape checks passed
 # The daemon's own confirmation that the independently computed SCCCN response
 # verified. A positive signal, so the acceptance step cannot pass vacuously.
 expect=stderr:contains=tunnel now established
+# One assertion per bound requirement, so each discrimination record in
+# rfc/discrimination/rfc2661.json cites the line its own red was observed at
+# rather than the whole suite. The fixture prints `PASS: <check>` only when the
+# check held, so each line below is positive.
+expect=stdout:contains=PASS: Message Type AVP is first in SCCRP
+expect=stdout:contains=PASS: SCCRP header reserved bits 8-11 zero
+expect=stdout:contains=PASS: all SCCRP AVP reserved bits 2-5 clear
