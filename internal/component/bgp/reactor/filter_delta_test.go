@@ -2108,9 +2108,12 @@ func TestPrependRecordsNothingWhenTheAS4PathCannotBeDerived(t *testing.T) {
 }
 
 // TestPrependRecordsNothingWithoutAnAttributeSection pins the other fail-closed
-// door of the extractor. An UPDATE body whose attribute section did not index
-// leaves the AS-path family unreadable, so the derivation cannot say whether
-// RFC 6793 Section 4.2.2 owes an AS4_PATH beside the prepend.
+// door of the extractor. A nil attribute section is what WireUpdate.Attrs
+// answers for a body that would not parse and for one whose attribute section
+// is absent or truncated, and the derivation then cannot say whether RFC 6793
+// Section 4.2.2 owes an AS4_PATH beside the prepend. An UNINDEXABLE section is a
+// different case that does not reach the branch: it arrives as an
+// AttributesWire carrying its indexErr.
 //
 // The width matters: at four octets the extractor returns before it looks at the
 // attributes at all, so the two-octet case is the one that reaches this branch.

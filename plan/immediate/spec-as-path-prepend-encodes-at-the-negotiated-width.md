@@ -541,10 +541,12 @@ file needs approval, which has not been given, so it stays.
   cost in an allocation round. Both are unedited on purpose.
 
 ### Deviations from Plan
-- The spec named `filter_delta_test.go` for every new test. Two of them live in
+- The spec named `filter_delta_test.go` for every new test. Three live in
   `filter_ordered_test.go` instead, because they drive the policy chains rather
-  than the extractor, and one lives in `wireu/aspath_rewrite_test.go`, beside the
-  other `RewriteASPath` tests and out of the RFC-tagged file.
+  than the extractor; one lives in `wireu/aspath_rewrite_test.go`, beside the
+  other `RewriteASPath` tests and out of the RFC-tagged file; and
+  `TestPolicyDryRunPrependReportsAtTheSessionWidth` lives in
+  `policy_dryrun_test.go`, beside the call site it drives.
 - AC-4's wording was corrected during closure: it stated the count-difference
   invariant, which the defect satisfies.
 
