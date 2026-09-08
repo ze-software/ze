@@ -300,7 +300,7 @@ duration is not a factor.
 | Parameter | Default | Range | Description |
 |-----------|---------|-------|-------------|
 | `response-level` | `alert` | alert, enforce | `alert` logs only; `enforce` installs nft drop rules |
-| `max-mitigation-duration` | `3600` | 0-86400 s | Parsed and range-checked, but the local responder does not act on it yet. An on-host drop is removed when the attack clears, not on a timer. The FlowSpec responder does enforce its own cap |
+| `max-mitigation-duration` | `3600` | 0-86400 s | Remove the on-host drop after this many seconds. Checked once a second; `0` means no cap. The clock starts when the rule goes in, and a narrowing of the same rule does not restart it |
 | `confidence-min` | `0` | 0-100 | Minimum incident confidence to mitigate from a characterized attack (`0` = no gate). Note: the coarse drop on the fast `AttackDetected` carries no confidence, so this only gates the in-place narrowing on the characterized path |
 | `forward-mitigation` | `false` | bool | Also drop a remote (transit) victim's traffic on the netfilter FORWARD hook to protect a downstream host. Default guards only local (box-owned) victims on INPUT and leaves remote victims to flowspec (see [Direction](#direction-local-vs-remote)) |
 
@@ -416,6 +416,14 @@ actually falls below threshold.
 
 **Caveat:** an XDP drop backend would break this (XDP_DROP precedes the RX
 counter). Local mode is nft-only for v1.
+
+**When the clear never comes.** A detector that is reconfigured or stopped
+mid-attack emits no `AttackCleared`, and an attack that never falls below the
+threshold produces none either. `max-mitigation-duration` is what bounds the
+drop rule in both cases: a worker in the plugin checks the age of the live rule
+once a second and removes a rule that has reached the cap, logging
+`max-mitigation-duration reached`. `show ddos local` then reports no mitigation.
+<!-- source: internal/plugins/ddos/local/responder.go -- enforceMaxDuration; internal/plugins/ddos/local/register.go -- startMaxDurationWorker -->
 
 ### FlowSpec mode sensor blindness
 

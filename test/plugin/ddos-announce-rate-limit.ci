@@ -1,0 +1,156 @@
+# Test: `ddos flowspec announce-rate-limit` refuses the second announcement an
+# operator asks for inside one 60-second window, proven through a real daemon
+# over two attack generations.
+#
+# VALIDATES: spec-ddos-timing-leaves-reach-no-worker AC-2 -- with
+#            `announce-rate-limit 1`, the first generation announces and the
+#            second inside the same minute is refused and logged
+#            (responder.go announce -> announceLimiter.allow), and the responder
+#            stays idle rather than claiming a rule the BGP engine does not hold.
+# PREVENTS:  the leaf going back to being parsed, range-checked and read by
+#            nothing, and a limiter either announce path could walk around.
+#
+# WHY TWO GENERATIONS. AttackDetected is emitted once per generation at onset, so
+# the responder is ASKED to announce once per generation. The probe floods
+# (generation 1, announced), stops so `max-mitigation-duration 1` withdraws it
+# and the detector clears, then floods again inside the same window (generation
+# 2, refused).
+#
+# WHAT PROVES THE RESPONDER WAS ASKED is the daemon's own refusal line, expected
+# below: `announce` emits it only when it was CALLED and the limiter said no. The
+# probe's own assertion is the other half, that no second announcement went out.
+# Neither alone would do: an idle responder nobody called is also idle.
+#
+# WHY THE VICTIM IS REMOTE. The flowspec responder defers to on-host mitigation
+# for a local victim: both onDetected and onCharacterized return early on
+# Direction == DirectionLocal, and announce refuses an unresolved victim. So the
+# limiter is reachable only behind the veth transit topology
+# test/plugin/ddos-transit-forward-drop.ci builds, whose setup fixture this test
+# reuses.
+#
+# WHY blackhole-fallback IS ON. It is what makes a critical AttackDetected
+# announce without waiting for characterization, so the announce path is reached
+# from the fast signal and the test does not depend on flow-classifier timing.
+# hold-down is set past the run so the leak-probe never withdraws: the withdrawal
+# under test is the wall-clock cap.
+#
+# STATUS: a Linux/QEMU integration test; NOT executable on the darwin dev host.
+#   It needs a fully privileged host and two capability families.
+#     - net-admin: the setup fixture builds the transit veth pair with
+#       `ip link add zdd0 type veth peer name zdd0p` and addresses it.
+#     - bpf (CAP_BPF + CAP_SYS_RESOURCE): the traffic-usage block drives
+#       rlimit.RemoveMemlock() and link.AttachTCX()
+#       (internal/plugins/trafficusage/attach_linux.go). Without it no traffic
+#       source names the victim, the target never resolves, and announce refuses
+#       every announcement for a reason that is not the limiter.
+option=needs-linux:caps=net-admin,bpf
+# Serialize against every other ddos test: they all flood the SAME interface set
+# and the detector picks the victim by top-destination-bytes over it, so a
+# sibling's concurrent flood is indistinguishable from this test's own.
+# Rationale in full: test/plugin/ddos-direction.ci.
+option=exclusive:group=ddos-flood
+option=env:var=ze.log.ddos.detect:value=info
+option=env:var=ze.log.ddos.flowspec:value=info
+# Two attack generations, each with its own detection and clear, inside one
+# announce window, plus daemon startup.
+option=timeout:value=200s
+
+# ze-peer accepts the session the announce is dispatched over and asserts nothing
+# about it: the FlowSpec route's own bytes are asserted by
+# test/plugin/ddos-flowspec-announce.ci, and what this test needs from the peer
+# is only that Dispatch has somewhere to send. Hence --mode sink below.
+stdin=peer:terminator=EOF_PEER
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+ddos {
+	detect {
+		enabled true
+		absolute-floor 1000
+		confirm-duration 1
+		clear-consecutive-checks 2
+		startup-grace 0
+		baseline-window 10
+		check-interval 1
+		characterize-enable false
+	}
+	observe {
+		incident-ring-size 100
+	}
+	flowspec {
+		response-level enforce
+		action discard
+		blackhole-fallback true
+		announce-rate-limit 1
+		max-mitigation-duration 1
+		hold-down 3600
+	}
+}
+
+traffic {
+	usage {
+		enabled true
+		track-ip true
+		interfaces {
+			interface zdd0p {
+				enabled true
+			}
+			interface zdd0 {
+				enabled true
+			}
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+
+		# The responder dispatches its announce as an `update text` over the
+		# plugin RPC, and the engine refuses a send from a process no peer
+		# attaches: "no peer this selector names attaches this process with the
+		# required send permission". This is that attachment.
+		attach process ddos-flowspec {
+			send [ update ]
+		}
+	}
+}
+
+plugin {
+	external ddos-announce-rate-limit-probe {
+		run "ze-test fixture plugin/ddos-announce-rate-limit-driver"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze-test fixture plugin/ddos-transit-forward-drop-setup
+cmd=background:seq=2:exec=ze-peer --mode sink --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-nlri-flowspec -:stdin=ze-bgp:timeout=195s
+expect=exit:code=0
+expect=stderr:contains=ANNOUNCED 203.0.113.9
+expect=stderr:contains=ANNOUNCE-REFUSED 203.0.113.9
+expect=stderr:contains=ddos-flowspec: announced
+expect=stderr:contains=ddos-flowspec: announce-rate-limit reached, not announcing

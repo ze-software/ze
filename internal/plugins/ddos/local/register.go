@@ -1,11 +1,13 @@
 package local
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"os"
 	"sync/atomic"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -57,6 +59,48 @@ func init() {
 		fmt.Fprintf(os.Stderr, "ddos-local: registration failed: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// maxDurationCheckInterval is how often the plugin re-checks whether a live drop
+// rule has outlived max-mitigation-duration. One second is finer than any cap
+// the YANG admits (the shortest meaningful value is 1) and costs one wakeup per
+// second holding no lock unless a rule is installed. It keeps the name its
+// flowspec sibling uses, so a reader who greps one finds both.
+const maxDurationCheckInterval = time.Second
+
+// startMaxDurationWorker starts the one worker goroutine that removes a drop
+// rule which has outlived max-mitigation-duration.
+//
+// One worker serves the whole plugin, never one per mitigation: it reads
+// whichever responder is live through activeResponder, so a config apply that
+// replaces the responder needs no restart here
+// (ai/rules/goroutine-lifecycle.md). enforceMaxDuration is a no-op unless a
+// rule is installed and the operator set a cap, so an unattacked box pays one
+// wakeup a second and nothing else.
+//
+// The caller owns ctx and MUST cancel it to stop the worker. The returned
+// channel is closed after the worker has exited, so a caller that must know the
+// worker is gone waits on it after the cancel.
+func startMaxDurationWorker(ctx context.Context, every time.Duration) (exited <-chan struct{}) {
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(every)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if r := activeResponder.Load(); r != nil {
+					r.enforceMaxDuration()
+				}
+			}
+		}
+	}()
+
+	return done
 }
 
 func runEngine(conn net.Conn) int {
@@ -189,6 +233,9 @@ func runEngine(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
+	// The cap worker outlives every config apply and stops when the signal
+	// context is canceled, which is the plugin's own shutdown.
+	startMaxDurationWorker(ctx, maxDurationCheckInterval)
 	if err := p.Run(ctx, sdk.Registration{
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 2,

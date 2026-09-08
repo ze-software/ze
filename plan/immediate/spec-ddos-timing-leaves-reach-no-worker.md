@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | plugin |
 | Depends | - |
-| Phase | - |
+| Phase | 6/8 |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-09-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -79,9 +79,13 @@ Neither is obviously right, and the shape `plan/spec-vrf.md` records applies to
 each: if the control is wanted, the refusal is the placeholder and the spec
 stays open.
 
-`max-mitigation-duration` is not in this spec.
+`max-mitigation-duration` under `ddos flowspec` is not in this spec.
 `plan/immediate/spec-ddos-direction-allowlist-deferred-flowspec-withdraw.md`
-already carries it.
+carries it, and HEAD now enforces it.
+
+The leaf of the SAME NAME under `ddos local` IS in this spec, added on
+2026-09-08. It is the fourth instance of this spec's own class, no other spec
+owns it, and the Progress entry below carries the evidence for both statements.
 
 ## Progress (2026-09-06, resumed and implemented)
 
@@ -94,6 +98,75 @@ needed.
 
 All three leaves are now implemented, and each carries a recorded red. What this
 work did NOT reach is the `.ci` for `announce-rate-limit`: see Known Limitations.
+
+## Progress (2026-09-08, design phase, re-verified against HEAD)
+
+**The defect this spec opened on is GONE from HEAD for all three named leaves.**
+Commit `3db944c1f6` landed them. The verdict below was taken at the producing
+functions rather than from that commit message, and `git status` reports no
+modification under `internal/plugins/ddos/`, so the working tree read is HEAD's
+read.
+
+**One leaf of the same class, in the same subsystem, is still inert:**
+`ddos local max-mitigation-duration`. It is the last row of the table below, and
+this design takes it into scope. The reason is in Key Design Decisions.
+
+### Every timing leaf under `internal/plugins/ddos/`, and the reader it reaches
+
+The search behind each "none" row is `grep -rn "<GoField>" internal/plugins/ddos/<plugin>/`
+with `_test.go` and the `json:` struct tag excluded, which leaves the parse site,
+the `Validate` range check, and every production read. A leaf whose only hits are
+the first two reaches no worker.
+
+| Leaf | Reader in HEAD | Producer read |
+|------|----------------|---------------|
+| `detect check-interval` | `newDetector` sets `evalTicks` from `cfg.CheckInterval`; `(*detector).tick` folds that many feed samples into `intervalPeak` and calls `applyTick` only when the interval closes | `internal/plugins/ddos/detect/detector.go` |
+| `detect confirm-duration` | `newStateMachine(cfg.ConfirmDuration, cfg.ClearConsecutive)` | `internal/plugins/ddos/detect/detector.go` |
+| `detect clear-consecutive-checks` | the same `newStateMachine` call | `internal/plugins/ddos/detect/detector.go` |
+| `detect baseline-window` | `newBaseline(cfg.BaselineWindow, ...)`, twice (PPS and BPS) | `internal/plugins/ddos/detect/detector.go` |
+| `detect startup-grace` | `(*detector).applyTick` compares `d.tickNum` against `d.cfg.StartupGrace` | `internal/plugins/ddos/detect/detector.go` |
+| `detect characterize-window` | `filterByWindow(flows, d.cfg.CharacterizeWindow, ...)` | `internal/plugins/ddos/detect/characterize.go` |
+| `detect characterize-timeout` | the `time.Duration` the characterization query is bounded by | `internal/plugins/ddos/detect/characterize.go` |
+| `flowspec announce-rate-limit` | `newResponder` builds `newAnnounceLimiter(cfg.AnnounceRateLimit)`; `(*responder).announce` refuses on `!r.limiter.allow(r.clock())` | `internal/plugins/ddos/flowspec/responder.go` |
+| `flowspec hold-down`, `probe-interval`, `probe-window`, `backoff-cap` | the `newProbe` call in `(*responder).announce` | `internal/plugins/ddos/flowspec/responder.go` |
+| `flowspec max-mitigation-duration` | `(*responder).enforceMaxDuration`, driven by the plugin's one-second worker in `runEngine` | `internal/plugins/ddos/flowspec/register.go`, `responder.go` |
+| `observe stale-incident-timeout` | `runEngine` converts it to a duration for `newStore`, then starts `startStaleSweep`, whose worker calls `(*store).sweepStale` | `internal/plugins/ddos/observe/register.go`, `store.go` |
+| `observe incident-ring-size` | `newStore(cfg.IncidentRingSize, staleTimeout)` | `internal/plugins/ddos/observe/register.go` |
+| **`local max-mitigation-duration`** | `(*responder).enforceMaxDuration`, driven by the plugin's one-second worker `startMaxDurationWorker` that `runEngine` starts. The cap clock is `installedAt`, written by `setStatus` on the transition into a live rule | `internal/plugins/ddos/local/register.go`, `responder.go` |
+
+### What the fourth leaf costs the operator
+
+`(*responder).removeMitigation` has exactly two callers, both in
+`internal/plugins/ddos/local/responder.go`: the `suppressMitigation` branch of
+`applyMitigation`, and `onCleared`. So an `nftables` drop rule that ddos local
+installs is removed on `AttackCleared` and on no other trigger. An attack that
+never clears, or a detector that never emits the clear, leaves the rule
+installed for the life of the daemon while the operator has set a cap that says
+it will not be.
+
+Two records already describe this and neither changed the product, which is the
+shape `ai/rules/principles.md` names:
+
+- `plan/journal/unwired-feature.md`, row 2026-09-04, lists this leaf beside two
+  of the three this spec closed, and its Fix column still reads "The pair
+  defects are NOT fixed".
+- The leaf's own `ze:help` in `internal/plugins/ddos/local/yang/ze-ddos-local-conf.yang`
+  says "Ze parses the value and refuses it outside 0 to 86400, and then no code
+  reads it", and the `max-mitigation-duration` row of the ddos local table in
+  `docs/guide/ddos-mitigation.md` repeats it. An operator who reads the help
+  learns the leaf is broken. That is documentation of a defect in place of its
+  repair, and the wiring below deletes both sentences by making them false.
+
+### The deferral this spec wrote in July is void
+
+The Task section defers `max-mitigation-duration` to
+`plan/immediate/spec-ddos-direction-allowlist-deferred-flowspec-withdraw.md`.
+That spec is still `Status: skeleton`, dated 2026-07-16, and every row that
+names the leaf cites `flowspec/config.go`. It owns the FLOWSPEC leaf, which HEAD
+now enforces through `enforceMaxDuration`, and it names the local leaf only in
+passing. So no spec owns the local leaf, and the deferral pointed at a future
+that did not arrive. `ai/rules/git-safety.md` requires a deferral to be verified
+rather than assumed; this one was checked and failed.
 
 ## Required Reading
 
@@ -136,6 +209,21 @@ work did NOT reach is the `.ci` for `announce-rate-limit`: see Known Limitations
       older than `staleTimeout`; its only caller was `store_test.go`
 - [ ] `internal/plugins/anomaly/observe/register.go` - `startStaleSweep`, the worker this
       spec ports
+- [ ] (2026-09-08) `internal/plugins/ddos/local/responder.go` - `setStatus` is the ONLY
+      writer of `active` and `target`; `removeMitigation` has two callers, the
+      `suppressMitigation` branch of `applyMitigation` and `onCleared`, and neither is a
+      timer. The struct holds no clock
+  -> Constraint: `applyMitigation` re-installs in place while active, so the cap clock
+     MUST be written on the false-to-true transition and not on every install
+- [ ] (2026-09-08) `internal/plugins/ddos/local/register.go` - `runEngine` starts no
+      worker. It already holds `activeResponder atomic.Pointer[responder]` and builds
+      `ctx, cancel := sdk.SignalContext()` before `p.Run`, which is where the cap worker
+      attaches
+- [ ] (2026-09-08) `internal/plugins/ddos/flowspec/register.go` and `responder.go` -
+      `maxDurationCheckInterval`, the one long-lived worker, `enforceMaxDuration` and
+      `clock()`: the shape ported to ddos local
+  -> Decision: the port keeps the explicit no-cap guard on zero and the wall-clock
+     comparison, both for the reasons `enforceMaxDuration` already states in place
 
 **Behavior to preserve:**
 - At `check-interval 1` (the default and every `.ci` in the tree) the detector evaluates
@@ -150,6 +238,10 @@ work did NOT reach is the `.ci` for `announce-rate-limit`: see Known Limitations
 - ddos observe runs a sweep worker, so `stale-incident-timeout` finalizes incidents.
 - (Walked-into defect, fixed) `announce` refuses an unresolved victim instead of
   dispatching `destination-ipv4 invalid Prefix`.
+- (Added 2026-09-08) ddos local runs a cap worker, so an `nftables` drop rule is
+  removed after `max-mitigation-duration` seconds and not only on `AttackCleared`.
+  At `0`, and at the default 3600 with any attack shorter than an hour, no
+  operator sees a difference.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -198,6 +290,8 @@ work did NOT reach is the `.ci` for `announce-rate-limit`: see Known Limitations
 | A-2 | Both rate feeds publish once a second, so `check-interval` seconds equal `check-interval` samples | `trafficstat/service.go` `tickInterval = time.Second`; `detect/register.go` subscribe | The fold would count the wrong unit and every derived leaf would drift | Read of both producers; `test/plugin/ddos-timing-leaves.ci` measured 19.9s for two evaluations at `check-interval 10` | confirmed |
 | A-3 | Refusing an announcement over the limit is right, and deferring it is not | The leaf's own words ("maximum announcements per minute") and the `Dispatch` failure path, which already leaves the responder idle | A deferred-announce queue would be needed, with a staleness rule | Design decision recorded below; `TestAnnounceRateLimitRefusalLeavesResponderIdle` | confirmed |
 | A-4 | The ddos observe sweep can take the anomaly worker unchanged | `internal/plugins/anomaly/observe/register.go`, whose `store` has a `sweepStale` of the same shape | A different lifecycle would be needed | Ported and driven by `TestDdosObserveStaleSweepTickerFinalizes` and the `.ci` | confirmed |
+| A-5 | `ddos local max-mitigation-duration` is meant to be enforced, not withdrawn from the schema | Its twin under `ddos flowspec` carries the same name, the same units and the same "0 = no cap" rule, and HEAD enforces that one in `enforceMaxDuration`. `plan/journal/unwired-feature.md` records the local half as an unfixed pair defect | The leaf would be deleted from the YANG and from `Config`, and the guide row would say the cap is a flowspec-only control | The Key Design Decisions row, and Thomas overruling it if he wants the leaf gone instead | confirmed: the leaf is wired and proven. The owner can still reverse the call, and reversing it deletes the leaf rather than changing the worker |
+| A-6 | One second is the right re-check cadence for the local cap | `maxDurationCheckInterval` in `internal/plugins/ddos/flowspec/register.go` is `time.Second`, and the two caps are the same control on two responders | A cap set to 1 second could overshoot by up to the cadence | Ported constant, and `TestLocalMaxDurationRemovesTheRule` asserts removal within a bounded number of ticks rather than at an exact instant | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -210,9 +304,9 @@ work did NOT reach is the `.ci` for `announce-rate-limit`: see Known Limitations
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | A detector that evaluates at the wrong cadence detects late or not at all; a limiter that refuses too much leaves an attack unmitigated upstream. Nothing reaches the wire differently at the default config, where `check-interval` is 1 and `announce-rate-limit` is 10 |
+| What breaks if this is wrong? | A detector that evaluates at the wrong cadence detects late or not at all; a limiter that refuses too much leaves an attack unmitigated upstream. A local cap that fires early lifts an on-host drop while the attack is still running, which is the direction that hurts: it is bounded by the operator's own value, and at the default 3600 no attack shorter than an hour reaches it. Nothing reaches the wire differently at the default config, where `check-interval` is 1, `announce-rate-limit` is 10 and both `max-mitigation-duration` leaves are 3600 |
 | How is it reverted? | A single commit revert. No config migration: every leaf already existed, already had its range, and already had its default |
-| Who else touches this path? | `plan/immediate/spec-ddos-direction-allowlist-deferred-flowspec-withdraw.md` owns `max-mitigation-duration` in the same responder |
+| Who else touches this path? | `plan/immediate/spec-ddos-direction-allowlist-deferred-flowspec-withdraw.md` owns `max-mitigation-duration` in the FLOWSPEC responder, which HEAD enforces. Nothing owns the ddos local leaf of the same name, which is why this spec took it (2026-09-08) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -223,6 +317,10 @@ work did NOT reach is the `.ci` for `announce-rate-limit`: see Known Limitations
 | A rate feed sample | -> | `(*detector).tick` | `TestCheckIntervalDecimatesEvaluations`, `TestCheckIntervalEvaluatesTheIntervalPeak` |
 | `ddosevent.Detected` on the bus | -> | `subscribeStore` -> `(*store).open` | `TestDdosObserveUnsubscribeDetachesStore` |
 | `ddosevent.Characterized` on the bus | -> | `(*responder).announce` -> `announceLimiter.allow` | `TestAnnounceRateLimitBoundsTheWindow` |
+| `ddos flowspec announce-rate-limit 1` in the daemon config | -> | `newResponder` -> `announceLimiter` -> the second generation's `announce` refused | `test/plugin/ddos-announce-rate-limit.ci` (ANNOUNCE-REFUSED) |
+| `ddos local max-mitigation-duration 1` in the daemon config | -> | `runEngine`'s worker -> `(*responder).enforceMaxDuration` -> `removeMitigation` | `test/plugin/ddos-local-max-duration.ci` (LOCAL-CAP-REMOVED) |
+| The plugin's one-second worker tick | -> | `(*responder).enforceMaxDuration` | `TestLocalMaxDurationRemovesTheRule`, driven through the worker `startMaxDurationWorker` returns and never by calling `enforceMaxDuration` directly |
+| `ddosevent.Detected` on the bus | -> | `applyMitigation` -> `setStatus(true, ...)` -> `installedAt` | `TestLocalMaxDurationClockStartsOnTheFirstInstall` |
 
 ## Acceptance Criteria
 
@@ -233,6 +331,10 @@ work did NOT reach is the `.ci` for `announce-rate-limit`: see Known Limitations
 | AC-3 | An incident open longer than `stale-incident-timeout` with no `AttackCleared` | A running worker finalizes it with an end time, whatever the attack is doing |
 | AC-4 | The periodic baseline save at a `check-interval` that does not divide 300 | The save still runs on its ~300-second cadence |
 | AC-5 | A critical `AttackDetected` whose victim was never resolved, with `blackhole-fallback` on | The responder announces nothing and consumes no announce budget (walked-into defect, `plan/journal/zero-value-as-valid-answer.md`) |
+| AC-6 | A ddos local drop rule installed longer than `max-mitigation-duration` seconds, with no `AttackCleared` | A running worker removes the rule, publishes the idle status, and logs the removal with the leaf's value. `show ddos local` then reports no mitigation |
+| AC-7 | `max-mitigation-duration 0` under `ddos local`, with a drop rule installed and an attack that never clears | The rule stays installed. Zero means no cap, which is what the leaf's own `description` says, and it MUST NOT be read as an expiry of zero seconds |
+| AC-8 | An `AttackCharacterized` that re-installs the rule in place, arriving while the rule is already active | The cap keeps counting from the FIRST install. A refresh MUST NOT restart the clock, or an attack that re-characterizes every minute never expires |
+| AC-9 | `ddos local` configured, no attack, for longer than `max-mitigation-duration` | Nothing is removed and nothing is logged. The worker is a no-op while no rule is installed |
 
 ## End-to-End User Stories
 
@@ -241,6 +343,7 @@ work did NOT reach is the `.ci` for `announce-rate-limit`: see Known Limitations
 | 1 | sets `check-interval 10` and floods the box | config -> `newDetector` -> trafficstat feed -> `tick` fold -> `applyTick` -> `AttackDetected` -> `show ddos incidents` | `test/plugin/ddos-timing-leaves.ci` |
 | 2 | sets `stale-incident-timeout 1` and reads `show ddos incidents` during an attack that never clears | config -> `runEngine` apply -> `startStaleSweep` -> `sweepStale` -> the incident carries an end time | `test/plugin/ddos-timing-leaves.ci` |
 | 3 | sets `announce-rate-limit 1` and meets two attack generations in a minute | config -> `newResponder` -> `announce` -> `announceLimiter.allow` refuses the second | `TestAnnounceRateLimitBoundsTheWindow` (unit only; see Known Limitations) |
+| 4 | sets `max-mitigation-duration 1` under `ddos local` and floods a victim the box owns, with a flood that never stops | config -> `runEngine` worker -> `enforceMaxDuration` -> `removeMitigation` -> `show ddos local` reports no mitigation and `nft` holds no drop rule | `test/plugin/ddos-local-max-duration.ci` |
 
 ## 🧪 TDD Test Plan
 
@@ -257,23 +360,60 @@ work did NOT reach is the `.ci` for `announce-rate-limit`: see Known Limitations
 | `TestDdosObserveStaleSweepTickerFinalizes` | `internal/plugins/ddos/observe/sweep_test.go` | AC-3 driven through the worker, never through `sweepStale` | green, red under the worker cut |
 | `TestDdosObserveStaleSweepStops` | `internal/plugins/ddos/observe/sweep_test.go` | the worker stops on its stop function | green |
 | `TestDdosObserveUnsubscribeDetachesStore` | `internal/plugins/ddos/observe/sweep_test.go` | the detach a config apply relies on | green |
+| `TestLocalMaxDurationRemovesTheRule` | `internal/plugins/ddos/local/max_duration_test.go` | AC-6, driven through the WORKER so deleting the wiring turns it red | red then green |
+| `TestLocalMaxDurationZeroMeansNoCap` | `internal/plugins/ddos/local/max_duration_test.go` | AC-7: at 0 the rule survives a worker tick well past any deadline | red then green |
+| `TestLocalMaxDurationClockStartsOnTheFirstInstall` | `internal/plugins/ddos/local/max_duration_test.go` | AC-8: a characterized re-install does not restart the cap | red then green |
+| `TestLocalMaxDurationIdleWorkerRemovesNothing` | `internal/plugins/ddos/local/max_duration_test.go` | AC-9: no rule installed, no removal, no log | red then green |
+| `TestLocalMaxDurationWorkerStops` | `internal/plugins/ddos/local/max_duration_test.go` | the worker returns when its context is cancelled (`ai/rules/goroutine-lifecycle.md`) | red then green |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| `check-interval` | 1-3600 | 3600 | 0 | 3601 |
-| `announce-rate-limit` | 1-600 | 600 | 0 | 601 |
-| `stale-incident-timeout` | 1-86400 | 86400 | 0 | 86401 |
+| `detect check-interval` | 1-3600 | 3600 | 0 | 3601 |
+| `flowspec announce-rate-limit` | 1-600 | 600 | 0 | 601 |
+| `observe stale-incident-timeout` | 1-86400 | 86400 | 0 | 86401 |
+| `local max-mitigation-duration` | 0-86400 | 86400 | -1 | 86401 |
 
 Each range is already enforced and tested by the owning `Config.Validate`
-(`detect/config_test.go`, `flowspec/config_test.go`, `observe/config_test.go`);
-this spec changed no range and added none.
+(`detect/config_test.go`, `flowspec/config_test.go`, `observe/config_test.go`,
+`local/config_test.go`); this spec changed no range and added none.
+
+`local max-mitigation-duration` is the one row whose LAST VALID value is not the
+end of a period. Its range opens at 0, and 0 is not a one-second cap: it means
+no cap, as the leaf's `description` states and as the flowspec twin's
+`enforceMaxDuration` already implements with an explicit `<= 0` guard rather
+than by arithmetic. So the boundary set for it is four values and not three:
+`0` (no cap, AC-7), `1` (the shortest real cap), `86400` (the longest), and
+`86401` (refused by `Validate`). A test that walks 1, 86400 and 86401 and skips
+0 would leave the fail-open reading uncovered, which is the case
+`ai/rules/principles.md` names as a zero that behaves correctly by accident.
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `ddos-timing-leaves` | `test/plugin/ddos-timing-leaves.ci` | An operator sets `check-interval 10` and `stale-incident-timeout 1`, floods the box, and reads `show ddos incidents` | green; red under each of the two cuts |
-| announce-rate-limit `.ci` | not written | An operator sets `announce-rate-limit 1` and meets two attack generations in a minute | NOT DONE - see Known Limitations |
+| `ddos-announce-rate-limit` | `test/plugin/ddos-announce-rate-limit.ci` | An operator sets `announce-rate-limit 1` and meets two attack generations in a minute. The second announce is refused | written and registered, NOT YET GREEN; AC-2. `option=needs-linux:caps=net-admin,bpf`. Runs reached the announce and the withdraw; see Work Not Done |
+| `ddos-local-max-duration` | `test/plugin/ddos-local-max-duration.ci` | An operator sets `max-mitigation-duration` under `ddos local`, floods a victim the box owns, and the drop rule is gone from the kernel while the flood is still running | green in the QEMU guest, red under the worker cut; AC-6. `option=needs-linux:caps=net-admin,bpf` |
+
+Both new `.ci` tests take the topology and the gate of
+`test/plugin/ddos-transit-forward-drop.ci`, which already builds the veth
+transit pair, drives two attack generations, and reads `nft` back from its
+privileged root driver. Its header states the gate this design reuses verbatim:
+
+```
+option=needs-linux:caps=net-admin,bpf
+```
+
+`ddos-announce-rate-limit` needs the whole of that topology, because the
+flowspec responder announces only for a REMOTE victim: both `onDetected` and
+`onCharacterized` return early on `e.Direction == ddosevent.DirectionLocal`, and
+`announce` refuses an unresolved victim (AC-5). A remote victim needs a
+box-unowned destination and the eBPF traffic-usage source that names it, which
+is why no unprivileged `.ci` can reach the limiter.
+
+`ddos-local-max-duration` needs less. Its victim is LOCAL, so no veth transit
+pair is required, but the assertion is an `nft` readback and the install path is
+`nftables`, so it keeps `caps=net-admin` and stays in the same suite.
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -290,37 +430,51 @@ this spec changed no range and added none.
 - `docs/guide/ddos-mitigation.md` - the `check-interval` fold, and the three leaves that count evaluations
 - `plan/journal/zero-value-as-valid-answer.md` - the walked-into defect
 
+Added 2026-09-08 for AC-6 through AC-9:
+
+- `internal/plugins/ddos/local/responder.go` - `installedAt` and `now` on the responder, `clock()`, `enforceMaxDuration`, and the `installedAt` write inside `setStatus`
+- `internal/plugins/ddos/local/register.go` - `maxDurationCheckInterval` and the one long-lived worker in `runEngine`
+- `internal/plugins/ddos/local/yang/ze-ddos-local-conf.yang` - the `max-mitigation-duration` `ze:help`, which today states the leaf is unread
+- `docs/guide/ddos-mitigation.md` - the ddos local table row that today states the leaf is unread
+- `internal/test/fixture/plugin_fixture_05_ddos.go` - the two new fixtures
+- `plan/journal/unwired-feature.md` - the Fix column of the 2026-09-04 row, which names this leaf
+
 ## Files to Create
 - `internal/plugins/ddos/detect/interval_test.go`
 - `internal/plugins/ddos/flowspec/announce_limit_test.go`
 - `internal/plugins/ddos/observe/sweep_test.go`
 - `test/plugin/ddos-timing-leaves.ci`
+- `internal/plugins/ddos/local/max_duration_test.go`
+- `test/plugin/ddos-announce-rate-limit.ci`
+- `test/plugin/ddos-local-max-duration.ci`
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | No | Every leaf already existed; only `ze:help` prose changed |
-| YANG validation constraints | No | Ranges unchanged |
-| YANG custom validators | No | Native `range` is sufficient |
-| CLI commands/flags | No | No command added |
+| YANG schema (new RPCs/config) | No | Every leaf already existed, including `local max-mitigation-duration`; only `ze:help` prose changed |
+| YANG validation constraints | No | Ranges unchanged. `local max-mitigation-duration` keeps `0..86400`, and 0 keeps meaning no cap |
+| YANG custom validators | No | Native `range` is sufficient. A validator that REFUSED the leaf was rejected: see Key Design Decisions |
+| CLI commands/flags | No | No command added. `show ddos local` already reports the mitigation status the cap clears |
 | CLI grammar (keyword before value) | N-A | No command added |
 | Editor autocomplete | No | No new leaf |
-| Functional test for new RPC/API | Yes | `test/plugin/ddos-timing-leaves.ci` |
+| Functional test for new RPC/API | Yes | `test/plugin/ddos-timing-leaves.ci`, `test/plugin/ddos-announce-rate-limit.ci`, `test/plugin/ddos-local-max-duration.ci` |
 | Pipe completeness | N-A | No new command output |
 | Env var registration | N-A | No `environment/` leaf |
-| Doctor check for runtime dependencies | No | No new file, socket, port or module; the sweep worker is in-process |
-| Prometheus counters/metrics | No | The refusal is logged at WARN. A counter would be a new metric name, which is its own decision |
+| Doctor check for runtime dependencies | No | No new file, socket, port or module; the sweep worker and the ddos local cap worker are both in-process |
+| Prometheus counters/metrics | No | The refusal and the cap removal are logged at WARN and INFO. A counter would be a new metric name, which is its own decision |
 | BGP family surface | N-A | No SAFI, capability or attribute touched |
+| Goroutine lifecycle | Yes | The ddos local worker takes the flowspec shape: ONE worker for the plugin, reading the live responder through `activeResponder.Load()`, selecting on the `sdk.SignalContext()` context. Never one goroutine per mitigation (`ai/rules/goroutine-lifecycle.md`) |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | No | Three declared leaves start working; `docs/features.md` describes neither leaf |
+| 1 | New user-facing feature? | No | Four declared leaves start working; `docs/features.md` describes none of them |
 | 2 | Config syntax changed? | No | Syntax unchanged |
 | 3 | CLI command added/changed? | No | - |
 | 4 | API/RPC added/changed? | No | - |
 | 5 | Plugin added/changed? | No | No registration, transport or dependency change |
-| 6 | Has a user guide page? | Yes | `docs/guide/ddos-mitigation.md` - updated |
+| 6 | Has a user guide page? | Yes | `docs/guide/ddos-mitigation.md`. The `check-interval` half is updated. The ddos local `max-mitigation-duration` row still reads "Parsed and range-checked, but the local responder does not act on it yet", which the AC-6 wiring makes false. That row and the ddos local mitigation-lifetime prose are rewritten in the SAME work as the code (`ai/rules/documentation.md`), never in a later pass |
+| 6b | Does a page DOCUMENT the defect rather than the behavior? | Yes | Two do, and both are repaired by the same edit: the guide row above, and the `ze:help` of `local max-mitigation-duration` in `internal/plugins/ddos/local/yang/ze-ddos-local-conf.yang`. A help text that tells the operator the leaf they are setting is ignored is a defect report published on the product surface |
 | 7 | Wire format changed? | No | - |
 | 8 | Plugin SDK/protocol changed? | No | - |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | RFC 8955 encoding is unchanged; the guard stops an origination that never encoded |
@@ -351,6 +505,33 @@ this spec changed no range and added none.
    - Tests: `test/plugin/ddos-timing-leaves.ci`
    - Files: `internal/test/fixture/plugin_fixture_05_ddos.go`
    - Verify: green, and red under each of the two production cuts
+5. **Phase: ddos local max-mitigation-duration, wiring first** (added 2026-09-08)
+   - Tests: `TestLocalMaxDurationRemovesTheRule` first, driven through the worker the
+     new `startMaxDurationWorker` returns and never by calling `enforceMaxDuration`
+   - Files: `internal/plugins/ddos/local/max_duration_test.go`
+   - Verify: it fails because no production path reaches a cap. That red is the point
+     of the phase: the sibling defect was hidden for months by a `store_test.go` that
+     called `sweepStale` directly, and `plan/journal/unwired-feature.md` names that
+     shape as the reason nobody saw the hole
+6. **Phase: ddos local max-mitigation-duration, the code**
+   - Tests: the five in `max_duration_test.go`
+   - Files: `internal/plugins/ddos/local/responder.go`, `register.go`,
+     `internal/plugins/ddos/local/yang/ze-ddos-local-conf.yang`,
+     `docs/guide/ddos-mitigation.md`
+   - Verify: green, and red again under a cut that removes the worker, and under a cut
+     that writes `installedAt` on every install rather than on the transition (AC-8)
+   - The YANG `ze:help` and the guide row lose the sentences that say the leaf is
+     unread, in THIS phase and not a later one (`ai/rules/documentation.md`)
+7. **Phase: the two remaining operator paths**
+   - Tests: `test/plugin/ddos-announce-rate-limit.ci` (AC-2),
+     `test/plugin/ddos-local-max-duration.ci` (AC-6)
+   - Files: `internal/test/fixture/plugin_fixture_05_ddos.go`
+   - Verify: each red under the production cut for its own AC before it is green.
+     Both need the QEMU guest: `option=needs-linux:caps=net-admin,bpf`
+8. **Phase: the journal row**
+   - Files: `plan/journal/unwired-feature.md`
+   - Verify: the 2026-09-04 row's Fix column names which of its leaves are now wired.
+     Recording never replaced the fix, so the row is closed by the fix and not before
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -362,6 +543,11 @@ this spec changed no range and added none.
 | Data flow | `check-interval` is read once, in `newDetector`; nothing else in the package reads `cfg.CheckInterval` |
 | Rule: `ai/rules/goroutine-lifecycle.md` | The sweep worker has one owner, one stop, and a stop that waits; `teardown` detaches the bus before it stops the worker |
 | Rule: `ai/rules/principles.md` | A zero `check-interval` and a zero `announce-rate-limit` are each named, floored, and (for the limiter) tested |
+| Completeness (AC-6..AC-9) | `local/register.go` worker; `local/responder.go` `enforceMaxDuration` and the `installedAt` write in `setStatus` |
+| Rule: `ai/rules/goroutine-lifecycle.md` (ddos local) | ONE worker for the plugin, not one per mitigation; it reads the live responder through `activeResponder.Load()` and returns on the `sdk.SignalContext()` context, so a config apply that replaces the responder needs no restart |
+| Rule: `ai/rules/principles.md` (ddos local) | `0` is an explicit no-cap GUARD with a name, a comment and its own test (AC-7), never a zero that behaves correctly by accident |
+| Rule: `ai/rules/documentation.md` | The YANG `ze:help` and the guide row that today DESCRIBE the defect are corrected in the phase that fixes it. A page that documents a broken leaf is a debt to a reader outside this repo |
+| Naming | `installedAt` mirrors the flowspec `announcedAt`, and each names the event that starts its own cap. `maxDurationCheckInterval` keeps the sibling's name so a reader who greps one finds both |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
@@ -370,6 +556,8 @@ this spec changed no range and added none.
 | The responder bounds its announcements | `go test -run TestAnnounceRate ./internal/plugins/ddos/flowspec/` |
 | The sweep worker runs in the plugin | `grep -n startStaleSweep internal/plugins/ddos/observe/register.go` shows the call inside `apply` |
 | The operator reaches both | `ze-test bgp plugin 214` (ddos-timing-leaves) |
+| The ddos local cap runs in the plugin | `grep -n startMaxDurationWorker internal/plugins/ddos/local/register.go` shows the call inside `runEngine` |
+| No ddos timing leaf is inert | Every row of the leaf-reader table in the 2026-09-08 Progress entry names a production reader, with no "none" left |
 | No `MUTATION-APPLIED` left applied | `grep -rn MUTATION-APPLIED internal/plugins/ddos internal/test test/` returns nothing |
 
 ### Security Review Checklist
@@ -414,8 +602,20 @@ this spec changed no range and added none.
 | The limiter is consulted in `announce`, the single exit | Consult it in `onDetected` and `onCharacterized` | A limit either path could walk around is not a limit |
 | A non-positive `announce-rate-limit` takes the documented default | Treat it as unlimited; treat it as a budget of none | Unlimited is the fail-open zero the style guide names. A budget of none disables upstream mitigation for a Config that merely skipped `Validate`. The default is the only reading that is both safe and legible, and it is tested |
 | `startStaleSweep` is PORTED from anomaly, not shared | Extract a common worker over an interface | The two stores are different types in different plugins, and the worker is fifteen lines. An interface to share it would be more machinery than the duplication costs |
+| `local max-mitigation-duration` is WIRED, not deleted (2026-09-08) | Delete the leaf and its `Validate` arm; refuse it at commit the way `unimplementedVRFValidator` refuses `vrf` | Deleting it leaves a leaf that exists under `ddos flowspec` and not under `ddos local`, with the same name and the same units, which is a worse surface than either half. The behavior is also wanted on its own: `removeMitigation` has two callers and neither is a timer, so an attack that never clears leaves an `nftables` drop rule installed for the life of the daemon. A cap is the only thing that bounds it. A refusing validator was considered and rejected for the reason the brief names: it converts a silent broken promise into a loud one and leaves the box with no bound on a drop rule |
+| The cap CLOCK is written by `setStatus`, not by `applyMitigation` (2026-09-08) | Set `installedAt` in `applyMitigation` beside the reconcile | `applyMitigation` runs on BOTH `onDetected` and `onCharacterized` and re-installs in place while active, so writing the clock there restarts the cap on every characterization and an attack that re-characterizes never expires (AC-8). `setStatus` is already the documented ONLY writer of `active` and `target`, so making it the only writer of `installedAt` keeps the three from drifting, and the transition it must detect (false to true) is visible there and nowhere else |
+| The ddos local worker is PORTED from flowspec, not shared | One cap worker in a package both plugins import | The two responders are different types in different plugins, and `ai/rules/plugins.md` keeps a plugin's policy inside the plugin. The port is the same call this spec already made for `startStaleSweep`, and the flowspec original is fifteen lines |
+| `0` keeps meaning NO CAP, checked explicitly | Treat 0 as the shortest cap; forbid 0 by narrowing the range to `1..86400` | The leaf's `description` already promises "0 = no cap" and the flowspec twin already implements it with an explicit `<= 0` guard, so the two same-named leaves must not disagree. The guard is explicit rather than arithmetic for the reason `enforceMaxDuration` states: a zero read as a deadline expires every rule on the first tick |
 
 ## Known Limitations
+
+**Updated 2026-09-08.** The item below records why the AC-2 `.ci` was not
+written on 2026-09-06. It is no longer a limitation this spec accepts: the test
+is now planned as `test/plugin/ddos-announce-rate-limit.ci` in the Functional
+Tests table, on the topology and the gate
+`test/plugin/ddos-transit-forward-drop.ci` already provides. The reason it costs
+what it costs is unchanged and is worth keeping, so the text stays.
+
 - **`announce-rate-limit` has no `.ci`.** The unit tests drive the responder through its
   real event handlers and are discriminated, but no functional test proves an operator
   reaches the limit. Reaching the announce path in a daemon needs a victim that resolves
@@ -434,6 +634,190 @@ this spec changed no range and added none.
 - The detector still emits a critical `AttackDetected` with no victim when no traffic
   source can name one. AC-5 stops the responder acting on it; whether the DETECTOR should
   emit it at all is the open question the journal row records.
+
+## TDD Evidence (AC-6 through AC-9, 2026-09-08)
+
+Every command below ran through `./le job run label unit-ddos-local`, scoped to
+`./internal/plugins/ddos/local/`, with `-race`.
+
+**RED, before any product code.** The five tests named the wiring that did not
+exist, so the package did not build:
+
+```
+# github.com/ze-software/ze/internal/plugins/ddos/local [.test]
+max_duration_test.go:97:4: r.now undefined (type *responder has no field or method now)
+max_duration_test.go:102:2: undefined: startMaxDurationWorker
+max_duration_test.go:142:4: r.now undefined (type *responder has no field or method now)
+...
+FAIL	github.com/ze-software/ze/internal/plugins/ddos/local [build failed]
+```
+
+**GREEN, after the worker and the cap.**
+
+```
+=== RUN   TestLocalMaxDurationRemovesTheRule
+INFO ddos-local: drop rule installed target=10.0.0.1/32 hook=ingress phase=detected
+INFO ddos-local: max-mitigation-duration reached, removing the drop rule target=10.0.0.1/32 seconds=60
+INFO ddos-local: drop rule removed target=10.0.0.1/32
+--- PASS: TestLocalMaxDurationRemovesTheRule (0.05s)
+--- PASS: TestLocalMaxDurationZeroMeansNoCap (0.10s)
+--- PASS: TestLocalMaxDurationClockStartsOnTheFirstInstall (0.00s)
+--- PASS: TestLocalMaxDurationIdleWorkerRemovesNothing (0.05s)
+--- PASS: TestLocalMaxDurationWorkerStops (0.01s)
+ok  	github.com/ze-software/ze/internal/plugins/ddos/local	1.748s
+```
+
+**Discrimination cut 1: the clock moves to every install (AC-8).** `installedAt`
+was written in `applyMitigation` beside the reconcile, and the transition write
+in `setStatus` was deleted. Exactly one test went red, and it is the AC-8 test:
+
+```
+--- PASS: TestLocalMaxDurationRemovesTheRule (0.05s)
+--- PASS: TestLocalMaxDurationZeroMeansNoCap (0.10s)
+    max_duration_test.go:206: a refresh restarted the cap clock: 61s after the FIRST install the rule must be gone
+--- FAIL: TestLocalMaxDurationClockStartsOnTheFirstInstall (2.01s)
+--- PASS: TestLocalMaxDurationIdleWorkerRemovesNothing (0.05s)
+--- PASS: TestLocalMaxDurationWorkerStops (0.01s)
+FAIL	github.com/ze-software/ze/internal/plugins/ddos/local	2.697s
+```
+
+**Discrimination cut 2: the worker tick reaches no cap.** The
+`r.enforceMaxDuration()` call inside `startMaxDurationWorker` was replaced by a
+bare `activeResponder.Load()`. Both cap tests went red, which is what proves
+they drive the product through the worker rather than through the enforcement
+function:
+
+```
+--- FAIL: TestLocalMaxDurationRemovesTheRule (2.05s)
+    max_duration_test.go:126: a drop rule older than max-mitigation-duration must be removed by the worker
+--- FAIL: TestLocalMaxDurationClockStartsOnTheFirstInstall (2.00s)
+    max_duration_test.go:206: a refresh restarted the cap clock: 61s after the FIRST install the rule must be gone
+FAIL	github.com/ze-software/ze/internal/plugins/ddos/local	4.764s
+```
+
+Both cuts were reverted, and `grep -rn MUTATION-APPLIED internal/plugins/ddos test/`
+returns nothing. The whole subsystem is green at `-count=3`:
+`go test -race -count=3 ./internal/plugins/ddos/...` -> `ok` for detect,
+flowspec, flowtriq, local, observe.
+
+## The AC-6 functional proof, run in the QEMU guest (2026-09-08)
+
+`test/plugin/ddos-local-max-duration.ci` was RUN on ze's runtime kernel, through
+`./le qemu run kernel tmp/kernel/build/vmlinuz packages "iproute2 libcap"` with
+the guest-side `ze-test bgp plugin ddos-local-max-duration`. The probe floods a
+box-owned victim without stopping, so no `AttackCleared` can arrive, and it reads
+the removal back twice: from the kernel through netlink, and from
+`show ddos local`.
+
+**GREEN.**
+
+```
+9.7s     1/1  PASS  219  ddos-local-max-duration
+pass  1/1  100.0%  9.7s
+QEMU VM: PASS
+```
+
+The daemon's own lines, from the run of the same binary whose log the runner
+dumped:
+
+```
+INFO ddos-local: drop rule installed  target=127.0.0.9/32 hook=ingress phase=detected
+INFO ddos-local: max-mitigation-duration reached, removing the drop rule  target=127.0.0.9/32 seconds=5
+INFO ddos-local: drop rule removed  target=127.0.0.9/32
+```
+
+**RED, under the cut that stops the worker reaching the cap.**
+`r.enforceMaxDuration()` inside `startMaxDurationWorker` was replaced by a bare
+`activeResponder.Load()`, `bin/ze-linux-arm64` was REBUILT so the cut reached the
+guest's daemon, and the same test then failed on the kernel readback:
+
+```
+44.7s    1/1  FAIL  219  ddos-local-max-duration
+ZE-OBSERVER-FAIL: the drop for 127.0.0.9 was still installed 40s after it went in,
+  with max-mitigation-duration set and the flood still running (sent 672000 packets,
+  show ddos local=map[]):
+table=ze_ddos-local chain=ingress rules=1
+QEMU VM: FAIL (exit code 1)
+```
+
+The cut was reverted, `bin/ze-linux-arm64` rebuilt, and the test re-run GREEN
+(the PASS above is that run). So the `.ci` discriminates: it fails when the
+worker stops reaching the cap, and the kernel readback is what catches it.
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/plugins/ddos/local/responder.go`: `installedAt` and `now` on the
+  responder, `clock()`, and `enforceMaxDuration`, which removes a live drop rule
+  that has reached `max-mitigation-duration`. `0` is an explicit no-cap guard
+  with its own comment and its own test, never arithmetic.
+- `internal/plugins/ddos/local/responder.go` `setStatus`: the ONE writer of
+  `installedAt`, on the false-to-true transition. `applyMitigation` re-installs
+  in place on every `AttackCharacterized`, so a clock written there would let an
+  attack that re-characterizes outlive any cap (AC-8).
+- `internal/plugins/ddos/local/register.go`: `maxDurationCheckInterval`
+  (one second, the flowspec sibling's name and value) and
+  `startMaxDurationWorker`, ONE long-lived worker for the plugin. It reads the
+  live responder through `activeResponder.Load()`, so a config apply that
+  replaces the responder needs no restart, and it returns when the
+  `sdk.SignalContext()` context is cancelled. `runEngine` starts it once, before
+  `p.Run`.
+- `internal/plugins/ddos/local/max_duration_test.go`: the five tests above, all
+  driven through the worker.
+- `internal/test/fixture/plugin_fixture_06_ddos_linux.go`: the two driver
+  fixtures `plugin/ddos-local-max-duration-driver` and
+  `plugin/ddos-announce-rate-limit-driver`; `fixture06DDOSDropState` now takes
+  the victim address, because two tests read that kernel state for two
+  addresses; and `fixture06OpenRemoteFlood`, the dialed flood a REMOTE victim
+  needs (`p05OpenFlood` also binds a sink socket on the victim, which answers
+  "cannot assign requested address" for an address the box does not hold).
+- `test/plugin/ddos-local-max-duration.ci`: green in the guest, red under the
+  worker cut. `test/plugin/ddos-announce-rate-limit.ci`: written, not yet green.
+  See Work Not Done.
+
+### Bugs Found/Fixed
+- None beyond the spec's own defect. No walked-into defect was met in this phase.
+
+### Documentation Updates
+- `internal/plugins/ddos/local/yang/ze-ddos-local-conf.yang`: the
+  `max-mitigation-duration` `ze:help` said "Ze parses the value ... and then no
+  code reads it". It now states the behavior: the age check once a second, the
+  clock that a narrowing does not restart, and `0` for no cap. A
+  `revision 2026-09-08` records the change.
+- `docs/guide/ddos-mitigation.md`: the ddos local `max-mitigation-duration` row
+  said "Parsed and range-checked, but the local responder does not act on it
+  yet". It now states the cap. A "When the clear never comes" paragraph in
+  "Local mode clear signal" names the cap as the second removal trigger, with a
+  `<!-- source: -->` anchor on `enforceMaxDuration` and
+  `startMaxDurationWorker`.
+- `./le doc check links` and `./le docs-to-code index-check` report no finding on
+  any file this phase touched. `./le yang glue check`: 154 directories current.
+
+### Deviations from Plan
+- The spec's Files to Modify names `internal/test/fixture/plugin_fixture_05_ddos.go`
+  and `plan/journal/unwired-feature.md`. Both were out of this agent's write
+  scope, so both are in Work Not Done rather than done.
+- `enforceMaxDuration` splits the flowspec twin's single compound guard into two
+  guards, one per reason, so the no-cap guard carries its own comment
+  (`docs/contributing/ze-go-style.md`, "Control flow a reader can simulate", and
+  `ai/rules/principles.md` on naming a guard). The behavior is identical.
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An `nftables` drop rule ddos local installs is bounded by the operator's cap, not only by `AttackCleared` | functional (unit through the worker) | `TestLocalMaxDurationRemovesTheRule`: the rule is removed by the worker 61s into a 60s cap with no clear event. Red under the worker cut above |
+| A leaf the schema declares is read by a running worker, so the leaf-reader table has no "none" row left | source | The `local max-mitigation-duration` row of the leaf table now names `(*responder).enforceMaxDuration` and `startMaxDurationWorker`. `grep -n startMaxDurationWorker internal/plugins/ddos/local/register.go` shows the call inside `runEngine` |
+| `0` keeps meaning no cap, so the fix cannot disarm the box | boundary | `TestLocalMaxDurationZeroMeansNoCap`: the rule survives 72 hours of the responder's clock |
+| A re-characterizing attack cannot outlive its cap | functional | `TestLocalMaxDurationClockStartsOnTheFirstInstall`, red under discrimination cut 1 with the exact message that names the failure |
+| The worker costs an unattacked box nothing and stops with its owner | resilience | `TestLocalMaxDurationIdleWorkerRemovesNothing` (zero firewall reconciles over many ticks) and `TestLocalMaxDurationWorkerStops` (the worker exits on context cancel) |
+| An operator reaches the cap end to end | functional `.ci` | `test/plugin/ddos-local-max-duration.ci`, RUN in the QEMU guest on ze's runtime kernel: PASS in 9.7s, and FAIL with the drop still installed under the rebuilt cut that stops the worker reaching the cap. Both pasted above |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| The AC-2 run of `test/plugin/ddos-announce-rate-limit.ci` | Its fixture and its `.ci` are written and three guest runs reached the announce and the wall-clock withdraw (`ddos-flowspec: announced ... reason="blackhole-fallback (critical)"`, then `max-mitigation-duration reached, withdrawing`). The last change to the probe, a fixed quiet period in place of a clear signal the probe cannot read, could not be compiled: another session's in-flight refactor of `internal/component/config/transaction` and `internal/component/iface` broke the tree-wide build (`undefined: ValidateOperationVerbs`, `undefined: tx.ResourceRelationInterfaceAddress`), and `ze-test` links both | This spec. AC-2 keeps its four discriminated unit tests as its proof until the run happens |
 
 ## RFC Documentation (Scope: protocol)
 

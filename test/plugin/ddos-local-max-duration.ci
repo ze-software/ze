@@ -1,0 +1,99 @@
+# Test: `ddos local max-mitigation-duration` bounds an on-host drop rule that no
+# AttackCleared will ever lift, proven by an nft readback and by `show ddos
+# local` while the flood is still running.
+#
+# VALIDATES: spec-ddos-timing-leaves-reach-no-worker AC-6 -- with
+#            `max-mitigation-duration 5`, the drop rule ddos-local installs for a
+#            box-owned victim is removed by the plugin's worker
+#            (register.go startMaxDurationWorker -> responder.go
+#            enforceMaxDuration -> removeMitigation), the kernel no longer holds
+#            the rule, and `show ddos local` reports no mitigation.
+# PREVENTS:  the leaf going back to being parsed, range-checked and read by
+#            nothing. removeMitigation has two other callers, the suppress branch
+#            of applyMitigation and onCleared, and neither is a timer: before
+#            this worker an attack that never cleared held an nftables drop for
+#            the life of the daemon while the operator had set a cap that said it
+#            would not.
+#
+# WHY THE FLOOD NEVER STOPS. The removal is asserted while the probe is still
+# flooding the victim, so no AttackCleared can have arrived: the detector needs
+# clear-consecutive-checks evaluations under the threshold, which the config puts
+# at 100. The cap is therefore the only path that could have removed the rule,
+# which is what makes the assertion discriminate. The detector emits
+# AttackDetected once per generation at onset, so nothing re-installs the rule
+# after the cap lifts it.
+#
+# WHY THE CAP IS 5 AND NOT 1. The probe must SEE the rule installed before it can
+# see it removed, and the rule lives for the cap plus at most one worker tick. At
+# 1 second that window is one to two seconds; at 5 it is five to six, which the
+# probe's 250ms poll cannot miss. The value proves the same code either way: the
+# cap is read from the leaf and compared against the wall clock.
+#
+# STATUS: a Linux/QEMU integration test; NOT executable on the darwin dev host.
+#   It needs a fully privileged host and two capability families.
+#     - net-admin: ddos-local writes the nftables table, and the probe reads it
+#       back through netlink.
+#     - bpf (CAP_BPF + CAP_SYS_RESOURCE): the traffic-usage block drives
+#       rlimit.RemoveMemlock() and link.AttachTCX()
+#       (internal/plugins/trafficusage/attach_linux.go). Without it the victim
+#       prefix never resolves, and applyMitigation refuses to install an
+#       unscoped rule -- so the test could only fail.
+option=needs-linux:caps=net-admin,bpf
+# Serialize against every other ddos test: they all flood the SAME loopback
+# interface and the detector picks the victim by top-destination-bytes over that
+# interface, so a sibling's concurrent flood is indistinguishable from this
+# test's own. Rationale in full: test/plugin/ddos-direction.ci.
+option=exclusive:group=ddos-flood
+option=env:var=ze.log.ddos.detect:value=info
+option=env:var=ze.log.ddos.local:value=info
+# 50s to install the drop under a flood, then 40s for the one-second cap worker
+# to reach it, plus daemon startup.
+option=timeout:value=140s
+
+stdin=ze-bgp:terminator=EOF_CONF
+ddos {
+	detect {
+		enabled true
+		absolute-floor 1000
+		confirm-duration 1
+		clear-consecutive-checks 100
+		startup-grace 0
+		baseline-window 10
+		check-interval 1
+		characterize-enable false
+	}
+	observe {
+		incident-ring-size 100
+	}
+	local {
+		response-level enforce
+		max-mitigation-duration 5
+	}
+}
+
+traffic {
+	usage {
+		enabled true
+		track-ip true
+		interfaces {
+			interface lo {
+				enabled true
+			}
+		}
+	}
+}
+
+plugin {
+	external ddos-local-max-duration-probe {
+		run "ze-test fixture plugin/ddos-local-max-duration-driver"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=135s
+expect=exit:code=0
+expect=stderr:contains=LOCAL-CAP-INSTALLED 127.0.0.9
+expect=stderr:contains=LOCAL-CAP-REMOVED 127.0.0.9
+expect=stderr:contains=ddos-local: drop rule installed
+expect=stderr:contains=ddos-local: max-mitigation-duration reached

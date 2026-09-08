@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/core/ddosevent"
@@ -45,6 +46,14 @@ type responder struct {
 	// production and in tests: it is what keeps `published` in step with them.
 	active bool
 	target ddosevent.VectorTuple
+	// installedAt is when the live drop rule went in, and now is the clock that
+	// reads it. enforceMaxDuration compares the two against
+	// cfg.MaxMitigationDuration. setStatus writes installedAt on the transition
+	// into a live rule, so a refresh cannot restart the cap. now is a field so a
+	// test can move time without sleeping; production gets time.Now from
+	// newResponder.
+	installedAt time.Time
+	now         func() time.Time
 	// published mirrors {active, target} for readers that must not wait on mu.
 	// mu is held across the whole firewall reconcile so concurrent mitigations
 	// stay ordered, and that reconcile is a netlink round trip: a reader taking
@@ -71,7 +80,7 @@ var registerTables = firewall.RegisterTables
 var applyAll = firewall.ApplyAll
 
 func newResponder(cfg *Config, bus eventBus) *responder {
-	r := &responder{cfg: cfg, bus: bus}
+	r := &responder{cfg: cfg, bus: bus, now: time.Now}
 	// Publish the idle snapshot before the responder is reachable, so status()
 	// never has to interpret a nil pointer as "no mitigation".
 	r.published.Store(&mitigationStatus{})
@@ -80,7 +89,17 @@ func newResponder(cfg *Config, bus eventBus) *responder {
 
 // setStatus records the mitigation state and republishes the lock-free snapshot
 // status() reads. Caller holds r.mu.
+//
+// It is also the only writer of installedAt, the instant the
+// max-mitigation-duration cap counts from. The write happens on the transition
+// from no rule to a live rule and nowhere else: applyMitigation re-installs in
+// place on every AttackCharacterized while the rule is already live, so a clock
+// written on each install would restart the cap on every characterization and
+// an attack that re-characterizes inside its own cap would never expire.
 func (r *responder) setStatus(active bool, target ddosevent.VectorTuple) {
+	if active && !r.active {
+		r.installedAt = r.clock()
+	}
 	r.active = active
 	r.target = target
 	r.published.Store(&mitigationStatus{active: active, target: target})
@@ -240,6 +259,52 @@ func (r *responder) onCleared(_ *ddosevent.AttackCleared) {
 	if !r.active {
 		return
 	}
+	r.removeMitigation()
+}
+
+// clock reads the responder's time source. A zero-value responder leaves now
+// nil; newResponder sets time.Now.
+func (r *responder) clock() time.Time {
+	if r.now == nil {
+		return time.Now()
+	}
+	return r.now()
+}
+
+// enforceMaxDuration removes a drop rule that has outlived
+// max-mitigation-duration.
+//
+// removeMitigation has two other callers and neither is a timer: the suppress
+// branch of applyMitigation, and onCleared. So without this an attack that
+// never clears, or a detector that stops before it emits the clear, leaves an
+// nftables drop installed for the life of the daemon, while the operator has
+// set a cap that says it will not be.
+//
+// It is a wall-clock cap on purpose. The one case the cap exists for is the
+// attack whose clear never arrives, so it cannot be counted in events the
+// detector may stop sending.
+//
+// Called by the plugin's one worker (register.go startMaxDurationWorker).
+func (r *responder) enforceMaxDuration() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if !r.active {
+		return
+	}
+	// Zero means no cap, as the leaf's description states and as the flowspec
+	// twin implements. It is a guard, checked explicitly rather than falling out
+	// of the arithmetic: a zero read as a deadline expires every rule on the
+	// first tick and leaves the box unprotected under a flood.
+	if r.cfg.MaxMitigationDuration <= 0 {
+		return
+	}
+	limit := time.Duration(r.cfg.MaxMitigationDuration) * time.Second
+	if r.clock().Sub(r.installedAt) < limit {
+		return
+	}
+	logger().Info("ddos-local: max-mitigation-duration reached, removing the drop rule",
+		"target", r.target.DstPrefix, "seconds", r.cfg.MaxMitigationDuration)
 	r.removeMitigation()
 }
 

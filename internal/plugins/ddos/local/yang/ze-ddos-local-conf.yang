@@ -7,6 +7,7 @@ module ze-ddos-local-conf {
 
   description "Local (drop-rule) mitigation configuration. Augments the shared `ddos`
                container (owned by ze-ddos-detect-conf) with the `local` subtree.";
+  revision 2026-09-08 { description "max-mitigation-duration is enforced: the local responder removes a drop rule that reaches the cap."; }
   revision 2026-07-12 { description "Replace the allowlist leaf-list with the shared ddos/detect traffic policy; add forward-mitigation for direction-based on-host FORWARD drops of transit victims."; }
   revision 2026-07-11 { description "Add confidence-min gate for the characterized mitigation path."; }
   revision 2026-07-02 { description "Nest under ddos/local: augment /dd:ddos with container local."; }
@@ -34,11 +35,12 @@ module ze-ddos-local-conf {
         type uint32 { range "0..86400"; }
         default 3600;
         description "Maximum seconds a drop rule stays installed (0 = no cap).";
-        ze:help "Ze parses the value and refuses it outside 0 to 86400, and then no code reads it. A
-            drop rule of ddos local is removed on the AttackCleared event and on no other trigger. An
-            attack that never clears leaves the rule installed. The leaf of the same name under ddos
-            flowspec is enforced against the wall clock. This one is not, so a value other than the default
-            3600 changes no behavior.";
+        ze:help "A drop rule that reaches this age is removed, and the plugin checks the age once a
+            second. The clock starts when the rule goes in and a narrowing of the same rule does not
+            restart it. The cap is the second removal trigger: the first is the AttackCleared event,
+            and the cap is what bounds a rule when that event never arrives. Set the leaf to 0 for no
+            cap, and the rule then stays until the attack clears. The leaf of the same name under ddos
+            flowspec caps the upstream announce in the same way.";
       }
       leaf confidence-min {
         type uint8 { range "0..100"; }
