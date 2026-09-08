@@ -92,6 +92,12 @@ func TestCheckKernelBuildSpaceSaysWhenItCouldNotMeasure(t *testing.T) {
 func TestReclaimRunsOnlyForAVMBackedRuntime(t *testing.T) {
 	old := runCommand
 	t.Cleanup(func() { runCommand = old })
+	// reclaimBuildSpace returns before runCommand when colima is absent, so a
+	// host without it counted zero calls and read as the native-daemon case.
+	// Pin the lookup, the way the sibling tests pin pathExists and freeSpace.
+	oldAvailable := commandAvailable
+	t.Cleanup(func() { commandAvailable = oldAvailable })
+	commandAvailable = func(name string) bool { return name == "colima" }
 	var calls [][]string
 	runCommand = func(_ context.Context, _ Request, name string, args ...string) error {
 		calls = append(calls, append([]string{name}, args...))
