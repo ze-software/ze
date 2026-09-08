@@ -68,7 +68,7 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | Protected success indication | 2.5 | SERVER side implemented 2026-08-12 (phase 1). The peer side ANSWERS it but does not consume it, which the published RFC does not require |
 | Session resumption and NewSessionTicket | 2.1.2, 2.1.3, 5.7 | IMPLEMENTED 2026-09-08 (phase 5), both roles, with the §5.4 revocation check carried across a resumed handshake. No interop counterpart exists; see the Interop Tests table |
 | OCSP stapling and revocation | 5.4 (five MUSTs) | absent |
-| Anonymous and privacy-friendly NAIs | 2.1.8, 5.8 | absent |
+| Anonymous and privacy-friendly NAIs | 2.1.8, 5.8 | IMPLEMENTED 2026-09-08 (phase 5b), peer and server. The peer derives an anonymous NAI in `NewPeerSessionTLS` rather than at the send site, so no caller reaches the Identity Response with the configured `local-id` in it. Section 5.8's three MUSTs open "If anonymous NAIs are not used", and ze now uses one on every EAP-TLS exchange, so their antecedent is false: they are exclusions for the extraction, never gaps |
 | Key derivation and the export | 2.3 | IMPLEMENTED, untagged |
 | Not mechanically testable as written | 5.10-1 ("MUST mitigate known attacks") | needs an owner reading at enrolment |
 
@@ -233,6 +233,13 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | `TestEAPTLS12ExchangeIsUnchangedByResumptionState` | same | AC-3 under resumption: TLS 1.2 issues no ticket and derives the RFC 5216 MSK | done, phase 5 |
 | `TestResumptionStoreIsOnePerPeerAndOutlivesTheSA`, `TestResumptionStoreIsReplacedWhenTheAuthenticationChanges`, `TestResumptionStoreIsDroppedForAPeerTheConfigNoLongerNames`, `TestEAPTLSConfigsCarryTheResumptionStore`, `TestEAPTLSConfigsRefuseAnSAWithNoResumptionStore`, `TestEAPTLSAuthenticationIsCountedByOutcome` | `internal/component/ike/engine/rfc9190_resumption_wiring_test.go` | the wiring test: the store outlives `clear vpn ipsec sa`, which destroys the peer session (`TerminateAllSAs`, `register.go`), and is invalidated when the operator edits the authentication | done, phase 5 |
 | `TestSessionResumptionDefaultsToTheYANGDefault`, `TestSessionResumptionReadsBothPolarities`, `TestSessionResumptionRefusesANonBoolean`, `TestSessionResumptionIsPartOfPeerEquality` | `internal/component/ike/ipsec/config_session_resumption_test.go` | the `session-resumption` leaf an operator writes | done, phase 5 |
+| `TestEAPTLS13PeerSendsAnAnonymousNAIAndKeepsTheRealm` | `internal/core/eap/rfc9190_nai_test.go` | AC-6, RFC9190-2.1.8-2 positive: `alice@example.com` reaches the wire as `@example.com`, and no packet the peer sent carries the username | done, phase 5b |
+| `TestEAPTLS13PeerSendsTheFixedUsernameWhenTheIdentityHasNoRealm` | same | AC-6, RFC9190-2.1.8-5: an identity with no realm has no username to omit, so it takes the fixed `anonymous` Section 2.1.8 allows. This is the shape every EAP-TLS scenario in the repo configures | done, phase 5b |
+| `TestEAPTLSPeerAnonymizesEveryConfiguredIdentity` | same | AC-6, RFC9190-2.1.8-3 positive: every NAI the peer can emit matches the RFC 7542 Section 2.2 grammar, over 12 identity shapes including the ones no grammar accepts. It is also what keeps §5.8-1/2/3's antecedent false | done, phase 5b |
+| `TestNAIGrammarMatchesRFC7542Section22` | same | AC-6, RFC9190-2.1.8-3 negative: the grammar refuses 19 strings, one for each rule, so the positive claim is not a checker that accepts everything | done, phase 5b |
+| `TestEAPMSCHAPv2PeerSendsItsConfiguredIdentity` | same | AC-6, RFC9190-2.1.8-2 negative: RFC 9190 governs EAP-TLS, so a password method's Identity Response is unchanged. A peer that anonymized every method would pass every row above | done, phase 5b |
+| `TestEAPTLS13AuthenticatorAcceptsAnAnonymousNAI` | same | AC-6, RFC9190-2.1.8-1 positive on the SERVER role: `@realm` and `anonymous@realm` each complete an exchange with a shared MSK | done, phase 5b |
+| `TestEAPTLS13AuthenticatorTreatsAnEmptyCertificateListAsTerminal` | same | AC-6, RFC9190-2.1.8-4 with 2.1.8-6: the authenticator's own `tls.Config` ends the handshake on an empty `certificate_list` and completes on a real one | done, phase 5b |
 | `TestEAPTLS13RefusesARevokedClientCertificate` | `internal/core/eap/rfc9190_revocation_test.go` | AC-5, RFC9190-5.4-1 positive on the authenticator | done, phase 4 |
 | `TestEAPTLS13RefusesARevokedServerCertificate` | same | AC-5, RFC9190-5.4-1 positive on the peer | done, phase 4 |
 | `TestEAPTLS13RefusesARevokedIntermediate` | same | AC-5, "all the certificates in the certificate chains" rather than the leaf alone | done, phase 4 |
@@ -278,6 +285,11 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 - `internal/core/eap/revocation.go` - created, phase 4. The RFC 9190 Section 5.4
   chain walk both roles run.
 - `internal/core/eap/rfc9190_revocation_test.go` - created, phase 4.
+- `internal/core/eap/nai.go` - created, phase 5b. The RFC 9190 Section 2.1.8
+  anonymous NAI, and the RFC 7542 Section 2.2 grammar it must match.
+- `internal/core/eap/rfc9190_nai_test.go` - created, phase 5b.
+- `rfc/full/rfc7542.txt` - fetched, phase 5b. RFC 9190 Section 2.1.8 makes the
+  NAI grammar normative, and a summary is never the authority for it.
 - `internal/component/pki/config_crl_test.go` - created, phase 4.
 - `internal/component/ike/engine/rfc9190_crl_wiring_test.go` - created, phase 4.
 - `test/interop-ipsec/scenarios/responder-eap-tls13/` - created, phase 1. The
@@ -354,6 +366,27 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
    checking, is still a gap and is the same obligation as RFC9190-5.4-4 and 5.4-5, so
    one piece of work closes all three.
 5. Anonymous and privacy-friendly NAIs.
+   DONE 2026-09-08 (phase 5b), both roles. `anonymousNAI` and `validNAI`
+   (`internal/core/eap/nai.go`) derive and check the NAI, and `NewPeerSessionTLS`
+   (`peer.go`) is the only site that calls the derivation: it is the one constructor
+   of an EAP-TLS peer, so the MUST NOT cannot be reached around. The obligation binds
+   a client that SUPPORTS TLS 1.3 rather than one that negotiated it, which is also
+   the only reading the code could act on, because the Identity Response leaves before
+   any ClientHello. `NewPeerSessionTLS` no longer sets `userName` either: that is the
+   MS-CHAPv2 name field, which EAP-TLS never reaches, so it was the operator's
+   username stored on a session that must not emit one.
+
+   THE SERVER ROLE NEEDED NO CODE. `Session.handleIdentity` (`eap.go`) records the
+   NAI and asks it for nothing, and no caller reads `Session.Identity()`, so ze
+   already authenticates a peer that reveals no username. That is RFC9190-2.1.8-1 and
+   it is also what RFC9190-2.2-1 requires ("Unauthenticated information MUST NOT be
+   used ... to give authorization"). The test is the gate on it, not the feature.
+
+   TWO SECTION 5.8 CONSEQUENCES FOR STEP 6. RFC9190-5.8-1, 5.8-2 and 5.8-3 open "If
+   anonymous NAIs are not used", and ze now uses one on every EAP-TLS exchange, so
+   they are exclusions rather than gaps and `TestEAPTLSPeerAnonymizesEveryConfiguredIdentity`
+   is what holds their antecedent false. RFC9190-5.8-4 (record padding) is a SHOULD
+   that `crypto/tls` exposes no control for; it is untouched by this step.
 6. Write `rfc/extraction/rfc9190.json` by hand and run `./le rfc check`.
 7. Move the row from `rfc/not-enrolled.txt` to `rfc/enrolled.txt`, add the status row.
 8. Raise 5.10-1 with Thomas if it still cannot be classified honestly.

@@ -36,6 +36,11 @@ authenticator such as strongSwan. The responder half is described in
 - RFC 9190 Section 5.7 caps how long a peer keeps what a resumption needs at
   604800 seconds, "regardless of the PSK or ticket lifetime". `eap.Resumption`
   drops a stored ticket at that age on both `Put` and `Get`.
+- RFC 9190 Section 2.1.8 forbids the identity in the clear: "A client supporting
+  TLS 1.3 MUST NOT send its username (or any other permanent identifiers) in
+  cleartext in the Identity Response". `anonymousNAI` derives what the peer sends
+  instead, and the same section makes the result a Network Access Identifier that
+  the grammar of RFC 7542 Section 2.2 accepts.
 
 ## Decisions
 
@@ -64,6 +69,25 @@ config changes.
 
 <!-- source: internal/core/eap/resumption.go -- Resumption, Resumption.ClientCache -->
 <!-- source: internal/component/ike/engine/resumption.go -- resumptionFor, forgetResumption -->
+
+**The anonymous NAI is derived in the EAP-TLS constructor, not at the send
+site.** `NewPeerSessionTLS` is the one way an EAP-TLS peer session exists, so
+deriving it there leaves no caller that can reach the Identity Response with the
+configured `local-id` still in it. The send site would need to ask which method
+this session runs, and that question is already answered by which constructor was
+called: `NewPeerSession` carries the identity unchanged, because RFC 9190 governs
+EAP-TLS alone and a password method puts its own username inside the method
+exchange.
+
+Two shapes come out. An identity with a realm loses its username and keeps the
+realm, which is the construction Section 2.1.8 RECOMMENDS and the realm is what
+routes the exchange. An identity with no realm, or with one the RFC 7542 grammar
+refuses, becomes the fixed username `anonymous`, which the same paragraph allows.
+The obligation binds a client that SUPPORTS TLS 1.3 rather than one that
+negotiated it, and that is the only reading this code could act on: the Identity
+Response leaves before any ClientHello, so no negotiated version exists yet.
+
+<!-- source: internal/core/eap/nai.go -- anonymousNAI, validNAI -->
 
 ## Traps this code exists to avoid
 

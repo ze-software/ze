@@ -373,7 +373,8 @@ The EAP peer validates the authenticator's certificate chain against that trust
 anchor. EAP-TLS has no server hostname, so the check validates the chain without
 DNS-name matching.
 
-<!-- source: internal/core/eap/peer.go -- verifyServerChain, startTLSClient -->
+<!-- source: internal/core/eap/peer.go -- startTLSClient -->
+<!-- source: internal/core/eap/peer_chain.go -- serverChainCheck.verifyPeerCertificate -->
 
 ## EAP method negotiation
 
@@ -442,11 +443,39 @@ it, so the AUTH payload of RFC 7296 Section 2.16 cannot be computed and the SA n
 establishes. A TLS 1.2 exchange concludes with the bare EAP-Success it concluded with
 before, because the version test reads the negotiated version.
 
-Ze issues no TLS session ticket. It builds one TLS configuration for each EAP session, and
-Go keys ticket encryption on that instance. No other session can redeem a ticket minted in
-one. EAP-TLS session resumption is therefore not available.
+Ze issues a TLS session ticket on every EAP-TLS 1.3 authentication, because RFC 9190
+Section 2.1.2 makes that a MUST with no condition on it. The ticket key belongs to the
+peering rather than to the session, so a later authentication with the same peer can redeem
+it. Whether Ze USES a ticket is the `session-resumption` leaf, which defaults to `true` and
+covers both roles; with it `false` every authentication runs a full handshake and the ticket
+still goes out. A resumed authentication re-checks the cached chain against the current
+`ca-certificate` and `crl`, so a certificate that was revoked or expired since the first
+handshake is refused.
+
+## Ze does not send `local-id` as the EAP-TLS identity
+
+RFC 9190 Section 2.1.8 says that "a client supporting TLS 1.3 MUST NOT send its username (or
+any other permanent identifiers) in cleartext in the Identity Response". So for
+`mode eap-tls` Ze does not put `local-id` in the EAP-Response/Identity. It sends an anonymous
+Network Access Identifier derived from it:
+
+| `local-id` | EAP identity Ze sends | Why |
+|------------|----------------------|-----|
+| `alice@example.com` | `@example.com` | the username is omitted and the realm is kept, which is the form Section 2.1.8 recommends |
+| `@example.com` | `@example.com` | already anonymous |
+| `ze-test-client` | `anonymous` | no realm to route on, so the fixed username Section 2.1.8 allows |
+| `alice@localhost` | `anonymous` | `localhost` is not a realm the RFC 7542 Section 2.2 grammar accepts |
+
+The realm survives because it is what routes an EAP exchange to a home domain, and because
+RFC 9190 Section 2.1.3 asks for the same realm again when a session resumes. Give `local-id`
+a realm when the exchange has to route: an identity with none tells the far end nothing.
+
+`local-id` is unchanged everywhere else. It is still IDi in IKE_AUTH, and the EAP-MSCHAPv2
+and EAP MD5-Challenge methods still send it as their identity, because RFC 9190 governs
+EAP-TLS alone and those methods carry their username inside the method exchange.
 
 <!-- source: internal/core/eap/eap_tls.go -- indicateSuccess, newTLSMethod -->
+<!-- source: internal/core/eap/nai.go -- anonymousNAI -->
 
 ## EAP-TLS 1.3 needs a certificate revocation list
 

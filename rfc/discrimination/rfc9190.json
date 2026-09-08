@@ -90,6 +90,83 @@
       "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9190-2.1.8-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_nai_test.go::TestEAPTLS13AuthenticatorAcceptsAnAnonymousNAI",
+      "unit-sha": "57282d57c5ad154e",
+      "claim-sha": "733b731345d7ab86",
+      "route": "revert",
+      "producer": "internal/core/eap/eap.go::handleIdentity",
+      "producer-sha": "cd01bb53da5bfe90",
+      "break": "body of handleIdentity replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.1.8-2",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_nai_test.go::TestEAPMSCHAPv2PeerSendsItsConfiguredIdentity",
+      "unit-sha": "8666fb420e9d147d",
+      "claim-sha": "5f32d2f667384471",
+      "route": "revert",
+      "producer": "internal/core/eap/peer.go::handleRequest",
+      "producer-sha": "0a90e14d16adb589",
+      "break": "body of handleRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.1.8-2",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_nai_test.go::TestEAPTLS13PeerSendsAnAnonymousNAIAndKeepsTheRealm",
+      "unit-sha": "75bdb1ae9d8910e8",
+      "claim-sha": "1eb591f473b5f3fb",
+      "route": "revert",
+      "producer": "internal/core/eap/nai.go::anonymousNAI",
+      "producer-sha": "f7c2e1369ff1f80f",
+      "break": "body of anonymousNAI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.1.8-3",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_nai_test.go::TestEAPTLSPeerAnonymizesEveryConfiguredIdentity",
+      "unit-sha": "35e0cc7cc34f61f6",
+      "claim-sha": "854d8735c447f7f3",
+      "route": "revert",
+      "producer": "internal/core/eap/nai.go::validNAI",
+      "producer-sha": "0973472033965144",
+      "break": "body of validNAI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.1.8-3",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_nai_test.go::TestNAIGrammarMatchesRFC7542Section22",
+      "unit-sha": "cb35e030132607fd",
+      "claim-sha": "50f4ea0698275f71",
+      "route": "revert",
+      "producer": "internal/core/eap/nai.go::validNAI",
+      "producer-sha": "0973472033965144",
+      "break": "body of validNAI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.1.8-4",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_nai_test.go::TestEAPTLS13AuthenticatorTreatsAnEmptyCertificateListAsTerminal",
+      "unit-sha": "bd17f4098d205ab2",
+      "claim-sha": "9b1b5f72aaa807e4",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+      "producer-sha": "db6310bfc661dc9b",
+      "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.1.8-5",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_nai_test.go::TestEAPTLS13PeerSendsTheFixedUsernameWhenTheIdentityHasNoRealm",
+      "unit-sha": "774a970c18226b70",
+      "claim-sha": "8923289c1f735504",
+      "route": "revert",
+      "producer": "internal/core/eap/nai.go::anonymousNAI",
+      "producer-sha": "f7c2e1369ff1f80f",
+      "break": "body of anonymousNAI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9190-2.5-1",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumedExchangeStillSendsTheSuccessIndication",
