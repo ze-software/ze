@@ -2,10 +2,22 @@
 
 A `.ci` file here is **invisible to every suite and every repo-wide gate**. Write
 and iterate on it as long as you like; it cannot redden `./le verify current mode full`, and
-because the directory is gitignored it does not exist in CI at all.
+because the directory is gitignored it does not exist in CI at all. The
+`gr-vacuity-*.ci` exhibit below is the one tracked exception, and CI does check
+it out: it is invisible there because every reader skips this directory, not
+because the file is absent.
 
-This directory is tracked only for this README. Everything else in it is ignored
-(`.gitignore`: `test/draft/` plus `!test/draft/README.md`).
+This directory is tracked for this README and for the `gr-vacuity-*.ci` exhibit
+under `plugin/`. Everything else in it is ignored (`.gitignore`: `test/draft/*`
+plus the negations).
+
+The exhibit is the one thing here that is NOT a test under development. Its
+three files are DEMONSTRATIONS: two pass with Graceful Restart unreachable, and
+the third MUST fail. A demonstration has no home in `test/`, because every
+directory a suite reads runs its files on every sweep, and these three would
+buy a gate nothing (`plan/journal/unwired-feature.md`, 2026-09-08). They live
+here for the property this directory already has, which is that no gate reads
+them. Run them with `ze-test bgp plugin --draft --pattern gr-vacuity`.
 
 ## Why this exists
 

@@ -37,6 +37,19 @@ etc/ze/database.zefs*
 test/draft/*
 !test/draft/README.md
 
+# The Graceful Restart vacuity exhibit, tracked by exception. The three files
+# are DEMONSTRATIONS, not regression tests: two pass with Graceful Restart
+# unreachable, and the third MUST fail. The tree has no home for a
+# demonstration, so they stay here, where they cost no gate second and can
+# redden nothing. The four recursive .ci readers skip this directory and
+# TestDraftDirIsInvisibleToRepoChecks holds them to it, so for these three that
+# skip, rather than the ignore above, is what keeps them out of every gate.
+# The directory must be re-included before its contents can be excluded: git
+# does not descend into an excluded DIRECTORY.
+!test/draft/plugin/
+test/draft/plugin/*
+!test/draft/plugin/gr-vacuity-*.ci
+
 # MRT data files (large, downloaded)
 test/internet/*.gz
 test/internet/*.bz2

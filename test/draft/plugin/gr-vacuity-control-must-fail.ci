@@ -1,0 +1,97 @@
+# Exhibit: the control. This file MUST FAIL, and that is what it is for.
+#
+# It is gr-vacuity-mark-stale-without-gr.ci with one octet changed in the
+# conn=2 expectation: C0A899 in place of C0A801, so it asks for
+# 192.168.153.0/24 where ze announces 192.168.1.0/24.
+#
+# DEMONSTRATES: the harness discriminates. Its two sibling exhibits pass with
+#   Graceful Restart unreachable because the assertion is insensitive to GR, and
+#   NOT because .ci runs in this shape always report green. Without this control
+#   a reader could take the passes for a broken runner.
+#
+# FAILS ON: the conn=2 NLRI comparison --
+#   "NLRI: expected=192.168.153.0/24, got=192.168.1.0/24".
+#   A run of this file that PASSES, or that fails anywhere else, means the
+#   sibling exhibits' verdicts no longer carry the meaning stated in them.
+#
+# Journal row: plan/journal/unwired-feature.md, 2026-09-08.
+# Handover: plan/handoff-graceful-restart-sender-facts.md.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=15s
+
+# Connection 1: Static route + EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# TCP close (no NOTIFICATION). No gr plugin is loaded, so nothing activates:
+# this is the stimulus the original test credits GR with answering.
+action=close:conn=1:seq=2
+
+# Connection 2: ribOut replay — static route (config + RIB replay) + EOR
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A899
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart {
+					restart-time 120
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		timer { connect-retry 5; }
+
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s

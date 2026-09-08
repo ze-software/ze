@@ -1,0 +1,101 @@
+# Exhibit: test/plugin/gr-mark-stale.ci passes with Graceful Restart unreachable
+#
+# This file is a DEMONSTRATION, not a regression test. It is a copy of
+# test/plugin/gr-mark-stale.ci with one change: the `gr` plugin is not loaded,
+# so no Graceful Restart code runs at all. It still PASSES.
+#
+# DEMONSTRATES: the assertion in gr-mark-stale.ci is not about Graceful Restart.
+#   The conn=2 re-announcement that test reads as GR evidence is produced by
+#   RIBManager.handleState (internal/component/bgp/plugins/rib/rib.go) replaying
+#   ribOut, which is deleted in the withdraw path and never on peer-down. The
+#   replay happens whether or not GR exists.
+# DEMONSTRATES: mark-stale is not reached even when the plugin IS loaded.
+#   parseGRCapValue (internal/component/bgp/plugins/gr/gr.go) emits two octets
+#   with no AFI/SAFI tuples, so the capability carries zero families, decodeGR
+#   yields nil families, and onSessionDown returns false at its
+#   len(staleFamilies) == 0 guard.
+#
+# ASSERTS ABOUT GRACEFUL RESTART: nothing. Green here and green in
+#   gr-mark-stale.ci are the same green, produced by the same RIB replay.
+#
+# Journal row: plan/journal/unwired-feature.md, 2026-09-08.
+# Handover: plan/handoff-graceful-restart-sender-facts.md.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=15s
+
+# Connection 1: Static route + EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# TCP close (no NOTIFICATION). No gr plugin is loaded, so nothing activates:
+# this is the stimulus the original test credits GR with answering.
+action=close:conn=1:seq=2
+
+# Connection 2: ribOut replay — static route (config + RIB replay) + EOR
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart {
+					restart-time 120
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		timer { connect-retry 5; }
+
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
