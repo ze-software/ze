@@ -229,10 +229,13 @@ failing packages at a committed SHA is the product being red, not scaffolding no
 
 ### Read the sweep with this caveat, or you will chase a past
 
-It ran over `6b7077807`, which is an **ancestor of this machine's HEAD by 51 commits**. The
-two checkouts also disagree about origin: the Mac had `origin/main` at `6b7077807`, this box
-has it at `e9a8155a3`, thirteen commits later. Settle that first, or the next sweep measures
-a different past again — the branch is Thomas's to move.
+It ran over `6b7077807`, which is now an **ancestor of `origin/main` by 61 commits**.
+
+The divergence this section originally warned about is SETTLED: Thomas pushed on 2026-09-08
+and `origin/main` is `9af982e14`, with this checkout level on it and nothing ahead. Both
+machines see the same tip after a fetch, so the next sweep can be run anywhere and measure
+the same tree. Run it at `origin/main`, not at `6b7077807`, or it faithfully re-measures a
+past that is 61 commits old.
 
 Several commits since plausibly move those reds, though NONE has been measured against a
 sweep piece and no such claim should be made without running it:
