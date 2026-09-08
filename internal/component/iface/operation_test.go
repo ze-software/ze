@@ -34,13 +34,15 @@ func TestIfaceOperationDecomposerAddressAddRemove(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, ops, 2)
 
-	assert.Equal(t, tx.OperationAddAddress, ops[0].Type)
+	assert.Equal(t, operationAddAddress, ops[0].Type)
+	assert.Equal(t, tx.VerbCreate, ops[0].Verb, "the engine orders by the verb, so every emitted operation carries one")
 	assert.Equal(t, "interface", ops[0].Owner)
 	assert.Equal(t, tx.ResourceAddress, ops[0].Target.Kind)
 	assert.Equal(t, "dum0", ops[0].Target.Interface)
 	assert.Equal(t, "10.0.0.2/24", ops[0].Params.CIDR)
 
-	assert.Equal(t, tx.OperationRemoveAddress, ops[1].Type)
+	assert.Equal(t, operationRemoveAddress, ops[1].Type)
+	assert.Equal(t, tx.VerbDestroy, ops[1].Verb)
 	assert.Equal(t, "10.0.0.1/24", ops[1].Params.CIDR)
 }
 
@@ -82,11 +84,11 @@ func TestIfaceOperationDecomposerNewInterface(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, ops, 2)
 
-	assert.Equal(t, tx.OperationAddInterface, ops[0].Type)
+	assert.Equal(t, operationAddInterface, ops[0].Type)
 	assert.Equal(t, "dum0", ops[0].Target.Name)
 	assert.Equal(t, "dummy", ops[0].Params.Property)
 
-	assert.Equal(t, tx.OperationAddAddress, ops[1].Type)
+	assert.Equal(t, operationAddAddress, ops[1].Type)
 	assert.Equal(t, "dum0", ops[1].Target.Interface)
 }
 
@@ -109,10 +111,10 @@ func TestIfaceOperationDecomposerDeleteInterface(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, ops, 2)
 
-	assert.Equal(t, tx.OperationRemoveAddress, ops[0].Type)
+	assert.Equal(t, operationRemoveAddress, ops[0].Type)
 	assert.Equal(t, "dum0", ops[0].Target.Interface)
 
-	assert.Equal(t, tx.OperationRemoveInterface, ops[1].Type)
+	assert.Equal(t, operationRemoveInterface, ops[1].Type)
 	assert.Equal(t, "dum0", ops[1].Target.Name)
 }
 
@@ -125,7 +127,7 @@ func TestApplyIfaceOperationAddInterfaceJournal(t *testing.T) {
 	b := &fakeBackend{}
 	op := tx.ConfigOperation{
 		ID:   "iface-add",
-		Type: tx.OperationAddInterface,
+		Type: operationAddInterface,
 		Target: tx.ResourceRef{
 			Kind: tx.ResourceInterface,
 			Name: "dum1",
@@ -194,7 +196,7 @@ func TestApplyIfaceOperationAddressJournal(t *testing.T) {
 	b.ifaces["dum0"] = fakeIface{name: "dum0", linkType: "dummy"}
 	op := tx.ConfigOperation{
 		ID:    "addr-add",
-		Type:  tx.OperationAddAddress,
+		Type:  operationAddAddress,
 		Owner: "interface",
 		Target: tx.ResourceRef{
 			Kind:      tx.ResourceAddress,
@@ -224,7 +226,7 @@ func TestIfaceConfigOperationDecls(t *testing.T) {
 	assert.Equal(t, configRootInterface, decls[0].Root)
 	assert.True(t, decls[0].Decompose)
 	assert.ElementsMatch(t, []sdk.ConfigOperationType{
-		sdk.OperationAddInterface, sdk.OperationRemoveInterface,
-		sdk.OperationAddAddress, sdk.OperationRemoveAddress,
+		operationAddInterface, operationRemoveInterface,
+		operationAddAddress, operationRemoveAddress,
 	}, decls[0].Operations)
 }

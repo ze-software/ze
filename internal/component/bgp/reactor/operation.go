@@ -10,6 +10,7 @@ import (
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/bgp/configop"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -31,13 +32,13 @@ func (a *reactorAPIAdapter) verifyConfigOperation(op *rpc.ConfigOperation) error
 		return errors.New("bgp operation verify requires an operation")
 	}
 	switch op.Type {
-	case rpc.OperationAddPeer:
+	case configop.AddPeer:
 		_, err := a.candidatePeerSettingsFromOperationConfig(op)
 		return err
-	case rpc.OperationRemovePeer:
+	case configop.RemovePeer:
 		_, err := a.peerSettingsFromOperationConfig(op, op.Params.OldConfig)
 		return err
-	case rpc.OperationModifyPeer:
+	case configop.ModifyPeer:
 		if _, err := a.peerSettingsFromOperationConfig(op, op.Params.OldConfig); err != nil {
 			return err
 		}
@@ -56,7 +57,7 @@ func (a *reactorAPIAdapter) applyConfigOperation(op *rpc.ConfigOperation, j conf
 		return nil, errors.New("bgp operation apply requires a journal")
 	}
 	switch op.Type {
-	case rpc.OperationAddPeer:
+	case configop.AddPeer:
 		settings, err := a.candidatePeerSettingsFromOperationConfig(op)
 		if err != nil {
 			return nil, err
@@ -69,7 +70,7 @@ func (a *reactorAPIAdapter) applyConfigOperation(op *rpc.ConfigOperation, j conf
 		}
 		a.emitOperationListenerReady(settings)
 		return bgpOperationApplyOutput(settings), nil
-	case rpc.OperationRemovePeer:
+	case configop.RemovePeer:
 		settings, err := a.peerSettingsFromOperationConfig(op, op.Params.OldConfig)
 		if err != nil {
 			return nil, err
@@ -81,7 +82,7 @@ func (a *reactorAPIAdapter) applyConfigOperation(op *rpc.ConfigOperation, j conf
 			return nil, err
 		}
 		return &rpc.ConfigOperationApplyOutput{Status: rpc.StatusOK}, nil
-	case rpc.OperationModifyPeer:
+	case configop.ModifyPeer:
 		oldSettings, err := a.peerSettingsFromOperationConfig(op, op.Params.OldConfig)
 		if err != nil {
 			return nil, err

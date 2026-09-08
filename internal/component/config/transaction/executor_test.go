@@ -43,8 +43,8 @@ func TestExecutorOrdering(t *testing.T) {
 	})
 
 	ops := []ConfigOperation{
-		{ID: "iface-add", Owner: "iface", Type: OperationAddInterface, Target: ResourceRef{Kind: ResourceInterface, Name: "eth0"}},
-		{ID: "peer-add", Owner: "bgp", Type: OperationAddPeer, Target: ResourceRef{Kind: ResourcePeer, Peer: "203.0.113.1"}},
+		{ID: "iface-add", Owner: "iface", Type: testOpAddInterface, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceInterface, Name: "eth0"}},
+		{ID: "peer-add", Owner: "bgp", Type: testOpAddPeer, Verb: VerbCreate, Target: ResourceRef{Kind: ResourcePeer, Peer: "203.0.113.1"}},
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -91,8 +91,8 @@ func TestExecutorRollback(t *testing.T) {
 	})
 
 	ops := []ConfigOperation{
-		{ID: "iface-add", Owner: "iface", Type: OperationAddInterface, Target: ResourceRef{Kind: ResourceInterface, Name: "eth0"}},
-		{ID: "peer-add", Owner: "bgp", Type: OperationAddPeer, Target: ResourceRef{Kind: ResourcePeer, Peer: "203.0.113.1"}},
+		{ID: "iface-add", Owner: "iface", Type: testOpAddInterface, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceInterface, Name: "eth0"}},
+		{ID: "peer-add", Owner: "bgp", Type: testOpAddPeer, Verb: VerbCreate, Target: ResourceRef{Kind: ResourcePeer, Peer: "203.0.113.1"}},
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -125,7 +125,7 @@ func TestExecutorIgnoresStrayApplyAck(t *testing.T) {
 		gw.mustEmit(EventOperationApplyOK, ackPayload)
 	})
 
-	ops := []ConfigOperation{{ID: "iface-add", Owner: "iface", Type: OperationAddInterface, Target: ResourceRef{Kind: ResourceInterface, Name: "eth0"}}}
+	ops := []ConfigOperation{{ID: "iface-add", Owner: "iface", Type: testOpAddInterface, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceInterface, Name: "eth0"}}}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	resultCh := make(chan error, 1)
@@ -179,7 +179,7 @@ func TestExecutorSettlement(t *testing.T) {
 
 	ops := []ConfigOperation{
 		{ID: "addr-add", Owner: "iface", Type: testSettlementOperation, Target: ResourceRef{Kind: ResourceAddress, Interface: "eth0", Address: "192.0.2.1/32"}, Params: ConfigOperationParams{Interface: "eth0", CIDR: "192.0.2.1/32"}},
-		{ID: "peer-add", Owner: "bgp", Type: OperationAddPeer, Target: ResourceRef{Kind: ResourcePeer, Peer: "203.0.113.1", Address: "192.0.2.1"}},
+		{ID: "peer-add", Owner: "bgp", Type: testOpAddPeer, Verb: VerbCreate, Target: ResourceRef{Kind: ResourcePeer, Peer: "203.0.113.1", Address: "192.0.2.1"}},
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -335,9 +335,9 @@ func TestExecuteRollsBackMixedTransaction(t *testing.T) {
 	}
 
 	ops := []ConfigOperation{
-		{ID: "iface-add", Owner: "iface", Type: OperationAddInterface, Target: ResourceRef{Kind: ResourceInterface, Name: "eth0"}},
+		{ID: "iface-add", Owner: "iface", Type: testOpAddInterface, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceInterface, Name: "eth0"}},
 		{ID: "section-apply-static", Owner: "static", Type: OperationSectionApply},
-		{ID: "peer-add", Owner: "bgp", Type: OperationAddPeer, Target: ResourceRef{Kind: ResourcePeer, Peer: "203.0.113.1"}},
+		{ID: "peer-add", Owner: "bgp", Type: testOpAddPeer, Verb: VerbCreate, Target: ResourceRef{Kind: ResourcePeer, Peer: "203.0.113.1"}},
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -368,4 +368,75 @@ func TestExecuteRefusesCoarseNodeWithoutDiffSource(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "section-apply-static")
 	assert.Empty(t, gw.findEmitted(EventApplyFor("static")), "a node with no diffs emitted an apply anyway")
+}
+
+// TestOperationPathCarriesUnknownLabel verifies the operation path orders and
+// runs an operation whose label no package in this repository names, and hands
+// that label to its owner unchanged. The core reads the verb and the target
+// kind; the label is the owner's own word for the work.
+//
+// VALIDATES: AC-5. A root joins the ordering without a core package learning
+// its vocabulary.
+// PREVENTS: The core silently dropping, rewriting, or refusing an operation it
+// cannot name, which is what a central operation enumeration produced.
+func TestOperationPathCarriesUnknownLabel(t *testing.T) {
+	const provisionVIP ConfigOperationType = "provision-claim-vip"
+
+	gw := newTestGateway()
+	executor := NewOperationExecutor(gw, "tx-unknown-label")
+
+	var verified, applied []ConfigOperationType
+	gw.SubscribeConfigEvent(EventOperationVerifyFor("provision"), func(payload []byte) {
+		var ev ConfigOperationVerifyEvent
+		require.NoError(t, json.Unmarshal(payload, &ev))
+		verified = append(verified, ev.Operation.Type)
+		ack, err := json.Marshal(ConfigOperationVerifyAck{TransactionID: ev.TransactionID, Plugin: ev.Operation.Owner, OperationID: ev.Operation.ID, Status: CodeOK})
+		require.NoError(t, err)
+		gw.mustEmit(EventOperationVerifyOK, ack)
+	})
+	gw.SubscribeConfigEvent(EventOperationApplyFor("provision"), func(payload []byte) {
+		var ev ConfigOperationApplyEvent
+		require.NoError(t, json.Unmarshal(payload, &ev))
+		applied = append(applied, ev.Operation.Type)
+		ack, err := json.Marshal(ConfigOperationApplyAck{TransactionID: ev.TransactionID, Plugin: ev.Operation.Owner, OperationID: ev.Operation.ID, Status: CodeOK})
+		require.NoError(t, err)
+		gw.mustEmit(EventOperationApplyOK, ack)
+	})
+
+	// The address the operation consumes is ordered before it by the graph,
+	// so the pair also shows the core placing an unknown label by its verb
+	// and its target alone.
+	ops := []ConfigOperation{
+		{ID: "iface-add-address", Owner: "iface", Type: testOpAddAddress, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceAddress, Interface: "eth0", Address: "192.0.2.1/32"}},
+		{ID: "provision-claim", Owner: "provision", Type: provisionVIP, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceKind("vip"), Address: "192.0.2.1/32"}},
+	}
+	gw.SubscribeConfigEvent(EventOperationApplyFor("iface"), func(payload []byte) {
+		var ev ConfigOperationApplyEvent
+		require.NoError(t, json.Unmarshal(payload, &ev))
+		ack, err := json.Marshal(ConfigOperationApplyAck{TransactionID: ev.TransactionID, Plugin: ev.Operation.Owner, OperationID: ev.Operation.ID, Status: CodeOK})
+		require.NoError(t, err)
+		gw.mustEmit(EventOperationApplyOK, ack)
+	})
+	gw.SubscribeConfigEvent(EventOperationVerifyFor("iface"), func(payload []byte) {
+		var ev ConfigOperationVerifyEvent
+		require.NoError(t, json.Unmarshal(payload, &ev))
+		ack, err := json.Marshal(ConfigOperationVerifyAck{TransactionID: ev.TransactionID, Plugin: ev.Operation.Owner, OperationID: ev.Operation.ID, Status: CodeOK})
+		require.NoError(t, err)
+		gw.mustEmit(EventOperationVerifyOK, ack)
+	})
+
+	graph, err := BuildOperationGraph(ops, ConstraintRules())
+	require.NoError(t, err)
+	sorted, err := TopologicalSort(graph)
+	require.NoError(t, err, "an operation the core cannot name is still orderable")
+	require.Len(t, sorted, 2)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	require.NoError(t, executor.Verify(ctx, sorted))
+	require.NoError(t, executor.Execute(ctx, sorted))
+
+	assert.Equal(t, []ConfigOperationType{provisionVIP}, verified, "the owner verifies its own label, unchanged")
+	assert.Equal(t, []ConfigOperationType{provisionVIP}, applied, "the owner applies its own label, unchanged")
 }

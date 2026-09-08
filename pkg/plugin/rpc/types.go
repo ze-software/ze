@@ -1123,31 +1123,30 @@ type ConfigApplyOutput struct {
 	Error  string `json:"error,omitempty"` // Reason for failure
 }
 
-// ConfigOperationType identifies one atomic config operation. Wire values are
-// kebab-case so external plugin payloads stay stable and readable.
+// ConfigOperationType is the label one component gives one of its own atomic
+// config operations. Wire values are kebab-case so external plugin payloads
+// stay stable and readable.
+//
+// The label is free text. The component that emits an operation owns its
+// spelling and dispatches on it; no package here names one, so a config root
+// joins the ordering without editing a central enumeration
+// (ai/rules/principles.md). What the engine orders by is Verb plus
+// Target.Kind, never the label.
 type ConfigOperationType string
 
+// OperationVerb says what an operation does to the resource it targets. It is
+// half of the ordering vocabulary, the target's ResourceKind being the other
+// half, and it is what replaced the central operation enumeration.
+//
+// The empty verb means the emitter declared none. It is never read as a
+// default: the planner refuses the operation and the transaction aborts, so no
+// operation is ordered on a value nobody set (ai/rules/principles.md).
+type OperationVerb string
+
 const (
-	OperationAddInterface       ConfigOperationType = "add-interface"
-	OperationRemoveInterface    ConfigOperationType = "remove-interface"
-	OperationAddAddress         ConfigOperationType = "add-address"
-	OperationRemoveAddress      ConfigOperationType = "remove-address"
-	OperationSetProperty        ConfigOperationType = "set-property"
-	OperationAddBridgeMember    ConfigOperationType = "add-bridge-member"
-	OperationRemoveBridgeMember ConfigOperationType = "remove-bridge-member"
-	OperationAddPeer            ConfigOperationType = "add-peer"
-	OperationRemovePeer         ConfigOperationType = "remove-peer"
-	OperationModifyPeer         ConfigOperationType = "modify-peer"
-	OperationAddListener        ConfigOperationType = "add-listener"
-	OperationRemoveListener     ConfigOperationType = "remove-listener"
-	OperationAddStaticRoute     ConfigOperationType = "add-static-route"
-	OperationRemoveStaticRoute  ConfigOperationType = "remove-static-route"
-	OperationSetDistance        ConfigOperationType = "set-distance"
-	OperationSetSysctl          ConfigOperationType = "set-sysctl"
-	OperationStartDHCP          ConfigOperationType = "start-dhcp"
-	OperationStopDHCP           ConfigOperationType = "stop-dhcp"
-	OperationAddTunnel          ConfigOperationType = "add-tunnel"
-	OperationRemoveTunnel       ConfigOperationType = "remove-tunnel"
+	VerbCreate  OperationVerb = "create"
+	VerbDestroy OperationVerb = "destroy"
+	VerbModify  OperationVerb = "modify"
 )
 
 // ResourceKind identifies the resource an operation targets. It is deliberately
@@ -1210,13 +1209,21 @@ type ConfigOperationParams struct {
 }
 
 // ConfigOperation is one atomic operation in an ordering-sensitive config transaction.
+//
+// Verb, Target, Produces and Consumes are what the engine orders by. Type is
+// the emitting component's own label, carried unchanged to the owner that
+// applies it. An operation MUST carry a verb: the planner refuses one that
+// does not.
 type ConfigOperation struct {
-	ID     string                `json:"id"`
-	Root   string                `json:"root"`
-	Owner  string                `json:"owner"`
-	Type   ConfigOperationType   `json:"type"`
-	Target ResourceRef           `json:"target"`
-	Params ConfigOperationParams `json:"params,omitzero"`
+	ID       string                `json:"id"`
+	Root     string                `json:"root"`
+	Owner    string                `json:"owner"`
+	Type     ConfigOperationType   `json:"type"`
+	Verb     OperationVerb         `json:"verb"`
+	Target   ResourceRef           `json:"target"`
+	Produces []ResourceRef         `json:"produces,omitempty"`
+	Consumes []ResourceRef         `json:"consumes,omitempty"`
+	Params   ConfigOperationParams `json:"params,omitzero"`
 }
 
 // ConfigOperationDecomposeInput is the input for

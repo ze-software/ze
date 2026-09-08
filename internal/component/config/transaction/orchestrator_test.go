@@ -6,6 +6,7 @@ import (
 	"errors"
 	"reflect"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -478,7 +479,7 @@ func TestOrchestratorUsesOperationPathWhenPlannerReturnsOperations(t *testing.T)
 		if req.TransactionID != orch.TransactionID() {
 			t.Fatalf("planner tx = %q, want %q", req.TransactionID, orch.TransactionID())
 		}
-		return []ConfigOperation{{ID: "addr-add", Root: "interface", Owner: "iface", Type: OperationAddAddress, Target: ResourceRef{Kind: ResourceAddress, Interface: "eth0", Address: "192.0.2.1/32"}}}, nil
+		return []ConfigOperation{{ID: "addr-add", Root: "interface", Owner: "iface", Type: testOpAddAddress, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceAddress, Interface: "eth0", Address: "192.0.2.1/32"}}}, nil
 	})
 
 	var operationEvents []string
@@ -1362,12 +1363,12 @@ func mixedOperationCoverage(t *testing.T, gw *testGateway, opOwners ...string) (
 		for _, owner := range opOwners {
 			root := "bgp"
 			op := ConfigOperation{
-				ID: "op-" + owner, Root: root, Owner: owner, Type: OperationAddPeer,
+				ID: "op-" + owner, Root: root, Owner: owner, Type: testOpAddPeer, Verb: VerbCreate,
 				Target: ResourceRef{Kind: ResourcePeer, Peer: "peer1"},
 			}
 			if owner == "iface" {
 				op.Root = "interface"
-				op.Type = OperationAddAddress
+				op.Type = testOpAddAddress
 				op.Target = ResourceRef{Kind: ResourceAddress, Interface: "eth0", Address: "192.0.2.1/32"}
 			}
 			ops = append(ops, op)
@@ -1647,5 +1648,73 @@ func TestOrchestratorUsesOperationPathWhenEveryParticipantYieldsOperations(t *te
 		if !slices.Contains(operationEvents, EventOperationApplyFor(name)) {
 			t.Fatalf("participant %s received no operation apply: %v", name, operationEvents)
 		}
+	}
+}
+
+// TestExecuteRefusesOperationWithNoVerb drives the guard from the entry point
+// the whole operation path runs behind. A planner returns one operation that
+// declares no verb, and the transaction aborts: the graph orders by the verb
+// and the target kind, so an operation with no verb has nothing to be ordered
+// by, and reading the empty value as a modification would give a create the
+// dependencies of a change in place.
+//
+// The abort message names the plugin, the config root and the operation id,
+// and nothing else. Params carry config values, keys among them.
+//
+// VALIDATES: AC-6, and `ai/rules/principles.md`: no operation is ordered on a
+// default.
+// PREVENTS: a plugin payload written against the old vocabulary being applied
+// in an arbitrary position while the transaction reports success.
+func TestExecuteRefusesOperationWithNoVerb(t *testing.T) {
+	gw := newTestGateway()
+	participants := []testParticipant{{name: "provision", configRoots: []string{"provision"}}}
+	orch := newTestOrchestrator(t, gw, participants)
+	orch.SetOperationPlanner(func(_ context.Context, _ OperationPlanRequest) ([]ConfigOperation, error) {
+		return []ConfigOperation{{
+			ID:     "provision-claim-1",
+			Root:   "provision",
+			Owner:  "provision",
+			Type:   ConfigOperationType("provision-claim-vip"),
+			Target: ResourceRef{Kind: ResourceAddress, Address: "192.0.2.1/32"},
+			Params: ConfigOperationParams{Value: "s3cret-community-string"},
+		}}, nil
+	})
+	diffs := map[string][]DiffSection{"provision": {{Root: "provision", Added: `{"provision/vip":{}}`}}}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	resultCh := make(chan *TxResult, 1)
+	go func() { resultCh <- orch.Execute(ctx, diffs) }()
+
+	waitForEmit(t, gw, EventVerifyFor("provision"))
+	participants[0].respondVerify(gw, orch.TransactionID())
+
+	var result *TxResult
+	select {
+	case result = <-resultCh:
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for the transaction to abort")
+	}
+
+	if result.State != StateAborted {
+		t.Fatalf("state = %s (err %v), want %s", result.State, result.Err, StateAborted)
+	}
+	if !errors.Is(result.Err, ErrOperationNoVerb) {
+		t.Fatalf("err = %v, want %v", result.Err, ErrOperationNoVerb)
+	}
+	message := result.Err.Error()
+	for _, want := range []string{"provision", "provision-claim-1"} {
+		if !strings.Contains(message, want) {
+			t.Errorf("the abort message does not name %q: %s", want, message)
+		}
+	}
+	if strings.Contains(message, "s3cret-community-string") {
+		t.Errorf("the abort message carries an operation parameter: %s", message)
+	}
+	if applies := gw.findEmitted(EventApplyFor("provision")); len(applies) != 0 {
+		t.Errorf("the refused transaction applied %d sections, want 0", len(applies))
+	}
+	if applies := gw.findEmitted(EventOperationApplyFor("provision")); len(applies) != 0 {
+		t.Errorf("the refused transaction applied %d operations, want 0", len(applies))
 	}
 }

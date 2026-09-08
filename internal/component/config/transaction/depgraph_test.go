@@ -18,7 +18,7 @@ func TestDependencyGraphSimple(t *testing.T) {
 	ops := []ConfigOperation{
 		{
 			ID:   "peer-add",
-			Type: OperationAddPeer,
+			Type: testOpAddPeer,
 			Target: ResourceRef{
 				Kind: ResourcePeer,
 				Peer: "203.0.113.1",
@@ -27,7 +27,7 @@ func TestDependencyGraphSimple(t *testing.T) {
 		},
 		{
 			ID:   "addr-add",
-			Type: OperationAddAddress,
+			Type: testOpAddAddress,
 			Target: ResourceRef{
 				Kind:      ResourceAddress,
 				Interface: "eth0",
@@ -36,7 +36,7 @@ func TestDependencyGraphSimple(t *testing.T) {
 		},
 		{
 			ID:   "iface-add",
-			Type: OperationAddInterface,
+			Type: testOpAddInterface,
 			Target: ResourceRef{
 				Kind: ResourceInterface,
 				Name: "eth0",
@@ -46,14 +46,14 @@ func TestDependencyGraphSimple(t *testing.T) {
 	rules := []ConstraintRule{
 		{
 			ID:       "O1",
-			Before:   OperationSelector{Type: OperationAddInterface, ResourceKind: ResourceInterface},
-			After:    OperationSelector{Type: OperationAddAddress, ResourceKind: ResourceAddress},
+			Before:   OperationSelector{Type: testOpAddInterface, ResourceKind: ResourceInterface},
+			After:    OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress},
 			Relation: ResourceRelationInterfaceAddress,
 		},
 		{
 			ID:       "O2",
-			Before:   OperationSelector{Type: OperationAddAddress, ResourceKind: ResourceAddress},
-			After:    OperationSelector{Type: OperationAddPeer, ResourceKind: ResourcePeer},
+			Before:   OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress},
+			After:    OperationSelector{Type: testOpAddPeer, ResourceKind: ResourcePeer},
 			Relation: ResourceRelationAddressUsedBy,
 		},
 	}

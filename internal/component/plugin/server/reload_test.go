@@ -22,6 +22,15 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+// Operation labels for the tests in this package. The server names no label:
+// one belongs to the component that emits it, so a test that needs one spells
+// its own.
+const (
+	testOpAddPeer     rpc.ConfigOperationType = "add-peer"
+	testOpAddAddress  rpc.ConfigOperationType = "add-address"
+	testOpSetProperty rpc.ConfigOperationType = "set-property"
+)
+
 // mockReloadReactor implements the GetConfigTree/SetConfigTree subset of ReactorLifecycle.
 // Embeds mockReactor (from handler_test.go) for all other interface methods.
 type mockReloadReactor struct {
@@ -1375,7 +1384,7 @@ func TestReloadUsesRegisteredOperationDecomposer(t *testing.T) {
 		assert.Equal(t, root, req.Root)
 		assert.Contains(t, req.ActiveRoot, "old")
 		assert.Contains(t, req.CandidateRoot, "new")
-		return []transaction.ConfigOperation{{ID: "op-reload-1", Root: root, Owner: owner, Type: transaction.OperationSetProperty, Target: transaction.ResourceRef{Kind: transaction.ResourceSysctl, Name: "test"}}}, nil
+		return []transaction.ConfigOperation{{ID: "op-reload-1", Root: root, Owner: owner, Type: testOpSetProperty, Verb: transaction.VerbModify, Target: transaction.ResourceRef{Kind: transaction.ResourceSysctl, Name: "test"}}}, nil
 	}))
 
 	oldTree := map[string]any{root: map[string]any{"value": "old"}}
@@ -1387,7 +1396,7 @@ func TestReloadUsesRegisteredOperationDecomposer(t *testing.T) {
 		configOps: []rpc.ConfigOperationDecl{{
 			Root:       root,
 			Decompose:  true,
-			Operations: []rpc.ConfigOperationType{rpc.OperationSetProperty},
+			Operations: []rpc.ConfigOperationType{testOpSetProperty},
 		}},
 	}}
 	s := newTestReloadServer(t, reactor, plugins)
@@ -1410,7 +1419,7 @@ func TestReloadRejectsUndeclaredConfigOperation(t *testing.T) {
 	root := fmt.Sprintf("oproot-undeclared-operation-%d", time.Now().UnixNano())
 	owner := "opowner-undeclared"
 	require.NoError(t, transaction.RegisterOperationDecomposer(root, func(context.Context, transaction.DecomposeRequest) ([]transaction.ConfigOperation, error) {
-		return []transaction.ConfigOperation{{ID: "op-undeclared-1", Root: root, Owner: owner, Type: transaction.OperationSetProperty, Target: transaction.ResourceRef{Kind: transaction.ResourceSysctl, Name: "test"}}}, nil
+		return []transaction.ConfigOperation{{ID: "op-undeclared-1", Root: root, Owner: owner, Type: testOpSetProperty, Verb: transaction.VerbModify, Target: transaction.ResourceRef{Kind: transaction.ResourceSysctl, Name: "test"}}}, nil
 	}))
 
 	oldTree := map[string]any{root: map[string]any{"value": "old"}}
@@ -1434,7 +1443,7 @@ func TestReloadRejectsUndeclaredConfigOperation(t *testing.T) {
 func TestReloadUsesExternalOperationDecompose(t *testing.T) {
 	root := fmt.Sprintf("oproot-external-decompose-%d", time.Now().UnixNano())
 	owner := "opowner-external"
-	op := transaction.ConfigOperation{ID: "op-external-1", Root: root, Owner: owner, Type: transaction.OperationSetProperty, Target: transaction.ResourceRef{Kind: transaction.ResourceSysctl, Name: "test"}}
+	op := transaction.ConfigOperation{ID: "op-external-1", Root: root, Owner: owner, Type: testOpSetProperty, Verb: transaction.VerbModify, Target: transaction.ResourceRef{Kind: transaction.ResourceSysctl, Name: "test"}}
 
 	oldTree := map[string]any{root: map[string]any{"value": "old"}}
 	newTree := map[string]any{root: map[string]any{"value": "new"}}
@@ -1445,7 +1454,7 @@ func TestReloadUsesExternalOperationDecompose(t *testing.T) {
 		configOps: []rpc.ConfigOperationDecl{{
 			Root:       root,
 			Decompose:  true,
-			Operations: []rpc.ConfigOperationType{rpc.OperationSetProperty},
+			Operations: []rpc.ConfigOperationType{testOpSetProperty},
 		}},
 	}}
 	s := newTestReloadServer(t, reactor, plugins)
@@ -1496,7 +1505,8 @@ func TestConfigTxBridgeDispatchesOperationApply(t *testing.T) {
 		ID:    "op-1",
 		Root:  "bgp",
 		Owner: "bgp",
-		Type:  transaction.OperationAddPeer,
+		Type:  testOpAddPeer,
+		Verb:  transaction.VerbCreate,
 		Target: transaction.ResourceRef{
 			Kind: transaction.ResourcePeer,
 			Peer: "192.0.2.1",
@@ -1568,7 +1578,8 @@ func TestConfigTxBridgeDispatchesOperationRollback(t *testing.T) {
 		ID:    "op-rollback-1",
 		Root:  "interface",
 		Owner: "iface",
-		Type:  transaction.OperationAddAddress,
+		Type:  testOpAddAddress,
+		Verb:  transaction.VerbCreate,
 		Target: transaction.ResourceRef{
 			Kind:      transaction.ResourceAddress,
 			Interface: "eth0",
@@ -1622,7 +1633,7 @@ func TestConfigTxBridgeDispatchesOperationDecompose(t *testing.T) {
 	require.NoError(t, bridge.Subscribe(context.Background()))
 	defer bridge.Close()
 
-	op := rpc.ConfigOperation{ID: "decomposed-1", Root: "bgp", Owner: "bgp", Type: rpc.OperationAddPeer}
+	op := rpc.ConfigOperation{ID: "decomposed-1", Root: "bgp", Owner: "bgp", Type: testOpAddPeer, Verb: transaction.VerbCreate}
 	plugins[0].responder.mu.Lock()
 	plugins[0].responder.opDecomposeResp = &rpc.ConfigOperationDecomposeOutput{Status: rpc.StatusOK, Operations: []rpc.ConfigOperation{op}}
 	plugins[0].responder.mu.Unlock()
@@ -1700,7 +1711,7 @@ func TestConfigTxBridgeDispatchesOperationVerifyAndCommit(t *testing.T) {
 	})
 	defer commitUnsub()
 
-	op := transaction.ConfigOperation{ID: "verify-1", Root: "bgp", Owner: "bgp", Type: transaction.OperationAddPeer}
+	op := transaction.ConfigOperation{ID: "verify-1", Root: "bgp", Owner: "bgp", Type: testOpAddPeer, Verb: transaction.VerbCreate}
 	verifyPayload, err := json.Marshal(transaction.ConfigOperationVerifyEvent{TransactionID: "tx-op-lifecycle", Operation: op, DeadlineMS: time.Now().Add(time.Second).UnixMilli()})
 	require.NoError(t, err)
 	_, err = gw.EmitConfigEvent(transaction.EventOperationVerifyFor("bgp"), verifyPayload)

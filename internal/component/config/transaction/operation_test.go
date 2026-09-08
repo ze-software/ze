@@ -8,6 +8,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Operation labels for the tests in this package. This package names no label
+// of its own: a label belongs to the component that emits it, so a test that
+// needs one spells its own. These are the spellings iface and bgp use, which
+// keeps the fixtures readable beside the real decomposers.
+const (
+	testOpAddInterface    ConfigOperationType = "add-interface"
+	testOpRemoveInterface ConfigOperationType = "remove-interface"
+	testOpAddAddress      ConfigOperationType = "add-address"
+	testOpRemoveAddress   ConfigOperationType = "remove-address"
+	testOpAddPeer         ConfigOperationType = "add-peer"
+	testOpRemovePeer      ConfigOperationType = "remove-peer"
+	testOpModifyPeer      ConfigOperationType = "modify-peer"
+	testOpAddTunnel       ConfigOperationType = "add-tunnel"
+	testOpSetProperty     ConfigOperationType = "set-property"
+)
+
 // TestRegisterOperationDecomposer verifies component-owned config operation
 // decomposers are registered by root and returned through the transaction
 // registry.
@@ -22,7 +38,7 @@ func TestRegisterOperationDecomposer(t *testing.T) {
 	fn := OperationDecomposer(func(_ context.Context, req DecomposeRequest) ([]ConfigOperation, error) {
 		called = true
 		assert.Equal(t, root, req.Root)
-		return []ConfigOperation{{ID: "op-1", Root: root, Type: OperationAddInterface}}, nil
+		return []ConfigOperation{{ID: "op-1", Root: root, Type: testOpAddInterface, Verb: VerbCreate}}, nil
 	})
 
 	require.NoError(t, RegisterOperationDecomposer(root, fn))
@@ -32,7 +48,7 @@ func TestRegisterOperationDecomposer(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, called)
 	require.Len(t, ops, 1)
-	assert.Equal(t, OperationAddInterface, ops[0].Type)
+	assert.Equal(t, testOpAddInterface, ops[0].Type)
 }
 
 // TestRegisterOperationDecomposerDuplicate verifies duplicate root ownership is
@@ -66,8 +82,8 @@ func TestRegisterConstraintRule(t *testing.T) {
 	rule := ConstraintRule{
 		ID:          "test-rule-add-interface-before-address",
 		Description: "interface before address",
-		Before:      OperationSelector{Type: OperationAddInterface, ResourceKind: ResourceInterface},
-		After:       OperationSelector{Type: OperationAddAddress, ResourceKind: ResourceAddress},
+		Before:      OperationSelector{Type: testOpAddInterface, ResourceKind: ResourceInterface},
+		After:       OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress},
 	}
 
 	require.NoError(t, RegisterConstraintRule(rule))

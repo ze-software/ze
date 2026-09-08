@@ -354,7 +354,7 @@ func TestDecomposedOperationNamesTheSelectedDevice(t *testing.T) {
 	ops := decomposeSelectorAddressChange(t)
 
 	require.Len(t, ops, 1)
-	assert.Equal(t, tx.OperationAddAddress, ops[0].Type)
+	assert.Equal(t, operationAddAddress, ops[0].Type)
 	assert.Equal(t, "enp1s0", ops[0].Target.Interface)
 	assert.Equal(t, "enp1s0", ops[0].Params.Interface)
 }

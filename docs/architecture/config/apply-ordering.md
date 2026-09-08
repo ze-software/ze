@@ -63,11 +63,31 @@ the operator's session bounces.
 It changes one root nothing decomposes and asserts the line the receiving plugin
 prints from its own `config-apply` handler.
 
+**The engine orders by a verb and a resource kind, never by an operation
+label.** An operation carries `create`, `destroy` or `modify` plus the kind of
+the resource it targets, and that pair is the whole vocabulary the graph and the
+solver read. The label stays on the operation as the emitting component's own
+word for the work, and the owner dispatches on it. So a root joins the ordering
+by declaring a verb, not by adding a constant to a list the engine owns: the
+list is gone, and `interface` and `bgp` now spell their own labels.
+<!-- source: pkg/plugin/rpc/types.go -- OperationVerb, ConfigOperation -->
+<!-- source: internal/core/bgp/configop/configop.go -- the bgp root's labels -->
+
+**An operation with no verb aborts the transaction.** It is refused at planning,
+with an error naming the plugin, the root and the operation id, and never read
+as `modify`: a default would give a create the dependencies of a change in
+place, which is the silently wrong value `ai/rules/principles.md` bans. Ze is
+pre-release with no shipped external plugin, so no compatibility shim accepts a
+payload without one.
+<!-- source: internal/component/config/transaction/operation.go -- ValidateOperationVerbs -->
+
 **Address-only cross-interface cycles relax. Everything else is rejected.** A
 swap of two addresses between interfaces is a cycle by construction. The solver
 breaks it with `AllowDual`, which permits both addresses to be present for the
-duration of the swap. A cycle that is not address-only, or that is inside one
-interface, is rejected instead of relaxed.
+duration of the swap. "Address operation" is a verb and a kind: an operation
+that creates or destroys a resource of kind `address`, whatever it is labelled.
+A cycle that is not address-only, or that is inside one interface, is rejected
+instead of relaxed.
 
 **Settlement waiters are armed before the apply**, so a readiness event that
 arrives fast is not missed.
@@ -81,7 +101,11 @@ The graph is reached from the real reload path: `runTxCoordinator` calls
 The external contract is mandatory for v1 plugins: SDK types in
 `pkg/plugin/sdk/sdk_types.go`, RPC transport in `internal/component/plugin/ipc/rpc.go`
 (`config-operation-decompose`, `verify`, `apply`, `rollback`, `commit`), bridge in
-`internal/component/plugin/server/config_tx_bridge.go`.
+`internal/component/plugin/server/config_tx_bridge.go`. The contract carries the
+kebab-case keys `verb`, `produces` and `consumes` beside `type`, and a payload
+that carries no `verb` is refused rather than ordered. The SDK re-exports the
+three verb values and no operation label: a label belongs to the plugin that
+emits it.
 
 ## What the tests do not reach
 

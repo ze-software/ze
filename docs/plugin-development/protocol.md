@@ -167,7 +167,7 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `commands` | `[]CommandDecl` | Commands the plugin provides |
 | `dependencies` | `[]string` | Plugin names that must also be loaded |
 | `wants-config` | `[]string` | Config roots the plugin wants to receive |
-| `config-operations` | `[]ConfigOperationDecl` | Config operation callbacks the plugin supports |
+| `config-operations` | `[]ConfigOperationDecl` | Config operation callbacks the plugin supports, and the operation labels it emits for each root. The labels are the plugin's own: the engine keeps no list of them |
 | `verify-budget` | `int` | Estimated verify time in seconds (`0` means trivial) |
 | `apply-budget` | `int` | Estimated apply time in seconds (`0` means trivial) |
 | `schema` | `*SchemaDecl` | YANG schema (module, namespace, yang-text, handlers) |

@@ -22,7 +22,8 @@ func TestConfigOperationMarshal(t *testing.T) {
 			ID:     "op-1",
 			Root:   "interface",
 			Owner:  "interface",
-			Type:   OperationAddAddress,
+			Type:   ConfigOperationType("add-address"),
+			Verb:   VerbCreate,
 			Target: ResourceRef{Kind: ResourceAddress, Interface: "eth0", Address: "10.0.0.1/32"},
 			Params: ConfigOperationParams{Interface: "eth0", CIDR: "10.0.0.1/32", AllowDual: true},
 		},
@@ -39,12 +40,14 @@ func TestConfigOperationMarshal(t *testing.T) {
 	operation, ok := raw["operation"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "add-address", operation["type"])
+	assert.Equal(t, "create", operation["verb"], "the ordering verb is a kebab-case key with kebab-case values")
 	assert.Contains(t, operation, "target")
 	assert.Contains(t, operation, "params")
 
 	var decoded ConfigOperationApplyInput
 	require.NoError(t, json.Unmarshal(data, &decoded))
-	assert.Equal(t, OperationAddAddress, decoded.Operation.Type)
+	assert.Equal(t, ConfigOperationType("add-address"), decoded.Operation.Type)
+	assert.Equal(t, VerbCreate, decoded.Operation.Verb)
 	assert.Equal(t, "eth0", decoded.Operation.Target.Interface)
 	assert.True(t, decoded.Operation.Params.AllowDual)
 }
@@ -60,7 +63,7 @@ func TestDeclareRegistrationConfigOperationsMarshal(t *testing.T) {
 	input := DeclareRegistrationInput{
 		WantsConfig: []string{"interface"},
 		ConfigOperations: []ConfigOperationDecl{
-			{Root: "interface", Decompose: true, Operations: []ConfigOperationType{OperationAddAddress, OperationRemoveAddress}},
+			{Root: "interface", Decompose: true, Operations: []ConfigOperationType{"add-address", "remove-address"}},
 		},
 	}
 
@@ -73,5 +76,5 @@ func TestDeclareRegistrationConfigOperationsMarshal(t *testing.T) {
 	require.Len(t, decoded.ConfigOperations, 1)
 	assert.Equal(t, "interface", decoded.ConfigOperations[0].Root)
 	assert.True(t, decoded.ConfigOperations[0].Decompose)
-	assert.Equal(t, []ConfigOperationType{OperationAddAddress, OperationRemoveAddress}, decoded.ConfigOperations[0].Operations)
+	assert.Equal(t, []ConfigOperationType{"add-address", "remove-address"}, decoded.ConfigOperations[0].Operations)
 }

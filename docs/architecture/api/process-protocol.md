@@ -611,6 +611,26 @@ site.
 
 All methods are prefixed with `ze-plugin-callback:`.
 
+**config-operation-\*:** The five operation callbacks carry a `ConfigOperation`
+whose payload is the ordering contract. Beside `id`, `root`, `owner`, `type`,
+`target` and `params` it carries three kebab-case keys: `verb`, which is
+`create`, `destroy` or `modify`; and `produces` and `consumes`, each a list of
+`ResourceRef` values naming what the operation makes available and what it needs
+another operation to have produced. The engine orders by `verb` plus the target's
+kind, and never compares `type`, which is the plugin's own label for the work.
+
+An operation payload that carries no `verb` is refused at planning and the
+transaction aborts, naming the plugin, the root and the operation id.
+
+None of the five has a default handler in the SDK, so a plugin that registered
+none answers "unknown method" to each. That is why a participant the planner
+produced no operation for is applied through `config-apply` rather than
+`config-operation-apply`.
+
+<!-- source: pkg/plugin/rpc/types.go -- ConfigOperation, OperationVerb -->
+<!-- source: internal/component/config/transaction/operation.go -- ValidateOperationVerbs -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- initCallbackDefaults -->
+
 **doctor-check:** Engine invokes a plugin's declared doctor check by name.
 Plugin runs the check and returns diagnostics (code, severity, message).
 Declared during Stage 1 via `doctor-checks` field in `declare-registration`.

@@ -18,6 +18,22 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+// The operation labels of the `interface` root. They belong here, next to the
+// decomposer that emits them and the applier that dispatches on them: a label
+// list in a shared package is a central enumeration a new root would edit
+// because it looks like the place labels belong (ai/rules/principles.md). The
+// engine never compares one. It orders by the verb and the target kind that
+// each operation below also carries.
+const (
+	operationAddInterface       sdk.ConfigOperationType = "add-interface"
+	operationRemoveInterface    sdk.ConfigOperationType = "remove-interface"
+	operationAddAddress         sdk.ConfigOperationType = "add-address"
+	operationRemoveAddress      sdk.ConfigOperationType = "remove-address"
+	operationAddBridgeMember    sdk.ConfigOperationType = "add-bridge-member"
+	operationRemoveBridgeMember sdk.ConfigOperationType = "remove-bridge-member"
+	operationAddTunnel          sdk.ConfigOperationType = "add-tunnel"
+)
+
 func init() {
 	if err := tx.RegisterOperationDecomposer(configRootInterface, decomposeIfaceOperations); err != nil {
 		slog.Error("register iface operation decomposer", "error", err)
@@ -25,39 +41,39 @@ func init() {
 	}
 	if err := tx.RegisterConstraintRule(tx.ConstraintRule{
 		ID:       "iface-add-interface-before-address",
-		Before:   tx.OperationSelector{Type: tx.OperationAddInterface, ResourceKind: tx.ResourceInterface},
-		After:    tx.OperationSelector{Type: tx.OperationAddAddress, ResourceKind: tx.ResourceAddress},
+		Before:   tx.OperationSelector{Type: operationAddInterface, ResourceKind: tx.ResourceInterface},
+		After:    tx.OperationSelector{Type: operationAddAddress, ResourceKind: tx.ResourceAddress},
 		Relation: tx.ResourceRelationInterfaceAddress,
 	}); err != nil {
 		slog.Error("register iface constraint rule", "error", err)
 	}
 	if err := tx.RegisterConstraintRule(tx.ConstraintRule{
 		ID:       "iface-remove-address-before-interface",
-		Before:   tx.OperationSelector{Type: tx.OperationRemoveAddress, ResourceKind: tx.ResourceAddress},
-		After:    tx.OperationSelector{Type: tx.OperationRemoveInterface, ResourceKind: tx.ResourceInterface},
+		Before:   tx.OperationSelector{Type: operationRemoveAddress, ResourceKind: tx.ResourceAddress},
+		After:    tx.OperationSelector{Type: operationRemoveInterface, ResourceKind: tx.ResourceInterface},
 		Relation: tx.ResourceRelationInterfaceAddress,
 	}); err != nil {
 		slog.Error("register iface constraint rule", "error", err)
 	}
 	if err := tx.RegisterConstraintRule(tx.ConstraintRule{
 		ID:       "iface-remove-address-before-add-same-address",
-		Before:   tx.OperationSelector{Type: tx.OperationRemoveAddress, ResourceKind: tx.ResourceAddress},
-		After:    tx.OperationSelector{Type: tx.OperationAddAddress, ResourceKind: tx.ResourceAddress},
+		Before:   tx.OperationSelector{Type: operationRemoveAddress, ResourceKind: tx.ResourceAddress},
+		After:    tx.OperationSelector{Type: operationAddAddress, ResourceKind: tx.ResourceAddress},
 		Relation: tx.ResourceRelationSameAddress,
 	}); err != nil {
 		slog.Error("register iface constraint rule", "error", err)
 	}
 	if err := tx.RegisterConstraintRule(tx.ConstraintRule{
 		ID:       "iface-add-address-before-remove-same-interface",
-		Before:   tx.OperationSelector{Type: tx.OperationAddAddress, ResourceKind: tx.ResourceAddress},
-		After:    tx.OperationSelector{Type: tx.OperationRemoveAddress, ResourceKind: tx.ResourceAddress},
+		Before:   tx.OperationSelector{Type: operationAddAddress, ResourceKind: tx.ResourceAddress},
+		After:    tx.OperationSelector{Type: operationRemoveAddress, ResourceKind: tx.ResourceAddress},
 		Relation: tx.ResourceRelationInterfaceAddress,
 	}); err != nil {
 		slog.Error("register iface constraint rule", "error", err)
 	}
 	if err := tx.RegisterSettlementRule(tx.SettlementRule{
 		ID:           "iface-add-address-settles-addr-added",
-		Operation:    tx.OperationSelector{Type: tx.OperationAddAddress, ResourceKind: tx.ResourceAddress},
+		Operation:    tx.OperationSelector{Type: operationAddAddress, ResourceKind: tx.ResourceAddress},
 		Readiness:    tx.ConfigOperationReadiness{Namespace: ifaceevents.Namespace, EventType: "addr-added"},
 		ResourceFrom: tx.SettlementResourceAddress,
 		Timeout:      5 * time.Second,
@@ -66,31 +82,31 @@ func init() {
 	}
 	if err := tx.RegisterConstraintRule(tx.ConstraintRule{
 		ID:       "iface-add-interface-before-tunnel",
-		Before:   tx.OperationSelector{Type: tx.OperationAddInterface, ResourceKind: tx.ResourceInterface},
-		After:    tx.OperationSelector{Type: tx.OperationAddTunnel, ResourceKind: tx.ResourceTunnel},
+		Before:   tx.OperationSelector{Type: operationAddInterface, ResourceKind: tx.ResourceInterface},
+		After:    tx.OperationSelector{Type: operationAddTunnel, ResourceKind: tx.ResourceTunnel},
 		Relation: tx.ResourceRelationInterfaceAddress,
 	}); err != nil {
 		slog.Error("register iface constraint rule", "error", err)
 	}
 	if err := tx.RegisterConstraintRule(tx.ConstraintRule{
 		ID:       "iface-add-interface-before-bridge-member",
-		Before:   tx.OperationSelector{Type: tx.OperationAddInterface, ResourceKind: tx.ResourceInterface},
-		After:    tx.OperationSelector{Type: tx.OperationAddBridgeMember, ResourceKind: tx.ResourceBridgeMember},
+		Before:   tx.OperationSelector{Type: operationAddInterface, ResourceKind: tx.ResourceInterface},
+		After:    tx.OperationSelector{Type: operationAddBridgeMember, ResourceKind: tx.ResourceBridgeMember},
 		Relation: tx.ResourceRelationInterfaceAddress,
 	}); err != nil {
 		slog.Error("register iface constraint rule", "error", err)
 	}
 	if err := tx.RegisterConstraintRule(tx.ConstraintRule{
 		ID:       "iface-remove-bridge-member-before-interface",
-		Before:   tx.OperationSelector{Type: tx.OperationRemoveBridgeMember, ResourceKind: tx.ResourceBridgeMember},
-		After:    tx.OperationSelector{Type: tx.OperationRemoveInterface, ResourceKind: tx.ResourceInterface},
+		Before:   tx.OperationSelector{Type: operationRemoveBridgeMember, ResourceKind: tx.ResourceBridgeMember},
+		After:    tx.OperationSelector{Type: operationRemoveInterface, ResourceKind: tx.ResourceInterface},
 		Relation: tx.ResourceRelationInterfaceAddress,
 	}); err != nil {
 		slog.Error("register iface constraint rule", "error", err)
 	}
 	if err := tx.RegisterSettlementRule(tx.SettlementRule{
 		ID:           "iface-add-interface-settles-created",
-		Operation:    tx.OperationSelector{Type: tx.OperationAddInterface, ResourceKind: tx.ResourceInterface},
+		Operation:    tx.OperationSelector{Type: operationAddInterface, ResourceKind: tx.ResourceInterface},
 		Readiness:    tx.ConfigOperationReadiness{Namespace: ifaceevents.Namespace, EventType: "created"},
 		ResourceFrom: tx.SettlementResourceInterface,
 		Timeout:      5 * time.Second,
@@ -104,10 +120,10 @@ func ifaceConfigOperationDecls() []sdk.ConfigOperationDecl {
 		Root:      configRootInterface,
 		Decompose: true,
 		Operations: []sdk.ConfigOperationType{
-			sdk.OperationAddInterface,
-			sdk.OperationRemoveInterface,
-			sdk.OperationAddAddress,
-			sdk.OperationRemoveAddress,
+			operationAddInterface,
+			operationRemoveInterface,
+			operationAddAddress,
+			operationRemoveAddress,
 		},
 	}}
 }
@@ -153,7 +169,7 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 			if !ifaceTypeSupportsOperations(ifType) {
 				return nil, nil
 			}
-			ops = append(ops, ifaceInterfaceOperation(tx.OperationAddInterface, ifaceName, ifType))
+			ops = append(ops, ifaceInterfaceOperation(operationAddInterface, ifaceName, ifType))
 		}
 	}
 
@@ -162,7 +178,7 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 			if activeAddrs[ifaceName][cidr] {
 				continue
 			}
-			ops = append(ops, ifaceAddressOperation(tx.OperationAddAddress, ifaceName, cidr))
+			ops = append(ops, ifaceAddressOperation(operationAddAddress, ifaceName, cidr))
 		}
 	}
 	for _, ifaceName := range sortedAddressIfaces(activeAddrs) {
@@ -170,7 +186,7 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 			if candidateAddrs[ifaceName][cidr] {
 				continue
 			}
-			ops = append(ops, ifaceAddressOperation(tx.OperationRemoveAddress, ifaceName, cidr))
+			ops = append(ops, ifaceAddressOperation(operationRemoveAddress, ifaceName, cidr))
 		}
 	}
 
@@ -180,7 +196,7 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 			if !ifaceTypeSupportsOperations(ifType) {
 				return nil, nil
 			}
-			ops = append(ops, ifaceInterfaceOperation(tx.OperationRemoveInterface, ifaceName, ifType))
+			ops = append(ops, ifaceInterfaceOperation(operationRemoveInterface, ifaceName, ifType))
 		}
 	}
 
@@ -188,15 +204,18 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 }
 
 func ifaceAddressOperation(opType tx.ConfigOperationType, ifaceName, cidr string) tx.ConfigOperation {
-	verb := "add"
-	if opType == tx.OperationRemoveAddress {
-		verb = "remove"
+	verb := tx.VerbCreate
+	word := "add"
+	if opType == operationRemoveAddress {
+		verb = tx.VerbDestroy
+		word = "remove"
 	}
 	return tx.ConfigOperation{
-		ID:    textbuf.Join([]string{componentNameInterface, verb, "address", sanitizeOperationID(ifaceName), sanitizeOperationID(cidr)}, "-"),
+		ID:    textbuf.Join([]string{componentNameInterface, word, "address", sanitizeOperationID(ifaceName), sanitizeOperationID(cidr)}, "-"),
 		Root:  configRootInterface,
 		Owner: componentNameInterface,
 		Type:  opType,
+		Verb:  verb,
 		Target: tx.ResourceRef{
 			Kind:      tx.ResourceAddress,
 			Interface: ifaceName,
@@ -207,15 +226,18 @@ func ifaceAddressOperation(opType tx.ConfigOperationType, ifaceName, cidr string
 }
 
 func ifaceInterfaceOperation(opType tx.ConfigOperationType, ifaceName, ifaceType string) tx.ConfigOperation {
-	verb := "add"
-	if opType == tx.OperationRemoveInterface {
-		verb = "remove"
+	verb := tx.VerbCreate
+	word := "add"
+	if opType == operationRemoveInterface {
+		verb = tx.VerbDestroy
+		word = "remove"
 	}
 	return tx.ConfigOperation{
-		ID:    textbuf.Join([]string{componentNameInterface, verb, sanitizeOperationID(ifaceName)}, "-"),
+		ID:    textbuf.Join([]string{componentNameInterface, word, sanitizeOperationID(ifaceName)}, "-"),
 		Root:  configRootInterface,
 		Owner: componentNameInterface,
 		Type:  opType,
+		Verb:  verb,
 		Target: tx.ResourceRef{
 			Kind: tx.ResourceInterface,
 			Name: ifaceName,
@@ -344,11 +366,11 @@ func verifyIfaceOperation(op *sdk.ConfigOperation) error {
 		return fmt.Errorf("interface operation is required")
 	}
 	switch op.Type {
-	case sdk.OperationAddInterface, sdk.OperationRemoveInterface:
+	case operationAddInterface, operationRemoveInterface:
 		if ifaceOperationName(op) == "" {
 			return fmt.Errorf("interface operation %s requires name", op.Type)
 		}
-	case sdk.OperationAddAddress, sdk.OperationRemoveAddress:
+	case operationAddAddress, operationRemoveAddress:
 		if ifaceOperationInterface(op) == "" || ifaceOperationCIDR(op) == "" {
 			return fmt.Errorf("interface operation %s requires interface and cidr", op.Type)
 		}
@@ -365,26 +387,26 @@ func applyIfaceOperation(op *sdk.ConfigOperation, b Backend) (*sdk.Journal, erro
 	j := sdk.NewJournal()
 	var err error
 	switch op.Type {
-	case sdk.OperationAddInterface:
+	case operationAddInterface:
 		name := ifaceOperationName(op)
 		err = j.Record(
 			func() error { return createInterfaceByType(b, name, op.Params.Property) },
 			func() error { return b.DeleteInterface(name) },
 		)
-	case sdk.OperationRemoveInterface:
+	case operationRemoveInterface:
 		name := ifaceOperationName(op)
 		err = j.Record(
 			func() error { return b.DeleteInterface(name) },
 			func() error { return createInterfaceByType(b, name, op.Params.Property) },
 		)
-	case sdk.OperationAddAddress:
+	case operationAddAddress:
 		ifaceName := ifaceOperationInterface(op)
 		cidr := ifaceOperationCIDR(op)
 		err = j.Record(
 			func() error { return b.AddAddress(ifaceName, cidr) },
 			func() error { return b.RemoveAddress(ifaceName, cidr) },
 		)
-	case sdk.OperationRemoveAddress:
+	case operationRemoveAddress:
 		ifaceName := ifaceOperationInterface(op)
 		cidr := ifaceOperationCIDR(op)
 		err = j.Record(

@@ -27,6 +27,7 @@ import (
 	bgpyang "github.com/ze-software/ze/internal/component/bgp/yang"
 	zeplugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/bgp/configop"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/capture"
 	"github.com/ze-software/ze/internal/core/events"
@@ -320,9 +321,9 @@ func runBGPEngine(conn net.Conn) int {
 			Root:      configRootBGP,
 			Decompose: true,
 			Operations: []sdk.ConfigOperationType{
-				sdk.OperationAddPeer,
-				sdk.OperationRemovePeer,
-				sdk.OperationModifyPeer,
+				configop.AddPeer,
+				configop.RemovePeer,
+				configop.ModifyPeer,
 			},
 		}},
 		VerifyBudget: 5,

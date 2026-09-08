@@ -2,6 +2,7 @@ package reactor
 
 import (
 	"encoding/json"
+	"github.com/ze-software/ze/internal/core/bgp/configop"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,7 +44,7 @@ func TestApplyConfigOperationAddPeerJournal(t *testing.T) {
 		ID:    "bgp-add-peer-edge",
 		Root:  "bgp",
 		Owner: "bgp",
-		Type:  rpc.OperationAddPeer,
+		Type:  configop.AddPeer,
 		Target: rpc.ResourceRef{
 			Kind: rpc.ResourcePeer,
 			Peer: "edge",
@@ -79,7 +80,7 @@ func TestPeerSettingsFromOperationConfigUsesReactorPort(t *testing.T) {
 		ID:    "bgp-add-peer-edge",
 		Root:  "bgp",
 		Owner: "bgp",
-		Type:  rpc.OperationAddPeer,
+		Type:  configop.AddPeer,
 		Target: rpc.ResourceRef{
 			Kind: rpc.ResourcePeer,
 			Peer: "edge",
@@ -114,7 +115,7 @@ func TestCandidatePeerSettingsFromOperationConfigUsesReloadFunc(t *testing.T) {
 		ID:    "bgp-add-peer-edge",
 		Root:  "bgp",
 		Owner: "bgp",
-		Type:  rpc.OperationAddPeer,
+		Type:  configop.AddPeer,
 		Target: rpc.ResourceRef{
 			Kind: rpc.ResourcePeer,
 			Peer: "edge",
@@ -150,7 +151,7 @@ func TestCandidatePeerSettingsFallsBackToEmbeddedConfig(t *testing.T) {
 		ID:    "bgp-add-peer-new",
 		Root:  "bgp",
 		Owner: "bgp",
-		Type:  rpc.OperationAddPeer,
+		Type:  configop.AddPeer,
 		Target: rpc.ResourceRef{
 			Kind: rpc.ResourcePeer,
 			Peer: "new-peer",
@@ -183,7 +184,7 @@ func TestApplyConfigOperationAddPeerEmitsListenerReady(t *testing.T) {
 		ID:    "bgp-add-peer-ready",
 		Root:  "bgp",
 		Owner: "bgp",
-		Type:  rpc.OperationAddPeer,
+		Type:  configop.AddPeer,
 		Target: rpc.ResourceRef{
 			Kind: rpc.ResourcePeer,
 			Peer: "edge",
@@ -230,7 +231,7 @@ func TestApplyConfigOperationRemovePeerJournal(t *testing.T) {
 		ID:    "bgp-remove-peer-edge",
 		Root:  "bgp",
 		Owner: "bgp",
-		Type:  rpc.OperationRemovePeer,
+		Type:  configop.RemovePeer,
 		Target: rpc.ResourceRef{
 			Kind: rpc.ResourcePeer,
 			Peer: "edge",
@@ -272,7 +273,7 @@ func TestApplyConfigOperationModifyPeerJournal(t *testing.T) {
 		ID:    "bgp-modify-peer-edge",
 		Root:  "bgp",
 		Owner: "bgp",
-		Type:  rpc.OperationModifyPeer,
+		Type:  configop.ModifyPeer,
 		Target: rpc.ResourceRef{
 			Kind: rpc.ResourcePeer,
 			Peer: "edge",

@@ -52,10 +52,10 @@ func TestIfaceSameSubnetSwapOrdersAddBeforeRemove(t *testing.T) {
 	)
 
 	require.Len(t, sorted, 2)
-	assert.Equal(t, tx.OperationAddAddress, sorted[0].Type)
+	assert.Equal(t, operationAddAddress, sorted[0].Type)
 	assert.Equal(t, "10.77.0.2/24", sorted[0].Params.CIDR)
 	assert.Equal(t, "zdiag0", sorted[0].Target.Interface)
-	assert.Equal(t, tx.OperationRemoveAddress, sorted[1].Type)
+	assert.Equal(t, operationRemoveAddress, sorted[1].Type)
 	assert.Equal(t, "10.77.0.1/24", sorted[1].Params.CIDR)
 	assert.Equal(t, "zdiag0", sorted[1].Target.Interface)
 }

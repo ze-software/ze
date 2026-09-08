@@ -142,7 +142,7 @@ func TestRPCRegistrationToRegistry(t *testing.T) {
 		},
 		WantsConfig: []string{"bgp"},
 		ConfigOperations: []rpc.ConfigOperationDecl{
-			{Root: "bgp", Decompose: true, Operations: []rpc.ConfigOperationType{rpc.OperationAddPeer}},
+			{Root: "bgp", Decompose: true, Operations: []rpc.ConfigOperationType{testOpAddPeer}},
 		},
 		Schema: &rpc.SchemaDecl{
 			Module:    "ze-rib-conf",

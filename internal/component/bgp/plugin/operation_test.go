@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"github.com/ze-software/ze/internal/core/bgp/configop"
 	"testing"
 	"time"
 
@@ -33,14 +34,16 @@ func TestBGPOperationDecomposerPeerLocalAddressChange(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, ops, 2)
 
-	assert.Equal(t, tx.OperationRemovePeer, ops[0].Type)
+	assert.Equal(t, configop.RemovePeer, ops[0].Type)
+	assert.Equal(t, tx.VerbDestroy, ops[0].Verb, "the engine orders by the verb, so every emitted operation carries one")
 	assert.Equal(t, "bgp", ops[0].Owner)
 	assert.Equal(t, tx.ResourcePeer, ops[0].Target.Kind)
 	assert.Equal(t, "edge", ops[0].Params.Peer)
 	assert.Equal(t, "192.0.2.1", ops[0].Params.Address)
 	assert.NotEmpty(t, ops[0].Params.OldConfig)
 
-	assert.Equal(t, tx.OperationAddPeer, ops[1].Type)
+	assert.Equal(t, configop.AddPeer, ops[1].Type)
+	assert.Equal(t, tx.VerbCreate, ops[1].Verb)
 	assert.Equal(t, "edge", ops[1].Params.Peer)
 	assert.Equal(t, "192.0.2.2", ops[1].Params.Address)
 	assert.NotEmpty(t, ops[1].Params.Config)
@@ -69,7 +72,8 @@ func TestBGPOperationDecomposerPeerModifySameAddress(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, ops, 1)
 
-	assert.Equal(t, tx.OperationModifyPeer, ops[0].Type)
+	assert.Equal(t, configop.ModifyPeer, ops[0].Type)
+	assert.Equal(t, tx.VerbModify, ops[0].Verb)
 	assert.Equal(t, "edge", ops[0].Params.Peer)
 	assert.Equal(t, "192.0.2.1", ops[0].Params.Address)
 	assert.NotEmpty(t, ops[0].Params.Config)
@@ -99,13 +103,13 @@ func TestBGPOperationDecomposerRouterIDRotationSplitsPeers(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, ops, 4)
 
-	assert.Equal(t, tx.OperationRemovePeer, ops[0].Type)
+	assert.Equal(t, configop.RemovePeer, ops[0].Type)
 	assert.Equal(t, "peer1", ops[0].Params.Peer)
-	assert.Equal(t, tx.OperationRemovePeer, ops[1].Type)
+	assert.Equal(t, configop.RemovePeer, ops[1].Type)
 	assert.Equal(t, "peer2", ops[1].Params.Peer)
-	assert.Equal(t, tx.OperationAddPeer, ops[2].Type)
+	assert.Equal(t, configop.AddPeer, ops[2].Type)
 	assert.Equal(t, "peer1", ops[2].Params.Peer)
-	assert.Equal(t, tx.OperationAddPeer, ops[3].Type)
+	assert.Equal(t, configop.AddPeer, ops[3].Type)
 	assert.Equal(t, "peer2", ops[3].Params.Peer)
 }
 
@@ -135,10 +139,10 @@ func TestBGPOperationDecomposerNoPeerChangesFallsBack(t *testing.T) {
 // PREVENTS: hardcoded BGP ordering logic in the transaction graph solver.
 func TestBGPConstraintRulesOrderPeerAgainstAddress(t *testing.T) {
 	ops := []tx.ConfigOperation{
-		{ID: "addr-add", Type: tx.OperationAddAddress, Target: tx.ResourceRef{Kind: tx.ResourceAddress, Interface: "dum0", Address: "192.0.2.2/32"}},
-		{ID: "peer-add", Type: tx.OperationAddPeer, Target: tx.ResourceRef{Kind: tx.ResourcePeer, Peer: "edge"}, Params: tx.ConfigOperationParams{Address: "192.0.2.2"}},
-		{ID: "peer-remove", Type: tx.OperationRemovePeer, Target: tx.ResourceRef{Kind: tx.ResourcePeer, Peer: "edge"}, Params: tx.ConfigOperationParams{Address: "192.0.2.1"}},
-		{ID: "addr-remove", Type: tx.OperationRemoveAddress, Target: tx.ResourceRef{Kind: tx.ResourceAddress, Interface: "dum0", Address: "192.0.2.1/32"}},
+		{ID: "addr-add", Type: operationAddAddress, Target: tx.ResourceRef{Kind: tx.ResourceAddress, Interface: "dum0", Address: "192.0.2.2/32"}},
+		{ID: "peer-add", Type: configop.AddPeer, Target: tx.ResourceRef{Kind: tx.ResourcePeer, Peer: "edge"}, Params: tx.ConfigOperationParams{Address: "192.0.2.2"}},
+		{ID: "peer-remove", Type: configop.RemovePeer, Target: tx.ResourceRef{Kind: tx.ResourcePeer, Peer: "edge"}, Params: tx.ConfigOperationParams{Address: "192.0.2.1"}},
+		{ID: "addr-remove", Type: operationRemoveAddress, Target: tx.ResourceRef{Kind: tx.ResourceAddress, Interface: "dum0", Address: "192.0.2.1/32"}},
 	}
 
 	graph, err := tx.BuildOperationGraph(ops, tx.ConstraintRules())
@@ -154,10 +158,10 @@ func TestBGPConstraintRulesOrderPeerAgainstAddress(t *testing.T) {
 // PREVENTS: future listener operations executing without address ordering constraints.
 func TestBGPListenerConstraintRules(t *testing.T) {
 	ops := []tx.ConfigOperation{
-		{ID: "addr-add", Type: tx.OperationAddAddress, Target: tx.ResourceRef{Kind: tx.ResourceAddress, Interface: "dum0", Address: "192.0.2.2/32"}},
-		{ID: "listener-add", Type: tx.OperationAddListener, Target: tx.ResourceRef{Kind: tx.ResourceListener, Address: "192.0.2.2", Port: 179}},
-		{ID: "listener-remove", Type: tx.OperationRemoveListener, Target: tx.ResourceRef{Kind: tx.ResourceListener, Address: "192.0.2.1", Port: 179}},
-		{ID: "addr-remove", Type: tx.OperationRemoveAddress, Target: tx.ResourceRef{Kind: tx.ResourceAddress, Interface: "dum0", Address: "192.0.2.1/32"}},
+		{ID: "addr-add", Type: operationAddAddress, Target: tx.ResourceRef{Kind: tx.ResourceAddress, Interface: "dum0", Address: "192.0.2.2/32"}},
+		{ID: "listener-add", Type: configop.AddListener, Target: tx.ResourceRef{Kind: tx.ResourceListener, Address: "192.0.2.2", Port: 179}},
+		{ID: "listener-remove", Type: configop.RemoveListener, Target: tx.ResourceRef{Kind: tx.ResourceListener, Address: "192.0.2.1", Port: 179}},
+		{ID: "addr-remove", Type: operationRemoveAddress, Target: tx.ResourceRef{Kind: tx.ResourceAddress, Interface: "dum0", Address: "192.0.2.1/32"}},
 	}
 
 	graph, err := tx.BuildOperationGraph(ops, tx.ConstraintRules())
@@ -174,7 +178,7 @@ func TestBGPListenerConstraintRules(t *testing.T) {
 func TestBGPSettlementRulesWaitForListenerReady(t *testing.T) {
 	op := tx.ConfigOperation{
 		ID:     "peer-add",
-		Type:   tx.OperationAddPeer,
+		Type:   configop.AddPeer,
 		Target: tx.ResourceRef{Kind: tx.ResourcePeer, Peer: "edge"},
 		Params: tx.ConfigOperationParams{Address: "192.0.2.2"},
 	}
@@ -183,7 +187,7 @@ func TestBGPSettlementRulesWaitForListenerReady(t *testing.T) {
 	require.NotEmpty(t, rules)
 	assert.Contains(t, rules, tx.SettlementRule{
 		ID:           "bgp-add-peer-settles-listener-ready",
-		Operation:    tx.OperationSelector{Type: tx.OperationAddPeer, ResourceKind: tx.ResourcePeer},
+		Operation:    tx.OperationSelector{Type: configop.AddPeer, ResourceKind: tx.ResourcePeer},
 		Readiness:    tx.ConfigOperationReadiness{Namespace: "bgp", EventType: "listener-ready"},
 		ResourceFrom: tx.SettlementResourceAddress,
 		Timeout:      10 * time.Second,

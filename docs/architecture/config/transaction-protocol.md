@@ -798,34 +798,40 @@ An operation is a typed, self-describing value (`ConfigOperation` in
 | `ID` | Unique within a transaction (e.g., `interface-add-address-eth0-10.0.0.1_24`) |
 | `Root` | Config root that owns this operation (`interface`, `bgp`, ...) |
 | `Owner` | Plugin name responsible for apply/rollback |
-| `Type` | One of the registered `ConfigOperationType` constants |
+| `Type` | The emitting component's own label for the operation. Free text: no engine package compares it |
+| `Verb` | `create`, `destroy` or `modify`. What the operation does to its target |
 | `Target` | `ResourceRef`: kind, name, interface, address, peer, port, prefix, next-hop |
+| `Produces` | The resources this operation makes available to other operations |
+| `Consumes` | The resources this operation needs another operation to have produced |
 | `Params` | `ConfigOperationParams`: operation-specific values, config payloads, AllowDual flag |
 
-Operation types are kebab-case string constants registered in `pkg/plugin/rpc/types.go`:
+The engine orders an operation by its `Verb` and its target's `ResourceKind`.
+Those two are the whole ordering vocabulary:
 
-| Type | Resource kind | Example |
-|------|--------------|---------|
-| `add-interface` | `interface` | Create dummy0 |
-| `remove-interface` | `interface` | Delete dummy0 |
-| `add-address` | `address` | Assign 10.0.0.1/24 to eth0 |
-| `remove-address` | `address` | Remove 10.0.0.1/24 from eth0 |
-| `add-peer` | `peer` | Start BGP peer "upstream" |
-| `remove-peer` | `peer` | Stop BGP peer "upstream" |
-| `modify-peer` | `peer` | Update peer config in place |
-| `add-listener` | `listener` | Bind BGP listener on 10.0.0.1:179 |
-| `remove-listener` | `listener` | Unbind BGP listener |
-| `add-bridge-member` | `bridge-member` | Add eth1 to br0 |
-| `remove-bridge-member` | `bridge-member` | Remove eth1 from br0 |
-| `set-property` | (varies) | Set MTU, admin state, etc. |
-| `add-static-route` | `static-route` | Install a static route |
-| `remove-static-route` | `static-route` | Remove a static route |
-| `set-distance` | (varies) | Change administrative distance |
-| `set-sysctl` | `sysctl` | Set a kernel parameter |
-| `start-dhcp` | `dhcp` | Start DHCP client on an interface |
-| `stop-dhcp` | `dhcp` | Stop DHCP client |
-| `add-tunnel` | `tunnel` | Create a tunnel interface |
-| `remove-tunnel` | `tunnel` | Destroy a tunnel interface |
+| Verb | Meaning | Example |
+|------|---------|---------|
+| `create` | The target resource does not exist yet and will after this operation | Assign 10.0.0.1/24 to eth0 |
+| `destroy` | The target resource exists and will not after this operation | Stop BGP peer "upstream" |
+| `modify` | The target resource exists on both sides and changes in place | Update a peer's settings |
+
+An operation that declares no verb is REFUSED at planning, and the transaction
+aborts naming the plugin, the root and the operation id. It is never read as
+`modify`: a default would give a create the dependencies of a change in place.
+<!-- source: internal/component/config/transaction/operation.go -- ValidateOperationVerbs -->
+
+The `Type` label is the emitting component's own word for the work, carried
+unchanged to the owner that applies it. There is no list of labels here and
+none in `pkg/plugin/rpc/types.go`: a shared list is a central enumeration a new
+root would edit, which is what held the ordering to two roots. `interface`
+spells its labels in `internal/component/iface/operation.go`, and `bgp` spells
+its own in `internal/core/bgp/configop`, which its decomposer and its reactor
+share.
+<!-- source: internal/component/iface/operation.go -- the interface root's labels -->
+<!-- source: internal/core/bgp/configop/configop.go -- the bgp root's labels -->
+
+One label is the engine's own, `section-apply`, and it names the coarse node the
+orchestrator synthesizes for a participant that owns no operation. A plugin that
+returns it is refused.
 
 #### Constraint rules
 
@@ -877,7 +883,7 @@ to break its config root into atomic operations registers a decomposer via
 | Component | Config root | Decomposer | What it produces |
 |-----------|------------|------------|-----------------|
 | iface | `interface` | `decomposeIfaceOperations` | `add-interface`, `remove-interface`, `add-address`, `remove-address` per managed interface and IP |
-| bgp | `bgp` | `decomposeBGPOperations` | `add-peer`, `remove-peer` per changed peer (modify = remove + add) |
+| bgp | `bgp` | `decomposeBGPOperations` | `add-peer`, `remove-peer`, `modify-peer` per changed peer |
 
 A decomposer receives a `DecomposeRequest` with the transaction ID, the config
 root name, the active and candidate root data (full JSON for that root), and
@@ -887,13 +893,14 @@ rollback.
 
 Decomposers are selective: `decomposeIfaceOperations` returns nil unless the diff
 touches addresses or managed interface types. `decomposeBGPOperations` returns nil
-unless the diff touches the peer section. When a decomposer returns nil, that
-root's changes flow through the existing full-diff apply path in the next
-transaction (the operation path only activates when at least one decomposer
-produces operations).
+unless the diff touches the peer section. A participant a decomposer produced no
+operation for is carried by one coarse `section-apply` node, so it takes the
+ordered path with everything else and is applied through the `config-apply`
+callback it already implements.
 
-Components that do not register a decomposer (DNS, telemetry, DHCP) always use
-the full-diff apply path. No code change is needed in those components.
+Components that do not register a decomposer (DNS, telemetry, DHCP) are each one
+coarse node. They are ordered relative to the other roots and not within
+themselves. No code change is needed in those components.
 
 ### Graph construction and topological sort
 

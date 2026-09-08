@@ -789,7 +789,8 @@ func TestSDKDispatchConfigOperationApply(t *testing.T) {
 			ID:     "op-1",
 			Root:   "interface",
 			Owner:  "interface",
-			Type:   OperationAddAddress,
+			Type:   ConfigOperationType("add-address"),
+			Verb:   VerbCreate,
 			Target: ResourceRef{Kind: ResourceAddress, Interface: "eth0", Address: "10.0.0.1/32"},
 			Params: ConfigOperationParams{Interface: "eth0", CIDR: "10.0.0.1/32"},
 		},
@@ -805,7 +806,8 @@ func TestSDKDispatchConfigOperationApply(t *testing.T) {
 	select {
 	case got := <-applyReceived:
 		assert.Equal(t, "tx-1", got.TransactionID)
-		assert.Equal(t, OperationAddAddress, got.Operation.Type)
+		assert.Equal(t, ConfigOperationType("add-address"), got.Operation.Type)
+		assert.Equal(t, VerbCreate, got.Operation.Verb)
 		assert.Equal(t, "eth0", got.Operation.Params.Interface)
 	case <-time.After(time.Second):
 		t.Fatal("config-operation-apply callback not called")
@@ -2841,3 +2843,70 @@ type reservedEnvelopeRow string
 
 // AppendTo appends the row's JSON to buf and returns the extended slice.
 func (r reservedEnvelopeRow) AppendTo(buf []byte) []byte { return append(buf, r...) }
+
+// TestSDKPluginWithoutOperationCallbacksAnswersUnknownMethod is the reason a
+// coarse root node is applied through config-apply rather than through
+// config-operation-apply. A plugin that registers no operation callback still
+// answers config-apply, because initCallbackDefaults registers a default for
+// it. None of the five config-operation-* methods has a default, so the same
+// plugin answers "unknown method" to each of them.
+//
+// VALIDATES: A-3 of spec-config-apply-ordering-covers-every-root, at the
+// dispatcher rather than by reading it.
+// PREVENTS: a later change routing an uncovered participant's node to
+// config-operation-apply, which would abort every reload touching a root that
+// decomposes nothing.
+func TestSDKPluginWithoutOperationCallbacksAnswersUnknownMethod(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	operation := ConfigOperation{
+		ID:     "op-1",
+		Root:   "rsvp-te",
+		Owner:  "test-plugin",
+		Type:   ConfigOperationType("add-tunnel"),
+		Verb:   VerbCreate,
+		Target: ResourceRef{Kind: ResourceKind("tunnel"), Name: "lsp1"},
+	}
+	for _, method := range []string{
+		"ze-plugin-callback:config-operation-decompose",
+		"ze-plugin-callback:config-operation-verify",
+		"ze-plugin-callback:config-operation-apply",
+		"ze-plugin-callback:config-operation-rollback",
+		"ze-plugin-callback:config-operation-commit",
+	} {
+		_, err := engine.mux.CallRPC(ctx, method, ConfigOperationApplyInput{TransactionID: "tx-1", Operation: operation})
+		require.Error(t, err, "%s answered without a registered callback", method)
+		assert.Contains(t, err.Error(), "unknown method", "%s", method)
+	}
+
+	// The section route the coarse node takes is answered by the same plugin.
+	applyInput := struct {
+		Sections []ConfigDiffSection `json:"sections"`
+	}{Sections: []ConfigDiffSection{{Root: "rsvp-te", Changed: `{"rsvp-te/lsp/lsp1":{}}`}}}
+	_, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:config-apply", applyInput)
+	require.NoError(t, err, "config-apply has an SDK default, which is what the coarse node relies on")
+
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}

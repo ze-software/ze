@@ -88,8 +88,14 @@ type ConfigApplyOutput = rpc.ConfigApplyOutput
 // ConfigOperationDecl declares operation callback support during Stage 1.
 type ConfigOperationDecl = rpc.ConfigOperationDecl
 
-// ConfigOperationType identifies one atomic config operation.
+// ConfigOperationType is the plugin's own label for one of its atomic config
+// operations. The engine carries it unchanged and never compares it.
 type ConfigOperationType = rpc.ConfigOperationType
+
+// OperationVerb says what an operation does to the resource it targets. The
+// engine orders by the verb plus the target's ResourceKind, so every operation
+// a plugin emits MUST carry one.
+type OperationVerb = rpc.OperationVerb
 
 // ConfigOperation is one atomic operation in an ordering-sensitive config transaction.
 type ConfigOperation = rpc.ConfigOperation
@@ -103,28 +109,12 @@ type ResourceKind = rpc.ResourceKind
 // ResourceRef is the solver-visible target for an operation.
 type ResourceRef = rpc.ResourceRef
 
-// Config operation type values.
+// Operation verb values. There is no list of operation labels here: a label
+// belongs to the plugin that emits it.
 const (
-	OperationAddInterface       = rpc.OperationAddInterface
-	OperationRemoveInterface    = rpc.OperationRemoveInterface
-	OperationAddAddress         = rpc.OperationAddAddress
-	OperationRemoveAddress      = rpc.OperationRemoveAddress
-	OperationSetProperty        = rpc.OperationSetProperty
-	OperationAddBridgeMember    = rpc.OperationAddBridgeMember
-	OperationRemoveBridgeMember = rpc.OperationRemoveBridgeMember
-	OperationAddPeer            = rpc.OperationAddPeer
-	OperationRemovePeer         = rpc.OperationRemovePeer
-	OperationModifyPeer         = rpc.OperationModifyPeer
-	OperationAddListener        = rpc.OperationAddListener
-	OperationRemoveListener     = rpc.OperationRemoveListener
-	OperationAddStaticRoute     = rpc.OperationAddStaticRoute
-	OperationRemoveStaticRoute  = rpc.OperationRemoveStaticRoute
-	OperationSetDistance        = rpc.OperationSetDistance
-	OperationSetSysctl          = rpc.OperationSetSysctl
-	OperationStartDHCP          = rpc.OperationStartDHCP
-	OperationStopDHCP           = rpc.OperationStopDHCP
-	OperationAddTunnel          = rpc.OperationAddTunnel
-	OperationRemoveTunnel       = rpc.OperationRemoveTunnel
+	VerbCreate  = rpc.VerbCreate
+	VerbDestroy = rpc.VerbDestroy
+	VerbModify  = rpc.VerbModify
 )
 
 // Resource kind values.

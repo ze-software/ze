@@ -21,30 +21,18 @@ type ConfigOperationDecl = rpc.ConfigOperationDecl
 type ConfigOperationType = rpc.ConfigOperationType
 type ConfigOperationParams = rpc.ConfigOperationParams
 type ConfigOperationReadiness = rpc.ConfigOperationReadiness
+type OperationVerb = rpc.OperationVerb
 type ResourceKind = rpc.ResourceKind
 type ResourceRef = rpc.ResourceRef
 
+// The ordering vocabulary. An operation is ordered by its verb and the kind of
+// the resource it targets, never by its label, so a config root joins the
+// ordering by declaring these and the core keeps no list of roots or labels
+// (ai/rules/principles.md).
 const (
-	OperationAddInterface       = rpc.OperationAddInterface
-	OperationRemoveInterface    = rpc.OperationRemoveInterface
-	OperationAddAddress         = rpc.OperationAddAddress
-	OperationRemoveAddress      = rpc.OperationRemoveAddress
-	OperationSetProperty        = rpc.OperationSetProperty
-	OperationAddBridgeMember    = rpc.OperationAddBridgeMember
-	OperationRemoveBridgeMember = rpc.OperationRemoveBridgeMember
-	OperationAddPeer            = rpc.OperationAddPeer
-	OperationRemovePeer         = rpc.OperationRemovePeer
-	OperationModifyPeer         = rpc.OperationModifyPeer
-	OperationAddListener        = rpc.OperationAddListener
-	OperationRemoveListener     = rpc.OperationRemoveListener
-	OperationAddStaticRoute     = rpc.OperationAddStaticRoute
-	OperationRemoveStaticRoute  = rpc.OperationRemoveStaticRoute
-	OperationSetDistance        = rpc.OperationSetDistance
-	OperationSetSysctl          = rpc.OperationSetSysctl
-	OperationStartDHCP          = rpc.OperationStartDHCP
-	OperationStopDHCP           = rpc.OperationStopDHCP
-	OperationAddTunnel          = rpc.OperationAddTunnel
-	OperationRemoveTunnel       = rpc.OperationRemoveTunnel
+	VerbCreate  = rpc.VerbCreate
+	VerbDestroy = rpc.VerbDestroy
+	VerbModify  = rpc.VerbModify
 )
 
 // OperationSectionApply labels the coarse node the orchestrator synthesizes for
@@ -67,6 +55,33 @@ func IsSectionApply(op *ConfigOperation) bool {
 		return false
 	}
 	return op.Type == OperationSectionApply
+}
+
+// ErrOperationNoVerb reports an operation that declared no verb. It is refused
+// rather than ordered: with no verb the graph has nothing to order it by, and
+// reading the empty value as VerbModify would give a create or a destroy the
+// dependencies of a modification.
+var ErrOperationNoVerb = errors.New("config operation declares no verb")
+
+// ValidateOperationVerbs refuses the first operation carrying no verb, naming
+// the plugin that emitted it, its config root and the operation id. The error
+// names no parameter: those carry config values, keys among them.
+//
+// The coarse section-apply node the orchestrator synthesizes is exempt. It
+// stands for a whole participant section rather than one resource, so it has
+// no verb to declare and no edge to earn from one.
+func ValidateOperationVerbs(operations []ConfigOperation) error {
+	for i := range operations {
+		op := &operations[i]
+		if IsSectionApply(op) {
+			continue
+		}
+		if op.Verb != "" {
+			continue
+		}
+		return fmt.Errorf("%w: plugin %s, root %s, operation %s", ErrOperationNoVerb, op.Owner, op.Root, op.ID)
+	}
+	return nil
 }
 
 const (

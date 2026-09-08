@@ -16,6 +16,7 @@ import (
 
 	configtx "github.com/ze-software/ze/internal/component/config/transaction"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/bgp/configop"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/capture"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -24,6 +25,16 @@ import (
 )
 
 const configRootBGP = "bgp"
+
+// The labels the `interface` root gives its address operations. The four
+// constraint rules below are the only reason this package names them: a rule
+// selects on a label, so a rule about another root's operations has to spell
+// that root's vocabulary. That is the coupling derived produce and consume
+// sets remove, and these two constants go with the rules.
+const (
+	operationAddAddress    rpc.ConfigOperationType = "add-address"
+	operationRemoveAddress rpc.ConfigOperationType = "remove-address"
+)
 
 var (
 	errBGPOperationNoReactor          = errors.New("bgp operation: no reactor available")
@@ -42,39 +53,39 @@ func init() {
 	}
 	if err := configtx.RegisterConstraintRule(configtx.ConstraintRule{
 		ID:       "bgp-add-address-before-peer",
-		Before:   configtx.OperationSelector{Type: configtx.OperationAddAddress, ResourceKind: configtx.ResourceAddress},
-		After:    configtx.OperationSelector{Type: configtx.OperationAddPeer, ResourceKind: configtx.ResourcePeer},
+		Before:   configtx.OperationSelector{Type: operationAddAddress, ResourceKind: configtx.ResourceAddress},
+		After:    configtx.OperationSelector{Type: configop.AddPeer, ResourceKind: configtx.ResourcePeer},
 		Relation: configtx.ResourceRelationAddressUsedBy,
 	}); err != nil {
 		slog.Error("register bgp constraint rule", "error", err)
 	}
 	if err := configtx.RegisterConstraintRule(configtx.ConstraintRule{
 		ID:       "bgp-remove-peer-before-address",
-		Before:   configtx.OperationSelector{Type: configtx.OperationRemovePeer, ResourceKind: configtx.ResourcePeer},
-		After:    configtx.OperationSelector{Type: configtx.OperationRemoveAddress, ResourceKind: configtx.ResourceAddress},
+		Before:   configtx.OperationSelector{Type: configop.RemovePeer, ResourceKind: configtx.ResourcePeer},
+		After:    configtx.OperationSelector{Type: operationRemoveAddress, ResourceKind: configtx.ResourceAddress},
 		Relation: configtx.ResourceRelationAddressUsedBy,
 	}); err != nil {
 		slog.Error("register bgp constraint rule", "error", err)
 	}
 	if err := configtx.RegisterConstraintRule(configtx.ConstraintRule{
 		ID:       "bgp-add-address-before-listener",
-		Before:   configtx.OperationSelector{Type: configtx.OperationAddAddress, ResourceKind: configtx.ResourceAddress},
-		After:    configtx.OperationSelector{Type: configtx.OperationAddListener, ResourceKind: configtx.ResourceListener},
+		Before:   configtx.OperationSelector{Type: operationAddAddress, ResourceKind: configtx.ResourceAddress},
+		After:    configtx.OperationSelector{Type: configop.AddListener, ResourceKind: configtx.ResourceListener},
 		Relation: configtx.ResourceRelationAddressUsedBy,
 	}); err != nil {
 		slog.Error("register bgp constraint rule", "error", err)
 	}
 	if err := configtx.RegisterConstraintRule(configtx.ConstraintRule{
 		ID:       "bgp-remove-listener-before-address",
-		Before:   configtx.OperationSelector{Type: configtx.OperationRemoveListener, ResourceKind: configtx.ResourceListener},
-		After:    configtx.OperationSelector{Type: configtx.OperationRemoveAddress, ResourceKind: configtx.ResourceAddress},
+		Before:   configtx.OperationSelector{Type: configop.RemoveListener, ResourceKind: configtx.ResourceListener},
+		After:    configtx.OperationSelector{Type: operationRemoveAddress, ResourceKind: configtx.ResourceAddress},
 		Relation: configtx.ResourceRelationAddressUsedBy,
 	}); err != nil {
 		slog.Error("register bgp constraint rule", "error", err)
 	}
 	if err := configtx.RegisterSettlementRule(configtx.SettlementRule{
 		ID:           "bgp-add-peer-settles-listener-ready",
-		Operation:    configtx.OperationSelector{Type: configtx.OperationAddPeer, ResourceKind: configtx.ResourcePeer},
+		Operation:    configtx.OperationSelector{Type: configop.AddPeer, ResourceKind: configtx.ResourcePeer},
 		Readiness:    configtx.ConfigOperationReadiness{Namespace: bgpevents.Namespace, EventType: "listener-ready"},
 		ResourceFrom: configtx.SettlementResourceAddress,
 		Timeout:      10 * time.Second,
@@ -110,7 +121,7 @@ func decomposeBGPOperations(_ context.Context, req configtx.DecomposeRequest) ([
 		activePeer := activePeers[name]
 		candidatePeer, exists := candidatePeers[name]
 		if !exists {
-			ops = append(ops, bgpPeerOperation(configtx.OperationRemovePeer, name, activePeer.localAddress, nil, activePeer.raw))
+			ops = append(ops, bgpPeerOperation(configop.RemovePeer, name, activePeer.localAddress, nil, activePeer.raw))
 			continue
 		}
 		if string(activePeer.raw) == string(candidatePeer.raw) {
@@ -118,8 +129,8 @@ func decomposeBGPOperations(_ context.Context, req configtx.DecomposeRequest) ([
 		}
 		if activePeer.localAddress != candidatePeer.localAddress {
 			ops = append(ops,
-				bgpPeerOperation(configtx.OperationRemovePeer, name, activePeer.localAddress, nil, activePeer.raw),
-				bgpPeerOperation(configtx.OperationAddPeer, name, candidatePeer.localAddress, candidatePeer.raw, nil),
+				bgpPeerOperation(configop.RemovePeer, name, activePeer.localAddress, nil, activePeer.raw),
+				bgpPeerOperation(configop.AddPeer, name, candidatePeer.localAddress, candidatePeer.raw, nil),
 			)
 			continue
 		}
@@ -127,10 +138,10 @@ func decomposeBGPOperations(_ context.Context, req configtx.DecomposeRequest) ([
 	}
 	if peerRouterIDRotation(sameAddressChanges) {
 		for _, change := range sameAddressChanges {
-			ops = append(ops, bgpPeerOperation(configtx.OperationRemovePeer, change.name, change.active.localAddress, nil, change.active.raw))
+			ops = append(ops, bgpPeerOperation(configop.RemovePeer, change.name, change.active.localAddress, nil, change.active.raw))
 		}
 		for _, change := range sameAddressChanges {
-			ops = append(ops, bgpPeerOperation(configtx.OperationAddPeer, change.name, change.candidate.localAddress, change.candidate.raw, nil))
+			ops = append(ops, bgpPeerOperation(configop.AddPeer, change.name, change.candidate.localAddress, change.candidate.raw, nil))
 		}
 	} else {
 		for _, change := range sameAddressChanges {
@@ -142,7 +153,7 @@ func decomposeBGPOperations(_ context.Context, req configtx.DecomposeRequest) ([
 			continue
 		}
 		candidatePeer := candidatePeers[name]
-		ops = append(ops, bgpPeerOperation(configtx.OperationAddPeer, name, candidatePeer.localAddress, candidatePeer.raw, nil))
+		ops = append(ops, bgpPeerOperation(configop.AddPeer, name, candidatePeer.localAddress, candidatePeer.raw, nil))
 	}
 	return ops, nil
 }
@@ -235,9 +246,11 @@ func injectBGPGlobalPeerDefaults(root, peer map[string]any) {
 }
 
 func bgpPeerOperation(opType configtx.ConfigOperationType, name, localAddress string, config, oldConfig json.RawMessage) configtx.ConfigOperation {
-	verb := "add"
-	if opType == configtx.OperationRemovePeer {
-		verb = "remove"
+	verb := configtx.VerbCreate
+	word := "add"
+	if opType == configop.RemovePeer {
+		verb = configtx.VerbDestroy
+		word = "remove"
 	}
 	params := configtx.ConfigOperationParams{Peer: name, Address: localAddress}
 	if len(config) > 0 {
@@ -247,10 +260,11 @@ func bgpPeerOperation(opType configtx.ConfigOperationType, name, localAddress st
 		params.OldConfig = oldConfig
 	}
 	return configtx.ConfigOperation{
-		ID:    "bgp-" + verb + "-peer-" + sanitizeBGPOperationID(name),
+		ID:    "bgp-" + word + "-peer-" + sanitizeBGPOperationID(name),
 		Root:  configRootBGP,
 		Owner: pluginNameBGP,
 		Type:  opType,
+		Verb:  verb,
 		Target: configtx.ResourceRef{
 			Kind:    configtx.ResourcePeer,
 			Peer:    name,
@@ -265,7 +279,8 @@ func bgpModifyPeerOperation(name, localAddress string, config, oldConfig json.Ra
 		ID:    "bgp-modify-peer-" + sanitizeBGPOperationID(name),
 		Root:  configRootBGP,
 		Owner: pluginNameBGP,
-		Type:  configtx.OperationModifyPeer,
+		Type:  configop.ModifyPeer,
+		Verb:  configtx.VerbModify,
 		Target: configtx.ResourceRef{
 			Kind:    configtx.ResourcePeer,
 			Peer:    name,
@@ -467,11 +482,11 @@ func captureBGPConfigEvent(handle registry.BGPReactorHandle, phase, txID string,
 // dispatched.
 func captureOperationPhase(opType sdk.ConfigOperationType) string {
 	switch opType {
-	case sdk.OperationAddPeer:
+	case configop.AddPeer:
 		return capture.OpAddPeer
-	case sdk.OperationModifyPeer:
+	case configop.ModifyPeer:
 		return capture.OpModifyPeer
-	case sdk.OperationRemovePeer:
+	case configop.RemovePeer:
 		return capture.OpRemovePeer
 	default:
 		return string(opType)

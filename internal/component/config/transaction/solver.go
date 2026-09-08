@@ -11,9 +11,13 @@ var ErrOperationCycle = errors.New("operation dependency cycle")
 // TopologicalSort returns operations in dependency order. When the graph
 // contains a cycle composed entirely of address operations on different
 // interfaces (IP swap, three-way rotation), the solver relaxes the
-// address-uniqueness constraint by setting AllowDual on the affected
-// ADD_ADDRESS operations and removing the cycle-causing edges.
-// Non-address cycles or same-interface cycles are rejected.
+// address-uniqueness constraint by setting AllowDual on the affected address
+// creations and removing the cycle-causing edges. Non-address cycles or
+// same-interface cycles are rejected.
+//
+// "Address operation" is a verb and a resource kind, not a label: an operation
+// whose verb creates or destroys a resource of kind ResourceAddress. No root
+// and no operation label is named here.
 func TopologicalSort(graph *OperationGraph) ([]ConfigOperation, error) {
 	if graph == nil {
 		return nil, nil
@@ -128,10 +132,18 @@ func tryRelaxCycle(graph *OperationGraph, remainingIDs []string) ([]OperationEdg
 	return kept, cycleSet, nil
 }
 
+// isAddressOperation reports whether op creates or destroys an address. It
+// reads the verb and the target kind, which is the whole vocabulary the solver
+// has: the operation's label belongs to the component that emitted it, and a
+// solver that compared labels would relax cycles for the two roots whose
+// spellings it happened to know.
 func isAddressOperation(op *ConfigOperation) bool {
-	switch op.Type {
-	case OperationAddAddress, OperationRemoveAddress:
-		return op.Target.Kind == ResourceAddress
+	if op.Target.Kind != ResourceAddress {
+		return false
+	}
+	switch op.Verb {
+	case VerbCreate, VerbDestroy:
+		return true
 	default:
 		return false
 	}
@@ -144,8 +156,9 @@ func opInterface(op *ConfigOperation) string {
 	return op.Params.Interface
 }
 
-// markDualPresence sets AllowDual on ADD_ADDRESS operations that were part
-// of a relaxed cycle.
+// markDualPresence sets AllowDual on the address creations that were part of a
+// relaxed cycle. Like isAddressOperation it decides on the verb and the target
+// kind, never on the label.
 func markDualPresence(sorted []ConfigOperation, cycleMembers map[string]bool) []ConfigOperation {
 	if len(cycleMembers) == 0 {
 		return sorted
@@ -153,9 +166,13 @@ func markDualPresence(sorted []ConfigOperation, cycleMembers map[string]bool) []
 	result := make([]ConfigOperation, len(sorted))
 	for i := range sorted {
 		result[i] = sorted[i]
-		if cycleMembers[result[i].ID] && result[i].Type == OperationAddAddress {
-			result[i].Params.AllowDual = true
+		if !cycleMembers[result[i].ID] {
+			continue
 		}
+		if result[i].Verb != VerbCreate || result[i].Target.Kind != ResourceAddress {
+			continue
+		}
+		result[i].Params.AllowDual = true
 	}
 	return result
 }
