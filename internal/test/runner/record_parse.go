@@ -172,6 +172,14 @@ func (et *EncodingTests) parseAndAdd(ciFile string) (*Record, error) {
 		}
 	}
 
+	// A peer block that states no AS of its own gets the one ze is configured to
+	// expect from it, derived from the configuration this same .ci embeds. Runs
+	// before the two guards below so the derived lines are held to the same
+	// contract every hand-written line is. See peer_asn.go.
+	if err := declarePeerAS(r); err != nil {
+		return r, err
+	}
+
 	// Every line of every ze-peer stdin block is now claimed by ze-peer or
 	// parsed by the runner, and a line neither reads fails the file. Runs after
 	// the cmd= lines because the set of blocks that reach a ze-peer is derived

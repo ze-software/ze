@@ -374,7 +374,7 @@ option=<type>:key=value[:key=value...]
 | Type | Keys | Description |
 |------|------|-------------|
 | `file` | `path=<name>` | Config file to use |
-| `asn` | `value=<N>` | Override peer ASN |
+| `asn` | `value=<N>[:peer=<ip>]` | The AS ze-peer opens with. It reaches BOTH carriers RFC 6793 defines: the two-octet My Autonomous System field, narrowed to AS_TRANS (23456) above 65535, and the Capability Value of capability 65. The range is 1 to 4294967295 and a value outside it fails the file when it is read, naming the option and the value. `peer=<ip>` binds the declaration to one of ze's endpoint addresses, for a peer process that serves several of ze's peers at once (`option=conn_map`). With no `option=asn` line at all the runner derives one from the `session { asn { remote N } }` leaf of the ze configuration the `.ci` names. It reads a `tmpfs=` block, a `stdin=` block and the file an `option=file:path=` points at, and it follows the inheritance chain: the router's own `bgp { session { asn { ... } } }`, then a `group` or `template`, then the peer, each level overriding the one above. Three things fail the file at read time rather than being guessed: two peers ze dials at ONE address expecting different ASNs, a declared AS the reader cannot read, and an eBGP peer the derivation reached with nothing. **That last refusal knows only what the reader knows.** A peer is judged eBGP by comparing the local and remote AS, so a peer for which NO local AS is declared at any level of the chain is not judged eBGP and is not refused; it inherits ze's own AS from the mirror, which is right for an iBGP session and wrong for an eBGP one. The derivation reaches no peer at all when a compiled fixture under `internal/test/fixture` writes the configuration and launches `ze-test peer` itself, because no `.ci` block is involved; such a fixture passes `--asn` (`cliWirePeerAS`, `internal/test/fixture/ui_fixture_send_bgp.go`). |
 | `bind` | `value=ipv6` | Bind to IPv6 |
 | `timeout` | `value=<duration>` | Test timeout (e.g., `30s`). Overrides auto-timeout. |
 | `tcp_connections` | `value=<N>` | Number of TCP connections |
@@ -440,7 +440,7 @@ wearing a skip's clothing.
 | `drop-capability` | Remove a capability from ze-peer's OPEN response |
 | `add-capability` | Add a capability to ze-peer's OPEN response |
 | `router-id` | Send an explicit BGP Identifier instead of the mirrored one |
-<!-- source: internal/test/peer/checker.go -- OPEN behavior handling -->
+<!-- source: internal/test/peer/expect.go -- parseOptionConfig; internal/test/peer/open.go -- buildOpen -->
 
 ### BGP Identifier Control (router-id)
 
@@ -448,13 +448,19 @@ wearing a skip's clothing.
 option=open:value=router-id:id=<a.b.c.d>
 ```
 
-Ze-peer's default OPEN carries ze's own BGP Identifier with the last octet incremented, which is always a distinct, valid identifier. This option replaces it outright, so a test can present an identifier the default can never produce: `0.0.0.0`, or ze's own router-id (RFC 6286 Section 2.2 rejects both, the second only from an internal peer). A malformed or IPv6 value is ignored and the default mirror stands.
+Ze-peer's default OPEN carries ze's own BGP Identifier with the last octet incremented, which is always a distinct, valid identifier. This option replaces it outright, so a test can present an identifier the default can never produce: `0.0.0.0`, or ze's own router-id (RFC 6286 Section 2.2 rejects both, the second only from an internal peer). A malformed or IPv6 value fails the file when it is read. It was ignored until 2026-09-08, which sent the DEFAULT identifier from a test that asked for an invalid one: the file then tested the valid identifier and passed.
 
-<!-- source: internal/test/peer/expect.go -- parseOptionConfig "router-id"; internal/test/peer/peer.go -- generateOpen -->
+<!-- source: internal/test/peer/expect.go -- parseOptionConfig "router-id"; internal/test/peer/open.go -- openIdentity -->
 
 ### Capability Control (drop-capability / add-capability)
 
-Ze-peer mirrors the peer's OPEN message back (with a modified router-id). The `drop-capability` and `add-capability` options modify this mirrored OPEN at wire level, allowing tests to control exactly which capabilities ze-peer advertises.
+Ze-peer mirrors the capability SET of ze's OPEN, so a `.ci` that says nothing about capabilities still negotiates whatever ze offers. It does NOT mirror the values that describe the SENDER. The AS, the BGP Identifier, the Role (code 9), the ADD-PATH directions (code 69) and the FQDN (code 73) are each resolved from the test's own configuration and written into ze-peer's OPEN, because a mirror asserts sameness and every one of those facts is about the speaker rather than about the session.
+
+The `drop-capability` and `add-capability` options act on that reconciled OPEN at wire level, allowing tests to control exactly which capabilities ze-peer advertises.
+
+**A capability the `.ci` states REPLACES the one ze-peer would have resolved.** An `add-capability` naming code 9, 65, 69 or 73 is sent as written and ze-peer adds no second capability of that code, so a file that drops a code and adds it back gets exactly what it asked for. Dropping code 65 removes the four-octet AS capability, which leaves the two-octet My Autonomous System field as the only carrier of the peer's AS: above 65535 that field can carry AS_TRANS alone, which is what RFC 6793 Section 3 defines for a speaker with no two-octet AS.
+
+**An `add-capability:code=65` carrying four octets IS the AS declaration, and the My Autonomous System field follows it.** It outranks `option=asn` and the derivation, because it names the octets that reach the wire and RFC 6793 Section 4.1 makes those the octets a receiver reads. Letting the header field come from anywhere else would put two ASNs in one OPEN, which is the disagreement ze answers with NOTIFICATION 2/2 Bad Peer AS. A stated code 65 of any OTHER length declares no AS: it is a malformed capability the test is driving on purpose, so it is sent as written and the header field keeps the AS the rest of the configuration resolved. That is the one case where the two carriers differ, and they differ because the `.ci` asked.
 
 **Drop a capability:**
 
@@ -1439,12 +1445,17 @@ a second protocol to the test's failure surface: `test/bfd/bfd-detection-interva
 was red for exactly that reason until 2026-09-07.
 <!-- source: cmd/ze/hub/main.go -- apiServer.SetShutdownFunc; internal/component/plugin/server/system.go -- handleDaemonShutdown -->
 
-**`option=asn` moves both AS numbers.** The test peer mirrors ze's OPEN, so
-setting the peer's AS rewrites the 2-octet AS field AND the 4-octet AS
-capability. RFC 6793 Section 4.1 makes ze answer OPEN Message Error / Bad Peer AS
-when the two disagree, so a half-applied option would leave every `.ci` that
-names an AS ze does not hold unable to establish.
-<!-- source: internal/test/peer/peer.go -- generateOpen, patchAS4Capability -->
+**`option=asn` moves both AS numbers.** The AS is resolved once and written into
+the two-octet My Autonomous System field AND the four-octet AS capability, so the
+two disagree only where a `.ci` states a malformed capability 65 itself (see
+"Capability Control" above). RFC 6793 Section 4.1 states the precedence a receiver
+applies: it "MUST use the AS number encoded in the Capability Value field of the
+'support for four-octet AS number capability' in lieu of the 'My Autonomous
+System' field of the OPEN message". So a half-applied option leaves the
+capability carrying ze's own AS, ze reads THAT, finds an AS the session is not
+configured for, and answers OPEN Message Error / Bad Peer AS under RFC 4271
+Section 6.2. The refusal is RFC 4271's; RFC 6793 decides which field ze read.
+<!-- source: internal/test/peer/open.go -- buildOpen; internal/component/bgp/reactor/peer.go -- openAdvertisedAS -->
 
 **The sentinel is written where the scenario fails, BEFORE `request shutdown`.**
 The runner reads it out of the DAEMON's stderr, and the daemon relays a plugin's

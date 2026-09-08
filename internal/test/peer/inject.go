@@ -400,6 +400,14 @@ func (p *Peer) runActive(ctx context.Context) Result {
 // active BGP role. We advertise the single address family implied by the
 // inject spec plus the 4-byte ASN capability so ze's OPEN negotiation can
 // accept 32-bit ASNs. No capability mirroring: we pick the minimum set.
+//
+// It is the second OPEN builder in this package, and it stays separate on
+// purpose. buildOpen (open.go) answers an OPEN ze already sent, and it mirrors
+// ze's capability SET; the active role speaks FIRST, so there is nothing to
+// mirror and the set has to be chosen. What the two share is the resolution of
+// each fact, and they share it by calling one function for it rather than by
+// each stating the rule: myASField narrows the AS, and Config.resolveOpenAS
+// answers which AS the .ci declared.
 func buildActiveOpen(cfg *Config) []byte {
 	asn := uint32(0)
 	family := uint16(1) // AFI=1 IPv4 by default
@@ -408,6 +416,13 @@ func buildActiveOpen(cfg *Config) []byte {
 		if cfg.Inject.Prefix.Addr().Is6() {
 			family = 2
 		}
+	}
+	// An option=asn line wins over the inject spec's origin AS. Without this the
+	// line reached no carrier at all on a dialing peer, which is the silent drop
+	// this package's OPEN builders exist to close. The dial target is ze's own
+	// address, so a keyed declaration finds it.
+	if declared, ok := cfg.resolveOpenAS(netip.Addr{}, dialTargetAddr(cfg.Dial)); ok {
+		asn = declared
 	}
 	// Capabilities (RFC 5492 bundled in one type-2 optional parameter):
 	//   MP-BGP: code 1, len 4, AFI(2) + reserved(1=0) + SAFI(1)
@@ -437,13 +452,10 @@ func buildActiveOpen(cfg *Config) []byte {
 		}
 	}
 
-	// OPEN body: version(1) + AS(2) + hold(2) + id(4) + optlen(1) + optparam
-	// 2-byte ASN field: use AS_TRANS (23456) for >16-bit ASNs; the real
-	// ASN is carried in the 4-byte ASN capability above.
-	asn2 := uint16(23456)
-	if asn <= 65535 {
-		asn2 = uint16(asn) //nolint:gosec // bounds checked
-	}
+	// OPEN body: version(1) + AS(2) + hold(2) + id(4) + optlen(1) + optparam.
+	// The two-octet AS field narrows to AS_TRANS above 65535 (myASField, open.go),
+	// and the real AS is carried in the 4-byte ASN capability above.
+	asn2 := myASField(asn)
 	body := make([]byte, 0, 10+len(optParam))
 	body = append(body, 4, byte(asn2>>8), byte(asn2), 0, 180)
 	body = append(body, routerID[:]...)
@@ -456,6 +468,20 @@ func buildActiveOpen(cfg *Config) []byte {
 	msg = append(msg, byte(msgLen>>8), byte(msgLen), MsgOPEN)
 	msg = append(msg, body...)
 	return msg
+}
+
+// dialTargetAddr reads the address out of a "host:port" dial target, or returns
+// the zero Addr when it carries none.
+func dialTargetAddr(target string) netip.Addr {
+	host, _, err := net.SplitHostPort(target)
+	if err != nil {
+		return netip.Addr{}
+	}
+	addr, err := netip.ParseAddr(host)
+	if err != nil {
+		return netip.Addr{}
+	}
+	return addr
 }
 
 // doInject is the ModeInject connection handler. Called from

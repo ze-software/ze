@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
 	"os"
 	"strconv"
 	"strings"
@@ -99,12 +100,27 @@ type CapabilityOverride struct {
 	Add   bool   // true=add capability, false=drop capability
 }
 
+// OpenASBinding declares the AS ze-peer's OPEN carries, for one option=asn line.
+//
+// Addr is the ze endpoint the declaration applies to (option=asn:peer=<ip>).
+// The zero Addr is the unkeyed declaration and applies to every connection no
+// keyed one matched. A keyed declaration exists because one ze-peer process can
+// serve several of ze's peers at once (option=conn_map), and each of them is
+// configured for its own peer AS.
+type OpenASBinding struct {
+	Addr netip.Addr
+	AS   uint32
+}
+
 // Config holds test peer configuration.
 type Config struct {
 	// Port to listen on (default 179)
 	Port int
-	// ASN to use in OPEN message (0 = extract from peer OPEN)
-	ASN int
+	// OpenAS declares the AS ze-peer puts in BOTH carriers RFC 6793 defines: the
+	// My Autonomous System field, narrowed to AS_TRANS above 65535, and the
+	// Capability Value of capability 65 (option=asn:value=N). An empty list means
+	// the .ci declared none, and ze-peer then mirrors ze's own AS.
+	OpenAS []OpenASBinding
 	// BindAddr overrides the listen address (default "127.0.0.1", or "::1" if IPv6).
 	// Useful for multi-peer tests where each peer listens on a different loopback address.
 	BindAddr string
@@ -247,6 +263,12 @@ func New(config *Config) (*Peer, error) {
 	checker, err := newChecker(config.Expect)
 	if err != nil {
 		return nil, fmt.Errorf("invalid expect rules: %w", err)
+	}
+	// The second half of the pair check LoadExpectFile already ran. The two
+	// halves of a contradiction can arrive one from a command-line flag and one
+	// from the file, and only this point sees both.
+	if err := config.validateOpenDeclarations(); err != nil {
+		return nil, err
 	}
 	// A rejection is keyed by connection number, and only check mode reads one
 	// connection at a time (processConnBatch, peer_connmap.go). Sink and echo
@@ -487,8 +509,11 @@ func (p *Peer) doOpenHandshake(conn net.Conn) (header, body []byte, routerID uin
 	if len(body) >= 9 {
 		routerID = binary.BigEndian.Uint32(body[5:9])
 	}
-	ourOpen := p.generateOpen(header, body)
-	p.printPayload("open sent", ourOpen[:19], ourOpen[19:])
+	ourOpen, err := buildOpen(body, p.openIdentity(body, conn), p.config)
+	if err != nil {
+		return nil, nil, 0, fmt.Errorf("build OPEN: %w", err)
+	}
+	p.printPayload("open sent", ourOpen[:HeaderLen], ourOpen[HeaderLen:])
 	if _, err := conn.Write(ourOpen); err != nil {
 		return nil, nil, 0, fmt.Errorf("write OPEN: %w", err)
 	}
@@ -827,185 +852,6 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 			}
 		}
 	}
-}
-
-func (p *Peer) generateOpen(peerHeader, peerBody []byte) []byte {
-	open := make([]byte, len(peerHeader)+len(peerBody))
-	copy(open, peerHeader)
-	copy(open[19:], peerBody)
-
-	if len(peerBody) > 8 {
-		open[19+8] = (peerBody[8] + 1) & 0xFF
-	}
-
-	// Explicit BGP Identifier override (option=open:value=router-id:id=...), for tests that
-	// need an identifier the mirror-and-increment default can never produce -- e.g. 0.0.0.0
-	// or ze's own identifier (RFC 6286 Section 2.2).
-	if p.config.RouterID != nil && len(peerBody) > 8 {
-		binary.BigEndian.PutUint32(open[19+5:], *p.config.RouterID)
-	}
-
-	if p.config.ASN > 0 && p.config.ASN <= 65535 {
-		binary.BigEndian.PutUint16(open[19+1:], uint16(p.config.ASN)) //nolint:gosec // ASN validated
-		// The OPEN above is a MIRROR of ze's, so its 4-octet AS capability still
-		// carries ze's ASN. Patching only the 2-octet field leaves the two
-		// disagreeing, and RFC 6793 Section 4.1 makes ze answer OPEN Message
-		// Error / Bad Peer AS: "if the value of the AS number field is not the
-		// same as the value of the AS number encoded in the AS4 capability, then
-		// the BGP speaker MUST send a NOTIFICATION". Both halves move together.
-		patchAS4Capability(open, uint32(p.config.ASN)) //nolint:gosec // G115: the branch bounds it at 65535
-	}
-
-	// Apply capability overrides (drop/add) before SendUnknownCapability.
-	if len(p.config.CapabilityOverrides) > 0 {
-		open = applyCapabilityOverrides(open, p.config.CapabilityOverrides)
-	}
-
-	if p.config.SendUnknownCapability {
-		cap66 := []byte{66, 10, 'l', 'o', 'r', 'e', 'm', 'i', 'p', 's', 'u', 'm'}
-		param := append([]byte{2, byte(len(cap66))}, cap66...)
-
-		oldLen := binary.BigEndian.Uint16(open[16:])
-		paramLen := min(len(param), 65535-int(oldLen))
-		newLen := oldLen + uint16(paramLen) //nolint:gosec // Bounds checked
-		binary.BigEndian.PutUint16(open[16:], newLen)
-		open[19+9] += byte(len(param))
-		open = append(open, param...)
-	}
-
-	return open
-}
-
-// patchAS4Capability rewrites the AS number inside the OPEN's 4-octet AS
-// capability, in place and without changing any length.
-//
-// generateOpen mirrors ze's own OPEN and then overwrites the 2-octet AS field
-// with option=asn. The mirrored capability 65 still carries ZE's AS, so an
-// unpatched OPEN declares two different AS numbers and ze answers OPEN Message
-// Error / Bad Peer AS (RFC 6793 Section 4.1). A .ci that sets an AS ze does not
-// hold could then never establish, which is what test/vrrp/vrrp-show.ci hit.
-//
-// An OPEN carrying no capability 65 is left exactly as it was: a peer that
-// declares no 4-octet AS support has one AS number and it is already correct.
-func patchAS4Capability(open []byte, asn uint32) {
-	const openFixedLen = 29 // 19 header + version, AS, hold time, identifier, optional-parameter length
-	if len(open) < openFixedLen {
-		return
-	}
-	body := open[19:]
-	optParamLen := int(body[9])
-	pos := 10
-	for pos+2 <= len(body) && pos < 10+optParamLen {
-		paramLen := int(body[pos+1])
-		if pos+2+paramLen > len(body) {
-			return
-		}
-		if body[pos] != 2 {
-			pos += 2 + paramLen
-			continue
-		}
-		param := body[pos+2 : pos+2+paramLen]
-		for at := 0; at+2 <= len(param); {
-			capLen := int(param[at+1])
-			if at+2+capLen > len(param) {
-				return
-			}
-			if param[at] == 65 && capLen == 4 {
-				binary.BigEndian.PutUint32(param[at+2:at+6], asn)
-				return
-			}
-			at += 2 + capLen
-		}
-		pos += 2 + paramLen
-	}
-}
-
-// applyCapabilityOverrides modifies OPEN optional parameters by dropping/adding capabilities.
-// Handles both per-capability wrapping (each cap in its own type-2 parameter) and RFC 5492
-// bundled format (all caps in a single type-2 parameter). In bundled format, the function
-// iterates inside the type-2 parameter to filter individual capability TLVs.
-func applyCapabilityOverrides(open []byte, overrides []CapabilityOverride) []byte {
-	if len(open) < 29 { // 19 header + 10 min body (version+AS+hold+id+optlen)
-		return open
-	}
-
-	body := open[19:]
-	optParamLen := int(body[9])
-
-	// Build set of codes to drop.
-	dropCodes := make(map[byte]bool)
-	for _, o := range overrides {
-		if !o.Add {
-			dropCodes[o.Code] = true
-		}
-	}
-
-	// Iterate optional parameters. For type-2 (Capability), iterate inside the
-	// parameter to filter individual capability TLVs (handles bundled format).
-	var keptParams []byte
-	pos := 10
-	for pos+2 <= len(body) && pos < 10+optParamLen {
-		paramType := body[pos]
-		paramLen := int(body[pos+1])
-		if pos+2+paramLen > len(body) {
-			break
-		}
-
-		if paramType == 2 && paramLen >= 2 {
-			// Iterate capability TLVs within this type-2 parameter.
-			var keptCaps []byte
-			capPos := 0
-			paramData := body[pos+2 : pos+2+paramLen]
-			for capPos+2 <= len(paramData) {
-				capCode := paramData[capPos]
-				capLen := int(paramData[capPos+1])
-				if capPos+2+capLen > len(paramData) {
-					break
-				}
-				if !dropCodes[capCode] {
-					keptCaps = append(keptCaps, paramData[capPos:capPos+2+capLen]...)
-				}
-				capPos += 2 + capLen
-			}
-			if len(keptCaps) > 0 {
-				keptParams = append(keptParams, 2, byte(len(keptCaps)))
-				keptParams = append(keptParams, keptCaps...)
-			}
-		} else {
-			keptParams = append(keptParams, body[pos:pos+2+paramLen]...)
-		}
-		pos += 2 + paramLen
-	}
-
-	// Add new capabilities as a separate type-2 parameter.
-	for _, o := range overrides {
-		if !o.Add {
-			continue
-		}
-
-		capTLV := make([]byte, 2+len(o.Value))
-		capTLV[0] = o.Code
-		capTLV[1] = byte(len(o.Value))
-		copy(capTLV[2:], o.Value)
-
-		param := make([]byte, 2+len(capTLV))
-		param[0] = 2 // Optional Parameter Type: Capability
-		param[1] = byte(len(capTLV))
-		copy(param[2:], capTLV)
-
-		keptParams = append(keptParams, param...)
-	}
-
-	// Rebuild OPEN message: header + fixed body (9 bytes) + opt param len + params.
-	result := make([]byte, 19+10+len(keptParams))
-	copy(result, open[:19])     // BGP header (marker + length + type)
-	copy(result[19:], body[:9]) // Version, ASN, Hold Time, Router ID
-	result[19+9] = byte(len(keptParams))
-	copy(result[29:], keptParams)
-
-	// Fix message length in header.
-	binary.BigEndian.PutUint16(result[16:], uint16(len(result))) //nolint:gosec // bounded by BGP message size
-	return result
 }
 
 func (p *Peer) printPayload(prefix string, header, body []byte) {

@@ -352,6 +352,27 @@ func zeTestRunEncodingOrAPI(ctx context.Context, cli *zeTestRunCLIFlags, baseDir
 	return nil
 }
 
+// recordOpenAS reads a record's `asn` value into the AS ze-peer opens with.
+//
+// Refused rather than dropped. A value this could not read used to leave the
+// peer opening with ze's own AS, so a server-mode run of a test naming an AS ze
+// does not hold could only ever answer NOTIFICATION 2/2 Bad Peer AS, and nothing
+// said why (ai/rules/principles.md). A record that names no `asn` declares none,
+// which is a different answer and returns no binding.
+func recordOpenAS(nick, value string) ([]peer.OpenASBinding, error) {
+	if value == "" {
+		return nil, nil
+	}
+	as, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("test %s: asn %q is not a number, so ze-peer would open with an AS the test did not state", nick, value)
+	}
+	if as == 0 {
+		return nil, fmt.Errorf("test %s: asn 0 is reserved by RFC 7607 Section 2, and ze refuses a peer that opens with it", nick)
+	}
+	return []peer.OpenASBinding{{AS: uint32(as)}}, nil //nolint:gosec // ParseUint bounds it at 32 bits
+}
+
 func zeTestRunServerOnly(ctx context.Context, cli *zeTestRunCLIFlags, tests *runner.EncodingTests, _ string) error {
 	rec := tests.GetByNick(cli.server)
 	if rec == nil {
@@ -382,11 +403,11 @@ func zeTestRunServerOnly(ctx context.Context, cli *zeTestRunCLIFlags, tests *run
 		Output: os.Stdout,
 	}
 
-	if asn, ok := rec.Extra["asn"]; ok {
-		if v, err := strconv.Atoi(asn); err == nil {
-			config.ASN = v
-		}
+	binding, asErr := recordOpenAS(rec.Nick, rec.Extra["asn"])
+	if asErr != nil {
+		return asErr
 	}
+	config.OpenAS = append(config.OpenAS, binding...)
 	if rec.Extra["bind"] == "ipv6" {
 		config.IPv6 = true
 	}

@@ -101,13 +101,14 @@ func zeTestParsePeerFlags(args []string) (*peer.Config, bool) {
 	var injectPrefix, injectNextHop string
 	var injectCount int
 	var injectASN uint
+	var openASN uint64
 	var injectDwell time.Duration
 
 	fs := flag.NewFlagSet("peer", flag.ExitOnError)
 	fs.IntVar(&config.Port, "port", port, "port to bind to")
 	fs.StringVar(&config.BindAddr, "bind", "", "bind address (default 127.0.0.1, or ::1 with -ipv6)")
 	fs.StringVar(&config.Dial, "dial", "", "dial host:port instead of listening (active BGP role)")
-	fs.IntVar(&config.ASN, "asn", 0, "ASN to use (0 = extract from peer OPEN)")
+	fs.Uint64Var(&openASN, "asn", 0, "AS ze-peer opens with, in both RFC 6793 carriers (0 = mirror ze's own)")
 	fs.StringVar(&mode, "mode", "check", "operation mode: check, sink, echo, inject")
 	fs.BoolVar(&config.IPv6, "ipv6", false, "bind using IPv6")
 	fs.UintVar(&ttl, "ttl", 0, "outgoing TTL / hop limit on the listen socket (255 = RFC 5082 GTSM peer)")
@@ -133,6 +134,16 @@ func zeTestParsePeerFlags(args []string) (*peer.Config, bool) {
 		return nil, false
 	}
 	config.TTL = uint8(ttl)
+
+	// Refused rather than truncated, for the same reason: an AS outside the RFC
+	// 6793 Section 3 range would open the session under an AS nobody asked for.
+	if openASN > 4294967295 {
+		fmt.Fprintf(os.Stderr, "error: --asn %d out of range 1..4294967295\n", openASN)
+		return nil, false
+	}
+	if openASN > 0 {
+		config.OpenAS = append(config.OpenAS, peer.OpenASBinding{AS: uint32(openASN)})
+	}
 
 	var valid bool
 	config.Mode, valid = peer.ParseMode(mode)
@@ -206,8 +217,11 @@ func zeTestMergePeerFileConfig(config, fileConfig *peer.Config) {
 	if fileConfig.SendUnknownMessage {
 		config.SendUnknownMessage = true
 	}
-	if fileConfig.ASN != 0 {
-		config.ASN = fileConfig.ASN
+	// The file REPLACES the flag rather than joining it. Both are unkeyed, so
+	// appending would leave two declarations for one session and let their order
+	// decide which reaches the wire.
+	if len(fileConfig.OpenAS) > 0 {
+		config.OpenAS = fileConfig.OpenAS
 	}
 	if fileConfig.TCPConnections > 0 {
 		config.TCPConnections = fileConfig.TCPConnections
@@ -273,7 +287,7 @@ Modes:
 
 Options:
   --port N           Port to bind (default: 179, or ze_test_bgp_port env)
-  --asn N            ASN to use (0 = extract from peer OPEN)
+  --asn N            AS ze-peer opens with, in both RFC 6793 carriers
   --ipv6             Bind using IPv6
   --decode           Decode messages to human-readable format
   --view             Show expected packets and exit

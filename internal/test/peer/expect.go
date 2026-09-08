@@ -218,7 +218,15 @@ func LoadExpectFile(path string) ([]string, *Config, error) {
 		}
 	}
 
-	return expect, config, scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return nil, nil, err
+	}
+	// Checked after the whole block is read, because each refusal it holds is a
+	// PAIR of lines and either order is legal to write.
+	if err := config.validateOpenDeclarations(); err != nil {
+		return nil, nil, err
+	}
+	return expect, config, nil
 }
 
 // parseOptionConfig parses option lines into Config.
@@ -242,11 +250,25 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) (cl
 		return false, nil
 
 	case "asn":
-		v, cerr := strconv.Atoi(kv["value"])
-		if cerr != nil {
-			return false, fmt.Errorf("option=asn:value=%q is not a number, so ze-peer would open with AS 0", kv["value"])
+		binding, berr := parseOpenASBinding(kv)
+		if berr != nil {
+			return false, berr
 		}
-		config.ASN = v
+		// Two unkeyed declarations in one block are a contradiction, and taking
+		// the last would resolve it by accident of order. A block that wants a
+		// different AS per session keys each line with peer=<ip>.
+		if !binding.Addr.IsValid() {
+			for _, held := range config.OpenAS {
+				if held.Addr.IsValid() {
+					continue
+				}
+				return false, fmt.Errorf(
+					"option=asn:value=%d follows option=asn:value=%d with no peer= key on either, "+
+						"so the block states two ASNs for the same session; key each line with peer=<ip>",
+					binding.AS, held.AS)
+			}
+		}
+		config.OpenAS = append(config.OpenAS, binding)
 
 	case "bind":
 		v := kv["value"]
@@ -284,33 +306,46 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) (cl
 		case "send-unknown-message":
 			config.SendUnknownMessage = true
 		case "drop-capability":
-			if codeStr := kv["code"]; codeStr != "" {
-				code, err := strconv.Atoi(codeStr)
-				if err == nil && code > 0 && code <= 255 {
-					config.CapabilityOverrides = append(config.CapabilityOverrides, CapabilityOverride{
-						Code: uint8(code), Add: false, //nolint:gosec // range checked
-					})
-				}
+			code, cerr := parseCapabilityCode("drop-capability", kv["code"])
+			if cerr != nil {
+				return false, cerr
 			}
+			config.CapabilityOverrides = append(config.CapabilityOverrides, CapabilityOverride{
+				Code: code, Add: false,
+			})
+
 		case "router-id":
 			// option=open:value=router-id:id=<a.b.c.d> -- send this BGP Identifier instead of
-			// the mirrored ze identifier + 1. Drives RFC 6286 Section 2.2 rejection tests.
-			if addr, err := netip.ParseAddr(kv["id"]); err == nil && addr.Is4() {
-				octets := addr.As4()
-				id := binary.BigEndian.Uint32(octets[:])
-				config.RouterID = &id
+			// the derived ze identifier + 1. Drives RFC 6286 Section 2.2 rejection tests.
+			addr, aerr := netip.ParseAddr(kv["id"])
+			if aerr != nil {
+				return false, fmt.Errorf("option=open:value=router-id:id=%q is not an address: %w", kv["id"], aerr)
 			}
+			if !addr.Is4() {
+				return false, fmt.Errorf("option=open:value=router-id:id=%q is not IPv4, and RFC 4271 Section 4.2 makes the BGP Identifier four octets", kv["id"])
+			}
+			octets := addr.As4()
+			id := binary.BigEndian.Uint32(octets[:])
+			config.RouterID = &id
 
 		case "add-capability":
-			if codeStr := kv["code"]; codeStr != "" {
-				code, err := strconv.Atoi(codeStr)
-				if err == nil && code > 0 && code <= 255 {
-					val, _ := hex.DecodeString(kv["hex"])
-					config.CapabilityOverrides = append(config.CapabilityOverrides, CapabilityOverride{
-						Code: uint8(code), Value: val, Add: true, //nolint:gosec // range checked
-					})
-				}
+			code, cerr := parseCapabilityCode("add-capability", kv["code"])
+			if cerr != nil {
+				return false, cerr
 			}
+			val, herr := hex.DecodeString(kv["hex"])
+			if herr != nil {
+				return false, fmt.Errorf("option=open:value=add-capability:hex=%q is not hex: %w", kv["hex"], herr)
+			}
+			// RFC 5492 Section 4 gives the Capability Length one octet, so a longer
+			// value cannot be stated. Truncating it would put a capability on the
+			// wire that says something the .ci never asked for.
+			if len(val) > 255 {
+				return false, fmt.Errorf("option=open:value=add-capability:hex= carries %d octets, RFC 5492 Section 4 states at most 255", len(val))
+			}
+			config.CapabilityOverrides = append(config.CapabilityOverrides, CapabilityOverride{
+				Code: code, Value: val, Add: true,
+			})
 
 		default:
 			// The option exists and its value does not. Answering "claimed"
@@ -441,4 +476,59 @@ func parseBulkSpec(kv map[string]string) (InjectSpec, error) {
 	spec.EndOfRIB = kv["eor"] == optTrue
 
 	return spec, nil
+}
+
+// parseCapabilityCode reads the code= key of a drop-capability or
+// add-capability option.
+//
+// RFC 5492 Section 4 gives the Capability Code one octet, and 0 is unassigned.
+// A value outside that range used to be dropped in silence, so the .ci carried a
+// line nothing acted on and the test asserted against an OPEN it never asked for.
+func parseCapabilityCode(option, value string) (uint8, error) {
+	code, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, fmt.Errorf("option=open:value=%s:code=%q is not a number", option, value)
+	}
+	if code < 1 || code > 255 {
+		return 0, fmt.Errorf("option=open:value=%s:code=%d is outside 1..255, the one-octet Capability Code of RFC 5492 Section 4", option, code)
+	}
+	return uint8(code), nil //nolint:gosec // the range check above bounds it
+}
+
+// parseOpenASBinding reads one option=asn line into the AS ze-peer opens with.
+//
+// RFC 6793 Section 3 makes a four-octet AS representable rather than refusable:
+// AS_TRANS goes in the My Autonomous System field and the real AS in the
+// Capability Value of capability 65. So the range is the whole AS space, and
+// only a value outside it is refused.
+//
+// The refusal happens HERE, where the .ci is read, and never in the builder. A
+// value the harness cannot honor must stop the file before a socket exists,
+// rather than produce a peer that quietly claims someone else's AS
+// (plan/learned/005-runner-drops-what-it-cannot-honor.md).
+//
+// peer=<ip> binds the declaration to one of ze's endpoint addresses, for the
+// tests where one ze-peer process serves several of ze's peers at once and each
+// is configured for its own AS.
+func parseOpenASBinding(kv map[string]string) (OpenASBinding, error) {
+	value := kv["value"]
+	as, err := strconv.ParseUint(value, 10, 64)
+	if err != nil {
+		return OpenASBinding{}, fmt.Errorf("option=asn:value=%q is not a number, and ze-peer must not open with an AS the .ci did not state", value)
+	}
+	if as < 1 || as > asMax {
+		return OpenASBinding{}, fmt.Errorf("option=asn:value=%d is outside 1..%d; RFC 7607 Section 2 reserves AS 0 and RFC 6793 Section 3 makes %d the largest AS", as, uint64(asMax), uint64(asMax))
+	}
+
+	binding := OpenASBinding{AS: uint32(as)} //nolint:gosec // the range check above bounds it
+	key := kv["peer"]
+	if key == "" {
+		return binding, nil
+	}
+	addr, aerr := netip.ParseAddr(key)
+	if aerr != nil {
+		return OpenASBinding{}, fmt.Errorf("option=asn:peer=%q is not an address: %w", key, aerr)
+	}
+	binding.Addr = addr
+	return binding, nil
 }

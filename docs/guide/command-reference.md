@@ -1449,13 +1449,14 @@ of them declares.
 
 That bare command answers the seven validation counters and one row for each
 cache server, as siblings. That shape is what leaves `| summary` a half to
-select. The RPKI plugin declares the alias over the plugin Stage 1 channel
-rather than in Go. So `ze help command --json` and `./le command list` do not
-list it: both read the compiled tree in their own process and start no plugin.
-Each row they DO list carries the command's summary under `description` and its
-long explanation under `long-help`. The full RPKI command list is in
-`docs/guide/rpki.md`.
+select. The RPKI plugin declares the alias on its `registry.Registration`, which
+every reader that links the composition root sees, so `ze help command --json`
+and `./le command list` both list `summary` on the command. Each row carries the
+command's summary under `description` and its long explanation under
+`long-help`. The full RPKI command list is in `docs/guide/rpki.md`.
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
+<!-- source: cmd/ze/help_command.go -- appendPluginCommands -->
+<!-- source: internal/le/command/list/commandlist.go -- aliasesFor -->
 <!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
 
 `show bgp summary` was a second spelling of this command until 2026-08. It is

@@ -38,7 +38,7 @@ action=notification:conn=1:seq=2:text=session ending`
 	require.NoError(t, err)
 
 	// Verify config options
-	assert.Equal(t, 65000, config.ASN)
+	assert.Equal(t, []OpenASBinding{{AS: 65000}}, config.OpenAS)
 	assert.True(t, config.IPv6)
 	assert.Equal(t, 2, config.TCPConnections)
 	assert.True(t, config.SendUnknownCapability)

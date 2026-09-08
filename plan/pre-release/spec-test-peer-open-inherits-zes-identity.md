@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 5/6 |
 | Handoff | - |
-| Updated | 2026-09-07 |
+| Updated | 2026-09-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -20,14 +20,24 @@ when `option=open:value=router-id` asks for one, and the two-octet My AS field
 when `option=asn` asks for one. Everything else is inherited verbatim, ze's
 optional parameters among it.
 
-The AS is therefore asserted twice and the two assertions disagree. The patched
-My AS field says what the `.ci` asked for; the inherited four-octet AS capability
-still says ze's own AS. `openAdvertisedAS`
-(`internal/component/bgp/reactor/peer.go`) reads the capability first, as
-RFC 6793 Section 4.1 requires, and `validateOpenPeerAS`
+The AS is therefore asserted twice. `patchAS4Capability` landed in HEAD on
+2026-09-08 and moves the second assertion with the first, so `option=asn` already
+reaches both carriers for an AS in 1 to 65535. Two gaps remain, and this spec
+closes them. **The absent-option case:** 132 eBGP `.ci` files set no `option=asn`
+at all, so ze-peer opens as ze and `validateOpenPeerAS`
 (`internal/component/bgp/reactor/session_open_as.go`) answers NOTIFICATION 2/2
-Bad Peer AS. Ze is correct at every step. The harness is wrong, and the product's
-OPEN encoder is not in scope.
+Bad Peer AS. `patchAS4Capability` cannot reach them. **Everything outside 1 to
+65535:** `parseOptionConfig` (`internal/test/peer/expect.go`) already refuses a
+non-numeric value, and 0, a negative value and a four-octet value all parse, are
+then skipped by the `> 0 && <= 65535` guard in `generateOpen`, and the peer opens
+as ze in silence.
+
+`openAdvertisedAS` (`internal/component/bgp/reactor/peer.go`) reads the
+capability first, as RFC 6793 Section 4.1 requires, so the capability is the
+carrier a conforming receiver reads. The refusal itself is RFC 4271 Section 6.2,
+Bad Peer AS, reached because 6793's precedence rule handed the validator an AS
+the session is not configured for. Ze is correct at every step. The harness is
+wrong, and the product's OPEN encoder is not in scope.
 
 Measured over the 2026-09-07 gating log: 224 of its 269 failures carry that
 signature, across four suites (5 `encode`, 212 `plugin`, 6 `ui`, 1 `vrrp`).
@@ -232,23 +242,23 @@ harness cannot represent stops the `.ci` at read time.**
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | The `.ci` option reaches `parseOptionConfig` (`internal/test/peer/expect.go`), which refuses what the harness cannot honor before a socket exists, then `Config.OpenAS`, then `buildOpen` (`internal/test/peer/open.go`). No octet is written at a fixed offset into a buffer built elsewhere; `generateOpen`, `patchAS4Capability` and `applyCapabilityOverrides` are deleted |
+| No unintended coupling (components stay isolated) | Yes | `internal/test/peer` reads `internal/core/bgp/capability` only, which is the package that owns the capability types and which ze's own receive path uses. `internal/test/runner` reads the `.ci` text and imports no BGP configuration package |
+| No duplicated functionality (extends existing, does not recreate) | Yes | The capability TLVs pass through as raw octets, so only the four the builder OWNS are re-encoded, and each is re-encoded by its own `capability` type. Two OPEN builders remain and share their fact resolution: `myASField` narrows the AS for both, `Config.resolveOpenAS` answers which AS the `.ci` declared for both. The block reader the tunnel lint had in a `_test.go` moved to `internal/test/runner/ci_config_read.go` rather than being written a second time |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | `parseOpenParams` returns sub-slices of ze's OPEN body and never copies a capability. `encodeOpen` sizes the whole message once and writes into it at offsets. This is a test harness, so the target is correctness rather than the wire path's allocation budget |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | Nothing registers and nothing central is edited. `ownedCapabilities` switches on capability code, which is a list of the facts that describe the SENDER rather than an enumeration of what exists: a new capability passes through untouched, and only one Ze-peer asserts about itself needs a case |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Reconciling the AS in both carriers clears the 224 gating failures carrying that signature | The 2026-09-07 row in `plan/journal/test-against-broken-path.md` measured the count and named the mechanism; `openAdvertisedAS` reads the capability first | The reds have a second cause and this spec closes fewer than it claims | a full `./le functional gating` run before and after, compared by failing-test name | unvalidated |
-| A-2 | Decoding ze's optional parameters and re-encoding them preserves what every `.ci` asserts | ze's own receive path reads back what `capability.ParseFromOptionalParams` produces; `Open.ExtendedParams` exists so a decoded message can be re-encoded without the framing being lost | tests that assert exact octets break, or ze misframes the peer's parameters | a unit test that round-trips every capability ze can send and compares octets, plus the gating run | unvalidated |
-| A-3 | No `.ci` depends on ze-peer claiming ze's own AS | `test/plugin/peer-local-port-listener.ci` is recorded in `plan/journal/guard-added-to-one-half-of-a-pair.md` as doing exactly that as a workaround | that file, and any like it, go red on a correct harness and need their configuration corrected in this spec | grep for `.ci` files whose peer AS equals ze's configured local AS, then the gating run | unvalidated |
-| A-4 | Ze's optional parameters stay under 256 octets in the functional suites today, so the one-octet assumption has not yet produced a visible red | `buildOptionalParams` chooses the RFC 9072 framing only above 255 octets, and the 224 reds are all explained by the AS | the framing defect already causes reds attributed elsewhere, and the count in A-1 is wrong | report the parameter length the builder saw over the gating run | unvalidated |
-| A-5 | The Role reconciliation can pick the complement without being told, because ze's role is in the OPEN being answered | `isValidRolePair` holds the table and the Role capability value is one octet in ze's OPEN | the harness picks a role a test did not want and a role test changes meaning | the four Role `.ci` files keep their verdict with their explicit drop and add lines, and a new `.ci` with no Role lines establishes | unvalidated |
-| A-6 | `option=asn` is the only option whose value is written into one carrier of a two-carrier fact | read of `parseOptionConfig` and `generateOpen` | another option has the same defect and this spec leaves it | enumerate every `Config` field the builder reads and name the carriers of each | unvalidated |
+| A-1 | Reconciling the AS in both carriers clears the 224 gating failures carrying that signature | The 2026-09-07 row in `plan/journal/test-against-broken-path.md` measured the count and named the mechanism; `openAdvertisedAS` reads the capability first | The reds have a second cause and this spec closes fewer than it claims | a full `./le functional gating` run before and after, compared by failing-test name | broken as stated, confirmed in substance. Reconciling the carriers is NOT enough: 132 of the failures set no `option=asn` at all, so nothing was there to reconcile, and the AS had to be DERIVED from the ze configuration the `.ci` embeds (`declarePeerAS`, `internal/test/runner/peer_asn.go`). With the derivation, six representative failures from the baseline list pass individually: `adj-rib-in-query`, `med-removal-configured`, `rfc4271-partial-unknown-transitive`, `asn4-transcode-pooled-buffer`, `role-otc-egress-stamp`, `peer-local-port-listener`. The full comparison is phase 6 |
+| A-2 | Decoding ze's optional parameters and re-encoding them preserves what every `.ci` asserts | ze's own receive path reads back what `capability.ParseFromOptionalParams` produces; `Open.ExtendedParams` exists so a decoded message can be re-encoded without the framing being lost | tests that assert exact octets break, or ze misframes the peer's parameters | a unit test that round-trips every capability ze can send and compares octets, plus the gating run | confirmed, by a stronger route than the one planned. The builder does NOT decode into typed capabilities: it keeps each capability TLV as raw octets and replaces only the four whose value describes the sender. `PathsLimit` drops limit-0 entries on parse, so a decode-and-re-encode would not have been octet-preserving. `TestPeerOpenPassThroughIsByteIdentical` asserts the whole parameter block comes back unchanged |
+| A-3 | No `.ci` depends on ze-peer claiming ze's own AS | `test/plugin/peer-local-port-listener.ci` is recorded in `plan/journal/guard-added-to-one-half-of-a-pair.md` as doing exactly that as a workaround | that file, and any like it, go red on a correct harness and need their configuration corrected in this spec | grep for `.ci` files whose peer AS equals ze's configured local AS, then the gating run | confirmed for the one file the journal names. `test/plugin/peer-local-port-listener.ci` now declares an eBGP session (remote 65534 against local 65533), states no `option=asn`, and passes on the derived AS. A scan of every `.ci` with a peer block found no other file whose `option=asn` equals ze's own local AS |
+| A-4 | Ze's optional parameters stay under 256 octets in the functional suites today, so the one-octet assumption has not yet produced a visible red | `buildOptionalParams` chooses the RFC 9072 framing only above 255 octets, and the 224 reds are all explained by the AS | the framing defect already causes reds attributed elsewhere, and the count in A-1 is wrong | report the parameter length the builder saw over the gating run | confirmed indirectly. Every `.ci` run in this phase passed with the builder emitting one-octet framing, which it does below 256 octets, so no functional case reached the wider envelope. The builder now handles both directions, so the question stops mattering: `TestPeerOpenReadsExtendedParameterFraming` reads an RFC 9072 input and `TestPeerOpenEmitsExtendedFramingAbove255` emits one |
+| A-5 | The Role reconciliation can pick the complement without being told, because ze's role is in the OPEN being answered | `isValidRolePair` holds the table and the Role capability value is one octet in ze's OPEN | the harness picks a role a test did not want and a role test changes meaning | the four Role `.ci` files keep their verdict with their explicit drop and add lines, and a new `.ci` with no Role lines establishes | confirmed. `complementaryRole` reads the one-octet value out of ze's OPEN and answers with the RFC 9234 Section 4.2 Table 2 complement. `test/plugin/peer-open-role-complement.ci` names no role and establishes; `test/plugin/role-otc-egress-stamp.ci` keeps its verdict with its explicit drop and add lines, because a capability the `.ci` states replaces the builder's own |
+| A-6 | `option=asn` is the only option whose value is written into one carrier of a two-carrier fact | read of `parseOptionConfig` and `generateOpen` | another option has the same defect and this spec leaves it | enumerate every `Config` field the builder reads and name the carriers of each | broken. Three more options had the same shape, and all three are fixed here: `router-id` dropped a malformed or IPv6 value in silence and sent the derived default instead, `drop-capability` and `add-capability` dropped an out-of-range `code=` in silence, and `add-capability` discarded `hex.DecodeString`'s error so bad hex became an empty capability value and a value above 255 octets truncated. A fifth is recorded rather than fixed: `option=asn` reached NO carrier at all on a dialing inject peer, which `buildActiveOpen` now honors |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -301,18 +311,49 @@ harness cannot represent stops the `.ci` at read time.**
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestPeerOpenASReachesBothCarriers` | `internal/test/peer/open_test.go` | AC-1: the two-octet field and the ASN4 capability carry one value | |
-| `TestPeerOpenFourOctetASUsesASTrans` | `internal/test/peer/open_test.go` | AC-3: 23456 in the field, the real AS in the capability | |
-| `TestPeerOpenDefaultASMatchesZesExpectation` | `internal/test/peer/open_test.go` | AC-2: no `option=asn` still produces one consistent AS | |
-| `TestPeerOptionASNRefusesUnrepresentable` | `internal/test/peer/expect_test.go` | AC-4: zero, negative, oversized and non-numeric each return an error naming the value | |
-| `TestPeerOpenRoleIsComplementary` | `internal/test/peer/open_test.go` | AC-5: the mirrored role is replaced by its complement | |
-| `TestPeerOpenExplicitRoleWins` | `internal/test/peer/open_test.go` | AC-6: an `add-capability:code=9` suppresses the harness default | |
-| `TestPeerOpenAddPathDirectionsInverted` | `internal/test/peer/open_test.go` | AC-7: Send becomes Receive, Receive becomes Send, Both stays Both | |
-| `TestPeerOpenFQDNIsTheHarnessName` | `internal/test/peer/open_test.go` | AC-8 | |
-| `TestPeerOpenReadsExtendedParameterFraming` | `internal/test/peer/open_test.go` | AC-9: an RFC 9072-framed input is parsed and re-emitted | |
-| `TestPeerOpenEmitsExtendedFramingAbove255` | `internal/test/peer/open_test.go` | AC-10 | |
-| `TestPeerOpenPassThroughIsByteIdentical` | `internal/test/peer/open_test.go` | R-3: with no overrides and no reconciliation needed, the parameters come back in the order they were read | |
-| `TestPeerOpenCapabilityOverridesUnchanged` | `internal/test/peer/open_test.go` | AC-11: drop and add produce the same set as today for every code used in `test/` | |
+| `TestPeerOpenASReachesBothCarriers` | `internal/test/peer/open_test.go` | AC-1: the two-octet field and the ASN4 capability carry one value | PASS. RED under two breaks: the field left inheriting ze's octets, and capability 65 left at ze's AS |
+| `TestPeerOpenFourOctetASUsesASTrans` | `internal/test/peer/open_test.go` | AC-3: 23456 in the field, the real AS in the capability | PASS. RED under both AS breaks |
+| `TestPeerOpenFourOctetASAddsTheCapability` | `internal/test/peer/open_test.go` | AC-3: the capability is ADDED where ze offered none, because above 65535 it is the AS's only carrier | PASS. RED under the capability break |
+| `TestPeerOpenDefaultASMatchesZesExpectation` | `internal/test/peer/open_test.go` | AC-2: no `option=asn` still produces one consistent AS, read through the RFC 6793 Section 4.1 precedence rule | PASS. RED under the capability break |
+| `TestPeerOpenASBindingPicksTheConnectionsPeer` | `internal/test/peer/open_test.go` | AC-2: a keyed `option=asn:peer=<ip>` wins over an unkeyed one, on either endpoint, and no declaration is reported as none rather than as AS 0 | PASS |
+| `TestPeerOptionASNBindsAnAddress` | `internal/test/peer/expect_test.go` | AC-2: the `peer=` key parses, and a malformed address fails the file | PASS. RED with the key parsed and its error discarded |
+| `TestDeclarePeerASFromOneConfiguredPeer` | `internal/test/runner/peer_asn_test.go` | AC-2: a block that states no AS gets the one `session { asn { remote N } }` declares | PASS. RED with the derivation disabled |
+| `TestDeclarePeerASLeavesAStatedASAlone` | `internal/test/runner/peer_asn_test.go` | AC-2: an explicit `option=asn` is the override | PASS. RED with the stated-AS check removed |
+| `TestDeclarePeerASKeysEachSession` | `internal/test/runner/peer_asn_test.go` | AC-2: several configured ASNs produce one keyed line per address ze dials | PASS. RED with one AS answering every session |
+| `TestDeclarePeerASPrefersTheDialAddress` | `internal/test/runner/peer_asn_test.go` | AC-2: the address ze dials outranks the address ze speaks from | PASS. RED with the precedence removed |
+| `TestDeclarePeerASRefusesOneAddressWithTwoASNs` | `internal/test/runner/peer_asn_test.go` | AC-2: two peers ze dials at one address, expecting two ASNs, fail the file rather than being guessed | PASS. RED with the refusal removed |
+| `TestDeclarePeerASIgnoresANonBGPPeer` | `internal/test/runner/peer_asn_test.go` | AC-2: an IPsec or WireGuard `peer` block contributes nothing | PASS |
+| `TestPeerOptionASNRefusesUnrepresentable` | `internal/test/peer/expect_test.go` | AC-4: zero, negative, oversized, non-numeric and empty each return an error naming the option and the value; 1, 65535, 65536 and 4294967295 each parse | PASS. RED under two breaks: the range check removed, and the parse error discarded |
+| `TestPeerOptionAddCapabilityRefusesWhatItCannotSend` | `internal/test/peer/expect_test.go` | AC-4 for the other options: an out-of-range `code=`, a non-numeric one, non-hex `hex=`, and a value above 255 octets each fail the file | PASS. RED under the code-range break, the hex-error break and the length break |
+| `TestLoadExpectFileRouterIDOverride` | `internal/test/peer/expect_test.go` | AC-4 for `router-id`: a malformed or IPv6 identifier fails the file rather than sending the default | PASS. RED with the silent-drop shape restored. Its two refusal cases asserted the drop until this spec; the assertion was wrong, not the guard |
+| `TestPeerOpenRoleIsComplementary` | `internal/test/peer/open_test.go` | AC-5: the mirrored role is replaced by its complement, for all five RFC 9234 values | PASS. RED with the role mirrored |
+| `TestPeerOpenExplicitRoleWins` | `internal/test/peer/open_test.go` | AC-6: an `add-capability` for a code the builder resolves suppresses the builder's own, for code 9 with a drop beside it and for code 65 without one | PASS. RED with the stated-capability check removed |
+| `TestPeerOpenAddPathDirectionsInverted` | `internal/test/peer/open_test.go` | AC-7: Send becomes Receive, Receive becomes Send, Both stays Both | PASS. RED with the direction mirrored |
+| `TestPeerOpenFQDNIsTheHarnessName` | `internal/test/peer/open_test.go` | AC-8 | PASS. RED with the FQDN mirrored |
+| `TestPeerOpenReadsExtendedParameterFraming` | `internal/test/peer/open_test.go` | AC-9: an RFC 9072-framed input is parsed, `drop-capability` acts on it, and the rest is re-emitted | PASS. RED with the RFC 9072 input framing ignored |
+| `TestPeerOpenEmitsExtendedFramingAbove255` | `internal/test/peer/open_test.go` | AC-10 | PASS. RED with the one-octet framing forced |
+| `TestPeerOpenPassThroughIsByteIdentical` | `internal/test/peer/open_test.go` | R-3: with no overrides and no reconciliation needed, the parameters come back in the order they were read | PASS |
+| `TestPeerOpenCapabilityOverridesUnchanged` | `internal/test/peer/open_test.go` | AC-11: drop and add produce the same set as today for every code used in `test/` | PASS |
+| `TestPeerOpenSendUnknownCapability` | `internal/test/peer/open_test.go` | AC-11: `send-unknown-capability` still puts code 66 with the value `loremipsum` on the wire | PASS |
+| `TestPeerOpenRouterIDDerivesFromZes` | `internal/test/peer/open_test.go` | Behavior to preserve: the default identifier is ze's with the last octet incremented, and the increment wraps inside that octet | PASS |
+| `TestPeerOpenStatedASWinsOverEveryOtherDeclaration` | `internal/test/peer/open_test.go` | AC-1 and AC-6 together: an `add-capability:code=65` of four octets IS the AS declaration and the My AS field follows it; one of any other length declares no AS | PASS. RED with the stated capability not deciding the AS. Round-1 review found the two carriers disagreeing here |
+| `TestPeerOpenRefusesAMessageAboveTheRFC4271Ceiling` | `internal/test/peer/open_test.go` | AC-10 boundary: the whole MESSAGE is bounded at 4096, not just the parameters, so the header Length field cannot wrap | PASS. RED with the bound removed |
+| `TestPeerOptionASNRefusesTwoUnkeyedDeclarations` | `internal/test/peer/expect_test.go` | AC-4: two `option=asn` lines with no `peer=` key fail the file rather than the last one winning by order | PASS. RED with the duplicate check removed |
+| `TestRecordOpenASRefusesWhatItCannotRead` | `internal/test/cli/record_open_as_test.go` | AC-4 on the server-mode path: a record `asn` that is not a number, and AS 0, each fail the run | PASS. RED under two breaks |
+| `TestDeclarePeerASReadsAGroupsDeclaration` | `internal/test/runner/peer_asn_test.go` | AC-2: a peer nested in a `group` or `template` inherits its container's AS | PASS. RED with inheritance removed |
+| `TestDeclarePeerASReadsAConfigOnDisk` | `internal/test/runner/peer_asn_test.go` | AC-2: the configuration an `option=file:path=` names is read like an embedded one | PASS. RED with the on-disk read removed |
+| `TestDeclarePeerASRefusesAnEBGPPeerItCannotReach` | `internal/test/runner/peer_asn_test.go` | AC-2: the derivation fails CLOSED, naming the file and the peer | PASS. RED with the guard disabled |
+| `TestDeclarePeerASLeavesAniBGPPeerUnreached` | `internal/test/runner/peer_asn_test.go` | AC-2: the guard's scope is eBGP only, because the mirror answers an iBGP peer correctly | PASS. RED with the guard widened to every peer |
+| `TestPeerASDerivationReachesEveryCIFile` | `internal/test/runner/peer_asn_corpus_test.go` | AC-2 and AC-12: the derivation refuses no `.ci` in the tree, AND derives the right line for three real files, one per shape | PASS. RED with the guard widened to every peer, and RED with `declarePeerAS` emptied |
+| `TestTokenizeConfigMatchesZesSeparators` | `internal/test/runner/ci_config_read_test.go` | AC-2: the reader's separator set is ze's own, tab included, and a parenthesis does not break a word because `readWord` does not break on one | PASS. RED with the tab removed from the set, and RED with comments no longer consumed |
+| `TestReadConfigRefusesWhatItCannotCut` | `internal/test/runner/ci_config_read_test.go` | AC-2: an unterminated string and unbalanced braces each fail, so the reader can never answer "" for input it could not read | PASS. RED under both breaks |
+| `TestConfigLookupsAreScopedToTheirOwnLevel` | `internal/test/runner/ci_config_read_test.go` | AC-2: `leaf` and `topLevel` see only the block's own level, in both write orders | PASS. RED with either scope removed |
+| `TestConfigPresentSeparatesAbsentFromEmpty` | `internal/test/runner/ci_config_read_test.go` | AC-2: a block that is not there is absent, one that is there and empty is present | PASS. RED with `present` never set |
+| `TestTokenizeConfigMatchesZesSeparators` (escapes) | `internal/test/runner/ci_config_read_test.go` | AC-2: the escape set is ze's own, so `\"` does not close a string and `\n`/`\t` translate | PASS. RED with escapes not honored, and RED with the two named escapes dropped |
+| `TestAsLeafAnswersThreeStates` | `internal/test/runner/peer_asn_test.go` | AC-2: absent, value, and error, with AS 0 and an unreadable value both errors | PASS. RED with an unreadable leaf reported absent |
+| `TestPeerLocalASReadsTheRouterLevelDeclaration` | `internal/test/runner/peer_asn_test.go` | AC-2: `bgp { session { asn { local N } } }` reaches every peer below it, whichever order the router's session and the peers appear in | PASS. RED with the router-level read removed |
+| `TestDeclarePeerASRefusesAPeerItCannotRead` | `internal/test/runner/peer_asn_test.go` | AC-2: a peer whose declared AS does not read fails the file rather than leaving the population the guard walks | PASS. RED under two breaks: the refusal removed, and an unreadable leaf reported absent |
+| `TestPeerOptionRefusesContradictoryOpenDeclarations` | `internal/test/peer/expect_test.go` | AC-4: every way the AS can be declared twice, or declared with no carrier, fails the file. Ten cases: dropped or stated capability 65 against a four-octet AS, two stated ASNs, a stated capability contradicting `option=asn`, and the four legal shapes beside them. The same pair split across a flag and a file fails in `New` | PASS. RED under six breaks, including both call sites of the validator removed and each of the two predicates broken alone. All four AS_TRANS shapes re-verified through `ze-test peer` rather than the unit test alone |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -325,12 +366,12 @@ harness cannot represent stops the `.ci` at read time.**
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `peer-open-as-both-carriers` | `test/encode/peer-open-as-both-carriers.ci` | a test author sets a peer AS and the session establishes | |
-| `peer-open-four-octet-as` | `test/encode/peer-open-four-octet-as.ci` | a test author sets a four-octet peer AS and the session establishes | |
-| `peer-open-role-complement` | `test/plugin/peer-open-role-complement.ci` | a Role-configured ze establishes with a peer block that names no role | |
-| `peer-open-addpath-send-only` | `test/plugin/peer-open-addpath-send-only.ci` | ze configured `direction send` negotiates ADD-PATH with the peer | |
-| `peer-port-listener-direct-route` | `test/plugin/peer-port-listener-direct-route.ci` | the existing red file, named in `plan/journal/guard-added-to-one-half-of-a-pair.md`, goes green with no edit to what it asserts | |
-| `./le functional gating` | the whole suite | AC-12: the before and after comparison | |
+| `peer-open-as-both-carriers` | `test/encode/peer-open-as-both-carriers.ci` | a test author sets a peer AS and the session establishes | PASS. RED with capability 65 left at ze's AS |
+| `peer-open-four-octet-as` | `test/encode/peer-open-four-octet-as.ci` | a test author sets a four-octet peer AS and the session establishes | PASS. RED with capability 65 left at ze's AS. R-7: the only `.ci` in the tree naming an AS above 65535 |
+| `peer-open-role-complement` | `test/plugin/peer-open-role-complement.ci` | a Role-configured ze establishes with a peer block that names no role | PASS. RED with the role mirrored, and RED with the AS derivation disabled |
+| `peer-open-addpath-send-only` | `test/plugin/peer-open-addpath-send-only.ci` | ze configured `direction send` negotiates ADD-PATH with the peer | PASS. RED with the direction mirrored, and RED with the AS derivation disabled |
+| `peer-local-port-listener` | `test/plugin/peer-local-port-listener.ci` | the file named in `plan/journal/guard-added-to-one-half-of-a-pair.md`, which had to give its peer ze's own AS. It now declares an eBGP session and states no `option=asn` at all | PASS. The spec's Functional table named it `peer-port-listener-direct-route`, which is not a file in the tree; the journal row names this one |
+| `./le functional gating` | the whole suite | AC-12: the before and after comparison | phase 6, not run in this phase. Six representative baseline failures pass individually: `adj-rib-in-query`, `med-removal-configured`, `rfc4271-partial-unknown-transitive`, `asn4-transcode-pooled-buffer`, `role-otc-egress-stamp`, `peer-local-port-listener` |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -342,9 +383,23 @@ harness cannot represent stops the `.ci` at read time.**
   are replaced by the new builder; the handshake call site changes
 - `internal/test/peer/expect.go` - `parseOptionConfig` refuses an
   unrepresentable `option=asn` value and stores it at its real width
-- `internal/test/peer/inject.go` - `buildActiveOpen` is the second OPEN builder
-  in this package; it either becomes a caller of the new one or is recorded as
-  deliberately separate, with the reason
+- `internal/test/peer/inject.go` - `buildActiveOpen` stays the second OPEN
+  builder and the reason is written above it: `buildOpen` answers an OPEN ze
+  already sent and mirrors its capability SET, while the active role speaks
+  FIRST, so there is nothing to mirror and the set has to be chosen. What they
+  share, they share by calling one function: `myASField` narrows the AS for both
+  and `Config.resolveOpenAS` answers which AS the `.ci` declared for both. The
+  second call closes a silent drop the spec did not name: `option=asn` reached no
+  carrier at all on a dialing inject peer, because `buildActiveOpen` read only
+  `Inject.ASN`
+- `internal/test/runner/record_parse.go` - `parseAndAdd` calls `declarePeerAS`
+  before the two peer-block guards, so a derived line is held to the same
+  contract a hand-written one is
+- `internal/test/cli/cmd_peer.go`, `internal/test/cli/cmd_bgp.go` - `--asn` and
+  the record's `asn` key write the new `Config.OpenAS` field, and `--asn` refuses
+  a value outside the AS space rather than truncating it
+- `internal/test/runner/tunnel_endpoint_lint_test.go` - its block reader moved to
+  `ci_config_read.go`; the lint itself is unchanged
 - `docs/architecture/testing/ci-format.md` - the `asn` Options row, the OPEN
   Behaviors table, and the "Capability Control" section describe the mirror
 - `test/plugin/peer-local-port-listener.ci` - gives the peer ze's own AS as a
@@ -358,6 +413,15 @@ harness cannot represent stops the `.ci` at read time.**
 - `internal/test/peer/open.go` - the OPEN builder, one resolution per asserted
   fact
 - `internal/test/peer/open_test.go` - the unit tests above
+- `internal/test/runner/peer_asn.go` - AC-2's derivation: the AS ze expects from
+  a peer is declared once, in the ze configuration the `.ci` embeds, and the peer
+  block reads that declaration rather than repeating it
+- `internal/test/runner/peer_asn_test.go` - its unit tests
+- `internal/test/runner/ci_config_read.go` - the block and leaf reader the
+  derivation needs. It is NOT new code: `namedBlocks`, `firstBlock`, `leaf`,
+  `leafInBlock`, `atTokenStart` and `braceBody` were declared inside
+  `tunnel_endpoint_lint_test.go` and moved here, so one reader serves both
+  callers rather than the package holding two
 - `test/encode/peer-open-as-both-carriers.ci` - AC-1 end to end
 - `test/encode/peer-open-four-octet-as.ci` - AC-3 end to end
 - `test/plugin/peer-open-role-complement.ci` - AC-5 end to end
@@ -387,7 +451,7 @@ harness cannot represent stops the `.ci` at read time.**
 | 3 | CLI command added/changed? | N-A | No command changes |
 | 4 | API/RPC added/changed? | N-A | No API changes |
 | 5 | Plugin added/changed? | N-A | No plugin changes |
-| 6 | Has a user guide page? | Yes | `docs/guide/debugging-tools.md`, mapped to `internal/test/peer/peer.go` in `ai/CODE-TO-DOCS.md`: read what it says about ze-peer's OPEN and correct it, or record it as unaffected with the reason |
+| 6 | Has a user guide page? | Yes, and UNAFFECTED | `docs/guide/debugging-tools.md` carries two anchors into `internal/test/peer/peer.go`, and both sit away from this change: one on the message-decoder section and one in the File Locations table. The page says nothing about the OPEN ze-peer sends, about `option=asn`, or about capability overrides, so nothing on it became wrong. Recorded as unaffected rather than left silent |
 | 7 | Wire format changed? | N-A | The OPEN wire format is unchanged. What changes is which values a test peer puts in it |
 | 8 | Plugin SDK/protocol changed? | N-A | No SDK change |
 | 9 | RFC behavior implemented, changed, or newly proven? | N-A | No `rfc/short/` Support row changes. The RFCs cited govern the HARNESS; ze's own conformance is untouched, and no `RFC requirement:` tag is added or reworded |
@@ -397,7 +461,7 @@ harness cannot represent stops the `.ci` at read time.**
 | 13 | Route metadata keys added/changed? | N-A | No metadata keys |
 | 14 | Prometheus counters added/changed? | N-A | No counters |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | N-A | Nothing registers; no capability code is added to any inventory |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED: run `./le spec citation anchors spec plan/pre-release/spec-test-peer-open-inherits-zes-identity.md` at implementation time and name every result. `docs/architecture/testing/ci-format.md` already carries a source anchor naming `internal/test/peer/checker.go` beside the OPEN Behaviors table |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes, four in `docs/architecture/testing/ci-format.md`, all retargeted | `./le spec citation anchors` exits 0 with an empty report, so it does not answer this. The four are: the OPEN Behaviors table anchor, which named `internal/test/peer/checker.go` and a symbol that file never declared (`gopls symbols` gives `newChecker`, `parseExpectRule`, `parseKV`, `indexByteAligned`, `groupMatches`, `matchRule`), now `internal/test/peer/expect.go -- parseOptionConfig` and `internal/test/peer/open.go -- buildOpen`; the `router-id` anchor, which named the deleted `generateOpen`; the `option=asn` anchor, which named the deleted `generateOpen` and `patchAS4Capability`; and `docs/functional-tests.md`, whose hand-copied list of peer-block directives is deleted rather than corrected, because `ClaimLine` derives that set. `./le docs-to-code index-update` was run for the two new files; its eight remaining complaints are all pre-existing and name other pages |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/architecture/testing/ci-format.md` shows `option=asn:value=65533` and several drop and add capability examples; each is read against the new parser |
 
 ## Implementation Steps
@@ -585,15 +649,163 @@ that resolves each fact carries the citation:
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
 
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Every fact ze-peer's OPEN asserts about ze-peer is resolved once from the test's own configuration, and no octet of that fact is inherited from ze's OPEN | functional, whole-suite | The gating comparison, run by the main thread: **132 Bad Peer AS failures before, 2 after, and both of those two are now fixed as well** (see the row below). 138 tests went from red to green. `generateOpen`, `patchAS4Capability` and `applyCapabilityOverrides` are deleted, so no octet is written at a fixed offset into a copied buffer |
+| The AS reaches BOTH carriers RFC 6793 defines, or neither | functional, wire-level | `test/encode/peer-open-as-both-carriers.ci`, whose eBGP session establishes only when capability 65 carries the declared AS. RED when the capability is left at ze's AS |
+| A four-octet AS is implemented rather than refused | functional, wire-level | `test/encode/peer-open-four-octet-as.ci`: AS 4200000000, AS_TRANS in the header field, the real AS in the capability, session establishes. The only `.ci` in the tree naming an AS above 65535 |
+| The mirrored Role is reconciled | functional, wire-level | `test/plugin/peer-open-role-complement.ci`: ze declares Provider, the peer block names no role, the session establishes and the reject rule on NOTIFICATION 2/11 never fires. RED with the role mirrored |
+| The mirrored ADD-PATH directions are reconciled | functional, wire-level | `test/plugin/peer-open-addpath-send-only.ci` asserts ze's UPDATE carries the RFC 7911 Section 3 Path Identifier, which appears only when the direction negotiated to something other than None. RED with the direction mirrored |
+| A request the harness cannot honor stops the `.ci` at read time | unit, negative | `TestPeerOptionASNRefusesUnrepresentable`, `TestPeerOptionAddCapabilityRefusesWhatItCannotSend`, `TestLoadExpectFileRouterIDOverride`, `TestPeerOptionASNRefusesTwoUnkeyedDeclarations`, `TestRecordOpenASRefusesWhatItCannotRead`. Each has a recorded RED |
+| The derivation itself does not fail open | unit plus corpus | `TestDeclarePeerASRefusesAnEBGPPeerItCannotReach` proves the guard fires; `TestPeerASDerivationReachesEveryCIFile` runs the derivation over every `.ci` in the tree and proves it refuses none. Both have a recorded RED |
+
+**The 11 apparent regressions in the gating comparison all pass on re-run except
+`ze-stripped-surface`, which fails on a missing `ze-stripped` binary in `$PATH`.
+That is environmental and not a consequence of this change.**
+
+**The 2 files that still carried the signature after the run are fixed.**
+`test/ui/send-raw-reaches-one-peer.ci` and
+`test/ui/send-unicast-reaches-the-wire.ci` are driven by a compiled fixture
+rather than by a `stdin=peer` block, so neither `option=asn` nor the runner's
+derivation could reach them: `startCLIWireSession`
+(`internal/test/fixture/ui_fixture_send_bgp.go`) writes a configuration declaring
+`asn { local 65533; remote 65000 }` and then exec'd `ze-test peer` with no
+`--asn`, so the peer mirrored ze's AS 65533. The AS is now declared once as
+`cliWirePeerAS` and read by both the configuration and the launch. Both files
+pass, and both go RED when the flag is removed.
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Five sender-describing facts are still mirrored: Graceful Restart (64), LLGR (70 and 71), software version (75), PATHS-LIMIT (76), and the two-octet Hold Time | They sit inside this spec's goal sentence, but no acceptance criterion reaches them, and only Graceful Restart is verified at its producer. Reconciling the restart time changes what `startEORTimer` waits for in every graceful-restart test, which is a blast radius this spec did not size | `plan/pre-release/spec-test-peer-open-mirrors-five-more-sender-facts.md` |
+
 ## Review Gate
 
 <!-- Filled at implementation time by /ze-review, per plan/TEMPLATE.md.
      Loop until 0 BLOCKER and 0 ISSUE. -->
 
 ### Run 1
+
+Scope: the whole diff. Two lenses, both reading the producer: the wire encoder,
+and the zero-value and guard rule. Run in a context that did not write the code.
+
 | Severity | Finding | File | Resolution |
 |----------|---------|------|------------|
+| ISSUE | The AS derivation fails open three ways, so "the config declares no peer AS" and "I could not read it" produce the same silent mirror. A group or template declaration is invisible, a config supplied through `option=file:path=` is never read, and several ASNs with no `connection` address return empty with a nil error | `internal/test/runner/peer_asn.go` | Fixed. `asDeclaration.coversEveryEBGPPeer` refuses a file whose derivation reached a known-eBGP peer with nothing, naming the file, the peer and both ASNs. iBGP stays exempt because the mirror answers it correctly. `inheritedByPeer` reads group and template; `configuredPeerAS` reads `Record.ConfigFile`. `TestPeerASDerivationReachesEveryCIFile` runs the derivation over every `.ci` in the tree and refuses zero |
+| ISSUE | A `.ci`-stated capability 65 suppressed the builder's ASN4 while the header still carried the resolved AS, so the OPEN asserted two different ASNs. `TestPeerOpenExplicitRoleWins` pinned that exact state and asserted nothing about the My AS field | `internal/test/peer/open.go` | Fixed. `statedOpenAS` makes a stated four-octet code 65 the AS declaration, outranking `option=asn` and the derivation, and `myASField` narrows from it. A stated code 65 of any other length declares no AS and goes out as written. The missing assertion added |
+| ISSUE | Five sender facts left mirrored sit inside this spec's own goal sentence, so a journal row alone is a scope reduction the author may not take | `plan/journal/mirrored-field-asserts-the-wrong-sender.md` | Fixed by disposition. `plan/pre-release/spec-test-peer-open-mirrors-five-more-sender-facts.md` written, carrying the Graceful Restart producer evidence, and named in `Work Not Done`. The journal row stays; it records the class |
+| NOTE | `encodeOpen` bounded the parameters, not the message, so a parameter block of 65504..65535 octets wrapped the two-octet Length field | `internal/test/peer/open.go` | Fixed. `openMsgMax = 4096` bounds the message, per RFC 4271 Section 4.1 with RFC 8654 Section 4 excluding OPEN and KEEPALIVE from the Extended Message Capability and Section 6 restating that against the 4096 number itself |
+| NOTE | The second Optional-Parameters walker contradicts the Key Design Decision row without saying why, and copies ze's RFC 9072 detection gap | `internal/test/peer/open.go` | Fixed as documentation. The file header carries the reason a decode is not octet-preserving, and states that correcting `UnpackOpen` must correct `parseOpenParams` in the same change |
+| NOTE | `zeTestRunServerOnly` discarded both the parse error and the zero, and `resolveOpenAS` read absence out of a zero value | `internal/test/cli/cmd_bgp.go`, `internal/test/peer/open.go` | Fixed. `recordOpenAS` refuses a non-numeric value and AS 0; `resolveOpenAS` returns a real `declared` bool; two unkeyed `option=asn` lines in one block are refused |
+| NOTE | `TestPeerOptionASNRefusesUnrepresentable` asserted `Contains(err, "")`, which passes against any error | `internal/test/peer/expect_test.go` | Fixed. Every refusal case asserts its own substring |
 
 ### Run 2
+
+Scope, fixed before the round ran: the Run 1 fixes only, plus the sibling call
+sites they touched. That is `coversEveryEBGPPeer`, `inheritedByPeer`,
+`(*configPeer).inherit` and `configuredPeerAS` in `internal/test/runner/peer_asn.go`;
+`statedOpenAS`, `openIdentity`, `myASField`, `resolveOpenAS` and the `openMsgMax`
+bound in `internal/test/peer/open.go`; `recordOpenAS` in `internal/test/cli/cmd_bgp.go`;
+`cliWirePeerAS` in `internal/test/fixture/ui_fixture_send_bgp.go`; the new and
+amended tests; and the `ci-format.md` claims those fixes rewrote. The eight
+always-in-scope classes stay in scope everywhere.
+
 | Severity | Finding | File | Resolution |
 |----------|---------|------|------------|
+| ISSUE | The coverage guard's own classifier was the blind reader it guards. `localKnown` decides whether a peer is eBGP, and it was set only from a per-peer `session { asn { local } }` or `local-as`; the router-level `bgp { session { asn { local N } } }`, which `test/plugin/bgp-local-as-options.ci` documents as inherited by every peer below, reached it never. A peer whose local AS is written only there came back `localKnown=false` and was exempted from the refusal it needed | `internal/test/runner/peer_asn.go` | Fixed. `routerDefaults` reads the router's own session through the new `topLevelBlock`, which finds a block at the TOP level of a body rather than the first one at any depth, so the answer does not depend on whether the peers are written above or below it. The inheritance chain is now router, then group or template, then peer, each level overriding the one above. `TestPeerLocalASReadsTheRouterLevelDeclaration` covers both orders, and `TestDeclarePeerASRefusesAnEBGPPeerItCannotReach` gained the router-level arm of the same configuration |
+| ISSUE | `peersFromConfig` DROPPED any peer whose remote AS it could not parse, so the guard then walked a shorter list and reported every peer on it covered | `internal/test/runner/peer_asn.go` | Fixed. `asLeaf` answers three states, and the third is the point: a leaf that is not there is ABSENT, one that IS there and does not read is an ERROR. `peersFromConfig` refuses rather than drops, and `configuredPeerAS` names the file, the config and the peer. `TestDeclarePeerASRefusesAPeerItCannotRead` covers a non-numeric AS, AS 0, and an unreadable local AS |
+| ISSUE | Three misattributed RFC section numbers, one of them in an operator-facing error string. RFC 8654's OPEN and KEEPALIVE exclusion is Sections 4 and 6, not Section 3, which is the capability itself. RFC 6793's widening is Section 3, "Protocol Extensions", not Section 2, which is the RFC 2119 boilerplate | `internal/test/peer/open.go`, `open_test.go`, `expect.go`, `internal/test/cli/cmd_peer.go` | Fixed at six sites, each verified by reading the heading in `rfc/full/` before it was written. The RFC 8654 sites now quote Section 4 ("The BGP Extended Message Capability applies to all messages except for OPEN and KEEPALIVE messages.") and Section 6 ("This document changes the latter number to 65,535 for all messages except for OPEN and KEEPALIVE messages.") |
+| ISSUE | `drop-capability:code=65` beside a four-octet `option=asn` sent AS_TRANS with nothing carrying the AS the `.ci` asked for, which is a fact the harness cannot represent going out in silence | `internal/test/peer/open.go` | Fixed. `(*Config).validateOpenDeclarations` refuses the combination, naming the AS and AS_TRANS. Dropping the capability and stating it back is still legal, because the stated capability is then the carrier |
+| NOTE | Two `add-capability:code=65` lines were not refused: `statedOpenAS` took the first and `addedParams` emitted both, so the wire carried two four-octet AS capabilities and the order decided the AS | `internal/test/peer/open.go` | Fixed in the same validator. `option=asn` already refused two unkeyed lines, and this is the declaration that outranks it |
+| NOTE | `TestPeerASDerivationReachesEveryCIFile` proved absence of refusal, not presence of derivation: `declarePeerAS` returning nil immediately still passed it, so its discrimination was entirely borrowed from the guard it is meant to be independent of | `internal/test/runner/peer_asn_corpus_test.go` | Fixed. It now pins the derived lines for three real files, one per shape: an unkeyed line, two keyed lines for one process serving two peers, and a `group`-declared AS. Emptying `declarePeerAS` takes it RED along with nine unit tests. It also logs how many `.ci` never reached the derivation because they failed to parse first, so the corpus hole is stated rather than silent |
+| NOTE | `ci-format.md` over-claimed the guard: "an eBGP peer the derivation reached with nothing" fails the file was false for a router-level local AS | `docs/architecture/testing/ci-format.md` | Fixed with the reader, and the row now states the limit that remains: the refusal knows only what the reader knows, so a peer for which NO local AS is declared at any level is not judged eBGP and is not refused |
+| NOTE | `configuredPeerAS` swallowed `os.ReadFile`'s error on the `option=file` path and returned the peers it had, which is the same fail-open shape one layer down. `nilerr` reported it once the function could return an error | `internal/test/runner/peer_asn.go` | Fixed by propagating. **This goes further than Run 2's NOTE 6, which asked only that the branch be kept.** The branch is kept; it now refuses instead of skipping, because a configuration nobody read and a configuration declaring nothing produce the same empty population |
+
+### Run 3
+
+Scope, fixed before the round ran: the Run 2 fixes only, plus the sibling call
+sites they touched. That is `routerDefaults`, `topLevelBlock`, `asLeaf`,
+`peersFromConfig`, `peerLocalAS`, the inheritance chain and the propagated
+`configuredPeerAS` error in `internal/test/runner/peer_asn.go` and
+`internal/test/runner/ci_config_read.go`; `(*Config).validateOpenDeclarations`
+and its two call sites in `internal/test/peer/open.go`,
+`internal/test/peer/expect.go` and `peer.New`; the six corrected RFC citations;
+`internal/test/runner/peer_asn_corpus_test.go`; the new and amended tests; and
+the `ci-format.md` rows those fixes rewrote. The eight always-in-scope classes
+stay in scope everywhere.
+
+Rounds 1 and 2 each found the same defect class one layer further out: a lookup
+that cannot tell "nothing was declared" from "I could not read it". Round 3's
+first question is whether the third repair finally closes it, or moves it again.
+
+It moved it again, and Round 3 said so: "the third repair hardens the PARSE and
+leaves the FIND two-valued". `asLeaf` answered three states correctly while the
+two functions FEEDING it still answered `""` for input they could not match. The
+answer was to stop repairing instances and rewrite the reader, which is what
+Round 4 did.
+
+| Severity | Finding | File | Resolution |
+|----------|---------|------|------------|
+| ISSUE | The reader accepted a strict subset of what ze accepts, and every gap answered ABSENT. `leaf` and `namedBlocks` matched `keyword + " "`, while ze's tokenizer separates on tabs too, so `local<TAB>65000` is a valid configuration whose local AS the reader never saw; the peer was then classified not-eBGP and exempted from the guard that exists to refuse it. `peer<TAB>name {` was worse: the peer left the population entirely, which is Round 2's "the guard walks a shorter list" returning through the reader | `internal/test/runner/ci_config_read.go` | Fixed by rewriting the reader, not by guarding it. The text is TOKENIZED once and every lookup runs over tokens, so "did not match" no longer exists as an answer: a keyword is in the stream or it is not. The separator set is copied from `readWord` and `skipWhitespaceAndComments` (`internal/component/config/tokenizer.go`) rather than guessed, the copy names its source, and `TestTokenizeConfigMatchesZesSeparators` pins every member including the parenthesis ze does NOT break a word on. `readConfig` REFUSES a text it cannot cut, so the only remaining unreadable input is an error rather than an empty answer |
+| ISSUE | A container's own declarations were read at ANY depth, so a group whose `session` or `connection` was written BELOW a nested peer took that peer's as its default. A sibling peer then inherited another peer's AS, another peer's dial address, and with them the eBGP verdict the whole guard turns on | `internal/test/runner/peer_asn.go` | Fixed at the reader, as the round required, rather than at the two call sites. `(configFile).leaf` and `(configFile).topLevel` are both scoped to the block's OWN level by construction, so no caller can read a nested block's declarations. `readDeclarations` replaces `readPeer` and chains `topLevel("session").topLevel("asn")`. `TestConfigLookupsAreScopedToTheirOwnLevel` and `TestDeclarePeerASReadsAGroupsDeclaration` both cover BOTH write orders |
+| NOTE | The corpus gate matched refusal messages as strings, which is a second declaration of every message. Round 3 added one the list did not carry, so a file refused that way was counted `unreached` and the gate passed over it | `internal/test/runner/peer_asn_corpus_test.go` | Fixed with a typed error. `errASDerivation` is wrapped ONCE, at `declarePeerAS`, the only exit this file has, and the gate asks `errors.Is`. `derivationFor` was extracted so all three refusal paths reach that one wrap |
+| NOTE | `option=asn` beside a CONTRADICTING four-octet `add-capability:code=65` was not refused; the higher-precedence stated capability won in silence | `internal/test/peer/open.go` | Fixed in `validateOpenDeclarations`, on the same argument the two-stated-65 refusal already rested on: any two declarations of the AS that disagree are a question the block asked twice. An agreeing pair is still legal |
+| NOTE | `peersFromConfig` skipped a peer with no AS after inheritance, conflating "not a BGP peer" with "a BGP peer nothing declared an AS for" | `internal/test/runner/peer_asn.go` | Fixed structurally. The walk is scoped to `bgp { ... }`, so an IPsec or WireGuard `peer` block is no longer in the population at all and the conflation cannot arise. The remaining case is KEPT rather than skipped or refused, with `declaresAS` naming it: `test/reload/tx-bgp-rollback.ci` writes `peer broken { session { } }` on purpose to prove ze rejects it, so refusing would fail a working test. The peer stays in the population and `coversEveryEBGPPeer` exempts it, because eBGP is a comparison and it has only one half |
+
+### Run 4
+
+Scope, fixed before the round ran: the Run 3 fixes only, plus the sibling call
+sites they touched. That is the whole rewritten
+`internal/test/runner/ci_config_read.go`, meaning the tokenizer, `readConfig`,
+`configFile`, `configBlock` and the `blocks`, `topLevel`, `leaf` and `blockIP`
+lookups that replaced `namedBlocks`, `firstBlock`, `topLevelBlock`, `leaf`,
+`leafInBlock`, `atTokenStart` and `braceBody`; `readDeclarations`,
+`declaresAS`, the `bgp`-scoped peer walk and `errASDerivation` in
+`internal/test/runner/peer_asn.go`; the contradicting-stated-65 refusal in
+`(*Config).validateOpenDeclarations`; the two callers of the deleted helpers in
+`internal/test/runner/tunnel_endpoint_lint_test.go`; the corpus gate's move to
+`errors.Is`; and `test/weakened/fc0f54fe.md`, which was rewritten because its
+"bodies unchanged" claim became false. The eight always-in-scope classes stay in
+scope everywhere.
+
+Rounds 1, 2 and 3 each found one defect class, one layer further out each time:
+a lookup that cannot tell "nothing was declared" from "I could not read it".
+Round 3 diagnosed why the repairs kept failing, that a three-state parse sat on
+a two-state reader, and Round 4's fix rewrote the reader rather than guarding it.
+This round's first question is whether that ended the class or relocated it.
+
+It ended it. The reader's separator set is byte-for-byte ze's, every lookup is
+depth-scoped by construction, and `readConfig` refuses rather than answering
+empty. What Round 4 found instead was one instance of the SAME class in the
+other package, and two citation defects.
+
+| Severity | Finding | File | Resolution |
+|----------|---------|------|------------|
+| ISSUE | The AS_TRANS refusal was disarmed by a capability-65 line carrying no AS. `validateOpenDeclarations` counted every `Add` override for code 65 whatever its length and then skipped the check, while `statedOpenAS` treated only a FOUR-octet value as an AS declaration. So `option=asn:value=4200000000` with `drop-capability:code=65` was refused, and adding `add-capability:code=65:hex=1122` made the file load clean: the OPEN then claimed AS_TRANS with nothing carrying 4200000000. Reproduced through `LoadExpectFile`, not by reading | `internal/test/peer/open.go` | Fixed with one predicate. `statedAS` is the only test for "does this line declare the AS", and both `statedOpenAS` and the validator's count call it. A second spelling of that question is what opened the gap, which is the same class the reader rewrite closed in the other package. Its comment also names what it is NOT: "did the .ci write a capability 65 itself" is a different question, asked by `reconcileParams`, and a malformed capability answers yes to that one and no to this one. Two cases added to `TestPeerOptionRefusesContradictoryOpenDeclarations`: the disarming line refuses, and the same shape with a real AS in the stated capability stays legal |
+| NOTE | `complementaryRole` cited "RFC 9234 Section 4, Table 2" while the quote two lines above it cited Section 4.2 correctly | `internal/test/peer/open.go` | Fixed to Section 4.2, verified by reading the headings in `rfc/full/rfc9234.txt`: Section 4 is "BGP Role", 4.1 is "BGP Role Capability", 4.2 is "Role Correctness", and Table 2 sits inside 4.2. Third citation defect this spec has produced, and the reason each round now reads `rfc/full/` before writing a section number |
+| NOTE | `tokenizeConfig` read a quoted string to the first matching quote, while ze's `readString` honors backslash escapes. A string ze reads whole would have been cut in two, which is the divergence class the separator set was already fixed for | `internal/test/runner/ci_config_read.go` | Fixed. `readQuoted` copies ze's escape set: a backslash escapes the next character, `\n` and `\t` become a newline and a tab, every other escaped character stands for itself, and `\"` therefore does NOT close the string. One deliberate divergence is documented at the function: ze runs an unterminated string to the end of its input, and this one reports it so the caller refuses the file, because the harness must never turn a text it could not read into an answer. Four escape cases and an escaped-closing-quote refusal added to the reader's tests |
+| NOTE | `configuredPeerAS` feeds every `tmpfs=` and `stdin=` block to the tokenizer, so a block holding no ze configuration could refuse the whole `.ci` | `internal/test/runner/peer_asn.go` | Not changed, by review decision, and now written down at the call site so the next reader does not "fix" it into a skip. Fail-closed IS the design: a text nobody could read must stop the test rather than quietly contribute no peers, because "contributed nothing" and "declares nothing" are the two answers this package exists to keep apart. No `.ci` in the tree triggers it |
+
+### Run 5
+
+Scope, fixed before the round ran: the Run 4 fixes only, plus the sibling call
+sites they touched. That is `statedAS` and its two callers `statedOpenAS` and
+`(*Config).validateOpenDeclarations` in `internal/test/peer/open.go`, the
+`complementaryRole` citation in the same file, `readQuoted` and its callers in
+`internal/test/runner/ci_config_read.go`, the sentence recorded at the
+`configuredPeerAS` read closure in `internal/test/runner/peer_asn.go`, and the
+test cases added for each. The eight always-in-scope classes stay in scope
+everywhere.
+
+This is the fifth round, which is the last this session may spend without an
+explicit decision from the owner (`ai/rules/planning.md`). A clean round closes
+the loop and the work commits.
+
+| Severity | Finding | File | Resolution |
+|----------|---------|------|------------|
+| ISSUE | The AS_TRANS guard still failed open, one call site from where Round 4 closed it. Its precondition was `dropped`, set only in the `!override.Add` branch, but a STATED capability 65 removes the four-octet carrier just as effectively: `reconcileParams` sets `stated[65]` for ANY `Add` override whatever its length and then skips ze's own ASN4 TLV in both the read loop and the tail emit. So `option=asn:value=4200000000` with `add-capability:code=65:hex=1122` and NO drop at all loaded clean, and the OPEN claimed AS_TRANS with a two-octet capability 65 carrying 0x1122 while nothing carried 4200000000. Reproduced live through `ze-test peer`, which reached "listening" | `internal/test/peer/open.go` | Fixed by asking BOTH questions and naming both, because asking only one is how this failed open twice. `suppressesOwnASN4` is the precondition, true for a drop OR any add of code 65, which is the same predicate `reconcileParams` reads. `carriesTheAS` is the exemption, counted by `statedAS`, because only a four-octet stated capability carries the AS. The two are independently load-bearing: the discrimination walk breaks each one alone and each takes the test RED. `statedAS` itself was confirmed correct by the round and is unchanged. The refusal message now says "drops or states", because a reader who wrote only the add-capability line was sent looking for a drop they never wrote. Four cases now pin the matrix, and all four were re-verified at the real entry point rather than in the unit test alone: four-octet AS with a stated 65 carrying no AS refuses, with a drop refuses, with a stated 65 carrying the AS is accepted, and a two-octet AS with a stated 65 carrying no AS is accepted because the My AS field carries it alone |
+| NOTE | `complementaryRole`'s two error strings cited "RFC 9234 Section 4" for the one-octet length and for the defined values. Section 4 is "BGP Role" and names the roles in prose only; `Length: 1 (octet)` and Table 1's values 0 to 4 are both in Section 4.1, "BGP Role Capability" | `internal/test/peer/open.go` | Fixed. Every citation in the function now matches what it cites, read from the headings in `rfc/full/rfc9234.txt`: 4.1 for the length and for Table 1's values, 4.2 for Table 2's pairs and for the Role Mismatch quote. The doc comment states which section carries which, so the next reader does not have to re-derive it. Fourth citation defect in this one function, and the reason the reading is now done before the number is written rather than after |
+| NOTE | `test/encode/peer-open-four-octet-as.ci` timed out 2 of 26 runs, both inside a concurrent batch | `plan/journal/gate-verdict-depends-on-the-machine.md` | Not fixed, and the round MEASURED the diagnosis rather than accepting it: all 60 `test/encode/*.ci` share `timeout=10s`, and under stress the two new files and the untouched control `ebgp-encode` are indistinguishable (min 2.7s, avg 3.4s, max 6.3/6.3/6.4s, 8 of 8 each). A file whose timing tracks an untouched control to 0.1s is not flakier for a reason inside this spec, so the journal row is the right home and no discrimination record is owed |

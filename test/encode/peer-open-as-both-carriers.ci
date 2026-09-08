@@ -1,0 +1,73 @@
+# Test: a peer block that names its AS opens with that AS in BOTH carriers
+# RFC 6793 defines, and the eBGP session establishes.
+#
+# VALIDATES: option=asn:value=N reaches the My Autonomous System field AND the
+#            Capability Value of capability 65 (buildOpen, internal/test/peer/open.go).
+#            Ze reads the capability first, as RFC 6793 Section 4.1 requires
+#            (openAdvertisedAS, internal/component/bgp/reactor/peer.go), and
+#            accepts the session because that AS is the one this peer is
+#            configured for (validateOpenPeerAS,
+#            internal/component/bgp/reactor/session_open_as.go).
+# PREVENTS:  the two carriers disagreeing. ze-peer used to copy ze's OPEN and
+#            overwrite the two-octet field alone, so the mirrored capability 65
+#            still carried ZE's AS and ze answered NOTIFICATION 2/2 Bad Peer AS.
+#
+# DISCRIMINATION: ze is AS 65533 and the peer is AS 65010, so the two carriers
+# cannot agree by accident. With capability 65 left at ze's AS, ze reads 65533
+# from a peer configured for 65010, answers OPEN Message Error / Bad Peer AS, and
+# neither the UPDATE below nor the End-of-RIB after it ever arrives.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=asn:value=65010
+cmd=api:conn=1:seq=1:text=send bgp * update text origin igp as-path [65533] nhop 10.0.1.254 nlri ipv4/unicast add 10.0.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FFFD4003040A0001FE180A0000
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65010}},"direction":"in","as-path":[65533],"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.0.0/24"],"next-hop":"10.0.1.254"}]}
+cmd=api:conn=1:seq=1:text=send bgp * update text nlri ipv4/unicast eor
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65010
+			}
+			router-id 10.0.0.2
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		timer {
+			receive-hold-time 180
+		}
+
+		update {
+			attribute {
+				origin igp
+				next-hop 10.0.1.254
+				local-preference 200
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

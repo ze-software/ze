@@ -1,0 +1,76 @@
+# Test: a peer block naming a four-octet AS opens with AS_TRANS in the My
+# Autonomous System field and the real AS in the capability, and the session
+# establishes.
+#
+# VALIDATES: RFC 6793 Section 3, which places AS_TRANS (23456) in the two-octet
+#            field "if and only if the speaker does not have a (globally unique)
+#            two-octet AS number", and RFC 6793 Section 4.1, which makes the
+#            Capability Value of capability 65 the AS a receiver reads
+#            (buildOpen, internal/test/peer/open.go).
+# PREVENTS:  a four-octet option=asn being dropped in silence. The old builder
+#            guarded both writes with `ASN > 0 && ASN <= 65535`, so a .ci asking
+#            for AS 4200000000 patched NEITHER carrier and the peer opened with
+#            ze's own AS.
+#
+# DISCRIMINATION: 4200000000 does not fit two octets, so it can reach ze through
+# the capability alone. With the capability left at ze's AS, or with the request
+# dropped, ze reads an AS this peer is not configured for and answers OPEN
+# Message Error / Bad Peer AS: no UPDATE and no End-of-RIB arrive.
+#
+# R-7 in the spec: this is the only .ci in the tree that names an AS above 65535,
+# so it is the only exerciser the four-octet path has.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=asn:value=4200000000
+cmd=api:conn=1:seq=1:text=send bgp * update text origin igp as-path [65533] nhop 10.0.1.254 nlri ipv4/unicast add 10.0.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FFFD4003040A0001FE180A0000
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":4200000000}},"direction":"in","as-path":[65533],"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.0.0/24"],"next-hop":"10.0.1.254"}]}
+cmd=api:conn=1:seq=1:text=send bgp * update text nlri ipv4/unicast eor
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 4200000000
+			}
+			router-id 10.0.0.2
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		timer {
+			receive-hold-time 180
+		}
+
+		update {
+			attribute {
+				origin igp
+				next-hop 10.0.1.254
+				local-preference 200
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

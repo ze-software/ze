@@ -1883,7 +1883,9 @@ Test directives belong to one of two scopes:
 | Test runner | The `ze-test` process itself (seeds `proc.Env`, drives orchestration) | File level, outside any `stdin=...` block |
 | `ze-peer` stdin | The `ze-peer` subprocess reading its stdin at runtime | Inside the `stdin=peer:terminator=X` block |
 
-Only `expect=bgp:...`, `expect=json:...`, `expect=exit:...`, `action=...`, `option=timeout:...`, `option=open:...`, `option=update:...`, `option=tcp_connections:...`, and `option=conn_map:...` are valid inside `stdin=peer:` blocks. The `option=timeout`, `option=open`, `option=update`, `option=tcp_connections`, and `option=conn_map` forms are consumed by `ze-peer` from its stdin and must stay in-block so the subprocess receives them.
+Which directives are valid inside a `stdin=peer:` block is not listed here. `ze-peer`'s own parser is the definition of that set, `ClaimLine` (`internal/test/peer/expect.go`) is the function that answers it, and the runner's peer-block guard reads that answer rather than a second list (`internal/test/runner/peer_contract.go`). A list beside it drifts, and it did: it omitted `option=asn`, `option=bind`, `option=linger`, `option=silent`, `option=await_eor` and `reject=bgp`, and it named `option=timeout`, which the test runner consumes rather than `ze-peer`. The directives and their keys are documented in `docs/architecture/testing/ci-format.md`.
+
+A directive `ze-peer` claims must stay in-block, so the subprocess receives it. A directive the RUNNER consumes must stay outside, so the runner sees it.
 
 `option=conn_map:value=router-id` sorts each accepted connection batch by the BGP router ID in OPEN. `option=conn_map:value=remote-ip` sorts each batch by the TCP source address, which stays stable when reload tests intentionally change router IDs. With `conn_map`, `option=tcp_connections:value=N` is the batch size; if expectations remain after one batch, `ze-peer` accepts another batch and continues with the next `conn=N` rules.
 

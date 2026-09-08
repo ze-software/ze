@@ -1,0 +1,85 @@
+# Test: ze configured to SEND ADD-PATH negotiates it, because ze-peer answers
+# the opposite direction rather than the same one.
+#
+# VALIDATES: RFC 7911 Section 4, whose Send/Receive field describes the SENDER.
+#            ze-peer inverts each direction (invertedAddPath,
+#            internal/test/peer/open.go), so Negotiate
+#            (internal/core/bgp/capability/negotiated.go) intersects ze's Send
+#            with the peer's Receive and the mode is Send rather than None.
+#            The proof is on the wire: ze prefixes each NLRI with the four-octet
+#            Path Identifier RFC 7911 Section 3 defines.
+# PREVENTS:  the mirrored direction. ze-peer used to copy ze's OPEN whole, so it
+#            answered Send at a Send, the intersection was AddPathNone, and the
+#            session negotiated ADD-PATH OFF with no error anywhere. Nothing
+#            checked it, so the defect was a coverage hole rather than a failure:
+#            no .ci in the tree configured a one-directional ADD-PATH.
+#
+# DISCRIMINATION: the expected UPDATE carries a Path Identifier. With the
+# direction mirrored the negotiation yields None, ze writes the NLRI with no
+# identifier, the message is four octets shorter, and the hex below cannot match.
+#
+# This file also exercises the derived peer AS: it names no option=asn, so the
+# AS ze-peer opens with comes from the session > asn > remote leaf below
+# (declarePeerAS, internal/test/runner/peer_asn.go).
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# The NLRI carries the RFC 7911 Section 3 Path Identifier (00000000) before the
+# prefix 18 0A0000, which is what proves the direction was negotiated.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FDE84003040A0001FE00000000180A0000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				add-path {
+					direction send
+					family {
+						ipv4/unicast
+					}
+				}
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				next-hop 10.0.1.254
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s

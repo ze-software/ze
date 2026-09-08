@@ -80,30 +80,39 @@ type tunnelEndpointClaim struct {
 // in a stdin= or tmpfs= section either way, and the block structure is what
 // this needs.
 func tunnelEndpointClaims(raw string) []tunnelEndpointClaim {
+	config, err := readConfig(raw)
+	if err != nil {
+		// A text this reader cannot cut into tokens. The blindness guard in the
+		// test below is what turns a claim set this small into a failure, so
+		// nothing is invented here.
+		return nil
+	}
 	var claims []tunnelEndpointClaim
-	for _, block := range namedBlocks(raw, "tunnel") {
-		encap := firstBlock(block.body, "encapsulation")
-		if encap == "" {
+	for _, block := range config.blocks("tunnel") {
+		encap := block.body.topLevel("encapsulation")
+		if !encap.present {
 			continue
 		}
 		for kind := range tunnelKindBlocks {
-			body := firstBlock(encap, kind)
-			if body == "" {
+			body := encap.topLevel(kind)
+			if !body.present {
 				continue
 			}
 			// remote/ip is `mandatory true`, so its absence means the scanner
 			// failed to read the stanza rather than that the config omitted
 			// it. The blindness guard in the test below turns that into a
 			// failure. local/ip is optional and its absence is recorded.
-			remote := leafInBlock(body, "remote", "ip")
-			if remote == "" {
+			remote, found := body.blockIP("remote")
+			if !found {
 				continue
 			}
+			local, _ := body.blockIP("local")
+			key, _ := body.leaf("key")
 			claims = append(claims, tunnelEndpointClaim{
 				domain: tunnelUniquenessDomain(kind),
-				local:  leafInBlock(body, "local", "ip"),
+				local:  local,
 				remote: remote,
-				key:    leaf(body, "key"),
+				key:    key,
 				name:   block.arg,
 			})
 		}
@@ -406,123 +415,4 @@ func TestCITunnelEndpointLintCountsInterfacesNotStanzas(t *testing.T) {
 	if !strings.Contains(dups[0], "twins.ci (ta0)") || !strings.Contains(dups[0], "twins.ci (tb0)") {
 		t.Errorf("collision = %q, want it to name both interfaces", dups[0])
 	}
-}
-
-// ciBlock is one `<keyword> [arg] { ... }` block: its argument and its body.
-type ciBlock struct {
-	arg  string
-	body string
-}
-
-// namedBlocks returns every top-of-line `keyword arg {` block in raw, with the
-// body between its braces. Nested blocks of the same keyword are not expected
-// in a config and are not searched for.
-func namedBlocks(raw, keyword string) []ciBlock {
-	var out []ciBlock
-	for i := 0; i < len(raw); {
-		idx := strings.Index(raw[i:], keyword+" ")
-		if idx < 0 {
-			return out
-		}
-		start := i + idx
-		if !atTokenStart(raw, start) {
-			i = start + len(keyword)
-			continue
-		}
-		head := start + len(keyword)
-		open := strings.IndexByte(raw[head:], '{')
-		if open < 0 {
-			return out
-		}
-		arg := strings.TrimSpace(raw[head : head+open])
-		body, end := braceBody(raw, head+open)
-		if end < 0 || strings.ContainsAny(arg, "\n{}") {
-			i = head
-			continue
-		}
-		out = append(out, ciBlock{arg: arg, body: body})
-		i = end
-	}
-	return out
-}
-
-// firstBlock returns the body of the first `keyword {` block in raw, or "".
-func firstBlock(raw, keyword string) string {
-	for i := 0; i < len(raw); {
-		idx := strings.Index(raw[i:], keyword)
-		if idx < 0 {
-			return ""
-		}
-		start := i + idx
-		rest := strings.TrimLeft(raw[start+len(keyword):], " \t")
-		if !atTokenStart(raw, start) || !strings.HasPrefix(rest, "{") {
-			i = start + len(keyword)
-			continue
-		}
-		open := strings.IndexByte(raw[start:], '{')
-		body, end := braceBody(raw, start+open)
-		if end < 0 {
-			return ""
-		}
-		return body
-	}
-	return ""
-}
-
-// leafInBlock returns the value of leaf inside the named sub-block, e.g. the
-// `ip` leaf of `local { ip 192.0.2.1; }`.
-func leafInBlock(raw, block, name string) string {
-	return leaf(firstBlock(raw, block), name)
-}
-
-// leaf returns the value of a `name value` statement, without its terminator.
-func leaf(raw, name string) string {
-	for i := 0; i < len(raw); {
-		idx := strings.Index(raw[i:], name+" ")
-		if idx < 0 {
-			return ""
-		}
-		start := i + idx
-		if !atTokenStart(raw, start) {
-			i = start + len(name)
-			continue
-		}
-		rest := raw[start+len(name):]
-		if cut := strings.IndexAny(rest, "\n;}"); cut >= 0 {
-			rest = rest[:cut]
-		}
-		return strings.TrimSpace(rest)
-	}
-	return ""
-}
-
-// atTokenStart reports whether position i starts a token rather than ending
-// another one, so `gre` does not match inside `ip6gre`.
-func atTokenStart(raw string, i int) bool {
-	if i == 0 {
-		return true
-	}
-	switch raw[i-1] {
-	case ' ', '\t', '\n', '\r', '{', '}', ';':
-		return true
-	}
-	return false
-}
-
-// braceBody returns the text between the brace at open and its match, plus the
-// index just past the closing brace. end is -1 when the braces do not balance.
-func braceBody(raw string, open int) (body string, end int) {
-	depth := 0
-	for i := open; i < len(raw); i++ {
-		switch raw[i] {
-		case '{':
-			depth++
-		case '}':
-			depth--
-			if depth == 0 {
-				return raw[open+1 : i], i + 1
-			}
-		}
-	}
-	return "", -1
 }

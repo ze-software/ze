@@ -24,13 +24,13 @@ option=env:var=ze.log.bgp.reactor:value=info
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-# The peer's AS matches ze's own. ze-peer MIRRORS ze's OPEN and overrides only
-# the 2-octet My AS field (generateOpen, internal/test/peer/peer.go), so the
-# mirrored RFC 6793 AS4 capability keeps ze's AS whatever option=asn says. Any
-# other value makes the two disagree and ze rejects the OPEN with NOTIFICATION
-# 2/2. The AS numbers are incidental here: this file is about which SOCKET the
-# session arrives on.
-option=asn:value=65533
+# No option=asn line: the harness derives the peer's AS from the session > asn >
+# remote leaf below (declarePeerAS, internal/test/runner/peer_asn.go) and puts it
+# in both carriers RFC 6793 defines. The peer used to have to claim ze's own AS
+# here, because ze-peer copied ze's OPEN and patched only the 2-octet My AS
+# field: the mirrored AS4 capability kept ze's AS and ze answered NOTIFICATION
+# 2/2. The AS numbers are incidental to what this file tests, which is which
+# SOCKET the session arrives on.
 option=tcp_connections:value=1
 
 # Cease (code 6) / Administrative Shutdown (subcode 2, RFC 4486) with the RFC 8203
@@ -60,7 +60,7 @@ bgp {
 		session {
 			asn {
 				local 65533
-				remote 65533
+				remote 65534
 			}
 			router-id 1.2.3.4
 			family {

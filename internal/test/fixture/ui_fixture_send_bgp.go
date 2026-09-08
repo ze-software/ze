@@ -254,7 +254,12 @@ func startCLIWireSession(ctx context.Context, args []string) (*cliWireSession, e
 	// The peer listens first: ze dials it, and a daemon that starts against a
 	// closed port waits out its connect retry before the session establishes.
 	peerScript := filepath.Join(cwd, "peer-script")
-	session.peer, err = startFixtureProcess(ctx, os.Environ(), "", "ze-test", "peer", "--port", strconv.Itoa(port), peerScript)
+	// --asn is what makes the peer open with the AS the configuration above
+	// expects from it. Without it ze-peer mirrors ZE's OPEN and presents ze's own
+	// AS 65533, which ze answers with NOTIFICATION 2/2 Bad Peer AS: the session
+	// never establishes and the CLI has no wire to reach.
+	session.peer, err = startFixtureProcess(ctx, os.Environ(), "", "ze-test", "peer",
+		"--port", strconv.Itoa(port), "--asn", strconv.Itoa(cliWirePeerAS), peerScript)
 	if err != nil {
 		return nil, fmt.Errorf("start the peer: %w", err)
 	}
@@ -359,6 +364,19 @@ func cliWirePasswordHash(ctx context.Context, workDir string) (string, error) {
 	return strings.TrimSpace(stdout.String()), nil
 }
 
+// cliWirePeerAS is the AS this daemon expects from its peer, and the AS the peer
+// is launched with. It is declared ONCE and read by both, because a session is
+// eBGP here (the daemon is AS 65533) and ze answers OPEN Message Error / Bad Peer
+// AS to a peer that presents any other AS (validateOpenPeerAS,
+// internal/component/bgp/reactor/session_open_as.go).
+//
+// A .ci states this to ze-peer with option=asn, and the runner derives it from
+// the embedded configuration for a block that states none (declarePeerAS,
+// internal/test/runner/peer_asn.go). Neither reaches here: this fixture writes
+// its own configuration and execs ze-peer itself, so the flag is where the
+// declaration lands.
+const cliWirePeerAS = 65000
+
 // cliWireConfig is the daemon's whole configuration: one peer this daemon
 // dials on the loopback, and one operator the CLI authenticates as.
 //
@@ -374,7 +392,7 @@ func cliWireConfig(passwordHash string) string {
             local { ip 127.0.0.1; accept false; }
         }
         session {
-            asn { local 65533; remote 65000; }
+            asn { local 65533; remote ` + strconv.Itoa(cliWirePeerAS) + `; }
             router-id 10.0.0.2
             family { ipv4/unicast { prefix { maximum 10000; } } }
             capability { graceful-restart disable; }
