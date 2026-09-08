@@ -247,3 +247,123 @@ func TestPolicyNextHopDedup(t *testing.T) {
 		t.Errorf("rules should share table: %d vs %d", result.IPRules[0].Table, result.IPRules[1].Table)
 	}
 }
+
+// interfaceMatches returns every input-interface match a term carries, so a
+// test can assert both how many there are and which interface each names.
+func interfaceMatches(term firewall.Term) []firewall.MatchInputInterface {
+	var out []firewall.MatchInputInterface
+	for _, m := range term.Matches {
+		if im, ok := m.(firewall.MatchInputInterface); ok {
+			out = append(out, im)
+		}
+	}
+	return out
+}
+
+// TestPolicyInterfaceListOneTermPerInterface pins the OR the leaf-list
+// promises. A packet arrives on one interface and carries one name, so two
+// interface matches inside one term match no packet at all: the alternatives
+// have to be separate terms, which nftables programs as separate rules.
+func TestPolicyInterfaceListOneTermPerInterface(t *testing.T) {
+	policy := PolicyRoute{
+		Name:       "wan",
+		Interfaces: []InterfaceSpec{{Name: "eth0"}, {Name: "l2tp", Wildcard: true}},
+		Rules: []PolicyRule{
+			{
+				Name:   "mark",
+				Match:  PolicyMatch{Protocol: "tcp"},
+				Action: PolicyAction{Type: ActionTable, Table: 100},
+			},
+		},
+	}
+
+	alloc := newAllocator()
+	result, err := alloc.translate([]PolicyRoute{policy})
+	if err != nil {
+		t.Fatalf("translate: %v", err)
+	}
+
+	chain := result.Tables[0].Chains[0]
+	if len(chain.Terms) != 2 {
+		t.Fatalf("expected 2 terms (one per interface), got %d", len(chain.Terms))
+	}
+
+	wantNames := []string{"wan-mark-1", "wan-mark-2"}
+	wantIfaces := []firewall.MatchInputInterface{
+		{Name: "eth0"},
+		{Name: "l2tp", Wildcard: true},
+	}
+	for i := range chain.Terms {
+		term := chain.Terms[i]
+		if term.Name != wantNames[i] {
+			t.Errorf("term %d name = %q, want %q", i, term.Name, wantNames[i])
+		}
+		ifaces := interfaceMatches(term)
+		if len(ifaces) != 1 {
+			t.Fatalf("term %d carries %d interface matches, want 1 (a rule ANDs its matches)", i, len(ifaces))
+		}
+		if ifaces[0] != wantIfaces[i] {
+			t.Errorf("term %d interface match = %+v, want %+v", i, ifaces[0], wantIfaces[i])
+		}
+		if _, ok := term.Matches[0].(firewall.MatchInputInterface); !ok {
+			t.Errorf("term %d first match = %T, want the interface match prepended", i, term.Matches[0])
+		}
+		if _, ok := term.Matches[1].(firewall.MatchProtocol); !ok {
+			t.Errorf("term %d second match = %T, want the rule's protocol match", i, term.Matches[1])
+		}
+	}
+
+	if len(result.IPRules) != 1 {
+		t.Fatalf("expected 1 ip rule for the one rule that selects a table, got %d", len(result.IPRules))
+	}
+	if result.IPRules[0].Table != 100 {
+		t.Errorf("ip rule table = %d, want 100", result.IPRules[0].Table)
+	}
+
+	marks := make([]uint32, 0, 2)
+	for i := range chain.Terms {
+		for _, a := range chain.Terms[i].Actions {
+			if sm, ok := a.(firewall.SetMark); ok {
+				marks = append(marks, sm.Value)
+			}
+		}
+	}
+	if len(marks) != 2 {
+		t.Fatalf("expected each term to set the mark, got %d SetMark actions", len(marks))
+	}
+	if marks[0] != marks[1] {
+		t.Errorf("terms set marks %#x and %#x; both must carry the mark the one ip rule looks up", marks[0], marks[1])
+	}
+	if marks[0] != result.IPRules[0].Mark {
+		t.Errorf("term mark %#x, ip rule mark %#x", marks[0], result.IPRules[0].Mark)
+	}
+}
+
+// TestPolicyWithoutInterfaceMatchesEveryIngress covers the documented shape of
+// a policy that names no interface: one term, and no interface match to narrow
+// it.
+func TestPolicyWithoutInterfaceMatchesEveryIngress(t *testing.T) {
+	policy := PolicyRoute{
+		Name: "any",
+		Rules: []PolicyRule{
+			{Name: "drop-udp", Match: PolicyMatch{Protocol: "udp"}, Action: PolicyAction{Type: ActionDrop}},
+		},
+	}
+
+	alloc := newAllocator()
+	result, err := alloc.translate([]PolicyRoute{policy})
+	if err != nil {
+		t.Fatalf("translate: %v", err)
+	}
+
+	chain := result.Tables[0].Chains[0]
+	if len(chain.Terms) != 1 {
+		t.Fatalf("expected 1 term, got %d", len(chain.Terms))
+	}
+	if chain.Terms[0].Name != "any-drop-udp" {
+		t.Errorf("term name = %q, want any-drop-udp", chain.Terms[0].Name)
+	}
+	if got := len(interfaceMatches(chain.Terms[0])); got != 0 {
+		t.Errorf("term carries %d interface matches, want 0", got)
+	}
+}

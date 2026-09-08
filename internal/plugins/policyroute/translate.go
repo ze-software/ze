@@ -5,6 +5,8 @@ package policyroute
 import (
 	"fmt"
 	"net/netip"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/firewall"
@@ -78,7 +80,7 @@ func (a *allocator) translatePolicy(policy PolicyRoute, basePriority *int) ([]fi
 	var autoRoutes []autoRouteSpec
 
 	for i := range policy.Rules {
-		matches, err := buildMatches(policy.Rules[i], policy.Interfaces)
+		matches, err := buildPolicyMatch(policy.Rules[i].Match)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("rule %q: %w", policy.Rules[i].Name, err)
 		}
@@ -88,11 +90,7 @@ func (a *allocator) translatePolicy(policy PolicyRoute, basePriority *int) ([]fi
 			return nil, nil, nil, fmt.Errorf("rule %q: %w", policy.Rules[i].Name, err)
 		}
 
-		terms = append(terms, firewall.Term{
-			Name:    policy.Name + "-" + policy.Rules[i].Name,
-			Matches: matches,
-			Actions: actions,
-		})
+		terms = append(terms, ruleTerms(policy, policy.Rules[i].Name, matches, actions)...)
 
 		ipRules = append(ipRules, ruleSpecs...)
 		autoRoutes = append(autoRoutes, routeSpecs...)
@@ -101,23 +99,67 @@ func (a *allocator) translatePolicy(policy PolicyRoute, basePriority *int) ([]fi
 	return terms, ipRules, autoRoutes, nil
 }
 
-func buildMatches(rule PolicyRule, interfaces []InterfaceSpec) ([]firewall.Match, error) {
-	var matches []firewall.Match
+// ruleTerms returns the terms one rule of a policy installs: one term for each
+// interface the policy names, and one term carrying no interface match where it
+// names none.
+//
+// The interface leaf-list is an OR, because a packet arrives on exactly one
+// interface and carries one name. nftables ANDs the matches inside a rule and
+// has no branch inside one, so the alternatives cannot share a term: two
+// interface matches in one term ask for a packet whose input interface is both
+// names at once, which no packet satisfies. Separate terms become separate
+// rules, and separate rules are how nftables ORs.
+//
+// The order the rules run in is unchanged. At most one term of the group can
+// match a given packet, so their relative order decides nothing, and the group
+// sits where the single term sat: after the terms of the previous rule and
+// before those of the next, in the order the policy's `order` leaf established.
+//
+// Each term gets its own matches and actions slice. The mark and the ip rule
+// are allocated once for the rule, before this call, so the group shares one
+// mark and one ip rule rather than one per interface.
+func ruleTerms(policy PolicyRoute, ruleName string, ruleMatches []firewall.Match, actions []firewall.Action) []firewall.Term {
+	base := policy.Name + "-" + ruleName
 
-	for _, iface := range interfaces {
+	if len(policy.Interfaces) == 0 {
+		return []firewall.Term{{Name: base, Matches: ruleMatches, Actions: actions}}
+	}
+
+	terms := make([]firewall.Term, 0, len(policy.Interfaces))
+	for i, iface := range policy.Interfaces {
+		matches := make([]firewall.Match, 0, 1+len(ruleMatches))
 		matches = append(matches, firewall.MatchInputInterface{
 			Name:     iface.Name,
 			Wildcard: iface.Wildcard,
 		})
-	}
+		matches = append(matches, ruleMatches...)
 
-	m, err := buildPolicyMatch(rule.Match)
-	if err != nil {
-		return nil, err
+		terms = append(terms, firewall.Term{
+			Name:    termName(base, i, len(policy.Interfaces)),
+			Matches: matches,
+			Actions: slices.Clone(actions),
+		})
 	}
-	matches = append(matches, m...)
+	return terms
+}
 
-	return matches, nil
+// termName names the term an interface gets inside a rule's group. One
+// interface keeps the <policy>-<rule> name the operator reads in the docs and
+// in `show firewall ruleset`. Several interfaces take the interface's 1-based
+// position in the leaf-list, because the counters of two terms that share a
+// name merge into one row (mergeRuleCounters,
+// internal/plugins/firewall/nft/backend_linux.go) and the show output would
+// then report the group's total once for each interface.
+//
+// The position rather than the interface name: an interface name the kernel
+// accepts can carry a character a term name cannot (ValidateName,
+// internal/component/firewall/model.go), and a term name that fails validation
+// takes down the apply of every firewall owner, not just this policy.
+func termName(base string, index, count int) string {
+	if count == 1 {
+		return base
+	}
+	return base + "-" + strconv.Itoa(index+1)
 }
 
 func buildPolicyMatch(pm PolicyMatch) ([]firewall.Match, error) {
