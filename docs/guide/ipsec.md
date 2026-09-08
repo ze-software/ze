@@ -396,6 +396,13 @@ When Ze is the EAP server and the client refuses the offered method, the
 `ike: EAP authentication failed` line names the types the client asked for and
 the type Ze offered.
 
+When Ze is the EAP-TLS client on TLS 1.3, it requires the RFC 9190 Section 2.5
+protected success result indication before it accepts the EAP-Success. An
+authenticator that does not send it fails the peering, and the message names the
+authenticator, the negotiated version and two remedies: an authenticator that
+follows Section 2.5, or a peering on TLS 1.2, which RFC 5216 governs and where
+no indication exists. TLS 1.2 peerings are unaffected.
+
 <!-- source: internal/core/eap/peer.go -- handleRequest, nakResponse, notificationResponse -->
 <!-- source: internal/component/ike/engine/fsm.go -- handleEAPResponse -->
 <!-- source: internal/component/ike/engine/responder_eap.go -- the EAP authentication failed line -->

@@ -205,6 +205,11 @@ sent the packet, so it is passed as a slog value and is never built into a forma
 string, a path or a command. Ze sends the Notification Response on the same
 round, because `PeerResult` carries `Notified` beside `Response`.
 
+`PeerResult.Indication` is reported the same way, at Debug, and it is REPORTED
+rather than judged: on TLS 1.3 an EAP-TLS exchange that carried no protected
+success result indication arrives as an `Err` instead, so the log line names the
+octets an accepted exchange carried.
+
 <!-- source: internal/component/ike/engine/fsm.go -- handleEAPResponse -->
 <!-- source: internal/core/eap/peer.go -- PeerResult, peerDiscard, notificationResponse -->
 

@@ -90,6 +90,61 @@
       "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9190-2.1.7-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc9190_nai_wiring_test.go::TestEAPTLSPeerConfigCarriesTheCertificateTheNAIIsDerivedFrom",
+      "unit-sha": "cac838cc200736f3",
+      "claim-sha": "f422bea690cfae66",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/fsm.go::buildPeerTLSConfig",
+      "producer-sha": "0eae00ae8719ce18",
+      "break": "body of buildPeerTLSConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.1.7-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_cert_nai_test.go::TestEAPTLS13PeerDerivesItsRealmFromTheCertificateNAI",
+      "unit-sha": "bf8dcf91edf45e20",
+      "claim-sha": "7b18130b3486dfa6",
+      "route": "revert",
+      "producer": "internal/core/eap/nai.go::certificateNAIs",
+      "producer-sha": "871d1c8a5f40f128",
+      "break": "body of certificateNAIs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.1.7-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_cert_nai_test.go::TestEAPTLSPeerDerivesTheRealmFromEveryNAIBearingCertificateField",
+      "unit-sha": "4ad29de068e6d61a",
+      "claim-sha": "49a4d2007d259c57",
+      "route": "revert",
+      "producer": "internal/core/eap/nai.go::certificateNAIs",
+      "producer-sha": "871d1c8a5f40f128",
+      "break": "body of certificateNAIs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.1.7-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_cert_nai_test.go::TestEAPTLSPeerKeepsTheAnonymousFallbackWhenNoCertificateNAIIsUsable",
+      "unit-sha": "83bbf548de583677",
+      "claim-sha": "1295d779c97d1d20",
+      "route": "revert",
+      "producer": "internal/core/eap/nai.go::naiSource",
+      "producer-sha": "1483351adcf3f00f",
+      "break": "body of naiSource replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.1.7-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_cert_nai_test.go::TestEAPTLSPeerPrefersTheConfiguredRealmOverTheCertificate",
+      "unit-sha": "5d69a22356f12f36",
+      "claim-sha": "93d7bbb2dbde9db9",
+      "route": "revert",
+      "producer": "internal/core/eap/nai.go::naiSource",
+      "producer-sha": "1483351adcf3f00f",
+      "break": "body of naiSource replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9190-2.1.8-1",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc9190_nai_test.go::TestEAPTLS13AuthenticatorAcceptsAnAnonymousNAI",
@@ -99,6 +154,17 @@
       "producer": "internal/core/eap/eap.go::handleIdentity",
       "producer-sha": "cd01bb53da5bfe90",
       "break": "body of handleIdentity replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.1.8-2",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_cert_nai_test.go::TestEAPTLSPeerDropsTheUsernameTheCertificateCarries",
+      "unit-sha": "949801e99313dc78",
+      "claim-sha": "9e38e3f31493130c",
+      "route": "revert",
+      "producer": "internal/core/eap/nai.go::realmNAI",
+      "producer-sha": "8aa24625a91c409d",
+      "break": "body of realmNAI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9190-2.1.8-2",
@@ -119,7 +185,7 @@
       "claim-sha": "1eb591f473b5f3fb",
       "route": "revert",
       "producer": "internal/core/eap/nai.go::anonymousNAI",
-      "producer-sha": "f7c2e1369ff1f80f",
+      "producer-sha": "861bfe2b4a5852b7",
       "break": "body of anonymousNAI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -163,7 +229,7 @@
       "claim-sha": "8923289c1f735504",
       "route": "revert",
       "producer": "internal/core/eap/nai.go::anonymousNAI",
-      "producer-sha": "f7c2e1369ff1f80f",
+      "producer-sha": "861bfe2b4a5852b7",
       "break": "body of anonymousNAI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -176,6 +242,182 @@
       "producer": "internal/core/eap/eap_tls.go::indicateSuccess",
       "producer-sha": "e55eb8085c523b86",
       "break": "body of indicateSuccess replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.10-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_attack_mitigation_test.go::TestRFC9190MitigationCarriesNoServerName",
+      "unit-sha": "e000fbe5111c0f03",
+      "claim-sha": "e8549a60f8648016",
+      "route": "revert",
+      "producer": "internal/core/eap/peer.go::startTLSClient",
+      "producer-sha": "9fc954b38b5ea8f9",
+      "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.10-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_attack_mitigation_test.go::TestRFC9190MitigationDropsBytesPipelinedBehindTheStart",
+      "unit-sha": "75b6047b9dd3c9f0",
+      "claim-sha": "5b0f23b76f721da9",
+      "route": "revert",
+      "producer": "internal/core/eap/peer.go::handleTLSRequest",
+      "producer-sha": "dfdb8c956f08fc5d",
+      "break": "body of handleTLSRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.10-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_attack_mitigation_test.go::TestRFC9190MitigationNegotiatesAnAEADSuite",
+      "unit-sha": "7c1b14a4a455c95c",
+      "claim-sha": "3afc2ded63080658",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+      "producer-sha": "db6310bfc661dc9b",
+      "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.10-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_attack_mitigation_test.go::TestRFC9190MitigationNegotiatesEphemeralKeyExchange",
+      "unit-sha": "aa2650b67101e3a3",
+      "claim-sha": "41d1866e3bac08cf",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+      "producer-sha": "db6310bfc661dc9b",
+      "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.10-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_attack_mitigation_test.go::TestRFC9190MitigationNegotiatesTLS12OrAbove",
+      "unit-sha": "c0fe6ad000e7e662",
+      "claim-sha": "3485fa0191290a43",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+      "producer-sha": "db6310bfc661dc9b",
+      "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.10-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_attack_mitigation_test.go::TestRFC9190MitigationOffersExtendedMasterSecret",
+      "unit-sha": "6925ccf63d7b2af2",
+      "claim-sha": "26449caea0ae82e6",
+      "route": "revert",
+      "producer": "internal/core/eap/peer.go::startTLSClient",
+      "producer-sha": "9fc954b38b5ea8f9",
+      "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.10-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_attack_mitigation_test.go::TestRFC9190MitigationOffersNoFiniteFieldDHGroup",
+      "unit-sha": "47763552f6c69d1e",
+      "claim-sha": "c338c6a63a86bd01",
+      "route": "revert",
+      "producer": "internal/core/eap/peer.go::startTLSClient",
+      "producer-sha": "9fc954b38b5ea8f9",
+      "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.10-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_attack_mitigation_test.go::TestRFC9190MitigationOffersNoPostHandshakeAuthentication",
+      "unit-sha": "6c286d742bace82e",
+      "claim-sha": "de1225fbdb54daa2",
+      "route": "revert",
+      "producer": "internal/core/eap/peer.go::startTLSClient",
+      "producer-sha": "9fc954b38b5ea8f9",
+      "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.10-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_attack_mitigation_test.go::TestRFC9190MitigationOffersNoRC4Suite",
+      "unit-sha": "1bf70b4b36f4bd8d",
+      "claim-sha": "2b4215628a0dc666",
+      "route": "revert",
+      "producer": "internal/core/eap/peer.go::startTLSClient",
+      "producer-sha": "9fc954b38b5ea8f9",
+      "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.10-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_attack_mitigation_test.go::TestRFC9190MitigationOffersNoStaticRSAKeyExchange",
+      "unit-sha": "28e6a3b4be56128c",
+      "claim-sha": "f9e0e16c911c0e95",
+      "route": "revert",
+      "producer": "internal/core/eap/peer.go::startTLSClient",
+      "producer-sha": "9fc954b38b5ea8f9",
+      "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.10-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_attack_mitigation_test.go::TestRFC9190MitigationOffersOnlyNullCompression",
+      "unit-sha": "6b10572c8c4f29c0",
+      "claim-sha": "ef488ec824f2cbc7",
+      "route": "revert",
+      "producer": "internal/core/eap/peer.go::startTLSClient",
+      "producer-sha": "9fc954b38b5ea8f9",
+      "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.10-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_attack_mitigation_test.go::TestRFC9190MitigationOffersSecureRenegotiationInfo",
+      "unit-sha": "f88a4caa99691a39",
+      "claim-sha": "e0c738f6885c397d",
+      "route": "revert",
+      "producer": "internal/core/eap/peer.go::startTLSClient",
+      "producer-sha": "9fc954b38b5ea8f9",
+      "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.10-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_attack_mitigation_test.go::TestRFC9190MitigationRefusesACompressingClientHello",
+      "unit-sha": "253b3fa6eebd6043",
+      "claim-sha": "86a7a759eb3e63ee",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+      "producer-sha": "db6310bfc661dc9b",
+      "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.10-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_attack_mitigation_test.go::TestRFC9190MitigationRefusesAMethodDowngrade",
+      "unit-sha": "275296f8d2946984",
+      "claim-sha": "fef458ab6f966517",
+      "route": "revert",
+      "producer": "internal/core/eap/peer.go::naks",
+      "producer-sha": "739a0037df1b7a64",
+      "break": "body of naks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.10-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_attack_mitigation_test.go::TestRFC9190MitigationRefusesTLS11",
+      "unit-sha": "fc45d731808923b8",
+      "claim-sha": "c0890af3d95cf1fa",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+      "producer-sha": "db6310bfc661dc9b",
+      "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.10-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_attack_mitigation_test.go::TestRFC9190MitigationUsesANamedGroup",
+      "unit-sha": "55c99754d0e631c5",
+      "claim-sha": "54c141de27a2d584",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+      "producer-sha": "db6310bfc661dc9b",
+      "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9190-5.4-1",

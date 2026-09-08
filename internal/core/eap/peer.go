@@ -79,8 +79,11 @@ type PeerResult struct {
 	// result indication, so a caller logs it to tell an authenticator that sent
 	// one from an authenticator that did not.
 	//
-	// It is REPORTED and never required. The published RFC puts no obligation on
-	// the peer, so an empty value ends no exchange (PeerSession.indication).
+	// It is REPORTED here and REQUIRED elsewhere: on a TLS 1.3 exchange the
+	// EAP-Success is refused unless this octet arrived, and the refusal is an
+	// Err on the result that carries the EAP-Success rather than anything on
+	// this field (requireSuccessIndication, peer_indication.go). A caller that
+	// reads only this field therefore sees what arrived and never a verdict.
 	Indication []byte
 
 	MSK       [64]byte
@@ -187,15 +190,23 @@ type PeerSession struct {
 	// such payload, the single octet 0x00 that IS the protected success result
 	// indication, so this is what ze OBSERVED the authenticator claim.
 	//
-	// consumePostHandshakeRecords writes it and readAndSendTLS reports it in
-	// PeerResult.Indication, so the operator's log line names what arrived. It
-	// is not ENFORCED: the published RFC puts no obligation on the peer, and
-	// errata 7577, which proposes one, is Reported rather than Verified. An
-	// exchange with no indication therefore leaves this nil and still succeeds.
+	// consumePostHandshakeRecords writes it, readAndSendTLS reports it in
+	// PeerResult.Indication so the operator's log line names what arrived, and
+	// requireSuccessIndication (peer_indication.go) REQUIRES it on a TLS 1.3
+	// exchange: nil there ends the exchange rather than concluding it.
 	//
 	// Atomic because the TLS reader goroutine writes it and the session's own
 	// goroutine reads it, like tlsErr above.
 	indication atomic.Pointer[[]byte]
+
+	// indicationErr holds the failure that ended the post-handshake read, when
+	// it was a failure rather than the transport closing.
+	//
+	// It exists so nil indication above means ONE thing, "the authenticator sent
+	// no application data", and never doubles as "this peer could not read what
+	// it sent" (ai/rules/principles.md). The two carry different repairs, so
+	// requireSuccessIndication reports them as different errors.
+	indicationErr atomic.Pointer[error]
 
 	// pendingErr holds a TLS failure whose EAP-Response has already gone out, so
 	// the round that follows can report it.
@@ -270,9 +281,24 @@ func NewPeerSession(method uint8, identity, password string) *PeerSession {
 // userName is not set for the same reason. It is the MS-CHAPv2 name field
 // (handleMSCHAPv2Request), which this method never reaches, so setting it would
 // leave the operator's username on an EAP-TLS session that must not emit one.
+//
+// The peer's own certificate is the second source of the realm. RFC 9190
+// Section 2.1.7: "When the client certificate contains an NAI as subject name or
+// alternative subject name, an anonymous NAI SHOULD be derived from the NAI in
+// the certificate". naiSource (nai.go) chooses between the two, and anonymousNAI
+// is still the one function that decides what goes on the wire, so a realm read
+// out of a certificate arrives here with its username already dropped.
 func NewPeerSessionTLS(identity string, cfg *PeerTLSConfig) *PeerSession {
+	// A session with no configuration reaches no handshake either: startTLSClient
+	// refuses it. It still owes a valid NAI, because the Identity Response leaves
+	// before the first EAP-Request/TLS-Start.
+	var certPEM []byte
+	if cfg != nil {
+		certPEM = cfg.CertPEM
+	}
+
 	return &PeerSession{
-		identity: anonymousNAI(identity),
+		identity: anonymousNAI(naiSource(identity, certPEM)),
 		method:   TypeTLS,
 		state:    peerStateIdentity,
 		tlsCfg:   cfg,
@@ -338,6 +364,24 @@ func (ps *PeerSession) Process(request *Packet) PeerResult {
 		// "Success" first and authenticates never would be believed.
 		if ps.state != peerStateMethodDone {
 			return peerDiscard()
+		}
+
+		// RFC 9190 Section 2.5 on TLS 1.3: the keying material "can be made
+		// available to lower layers and the authenticator after the authenticated
+		// success result indication has been sent or received". An EAP-Success is
+		// not that indication -- it is unprotected, so any party on the path can
+		// forge one -- and the caller turns this result straight into the IKEv2
+		// AUTH payload (handleEAPResponse, internal/component/ike/engine/fsm.go).
+		// So the protected statement is required first, and the MSK below is
+		// reached only through it (requireSuccessIndication, peer_indication.go,
+		// which states why ze is stricter here than the published RFC).
+		//
+		// It runs AFTER the state guard above, so an authenticator that says
+		// "Success" before the method concluded is still discarded in silence
+		// rather than answered with an error naming the missing indication.
+		if err := ps.requireSuccessIndication(); err != nil {
+			ps.state = peerStateFailed
+			return PeerResult{Err: err}
 		}
 		ps.state = peerStateDone
 		msk := ps.msk
@@ -1256,44 +1300,6 @@ func (ps *PeerSession) runTLSClient() {
 	ps.tlsTransport.handshakeFinished()
 }
 
-// consumePostHandshakeRecords reads the records the authenticator sends after
-// its handshake is complete, so crypto/tls processes them.
-//
-// IT IS WHAT STORES THE RFC 9190 SECTION 2.1.2 TICKET. A NewSessionTicket is a
-// post-handshake handshake message, and Go handles one only from inside Read:
-// Conn.Read drives readRecord and then handlePostHandshakeMessage
-// (crypto/tls/conn.go), which is the call that reaches the ClientSessionCache.
-// A peer that stopped reading when HandshakeContext returned received every
-// ticket and stored none, so no exchange it ever had could resume.
-//
-// It also consumes the Section 2.5 protected success result indication, the
-// single 0x00 octet of application data, and DISCARDS it. Requiring that octet
-// is a separate obligation the published RFC does not state (errata 7577
-// proposes one and is Reported rather than Verified), so this read must not
-// start enforcing it as a side effect. readAndSendTLS still answers the
-// indication with the no-data EAP-Response Section 2.5 step 4 asks for.
-//
-// The buffer is one octet because the only application data an EAP-TLS
-// authenticator sends is that one octet. A larger record is read out in
-// one-octet pieces rather than refused, because refusing here would poison the
-// connection over data ze has no use for.
-func (ps *PeerSession) consumePostHandshakeRecords() {
-	buf := make([]byte, 1)
-	for {
-		n, err := ps.tlsConn.Read(buf)
-		if err != nil {
-			return
-		}
-		if n > 0 {
-			// Copy: buf is reused on the next pass, and the reader of this
-			// pointer runs on the session's goroutine.
-			seen := make([]byte, n)
-			copy(seen, buf[:n])
-			ps.indication.Store(&seen)
-		}
-	}
-}
-
 // readAndSendTLS reads TLS engine output and sends it (possibly fragmented).
 //
 // It WAITS for the engine to settle. A snapshot taken before the engine writes
@@ -1326,12 +1332,13 @@ func (ps *PeerSession) readAndSendTLS(identifier uint8) PeerResult {
 		// the indication and the NewSessionTicket beside it and produces nothing
 		// to send, and tlsDone is already set.
 		//
-		// The reader DECRYPTS the indication and discards it, so this peer still
-		// cannot tell an authenticator that sent one from an authenticator that
-		// did not. Requiring it (spec-ipsec-rfc9190 AC-2) is a separate change:
-		// the published RFC states no peer-side obligation, and errata 7577,
-		// which proposes one, is still Reported rather than Verified
-		// (rfc/short/rfc9190.md).
+		// The bare EAP-Response is owed EITHER WAY, so nothing is judged here.
+		// RFC 5216 Section 2.1.3 makes the authenticator wait for this packet
+		// before it may conclude, and an authenticator whose indication was
+		// missing or malformed is still waiting for it. The verdict is taken one
+		// round later, on the EAP-Success, by requireSuccessIndication
+		// (peer_indication.go): refusing here would leave that wait unsatisfied,
+		// which is the same reply-first discipline pendingErr exists for.
 		//
 		// A handshake that is still running means the engine settled and wrote
 		// nothing. The bounded wait's backstop fired on a wedged client, or the

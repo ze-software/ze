@@ -80,7 +80,14 @@ it belongs to the owner.
 
 ### Interop
 
-Wire-visible, and already covered rather than blocked:
-`test/interop-ipsec/scenarios/eap-tls13` sets `eap_id = %any` in its
-`swanctl.conf`, so an anonymous NAI still authenticates. The scenario should be
-TIGHTENED to assert the octets Ze sends, not replaced.
+Wire-visible, and NOT coverable against strongSwan. `eap_id = %any` was read as
+proof that an anonymous NAI still authenticates; it is the opposite. MEASURED
+2026-09-08: `%any` makes charon key its peer-certificate lookup on the wire
+identity (`process_cert_verify`, strongSwan 5.9.14 `src/libtls/tls_server.c`,
+reached through `load_method` in
+`src/libcharon/sa/ikev2/authenticators/eap_authenticator.c`), so an anonymous NAI
+makes it answer `no trusted certificate found for 'anonymous' to verify TLS
+peer`. Naming `eap_id` explicitly is what fixes it, and charon then sends no
+EAP-Request/Identity. The octets Ze sends are proven by
+`internal/core/eap/rfc9190_nai_test.go`, and a wire assertion needs a peer other
+than charon.

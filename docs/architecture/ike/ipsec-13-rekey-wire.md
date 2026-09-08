@@ -54,6 +54,13 @@ reuses ID 1, and a conforming peer rejects it. The counter is incremented when
 the SA reaches `StateEstablished`, which is correct for PSK and for EAP, because
 both pre-increment.
 
+On the EAP path the increment sits on the success branch alone: `handleEAPResponse`
+calls `advanceMsgID` only when the peer session reports `Done`, and any `Err`
+takes the SA to `StateDead` instead. So an exchange the peer refuses at the last
+packet, an EAP-TLS 1.3 one carrying no RFC 9190 Section 2.5 indication among
+them, leaves the counter where it was and raises no rekey from a half-advanced
+ID.
+
 <!-- source: internal/component/ike/engine/fsm.go -- handleAuthResponse, handleEAPResponse -->
 
 **Hard expiry against an in-flight rekey.** `newLifetimeState` sets the soft

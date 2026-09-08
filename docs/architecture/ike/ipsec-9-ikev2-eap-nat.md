@@ -225,6 +225,19 @@ Failure packet with the OpCode alone so that round exists, and reports the E=
 error code when the EAP-Failure arrives. A peer that ended the conversation on
 the Failure packet would leave the authenticator no round to meet Section 4.2 in.
 
+**The peer answers the closing round before it judges it.** On TLS 1.3 the
+authenticator's last EAP-Request carries the RFC 9190 Section 2.5 protected
+success result indication, and `readAndSendTLS` answers it with the no-data
+EAP-Response step 4 asks for whatever the record held. The verdict is taken one
+round later, on the EAP-Success, because RFC 5216 Section 2.1.3 makes the
+authenticator wait for that response before it may conclude: a peer that refused
+on the spot would leave the wait unsatisfied, which is the same reply-first
+discipline `pendingErr` exists for. What the verdict requires is in
+`ipsec-11-interop-eap.md`.
+
+<!-- source: internal/core/eap/peer.go -- PeerSession.readAndSendTLS -->
+<!-- source: internal/core/eap/peer_indication.go -- PeerSession.requireSuccessIndication -->
+
 <!-- source: internal/core/eap/eap.go -- MethodResult, Session.handleMethod, Session.failure -->
 <!-- source: internal/core/eap/eap_tls.go -- tlsMethod.Process, tlsMethod.Close -->
 <!-- source: internal/core/eap/peer.go -- PeerSession.handleTLSRequest, readAndSendTLS -->

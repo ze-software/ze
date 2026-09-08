@@ -71,7 +71,7 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | OCSP stapling and revocation | 5.4 (five MUSTs) | IMPLEMENTED. 5.4-1 landed 2026-09-05 (phase 4), and 5.4-2 through 5.4-5 landed 2026-09-08 (phase 6): the authenticator staples the operator's `ocsp-response`, the peer enforces the stapled status under `certificate-status-request`, and it re-checks the chain over https once the Child SA is up. That last one also closed RFC5216-5.4-2, which was a published gap on an enrolled RFC |
 | Anonymous and privacy-friendly NAIs | 2.1.8, 5.8 | IMPLEMENTED 2026-09-08 (phase 5b), peer and server. The peer derives an anonymous NAI in `NewPeerSessionTLS` rather than at the send site, so no caller reaches the Identity Response with the configured `local-id` in it. Section 5.8's three MUSTs open "If anonymous NAIs are not used", and ze now uses one on every EAP-TLS exchange, so their antecedent is false: they are exclusions for the extraction, never gaps |
 | Key derivation and the export | 2.3 | IMPLEMENTED, untagged |
-| Not mechanically testable as written | 5.10-1 ("MUST mitigate known attacks") | needs an owner reading at enrolment |
+| Known attack mitigation | 5.10-1 ("MUST mitigate known attacks") | IMPLEMENTED and PROVEN 2026-09-08. The requirement points at RFC 7457 and BCP 195, so the list is the test: `internal/core/eap/rfc9190_attack_mitigation_test.go` carries sixteen tagged units over the nine RFC 7457 Section 2 attacks an EAP-TLS implementation can hold a property against, both polarities, each with a discrimination record. Owner ruling, Thomas, 2026-09-08: "in that case we need to ensure we run these nine test in our suite (positive and negative)" |
 
 ## Required Reading
 
@@ -168,7 +168,7 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Section 2.5 is wire-visible, so a wrong implementation breaks a currently-green interop scenario | scenario eap-tls13 reddens | land 2.5 first and alone, with eap-tls and eap-tls13 run at every step |
-| R-2 | Enrolment stays blocked because one MUST is untestable as written (5.10-1) | the extraction sign-off cannot classify it | that single row goes to Thomas with the RFC text, per `ai/rules/rfc-compliance.md` |
+| R-2 | RETIRED 2026-09-08. 5.10-1 is not untestable: RFC 9190 Section 5.10 cites RFC 7457 and BCP 195, and those documents supply the attack list a test can be written against | -- | sixteen tagged units in `internal/core/eap/rfc9190_attack_mitigation_test.go`, nine attacks, both polarities, every one with a discrimination record |
 | R-3 | OCSP stapling pulls in a revocation-checking surface Ze has nowhere else | the change reaches outside `ike/eap` | scope it to EAP-TLS, and say so if it cannot be |
 
 ## Blast Radius
@@ -198,7 +198,7 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | AC-5 | A stapled OCSP response is present, and absent | ze honours Section 5.4 in both cases. Done phase 6: the authenticator staples what the operator configured, the peer refuses an entry with no valid status once certificate-status-request is set, and it re-checks the chain over https once the Child SA is up |
 | AC-6 | An anonymous NAI | ze accepts it per Section 2.1.8 |
 | AC-7 | `./le rfc check` | RFC 9190 is enrolled, and no gated MUST carries `{gap}` or `{not-applicable}` for a feature this spec built |
-| AC-8 | Scenarios eap-tls and eap-tls13 | both green at every phase boundary. Phase 5, 2026-09-08: eap-tls, eap-tls13 AND responder-eap-tls13 all green after resumption landed, which is the evidence that issuing a ticket is invisible to a peer that never offers `psk_dhe_ke` |
+| AC-8 | Scenarios eap-tls and eap-tls13 | both green at every phase boundary. **GREEN again on 2026-09-08**, with responder-eap-tls13 and responder-eap-tls13-revoked-client green in the same tree. The red between phase 5b and here was charon, not ze: `process_cert_verify` (strongSwan 5.9.14 `src/libtls/tls_server.c`) looks the peer certificate up by the EAP identity, which `load_method` (`src/libcharon/sa/ikev2/authenticators/eap_authenticator.c`) takes from the wire whenever `eap_id` is `%any`, so the anonymous NAI RFC 9190 Section 2.1.8 requires can never name a certificate. Each scenario's `swanctl.conf` now names `eap_id = ze-test-client`, which keys that lookup on the configuration. `anonymousNAI` is unchanged. Phase 5, 2026-09-08: eap-tls, eap-tls13 AND responder-eap-tls13 recorded green after resumption landed, which is the evidence that issuing a ticket is invisible to a peer that never offers `psk_dhe_ke` |
 
 ## End-to-End User Stories
 
@@ -214,7 +214,12 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 |------|------|-----------|--------|
 | `TestEAPTLS13SendsProtectedSuccessIndication` | `internal/core/eap/rfc9190_test.go` | AC-1 | done, phase 1 |
 | `TestEAPTLS13RefusedClientGetsNoSuccessIndication` | same | AC-1 negative (RFC9190-2.5-2) | done, phase 1 |
-| `TestEAPTLS13RequiresProtectedSuccessIndication` | same | AC-2 | not started. The peer answers the indication without decrypting it. The published RFC puts no obligation on the peer; errata 7577 proposes one and is Reported, not Verified |
+| `TestEAPTLS13RequiresProtectedSuccessIndication` | `internal/core/eap/rfc9190_peer_indication_test.go` | AC-2: the peer refuses an EAP-TLS 1.3 exchange whose authenticator sent no indication, and the MSK is denied | done, phase 7. UNTAGGED on purpose: the published RFC puts no obligation on the peer, errata 7577 proposes one and is Reported rather than Verified, and none of the three `RFC9190-2.5-*` ids covers a peer |
+| `TestEAPTLS13PeerCompletesWithTheIndication`, `TestEAPTLS12PeerCompletesWithNoIndication` | same | AC-2 negative polarity: a peer that refused every exchange, and a requirement reading the configured version rather than the negotiated one, would each pass the row above | done, phase 7 |
+| `TestEAPTLS13PeerRefusesTheWrongIndicationPayload` | same | AC-2: the VALUE is checked, over four payloads. strongSwan's `client_process` requires exactly one octet equal to 0 | done, phase 7 |
+| `TestEAPTLSPeerAccumulatesTheApplicationDataItReads` | same | AC-2: the judgement is over the WHOLE of the application data, across reads, and `eapTLSIndicationKept` bounds what one authenticator can make the session hold | done, phase 7 |
+| `TestEAPTLS13PeerTellsAnUnreadableIndicationFromAnAbsentOne` | same | AC-2: a failed post-handshake read and an authenticator that sent nothing are different answers with different messages | done, phase 7 |
+| `TestEAPTLS13ResumedExchangeStillRequiresTheIndication` | same | AC-2 x AC-4: RFC 9190 Figure 3 carries the indication on a resumed exchange too, so a peer cannot be made to skip the check by offering a ticket | done, phase 7 |
 | `TestEAPTLS12SendsNoProtectedSuccessIndication` | same | AC-3 | done, phase 1 |
 | ~~`TestEAPTLSIssuesNoUnredeemableSessionTicket`~~ | same | REWRITTEN phase 5 as `TestEAPTLS13TicketAndIndicationShareOneEAPRequest`, per the OWNER RULING above: it pinned `SessionTicketsDisabled`, which under that ruling pins a non-conformance. The replacement asserts RFC 9190 Figure 2, that the ticket and the 0x00 indication leave in ONE EAP-Request. It carried no `RFC requirement:` tag; the commit gate reads removed test functions, so name it in the commit body | rewritten, phase 5 |
 | `TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems` | `internal/core/eap/rfc9190_resumption_test.go` | AC-4, RFC9190-2.1.2-1 and 2.1.3-1: a ticket is issued and the next exchange resumes on it | done, phase 5 |
@@ -239,6 +244,11 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | `TestEAPTLSPeerAnonymizesEveryConfiguredIdentity` | same | AC-6, RFC9190-2.1.8-3 positive: every NAI the peer can emit matches the RFC 7542 Section 2.2 grammar, over 12 identity shapes including the ones no grammar accepts. It is also what keeps §5.8-1/2/3's antecedent false | done, phase 5b |
 | `TestNAIGrammarMatchesRFC7542Section22` | same | AC-6, RFC9190-2.1.8-3 negative: the grammar refuses 19 strings, one for each rule, so the positive claim is not a checker that accepts everything | done, phase 5b |
 | `TestEAPMSCHAPv2PeerSendsItsConfiguredIdentity` | same | AC-6, RFC9190-2.1.8-2 negative: RFC 9190 governs EAP-TLS, so a password method's Identity Response is unchanged. A peer that anonymized every method would pass every row above | done, phase 5b |
+| `TestEAPTLS13PeerDerivesItsRealmFromTheCertificateNAI` | `internal/core/eap/rfc9190_cert_nai_test.go` | AC-6, RFC9190-2.1.7-1 positive on the wire: the local-id carries no realm, the client certificate names `alice@example.com` as an rfc822Name, and the Identity Response is `@example.com` with `alice` in no packet | done, phase 7b |
+| `TestEAPTLSPeerDerivesTheRealmFromEveryNAIBearingCertificateField` | same | AC-6, RFC9190-2.1.7-1 positive over each field that can hold an NAI: the rfc822Name Section 2.1.7 names, the userPrincipalName otherName an enterprise CA writes, and the subject common name, with the extension preferred over the subject | done, phase 7b |
+| `TestEAPTLSPeerKeepsTheAnonymousFallbackWhenNoCertificateNAIIsUsable` | same | AC-6, RFC9190-2.1.7-1 negative: a dNSName is no NAI, and a certificate that names no realm, one whose realm the grammar refuses, and material that does not parse each leave the fixed username. A peer that derived a realm from anything would pass the rows above and fail every row here | done, phase 7b |
+| `TestEAPTLSPeerPrefersTheConfiguredRealmOverTheCertificate` | same | AC-6, RFC9190-2.1.7-1 negative: the certificate is the source only where the identity gives no realm, because Section 2.1.3 wants the realm the deployment routes on again on a resumption | done, phase 7b |
+| `TestEAPTLSPeerDropsTheUsernameTheCertificateCarries` | same | AC-6, RFC9190-2.1.8-2 positive: a certificate NAI carries a username exactly as a configured identity does, and none of the three fields lets one survive the derivation | done, phase 7b |
 | `TestEAPTLS13AuthenticatorAcceptsAnAnonymousNAI` | same | AC-6, RFC9190-2.1.8-1 positive on the SERVER role: `@realm` and `anonymous@realm` each complete an exchange with a shared MSK | done, phase 5b |
 | `TestEAPTLS13AuthenticatorTreatsAnEmptyCertificateListAsTerminal` | same | AC-6, RFC9190-2.1.8-4 with 2.1.8-6: the authenticator's own `tls.Config` ends the handshake on an empty `certificate_list` and completes on a real one | done, phase 5b |
 | `TestEAPTLS13RefusesARevokedClientCertificate` | `internal/core/eap/rfc9190_revocation_test.go` | AC-5, RFC9190-5.4-1 positive on the authenticator | done, phase 4 |
@@ -335,8 +345,14 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 
 1. Land Section 2.5 ALONE, both roles, with scenarios eap-tls and eap-tls13 run before and after.
    DONE 2026-08-12 for the SERVER role, plus scenario responder-eap-tls13 which reads that role
-   against strongSwan for the first time. The PEER role is not done and is not a
-   published obligation: see the AC-2 row in the TDD Test Plan.
+   against strongSwan for the first time.
+   The PEER role is DONE 2026-09-08 (phase 7): `requireSuccessIndication`
+   (`internal/core/eap/peer_indication.go`) refuses the EAP-Success on a negotiated TLS 1.3
+   session unless the accumulated application data is exactly one octet equal to 0x00, and
+   `consumePostHandshakeRecords` beside it keeps an absent indication, a failed read and a
+   wrong payload apart. It is STRICTER than the published RFC, which addresses Section 2.5
+   only to the server, so nothing it added carries an `RFC requirement:` tag: see the AC-2
+   rows in the TDD Test Plan.
 2. Validate A-1 by reading strongSwan's `eap_tls.c` before assuming it can check ours.
    DONE 2026-08-12, and the reading is quoted in the A-1 row.
 3. Resumption and NewSessionTicket.
@@ -424,14 +440,27 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
    it is also what RFC9190-2.2-1 requires ("Unauthenticated information MUST NOT be
    used ... to give authorization"). The test is the gate on it, not the feature.
 
-   TWO SECTION 5.8 CONSEQUENCES FOR STEP 6. RFC9190-5.8-1, 5.8-2 and 5.8-3 open "If
+   THE CERTIFICATE IS THE SECOND SOURCE OF THE REALM, added 2026-09-08 (phase 7b).
+   RFC 9190 Section 2.1.7: "When the client certificate contains an NAI as subject
+   name or alternative subject name, an anonymous NAI SHOULD be derived from the NAI
+   in the certificate". `naiSource` (`nai.go`) chooses the source and `anonymousNAI`
+   still decides what is sent, so a realm read out of a certificate arrives with its
+   username already dropped. Three fields are read, in order: the subjectAltName
+   rfc822Name, the subjectAltName userPrincipalName otherName, and the subject
+   common name. A dNSName is not one of them, because it carries no "@" and the
+   RFC 7542 Section 2.2 grammar reads it as a utf8-username rather than a realm.
+   The configured identity still wins wherever it carries a realm, and certificate
+   material that does not parse yields no candidate rather than a failed session.
+
+      TWO SECTION 5.8 CONSEQUENCES FOR STEP 6. RFC9190-5.8-1, 5.8-2 and 5.8-3 open "If
    anonymous NAIs are not used", and ze now uses one on every EAP-TLS exchange, so
    they are exclusions rather than gaps and `TestEAPTLSPeerAnonymizesEveryConfiguredIdentity`
    is what holds their antecedent false. RFC9190-5.8-4 (record padding) is a SHOULD
    that `crypto/tls` exposes no control for; it is untouched by this step.
 6. Write `rfc/extraction/rfc9190.json` by hand and run `./le rfc check`.
 7. Move the row from `rfc/not-enrolled.txt` to `rfc/enrolled.txt`, add the status row.
-8. Raise 5.10-1 with Thomas if it still cannot be classified honestly.
+8. 5.10-1 needs no classification: it is proven in both polarities by
+   `internal/core/eap/rfc9190_attack_mitigation_test.go` and needs no annotation.
 
 ## Critical Review Checklist
 

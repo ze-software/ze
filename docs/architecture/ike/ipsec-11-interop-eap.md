@@ -56,6 +56,11 @@ authenticator such as strongSwan. The responder half is described in
   cleartext in the Identity Response". `anonymousNAI` derives what the peer sends
   instead, and the same section makes the result a Network Access Identifier that
   the grammar of RFC 7542 Section 2.2 accepts.
+- RFC 9190 Section 2.1.7 names the peer's own certificate as a source of the
+  realm: "When the client certificate contains an NAI as subject name or
+  alternative subject name, an anonymous NAI SHOULD be derived from the NAI in
+  the certificate". `naiSource` reads it when the configured identity carries no
+  realm.
 
 ## Decisions
 
@@ -102,7 +107,36 @@ The obligation binds a client that SUPPORTS TLS 1.3 rather than one that
 negotiated it, and that is the only reading this code could act on: the Identity
 Response leaves before any ClientHello, so no negotiated version exists yet.
 
-<!-- source: internal/core/eap/nai.go -- anonymousNAI, validNAI -->
+**The realm comes from the peer's certificate when the configured identity has
+none.** RFC 9190 Section 2.1.7 asks for it: "When the client certificate contains
+an NAI as subject name or alternative subject name, an anonymous NAI SHOULD be
+derived from the NAI in the certificate". A deployment whose `local-id` is an
+FQDN would otherwise send the bare `anonymous`, which no realm routes, and
+Section 2.1.3 says resumption is then likely impossible.
+
+`naiSource` chooses the source and `anonymousNAI` still decides what is sent, so
+a realm read out of a certificate arrives with its username already dropped.
+Three certificate fields are read, in this order.
+
+| Source | Why |
+|--------|-----|
+| subjectAltName rfc822Name | the form Section 2.1.7 names itself, "an identity such as an email address, which is already in NAI format" |
+| subjectAltName otherName userPrincipalName | what an enterprise CA writes on an 802.1X client certificate. It holds `user@domain`, so it is an NAI as an alternative subject name |
+| subject commonName | the "subject name" half of the same sentence. It is last, because RFC 5280 Section 4.2.1.6 makes the extension the place a name of a defined form is bound, while a common name is free text |
+
+A dNSName is read from none of them, and that is the grammar's decision rather
+than a gap. It carries no `@`, so RFC 7542 Section 2.2 reads `example.com` as a
+utf8-username. Deriving `@example.com` from it would invent a realm the issuer
+never asserted, and passing it on would put a permanent identifier on the wire.
+
+The configured identity wins wherever it carries a realm, because that is the
+realm the operator says the deployment routes on, and Section 2.1.3 asks for the
+same realm again on a resumption. Certificate material that does not parse
+yields no candidate and no error: the material is judged again by
+`tls.X509KeyPair` when the handshake starts, which is where a load failure can
+name the configuration, and the constructor runs before any handshake exists.
+
+<!-- source: internal/core/eap/nai.go -- anonymousNAI, naiSource, certificateNAIs, validNAI -->
 
 ## Traps this code exists to avoid
 
@@ -122,11 +156,33 @@ field on a full ze handshake too.
 **A peer that stops reading after the handshake stores no ticket.** A
 NewSessionTicket is a post-handshake message, and Go processes one only from
 inside `Conn.Read`. `PeerSession.consumePostHandshakeRecords` is the reader that
-keeps running after `HandshakeContext` returns; it also decrypts the RFC 9190
-Section 2.5 indication, reports it in `PeerResult.Indication` for the operator's
-log line, and requires nothing of it.
+keeps running after `HandshakeContext` returns. It also decrypts the RFC 9190
+Section 2.5 indication and reports it in `PeerResult.Indication` for the
+operator's log line.
 
-<!-- source: internal/core/eap/peer.go -- PeerSession.runTLSClient, PeerSession.consumePostHandshakeRecords -->
+<!-- source: internal/core/eap/peer.go -- PeerSession.runTLSClient -->
+<!-- source: internal/core/eap/peer_indication.go -- PeerSession.consumePostHandshakeRecords -->
+
+**On TLS 1.3 the peer REQUIRES that indication.** `requireSuccessIndication`
+runs on the EAP-Success round and refuses the exchange unless the application
+data it accumulated is exactly one octet equal to `0x00`. The version test reads
+the NEGOTIATED version, so a TLS 1.2 exchange, which RFC 5216 governs and where
+no indication exists, is untouched. Three outcomes are kept apart rather than
+collapsed into one silence: an authenticator that sent nothing, a post-handshake
+read that failed, and application data with the wrong value each carry their own
+message.
+
+This is STRICTER than the published RFC. Section 2.5 addresses its procedure to
+the EAP-TLS server, and errata 7577, which proposes a peer-side requirement, is
+in state Reported rather than Verified. Ze takes the position anyway, on the
+section's own sentence that the keying material "can be made available to lower
+layers and the authenticator after the authenticated success result indication
+has been sent or received": an EAP-Success is unprotected, so without the
+indication nothing protected says the authenticator succeeded, and the MSK feeds
+the IKEv2 AUTH payload. strongSwan's charon takes the same position on its peer
+half, which is what makes the strict reading interoperable.
+
+<!-- source: internal/core/eap/peer_indication.go -- PeerSession.requireSuccessIndication -->
 
 **EAP-TLS fragment reassembly needs a bound.** The reassembly buffer and the
 peer-side buffered total are both capped. An unbounded reassembler is a memory
@@ -258,6 +314,23 @@ the peer, the negotiated version, RFC 7627 and the three remedies, and neither
 end installs an XFRM SA. `eap-tls13` is the same exchange with
 `charon.tls.version_max = 1.3` on the same image, and it carries the ESP
 data-plane assertions.
+
+**No strongSwan scenario can observe ze's anonymous NAI, and that is a property
+of charon.** Its EAP-TLS server looks the peer certificate up BY the EAP
+identity: `process_cert_verify` (strongSwan 5.9.14 `src/libtls/tls_server.c`)
+calls `tls_find_public_key` with `this->peer`, and `load_method`
+(`src/libcharon/sa/ikev2/authenticators/eap_authenticator.c`) sets `this->peer`
+to the EAP-Response/Identity whenever `eap_id` is `%any`. RFC 9190 Section 2.1.8
+forbids a TLS 1.3 client from putting a permanent identifier there, so no
+anonymous NAI of any shape can name the certificate, and charon answered `no
+trusted certificate found for 'anonymous' to verify TLS peer`. RFC 9190
+Section 2.2 permits the policy: the Identity Response "is not authenticated by
+EAP-TLS", and a server MAY reject a conversation whose identity does not match
+its policy. Both scenarios therefore name `eap_id = ze-test-client`, which keys
+that lookup on the configuration. charon then takes the
+"using configured EAP-Identity" branch and sends no EAP-Request/Identity at all.
+`anonymousNAI` is proven by `rfc9190_nai_test.go` and its discrimination
+records, not by the lab.
 
 `eap-nak-method-negotiation` puts strongSwan in front of ze offering an
 authentication Type ze does not run. It proves one thing: strongSwan reads ze's

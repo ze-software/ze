@@ -1105,10 +1105,11 @@ func handleEAPResponse(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport.U
 
 	// RFC 9190 Section 2.5: an EAP-TLS 1.3 authenticator sends an encrypted TLS
 	// record carrying application data 0x00 as its protected success result
-	// indication. Ze does not REQUIRE it -- the published RFC puts no obligation
-	// on the peer -- so the line exists to tell an operator whether the far end
-	// sent one. The octets are chosen by the authenticator, so they are logged
-	// as a value.
+	// indication. Ze REQUIRES it on TLS 1.3, and the refusal arrives as an Err
+	// rather than here (PeerSession.requireSuccessIndication,
+	// internal/core/eap/peer_indication.go), so this line reports the octets an
+	// accepted exchange carried. The octets are chosen by the authenticator, so
+	// they are logged as a value.
 	if len(result.Indication) > 0 {
 		log.Debug("ike: EAP-TLS protected success indication received",
 			"peer", sa.PeerName, "data", hex.EncodeToString(result.Indication))
