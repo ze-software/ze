@@ -108,7 +108,7 @@
       "claim-sha": "70cfae019a4e4059",
       "route": "revert",
       "producer": "internal/plugins/vrrp/groups.go::validateGroup",
-      "producer-sha": "fe11239c0b3b84bf",
+      "producer-sha": "e186c3aa1484b4e1",
       "break": "body of validateGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -119,7 +119,7 @@
       "claim-sha": "a2c6fb98add7801a",
       "route": "revert",
       "producer": "internal/plugins/vrrp/groups.go::validateGroup",
-      "producer-sha": "fe11239c0b3b84bf",
+      "producer-sha": "e186c3aa1484b4e1",
       "break": "body of validateGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -174,7 +174,7 @@
       "claim-sha": "56ec6c523e1b7cea",
       "route": "revert",
       "producer": "internal/plugins/vrrp/groups.go::validateGroup",
-      "producer-sha": "fe11239c0b3b84bf",
+      "producer-sha": "e186c3aa1484b4e1",
       "break": "body of validateGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -185,7 +185,7 @@
       "claim-sha": "ed0d32b29431a2bb",
       "route": "revert",
       "producer": "internal/plugins/vrrp/groups.go::validateGroup",
-      "producer-sha": "fe11239c0b3b84bf",
+      "producer-sha": "e186c3aa1484b4e1",
       "break": "body of validateGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -196,7 +196,7 @@
       "claim-sha": "39bd7510c01b6156",
       "route": "revert",
       "producer": "internal/plugins/vrrp/groups.go::validateGroup",
-      "producer-sha": "fe11239c0b3b84bf",
+      "producer-sha": "e186c3aa1484b4e1",
       "break": "body of validateGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -207,7 +207,7 @@
       "claim-sha": "15628ff6d1794448",
       "route": "revert",
       "producer": "internal/plugins/vrrp/groups.go::validateGroup",
-      "producer-sha": "fe11239c0b3b84bf",
+      "producer-sha": "e186c3aa1484b4e1",
       "break": "body of validateGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

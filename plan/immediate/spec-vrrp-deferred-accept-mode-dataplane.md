@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 6/7 |
+| Phase | 7/7 |
 | Updated | 2026-09-08 |
 
 ## Post-Compaction Recovery
@@ -615,7 +615,7 @@ carried tagged tests and no recorded red at all.
 
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | Yes | `docs/features.md` VRRP row: add tracking, AND correct the accept-mode sentence that commit b21f6f2048 made false. **NOT DONE, and deliberately: on 2026-09-08 another live session held an uncommitted row in that file naming a feature not in HEAD, so touching it would have carried their hunk. It is the one page this change owes and did not pay.** |
+| 1 | New user-facing feature? | Yes | `docs/features.md` VRRP row. **DONE in commit fed8cb495.** The row now states the input-hook drop per virtual address, the Section 6.1 ICMPv6 135/136 carve-out that keeps Neighbor Discovery answering, and the `track` leaf. The other session's Per-protocol FIB row rode along and the commit body discloses it as a forward reference, which is what `ai/rules/git-safety.md` (2026-09-07) requires of an additive foreign hunk. `<!-- source: internal/plugins/vrrp/acceptfilter.go -- RFC 9568 Section 6.4.3 accept-mode filter -->` is the anchor added with it |
 | 2 | Config syntax changed? | Yes, in the VRRP page only | `docs/guide/vrrp.md`. `docs/guide/configuration.md` carries no vrrp block (checked 2026-09-08) |
 | 3 | CLI command added/changed? | No | No command is added; `docs/guide/command-reference.md` does not enumerate the `show vrrp` fields (checked 2026-09-08) |
 | 4 | API/RPC added/changed? | No | The `show vrrp` RPC is unchanged; one field joins its payload |
@@ -700,13 +700,20 @@ same change (`ai/rules/rfc-compliance.md`).
      /ze-review gate. Round 1 covers commit 0dd2e20da (item 2, interface
      tracking); item 1 (b21f6f2048) is in scope only where tracking touches it. -->
 
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/vrrp-deferred-accept-mode-dataplane-0a21e591-d035-4f7c-8d1b-231ab023a478.md` (19 files, verdict=clean) |
+| `./le spec session review check` | `review_gate: OK (3 code files, clean, hashes match ...)` |
+| Rounds | 3. Round 1 found the BLOCKER and four ISSUEs, round 2 found one ISSUE (the staled RFC 5798 discrimination records), round 3 was clean |
+| Reviewer lenses used | Round 1: an independent reviewer over commit 0dd2e20da. Rounds 2 and 3: the closure context, with wiring and reachability (every symbol this spec added read to a non-test caller) and evidence integrity (does each test's assertion carry the claim written above it) |
+
 ### Run 1 (initial, 2026-09-08, independent reviewer, commit 0dd2e20da)
 
 Counts: 1 BLOCKER, 4 ISSUE, 4 NOTE.
 
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| 1 | BLOCKER | `docs/features.md` VRRP row still publishes "`accept-mode` ... is not enforced on the dataplane this pass, so the virtual address answers traffic while the router is Active regardless of the leaf (RFC 9568 Section 6.4.3 filtering is not installed)". `acceptFilterTables` and `setAcceptFilter` install a `ze_vrrp` input-hook table with one host-scoped Drop per suppressed address, so the page has been false since b21f6f2048, and it is the page that publishes Ze's RFC 9568 conformance to a reader outside the repo. The row also does not carry tracking. The spec's own Documentation Update Checklist row 1 records it as NOT DONE, on the ground that another session held an uncommitted hunk in that file; `ai/rules/git-safety.md` (2026-09-07) makes landing the presumption for a foreign hunk that is additive prose, and rung 2 of `ai/rules/rule-precedence.md` puts an outward-facing false conformance claim above commit tidiness | `docs/features.md` VRRP row; producer `internal/plugins/vrrp/acceptfilter.go` `acceptFilterTables` | OPEN -- not this session's: another live session holds uncommitted work in `docs/features.md`, and the main thread carries the row |
+| 1 | BLOCKER | `docs/features.md` VRRP row still publishes "`accept-mode` ... is not enforced on the dataplane this pass, so the virtual address answers traffic while the router is Active regardless of the leaf (RFC 9568 Section 6.4.3 filtering is not installed)". `acceptFilterTables` and `setAcceptFilter` install a `ze_vrrp` input-hook table with one host-scoped Drop per suppressed address, so the page has been false since b21f6f2048, and it is the page that publishes Ze's RFC 9568 conformance to a reader outside the repo. The row also does not carry tracking. The spec's own Documentation Update Checklist row 1 records it as NOT DONE, on the ground that another session held an uncommitted hunk in that file; `ai/rules/git-safety.md` (2026-09-07) makes landing the presumption for a foreign hunk that is additive prose, and rung 2 of `ai/rules/rule-precedence.md` puts an outward-facing false conformance claim above commit tidiness | `docs/features.md` VRRP row; producer `internal/plugins/vrrp/acceptfilter.go` `acceptFilterTables` | CLEARED in commit fed8cb495 -- see Fixes applied |
 | 2 | ISSUE | The keepalived lab's recovery leg cannot fail. `assertZeAdvertPriority` scans `zeAdverts()`, which is `parseVRRPAdverts(l.captureLines.snapshot())`, the CUMULATIVE capture since `startCapture`. In `runTrackedUplink` the third call asks for `vrrpZePriority` (200), and the capture already holds the 200-priority advertisements from before the tracked veth went down, so it matches at once whether or not Ze withdrew the decrement. The spec's RED walk never exposed it, because the reverted decrement failed at leg 2 and never reached leg 3. The recovery is still proven, but by the `waitKAState(ctx, "BACKUP")` that follows, not by the priority assertion whose failure message claims to report it. Fix: record `len(l.zeAdverts())` before each flap and require a match at or past that index | `internal/le/qemu/vrrp_keepalived_linux.go` `assertZeAdvertPriority`, `runTrackedUplink` | CLEARED -- see Fixes applied |
 | 3 | ISSUE | `trackedInterfaces` returns `nil, nil` when `track`, or its `interface` child, is not a `map[string]any`. The same function hard-errors on a malformed ENTRY and on a missing `priority-decrement`, both justified in comments by "a producer that skipped schema validation". From that same producer a malformed container yields NO tracking, silently: the group keeps advertising its configured priority for ever, the failover the operator wrote never happens, and nothing is logged. That is the zero that reads as an answer (`ai/rules/principles.md`). Fix: keep `nil, nil` only for an ABSENT `track` key, and error when the key is present in a shape the extractor does not understand | `internal/plugins/vrrp/groups.go` `trackedInterfaces` | CLEARED -- see Fixes applied |
 | 4 | ISSUE | The Consequences bullet this commit rewrote states the filter order backwards: "installs a drop for the virtual addresses in the `ze_vrrp` firewall table, ahead of the ICMPv6 135/136 carve-out RFC 9568 Section 6.1 requires". `acceptFilterTables` appends the `nd-neighbor-solicit` and `nd-neighbor-advert` Accept terms FIRST and the per-address Drop terms after, and its own comment says why: a packet takes the verdict of the first rule it matches. The page now describes the order that would violate R014 | `docs/architecture/vrrp/vrrp-first-hop-redundancy.md` Consequences; producer `internal/plugins/vrrp/acceptfilter.go` `acceptFilterTables` | CLEARED -- see Fixes applied |
@@ -763,9 +770,21 @@ Stated explicitly, because the absence of a finding is a result:
 
 ### Fixes applied
 
-Round 1 fixes, 2026-09-08. The four ISSUEs are cleared. The BLOCKER is not, and
-the row above says why: `docs/features.md` carries another session's uncommitted
-work, so the main thread owns that edit.
+Round 1 fixes, 2026-09-08. All five are cleared.
+
+- **Finding 1 (the BLOCKER, a false RFC 9568 conformance claim).** The
+  `docs/features.md` VRRP row said accept-mode "is not enforced on the dataplane
+  this pass", which b21f6f2048 made false on the page that publishes Ze's
+  conformance outward. Corrected in commit fed8cb495: the row now states the
+  host-scoped drop each virtual address takes at the input hook, the Section 6.1
+  carve-out that keeps IPv6 Neighbor Solicitation and Advertisement flowing, and
+  the `track` leaf 0dd2e20da added. The producer is `acceptFilterTables`
+  (`internal/plugins/vrrp/acceptfilter.go`), which the row's new
+  `<!-- source: -->` anchor names. The other session's uncommitted Per-protocol
+  FIB row rode along and the commit body discloses it as a forward reference,
+  which is the presumption `ai/rules/git-safety.md` (2026-09-07) sets for an
+  additive foreign hunk, and rung 2 of `ai/rules/rule-precedence.md` puts an
+  outward-facing false conformance claim above commit tidiness.
 
 - **Finding 3 (fail closed).** `trackedInterfaces`
   (`internal/plugins/vrrp/groups.go`) now returns `nil, nil` only for an ABSENT
@@ -811,14 +830,62 @@ work, so the main thread owns that edit.
   revert producer internal/plugins/vrrp/groups.go::EffectivePriority` observed
   the red again and rewrote `rfc/discrimination/rfc9568.json`.
 
-### Run 2+ (re-runs until clean)
+### Run 2 (closure pass, 2026-09-08, independent closure context)
+
+Scope, written before the run (`ai/rules/planning.md`): the round 1 fixes and
+their sibling call sites, which is commit 3048d488a
+(`internal/plugins/vrrp/groups.go` `trackedInterfaces`,
+`internal/le/qemu/vrrp_keepalived_linux.go` `assertZeAdvertPriority` and
+`runTrackedUplink`, `docs/architecture/vrrp/vrrp-first-hop-redundancy.md`
+Consequences, the `RFC9568-5.2.4-2` claim on
+`internal/plugins/vrrp/groups_test.go` `TestEffectivePriorityWithTracking`) plus
+commit fed8cb495 (`docs/features.md`), and the eight always-in-scope classes
+over the whole change. Lenses: wiring and reachability (every symbol this spec
+added, read to a non-test caller), and evidence integrity (does each test's
+assertion carry the claim written above it).
+
+Counts: 0 BLOCKER, 1 ISSUE, 0 NOTE.
 
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 10 | ISSUE | Six RFC 5798 discrimination records were staled by this spec's own change and were not re-recorded with it. `validateGroup` gained the `validateTracking` call in 0dd2e20da, which moved its fingerprint, and the six records whose `producer` is `validateGroup` still carried `producer-sha` `fe11239c0b3b84bf`. `./le rfc check` named all six: `RFC5798-5.2.4-2` at `TestBoundaryPriority`, `RFC5798-5.2.9-1` at `TestValidateIPv6LinkLocal` and `RFC5798-5.2.9-2` at `TestValidateVIPFamilyMatchesGroupFamily`, each in both polarities. So three RFC 5798 MUSTs had no red anybody has observed over the code that is there now. Attribution is exact: the function body is byte-identical from 57812eae56 (which recorded the six) through `0dd2e20da^`, and differs at HEAD. `ai/rules/rfc-compliance.md` names the tag and the tagged unit as the two things whose change owes a record; the PRODUCER moving under an unchanged tag and an unchanged unit is the third way, and it is the one no sentence in the rule reaches | `rfc/discrimination/rfc5798.json`; producer `internal/plugins/vrrp/groups.go` `validateGroup` | CLEARED -- see Fixes applied, round 2 |
+
+### Fixes applied, round 2
+
+- **Finding 10 (staled discrimination records).** All six were re-recorded with
+  `./le rfc discriminate-record ... route revert producer
+  internal/plugins/vrrp/groups.go::validateGroup`, which applies the break,
+  observes the red and refuses to write a record it did not observe. Each run
+  reported `observed red`, for example
+  `rfc/discrimination/rfc5798.json: recorded RFC5798-5.2.4-2 negative at
+  internal/plugins/vrrp/groups_test.go::TestBoundaryPriority by revert`. No test
+  and no product code changed: the six records now pin the fingerprints the
+  proofs were actually taken against.
+
+### Run 3 (re-review of the round 2 fix, 2026-09-08)
+
+Scope: `rfc/discrimination/rfc5798.json`, the only file round 2 changed, plus
+the always-in-scope classes.
+
+Counts: 0 BLOCKER, 0 ISSUE, 0 NOTE.
+
+`./le rfc check` names no record in `rfc/discrimination/rfc5798.json`, where it
+named six before the fix. The file is tool-written and no hand edit was made to
+it, so there is no claim in it that a run did not produce. The three RFC 5798
+rows the check still reports (`RFC5798-5.1.2.3-1`, `RFC5798-7.4-1`,
+`RFC5798-8.4.2-1`, each "has no test and no annotation") name the IPv6 hop
+limit, RFC 7217 interface identifiers and the Section 8.4.2 interop mode. None
+is reachable from accept-mode filtering or from priority tracking, and all three
+predate this spec.
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
+
+Run 3 is the clean run: 0 BLOCKER, 0 ISSUE. The four NOTEs of round 1 (findings
+6 to 9) stay recorded and open, which is what a NOTE is for; none of them can
+produce a wrong result, and each names the code that would have to change if it
+ever did.
 
 ## Checklist
 
@@ -854,3 +921,273 @@ work, so the main thread owns that edit.
 Deferred by spec-vrrp-6-interop (Known Limitations).
 
 `accept-mode` is not enforced on the dataplane: the leaf is parsed, validated (rejected under v2) and reported by `show vrrp`, but no RFC 9568 6.4.3 filtering is installed, so an Active non-owner answers traffic to the virtual IP whichever way the leaf is set. Also not implemented: priority-decrement tracking (interface/route/health) that Junos/Nokia/VyOS offer
+
+Both halves of that row are now done, and their limits are stated in Known
+Limitations: interface tracking is implemented, route and health-check tracking
+are not.
+
+## Implementation Summary
+
+### What Was Implemented
+
+Two pieces, in two commits, each with its own tests.
+
+**Item 1, the Accept_Mode dataplane filter (commit b21f6f2048).**
+`AcceptMode` reached config parsing, the version-2 rejection and the `show vrrp`
+snapshot and nothing else, so an Active non-owner answered traffic on the
+virtual address whichever way the operator set the leaf.
+`internal/plugins/vrrp/acceptfilter.go` is the new consumer.
+`setAcceptFilter` records one instance's Section 6.4.3 decision,
+`acceptFilterTables` turns the suppressed address set into one `ze_vrrp` inet
+table with a base chain at the input hook, and `acceptFilterPublish` hands it to
+`firewall.RegisterTables` plus `firewall.ApplyAll`, the same table registry
+copp, ddos-local and flowspec-firewall use. VRRP gained no nftables code and no
+Linux-only file. The two ICMPv6 Accept terms (types 135 and 136) are appended
+BEFORE the per-address Drop terms, because a packet takes the verdict of the
+first rule it matches, which is what makes the Section 6.1 carve-out work.
+`doInstallVIPs` (`internal/plugins/vrrp/instance.go`) installs the filter before
+the address and `doRemoveVIPs` withdraws it after, so neither end leaves a
+window. The address itself stays installed: the same section requires the Active
+router to answer ARP and Neighbor Solicitations, and on Linux both follow from
+the address being present.
+
+**Item 2, interface tracking (commit 0dd2e20da).** A group takes
+`track { interface <name> { priority-decrement <1..254>; } }` in both the IPv4
+and the IPv6 grouping of `internal/plugins/vrrp/yang/ze-vrrp-conf.yang`.
+`trackedInterfaces` (`internal/plugins/vrrp/groups.go`) extracts the list sorted
+by name, `validateTracking` refuses it on the address-owner group and re-checks
+the range and the 16-entry maximum, and `GroupSpec.EffectivePriority(decrement)`
+runs the owner branch before any subtraction and floors at 1.
+`evaluateTracking` (`internal/plugins/vrrp/instance.go`) re-reads every tracked
+interface through `deps.linkUp`, rebuilds the down set, and dispatches
+`fsm.ConfigUpdated` only when that set CHANGED. `watchLinks`
+(`internal/plugins/vrrp/register.go`) merges the parent and every tracked device
+into one subscription, and `reconfigure` signals `rewatch` when the device set
+differs, so an interface a commit starts tracking is watched from that commit.
+`show vrrp` gained `tracked-down`.
+
+### Bugs Found/Fixed
+
+- The `vrrp-track` fixture read the VRRP header at offset 1, which is the vrid,
+  not the priority. It reported 12 for every advertisement and would have passed
+  for any vrid equal to the expected priority. RFC 9568 Section 5.2 puts Priority
+  at offset 2; `vrrpTrackPriorityByte` is now 2
+  (`internal/test/fixture/vrrp_track_linux.go`), and the test then found the
+  real defect it was written for.
+- `trackedInterfaces` returned `nil, nil` for a `track` container it could not
+  read, so a malformed shape produced a group that tracks nothing, advertises
+  its full priority for ever and logs nothing. Now covered by
+  `TestTrackedInterfacesRejectAMalformedContainer`
+  (`internal/plugins/vrrp/groups_test.go`).
+- The keepalived lab's recovery leg could not fail: `assertZeAdvertPriority`
+  scanned the cumulative capture, and the recovery asks for 200, which the
+  capture already held. Each leg now records a baseline and reads only what
+  arrived after its own action.
+- Six RFC 5798 discrimination records were staled by `validateGroup` gaining the
+  `validateTracking` call and were not re-recorded with it. Found at closure,
+  fixed there; the journal row is in
+  `plan/journal/claim-outlives-the-evidence-it-cites.md`.
+
+### Documentation Updates
+
+- `docs/features.md` VRRP row (commit fed8cb495): the enforced filter, the
+  Section 6.1 carve-out, and `track`. Anchor
+  `<!-- source: internal/plugins/vrrp/acceptfilter.go -- RFC 9568 Section 6.4.3 accept-mode filter -->`.
+- `docs/guide/vrrp.md`: the `accept-mode` and `track` leaf rows, the "Tracking an
+  interface" section with a worked example and its four rules, and the
+  Limitations paragraph rewritten to say Ze tracks an interface and not a route
+  or a script.
+- `docs/architecture/vrrp/vrrp-first-hop-redundancy.md`: "Priority tracking reads
+  one state, and dispatches only on a change", plus the Consequences bullet that
+  now states the ICMPv6 carve-out is installed FIRST.
+- `docs/architecture/iface/logical-name-resolution.md`: the tracked interface as
+  the second name VRRP resolves, and the fail-closed reading of a resolver error.
+- `docs/architecture/testing/qemu-integration.md`: the
+  `tracked-uplink-hands-the-vip-to-keepalived` scenario row, with a
+  `<!-- source: internal/le/qemu/vrrp_keepalived_linux.go -- runTrackedUplink -->`
+  anchor.
+- `docs/functional-tests.md`: the `vrrp-track` fixtures and what the two kernel
+  proofs read.
+- `internal/plugins/vrrp/yang/ze-vrrp-conf.yang`: the `accept-mode` disclaimer is
+  gone from both groupings and the description states the enforcement.
+- `internal/plugins/vrrp/fsm/events.go`: the "stored for the state snapshot only"
+  comment on `Config.AcceptMode` is replaced by the path it now drives.
+- `rfc/short/rfc9568.md`: the `RFC9568-6.1-1` row lost its `{not-applicable}`,
+  which said Ze installed no filter at all, and `RFC9568-6.4.3-6` and
+  `RFC9568-6.4.3-7` are live.
+
+`./le doc check verify` is RED on this checkout and no row of it is this spec's.
+465 commands fail identically against `../gh-pages/reference/command-equivalents/`
+(a generated site surface in a sibling worktree), and the two other failures are
+`docs/DESIGN.md` missing the `firewall-domain` plugin and the wiki command
+catalog. This spec added no command.
+
+### Deviations from Plan
+
+- `docs/features/rfc-status.md` is named under Files to Modify and was NOT hand
+  edited, deliberately: it is generated by `./le rfc index-update` and a hand
+  edit to it is destroyed at the next run. The RFC 9568 rows are authored in
+  `rfc/short/rfc9568.md`, which is where the change landed.
+- The Data Flow section left the filter mechanism open ("nftables via the
+  firewall component, socket filter, or per-device sysctl"). Design picked the
+  firewall table registry, and A-2 records the reshape: the rule is scoped to
+  the ADDRESS rather than the device, because Section 6.4.3 names no ingress
+  interface.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The Documentation Update Checklist recorded row 1 as "NOT DONE, and deliberately", on the ground that another live session held an uncommitted hunk in `docs/features.md` | `ai/rules/git-safety.md` (2026-09-07) makes landing the presumption for an additive foreign hunk, and rung 2 of `ai/rules/rule-precedence.md` puts an outward-facing false conformance claim above commit tidiness. The page had been publishing "accept-mode is not enforced on the dataplane" since b21f6f2048 | The independent review of 0dd2e20da raised it as the round 1 BLOCKER | Fixed in commit fed8cb495, which carries the foreign hunk and discloses it in the body as a forward reference |
+| escalation | The change re-recorded the discrimination records whose PRODUCER was `EffectivePriority` and missed the six whose producer was `validateGroup` | A discrimination record pins the producer's fingerprint as well as the unit's and the claim's, so an additive edit to a function that some record names as its producer stales that record with no test red anywhere | `./le rfc check` at closure | Fixed at closure, and the class row is in `plan/journal/claim-outlives-the-evidence-it-cites.md`. The check to run before a commit is `grep -rl <function> rfc/discrimination/` |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Per-VIP filtering installed on promotion, removed on demotion | Done | `doInstallVIPs`, `doRemoveVIPs` (`internal/plugins/vrrp/instance.go`); `setAcceptFilter`, `clearAcceptFilter` (`internal/plugins/vrrp/acceptfilter.go`) | Filter before the address on install, after it on withdrawal |
+| The Section 6.1 owner exemption | Done | `GroupSpec.EffectiveAcceptMode` (`internal/plugins/vrrp/groups.go`), read by `doInstallVIPs` | `TestActiveAddressOwnerAcceptsWhateverAcceptModeSays` |
+| The R014 carve-out: never drop IPv6 NS/NA | Done | `acceptFilterTables` (`internal/plugins/vrrp/acceptfilter.go`), the two Accept terms appended before every Drop | `TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop`, and `ND-CARVE-OUT-BEFORE-DROP` reads the order out of the live kernel |
+| A tagged test per requirement row | Done | `rfc/requirements/rfc9568.md` rows `RFC9568-6.1-1`, `RFC9568-6.4.3-6`, `RFC9568-6.4.3-7`, `RFC9568-5.2.4-1`, `RFC9568-5.2.4-2` | Both polarities on each |
+| A QEMU integration test | Done | `test/vrrp/vrrp-accept-mode.ci`, `test/vrrp/vrrp-track.ci` | Both `needs-linux:caps=net-admin` |
+| The YANG description stops disclaiming the gap | Done | `internal/plugins/vrrp/yang/ze-vrrp-conf.yang`, both `accept-mode` leaves | |
+| `RFC9568-6.1-1` re-classified once the filter exists | Done | the `RFC9568-6.1-1` row of `rfc/short/rfc9568.md` | The `{not-applicable}` reason ("ze installs no such filter at all") is gone and the requirement is proven in both polarities |
+| Priority-decrement tracking | Done | `TrackedInterface`, `validateTracking`, `EffectivePriority` (`internal/plugins/vrrp/groups.go`); `evaluateTracking`, `trackedDownLocked`, `trackDecrementLocked` (`internal/plugins/vrrp/instance.go`); `linkUp`, `watchLinks`, `trackableDevices` (`internal/plugins/vrrp/register.go`) | Interface state only; route and health tracking are in Known Limitations |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery` (`internal/plugins/vrrp/acceptfilter_test.go`); `test/vrrp/vrrp-accept-mode.ci` `VIP-NOT-ACCEPTED accept-mode-false` | The `.ci` proof is a UDP datagram to the virtual address on a live kernel, so it reads local delivery rather than the rule |
+| AC-2 | Done | `TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery`; `test/vrrp/vrrp-accept-mode.ci` `VIP-ACCEPTED accept-mode-true` | The `.ci` flips back to false afterwards, so acceptance is proven to FOLLOW the leaf rather than to be switched on once |
+| AC-3 | Done | `TestActiveAddressOwnerAcceptsWhateverAcceptModeSays` | Asserts both halves: one filter call with `accept` true, and `in.snapshot().AcceptMode` true |
+| AC-4 | Done | `TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop`; `test/vrrp/vrrp-accept-mode.ci` `ND-CARVE-OUT-BEFORE-DROP` | The observable is the RULE ORDER, read back out of the live kernel ruleset by `vrrpAcceptRuleOrder`, not an NS/NA exchange. That is the whole of what the filter can break: the NA itself is the kernel's and follows from the address being installed, which `ACTIVE-WITH-VIP` proves in the same run |
+| AC-5 | Done | `TestAcceptFilterInstalledBeforeTheAddressAndWithdrawnAfterIt`, `TestAcceptFilterShareTheTableAndWithdrawIndependently`; `test/vrrp/vrrp-accept-mode.ci` `TEARDOWN-COMPLETE` | |
+| AC-6 | Done | `TestTrackedInterfaceDownDecrementsTheAdvertisedPriority` (`internal/plugins/vrrp/instance_test.go`); `test/vrrp/vrrp-track.ci` `ADVERT-PRIORITY 50 tracked-interface-down` | The `.ci` reads the priority byte off an AF_PACKET capture, which is what a neighbor elects on |
+| AC-7 | Done | `TestTrackedInterfaceUpRestoresThePriority`; `test/vrrp/vrrp-track.ci` `ADVERT-PRIORITY 200 tracked-interface-restored` | |
+| AC-8 | Done | `TestTrackedInterfaceDownDecrementsTheAdvertisedPriority`, second leg: both tracked interfaces down reads 120 | |
+| AC-9 | Done | `TestEffectivePriorityWithTracking` (`internal/plugins/vrrp/groups_test.go`), cases "the decrement equals the priority" and "the decrement passes the priority", both wanting 1 | Tagged `RFC9568-5.2.4-2 positive` |
+| AC-10 | Done | `TestTrackOnOwnerGroupIsRejected`; `test/vrrp/vrrp-config-invalid.ci` seq=12; `test/vrrp/vrrp-doctor-fires.ci` | `diagnoseSections` (`internal/plugins/vrrp/doctor.go`) re-runs `validateGroups`, so one rule serves both |
+| AC-11 | Done, with one half unasserted | `TestUnresolvableTrackedInterfaceCountsAsDown` | The test asserts the decrement is applied and the name appears in `tracked-down`. The Warn line itself is not asserted: `trackedDownLocked` (`internal/plugins/vrrp/instance.go`) emits it and no test reads the log. The behavior AC-11 exists to protect is the fail-closed decrement, and that is asserted |
+| AC-12 | Done | `TestTrackingDoesNotAdvertiseWhenNothingChanged` | Two unchanged wake-ups before and two after the one real change, so the count is pinned on both sides |
+| AC-13 | Done | `TestReconfigureWatchesANewlyTrackedInterface` | Also asserts the negative: a commit that changes no device set does not re-subscribe |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The four `acceptfilter_test.go` table rows | Done | `internal/plugins/vrrp/acceptfilter_test.go` | 13 test functions in the file |
+| `TestEffectivePriorityWithTracking` | Done | `internal/plugins/vrrp/groups_test.go` | Claim narrowed in round 1 fix 5 |
+| `TestTrackedInterfacesExtracted` | Done | `internal/plugins/vrrp/groups_test.go` | |
+| `TestTrackedInterfacesRejectAMalformedContainer` | Done, ADDED at round 1 | `internal/plugins/vrrp/groups_test.go` | Not in the plan; it covers the fail-closed fix |
+| `TestTrackedInterfaceRejectsAnUnusableDecrement`, `TestTrackedInterfaceRequiresADecrement` | Done | `internal/plugins/vrrp/groups_test.go` | |
+| `TestTrackOnOwnerGroupIsRejected` | Done | `internal/plugins/vrrp/groups_test.go` | |
+| `TestTrackedInterfaceDownDecrementsTheAdvertisedPriority`, `TestTrackedInterfaceUpRestoresThePriority` | Done | `internal/plugins/vrrp/instance_test.go` | |
+| `TestUnresolvableTrackedInterfaceCountsAsDown` | Done | `internal/plugins/vrrp/instance_test.go` | |
+| `TestTrackingDoesNotAdvertiseWhenNothingChanged` | Done | `internal/plugins/vrrp/instance_test.go` | |
+| `TestReconfigureWatchesANewlyTrackedInterface` | Done | `internal/plugins/vrrp/instance_test.go` | |
+| `vrrp-accept-mode.ci`, `vrrp-track.ci`, `vrrp-config-invalid.ci`, `vrrp-doctor-fires.ci` | Done | `test/vrrp/` | The first two skip on darwin and run in the QEMU nightly |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| Every file under Files to Modify | Done | Verified present and carrying the named change, except the one row below |
+| `docs/features/rfc-status.md` | Changed | Generated by `./le rfc index-update`; the edit landed in `rfc/short/rfc9568.md`, which is the authored source. Recorded under Deviations |
+
+### Audit Summary
+- **Total items:** 13 acceptance criteria, 8 task requirements, 11 test rows
+- **Done:** all of them
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** 1 (`docs/features/rfc-status.md`, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Close the open RFC 9568 `RFC9568-6.4.3-7` MUST NOT violation: an Active non-owner with Accept_Mode False must not accept packets addressed to the virtual addresses | functional, against a live kernel | `test/vrrp/vrrp-accept-mode.ci` in the QEMU guest: `ACTIVE-WITH-VIP` (the address IS installed on the virtual-MAC macvlan), then `VIP-NOT-ACCEPTED accept-mode-false`, `VIP-ACCEPTED accept-mode-true`, `VIP-NOT-ACCEPTED accept-mode-false-again`. The probe is a UDP datagram to the virtual address, so what is read is local delivery and not the rule text. The `RFC9568-6.4.3-7` row of `rfc/short/rfc9568.md` carries no `{gap}` |
+| Keep the R014 carve-out: IPv6 NS and NA are never dropped with Accept_Mode False | functional, kernel rule order | `ND-CARVE-OUT-BEFORE-DROP` in the same run reads the ruleset back and requires both ICMPv6 accepts to precede the first drop (`vrrpAcceptRuleOrder`, `internal/test/fixture/vrrp_accept_mode_linux.go`). `RFC9568-6.1-1` lost the `{not-applicable}` that said no filter existed |
+| Do not break the virtual-MAC ARP/ND recipe | functional | A-1, confirmed 2026-08-29: the address stays on the virtual-MAC macvlan while ping to it is 100% loss, and `accept-mode true` restores the reply. `ACTIVE-WITH-VIP` is that assertion inside the `.ci` |
+| A tracked interface going down lowers the priority Ze advertises, so a router that loses its uplink hands the virtual address over | interop, against keepalived 2.3.1 | `tracked-uplink-hands-the-vip-to-keepalived` (`./le qemu vrrp-keepalived-test`), PASS 2026-09-08: ze holds the VIP at 200, the tracked veth goes down, ze advertises 50 and keepalived at 100 takes the VIP, the veth returns and keepalived goes back to BACKUP. keepalived's own log carries the election it made on Ze's priority. RED under the reverted decrement: `ze's advertised priority stayed at 200, want 50` |
+| The decrement reaches the WIRE, not only the configuration | functional, wire capture | `test/vrrp/vrrp-track.ci` in the QEMU guest reads the priority byte off an AF_PACKET capture on the parent's veth peer: `ADVERT-PRIORITY 200 tracked-interface-up`, then `50 tracked-interface-down`, then `200 tracked-interface-restored`. RED under the reverted decrement, with the plugin logging the tracked interface as down in the same run |
+| A backing-up router never advertises 0 or 255 | unit, boundary table, with a recorded red | `TestEffectivePriorityWithTracking` for the floor at 1, `TestBoundaryPriority` for the 1..254 range from the config entry point in both polarities. Discrimination records in `rfc/discrimination/rfc9568.json` and `rfc/discrimination/rfc5798.json`, each observed red under a break of its producer |
+| Link churn does not turn into advertisements | unit | `TestTrackingDoesNotAdvertiseWhenNothingChanged`: two unchanged wake-ups before and two after one real change, and the advertisement count moves by exactly one |
+| An operator can find out what happened | functional | `show vrrp` reports `effective-priority` beside the configured `priority` and lists `tracked-down`, asserted in `TestTrackedInterfaceDownDecrementsTheAdvertisedPriority`. `docs/guide/vrrp.md` "Tracking an interface" documents both |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Route tracking and health-check tracking | A tracked route needs a watch keyed on a prefix and a health check needs a script runner with its own timers, output contract and security surface. Ze has neither, so building one was out of this spec's scope from the design on 2026-09-08. Recorded in Known Limitations and in `docs/guide/vrrp.md`, which says which of the three Ze offers and does not claim the other two | None. This is a scope boundary the owner set at design time, not an item this spec started and left. It needs an owner decision before it becomes a spec |
+| The VPP dataplane path for accept-mode | Linux only was in scope; VPP has its own backend | `plan/spec-vrrp-7-vpp.md`, whose R-1 already names accept-mode as a divergence risk |
+| Renaming the keepalived lab's `QS-1`, `QS-2` and `QS-3` scenarios | `ai/rules/interop-and-goal-validation.md` bans a numeric prefix on a scenario directory. The three predate this spec, the new scenario is NAMED, and renaming the other three touches `vrrpScenarioNames` (`internal/le/qemu/guestlabs.go`) and every caller | None. Named here so the next VRRP spec sees it; it is a rename of test-lab identifiers with no product effect |
+| `vrrpKeepalivedConfig`'s unused `priority` parameter | `unparam` reports it on the GOOS=linux integration lint. Deleting it reaches `VRRPParityConfigs` (`internal/le/qemu/guest_parity_linux.go`), a third file outside this work package | Row already written: `plan/journal/parameter-no-caller-ever-fills.md`, 2026-09-08 |
+| The firewall drift detector does not report a desired table the kernel no longer has | `AuditTables` (`internal/component/firewall/audit.go`) takes `continue` on a missing table, so a `ze_vrrp` removed by an external `nft flush ruleset` leaves `checkFirewallHealth` reporting healthy. The accept-mode work does not depend on it: a failed apply errors loudly at the moment it fails, and this is about a table removed after a successful one. The verdict it should raise is a decision affecting every table owner | Row already written: `plan/journal/silent-fall-through.md`, 2026-08-29 |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/plugins/vrrp/acceptfilter.go` | Yes | `ls internal/plugins/vrrp/` -> `acceptfilter.go` 11K, `acceptfilter_test.go` 22K |
+| `internal/test/fixture/vrrp_track_linux.go` | Yes | `ls internal/test/fixture/ \| grep vrrp` -> `vrrp_accept_mode_linux.go` 14K, `vrrp_track_linux.go` 9.8K |
+| `test/vrrp/vrrp-track.ci` | Yes | `ls test/vrrp/` -> `vrrp-track.ci` 3.3K, `vrrp-accept-mode.ci` 4.1K, `vrrp-config-invalid.ci` 9.4K, `vrrp-doctor-fires.ci` 3.3K |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-5 | The filter follows the effective accept-mode, in all three directions, with the ND carve-out first and a lifetime tied to the addresses | `./le job run label vrrp-close-unit command go test ./internal/plugins/vrrp/... -count=1` -> `ok github.com/ze-software/ze/internal/plugins/vrrp 0.900s` (and fsm, packet, transport, yang), which runs all 13 functions in `acceptfilter_test.go` |
+| AC-6..AC-9 | The decrement sums, floors at 1 and leaves the owner at 255 | Same run: `TestEffectivePriorityWithTracking` and `TestTrackedInterfaceDownDecrementsTheAdvertisedPriority` are in the green package |
+| AC-10 | Tracking on the owner is refused at commit and by `ze doctor` | `grep -n "track cannot be combined with an address-owner group" internal/plugins/vrrp/groups.go` -> `validateTracking`; the same string is the `.ci` assertion at `test/vrrp/vrrp-config-invalid.ci` seq=12 |
+| AC-11..AC-13 | Fail closed, no advertisement without a change, re-subscribe on a commit | Same green run: `TestUnresolvableTrackedInterfaceCountsAsDown`, `TestTrackingDoesNotAdvertiseWhenNothingChanged`, `TestReconfigureWatchesANewlyTrackedInterface` |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `accept-mode false` on a non-owner Active -> filter installed with the VIPs | `test/vrrp/vrrp-accept-mode.ci` | Yes. Read the file: the config block sets `accept-mode false` on a group backing 198.51.100.1 while the parent holds .251, and the driver probes with a UDP datagram |
+| Active demotes to Backup -> filter removed | `test/vrrp/vrrp-accept-mode.ci` | Yes, `expect=stdout:contains=TEARDOWN-COMPLETE` |
+| `track interface <name> priority-decrement <n>` and that interface goes down | `test/vrrp/vrrp-track.ci` | Yes. The config carries `track { interface zetrk1 { priority-decrement 150; } }`, and the driver reads the priority byte off the wire |
+| The tracked interface comes back up | `test/vrrp/vrrp-track.ci` | Yes, `ADVERT-PRIORITY 200 tracked-interface-restored` |
+| `track` on the address-owner group | `test/vrrp/vrrp-config-invalid.ci` seq=12, `test/vrrp/vrrp-doctor-fires.ci` | Yes. Both went RED when `validateTracking` was removed from `validateGroup` and green when it was restored |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | QEMU guest 2026-08-29: the virtual address stays on the virtual-MAC macvlan while ping to it is 100% loss, and `accept-mode true` restores the reply |
+| A-2 | confirmed, reshaped | The seam is `firewall.RegisterTables` plus `firewall.ApplyAll` (`internal/component/firewall/registry.go`). The rule is ADDRESS-scoped, not device-scoped, because Section 6.4.3 names no ingress interface |
+| A-3 | confirmed | `vrrpZeConfig` (`internal/le/qemu/vrrp_keepalived_linux.go`) writes `accept-mode true`, so every lab scenario takes the accepting branch and installs no filter |
+| A-4 | confirmed | `iface.Resolve` and `iface.Subscribe` answer for any name; no per-prefix route watch and no script runner exist |
+| A-5 | confirmed | `masterConfigUpdated` (`internal/plugins/vrrp/fsm/fsm.go`) re-sends from the new config; `TestTrackedInterfaceDownDecrementsTheAdvertisedPriority` reads the decremented priority off the recording `sendAdvert`, and the FSM took no new event |
+| A-6 | confirmed | `linkUp` (`internal/plugins/vrrp/register.go`) resolves through `iface.Resolve`, which falls back to the kernel device name; `test/vrrp/vrrp-track.ci` tracks the bare veth `zetrk1`, which the interface tree does not carry |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/features.md` VRRP row states the enforced filter and `track` | `grep -n -i vrrp docs/features.md` reads back the installed drop, the Section 6.1 carve-out and the `track` sentence; producer `acceptFilterTables` (`internal/plugins/vrrp/acceptfilter.go`) | Yes |
+| `docs/guide/vrrp.md` documents the `track` syntax against the YANG | The page's worked example is `track { interface eth1 { priority-decrement 150; } }`; the YANG carries `container track` with a `list interface` keyed on `name` and a mandatory `priority-decrement` ranged 1..254, in BOTH the `vrrp-group-ipv4` and `vrrp-group-ipv6` groupings of `internal/plugins/vrrp/yang/ze-vrrp-conf.yang` | Yes |
+| `docs/architecture/vrrp/vrrp-first-hop-redundancy.md` states the carve-out order | The Consequences bullet says the carve-out is installed FIRST and the drops after; `acceptFilterTables` appends the two Accept terms before the loop over addresses | Yes |
+| Row 3, no CLI change | `show vrrp` gained one payload field and no command; `docs/guide/command-reference.md` does not enumerate the `show vrrp` fields | Yes |
+| Row 11, no comparison change | `grep -i vrrp docs/comparison.md` returns nothing, so the page carries no claim this change made false | Yes |
+| Row 16, source anchors | `./le spec citation anchors spec plan/immediate/spec-vrrp-deferred-accept-mode-dataplane.md` exits 0 with no output | Yes |
+| `./le doc check verify` | RED, and no row of it is this spec's: 465 commands fail identically against the generated `../gh-pages/reference/command-equivalents/` surface, plus `docs/DESIGN.md` missing the `firewall-domain` plugin and the wiki command catalog | Yes, attributed |
+
+## Core Insight
+
+A discrimination record pins three fingerprints, and only two of them are named
+in the rule that asks for one. `ai/rules/rfc-compliance.md` says a tag you ADD
+and a tagged unit whose behavior or claim you CHANGE owe a fresh record. The
+third is the PRODUCER, and it moves without touching a test, a claim, or a tag.
+Adding one call to `validateGroup` here left three RFC 5798 MUSTs with a red
+nobody had observed over the code that was there, and no gate but
+`./le rfc check` could say so. The question to ask before a commit is not "did I
+change a tagged test" but "what did I change that a record names as its
+producer", and `grep -rl <function> rfc/discrimination/` answers it in one
+command.
