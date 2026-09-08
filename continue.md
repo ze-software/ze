@@ -218,6 +218,16 @@ hand-pinned digest drift, a class with 22 rows in `plan/journal/hardcoded-count-
 `exabgp api-reload` fails intermittently on an unchanged tree. The `ui` suite fails 15
 cases, `le-ste-answers` hangs past 340s.
 
+## 6b. Graceful Restart: its own handover
+
+`plan/handoff-graceful-restart-sender-facts.md` carries the deepest finding of this
+session and is the one document to read before touching Graceful Restart. In short:
+**Ze advertises GR for no address family, Ze does not retain routes when a peer restarts,
+and the 32 `.ci` that should have caught either pass over dead code** — measured with a
+control, not inferred. PATHS-LIMIT enforcement is dead for a third, unrelated reason.
+Three journal rows, no fixes, and the question the fix must settle first is which families
+Ze may honestly claim, which depends on what its FIB does on restart.
+
 ## 7. The tidy-up after `open` and `ipsec` (2026-09-08)
 
 Thomas asked this session to liaise with the `open` and `ipsec` sessions, finish what they
