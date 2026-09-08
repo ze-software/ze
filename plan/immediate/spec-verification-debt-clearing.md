@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 5/6 |
+| Phase | 7/7 |
 | Handoff | - |
 | Updated | 2026-09-08 |
 
@@ -230,6 +230,12 @@ has been DISCHARGED, and the discharge is recoverable.
 | AC-18 | `docs/architecture/testing/verify-freshness-scope.md` after the change | Its debt section states that ONE verification runs per pass and marks every runnable gate name passed, states the discharge verb and its kinds, and no longer claims a runner table the code does not have |
 | AC-19 | After the discharge pass over the 72 rows | `./le commit debt-status` reports zero open rows naming a gate no command can run; any residue is named with the reason it could not be discharged |
 | AC-20 | `kind closed commit <closure-sha>` where the removed spec's Status at the parent is `skeleton` or `design` | The row is discharged with no Review Gate read, because a spec that carried no implementation owed no review. The Status is read from the spec's own metadata table at the parent, never inferred from an absent gate |
+| AC-21 | Any kind, `owner` included, over a row whose gate `debtGates` declares `Runnable`, or over a gate `debtGates` declares neither as a Name nor as an alias | Refused before the kind's own evidence is read, naming the gate; the runnable one is routed to `debt-clear`, which clears it by RUNNING it. The check is read from the row in `verifyDischarge`, once, so a fifth kind inherits it |
+| AC-22 | A discharge over a row whose subject cell carries `(+N more)` | `commit <sha>` repeats and the row discharges only when N+1 commits are named: each distinct, each running the kind's derivation, and each bound to the row by carrying its subject or by writing its ledger shard, with at least one carrying the subject. Fewer, a repeat, or a commit bound neither way is refused, naming the count the row needs |
+| AC-23 | A discharge over a row whose Status is `cleared`, and a hand-written record naming one | Refused; the overlay leaves the row `cleared` and reports the record as invalid, because a cleared row's gate ran green and `debt-status` must not read it as attested (R-3) |
+| AC-24 | `kind closed` or `kind reviewed` over a row naming `owner approval for an RFC-tagged test change` | Refused, naming the gate: both kinds assert that a REVIEW ran, and an owner's approval is an act no reviewer performs |
+| AC-25 | `kind closed` or `kind reviewed` where the Review Gate's artifact cell holds `n/a`, `-`, or any text naming no file | Refused, saying the artifact row names no file. A cell naming a path with a file name on it is the filled reference R-8 asks for |
+| AC-26 | A keyword the kind never reads: `commit` or `artifact` with `kind owner`, `owner` with any derived kind, `artifact` with `kind not-applicable` or `kind closed` | Exit 2, naming the keyword and the kind. An unread keyword would be stored and printed as evidence the derivation never read |
 
 ## 🧪 TDD Test Plan
 
@@ -354,6 +360,10 @@ has been DISCHARGED, and the discharge is recoverable.
    - Tests: none new; the evidence is `./le commit debt-status`
    - Files: `plan/verification-debt/discharged/<session>.md`
    - Verify: every row that could not be discharged is named with the reason, and the owner-attested rows quote the owner's own sentence
+7. **Phase: the row's own gate and cover decide the discharge** -- the repair an independent pass over `27b41390a` asked for
+   - Tests: `TestADischargeAnswersOnlyAGateNoVerificationRuns`, `TestADischargeAnswersOnlyAnOpenRow`, `TestARowCoveringSeveralCommitsAnswersForEachOfThem`, `TestClosedAndReviewedAnswerTheReviewGateOnly`, `TestAReviewGateArtifactMustNameAFile`, `TestDischargeRefusesAnUnknownKindAndWritesNothing`
+   - Files: `internal/le/commit/discharge.go`, `internal/le/commit/dischargerecord.go`, `internal/le/commit/debt.go`, `internal/le/commit/actions.go`, `docs/architecture/testing/verify-freshness-scope.md`
+   - Verify: each new guard is broken on purpose and its test observed RED before the green is trusted
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |

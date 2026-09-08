@@ -21,6 +21,10 @@ const (
 	gateRFCName    = "owner approval for an RFC-tagged test change"
 )
 
+// A gate a verification DOES re-run. A row naming one clears by running it, so
+// no discharge answers it whatever evidence the operator holds.
+const gateRunnableName = "discovery-index freshness"
+
 const reviewGateArtifact = "| Artifact | `tmp/review/fixture.md` (3 files pinned by SHA-256, verdict clean) |"
 
 // TestDebtDischargeIsReachableFromTheCommitVerbTable drives the verb from the
@@ -83,6 +87,16 @@ func TestDischargeRefusesAnUnknownKindAndWritesNothing(t *testing.T) {
 			"commit", "HEAD", "artifact", "/etc/passwd"}, "absolute"},
 		{"a commit git would read as an option", []string{"kind", kindClosed, "shard", "a.md",
 			"line", "1", "commit", "--help"}, "option"},
+		// A keyword the kind never reads would be stored, printed as evidence,
+		// and read as the input a verdict rests on. Each kind takes its own.
+		{"kind owner carrying a commit", []string{"kind", kindOwner, "shard", "a.md", "line", "1",
+			"owner", "yes", "commit", "HEAD"}, "reads no commit"},
+		{"kind owner carrying an artifact", []string{"kind", kindOwner, "shard", "a.md", "line", "1",
+			"owner", "yes", "artifact", "tmp/review/a.md"}, "reads no artifact"},
+		{"kind not-applicable carrying an authorisation", []string{"kind", kindNotApplicable,
+			"shard", "a.md", "line", "1", "commit", "HEAD", "owner", "yes"}, "reads no owner"},
+		{"kind closed carrying an artifact", []string{"kind", kindClosed, "shard", "a.md",
+			"line", "1", "commit", "HEAD", "artifact", "tmp/review/a.md"}, "reads no artifact"},
 	} {
 		_, err := parseDischarge(refusal.args)
 		if err == nil {
@@ -600,6 +614,11 @@ func newDischargeRepository(t *testing.T) string {
 
 // commitFixture writes and removes paths, commits them under the named subject,
 // and answers the SHA the discharge names.
+//
+// The ledger directory is staged with the change, because that is what the
+// commit script does: `recordDebt` writes the shard and the same commit carries
+// it, so a commit a debt row covers holds the shard in its own file list. The
+// fixtures record their rows BEFORE the commit that owes them, for that reason.
 func commitFixture(t *testing.T, root, subject string, write map[string]string, remove []string) string {
 	t.Helper()
 	for path, content := range write {
@@ -608,6 +627,9 @@ func commitFixture(t *testing.T, root, subject string, write map[string]string, 
 	}
 	for _, path := range remove {
 		runCommitGit(t, root, "rm", "-q", "--", path)
+	}
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(debtDir))); err == nil {
+		runCommitGit(t, root, "add", "--", debtDir)
 	}
 	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t",
 		"-c", "commit.gpgsign=false", "commit", "-q", "-m", subject)
@@ -618,7 +640,20 @@ func commitFixture(t *testing.T, root, subject string, write map[string]string, 
 // gave it, which is the pair an operator types.
 func debtRowFor(t *testing.T, root, subject, gate string) (string, int) {
 	t.Helper()
-	owed := []Debt{{Gate: gate, Reason: "the reason " + subject}}
+	return debtRowRecord(t, root, gate, "the reason "+subject, subject)
+}
+
+// debtRowRecord records one owed gate under a fixed reason and answers the row
+// the ledger holds for that pair.
+//
+// Calling it again with the same gate and reason EXTENDS that row rather than
+// appending one, which is how a session's second commit reaches a row that
+// already exists, and how a fixture builds a row covering several commits. The
+// row is found by its gate and reason rather than its subject: an extended
+// row's subject cell carries "(+N more)" and no longer equals what was written.
+func debtRowRecord(t *testing.T, root, gate, reason, subject string) (string, int) {
+	t.Helper()
+	owed := []Debt{{Gate: gate, Reason: reason}}
 	if _, err := recordDebt(root, "aaaaaaaa", subject, owed); err != nil {
 		t.Fatalf("record the debt row: %v", err)
 	}
@@ -627,11 +662,11 @@ func debtRowFor(t *testing.T, root, subject, gate string) (string, int) {
 		t.Fatalf("read the ledger: %v", err)
 	}
 	for index := range rows {
-		if rows[index].Gate == gate && rows[index].Subject == subject {
+		if rows[index].Gate == gate && rows[index].Reason == reason {
 			return rows[index].Shard, rows[index].Line
 		}
 	}
-	t.Fatalf("the ledger holds no row for gate %q under subject %q", gate, subject)
+	t.Fatalf("the ledger holds no row for gate %q under reason %q", gate, reason)
 	return "", 0
 }
 
@@ -761,5 +796,257 @@ func TestADischargeRefusesACommitTheRowDoesNotName(t *testing.T) {
 	if _, exit = discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
 		"kind", kindNotApplicable, "commit", mine); exit != 0 {
 		t.Fatalf("the row's own commit was refused too, so the guard refuses everything")
+	}
+}
+
+// TestADischargeAnswersOnlyAGateNoVerificationRuns pins the check every kind
+// owes the ROW, before its own evidence is read.
+//
+// A discharge exists for a gate no command can run. Where one can, the fact a
+// kind derives says nothing about what that gate would report, so accepting it
+// opens the push gate on the wrong evidence: one owner sentence would answer a
+// row whose freshness gate a verification re-runs in a minute. Every kind is
+// driven here, because three of the four never read the row's gate at all.
+func TestADischargeAnswersOnlyAGateNoVerificationRuns(t *testing.T) {
+	root := newDischargeRepository(t)
+	plain := commitFixture(t, root, "a prose edit only",
+		map[string]string{"docs/note.md": "# note\n"}, nil)
+	runnable, runnableLine := debtRowFor(t, root, "a prose edit only", gateRunnableName)
+	undeclared, undeclaredLine := debtRowFor(t, root, "a prose edit only", "a gate nobody declared")
+	unrunnable, unrunnableLine := debtRowFor(t, root, "a prose edit only", gateReviewName)
+
+	kinds := [][]string{
+		{"kind", kindOwner, "owner", "Thomas ordered this commit"},
+		{"kind", kindNotApplicable, "commit", plain},
+		{"kind", kindClosed, "commit", plain},
+		{"kind", kindReviewed, "commit", plain},
+	}
+	for _, evidence := range kinds {
+		result, exit := discharge(t, root, append([]string{"shard", runnable,
+			"line", strconv.Itoa(runnableLine)}, evidence...)...)
+		if exit == 0 {
+			t.Errorf("%v discharged a row whose gate a verification re-runs: %#v", evidence, result)
+			continue
+		}
+		if !strings.Contains(strings.Join(result.Refused, " "), "debt-clear") {
+			t.Errorf("%v answered %v, want the refusal to route the row to debt-clear",
+				evidence, result.Refused)
+		}
+	}
+	for _, evidence := range kinds {
+		result, exit := discharge(t, root, append([]string{"shard", undeclared,
+			"line", strconv.Itoa(undeclaredLine)}, evidence...)...)
+		if exit == 0 {
+			t.Errorf("%v discharged a row naming a gate debtGates does not declare: %#v",
+				evidence, result)
+			continue
+		}
+		if !strings.Contains(strings.Join(result.Refused, " "), "does not declare") {
+			t.Errorf("%v answered %v, want the refusal to name the undeclared gate",
+				evidence, result.Refused)
+		}
+	}
+
+	// The accepting polarity, on the same ledger and the same evidence: a gate
+	// no verification runs is what a discharge is for.
+	if _, exit := discharge(t, root, "shard", unrunnable, "line", strconv.Itoa(unrunnableLine),
+		"kind", kindOwner, "owner", "Thomas ordered this commit"); exit != 0 {
+		t.Fatalf("an owner discharge over an unrunnable gate exited %d, so the check refuses everything", exit)
+	}
+}
+
+// TestADischargeAnswersOnlyAnOpenRow pins that a CLEARED row keeps its status.
+//
+// A cleared row's gate ran green, which is stronger evidence than any discharge
+// carries, and the two statuses answer different questions for a reader. A pass
+// that overwrote one with the other would report an attested row where the
+// ledger holds a verified one (R-3, AC-17).
+func TestADischargeAnswersOnlyAnOpenRow(t *testing.T) {
+	root := newDischargeRepository(t)
+	shard, line := debtRowFor(t, root, "the cleared commit", gateReviewName)
+	open, openLine := debtRowFor(t, root, "the open commit", gateReviewName)
+	cleared, err := clearDebtRows(root, map[string]bool{gateReviewName: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cleared != 2 {
+		t.Fatalf("the fixture cleared %d row(s), want both rows cleared before the discharge", cleared)
+	}
+
+	result, exit := discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
+		"kind", kindOwner, "owner", "the owner's sentence")
+	if exit == 0 {
+		t.Fatalf("a cleared row was discharged: %#v", result)
+	}
+	if !strings.Contains(strings.Join(result.Refused, " "), statusCleared) {
+		t.Fatalf("the refusal %v does not say the row is already cleared", result.Refused)
+	}
+
+	// The overlay half: a record written by hand for a cleared row must not
+	// reclassify it, and must be reported rather than applied in silence.
+	row := debtRowNow(t, root, shard, line)
+	writeCommitFixture(t, root, dischargePath(dischargeSession),
+		"| Date | Shard | Line | Row digest | Kind | Commits | Artifact | Authorisation |\n"+
+			"|------|-------|------|------------|------|---------|----------|---------------|\n"+
+			"| 2026-09-08 | "+shard+" | "+strconv.Itoa(line)+" | "+debtRowDigest(row.Raw)+
+			" | "+kindOwner+" |  |  | the owner's sentence |\n")
+	ledger, err := readDebt(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for index := range ledger.Rows {
+		if ledger.Rows[index].Line == line && ledger.Rows[index].Status != statusCleared {
+			t.Fatalf("the cleared row reads %q, want it left cleared", ledger.Rows[index].Status)
+		}
+	}
+	if !strings.Contains(strings.Join(ledger.Invalid, " "), statusCleared) {
+		t.Fatalf("the record over a cleared row was not reported: %v", ledger.Invalid)
+	}
+
+	// The accepting polarity: the same evidence over a row that is open.
+	writeCommitFixture(t, root, debtPath("aaaaaaaa"),
+		strings.Replace(readFixtureFile(t, root, debtPath("aaaaaaaa")),
+			"the open commit | "+gateReviewName+" | the reason the open commit | "+statusCleared,
+			"the open commit | "+gateReviewName+" | the reason the open commit | "+statusOpen, 1))
+	removeDischargeRecords(t, root)
+	if row := debtRowNow(t, root, open, openLine); row.Status != statusOpen {
+		t.Fatalf("the fixture row is %q, want it open before the accepting half", row.Status)
+	}
+	if _, exit := discharge(t, root, "shard", open, "line", strconv.Itoa(openLine),
+		"kind", kindOwner, "owner", "the owner's sentence"); exit != 0 {
+		t.Fatalf("an open row was refused too, so the check refuses everything")
+	}
+}
+
+// TestARowCoveringSeveralCommitsAnswersForEachOfThem pins that the evidence
+// covers the whole row.
+//
+// One row covers every commit its session made under the same gate and reason,
+// and its subject cell keeps the first commit's subject alone. A discharge
+// derived from that one commit says nothing about the others, so the ledger
+// would report a row answered while the obligation stands for the rest of it.
+func TestARowCoveringSeveralCommitsAnswersForEachOfThem(t *testing.T) {
+	root := newDischargeRepository(t)
+	const reason = "no spec closes in either commit"
+	shard, line := debtRowRecord(t, root, gateReviewName, reason, "the first commit")
+	first := commitFixture(t, root, "the first commit",
+		map[string]string{"docs/one.md": "# one\n"}, nil)
+	debtRowRecord(t, root, gateReviewName, reason, "the second commit")
+	second := commitFixture(t, root, "the second commit",
+		map[string]string{"docs/two.md": "# two\n"}, nil)
+	foreign := commitFixture(t, root, "another line of work",
+		map[string]string{"docs/three.md": "# three\n"}, nil)
+	at := []string{"shard", shard, "line", strconv.Itoa(line), "kind", kindNotApplicable}
+
+	for _, refusal := range []struct {
+		why   string
+		args  []string
+		names string
+	}{
+		{"one commit for a row covering two", []string{"commit", first}, "covers 2"},
+		{"the same commit named twice", []string{"commit", first, "commit", first}, "named twice"},
+		{"a commit from another line of work",
+			[]string{"commit", first, "commit", foreign}, "not a commit this row covers"},
+	} {
+		result, exit := discharge(t, root, append(append([]string{}, at...), refusal.args...)...)
+		if exit == 0 {
+			t.Errorf("%s discharged the row: %#v", refusal.why, result)
+			continue
+		}
+		if !strings.Contains(strings.Join(result.Refused, " "), refusal.names) {
+			t.Errorf("%s answered %v, want the refusal to name %q", refusal.why, result.Refused, refusal.names)
+		}
+	}
+
+	result, exit := discharge(t, root, append(append([]string{}, at...),
+		"commit", first, "commit", second)...)
+	if exit != 0 {
+		t.Fatalf("both commits of the row were refused: %#v", result)
+	}
+	row := debtRowNow(t, root, shard, line)
+	if row.Status != statusDischarged {
+		t.Fatalf("the row is %q once every commit it covers is answered, want discharged", row.Status)
+	}
+	for _, sha := range []string{first, second} {
+		if !strings.Contains(row.DischargeEvidence, sha) {
+			t.Errorf("the evidence %q does not name commit %s", row.DischargeEvidence, sha)
+		}
+	}
+}
+
+// TestClosedAndReviewedAnswerTheReviewGateOnly pins the second half of a kind
+// reading the row's gate.
+//
+// Both kinds assert that a REVIEW ran. An owner's approval of an RFC-tagged
+// test change is an act no reviewer performs, so a review that ran is true
+// evidence about the wrong obligation.
+func TestClosedAndReviewedAnswerTheReviewGateOnly(t *testing.T) {
+	root := newDischargeRepository(t)
+	spec := "plan/immediate/spec-a-thing.md"
+	commitFixture(t, root, "the spec lands",
+		map[string]string{spec: specText("in-progress", reviewGateSection("`review check`", "clean"))}, nil)
+	closure := commitFixture(t, root, "the spec closes", nil, []string{spec})
+	rfcShard, rfcLine := debtRowFor(t, root, "the spec closes", gateRFCName)
+	reviewShard, reviewLine := debtRowFor(t, root, "the spec closes", gateReviewName)
+
+	for _, kind := range []string{kindClosed, kindReviewed} {
+		result, exit := discharge(t, root, "shard", rfcShard, "line", strconv.Itoa(rfcLine),
+			"kind", kind, "commit", closure)
+		if exit == 0 {
+			t.Errorf("kind %s discharged an owner-approval row: %#v", kind, result)
+		} else if !strings.Contains(strings.Join(result.Refused, " "), "does not answer gate") {
+			t.Errorf("kind %s answered %v, want the refusal to name the gate", kind, result.Refused)
+		}
+
+		result, exit = discharge(t, root, "shard", reviewShard, "line", strconv.Itoa(reviewLine),
+			"kind", kind, "commit", closure)
+		if exit != 0 {
+			t.Errorf("kind %s was refused over the review gate too: %#v", kind, result)
+		}
+		removeDischargeRecords(t, root)
+	}
+}
+
+// TestAReviewGateArtifactMustNameAFile pins what "a filled artifact reference"
+// is, for the two kinds that read a committed Review Gate.
+//
+// R-8 asks the predicate for a FILLED reference. A cell test that only refuses
+// the empty string reads `n/a` and `-` as evidence, and those are exactly what
+// an author writes where no review produced anything.
+func TestAReviewGateArtifactMustNameAFile(t *testing.T) {
+	for _, gate := range []struct {
+		why        string
+		cell       string
+		discharges bool
+	}{
+		{"a review artifact under tmp/review", "`tmp/review/fixture.md` (3 files, verdict clean)", true},
+		{"a dash", "-", false},
+		{"an n/a", "n/a", false},
+		{"a sentence naming no file", "the reviewer read every hunk", false},
+	} {
+		root := newDischargeRepository(t)
+		spec := "plan/immediate/spec-artifact-thing.md"
+		section := "## Review Gate\n\n| Field | Value |\n|-------|-------|\n" +
+			"| Artifact | " + gate.cell + " |\n| `review check` | clean |\n| Rounds | 2 |\n"
+		commitFixture(t, root, "the spec lands",
+			map[string]string{spec: specText("in-progress", section)}, nil)
+		closure := commitFixture(t, root, "the spec closes", nil, []string{spec})
+		shard, line := debtRowFor(t, root, "the spec closes", gateReviewName)
+
+		result, exit := discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
+			"kind", kindClosed, "commit", closure)
+		if gate.discharges && exit != 0 {
+			t.Errorf("%s exited %d, want the gate read as recorded: %#v", gate.why, exit, result)
+		}
+		if !gate.discharges {
+			if exit == 0 {
+				t.Errorf("%s discharged the row: %#v", gate.why, result)
+				continue
+			}
+			if !strings.Contains(strings.Join(result.Refused, " "), "names no file") {
+				t.Errorf("%s answered %v, want the refusal to say the artifact names no file",
+					gate.why, result.Refused)
+			}
+		}
 	}
 }

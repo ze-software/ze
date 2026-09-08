@@ -226,6 +226,12 @@ A red verification exits non-zero. The pass cleared nothing, so the exit code an
 
 `./le commit debt-discharge shard <name> line <n> kind <kind> ...` records HOW an unrunnable row's obligation was met. It writes one row per debt row into `plan/verification-debt/discharged/<session>.md`, and the debt shard is not touched: the on-disk vocabulary stays `open` and `cleared`, and `discharged` exists in memory alone, produced by the overlay in `ListDebt`. That is why the push gate, the clearing verb, the status answer and the session-start hook each need no edit to follow it.
 
+A discharge answers a gate no verification can RUN, and it answers an OPEN row. Both are read from the row itself before any kind runs, in `verifyDischarge` (`internal/le/commit/discharge.go`), so a fifth kind inherits them. Where a verification re-runs the gate, the fact a kind derives says nothing about what that gate would report, and the row clears by running it through `debt-clear`: the check is `debtGates[at].Runnable`, the same declaration `debt-clear` reads. A gate `debtGates` declares neither as a Name nor as an alias is refused too. A row already `cleared` had its gate run green, which answers more than a discharge does, so the overlay leaves it cleared and reports the record rather than reclassifying the row.
+
+Each kind answers the gates its evidence is about. `closed` and `reviewed` both assert that a REVIEW ran, so they answer `independent critical review` alone: an owner's approval of an RFC-tagged test change is an act no reviewer performs. `not-applicable` re-runs the producer the row's own gate names. `owner` is an attestation and answers any unrunnable gate.
+
+One row covers every commit its session made under the same gate and reason, so `commit <sha>` REPEATS and the row discharges only when every commit it covers is named. `debtCovered` gives the count from the `(+N more)` suffix, no commit is named twice, and each named commit is bound to the row: it carries the row's subject, or it wrote the row's ledger shard, which every commit a row covers does. At least one must carry the subject. A row whose `(+N more)` counts more RECORDINGS than commits, which a re-run of `create` with a reworded subject leaves behind, cannot be answered this way and stays open: over-refusing is the safe direction, because the alternative discharges N commits' obligation on evidence about one.
+
 | Kind | What it asserts | What re-derives it |
 |------|-----------------|--------------------|
 | `not-applicable` | the gate never bound this commit | today's `closedSpecStem` over the commit's file list for a review row, and the owner-approval gate's own tagged-unit reading for an RFC row |
@@ -235,7 +241,7 @@ A red verification exits non-zero. The pass cleared nothing, so the exit code an
 
 The record stores the INPUT alone, the kind and its evidence, and never a verdict. Every read re-runs the derivation, so a discharge whose evidence stops holding returns its row to `open` with no file edited. The row's SHA-256 pins the discharge to the exact debt row it answers: an edited row drops its discharge, counts open again, and `debt-status` names the record as invalid.
 
-`tmp/review/` is NOT the durable record of a review. It is untracked and is emptied, so a review recorded months ago has no artifact left. The Review Gate is committed prose and closure removes the spec, so `git show <closure-sha>^:<spec-path>` recovers it for ever. The `closed` and `reviewed` kinds read it there. Its verdict row carries two era spellings, so the predicate reads the section's ROWS: a filled artifact reference and a rounds count, with no row saying the review was not recorded or not run.
+`tmp/review/` is NOT the durable record of a review. It is untracked and is emptied, so a review recorded months ago has no artifact left. The Review Gate is committed prose and closure removes the spec, so `git show <closure-sha>^:<spec-path>` recovers it for ever. The `closed` and `reviewed` kinds read it there. Its verdict row carries two era spellings, so the predicate reads the section's ROWS: a filled artifact reference and a rounds count, with no row saying the review was not recorded or not run. Filled means the artifact cell NAMES A FILE, because `n/a` and `-` are what an author writes where no review produced one, and a cell test that only refuses the empty string reads both as evidence.
 
 A missing Review Gate has two meanings and they never share a branch. On a `skeleton` or `design` spec it means there was nothing to review, and the discharge is accepted. On an implemented one it means the review is missing, and the discharge is refused. The removed spec's own Status at the parent is what separates them; the absence of the gate is never read as the answer.
 
@@ -253,7 +259,8 @@ That query is not a certificate and MUST NOT be read as one. It answers about PA
 <!-- source: internal/le/verify/reds.go -- readReds, verdictOf -->
 <!-- source: internal/le/verify/engine/stages.go -- Structural -->
 <!-- source: internal/le/commit/debt.go -- Debt, ListDebt, readDebt, recordDebt, extendDebtRow, debtGates -->
-<!-- source: internal/le/commit/discharge.go -- dischargeDebt, applyDischarges, verifyDischarge, reviewGateRecorded -->
+<!-- source: internal/le/commit/discharge.go -- dischargeDebt, applyDischarges, verifyDischarge, dischargeCommits, reviewGateRecorded -->
+<!-- source: internal/le/commit/dischargerecord.go -- writeDischargeRecords, readDischargeRecords, parseDischargeRow -->
 
 ## Producer contract
 

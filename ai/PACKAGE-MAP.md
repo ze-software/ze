@@ -425,8 +425,10 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 |---------|----------------|------------|
 | `internal/core/anomalyevent` | defines the source-oriented behavioral anomaly detection event contract |  |
 | `internal/core/audit` | provides Ze's local, append-only structured audit log |  |
+| `internal/core/bgp/asn` | TODO |  |
 | `internal/core/bgp/attribute` | provides BGP path attribute types, builders, and pool-based deduplication for ORIGIN, AS_PATH, NEXT_HOP, MED, and other path attributes defined in RFC 4271 and extensions |  |
 | `internal/core/bgp/capability` | implements BGP capability negotiation per RFC 5492, including multiprotocol extensions, 4-byte ASN, ADD-PATH, extended messages, and graceful restart capabilities |  |
+| `internal/core/bgp/configop` | defines the config operation labels of the BGP root |  |
 | `internal/core/bgp/context` | provides capability-dependent encoding parameters for BGP wire format |  |
 | `internal/core/bgp/events` | defines event constants for the BGP component |  |
 | `internal/core/bgp/msgtype` | owns the BGP message-type code (the 1-octet Type field of the RFC 4271 header) and its RFC-defined values |  |

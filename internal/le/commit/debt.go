@@ -100,7 +100,14 @@ type DebtLedger struct {
 }
 
 func debtPath(session string) string {
-	return filepath.ToSlash(filepath.Join(debtDir, session+".md"))
+	return debtShardPath(session + ".md")
+}
+
+// debtShardPath is the ledger path of one shard. Every commit a row covers
+// WROTE that file: recordDebt writes it and the commit script commits it, which
+// is what binds a commit to the rows of one shard.
+func debtShardPath(shard string) string {
+	return filepath.ToSlash(filepath.Join(debtDir, shard))
 }
 
 // recordDebt writes this commit's owed gates into the session's ledger shard.

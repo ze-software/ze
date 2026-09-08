@@ -31,7 +31,7 @@ var commandVerbs = []struct {
 	{"debt-list", false, "list every verification-debt row"},
 	{"debt-status", false, "summarize open and cleared verification debt"},
 	{"debt-clear", true, "run owed native gates against HEAD and clear rows only after exit zero; part <n> of <m> runs one piece, all of <m> sweeps every piece in order, and nothing clears until every piece has passed at one commit"},
-	{"debt-discharge", true, "record how a row's obligation was met, for a gate no verification can re-run; kind not-applicable, closed and reviewed are re-derived from the named commit on every read, and kind owner is an attestation"},
+	{"debt-discharge", true, "record how a row's obligation was met, for a gate no verification can re-run; kind not-applicable, closed and reviewed are re-derived on every read from every commit the row covers, and kind owner is an attestation"},
 }
 
 // CommandRow is one closed verb exposed by `le commit`.
