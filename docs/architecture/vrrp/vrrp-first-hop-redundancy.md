@@ -292,12 +292,13 @@ state; a tracked route and a health-check script are not implemented.
 <!-- source: internal/plugins/vrrp/transport/transport.go -- RxItem.Key per-instance routing -->
 <!-- source: internal/plugins/vrrp/instance.go -- parentReady -->
 
-- `accept-mode false` IS enforced in the dataplane: the Active router installs a
-  drop for the virtual addresses in the `ze_vrrp` firewall table, ahead of the
-  ICMPv6 135/136 carve-out RFC 9568 Section 6.1 requires. The virtual addresses
-  are still ordinary kernel addresses on the macvlan, because ARP and Neighbor
-  Discovery follow from their presence. So an interop scenario that needs a
-  pingable VIP still has to set `accept-mode true`.
+- `accept-mode false` IS enforced in the dataplane: in the `ze_vrrp` firewall
+  table the Active router installs the ICMPv6 135/136 carve-out RFC 9568
+  Section 6.1 requires FIRST, and a drop for each virtual address after it,
+  because a packet takes the verdict of the first term it matches. The virtual
+  addresses are still ordinary kernel addresses on the macvlan, because ARP and
+  Neighbor Discovery follow from their presence. So an interop scenario that
+  needs a pingable VIP still has to set `accept-mode true`.
 - Transport metrics were once silently dead: `ConfigureMetrics` installed the
   engine registry and never forwarded it to the shared transport, so the five
   `ze_vrrp_*` series sat on a no-op registry. `sharedTransport.SetMetrics(reg)`

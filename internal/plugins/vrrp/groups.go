@@ -538,16 +538,30 @@ func applyGroupLeaves(spec *GroupSpec, groupCfg map[string]any) error {
 // unsorted result would make two extractions of one tree produce two specs and
 // every config diff report a change.
 //
-// An absent container is no tracking, not an error: a group that does not ask
-// for tracking is the common case.
+// An ABSENT container is no tracking, not an error: a group that does not ask
+// for tracking is the common case, and so is a container that holds no entry.
+//
+// A container that is PRESENT in a shape this function cannot read is a hard
+// error, from the same producer as the malformed entry below: one that skipped
+// schema validation. Reading it as no tracking would leave the group
+// advertising its configured priority for ever, so the failover the operator
+// configured never happens and no line is logged. A caller cannot tell that
+// silence from a group that asked for no tracking (ai/rules/principles.md).
 func trackedInterfaces(v any) ([]TrackedInterface, error) {
+	if v == nil {
+		return nil, nil
+	}
 	container, ok := v.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("track is not a configuration node: it holds %T, so the tracked interfaces cannot be read; configure track as a container of interface entries, or remove it", v)
+	}
+	entries, ok := container["interface"]
 	if !ok {
 		return nil, nil
 	}
-	byName, ok := container["interface"].(map[string]any)
+	byName, ok := entries.(map[string]any)
 	if !ok {
-		return nil, nil
+		return nil, fmt.Errorf("track interface is not a configuration node: it holds %T, so the tracked interfaces cannot be read; configure one interface entry per tracked interface name", entries)
 	}
 	out := make([]TrackedInterface, 0, len(byName))
 	for name, raw := range byName {

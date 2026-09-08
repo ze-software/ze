@@ -694,6 +694,132 @@ row demonstrates, never more. `TestOwnerAutoDetection` already carries the
 touches a tagged unit: `./le rfc discriminate-record` runs for those stems in the
 same change (`ai/rules/rfc-compliance.md`).
 
+## Review Gate
+
+<!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by the independent
+     /ze-review gate. Round 1 covers commit 0dd2e20da (item 2, interface
+     tracking); item 1 (b21f6f2048) is in scope only where tracking touches it. -->
+
+### Run 1 (initial, 2026-09-08, independent reviewer, commit 0dd2e20da)
+
+Counts: 1 BLOCKER, 4 ISSUE, 4 NOTE.
+
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | BLOCKER | `docs/features.md` VRRP row still publishes "`accept-mode` ... is not enforced on the dataplane this pass, so the virtual address answers traffic while the router is Active regardless of the leaf (RFC 9568 Section 6.4.3 filtering is not installed)". `acceptFilterTables` and `setAcceptFilter` install a `ze_vrrp` input-hook table with one host-scoped Drop per suppressed address, so the page has been false since b21f6f2048, and it is the page that publishes Ze's RFC 9568 conformance to a reader outside the repo. The row also does not carry tracking. The spec's own Documentation Update Checklist row 1 records it as NOT DONE, on the ground that another session held an uncommitted hunk in that file; `ai/rules/git-safety.md` (2026-09-07) makes landing the presumption for a foreign hunk that is additive prose, and rung 2 of `ai/rules/rule-precedence.md` puts an outward-facing false conformance claim above commit tidiness | `docs/features.md` VRRP row; producer `internal/plugins/vrrp/acceptfilter.go` `acceptFilterTables` | OPEN -- not this session's: another live session holds uncommitted work in `docs/features.md`, and the main thread carries the row |
+| 2 | ISSUE | The keepalived lab's recovery leg cannot fail. `assertZeAdvertPriority` scans `zeAdverts()`, which is `parseVRRPAdverts(l.captureLines.snapshot())`, the CUMULATIVE capture since `startCapture`. In `runTrackedUplink` the third call asks for `vrrpZePriority` (200), and the capture already holds the 200-priority advertisements from before the tracked veth went down, so it matches at once whether or not Ze withdrew the decrement. The spec's RED walk never exposed it, because the reverted decrement failed at leg 2 and never reached leg 3. The recovery is still proven, but by the `waitKAState(ctx, "BACKUP")` that follows, not by the priority assertion whose failure message claims to report it. Fix: record `len(l.zeAdverts())` before each flap and require a match at or past that index | `internal/le/qemu/vrrp_keepalived_linux.go` `assertZeAdvertPriority`, `runTrackedUplink` | CLEARED -- see Fixes applied |
+| 3 | ISSUE | `trackedInterfaces` returns `nil, nil` when `track`, or its `interface` child, is not a `map[string]any`. The same function hard-errors on a malformed ENTRY and on a missing `priority-decrement`, both justified in comments by "a producer that skipped schema validation". From that same producer a malformed container yields NO tracking, silently: the group keeps advertising its configured priority for ever, the failover the operator wrote never happens, and nothing is logged. That is the zero that reads as an answer (`ai/rules/principles.md`). Fix: keep `nil, nil` only for an ABSENT `track` key, and error when the key is present in a shape the extractor does not understand | `internal/plugins/vrrp/groups.go` `trackedInterfaces` | CLEARED -- see Fixes applied |
+| 4 | ISSUE | The Consequences bullet this commit rewrote states the filter order backwards: "installs a drop for the virtual addresses in the `ze_vrrp` firewall table, ahead of the ICMPv6 135/136 carve-out RFC 9568 Section 6.1 requires". `acceptFilterTables` appends the `nd-neighbor-solicit` and `nd-neighbor-advert` Accept terms FIRST and the per-address Drop terms after, and its own comment says why: a packet takes the verdict of the first rule it matches. The page now describes the order that would violate R014 | `docs/architecture/vrrp/vrrp-first-hop-redundancy.md` Consequences; producer `internal/plugins/vrrp/acceptfilter.go` `acceptFilterTables` | CLEARED -- see Fixes applied |
+| 5 | ISSUE | RFC claim wider than the assertion. `TestEffectivePriorityWithTracking` tags `RFC9568-5.2.4-2 positive` with "a backing-up router's advertised priority stays within 1-254 ... and it never reaches 0 or 255". No case in the table produces or excludes 255, and the producer does not prevent it: `GroupSpec{Priority: 255, IsOwner: false}.EffectivePriority(0)` returns 255. What keeps a non-owner off 255 is `validateGroup`'s 1..254 priority range, in another function. `rfc/requirements/rfc9568.md` now lists this test as a positive proving site for the requirement, so the over-claim is on the public ledger (`ai/rules/rfc-compliance.md`, "The claim MUST state what the test body checks, and MUST NOT state more"). Fix: drop "or 255" from the claim, or add the case and the assertion that earns it | `internal/plugins/vrrp/groups_test.go` `TestEffectivePriorityWithTracking`; `rfc/requirements/rfc9568.md` `RFC9568-5.2.4-2` | CLEARED -- see Fixes applied |
+| 6 | NOTE | `evaluateTrackingLocked` logs at Info "vrrp: tracked interface state changed, advertising a new priority" and then returns without dispatching when `!in.started`. Nothing is advertised on that path, and the operator reading the log is told otherwise | `internal/plugins/vrrp/instance.go` `evaluateTrackingLocked` | open |
+| 7 | NOTE | `watchDevices` comments that "a tracked interface that IS the parent is subscribed once". The dedup compares `spec.ParentDevice`, which `engine.apply` fills with the RESOLVED kernel device (`internal/plugins/vrrp/engine.go`), against `TrackedInterface.Name`, which is unresolved. Tracking the parent by a logical name that an os-name selector maps elsewhere subscribes twice. Harmless, because the wake-up is coarse and re-decided from state; the comment states more than the code delivers | `internal/plugins/vrrp/instance.go` `watchDevices` | open |
+| 8 | NOTE | `trackedDownLocked` calls `in.deps.linkUp` with no nil guard, while `parentReady`, `watchLinks` and `refreshAddresses` are each guarded in the same file. Unreachable today: `liveDeps` is the only production construction of `engineDeps`. A second producer that omits `linkUp` panics on the first group carrying `track` | `internal/plugins/vrrp/instance.go` `trackedDownLocked` | open |
+| 9 | NOTE | `test/vrrp/vrrp-config-invalid.ci` seq=13 asserts a zero `priority-decrement` is refused with `expect=stdout:contains=priority-decrement`, which the YANG `range "1..254"` message also satisfies. The spec's own RED walk (removing `validateTracking` from `validateGroup`) reported only seq=12 red, so seq=13 is proven by the schema and does not drive `validateTracking`'s range branch from the entry point. That branch is covered at `validateGroups` by `TestTrackedInterfaceRejectsAnUnusableDecrement` | `test/vrrp/vrrp-config-invalid.ci` seq=13 | open |
+
+### Checked and clean
+
+Stated explicitly, because the absence of a finding is a result:
+
+- **Decrement arithmetic.** No defect. `EffectivePriority` runs the owner branch
+  before any subtraction, and its floor test `uint16(g.Priority) <= decrement +
+  backupPriorityMin` returns 1 exactly where `Priority - decrement` would be 1
+  or less. No overflow: the summed decrement is bounded by 16 x 254 = 4064,
+  inside `uint16`.
+- **Order independence.** Several tracked interfaces going down and returning in
+  any order reach the same answer. `trackedDownLocked` rebuilds the down set
+  from `spec.TrackedInterfaces`, which `trackedInterfaces` sorts by name, so
+  `slices.Equal(down, in.trackDown)` is order-stable, and
+  `trackDecrementLocked` sums over the CURRENT spec, so a name left in
+  `trackDown` by a superseded config contributes nothing.
+- **The unresolvable device is written as a decision.** `linkUp` returns
+  `(bool, error)` rather than folding the resolver failure into false, and
+  `trackedDownLocked` appends the name to the down set and logs at Warn. It
+  cannot be confused with a device nobody configured, because the loop runs over
+  the configured entries only.
+- **Goroutine lifecycle.** No leak and no double start. `watch()` is called only
+  from `run`'s own goroutine, cancels the previous subscription before
+  re-subscribing, and `run` defers the final cancel. `forwardLinkEvents` is one
+  long-lived goroutine for each watched device and returns on `done` or on its
+  subscription closing; cancel closes `done`, cancels each subscription, then
+  waits. `rewatch` is buffered by one with a default arm, so `reconfigure` never
+  blocks and two signals collapse into one re-subscription. No path closes
+  `done` twice.
+- **Refusal reachability.** `validateGroup` to `validateTracking` is reached from
+  every entry point that accepts config: `verifyVRRPConfigSections`
+  (`internal/plugins/vrrp/register.go`, `ze config validate` and commit),
+  `parseAndVerify` (same file, the apply path) and `diagnoseSections`
+  (`internal/plugins/vrrp/doctor.go`). Not only the one the test drives.
+- **No test deleted or weakened.** The `TestOwnerAutoDetection` edit is arity
+  only: four call sites read `EffectivePriority(0)`, both expected values (255
+  and 100) are unchanged, and `test/rfc-changed/ff31c770.md` carries the owner
+  approval.
+- **The `.ci` RED is caused by the behavior under test.**
+  `vrrpTrackAdvertPriority` reads the IPv4 IHL and the protocol byte before
+  indexing, and takes the priority at VRRP header offset 2, which RFC 9568
+  Section 5.2 puts after Version/Type and the Virtual Router ID.
+  `vrrpTrackWaitPriority` consumes from a live AF_PACKET socket, so it cannot
+  match a stale frame from an earlier leg, which is the defect finding 2 records
+  in the keepalived lab.
+
+### Fixes applied
+
+Round 1 fixes, 2026-09-08. The four ISSUEs are cleared. The BLOCKER is not, and
+the row above says why: `docs/features.md` carries another session's uncommitted
+work, so the main thread owns that edit.
+
+- **Finding 3 (fail closed).** `trackedInterfaces`
+  (`internal/plugins/vrrp/groups.go`) now returns `nil, nil` only for an ABSENT
+  `track` key and for a container carrying no `interface` child. A `track` value
+  that is not a configuration node, and an `interface` child that is not one,
+  each return an error naming what the node holds. The comment states which
+  shape is an answer and which is a refusal. RED first:
+  `TestTrackedInterfacesRejectAMalformedContainer`
+  (`internal/plugins/vrrp/groups_test.go`) failed on both malformed shapes
+  ("a track container the extractor cannot read must be refused") before the
+  producer changed, and `./le job run label unit-vrrp command go test
+  ./internal/plugins/vrrp/... -count=1` is green after it.
+- **Finding 2 (the recovery leg could not fail).** `assertZeAdvertPriority`
+  (`internal/le/qemu/vrrp_keepalived_linux.go`) takes a `from` index and scans
+  only `adverts[from:]`; `runTrackedUplink` records `advertsBefore =
+  len(l.zeAdverts())` immediately before each of the three actions it then
+  asserts on. Proven by a deliberate break rather than by reading the code: with
+  `trackedDownLocked` (`internal/plugins/vrrp/instance.go`) keeping a name in
+  the down set for ever, so the decrement is never withdrawn, the guest run
+  FAILED on the recovery leg alone -- `FAIL:
+  tracked-uplink-hands-the-vip-to-keepalived: after the tracked link returned:
+  no ze-sourced advert reached the observer after this leg began, so priority
+  200 was never observed`, with legs 1 and 2 still reporting their detail lines.
+  The break was reverted, the guest daemon rebuilt from the same overlay, and
+  the same command PASSED across all three legs. Both runs:
+  `./le qemu run kernel tmp/kernel/build/vmlinuz packages "keepalived tcpdump
+  iproute2 libcap iputils" command "... ./le qemu vrrp-keepalived-test scenarios
+  tracked-uplink-hands-the-vip-to-keepalived"`, keepalived 2.3.1 in the guest.
+- **Finding 4 (filter order stated backwards).** The Consequences bullet in
+  `docs/architecture/vrrp/vrrp-first-hop-redundancy.md` now says the ICMPv6
+  135/136 carve-out is installed FIRST and the per-address drops after it,
+  because a packet takes the verdict of the first term it matches. That is the
+  order `acceptFilterTables` (`internal/plugins/vrrp/acceptfilter.go`) appends
+  its terms in, and its own comment gives the same reason.
+- **Finding 5 (claim wider than the assertion).** The `RFC9568-5.2.4-2 positive`
+  tag on `TestEffectivePriorityWithTracking` no longer says "or 255": it claims
+  the floor at 1 only, which is what the table asserts. Nothing left the ledger:
+  `TestBoundaryPriority` proves both polarities of `RFC9568-5.2.4-2` from the
+  config entry point, 255 included, and the tracking test's doc comment now
+  names it. The reworded claim staled its discrimination record, so
+  `./le rfc discriminate-record id RFC9568-5.2.4-2 polarity positive unit
+  internal/plugins/vrrp/groups_test.go::TestEffectivePriorityWithTracking route
+  revert producer internal/plugins/vrrp/groups.go::EffectivePriority` observed
+  the red again and rewrote `rfc/discrimination/rfc9568.json`.
+
+### Run 2+ (re-runs until clean)
+
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+
+### Final status
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [ ] All NOTEs recorded above (or explicitly "none")
+
 ## Checklist
 
 ### Goal Gates (MUST pass)

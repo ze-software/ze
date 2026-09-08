@@ -39,7 +39,7 @@
       "polarity": "positive",
       "unit": "internal/plugins/vrrp/groups_test.go::TestEffectivePriorityWithTracking",
       "unit-sha": "54c31fff0fef51dd",
-      "claim-sha": "cee17484a028cf39",
+      "claim-sha": "f52ffe76f5837a32",
       "route": "revert",
       "producer": "internal/plugins/vrrp/groups.go::EffectivePriority",
       "producer-sha": "6cbc3832c7c5ed6c",

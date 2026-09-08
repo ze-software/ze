@@ -1573,9 +1573,14 @@ func track(decrements map[string]uint8) map[string]any {
 // (decrement 1, decrement 254, the sum at and past the configured priority).
 // PREVENTS: a floor at 0, which on the wire says the Active Router stopped
 // participating (RFC 9568 Section 5.2.4), and a decrement that reaches an owner.
+//
+// The other end of the 1-254 range is not asserted here, because no decrement
+// raises a priority: EffectivePriority(255, non-owner) returns 255, and what
+// keeps a backing-up router off 255 is validateGroup's range check. That is
+// TestBoundaryPriority, which drives it from the config entry point.
 func TestEffectivePriorityWithTracking(t *testing.T) {
 	// RFC requirement: RFC9568-5.2.4-1 positive -- the address owner runs with priority 255 whatever the tracked interfaces say, because the owner branch of EffectivePriority (groups.go) returns before any subtraction
-	// RFC requirement: RFC9568-5.2.4-2 positive -- a backing-up router's advertised priority stays within 1-254: a decrement at or past the configured priority floors at 1, and it never reaches 0 or 255
+	// RFC requirement: RFC9568-5.2.4-2 positive -- a backing-up router's advertised priority never falls below 1: a decrement at or past the configured priority floors at 1 rather than reaching 0, which Section 5.2.4 reserves for the Active Router that stopped participating
 	cases := []struct {
 		name      string
 		priority  uint8
@@ -1636,6 +1641,59 @@ func TestTrackedInterfacesExtracted(t *testing.T) {
 	if len(specs[0].TrackedInterfaces) != 0 {
 		t.Errorf("a group with no track container carries %d tracked interfaces, want 0", len(specs[0].TrackedInterfaces))
 	}
+}
+
+// TestTrackedInterfacesRejectAMalformedContainer proves a `track` container the
+// extractor cannot read is refused rather than dropped.
+//
+// A shape it cannot read reaches this function from the producer that skipped
+// schema validation, the same one the malformed entry below covers. Reading it
+// as no tracking leaves the group advertising its configured priority for ever:
+// the failover the operator configured never happens, and nothing is logged.
+// That is the zero value a caller cannot tell from an answer
+// (`ai/rules/principles.md`). An ABSENT container stays no tracking, because a
+// group that does not ask for tracking is the common case.
+//
+// VALIDATES: AC-6.
+// PREVENTS: tracking discarded in silence by a container shape the extractor
+// does not understand.
+func TestTrackedInterfacesRejectAMalformedContainer(t *testing.T) {
+	cases := []struct {
+		name  string
+		track any
+	}{
+		{name: "track is not a configuration node", track: "eth1"},
+		{name: "the interface list is not a configuration node", track: map[string]any{"interface": []any{"eth1"}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tree := oneGroup(familyIPv4, "10", map[string]any{
+				"virtual-address": vips("192.0.2.1"),
+				"track":           tc.track,
+			})
+			_, err := extractGroupSpecs([]configSection{mkSection(t, tree)})
+			if err == nil {
+				t.Fatal("a track container the extractor cannot read must be refused")
+			}
+			if !strings.Contains(err.Error(), "track") {
+				t.Errorf("the refusal must name the track container, got %v", err)
+			}
+		})
+	}
+
+	t.Run("an empty track container carries no tracking", func(t *testing.T) {
+		tree := oneGroup(familyIPv4, "10", map[string]any{
+			"virtual-address": vips("192.0.2.1"),
+			"track":           map[string]any{},
+		})
+		specs, err := extractGroupSpecs([]configSection{mkSection(t, tree)})
+		if err != nil {
+			t.Fatalf("extract a group whose track container is empty: %v", err)
+		}
+		if len(specs[0].TrackedInterfaces) != 0 {
+			t.Errorf("an empty track container carries %d tracked interfaces, want 0", len(specs[0].TrackedInterfaces))
+		}
+	})
 }
 
 // TestTrackedInterfaceRejectsAnUnusableDecrement proves the boundary rows the

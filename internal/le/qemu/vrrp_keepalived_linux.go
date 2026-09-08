@@ -1129,6 +1129,11 @@ func (l *vrrpLab) runTrackedUplink(ctx context.Context) error {
 	if err := l.startCapture(ctx); err != nil {
 		return err
 	}
+	// Each leg reads only the advertisements that reach the observer after that
+	// leg's own action, so the baseline is recorded immediately before it. The
+	// capture is cumulative, and a leg scanning the whole of it takes the
+	// verdict of an earlier leg.
+	advertsBefore := len(l.zeAdverts())
 	if _, err := l.startZe(ctx, vrrpZeTrackConfig(l.names)); err != nil {
 		return err
 	}
@@ -1141,17 +1146,18 @@ func (l *vrrpLab) runTrackedUplink(ctx context.Context) error {
 	if err := l.waitKAState(ctx, "BACKUP"); err != nil {
 		return err
 	}
-	if err := l.assertZeAdvertPriority(ctx, vrrpZePriority); err != nil {
+	if err := l.assertZeAdvertPriority(ctx, advertsBefore, vrrpZePriority); err != nil {
 		return fmt.Errorf("before the tracked link failed: %w", err)
 	}
 	l.details = append(l.details, tb.Str("  tracking: ze holds the VIP at prio ").
 		Int(vrrpZePriority).Str(" while ").Str(l.names.trackVeth).Str(" is up").String())
 	tb.Reset()
 
+	advertsBefore = len(l.zeAdverts())
 	if err := l.setTrackedLink(ctx, "down"); err != nil {
 		return err
 	}
-	if err := l.assertZeAdvertPriority(ctx, vrrpTrackLowered); err != nil {
+	if err := l.assertZeAdvertPriority(ctx, advertsBefore, vrrpTrackLowered); err != nil {
 		return fmt.Errorf("after the tracked link failed: %w", err)
 	}
 	if err := l.waitKAState(ctx, "MASTER"); err != nil {
@@ -1162,10 +1168,11 @@ func (l *vrrpLab) runTrackedUplink(ctx context.Context) error {
 		Str(" and keepalived (prio ").Int(vrrpKAPriority).Str(") took the VIP").String())
 	tb.Reset()
 
+	advertsBefore = len(l.zeAdverts())
 	if err := l.setTrackedLink(ctx, "up"); err != nil {
 		return err
 	}
-	if err := l.assertZeAdvertPriority(ctx, vrrpZePriority); err != nil {
+	if err := l.assertZeAdvertPriority(ctx, advertsBefore, vrrpZePriority); err != nil {
 		return fmt.Errorf("after the tracked link returned: %w", err)
 	}
 	if err := l.waitKAState(ctx, "BACKUP"); err != nil {
@@ -1182,11 +1189,19 @@ func (l *vrrpLab) runTrackedUplink(ctx context.Context) error {
 // value is what turns "nothing matched" into a usable failure: a router still
 // advertising 200 is a decrement that never happened, and one advertising
 // nothing is a router that stopped.
-func (l *vrrpLab) assertZeAdvertPriority(ctx context.Context, want int) error {
+//
+// from is the number of ze-sourced advertisements the capture already held when
+// this leg began, so the scan reads only what arrived after that. The capture is
+// CUMULATIVE since startCapture, and a leg that scanned the whole of it would
+// match a priority an earlier leg put there: the recovery leg asks for 200,
+// which the capture carries from before the tracked link went down, and would
+// pass at once whether or not ze withdrew the decrement. The caller records the
+// baseline immediately before the action whose effect it then asserts.
+func (l *vrrpLab) assertZeAdvertPriority(ctx context.Context, from, want int) error {
 	seen := -1
 	err := waitGuest(ctx, vrrpWireEventTimeout, guestPollInterval, func() (bool, error) {
 		adverts := l.zeAdverts()
-		for index := range adverts {
+		for index := from; index < len(adverts); index++ {
 			if adverts[index].priority == want {
 				return true, nil
 			}
@@ -1198,7 +1213,7 @@ func (l *vrrpLab) assertZeAdvertPriority(ctx context.Context, want int) error {
 		return nil
 	}
 	if seen < 0 {
-		return fmt.Errorf("no ze-sourced advert reached the observer, so priority %d was never observed", want)
+		return fmt.Errorf("no ze-sourced advert reached the observer after this leg began, so priority %d was never observed", want)
 	}
 	return fmt.Errorf("ze's advertised priority stayed at %d, want %d", seen, want)
 }
