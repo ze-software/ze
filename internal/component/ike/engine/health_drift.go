@@ -39,13 +39,24 @@ func driftingPeers() (peers []string, known bool) {
 	if err != nil {
 		return nil, false
 	}
+	return driftingPeersFrom(sas), true
+}
 
+// driftingPeersFrom is the comparison itself, over an SA list the caller already
+// holds. It is split out so ONE kernel dump answers both readers: the health
+// check reaches it through driftingPeers, and the metrics pass passes the same
+// slice it published the SA count from. Two dumps would be two answers to one
+// question, and they disagree across a rekey.
+//
+// The one-direction rule described above lives here.
+func driftingPeersFrom(sas []dataplane.SAInfo) []string {
 	inKernel := make(map[uint32]bool, len(sas))
 	for i := range sas {
 		inKernel[sas[i].SPI] = true
 	}
 
 	// PeerInfo is large, so the map is indexed rather than range-copied.
+	var peers []string
 	infos := PeerInfoMap()
 	for name := range infos {
 		info := infos[name]
@@ -59,7 +70,7 @@ func driftingPeers() (peers []string, known bool) {
 		}
 	}
 	slices.Sort(peers)
-	return peers, true
+	return peers
 }
 
 // driftDetail renders the health message for a drifting set. The peer names are

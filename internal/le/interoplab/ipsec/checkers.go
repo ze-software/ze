@@ -4,6 +4,7 @@ package ipsec
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -24,6 +25,7 @@ var scenarioCheckers = map[string]scenarioChecker{
 	"child-rekey-narrowing":              checkChildRekeyNarrowing,
 	"clear-reestablish":                  checkClearReestablish,
 	"cookie-challenge":                   checkCookieChallenge,
+	"dataplane-readback":                 checkDataplaneReadback,
 	"delete-while-window-held":           checkDeleteWhileWindowHeld,
 	"eap-mschapv2":                       checkEAPMSCHAPv2,
 	"eap-nak-method-negotiation":         checkEAPNakMethodNegotiation,
@@ -1531,4 +1533,149 @@ func checkRealNATTunnelControl(ctx context.Context, lab *scenarioLab) error {
 	return lab.verifyESPDirectionsToward(ctx,
 		"traffic did not cross the tunnel-mode Child SA through the NAT",
 		pingProbe{peer: zePeer, target: natTunnelSwanInner, source: natTunnelZeInner}, natESPDirections)
+}
+
+// zeChildCounters is the child-SA counter block of `show vpn ipsec sa | json`,
+// decoded into the types the kernel holds it in.
+//
+// Every counter is a POINTER, because null and 0 are different answers and this
+// scenario turns on telling them apart. null says the SAD was never read; 0 says
+// the kernel was asked and this SA has carried nothing
+// (addChildCounters, internal/component/ike/cmd/show_ipsec.go).
+type zeChildCounters struct {
+	BytesOut      *uint64 `json:"bytes-out"`
+	BytesIn       *uint64 `json:"bytes-in"`
+	CountersKnown bool    `json:"counters-known"`
+}
+
+type zeIKESARecord struct {
+	Child *zeChildCounters `json:"child-sa"`
+}
+
+// checkDataplaneReadback proves Ze reads its OWN dataplane back, against the
+// kernel and against strongSwan, and that what it reads follows a rekey.
+//
+// It proves four things, in this order:
+//
+//  1. `show vpn ipsec dataplane sa` and `ip xfrm state` in the ze container name
+//     the same NON-EMPTY SPI set (AC-12). Non-empty first, because two empty sets
+//     are equal and a read-only dump answers an empty kernel with its body gone.
+//  2. Traffic passes, and `show vpn ipsec sa | json` then reports a bytes-out
+//     ABOVE zero. This is the only place AC-8 meets real ESP bytes: a .ci fixture
+//     has no route through its tunnel, so it can prove the SOURCE of the number
+//     and never the number itself.
+//  3. strongSwan's kernel holds the same pair, so the set Ze reports is the
+//     tunnel the peer is really using rather than a local artifact.
+//  4. After the Child SA rekeys, the set CHANGES and both readers still agree on
+//     it (AC-13). RFC 7296 Section 2.8 replaces the SPI while the selector stays
+//     identical, so the set changing is the discriminating assertion.
+func checkDataplaneReadback(ctx context.Context, lab *scenarioLab) error {
+	if err := establish(ctx, lab); err != nil {
+		return err
+	}
+	if _, err := lab.waitXFRM(ctx, zePeer); err != nil {
+		return err
+	}
+	if _, err := lab.waitXFRM(ctx, swanPeer); err != nil {
+		return err
+	}
+
+	zeSPIs, kernelSPIs, err := readbackSPIs(ctx, lab)
+	if err != nil {
+		return err
+	}
+	if err := requireSameSPISet(zeSPIs, kernelSPIs, "show vpn ipsec dataplane sa", "ip xfrm state in the ze container"); err != nil {
+		return err
+	}
+
+	swanSPIs, err := lab.espSPIValues(ctx, swanPeer)
+	if err != nil {
+		return err
+	}
+	if err := requireSameSPISet(zeSPIs, swanSPIs, "show vpn ipsec dataplane sa", "ip xfrm state in the strongswan container"); err != nil {
+		return err
+	}
+
+	if err := lab.verifyTunnelTraffic(ctx, "no ESP traffic across the tunnel before the counter read"); err != nil {
+		return err
+	}
+	if err := requireZeCountersAdvanced(ctx, lab); err != nil {
+		return err
+	}
+
+	before := zeSPIs
+	if err := waitRekeyAndDelete(ctx, lab, 90*time.Second, false); err != nil {
+		return err
+	}
+	if err := waitDuration(ctx, 3*time.Second); err != nil {
+		return err
+	}
+
+	afterZe, afterKernel, err := readbackSPIs(ctx, lab)
+	if err != nil {
+		return err
+	}
+	if err := requireSPISetChanged(before, afterKernel); err != nil {
+		return err
+	}
+	// AC-13 is about what ZE reports, so the agreement is asserted again on the
+	// replaced set: a dump that answered the pre-rekey SPIs would satisfy the
+	// change assertion above through the kernel alone.
+	if err := requireSameSPISet(afterZe, afterKernel, "show vpn ipsec dataplane sa after the rekey", "ip xfrm state after the rekey"); err != nil {
+		return err
+	}
+	return requireSPISetChanged(before, afterZe)
+}
+
+// readbackSPIs reads the SPI set from BOTH readers in the ze container: Ze's own
+// dataplane dump, and iproute2 over the same kernel.
+func readbackSPIs(ctx context.Context, lab *scenarioLab) (zeSPIs, kernelSPIs map[uint32]struct{}, err error) {
+	answer, raw, err := lab.dataplaneSAs(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	zeSPIs = make(map[uint32]struct{}, len(answer))
+	for i := range answer {
+		zeSPIs[answer[i].SPI] = struct{}{}
+	}
+	kernelSPIs, err = lab.espSPIValues(ctx, zePeer)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w; ze dump answered: %s", err, raw)
+	}
+	return zeSPIs, kernelSPIs, nil
+}
+
+// requireZeCountersAdvanced refuses unless `show vpn ipsec sa | json` reports a
+// counter the kernel really moved.
+//
+// counters-known is asserted separately from the value, because the two failures
+// are different: false says nobody asked the kernel, and a zero beside true says
+// the kernel was asked and this SA carried nothing. Traffic has crossed the
+// tunnel by the time this runs, so zero here is a failure rather than a fact.
+func requireZeCountersAdvanced(ctx context.Context, lab *scenarioLab) error {
+	answer, err := lab.zeCLI(ctx, "show vpn ipsec sa | json")
+	if err != nil {
+		return err
+	}
+	var records []zeIKESARecord
+	if err := json.Unmarshal([]byte(strings.TrimSpace(answer)), &records); err != nil {
+		return fmt.Errorf("show vpn ipsec sa | json is not a list of IKE SAs: %w; answer: %s", err, answer)
+	}
+	for i := range records {
+		child := records[i].Child
+		if child == nil {
+			continue
+		}
+		if !child.CountersKnown {
+			return fmt.Errorf("show vpn ipsec sa reports counters-known false over a real kernel, so the SAD was never read: %s", answer)
+		}
+		if child.BytesOut == nil || child.BytesIn == nil {
+			return fmt.Errorf("show vpn ipsec sa reports a null byte counter beside counters-known true: %s", answer)
+		}
+		if *child.BytesOut == 0 {
+			return fmt.Errorf("show vpn ipsec sa reports bytes-out 0 after ESP crossed the tunnel: %s", answer)
+		}
+		return nil
+	}
+	return fmt.Errorf("show vpn ipsec sa reports no child SA to read a counter from: %s", answer)
 }

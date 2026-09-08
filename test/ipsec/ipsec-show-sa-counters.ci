@@ -1,0 +1,171 @@
+# Functional test: show vpn ipsec sa reports counters SOURCED from the kernel SAD.
+# Spec: plan/immediate/spec-ipsec-dataplane-inspection.md (AC-8, user story 4)
+#
+# VALIDATES: over a real kernel, `show vpn ipsec sa | json` reports
+#            `counters-known` true and a NUMERIC `bytes-out`, `bytes-in`,
+#            `packets-out` and `packets-in` on the child SA.
+# PREVENTS: the four keys reading null forever. The YANG description of the `sa`
+#           and `peer name` containers has advertised "byte counts" since
+#           2026-06-03, and nothing produced them until this spec.
+#
+# WHAT ZERO AND NULL EACH MEAN, and why zero is the expected value here. This
+# fixture has one kernel, one real backend and no route through the tunnel, so no
+# ESP packet ever crosses it and the kernel's own counter is 0. That is the TRUE
+# answer, and the failure it discriminates is null: null says the SAD was never
+# read (no backend, the noop or VPP backend, or no CAP_NET_ADMIN), which is what
+# every one of these keys reported before AC-8
+# (addChildCounters and counterOrNil, internal/component/ike/cmd/show_ipsec.go).
+# The non-zero half of AC-8 is proven where ESP traffic actually flows, in the
+# `dataplane-readback` interop scenario, beside verifyTunnelTraffic.
+#
+# WHY ONE DATAPLANE AND NOT TWO, WHY THE EXECUTOR IS ON THE RESPONDER, and WHY
+# THE SELECTORS ARE RFC 5737 PREFIXES: identical to
+# ipsec-show-dataplane-kernel.ci, which states each reason in full.
+#
+# Gated option=needs-linux:caps=net-admin: the responder programs real XFRM
+# state, so this SKIPs on a host without CAP_NET_ADMIN and runs as root in the
+# QEMU VM, where `fsuite ipsec` in internal/le/qemu/alltests.go executes the
+# suite.
+
+option=needs-linux:caps=net-admin
+# `ip xfrm state` is NODE-WIDE, so a sibling real-XFRM test running beside this
+# one puts its own SPIs in the SAD the counter lookup reads.
+option=exclusive:group=ipsec-xfrm
+option=env:var=ze_test_ike_port:value=$PORT2
+option=timeout:value=120s
+option=env:var=ze_log_ike:value=info
+
+# ── Responder daemon (foreground, REAL xfrm, engine-steps executor): 127.0.0.4 ──
+stdin=responder:terminator=EOF_RESPONDER
+plugin {
+	external engine-steps {
+		run "ze-test engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer initiator {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.4
+				remote-address 127.0.0.3
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 203.0.113.0/24
+					}
+					remote {
+						prefix 198.51.100.0/24
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_RESPONDER
+
+# ── Initiator daemon (background, noop dataplane): binds 127.0.0.3 ──
+stdin=initiator:terminator=EOF_INITIATOR
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.3
+				remote-address 127.0.0.4
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 198.51.100.0/24
+					}
+					remote {
+						prefix 203.0.113.0/24
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_INITIATOR
+
+cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze -:stdin=initiator:name=initiator
+cmd=foreground:seq=2:exec=ze -:stdin=responder:timeout=110s
+cmd=stop:seq=3:name=initiator:signal=term
+
+# ── Engine steps, dispatched inside the responder ──
+
+# Establishment gate. aes-cbc appears in the SA row only once IKE_AUTH has
+# completed, so the child-sa object below exists by the time it is read.
+command=show vpn ipsec sa | json
+expect=output:contains=aes-cbc:timeout=60
+
+# AC-8. counters-known reports whether the SAD WAS READ, so true here is the
+# claim that the kernel answered. It is false under every backend that cannot
+# enumerate, which is what ipsec-dataplane-show.ci covers.
+command=show vpn ipsec sa
+expect=output:json=peers.0.child-sa.counters-known=true:timeout=45
+# Each counter is a NUMBER, not null. 0 is the kernel's true count for a tunnel
+# no packet crossed; null is the failure this step discriminates, and null is
+# what all four keys carried before the SAD read existed.
+expect=output:json=peers.0.child-sa.bytes-out=0:timeout=15
+expect=output:json=peers.0.child-sa.bytes-in=0:timeout=15
+expect=output:json=peers.0.child-sa.packets-out=0:timeout=15
+expect=output:json=peers.0.child-sa.packets-in=0:timeout=15
+
+# The same four keys through the pipe the operator actually types. The handler
+# returns plugin.Map and never formats, so `| json` renders the same data; this
+# step proves the keys survive the pipe layer rather than only the wire response.
+command=show vpn ipsec sa | json
+expect=output:contains="counters-known":true:timeout=15
+expect=output:contains="bytes-out":0:timeout=15
+
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

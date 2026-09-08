@@ -79,6 +79,15 @@ SAD cannot be read. See
 
 <!-- source: internal/component/ike/cmd/show_ipsec.go -- sadCounters, readSADCounters -->
 
+**Two gauges report the kernel, and they publish nothing when it cannot be
+read.** `ze_ipsec_dataplane_sa_count{if_id}` and `ze_ipsec_dataplane_drift{peer}`
+sit beside the belief gauges above. `Update` takes one SAD dump for the pass and
+feeds both from it, and only when `ActiveTable()` is non-nil. An unreadable SAD
+deletes every series and sets none. See
+[`ipsec-dataplane-inspection.md`](ipsec-dataplane-inspection.md).
+
+<!-- source: internal/component/ike/engine/metrics.go -- publishDataplaneGauges, setGaugeSeries -->
+
 ## Traps this code exists to avoid
 
 **Importing the engine from a show handler registers the plugin everywhere.**

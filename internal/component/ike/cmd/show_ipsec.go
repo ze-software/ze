@@ -246,17 +246,6 @@ func saToMap(sa *engine.SA, now time.Time, peerInfos map[string]engine.PeerInfo,
 	return m
 }
 
-// addChildCounters fills the four counter keys the `sa` and `peer name` YANG
-// descriptions have advertised as "byte counts" since 2026-06-03.
-//
-// They come from the kernel because the IKE engine never sees ESP payload: the
-// kernel moves those bytes, so counting them in userspace would report zero for
-// a working tunnel.
-//
-// EVERY KEY IS ALWAYS PRESENT, and an unknown counter is null rather than zero.
-// The two are different answers: zero says the SA carried nothing, null says
-// nobody could ask. A caller that renders null as 0 would reintroduce exactly the
-// false-green this spec exists to remove (ai/rules/evidence.md).
 // selectorAddressText renders a stored pre-substitution selector address for the SA
 // payload.
 //
@@ -271,6 +260,17 @@ func selectorAddressText(ip net.IP) any {
 	return ip.String()
 }
 
+// addChildCounters fills the four counter keys the `sa` and `peer name` YANG
+// descriptions have advertised as "byte counts" since 2026-06-03.
+//
+// They come from the kernel because the IKE engine never sees ESP payload: the
+// kernel moves those bytes, so counting them in userspace would report zero for
+// a working tunnel.
+//
+// EVERY KEY IS ALWAYS PRESENT, and an unknown counter is null rather than zero.
+// The two are different answers: zero says the SA carried nothing, null says
+// nobody could ask. A caller that renders null as 0 would reintroduce exactly the
+// false-green this spec exists to remove (ai/rules/evidence.md).
 func addChildCounters(child map[string]any, info engine.PeerInfo, kernel sadCounters) {
 	inBytes, inPackets, inKnown := kernel.lookup(info.ChildInSPI)
 	outBytes, outPackets, outKnown := kernel.lookup(info.ChildOutSPI)

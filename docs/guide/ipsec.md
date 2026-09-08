@@ -1113,6 +1113,20 @@ name of that guard.
 
 Three more counters report the COOKIE challenge described under [Denial-of-service protection](#denial-of-service-protection). `ze_ipsec_cookie_challenges_total{peer}` counts the challenges Ze issues, `ze_ipsec_cookie_verify_failures_total{peer}` counts inbound cookies that did not verify, and `ze_ipsec_sa_init_retries_total{peer,cause}` counts the IKE_SA_INIT retries Ze sends, labeled `cookie` or `invalid-ke-payload`. A rising verify-failure count is either an attacker probing the half-open slot or a secret rotation catching an in-flight challenge. A rising retry count on the `cookie` cause is the signature of the forged-notify flood RFC 7296 Section 2.6 describes.
 
+Two more gauges report the KERNEL, not what the engine believes it installed.
+`ze_ipsec_dataplane_sa_count{if_id}` reports how many SAs the kernel SAD holds
+under each XFRM if_id, and `ze_ipsec_dataplane_drift{peer}` reads 1 when the
+kernel does not hold a Child SA SPI the engine counts as installed. A kernel
+expiry, an external flush, or a rekey that stranded a policy each show up here
+while `ze_ipsec_tunnel_up` still reads 1, because that gauge reports the install
+call, not the kernel.
+
+Neither dataplane gauge publishes a series when the kernel cannot be read: no
+backend loaded, a backend that cannot enumerate, or netlink refusing the dump
+without CAP_NET_ADMIN. A series an earlier scrape carried is deleted. Alert on
+the drift gauge being 1, never on it being absent, because absence says the
+question was not answered rather than answered no.
+
 `ze_ipsec_tunnel_up` reads 1 only when the IKE SA is established and the Child SA is
 installed in the dataplane. A tunnel whose ESP install the kernel refused reads
 `ze_ipsec_tunnel_up` 0 and `ze_ipsec_tunnel_degraded` 1. Such a tunnel has a live

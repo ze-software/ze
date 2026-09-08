@@ -1002,3 +1002,108 @@ func TestNATVerdictNeedsEveryFieldTrueOnOneSA(t *testing.T) {
 		})
 	}
 }
+
+// VALIDATES: the readback checker fails CLOSED when either reader returns no SPI,
+// before it compares the two sets (R-7, AC-12).
+// PREVENTS: the vacuity a read-only comparison invites. Two empty sets are equal,
+// so an agreement assertion over an empty kernel passes with the dump's whole body
+// deleted.
+func TestDataplaneReadbackRefusesAnEmptySPISet(t *testing.T) {
+	full := map[uint32]struct{}{0xc1a2b3c4: {}, 0x0d0e0f10: {}}
+
+	tests := []struct {
+		name  string
+		ze    map[uint32]struct{}
+		peer  map[uint32]struct{}
+		wants string
+	}{
+		{name: "both empty", ze: nil, peer: nil, wants: "no ESP SPI"},
+		{name: "ze dump empty", ze: nil, peer: full, wants: "no ESP SPI"},
+		{name: "kernel empty", ze: full, peer: nil, wants: "no ESP SPI"},
+		{
+			name:  "both non-empty and different",
+			ze:    full,
+			peer:  map[uint32]struct{}{0xc1a2b3c4: {}},
+			wants: "disagree",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := requireSameSPISet(tt.ze, tt.peer, "ze dump", "ip xfrm state")
+			if err == nil {
+				t.Fatal("requireSameSPISet accepted a set it must refuse")
+			}
+			if !strings.Contains(err.Error(), tt.wants) {
+				t.Errorf("error = %q, want it to name %q", err, tt.wants)
+			}
+		})
+	}
+
+	if err := requireSameSPISet(full, map[uint32]struct{}{0x0d0e0f10: {}, 0xc1a2b3c4: {}}, "ze dump", "ip xfrm state"); err != nil {
+		t.Errorf("two equal non-empty sets were refused: %v", err)
+	}
+}
+
+// VALIDATES: the checker refuses a rekey after which the SPI set is unchanged, so
+// AC-13 asserts a TRANSITION rather than a state.
+// PREVENTS: a rekey assertion that holds because nothing happened. RFC 7296
+// Section 2.8 replaces the SPI while the selector stays identical, so an unchanged
+// set is the evidence the rekey did not reach the kernel.
+func TestDataplaneReadbackRequiresTheSPISetToChange(t *testing.T) {
+	before := map[uint32]struct{}{0xc1a2b3c4: {}, 0x0d0e0f10: {}}
+
+	if err := requireSPISetChanged(before, before); err == nil {
+		t.Error("requireSPISetChanged accepted an unchanged set after a rekey")
+	}
+	if err := requireSPISetChanged(before, nil); err == nil {
+		t.Error("requireSPISetChanged accepted an empty set after a rekey")
+	}
+	after := map[uint32]struct{}{0x11223344: {}, 0x55667788: {}}
+	if err := requireSPISetChanged(before, after); err != nil {
+		t.Errorf("a fully replaced SPI set was refused: %v", err)
+	}
+	// One SPI in common is still a change: a rekey that has replaced one
+	// direction and not yet the other is legitimately half-way.
+	half := map[uint32]struct{}{0xc1a2b3c4: {}, 0x55667788: {}}
+	if err := requireSPISetChanged(before, half); err != nil {
+		t.Errorf("a half-replaced SPI set was refused: %v", err)
+	}
+}
+
+// VALIDATES: the `spi` member of the Ze dump and the 0x form iproute2 prints
+// normalize to the same uint32, and an answer that does not decode is an error
+// naming it rather than an empty set.
+// PREVENTS: two failures at once. A string comparison would be false for every
+// SPI, because the two readers print the same number in different bases. And
+// decoding the Ze answer into map[string]any would route the SPI through float64,
+// which cannot hold every uint32 exactly once past 2^24 of precision loss.
+func TestDataplaneSPIsDecodeAsIntegers(t *testing.T) {
+	// 0xc1a2b3c4 is above 2^31, so a decoder that narrows to int32 or rounds
+	// through float64 answers a different number here.
+	const answer = `[{"spi":3248665540,"src":"172.28.0.2","dst":"172.28.0.3","mode":"tunnel"},
+	                 {"spi":219025168,"src":"172.28.0.3","dst":"172.28.0.2","mode":"tunnel"}]`
+	zeSet, err := decodeZeDataplaneSPIs(answer)
+	if err != nil {
+		t.Fatalf("decodeZeDataplaneSPIs: %v", err)
+	}
+
+	kernelSet, err := spiValues(map[string]struct{}{"0xc1a2b3c4": {}, "0x0d0e0f10": {}})
+	if err != nil {
+		t.Fatalf("spiValues: %v", err)
+	}
+
+	if err := requireSameSPISet(zeSet, kernelSet, "ze dump", "ip xfrm state"); err != nil {
+		t.Errorf("the two readers disagree after normalization: %v", err)
+	}
+	if _, ok := zeSet[0xc1a2b3c4]; !ok {
+		t.Errorf("zeSet = %v, want the 0xc1a2b3c4 SPI verbatim", zeSet)
+	}
+
+	if _, err := decodeZeDataplaneSPIs("not json at all"); err == nil {
+		t.Error("an undecodable answer produced a set rather than an error")
+	}
+	if _, err := spiValues(map[string]struct{}{"esp": {}}); err == nil {
+		t.Error("an unparsable kernel SPI produced a set rather than an error")
+	}
+}

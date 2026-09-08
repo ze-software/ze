@@ -16,6 +16,7 @@ var ipsecScenarios = []string{
 	"child-rekey-narrowing",
 	"clear-reestablish",
 	"cookie-challenge",
+	"dataplane-readback",
 	"delete-while-window-held",
 	"eap-mschapv2",
 	"eap-nak-method-negotiation",

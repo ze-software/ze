@@ -60,7 +60,43 @@ legitimately holds an SPI the engine no longer names.
 not be read the name list is empty and means nothing. A caller that read that as
 "no drift" would report healthy on the strength of a question nobody asked.
 
-<!-- source: internal/component/ike/engine/health_drift.go -- driftingPeers, driftDetail -->
+`driftingPeersFrom` is the comparison over an SA list the caller already holds,
+and `driftingPeers` is the wrapper that reads the SAD for it. The split exists so
+one kernel dump answers both readers: the health check reaches it through the
+wrapper, and the metrics pass hands the same slice it published the SA count
+from. Two dumps for one pass are two answers to one question, and they disagree
+across a rekey.
+
+<!-- source: internal/component/ike/engine/health_drift.go -- driftingPeers, driftingPeersFrom, driftDetail -->
+
+## Decision: a gauge with no readable kernel publishes no series
+
+`ze_ipsec_dataplane_sa_count{if_id}` reports how many SAs the kernel SAD holds
+under each if_id. `ze_ipsec_dataplane_drift{peer}` reports 1 for a peer whose
+believed Child SA SPI the kernel does not hold, and 0 for a peer whose SPIs are
+present. Both are published by `IPsecMetrics.Update`, which runs on a 5 second
+ticker.
+
+A dataplane nobody could read publishes NO series, and every series an earlier
+pass published is deleted. A drift of 0 there says "no drift" on the strength of
+a question nobody asked, which is the false green this whole surface exists to
+remove. Prometheus spells "unknown" as the absence of a series, so both metrics
+are a `GaugeVec` even where one label value would do: a `Gauge` cannot be
+deleted.
+
+The same rule covers a label that stops appearing. A peer that leaves
+`PeerInfoMap`, and an if_id the kernel no longer holds, each lose their series
+rather than keep the value the last pass left there.
+
+The dump is skipped when `ActiveTable()` is nil. A daemon that runs no IKE engine
+has no belief to contradict, and it must not issue a netlink dump every 5 seconds
+to learn that.
+
+The label is `if_id`, not the `if-id` the JSON keys use. A Prometheus label name
+matches `[a-zA-Z_][a-zA-Z0-9_]*`, so a hyphen is refused at registration and
+takes the daemon down at startup rather than at a scrape.
+
+<!-- source: internal/component/ike/engine/metrics.go -- publishDataplaneGauges, clearDataplaneGauges, setGaugeSeries -->
 
 ## Decision: the counters come from the kernel
 

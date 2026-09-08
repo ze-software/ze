@@ -4,6 +4,7 @@
 package engine
 
 import (
+	"strconv"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/ike/wire"
@@ -23,6 +24,20 @@ type IPsecMetrics struct {
 	saInitRetries         metrics.GaugeVec
 	eapTLSResumptionHits  metrics.GaugeVec
 	eapTLSResumptionMiss  metrics.GaugeVec
+
+	// dataplaneSACount and dataplaneDrift report what the KERNEL holds, beside
+	// the belief gauges above. Both are a GaugeVec even where one label value
+	// would do, because a dataplane nobody could read publishes NO series and a
+	// plain Gauge cannot be deleted.
+	dataplaneSACount metrics.GaugeVec
+	dataplaneDrift   metrics.GaugeVec
+
+	// dataplaneMu guards the label sets the two dataplane gauges last published.
+	// Update runs on two goroutines: the 5 second metrics ticker, and the SDK
+	// dispatch goroutine that applies a configuration (register.go).
+	dataplaneMu      sync.Mutex
+	dataplaneIfIDs   map[string]bool
+	dataplaneDrifted map[string]bool
 }
 
 // eapTLSResumptionStats counts how each completed EAP-TLS authentication was
@@ -203,6 +218,12 @@ func errorNotifySentCount(notifyType uint16, protected bool) uint64 {
 // the column, not the peer.
 const metricLabelPeer = "peer"
 
+// metricLabelIfID names the XFRM if_id column. The underscore is not a style
+// choice: a Prometheus label name matches [a-zA-Z_][a-zA-Z0-9_]*, so the
+// kebab-case "if-id" this repository uses for a JSON key would be refused at
+// registration and take the daemon down at startup.
+const metricLabelIfID = "if_id"
+
 func RegisterMetrics(reg metrics.Registry) *IPsecMetrics {
 	return &IPsecMetrics{
 		saCount:        reg.Gauge("ze_ipsec_sa_count", "Number of active IKE Security Associations"),
@@ -230,6 +251,95 @@ func RegisterMetrics(reg metrics.Registry) *IPsecMetrics {
 		eapTLSResumptionMiss: reg.GaugeVec("ze_ipsec_eap_tls_resumption_misses_total",
 			"Cumulative EAP-TLS authentications that ran a full TLS handshake, by peer",
 			[]string{metricLabelPeer}),
+		dataplaneSACount: reg.GaugeVec("ze_ipsec_dataplane_sa_count",
+			"Number of IPsec SAs the kernel SAD holds, by XFRM if_id. No series is published when the dataplane cannot be read",
+			[]string{metricLabelIfID}),
+		dataplaneDrift: reg.GaugeVec("ze_ipsec_dataplane_drift",
+			"Whether the kernel SAD is missing a Child SA the IKE engine counts as installed (1=drifting), by peer. No series is published when the dataplane cannot be read",
+			[]string{metricLabelPeer}),
+		dataplaneIfIDs:   map[string]bool{},
+		dataplaneDrifted: map[string]bool{},
+	}
+}
+
+// publishDataplaneGauges reports what the kernel SAD holds, and where it
+// disagrees with what the engine believes it installed.
+//
+// It takes ONE dump for the pass and feeds both gauges from it. Two dumps would
+// be two answers to one question, and they disagree across a rekey, when the old
+// and the new Child SA are both alive (RFC 7296 Section 2.8).
+//
+// An unreadable SAD deletes every series and publishes none. A drift of 0 there
+// would say "no drift" on the strength of a question nobody asked, which is the
+// false green the dataplane read surface exists to remove (ai/rules/evidence.md).
+// Prometheus spells "unknown" as the absence of a series.
+//
+// Safe for concurrent use.
+func (m *IPsecMetrics) publishDataplaneGauges(infos map[string]PeerInfo) {
+	sas, err := driftSAD()
+	if err != nil {
+		m.clearDataplaneGauges()
+		return
+	}
+
+	counts := make(map[string]float64, len(sas))
+	for i := range sas {
+		counts[strconv.FormatUint(uint64(sas[i].IfID), 10)]++
+	}
+
+	// A peer with a Child SA reads 0 or 1. A peer with none has no belief to
+	// contradict, so it gets no series rather than a 0 that reads as agreement.
+	//
+	// The peer set comes from the caller's snapshot, so the whole pass publishes
+	// against ONE reading of PeerInfoMap. A peer the comparison names that this
+	// snapshot does not hold is skipped rather than published: a series for a
+	// peer the pass never counted is a value nothing will ever clear.
+	drift := make(map[string]float64, len(infos))
+	for name := range infos {
+		if infos[name].HasChild {
+			drift[name] = 0
+		}
+	}
+	for _, name := range driftingPeersFrom(sas) {
+		if _, known := drift[name]; known {
+			drift[name] = 1
+		}
+	}
+
+	m.dataplaneMu.Lock()
+	defer m.dataplaneMu.Unlock()
+	setGaugeSeries(m.dataplaneSACount, m.dataplaneIfIDs, counts)
+	setGaugeSeries(m.dataplaneDrift, m.dataplaneDrifted, drift)
+}
+
+// clearDataplaneGauges removes every series the two dataplane gauges published
+// and sets none.
+//
+// Safe for concurrent use.
+func (m *IPsecMetrics) clearDataplaneGauges() {
+	m.dataplaneMu.Lock()
+	defer m.dataplaneMu.Unlock()
+	setGaugeSeries(m.dataplaneSACount, m.dataplaneIfIDs, nil)
+	setGaugeSeries(m.dataplaneDrift, m.dataplaneDrifted, nil)
+}
+
+// setGaugeSeries publishes one pass of a gauge vector and deletes every series
+// the pass before it published that this one does not carry. The caller owns
+// published and MUST hold the lock that guards it.
+//
+// A series that is merely left behind is indistinguishable at a scrape from a
+// live value, so a label that stops appearing is removed rather than held.
+func setGaugeSeries(vec metrics.GaugeVec, published map[string]bool, values map[string]float64) {
+	for label := range published {
+		if _, ok := values[label]; ok {
+			continue
+		}
+		vec.Delete(label)
+		delete(published, label)
+	}
+	for label, value := range values {
+		vec.With(label).Set(value)
+		published[label] = true
 	}
 }
 
@@ -302,6 +412,10 @@ func (m *IPsecMetrics) Update() {
 	table := ActiveTable()
 	if table == nil {
 		m.saCount.Set(0)
+		// A daemon that runs no IKE engine has no belief to contradict, and it
+		// MUST NOT issue a netlink dump every 5 seconds to learn that. Series an
+		// earlier pass published are deleted rather than left to go stale.
+		m.clearDataplaneGauges()
 		return
 	}
 
@@ -334,4 +448,6 @@ func (m *IPsecMetrics) Update() {
 		m.tunnelDegraded.With(name).Set(degraded)
 		m.rekeyTotal.With(name).Set(float64(info.RekeyCount))
 	}
+
+	m.publishDataplaneGauges(infos)
 }

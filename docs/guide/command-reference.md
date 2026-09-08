@@ -1298,6 +1298,42 @@ name the URLs that run actually read.
 <!-- source: internal/component/resolve/cmd/rir.go -- handleRIRRefresh, configuredDelegationSources -->
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system/rir/delegation-source -->
 
+### show vpn ipsec dataplane
+
+```
+show vpn ipsec dataplane sa                  # The Security Association Database the kernel holds
+show vpn ipsec dataplane sa spi <spi>        # One SA, by SPI (1-4294967295)
+show vpn ipsec dataplane policy              # The Security Policy Database the kernel holds
+show vpn ipsec dataplane drift               # Where engine belief and kernel state disagree
+```
+
+Every other `show vpn ipsec` command reports what the IKE engine believes it
+installed. These three read the kernel back, so a kernel expiry, an external
+flush, or a policy a rekey stranded becomes visible.
+
+`sa` lists each installed ESP SA with its SPI, addresses, if_id, mode, reqid,
+encryption and integrity algorithm names, replay window, byte and packet
+counters, and the add and use timestamps. It never renders key material.
+`policy` lists each policy with its selector prefixes and ports, direction,
+priority, upper-layer protocol, if_id, tunnel endpoints, and the peer that
+installed it. A policy Ze did not install reports its owner as unknown.
+
+`drift` names each Child SA the engine counts as installed whose SPI the kernel
+does not hold, and exits non-zero when it finds one. It exits zero when the two
+agree. A rekey window is not drift: RFC 7296 Section 2.8 keeps the old and the
+new Child SA alive together.
+
+A backend that cannot enumerate the dataplane, VPP and the noop backend among
+them, reports that it cannot rather than rendering an empty table. So does a
+process without CAP_NET_ADMIN. An empty table would answer "nothing is
+installed" to a question nobody asked the kernel.
+
+RFC 4303 Section 2.1 reserves SPI 0, so the `spi` selector refuses it rather
+than reading it as "every SPI".
+
+<!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneSA, handleShowVPNIPsecDataplanePolicy, handleShowVPNIPsecDataplaneDrift -->
+<!-- source: internal/component/ike/yang/ze-ipsec-cmd.yang -- show/vpn/ipsec/dataplane -->
+
 ### clear vpn ipsec sa
 
 ```

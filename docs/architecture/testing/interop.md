@@ -428,6 +428,26 @@ order. Every nested Child SA key moved off the line start, and
 `initiator-rekey-answer-narrows` went red with no daemon behavior changed.
 <!-- source: internal/le/interoplab/ipsec/helpers.go -- zeIKESAs, assertNATVerdict, assertZeSelectors -->
 
+**A number two readers print in two bases is normalized to one TYPE, and the
+decode is typed.** The `dataplane-readback` scenario joins the SPI set
+`show vpn ipsec dataplane sa | json` answers against the set `ip xfrm state`
+prints in the same container. iproute2 writes an SPI as `0xc1a2b3c4` and Ze
+answers a JSON number, so a string comparison is false for every SPI. The
+checker decodes the Ze answer into a struct whose `spi` field is a `uint32`, and
+parses the printed form to the same type. Decoding into `map[string]any` would
+route the number through `float64`, which holds a uint32 today and says nothing
+about the uint64 byte counter beside it.
+
+**An agreement between two readers asserts NON-EMPTY before it asserts EQUAL.**
+Two empty sets are equal, so a read-only comparison passes over a kernel that
+holds nothing, which is what the dump answers with its whole body deleted.
+`requireSameSPISet` refuses an empty side first and names which side was empty.
+`requireSPISetChanged` then refuses a rekey after which the set is unchanged, so
+`dataplane-readback` asserts a transition rather than a state: RFC 7296
+Section 2.8 replaces the SPI while the selector stays identical.
+<!-- source: internal/le/interoplab/ipsec/helpers.go -- decodeZeDataplaneSPIs, spiValues, requireSameSPISet, requireSPISetChanged -->
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkDataplaneReadback -->
+
 All session waiters use explicit bounds (default 90 seconds, override via
 `SESSION_TIMEOUT`). The harness passes that value into the Ze container so a
 compiled process helper can size its barriers against the same budget.

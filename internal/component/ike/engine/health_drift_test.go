@@ -10,6 +10,7 @@ package engine
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -117,4 +118,51 @@ func TestCheckIPsecHealthDegradedOnDrift(t *testing.T) {
 			t.Errorf("status = %v (%q): an unreadable dataplane is not evidence of drift", status, detail)
 		}
 	})
+}
+
+// VALIDATES: driftingPeersFrom compares a SUPPLIED SA list in one direction, so
+// an SPI the kernel holds and the engine does not name is not drift.
+// PREVENTS: a rekey window reading as drift. RFC 7296 Section 2.8 keeps the old
+// and the new Child SA alive together, so the kernel legitimately holds an SPI
+// the engine has already replaced.
+func TestDriftingPeersFromSAsComparesOneDirection(t *testing.T) {
+	alpha := &PeerSession{peerName: "peer-alpha"}
+	alpha.childSA = &ChildSA{InboundSPI: 100, OutboundSPI: 200}
+	beta := &PeerSession{peerName: "peer-beta"}
+	beta.childSA = &ChildSA{InboundSPI: 300, OutboundSPI: 400}
+	SetActivePeersForTest(map[string]*PeerSession{"peer-alpha": alpha, "peer-beta": beta})
+	t.Cleanup(func() { SetActivePeersForTest(nil) })
+
+	tests := []struct {
+		name string
+		sas  []dataplane.SAInfo
+		want []string
+	}{
+		{
+			name: "kernel holds every believed SPI",
+			sas:  []dataplane.SAInfo{{SPI: 100}, {SPI: 200}, {SPI: 300}, {SPI: 400}},
+		},
+		{
+			name: "kernel holds an extra SPI from a rekey window",
+			sas:  []dataplane.SAInfo{{SPI: 100}, {SPI: 200}, {SPI: 300}, {SPI: 400}, {SPI: 999}},
+		},
+		{
+			name: "kernel is missing one SPI of one peer",
+			sas:  []dataplane.SAInfo{{SPI: 100}, {SPI: 300}, {SPI: 400}},
+			want: []string{"peer-alpha"},
+		},
+		{
+			name: "kernel holds nothing",
+			want: []string{"peer-alpha", "peer-beta"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := driftingPeersFrom(tt.sas)
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("driftingPeersFrom = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

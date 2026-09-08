@@ -987,3 +987,151 @@ func (l *scenarioLab) natInnerAddress(ctx context.Context, peer, local, remote s
 	}
 	return nil
 }
+
+// zeDataplaneSA is one record of `show vpn ipsec dataplane sa | json`, decoded
+// into the types the kernel holds it in.
+//
+// It is a TYPED struct rather than a map[string]any on purpose. Decoding into a
+// map routes every JSON number through float64, and float64 carries 53 bits of
+// mantissa: a uint32 survives that today and the type says nothing about it, so
+// the next field that is a uint64 byte counter would round in silence. Naming
+// the field uint32 makes the decoder do the conversion, and refuse an answer
+// whose number does not fit.
+type zeDataplaneSA struct {
+	SPI  uint32 `json:"spi"`
+	Src  string `json:"src"`
+	Dst  string `json:"dst"`
+	Mode string `json:"mode"`
+}
+
+// dataplaneSAs returns the kernel SAD as ZE reports it, through the Ze CLI in
+// the ze container.
+//
+// This is the reader under test in the dataplane-readback scenario. The other
+// reader is iproute2 in the same container, and the scenario exists to prove the
+// two agree.
+func (l *scenarioLab) dataplaneSAs(ctx context.Context) ([]zeDataplaneSA, string, error) {
+	answer, err := l.zeCLI(ctx, "show vpn ipsec dataplane sa | json")
+	if err != nil {
+		return nil, answer, err
+	}
+	records, err := decodeZeDataplaneSAs(answer)
+	return records, answer, err
+}
+
+// decodeZeDataplaneSAs decodes the answer of `show vpn ipsec dataplane sa | json`.
+//
+// `| json` unwraps the single-key `sas` envelope into the list of records
+// (unwrapSingleKeyArray, internal/component/command/pipe.go), so the answer
+// decodes as a list. An answer that does not decode is an ERROR naming it, never
+// an empty list: a checker that read zero SAs out of an unparsed answer would
+// pass every "the two readers agree" assertion it was given.
+func decodeZeDataplaneSAs(answer string) ([]zeDataplaneSA, error) {
+	var records []zeDataplaneSA
+	if err := json.Unmarshal([]byte(strings.TrimSpace(answer)), &records); err != nil {
+		return nil, fmt.Errorf("show vpn ipsec dataplane sa | json is not a list of SAs: %w; answer: %s", err, answer)
+	}
+	return records, nil
+}
+
+// decodeZeDataplaneSPIs answers the SPI set the Ze dump names.
+func decodeZeDataplaneSPIs(answer string) (map[uint32]struct{}, error) {
+	records, err := decodeZeDataplaneSAs(answer)
+	if err != nil {
+		return nil, err
+	}
+	spis := make(map[uint32]struct{}, len(records))
+	for i := range records {
+		spis[records[i].SPI] = struct{}{}
+	}
+	return spis, nil
+}
+
+// spiValues normalizes the SPI forms iproute2 prints into the numbers the Ze
+// dump answers.
+//
+// iproute2 prints an SPI as `0xc1a2b3c4` and Ze answers a JSON number, so the
+// two never compare as strings. An SPI that does not parse is an error naming
+// it: dropping it would shrink the set silently, and a shrunken set is what an
+// agreement assertion cannot tell from agreement.
+func spiValues(printed map[string]struct{}) (map[uint32]struct{}, error) {
+	values := make(map[uint32]struct{}, len(printed))
+	for spi := range printed {
+		value, err := strconv.ParseUint(strings.TrimPrefix(spi, "0x"), 16, 32)
+		if err != nil {
+			return nil, fmt.Errorf("ip xfrm state printed an ESP SPI this lab cannot read: %q: %w", spi, err)
+		}
+		values[uint32(value)] = struct{}{}
+	}
+	return values, nil
+}
+
+// espSPIValues answers one peer's ESP SPI set, read from iproute2 and normalized
+// to the numbers the Ze dump answers.
+func (l *scenarioLab) espSPIValues(ctx context.Context, peer string) (map[uint32]struct{}, error) {
+	printed, err := l.espSPIs(ctx, peer)
+	if err != nil {
+		return nil, err
+	}
+	return spiValues(printed)
+}
+
+// requireSameSPISet refuses unless the two readers name the SAME NON-EMPTY set.
+//
+// The order is the whole point. Two empty sets are equal, so a comparison made
+// first would hold over a kernel that holds nothing, which is what a read-only
+// dump produces with its entire body deleted. The emptiness of either side is
+// therefore an error BEFORE the sets are compared
+// (ai/rules/interop-and-goal-validation.md).
+func requireSameSPISet(first, second map[uint32]struct{}, firstName, secondName string) error {
+	if len(first) == 0 {
+		return fmt.Errorf("%s reports no ESP SPI, so an agreement with %s would be vacuous", firstName, secondName)
+	}
+	if len(second) == 0 {
+		return fmt.Errorf("%s reports no ESP SPI, so an agreement with %s would be vacuous", secondName, firstName)
+	}
+	if !sameSPISet(first, second) {
+		return fmt.Errorf("%s and %s disagree on the kernel SAD: %s reports %v, %s reports %v",
+			firstName, secondName, firstName, sortedSPIs(first), secondName, sortedSPIs(second))
+	}
+	return nil
+}
+
+// requireSPISetChanged refuses unless the rekey REPLACED at least one SPI.
+//
+// RFC 7296 Section 2.8 replaces the Child SA's SPI while the selector stays
+// identical, so an unchanged set is the evidence the rekey never reached the
+// kernel. An empty set after the rekey is refused for the reason above: it would
+// satisfy "changed" while proving the readers stopped answering.
+func requireSPISetChanged(before, after map[uint32]struct{}) error {
+	if len(after) == 0 {
+		return fmt.Errorf("the kernel SAD reports no ESP SPI after the rekey, so the change is unproven; before: %v", sortedSPIs(before))
+	}
+	if sameSPISet(before, after) {
+		return fmt.Errorf("the ESP SPI set did not change across the rekey: %v", sortedSPIs(after))
+	}
+	return nil
+}
+
+func sameSPISet(first, second map[uint32]struct{}) bool {
+	if len(first) != len(second) {
+		return false
+	}
+	for spi := range first {
+		if _, ok := second[spi]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// sortedSPIs renders a set for an error message, in one order, so two failures
+// of the same shape read the same.
+func sortedSPIs(spis map[uint32]struct{}) []uint32 {
+	out := make([]uint32, 0, len(spis))
+	for spi := range spis {
+		out = append(out, spi)
+	}
+	slices.Sort(out)
+	return out
+}
