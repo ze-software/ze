@@ -54,7 +54,8 @@ func init() {
 	Register("flow-export/sampling-config", waitForDaemonFixture)
 	Register("flow-export/sflow-export", sflowReceiver)
 
-	Register("policy/policy-boot-apply", policyBootApply)
+	Register("policy/policy-boot-apply", policyRuleDump)
+	Register("policy/policy-interface-list", policyRuleDump)
 	Register("policy/policy-next-hop", policyNextHop)
 	Register("policy/policy-reload", policyReload)
 	Register("policy/policy-set-table", policySetTable)

@@ -35,7 +35,12 @@ func policyTableOutput(ctx context.Context, predicate func([]string) bool, attem
 	return out, nil
 }
 
-func policyBootApply(ctx context.Context, _ []string) error {
+// policyRuleDump prints the ze_pr table and one RULE line per programmed rule,
+// once the table carries at least two rules. The per-rule lines are what lets a
+// test assert which matches share a rule, which a whole-table dump cannot show:
+// two matches in one rule and the same two matches in two rules produce the
+// same set of substrings.
+func policyRuleDump(ctx context.Context, _ []string) error {
 	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
