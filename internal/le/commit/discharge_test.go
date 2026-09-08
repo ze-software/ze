@@ -1228,16 +1228,79 @@ func TestACommitOfAnotherRowOfTheSameShardIsRefused(t *testing.T) {
 	}
 }
 
-// TestADeletedTwinRowIsRecoveredByItsReason pins the reason arm of the binding
+// TestARowBindsOnlyACommitThatAddedItsOwnGateAndReason pins WHAT the first
+// binding arm compares: the gate and the reason of the row a commit added, both
+// of them, against the row under discharge.
+//
+// A row covering several commits keeps the subject of the first alone, so every
+// other commit it names is bound by this arm and nothing else. An arm that asks
+// only whether an added LINE holds the reason string answers yes for a row of
+// another gate carrying that reason, and for a row whose longer reason merely
+// contains it, so any commit of that session stands in for one of the N. One
+// gate and one reason are the same obligation by the merge key openDebtRowAt
+// reads, and neither impostor here shares that key with the row.
+//
+// VALIDATES: the two commits a row covers still discharge it.
+// PREVENTS: a commit that wrote another obligation of the same shard standing
+// in for one of them.
+func TestARowBindsOnlyACommitThatAddedItsOwnGateAndReason(t *testing.T) {
+	root := newDischargeRepository(t)
+	const reason = "no spec closes here"
+	shard, line := debtRowRecord(t, root, gateReviewName, reason, "the first commit")
+	first := commitFixture(t, root, "the first commit",
+		map[string]string{"docs/one.md": "# one\n"}, nil)
+	debtRowRecord(t, root, gateReviewName, reason, "the second commit")
+	second := commitFixture(t, root, "the second commit",
+		map[string]string{"docs/two.md": "# two\n"}, nil)
+
+	debtRowRecord(t, root, gateRFCName, reason, "the same reason, another gate")
+	otherGate := commitFixture(t, root, "the same reason, another gate",
+		map[string]string{"docs/three.md": "# three\n"}, nil)
+	debtRowRecord(t, root, gateReviewName, reason+" and nowhere else", "a reason of its own")
+	longerReason := commitFixture(t, root, "a reason of its own",
+		map[string]string{"docs/four.md": "# four\n"}, nil)
+
+	at := []string{"shard", shard, "line", strconv.Itoa(line), "kind", kindNotApplicable}
+	for _, refusal := range []struct {
+		why string
+		sha string
+	}{
+		{"a commit that added this reason under another gate", otherGate},
+		{"a commit whose added row's reason merely contains this one", longerReason},
+	} {
+		result, exit := discharge(t, root, append(append([]string{}, at...),
+			"commit", first, "commit", refusal.sha)...)
+		if exit == 0 {
+			t.Errorf("%s discharged the row: %#v", refusal.why, result)
+			continue
+		}
+		if !strings.Contains(strings.Join(result.Refused, " "), "neither adds a row carrying this row's") {
+			t.Errorf("%s answered %v, want the refusal to name the two arms it read",
+				refusal.why, result.Refused)
+		}
+	}
+
+	result, exit := discharge(t, root, append(append([]string{}, at...),
+		"commit", first, "commit", second)...)
+	if exit != 0 {
+		t.Fatalf("the row's own two commits were refused: %#v", result)
+	}
+	if row := debtRowNow(t, root, shard, line); row.Status != statusDischarged {
+		t.Fatalf("the row is %q once both its commits are answered, want %q",
+			row.Status, statusDischarged)
+	}
+}
+
+// TestADeletedTwinRowIsRecoveredByItsReason pins the first arm of the binding
 // condition, which is the only arm that reaches a commit whose own ledger line
 // no longer exists.
 //
 // Before the 2026-09-07 dedup, a session's second commit under one gate and one
 // reason wrote its OWN row rather than extending the first. That pass merged
 // each such pair and DELETED the second row's line, and `git log -L` over the
-// surviving line cannot reach a line that was deleted. The reason cell is the
-// dedup's own merge key, so it is byte-identical across the merged pair, and it
-// is what recovers the second commit.
+// surviving line cannot reach a line that was deleted. Gate and reason are the
+// dedup's own merge key, so both cells are byte-identical across the merged
+// pair, and they are what recover the second commit.
 //
 // VALIDATES: a row merged by the dedup discharges against both commits it covers.
 // PREVENTS: the line-history arm stranding a row no operator can ever discharge.
@@ -1283,9 +1346,9 @@ func TestADeletedTwinRowIsRecoveredByItsReason(t *testing.T) {
 // TestACommitThatPredatesAReasonCorrectionIsBoundByTheLineHistory pins the
 // line-history arm, which is what the reason arm cannot answer.
 //
-// The reason arm compares the row's reason AS IT READS NOW against the lines a
-// commit added. A commit that wrote the row under an earlier wording added no
-// line carrying today's reason, so only the line history reaches it. The
+// The first arm compares the row's gate and reason AS THEY READ NOW against the
+// rows a commit added. A commit that wrote the row under an earlier wording
+// added no row carrying today's reason, so only the line history reaches it. The
 // correcting commit carries no subject of the row's, which is why it cannot
 // stand in for the one that does.
 //
@@ -1313,6 +1376,75 @@ func TestACommitThatPredatesAReasonCorrectionIsBoundByTheLineHistory(t *testing.
 	}
 	if row := debtRowNow(t, root, shard, line); row.Status != statusDischarged {
 		t.Fatalf("the corrected row is %q, want %q", row.Status, statusDischarged)
+	}
+}
+
+// TestTheLineHistoryArmReadsTheRowAtHEADRatherThanALineNumber pins which ROW
+// the line-history arm answers about.
+//
+// The row's Line is where readDebtRows found it in the WORKING TREE, and
+// `git log -L<n>,<n>:<shard>` resolves that number against HEAD. The two
+// disagree the moment the ledger holds an edit nobody committed, and the arm
+// then reads the history of whatever row sits at that number instead. Here the
+// row below was written by the same commit, so the wrong row answers TRUE and
+// binds a commit to a row it never wrote, which is the one thing the binding
+// condition exists to refuse.
+//
+// VALIDATES: the row still discharges through its line history on a clean
+// ledger, which is the arm's whole purpose.
+// PREVENTS: a line number read at one revision being resolved at another.
+func TestTheLineHistoryArmReadsTheRowAtHEADRatherThanALineNumber(t *testing.T) {
+	root := newDischargeRepository(t)
+	shard, line := debtRowRecord(t, root, gateReviewName,
+		"the reason as it was first written", "the only commit")
+	// A second obligation of the SAME commit, on the line below. It is what a
+	// shifted line number reads at HEAD, and its history names that same
+	// commit, so an arm that trusts the number answers about it and passes.
+	debtRowRecord(t, root, gateRFCName, "a second obligation of the same commit", "the only commit")
+	only := commitFixture(t, root, "the only commit",
+		map[string]string{"docs/one.md": "# one\n"}, nil)
+
+	// The reason cell is corrected and the correction committed, so the reason
+	// arm no longer reaches the commit and the line history is the arm left.
+	committed := shardLines(t, root, shard)
+	committed[line-1] = strings.Replace(committed[line-1],
+		"the reason as it was first written", "the reason after the correction", 1)
+	writeShardLines(t, root, shard, committed)
+	commitFixture(t, root, "the ledger wording is corrected", nil, nil)
+
+	// A row inserted above it and never committed. The ledger reads the row one
+	// line lower than HEAD holds it.
+	committed = shardLines(t, root, shard)
+	inserted := strings.Replace(committed[line-1],
+		"the reason after the correction", "a row nobody committed", 1)
+	shifted := append([]string{}, committed[:line-1]...)
+	shifted = append(shifted, inserted)
+	shifted = append(shifted, committed[line-1:]...)
+	writeShardLines(t, root, shard, shifted)
+	if row := debtRowNow(t, root, shard, line+1); row.Reason != "the reason after the correction" {
+		t.Fatalf("the fixture row at %s:%d is %q, want the row the insertion moved down",
+			shard, line+1, row.Reason)
+	}
+
+	result, exit := discharge(t, root, "shard", shard, "line", strconv.Itoa(line+1),
+		"kind", kindNotApplicable, "commit", only)
+	if exit == 0 {
+		t.Fatalf("a row the working tree moved discharged on the history of another row: %#v", result)
+	}
+	if !strings.Contains(strings.Join(result.Refused, " "), "uncommitted") {
+		t.Fatalf("the refusal %v does not say the ledger holds an uncommitted edit", result.Refused)
+	}
+
+	// The accepting polarity: the same row and the same commit, with the
+	// ledger as HEAD holds it.
+	writeShardLines(t, root, shard, committed)
+	removeDischargeRecords(t, root)
+	if _, exit := discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
+		"kind", kindNotApplicable, "commit", only); exit != 0 {
+		t.Fatal("the row's own commit was refused on a clean ledger, so the arm refuses everything")
+	}
+	if row := debtRowNow(t, root, shard, line); row.Status != statusDischarged {
+		t.Fatalf("the row is %q, want %q", row.Status, statusDischarged)
 	}
 }
 

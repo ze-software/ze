@@ -483,25 +483,28 @@ func verifyCommitKind(root, gate string, record dischargeRecord, facts commitFac
 // first commit it covers.
 //
 // "Wrote this row" has two arms, and either one answers it. The commit ADDED a
-// ledger row carrying this row's reason cell, or the commit appears in the
-// history of the row's own line. The second arm alone was the whole condition
-// until 2026-09-08, and it cannot reach three of this ledger's rows: the
-// 2026-09-07 dedup (`de31341fd7`) merged the pre-dedup pair a two-commit row
-// held, one row per commit under the same shard, gate and reason, and DELETED
-// the second commit's line. A deleted line has no history for the surviving
-// line to carry, and the reason cell is what recovers it, because the reason is
-// the dedup's own merge key and is byte-identical across the merged pair.
+// ledger row holding this row's GATE under this row's REASON, or the commit
+// appears in the history of the row's own line. The second arm alone was the
+// whole condition until 2026-09-08, and it cannot reach three of this ledger's
+// rows: the 2026-09-07 dedup (`de31341fd7`) merged the pre-dedup pair a
+// two-commit row held, one row per commit under the same shard, gate and
+// reason, and DELETED the second commit's line. A deleted line has no history
+// for the surviving line to carry, and the merged pair's own cells are what
+// recover it, because gate and reason are the dedup's merge key and are
+// byte-identical across the pair it merged.
 //
-// What the reason arm admits, so the next reader does not read it as exact: a
-// commit that added a DIFFERENT row of this shard whose reason cell happens to
-// be byte-identical. Two rows of one shard under one gate and one reason are
-// the same obligation by the merge key's own definition, which is why the dedup
-// merged them, so nothing downstream tells them apart either.
+// What the first arm admits, so the next reader does not read it as exact: a
+// commit that added a DIFFERENT row of this shard under this row's gate AND
+// this row's reason. Two such rows are the same obligation by the merge key
+// openDebtRowAt reads, which is why the dedup merged them, so nothing
+// downstream tells them apart either. A row of another gate carrying this
+// reason, and a row whose longer reason contains this one, are different
+// obligations and neither binds.
 //
 // What both arms still admit: a commit that REWROTE the shard wholesale is in
-// the history of every line of it and writes it, so it satisfies both
-// mechanical conditions for a row it never owed. The dedup commit is such a
-// commit. It can therefore stand in for one of a multi-commit row's commits,
+// the history of every line of it and re-adds every row of it, so it satisfies
+// both mechanical conditions for a row it never owed. The dedup commit is such
+// a commit. It can therefore stand in for one of a multi-commit row's commits,
 // and only the subject condition, which one commit of the set answers for all
 // of them, would notice. Telling a wholesale rewrite from an ordinary extension
 // needs a diff analysis this does not do.
@@ -546,7 +549,7 @@ func dischargeCommits(root string, row Debt, record dischargeRecord, commits *co
 				", so it is not a commit this row covers; the row's subject is " +
 				strconv.Quote(row.Subject))
 		}
-		added, err := commitAddedRowReason(root, shard, row.Reason, one.SHA)
+		added, err := commitAddedRow(root, shard, row, one.SHA)
 		if err != nil {
 			return nil, err
 		}
@@ -558,7 +561,7 @@ func dischargeCommits(root string, row Debt, record dischargeRecord, commits *co
 		facts = append(facts, one)
 	}
 	if len(unbound) > 0 {
-		history, err := rowLineHistory(root, shard, row.Line)
+		history, err := rowLineHistory(root, shard, row)
 		if err != nil {
 			return nil, err
 		}
@@ -568,7 +571,7 @@ func dischargeCommits(root string, row Debt, record dischargeRecord, commits *co
 			}
 			return nil, errors.New("commit " + facts[at].SHA + " is subject " +
 				strconv.Quote(facts[at].Subject) + " and neither adds a row carrying this row's " +
-				"reason to " + shard + " nor is in the history of " + shard + ":" +
+				"gate and reason to " + shard + " nor is in the history of " + shard + ":" +
 				strconv.Itoa(row.Line) + ", so it wrote another row of that shard rather " +
 				"than this one; the row's subject is " + strconv.Quote(row.Subject))
 		}
@@ -580,8 +583,22 @@ func dischargeCommits(root string, row Debt, record dischargeRecord, commits *co
 	return facts, nil
 }
 
-// commitAddedRowReason answers whether ONE commit added a ledger row carrying
-// this reason to this shard.
+// commitAddedRow answers whether ONE commit added a ledger row holding the same
+// obligation as this row: the same GATE under the same REASON.
+//
+// That pair is the ledger's own merge key, the one openDebtRowAt reads to
+// decide whether a second commit extends a row or opens one, so two rows of a
+// shard sharing it are the same obligation and a commit that wrote either one
+// wrote this one. Nothing weaker is a binding: a row of another gate carrying
+// this reason, and a row whose longer reason merely contains it, are separate
+// obligations of the same session, and admitting them lets any commit of that
+// session stand in for one commit of a row that covers several.
+//
+// Each added line is read back through parseDebtRow, the parser the ledger
+// itself is read with, so a prose line, a table rule and a diff header are not
+// rows and the comparison is over cells rather than over the line's text. The
+// shard and line handed to that parser only decorate the row it answers, which
+// is read for its two cells and discarded.
 //
 // It asks about the commit the caller already holds rather than building the
 // set `git log -S<reason> -- <shard>` answers, because the caller needs a
@@ -589,17 +606,11 @@ func dischargeCommits(root string, row Debt, record dischargeRecord, commits *co
 // graph filtered to the path, and reading one commit's diff of one file reads
 // two blobs.
 //
-// The scan reads ADDED lines alone, which is narrower than the count change
-// `-S` reports: a commit that only DELETED a row carrying this reason wrote no
-// row, and the wholesale dedup rewrite is the commit that does that.
-//
-// An empty reason cell binds nothing. Every string contains the empty string,
-// so a row whose reason is empty would bind every commit that touched the
-// shard, which is what this arm exists to refuse.
-func commitAddedRowReason(root, shard, reason, sha string) (bool, error) {
-	if reason == "" {
-		return false, nil
-	}
+// The scan reads ADDED lines alone. A commit that only DELETED a row wrote no
+// row, and a commit that rewrote the shard wholesale, the 2026-09-07 dedup
+// among them, both deletes and adds: it binds for each row it added and for no
+// row it merely dropped.
+func commitAddedRow(root, shard string, row Debt, sha string) (bool, error) {
 	patch, err := gitOutput(root, "show", "--no-renames", "--format=", "--patch", sha, "--", shard)
 	if err != nil {
 		return false, errors.New("the diff of " + sha + " over " + shard +
@@ -609,19 +620,51 @@ func commitAddedRowReason(root, shard, reason, sha string) (bool, error) {
 		if !strings.HasPrefix(line, "+") || strings.HasPrefix(line, "+++") {
 			continue
 		}
-		if strings.Contains(line, reason) {
+		added, ok := parseDebtRow(row.Shard, row.Line, strings.TrimPrefix(line, "+"))
+		if !ok {
+			continue
+		}
+		if added.Gate == row.Gate && added.Reason == row.Reason {
 			return true, nil
 		}
 	}
 	return false, nil
 }
 
-// rowLineHistory answers every commit that changed ONE line of one ledger
-// shard, newest first. An unreadable history is an error rather than an empty
-// answer, so a shard that is not committed at that line refuses the discharge
-// instead of admitting every commit.
-func rowLineHistory(root, shard string, line int) ([]string, error) {
-	at := strconv.Itoa(line)
+// rowLineHistory answers every commit that changed the row's OWN line of one
+// ledger shard, newest first. An unreadable history is an error rather than an
+// empty answer, so a shard that is not committed at that line refuses the
+// discharge instead of admitting every commit.
+//
+// The row's Line is where readDebtRows found it in the WORKING TREE, and
+// `git log -L` resolves that number against HEAD, so the two coordinates
+// disagree the moment the ledger holds an edit nobody committed. The check
+// below is what stops the number from being resolved at the wrong revision:
+// HEAD MUST hold this row's own text at that line. Where it does not, the arm
+// would answer about whichever row sits there, and a row written by the same
+// session binds the commit that wrote IT to a row it never wrote, which is the
+// one thing this condition exists to refuse.
+//
+// Refusing is the answer rather than searching HEAD for the row's text.
+// recordDebt appends a row and extendDebtRow rewrites one in place, so no
+// producer in this repository moves a row's line, and a shift means a hand edit
+// nobody committed. Commit the ledger and the discharge derives.
+func rowLineHistory(root, shard string, row Debt) ([]string, error) {
+	at := strconv.Itoa(row.Line)
+	committed, present, problem := committedText(root, "HEAD", shard)
+	if problem != "" {
+		return nil, errors.New(problem)
+	}
+	if !present {
+		return nil, errors.New(shard + " is not committed at HEAD, so no commit can be bound " +
+			"to its rows by their line")
+	}
+	lines := strings.Split(committed, "\n")
+	if row.Line < 1 || row.Line > len(lines) || strings.TrimSpace(lines[row.Line-1]) != row.Raw {
+		return nil, errors.New("HEAD does not hold this row at " + shard + ":" + at +
+			", so the ledger carries an uncommitted edit and that line answers about another " +
+			"row; commit the ledger and discharge again")
+	}
 	printed, err := gitOutput(root, "log", "-L"+at+","+at+":"+shard, "--format=%H", "--no-patch")
 	if err != nil {
 		return nil, errors.New("the history of " + shard + ":" + at +
