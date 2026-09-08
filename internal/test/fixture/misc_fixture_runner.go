@@ -328,16 +328,30 @@ func verifyScopeDebtDischargeDriver(ctx context.Context, args []string) error {
 	if err := gitFixture(ctx, repo, map[string]string{
 		fileGoMod: "module fixture/discharge\n\ngo 1.24\n", fileFeatureGates: contentFeatureGate,
 		fileGitIgnore: contentGitIgnoreTmp,
-		shard:         ledgerHead + "| 2026-09-08 | fixture | " + subject + " | independent critical review | no reviewer | open |\n",
 	}); err != nil {
 		return err
 	}
 	// The commit the discharge names: it carries a file and removes no spec, so
 	// today's closure producer answers that no review was ever owed for it.
+	//
+	// It writes the LEDGER SHARD as well, because that is what `create` does:
+	// `recordDebt` writes the shard and the same commit carries it, so a commit
+	// a row covers holds the shard in its own file list and stands in the
+	// history of the row's own line. A shard committed BEFORE its commit is a
+	// checkout the ledger never produces, and the discharge refuses it.
 	if err := os.WriteFile(filepath.Join(repo, "note.md"), []byte("# note\n"), 0o600); err != nil {
 		return err
 	}
-	for _, command := range [][]string{{argAdd, "--", "note.md"}, {argCommit, "-q", "-m", subject}} {
+	shardPath := filepath.Join(repo, filepath.FromSlash(shard))
+	if err := os.MkdirAll(filepath.Dir(shardPath), 0o750); err != nil {
+		return err
+	}
+	row := ledgerHead + "| 2026-09-08 | fixture | " + subject +
+		" | independent critical review | no reviewer | open |\n"
+	if err := os.WriteFile(shardPath, []byte(row), 0o600); err != nil {
+		return err
+	}
+	for _, command := range [][]string{{argAdd, "--", "note.md", shard}, {argCommit, "-q", "-m", subject}} {
 		out, code, err := rawCommand(ctx, repo, os.Environ(), "git", command...)
 		if err != nil || code != 0 {
 			return fmt.Errorf("git %s in the fixture checkout: %w %s", command[0], err, out)

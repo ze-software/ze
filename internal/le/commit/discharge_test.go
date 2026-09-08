@@ -120,9 +120,9 @@ func TestDischargeRefusesAnUnknownKindAndWritesNothing(t *testing.T) {
 // real obligation on the operator's word alone.
 func TestNotApplicableDischargeDerivesTheClosureStem(t *testing.T) {
 	root := newDischargeRepository(t)
+	shard, line := debtRowFor(t, root, "a journal row and no spec", gateReviewName)
 	journalCommit := commitFixture(t, root, "a journal row and no spec",
 		map[string]string{"plan/journal/a-class.md": "# a class\n"}, nil)
-	shard, line := debtRowFor(t, root, "a journal row and no spec", gateReviewName)
 
 	result, code := discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
 		"kind", kindNotApplicable, "commit", journalCommit)
@@ -138,8 +138,8 @@ func TestNotApplicableDischargeDerivesTheClosureStem(t *testing.T) {
 	other := newDischargeRepository(t)
 	spec := "plan/immediate/spec-a-thing.md"
 	commitFixture(t, other, "the spec lands", map[string]string{spec: specText("in-progress", "")}, nil)
-	closure := commitFixture(t, other, "the spec closes", nil, []string{spec})
 	shard, line = debtRowFor(t, other, "the spec closes", gateReviewName)
+	closure := commitFixture(t, other, "the spec closes", nil, []string{spec})
 
 	result, code = discharge(t, other, "shard", shard, "line", strconv.Itoa(line),
 		"kind", kindNotApplicable, "commit", closure)
@@ -201,9 +201,9 @@ func TestNotApplicableDischargeReadsRFCTagCarriersAtTheCommit(t *testing.T) {
 func TestReviewedDischargeJudgesTheArtifactAgainstTheCommitBytes(t *testing.T) {
 	const code = "pkg/thing.go"
 	root := newDischargeRepository(t)
+	shard, line := debtRowFor(t, root, "the reviewed change", gateReviewName)
 	reviewed := commitFixture(t, root, "the reviewed change",
 		map[string]string{code: "package pkg\n\nfunc Thing() {}\n"}, nil)
-	shard, line := debtRowFor(t, root, "the reviewed change", gateReviewName)
 
 	artifact := "tmp/review/fixture-clean.md"
 	writeCommitFixture(t, root, artifact, reviewArtifact("clean",
@@ -262,8 +262,8 @@ func TestReviewedDischargeFallsBackToTheCommittedReviewGate(t *testing.T) {
 	spec := "plan/immediate/spec-reviewed-thing.md"
 	commitFixture(t, root, "the spec lands",
 		map[string]string{spec: specText("in-progress", reviewGateSection("`review check`", "clean"))}, nil)
-	closure := commitFixture(t, root, "the reviewed spec closes", nil, []string{spec})
 	shard, line := debtRowFor(t, root, "the reviewed spec closes", gateReviewName)
+	closure := commitFixture(t, root, "the reviewed spec closes", nil, []string{spec})
 
 	for _, route := range []struct {
 		why  string
@@ -283,9 +283,9 @@ func TestReviewedDischargeFallsBackToTheCommittedReviewGate(t *testing.T) {
 
 	// A commit that removes no spec has no gate to fall back to, and must say so
 	// rather than discharge on the operator's word.
+	shard, line = debtRowFor(t, root, "an ordinary commit", gateReviewName)
 	plain := commitFixture(t, root, "an ordinary commit",
 		map[string]string{"docs/note.md": "# note\n"}, nil)
-	shard, line = debtRowFor(t, root, "an ordinary commit", gateReviewName)
 	result, exit := discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
 		"kind", kindReviewed, "commit", plain)
 	if exit == 0 {
@@ -315,8 +315,8 @@ func TestClosedDischargeRequiresARecordedReviewGate(t *testing.T) {
 		spec := "plan/immediate/spec-closed-thing.md"
 		commitFixture(t, root, "the spec lands",
 			map[string]string{spec: specText("in-progress", gate.section)}, nil)
-		closure := commitFixture(t, root, "the spec closes", nil, []string{spec})
 		shard, line := debtRowFor(t, root, "the spec closes", gateReviewName)
+		closure := commitFixture(t, root, "the spec closes", nil, []string{spec})
 		result, exit := discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
 			"kind", kindClosed, "commit", closure)
 		if exit != 0 {
@@ -342,8 +342,8 @@ func TestClosedDischargeRequiresARecordedReviewGate(t *testing.T) {
 		spec := "plan/immediate/spec-closed-thing.md"
 		commitFixture(t, root, "the spec lands",
 			map[string]string{spec: specText("in-progress", refused.section)}, nil)
-		closure := commitFixture(t, root, "the spec closes", nil, []string{spec})
 		shard, line := debtRowFor(t, root, "the spec closes", gateReviewName)
+		closure := commitFixture(t, root, "the spec closes", nil, []string{spec})
 		result, exit := discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
 			"kind", kindClosed, "commit", closure)
 		if exit == 0 {
@@ -377,8 +377,8 @@ func TestSkeletonClosureDischargesAndAnImplementedOneDoesNot(t *testing.T) {
 		spec := "plan/immediate/spec-status-thing.md"
 		commitFixture(t, root, "the spec lands",
 			map[string]string{spec: specText(closure.status, "")}, nil)
-		sha := commitFixture(t, root, "the spec closes", nil, []string{spec})
 		shard, line := debtRowFor(t, root, "the spec closes", gateReviewName)
+		sha := commitFixture(t, root, "the spec closes", nil, []string{spec})
 		result, exit := discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
 			"kind", kindClosed, "commit", sha)
 		if closure.discharges && exit != 0 {
@@ -517,9 +517,9 @@ func TestATamperedDischargeRecordLeavesTheRowOpen(t *testing.T) {
 func TestDischargeVerdictIsNeverReadFromTheRecord(t *testing.T) {
 	const code = "pkg/thing.go"
 	root := newDischargeRepository(t)
+	shard, line := debtRowFor(t, root, "the reviewed change", gateReviewName)
 	reviewed := commitFixture(t, root, "the reviewed change",
 		map[string]string{code: "package pkg\n\nfunc Thing() {}\n"}, nil)
-	shard, line := debtRowFor(t, root, "the reviewed change", gateReviewName)
 
 	artifact := "tmp/review/fixture-clean.md"
 	writeCommitFixture(t, root, artifact, reviewArtifact("clean",
@@ -545,10 +545,10 @@ func TestDischargeVerdictIsNeverReadFromTheRecord(t *testing.T) {
 // discharge visible beside a derived one, and pins its JSON keys kebab-case.
 func TestDebtStatusSplitsDischargedByKind(t *testing.T) {
 	root := newDischargeRepository(t)
-	plain := commitFixture(t, root, "a prose edit only",
-		map[string]string{"docs/note.md": "# note\n"}, nil)
 	derivedShard, derivedLine := debtRowFor(t, root, "a prose edit only", gateReviewName)
 	attestedShard, attestedLine := debtRowFor(t, root, "the commit the owner ordered", gateReviewName)
+	plain := commitFixture(t, root, "a prose edit only",
+		map[string]string{"docs/note.md": "# note\n"}, nil)
 
 	if _, exit := discharge(t, root, "shard", derivedShard, "line", strconv.Itoa(derivedLine),
 		"kind", kindNotApplicable, "commit", plain); exit != 0 {
@@ -638,6 +638,12 @@ func commitFixture(t *testing.T, root, subject string, write map[string]string, 
 
 // debtRowFor writes one debt row and answers the shard and line the ledger
 // gave it, which is the pair an operator types.
+//
+// It MUST be called BEFORE the commitFixture whose subject it names, because
+// that is the order `Create` uses: `recordDebt` writes the shard and the same
+// commit carries it. A row recorded after its commit is a fixture no ledger
+// ever produces, and `dischargeCommits` refuses it: the commit writes no shard
+// and appears in no line history of the row.
 func debtRowFor(t *testing.T, root, subject, gate string) (string, int) {
 	t.Helper()
 	return debtRowRecord(t, root, gate, "the reason "+subject, subject)
@@ -674,11 +680,18 @@ func debtRowRecord(t *testing.T, root, gate, reason, subject string) (string, in
 // command takes once Answer has resolved the checkout and the session.
 func discharge(t *testing.T, root string, args ...string) (dischargeResult, int) {
 	t.Helper()
+	return dischargeAs(t, root, dischargeSession, args...)
+}
+
+// dischargeAs is the same path under a NAMED session, which is what puts two
+// records for one row in two files the way two sessions do.
+func dischargeAs(t *testing.T, root, session string, args ...string) (dischargeResult, int) {
+	t.Helper()
 	request, err := parseDischarge(args)
 	if err != nil {
 		t.Fatalf("parse %v: %v", args, err)
 	}
-	return dischargeDebt(root, dischargeSession, request)
+	return dischargeDebt(root, session, request)
 }
 
 // debtRowNow answers one row as the ledger reports it, overlay included.
@@ -778,11 +791,11 @@ func answerStderr(t *testing.T, args ...string) (string, int) {
 // is shown to refuse rather than to refuse everything.
 func TestADischargeRefusesACommitTheRowDoesNotName(t *testing.T) {
 	root := newDischargeRepository(t)
+	shard, line := debtRowFor(t, root, "the row's own commit", gateReviewName)
 	mine := commitFixture(t, root, "the row's own commit",
 		map[string]string{"docs/mine.md": "# mine\n"}, nil)
 	theirs := commitFixture(t, root, "a commit from another line of work",
 		map[string]string{"docs/theirs.md": "# theirs\n"}, nil)
-	shard, line := debtRowFor(t, root, "the row's own commit", gateReviewName)
 
 	result, exit := discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
 		"kind", kindNotApplicable, "commit", theirs)
@@ -985,9 +998,9 @@ func TestClosedAndReviewedAnswerTheReviewGateOnly(t *testing.T) {
 	spec := "plan/immediate/spec-a-thing.md"
 	commitFixture(t, root, "the spec lands",
 		map[string]string{spec: specText("in-progress", reviewGateSection("`review check`", "clean"))}, nil)
-	closure := commitFixture(t, root, "the spec closes", nil, []string{spec})
 	rfcShard, rfcLine := debtRowFor(t, root, "the spec closes", gateRFCName)
 	reviewShard, reviewLine := debtRowFor(t, root, "the spec closes", gateReviewName)
+	closure := commitFixture(t, root, "the spec closes", nil, []string{spec})
 
 	for _, kind := range []string{kindClosed, kindReviewed} {
 		result, exit := discharge(t, root, "shard", rfcShard, "line", strconv.Itoa(rfcLine),
@@ -1030,8 +1043,8 @@ func TestAReviewGateArtifactMustNameAFile(t *testing.T) {
 			"| Artifact | " + gate.cell + " |\n| `review check` | clean |\n| Rounds | 2 |\n"
 		commitFixture(t, root, "the spec lands",
 			map[string]string{spec: specText("in-progress", section)}, nil)
-		closure := commitFixture(t, root, "the spec closes", nil, []string{spec})
 		shard, line := debtRowFor(t, root, "the spec closes", gateReviewName)
+		closure := commitFixture(t, root, "the spec closes", nil, []string{spec})
 
 		result, exit := discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
 			"kind", kindClosed, "commit", closure)
@@ -1144,6 +1157,283 @@ func TestARecordIsJudgedAgainstTheLedgerRowNotTheOverlay(t *testing.T) {
 	}
 	if row := debtRowNow(t, root, shard, line); row.Status != statusDischarged {
 		t.Fatalf("the row is %q under two records that derive, want discharged", row.Status)
+	}
+}
+
+// TestASubjectAloneNeverBindsACommitToARow pins the first of the three
+// conditions: every named commit MUST write the row's ledger shard.
+//
+// A subject is not unique. `create` re-run after a refusal, an amend, and two
+// commits worded the same all carry one subject, and only one of them recorded
+// the row. Both commits here are subject "the row's own subject", and only the
+// first wrote the shard, so the second is a commit the row does not cover.
+func TestASubjectAloneNeverBindsACommitToARow(t *testing.T) {
+	root := newDischargeRepository(t)
+	shard, line := debtRowFor(t, root, "the row's own subject", gateReviewName)
+	bound := commitFixture(t, root, "the row's own subject",
+		map[string]string{"docs/bound.md": "# bound\n"}, nil)
+	impostor := commitFixture(t, root, "the row's own subject",
+		map[string]string{"docs/impostor.md": "# impostor\n"}, nil)
+
+	result, exit := discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
+		"kind", kindNotApplicable, "commit", impostor)
+	if exit == 0 {
+		t.Fatalf("a commit carrying only the subject discharged the row: %#v", result)
+	}
+	if !strings.Contains(strings.Join(result.Refused, " "), "writes no "+debtShardPath(shard)) {
+		t.Fatalf("the refusal %v does not say the commit wrote no ledger shard", result.Refused)
+	}
+
+	if _, exit = discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
+		"kind", kindNotApplicable, "commit", bound); exit != 0 {
+		t.Fatal("the commit that recorded the row was refused too, so the guard refuses everything")
+	}
+}
+
+// TestACommitOfAnotherRowOfTheSameShardIsRefused pins the second condition:
+// every named commit MUST have written the row it is named for, not another row
+// of the same shard.
+//
+// Writing the shard says only that the commit belongs to the session, and every
+// commit of that session writes it. The gap is a row covering several commits,
+// where ONE commit answers the subject for the whole set and the rest are bound
+// by the shard alone: any other commit of that session then stands in for them.
+// The third commit here wrote a row under a reason of its own, so neither arm
+// of the condition reaches it.
+func TestACommitOfAnotherRowOfTheSameShardIsRefused(t *testing.T) {
+	root := newDischargeRepository(t)
+	const covered = "both commits owe this row"
+	shard, line := debtRowRecord(t, root, gateReviewName, covered, "the first commit")
+	first := commitFixture(t, root, "the first commit",
+		map[string]string{"docs/one.md": "# one\n"}, nil)
+	debtRowRecord(t, root, gateReviewName, covered, "the second commit")
+	second := commitFixture(t, root, "the second commit",
+		map[string]string{"docs/two.md": "# two\n"}, nil)
+	debtRowRecord(t, root, gateReviewName, "a row of its own", "the third commit")
+	third := commitFixture(t, root, "the third commit",
+		map[string]string{"docs/three.md": "# three\n"}, nil)
+
+	result, exit := discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
+		"kind", kindNotApplicable, "commit", first, "commit", third)
+	if exit == 0 {
+		t.Fatalf("a commit of another row of the same shard discharged this row: %#v", result)
+	}
+	if !strings.Contains(strings.Join(result.Refused, " "), "neither adds a row carrying this row's") {
+		t.Fatalf("the refusal %v does not name the two arms it read", result.Refused)
+	}
+
+	if _, exit = discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
+		"kind", kindNotApplicable, "commit", first, "commit", second); exit != 0 {
+		t.Fatal("the row's own two commits were refused too, so the guard refuses everything")
+	}
+}
+
+// TestADeletedTwinRowIsRecoveredByItsReason pins the reason arm of the binding
+// condition, which is the only arm that reaches a commit whose own ledger line
+// no longer exists.
+//
+// Before the 2026-09-07 dedup, a session's second commit under one gate and one
+// reason wrote its OWN row rather than extending the first. That pass merged
+// each such pair and DELETED the second row's line, and `git log -L` over the
+// surviving line cannot reach a line that was deleted. The reason cell is the
+// dedup's own merge key, so it is byte-identical across the merged pair, and it
+// is what recovers the second commit.
+//
+// VALIDATES: a row merged by the dedup discharges against both commits it covers.
+// PREVENTS: the line-history arm stranding a row no operator can ever discharge.
+func TestADeletedTwinRowIsRecoveredByItsReason(t *testing.T) {
+	const reason = "the gate this session owes twice"
+	root := newDischargeRepository(t)
+	shard, line := debtRowRecord(t, root, gateReviewName, reason, "the first commit")
+	// The twin sat at the END of the shard, several rows below the one that
+	// survived, which is where a session's second commit appends. A twin on the
+	// next line down falls inside one diff hunk with the row above it, and
+	// `git log -L` then reaches the second commit after all.
+	for _, other := range []string{"a second reason", "a third reason", "a fourth reason"} {
+		debtRowRecord(t, root, gateReviewName, other, "the first commit")
+	}
+	first := commitFixture(t, root, "the first commit",
+		map[string]string{"docs/one.md": "# one\n"}, nil)
+
+	// The pre-dedup era: the second commit appends a row of its OWN under the
+	// same gate and reason, which recordDebt no longer writes.
+	rows := shardLines(t, root, shard)
+	twin := strings.Replace(rows[line-1], "the first commit", "the second commit", 1)
+	writeShardLines(t, root, shard, append(rows, twin))
+	second := commitFixture(t, root, "the second commit",
+		map[string]string{"docs/two.md": "# two\n"}, nil)
+
+	// The dedup pass: one row covering two commits, and the twin's line gone.
+	rows = shardLines(t, root, shard)
+	rows[line-1] = strings.Replace(rows[line-1], "the first commit",
+		debtSubject("the first commit", 2), 1)
+	writeShardLines(t, root, shard, rows[:len(rows)-1])
+	commitFixture(t, root, "the ledger deduplicates its rows", nil, nil)
+
+	result, exit := discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
+		"kind", kindNotApplicable, "commit", first, "commit", second)
+	if exit != 0 {
+		t.Fatalf("the merged row's own two commits were refused: %#v", result)
+	}
+	if row := debtRowNow(t, root, shard, line); row.Status != statusDischarged {
+		t.Fatalf("the merged row is %q, want %q", row.Status, statusDischarged)
+	}
+}
+
+// TestACommitThatPredatesAReasonCorrectionIsBoundByTheLineHistory pins the
+// line-history arm, which is what the reason arm cannot answer.
+//
+// The reason arm compares the row's reason AS IT READS NOW against the lines a
+// commit added. A commit that wrote the row under an earlier wording added no
+// line carrying today's reason, so only the line history reaches it. The
+// correcting commit carries no subject of the row's, which is why it cannot
+// stand in for the one that does.
+//
+// VALIDATES: a row whose reason cell was corrected still discharges against the
+// commit that owes it.
+// PREVENTS: the reason arm silently replacing the line history rather than
+// widening it.
+func TestACommitThatPredatesAReasonCorrectionIsBoundByTheLineHistory(t *testing.T) {
+	root := newDischargeRepository(t)
+	shard, line := debtRowRecord(t, root, gateReviewName,
+		"the reason as it was first written", "the only commit")
+	only := commitFixture(t, root, "the only commit",
+		map[string]string{"docs/one.md": "# one\n"}, nil)
+
+	rows := shardLines(t, root, shard)
+	rows[line-1] = strings.Replace(rows[line-1], "the reason as it was first written",
+		"the reason after the correction", 1)
+	writeShardLines(t, root, shard, rows)
+	commitFixture(t, root, "the ledger wording is corrected", nil, nil)
+
+	result, exit := discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
+		"kind", kindNotApplicable, "commit", only)
+	if exit != 0 {
+		t.Fatalf("the row's own commit was refused after its reason was corrected: %#v", result)
+	}
+	if row := debtRowNow(t, root, shard, line); row.Status != statusDischarged {
+		t.Fatalf("the corrected row is %q, want %q", row.Status, statusDischarged)
+	}
+}
+
+// shardLines answers one ledger shard as its lines, with no trailing empty one.
+func shardLines(t *testing.T, root, shard string) []string {
+	t.Helper()
+	path := filepath.Join(root, filepath.FromSlash(debtShardPath(shard)))
+	content, err := os.ReadFile(path) //nolint:gosec // the path is the fixture ledger under the test's own checkout
+	if err != nil {
+		t.Fatalf("read the ledger shard %s: %v", shard, err)
+	}
+	return strings.Split(strings.TrimSuffix(string(content), "\n"), "\n")
+}
+
+// writeShardLines rewrites one ledger shard, which is what an era of this
+// command that no longer exists did to the rows a fixture has to reproduce.
+func writeShardLines(t *testing.T, root, shard string, lines []string) {
+	t.Helper()
+	writeCommitFixture(t, root, debtShardPath(shard), strings.Join(lines, "\n")+"\n")
+}
+
+// TestAShortSubjectCellBindsByEqualityAlone pins the floor on the containment
+// test.
+//
+// Containment either way is right for a subject long enough to identify a
+// commit, and wrong for a cell of one word. Measured 2026-09-08 over this
+// repository's 8387 commits, a cell of "test" is contained in 1353 of their
+// subjects, and the ledger holds whole cells of "test" and "probe". Both rows
+// here carry the cell "test" and both commits wrote them, so the shard and the
+// line history answer yes for each: the subject is the only thing deciding.
+func TestAShortSubjectCellBindsByEqualityAlone(t *testing.T) {
+	root := newDischargeRepository(t)
+	wideShard, wideLine := debtRowRecord(t, root, gateReviewName,
+		"the row a wider subject must not bind", "test")
+	wide := commitFixture(t, root, "test(cli): a commit that merely contains the cell",
+		map[string]string{"docs/wide.md": "# wide\n"}, nil)
+	exactShard, exactLine := debtRowRecord(t, root, gateReviewName,
+		"the row its own commit answers", "test")
+	exact := commitFixture(t, root, "test",
+		map[string]string{"docs/exact.md": "# exact\n"}, nil)
+
+	result, exit := discharge(t, root, "shard", wideShard, "line", strconv.Itoa(wideLine),
+		"kind", kindNotApplicable, "commit", wide)
+	if exit == 0 {
+		t.Fatalf("a subject merely containing the cell %q discharged the row: %#v", "test", result)
+	}
+	if !strings.Contains(strings.Join(result.Refused, " "), "no commit named is subject") {
+		t.Fatalf("the refusal %v does not say no commit carries the row's subject", result.Refused)
+	}
+
+	if _, exit = discharge(t, root, "shard", exactShard, "line", strconv.Itoa(exactLine),
+		"kind", kindNotApplicable, "commit", exact); exit != 0 {
+		t.Fatal("a commit whose subject IS the cell was refused, so the floor refuses everything")
+	}
+}
+
+// TestAnAttestationIsNeverReplacedByADerivation pins the overlay's choice when
+// two valid records answer one row.
+//
+// `owner` is the only kind no machine re-derives, and `debt-status` splits the
+// discharged count by kind so an attested population stays visible beside a
+// derived one (R-3). Reading the last record by file order moved a row out of
+// that split on nothing but two file names. Both orders are driven here,
+// because one of them passed before the choice was made deterministic.
+func TestAnAttestationIsNeverReplacedByADerivation(t *testing.T) {
+	for _, order := range []struct {
+		why      string
+		attested string
+		derived  string
+	}{
+		{"the derivation is read last", "aaaa1111", "zzzz9999"},
+		{"the attestation is read last", "zzzz9999", "aaaa1111"},
+	} {
+		root := newDischargeRepository(t)
+		shard, line := debtRowFor(t, root, "the commit the owner ordered", gateReviewName)
+		plain := commitFixture(t, root, "the commit the owner ordered",
+			map[string]string{"docs/note.md": "# note\n"}, nil)
+
+		at := []string{"shard", shard, "line", strconv.Itoa(line)}
+		if _, exit := dischargeAs(t, root, order.attested,
+			append(append([]string{}, at...), "kind", kindOwner, "owner", "Thomas ordered it")...); exit != 0 {
+			t.Fatalf("%s: the attestation was refused", order.why)
+		}
+		if _, exit := dischargeAs(t, root, order.derived,
+			append(append([]string{}, at...), "kind", kindNotApplicable, "commit", plain)...); exit != 0 {
+			t.Fatalf("%s: the derivation was refused", order.why)
+		}
+
+		row := debtRowNow(t, root, shard, line)
+		if row.Status != statusDischarged {
+			t.Errorf("%s: the row is %q under two records that derive, want discharged", order.why, row.Status)
+		}
+		if row.DischargeKind != kindOwner {
+			t.Errorf("%s: the row reads %q, want the attestation to stand whatever the file order",
+				order.why, row.DischargeKind)
+		}
+	}
+}
+
+// TestThePushRefusalNamesEveryRouteOutOfIt pins what an operator held by the
+// push gate is told to run.
+//
+// A row naming a gate no verification runs never clears, so `debt-clear` alone
+// is the one command that cannot help it, and a stale discharge record is
+// printed by `debt-status` alone. The refusing polarity is a ledger with no
+// open row at all, which lets the push through.
+func TestThePushRefusalNamesEveryRouteOutOfIt(t *testing.T) {
+	root := newDischargeRepository(t)
+	if err := refusePushWithDebt(root, nil); err != nil {
+		t.Fatalf("an empty ledger refused the push: %v", err)
+	}
+
+	debtRowFor(t, root, "a row no verification can clear", gateReviewName)
+	err := refusePushWithDebt(root, nil)
+	if err == nil {
+		t.Fatal("an open row let the push through")
+	}
+	for _, route := range []string{"debt-clear", "debt-discharge", "debt-status", "INVALID DISCHARGE"} {
+		if !strings.Contains(err.Error(), route) {
+			t.Errorf("the refusal %q names no %s", err, route)
+		}
 	}
 }
 

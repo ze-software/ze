@@ -340,6 +340,13 @@ func debtRowDigest(raw string) string {
 // what the LEDGER says: a second record for one row is redundant, which two
 // sessions discharging the same row produce, and reporting it as invalid would
 // spend the tamper signal on a record that derives.
+//
+// Where two valid records answer one row, the ATTESTATION wins whatever order
+// the files were read in. `owner` is the only kind no machine re-derives, and
+// `debt-status` splits the discharged count by kind so an attested population
+// stays visible beside a derived one (R-3). A derivation that replaced an
+// attestation would move a row out of that split with no file edited, no record
+// reported and nothing to arbitrate it but the file names.
 func applyDischarges(root string, rows []Debt) []string {
 	records, invalid := readDischargeRecords(root)
 	if len(records) == 0 {
@@ -364,6 +371,9 @@ func applyDischarges(root string, rows []Debt) []string {
 		}
 		if err := verifyDischarge(root, rows[index], record, commits); err != nil {
 			invalid = append(invalid, key+": "+err.Error())
+			continue
+		}
+		if held, taken := discharged[index]; taken && held.Kind == kindOwner {
 			continue
 		}
 		discharged[index] = record
@@ -463,12 +473,46 @@ func verifyCommitKind(root, gate string, record dischargeRecord, facts commitFac
 // it holds one commit per commit the row covers, it names no commit twice, and
 // every commit in it is BOUND to the row.
 //
-// A commit is bound two ways, because the row records two things about the
-// commits it covers. It keeps the SUBJECT of the first, and every commit it
-// covers WROTE its ledger shard: `recordDebt` writes the shard and the same
-// commit carries it. So a named commit answers one or the other, and at least
-// one answers the subject. A commit from another session, or from another line
-// of work in this one, answers neither.
+// Binding is the last of those, and it takes every condition below together
+// because each one alone binds too little. A named commit MUST write the row's
+// ledger shard, because `recordDebt` writes the shard and the same commit
+// carries it. It MUST also have WRITTEN this row rather than another row of the
+// same shard, because writing the shard says only that the commit belongs to
+// the session, and every commit of that session writes it. And at least one of
+// the named commits MUST carry the row's subject, which the row keeps from the
+// first commit it covers.
+//
+// "Wrote this row" has two arms, and either one answers it. The commit ADDED a
+// ledger row carrying this row's reason cell, or the commit appears in the
+// history of the row's own line. The second arm alone was the whole condition
+// until 2026-09-08, and it cannot reach three of this ledger's rows: the
+// 2026-09-07 dedup (`de31341fd7`) merged the pre-dedup pair a two-commit row
+// held, one row per commit under the same shard, gate and reason, and DELETED
+// the second commit's line. A deleted line has no history for the surviving
+// line to carry, and the reason cell is what recovers it, because the reason is
+// the dedup's own merge key and is byte-identical across the merged pair.
+//
+// What the reason arm admits, so the next reader does not read it as exact: a
+// commit that added a DIFFERENT row of this shard whose reason cell happens to
+// be byte-identical. Two rows of one shard under one gate and one reason are
+// the same obligation by the merge key's own definition, which is why the dedup
+// merged them, so nothing downstream tells them apart either.
+//
+// What both arms still admit: a commit that REWROTE the shard wholesale is in
+// the history of every line of it and writes it, so it satisfies both
+// mechanical conditions for a row it never owed. The dedup commit is such a
+// commit. It can therefore stand in for one of a multi-commit row's commits,
+// and only the subject condition, which one commit of the set answers for all
+// of them, would notice. Telling a wholesale rewrite from an ordinary extension
+// needs a diff analysis this does not do.
+//
+// The two arms run in cost order, and the line history is read only for a
+// commit the reason arm left unbound. One commit's diff of one shard is a
+// read of two blobs; the line history is a walk of the whole commit graph
+// filtered to that path, measured on 2026-09-08 at 0.36 s against 0.008 s over
+// this repository's 8387 commits. Every commit a row covers either added the
+// row or rewrote its line to extend it, so the walk runs for almost none of
+// them, and `debt-status` over 67 records fell from 23.4 s to 5.3 s.
 func dischargeCommits(root string, row Debt, record dischargeRecord, commits *commitCache) ([]commitFacts, error) {
 	subject, covered := debtCovered(row.Subject)
 	if len(record.Commits) != covered {
@@ -476,7 +520,9 @@ func dischargeCommits(root string, row Debt, record dischargeRecord, commits *co
 			" commit(s) and the discharge names " + strconv.Itoa(len(record.Commits)) +
 			"; name every one with a repeated commit <sha>")
 	}
+	shard := debtShardPath(row.Shard)
 	facts := make([]commitFacts, 0, len(record.Commits))
+	unbound := make([]int, 0, len(record.Commits))
 	paired := false
 	subjects := make([]string, 0, len(record.Commits))
 	for _, revision := range record.Commits {
@@ -494,16 +540,38 @@ func dischargeCommits(root string, row Debt, record dischargeRecord, commits *co
 			return nil, errors.New("commit " + one.SHA +
 				" names no file, so there is nothing to derive from")
 		}
-		carries := commitCarriesSubject(subject, one)
-		if !carries && !slices.Contains(one.Paths, debtShardPath(row.Shard)) {
+		if !slices.Contains(one.Paths, shard) {
 			return nil, errors.New("commit " + one.SHA + " is subject " +
-				strconv.Quote(one.Subject) + " and writes no " + debtShardPath(row.Shard) +
+				strconv.Quote(one.Subject) + " and writes no " + shard +
 				", so it is not a commit this row covers; the row's subject is " +
 				strconv.Quote(row.Subject))
 		}
-		paired = paired || carries
+		added, err := commitAddedRowReason(root, shard, row.Reason, one.SHA)
+		if err != nil {
+			return nil, err
+		}
+		if !added {
+			unbound = append(unbound, len(facts))
+		}
+		paired = paired || commitCarriesSubject(subject, one)
 		subjects = append(subjects, strconv.Quote(one.Subject))
 		facts = append(facts, one)
+	}
+	if len(unbound) > 0 {
+		history, err := rowLineHistory(root, shard, row.Line)
+		if err != nil {
+			return nil, err
+		}
+		for _, at := range unbound {
+			if slices.Contains(history, facts[at].SHA) {
+				continue
+			}
+			return nil, errors.New("commit " + facts[at].SHA + " is subject " +
+				strconv.Quote(facts[at].Subject) + " and neither adds a row carrying this row's " +
+				"reason to " + shard + " nor is in the history of " + shard + ":" +
+				strconv.Itoa(row.Line) + ", so it wrote another row of that shard rather " +
+				"than this one; the row's subject is " + strconv.Quote(row.Subject))
+		}
 	}
 	if !paired {
 		return nil, errors.New("no commit named is subject " + strconv.Quote(row.Subject) +
@@ -512,17 +580,79 @@ func dischargeCommits(root string, row Debt, record dischargeRecord, commits *co
 	return facts, nil
 }
 
+// commitAddedRowReason answers whether ONE commit added a ledger row carrying
+// this reason to this shard.
+//
+// It asks about the commit the caller already holds rather than building the
+// set `git log -S<reason> -- <shard>` answers, because the caller needs a
+// membership test and nothing else. Building the set walks the whole commit
+// graph filtered to the path, and reading one commit's diff of one file reads
+// two blobs.
+//
+// The scan reads ADDED lines alone, which is narrower than the count change
+// `-S` reports: a commit that only DELETED a row carrying this reason wrote no
+// row, and the wholesale dedup rewrite is the commit that does that.
+//
+// An empty reason cell binds nothing. Every string contains the empty string,
+// so a row whose reason is empty would bind every commit that touched the
+// shard, which is what this arm exists to refuse.
+func commitAddedRowReason(root, shard, reason, sha string) (bool, error) {
+	if reason == "" {
+		return false, nil
+	}
+	patch, err := gitOutput(root, "show", "--no-renames", "--format=", "--patch", sha, "--", shard)
+	if err != nil {
+		return false, errors.New("the diff of " + sha + " over " + shard +
+			" cannot be read, so no commit can be bound to that row: " + err.Error())
+	}
+	for line := range strings.SplitSeq(patch, "\n") {
+		if !strings.HasPrefix(line, "+") || strings.HasPrefix(line, "+++") {
+			continue
+		}
+		if strings.Contains(line, reason) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// rowLineHistory answers every commit that changed ONE line of one ledger
+// shard, newest first. An unreadable history is an error rather than an empty
+// answer, so a shard that is not committed at that line refuses the discharge
+// instead of admitting every commit.
+func rowLineHistory(root, shard string, line int) ([]string, error) {
+	at := strconv.Itoa(line)
+	printed, err := gitOutput(root, "log", "-L"+at+","+at+":"+shard, "--format=%H", "--no-patch")
+	if err != nil {
+		return nil, errors.New("the history of " + shard + ":" + at +
+			" cannot be read, so no commit can be bound to that row: " + err.Error())
+	}
+	return strings.Fields(printed), nil
+}
+
+// subjectSubstringFloor is the shortest row subject the containment test below
+// is allowed to read. Measured 2026-09-08 over this repository's 8387 commits: a
+// whole subject cell of "test" is contained in 1353 of their subjects, and the
+// ledger holds cells of "test" and "probe". A cell that short binds a row to a
+// sixth of the tree, so below the floor the two cells must be equal.
+const subjectSubstringFloor = 12
+
 // commitCarriesSubject answers whether a commit is the one whose subject the
 // row kept.
 //
 // The debt row carries no SHA, so the operator supplies one, and a wrong one
 // would derive a true answer about the wrong commit. The row keeps the subject
 // of the FIRST commit it covers, and a commit's subject can be extended or
-// abbreviated in the cell, so containment either way is the test.
+// abbreviated in the cell, so containment either way is the test once the cell
+// is long enough to identify anything.
 func commitCarriesSubject(subject string, facts commitFacts) bool {
 	commitSubject := debtCell(facts.Subject)
+	subject = debtCell(subject)
 	if subject == "" || commitSubject == "" {
 		return false
+	}
+	if len(subject) < subjectSubstringFloor {
+		return subject == commitSubject
 	}
 	return strings.Contains(commitSubject, subject) || strings.Contains(subject, commitSubject)
 }

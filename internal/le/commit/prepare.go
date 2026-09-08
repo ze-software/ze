@@ -353,6 +353,12 @@ func checkVerificationGates(root string, options *Options, result *Prepared, pat
 
 // refusePushWithDebt keeps an authorized push behind every open obligation, the
 // rows this commit is about to write included.
+//
+// The message names BOTH routes, because a row naming a gate no command can run
+// never clears and `debt-clear` cannot help it, and it points at `debt-status`,
+// which is the only surface that prints an INVALID DISCHARGE line. An operator
+// held here by a discharge record that stopped deriving would otherwise be sent
+// to the one command that says nothing about it.
 func refusePushWithDebt(root string, owed []Debt) error {
 	open, err := openDebt(root)
 	if err != nil {
@@ -361,7 +367,9 @@ func refusePushWithDebt(root string, owed []Debt) error {
 	if len(open)+len(owed) == 0 {
 		return nil
 	}
-	return fmt.Errorf("refusing push: %d open verification-debt row(s); run le commit debt-clear",
+	return fmt.Errorf("refusing push: %d open verification-debt row(s); run le commit debt-clear "+
+		"for a row whose gate a verification re-runs, le commit debt-discharge for one no command "+
+		"runs, and le commit debt-status for the open rows and any INVALID DISCHARGE record",
 		len(open)+len(owed))
 }
 
