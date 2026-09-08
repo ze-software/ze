@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-dataplane-inspection.md -- kernel dataplane read surface
+// Design: plan/immediate/spec-ipsec-dataplane-inspection.md -- kernel dataplane read surface
 // RFC: rfc/short/rfc4301.md -- Section 4.4 keeps the SPD and the SAD separate
 // RFC: rfc/short/rfc4303.md -- Section 2.1 reserves the low SPI values
 // Related: show_ipsec.go -- the engine-belief siblings of these kernel readers

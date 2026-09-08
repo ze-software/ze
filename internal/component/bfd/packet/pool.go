@@ -1,5 +1,5 @@
 // Design: rfc/short/rfc5880.md -- BFD packet size bounds
-// Design: .claude/rules/buffer-first.md -- pool sized to RFC max
+// Design: docs/architecture/buffer-architecture.md -- pool sized to RFC max
 // Related: control.go -- WriteTo writes into a pool buffer
 // Related: auth.go -- ParseAuth indexes into a pool buffer
 //

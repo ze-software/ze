@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-dataplane-inspection.md -- kernel dataplane read surface
+// Design: plan/immediate/spec-ipsec-dataplane-inspection.md -- kernel dataplane read surface
 // Related: health.go -- checkIPsecHealth, which folds this signal in
 
 package engine
