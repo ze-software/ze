@@ -103,11 +103,15 @@ var scenarioOperations = map[string][]operation{
 	// to be two-octet and has to carry AS_TRANS. Ze's unit tests pin the octets
 	// ze writes; only a second implementation says whether they can be read.
 	//
-	// NEVER EXECUTED. Written on 2026-09-06 with the scenario directory
+	// NEVER EXECUTED, and it has never reached a verdict. Written on
+	// 2026-09-06 with the scenario directory
 	// test/interop/scenarios/as-path-prepend-two-octet-peer, for
-	// plan/immediate/spec-as-path-prepend-encodes-at-the-negotiated-width.md,
-	// and not run once. The command that runs it is
-	// `./le integration scenario as-path-prepend-two-octet-peer`.
+	// spec-as-path-prepend-encodes-at-the-negotiated-width. Three attempts on
+	// 2026-09-06 were each killed by the kernel for memory. The cost is the
+	// container fleet rather than the image build: this lab brings up FRR,
+	// GoBGP and BIRD beside ze. The command that runs it is
+	// `INTEROP_SCENARIO=as-path-prepend-two-octet-peer ./le integration interop`;
+	// `./le integration scenario` is not an action and fails immediately.
 	//
 	// THE TWO ABSENCES ARE WHAT MAKE THE RUN DISCRIMINATE. A prepend encoded at
 	// four octets over a two-octet payload has two possible ends. It malforms
