@@ -680,7 +680,7 @@ pass, and both go RED when the flag is removed.
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| Five sender-describing facts are still mirrored: Graceful Restart (64), LLGR (70 and 71), software version (75), PATHS-LIMIT (76), and the two-octet Hold Time | They sit inside this spec's goal sentence, but no acceptance criterion reaches them, and only Graceful Restart is verified at its producer. Reconciling the restart time changes what `startEORTimer` waits for in every graceful-restart test, which is a blast radius this spec did not size | `plan/pre-release/spec-test-peer-open-mirrors-five-more-sender-facts.md` |
+| Five sender-describing facts are still mirrored: Graceful Restart (64), LLGR (70 and 71), software version (75), PATHS-LIMIT (76), and the two-octet Hold Time | They sit inside this spec's goal sentence, but no acceptance criterion reaches them, and only Graceful Restart is verified at its producer. Reconciling the restart time changes what `startEORTimer` waits for in every graceful-restart test, which is a blast radius this spec did not size | `spec-test-peer-open-mirrors-five-more-sender-facts`, written and CLOSED on 2026-09-08, so it is no longer on disk. All five facts are resolved: `ownedCapabilities` (`internal/test/peer/open_capability.go`) owns codes 64, 71, 75 and 76, and `encodeOpen` (`internal/test/peer/open.go`) writes the Hold Time from the resolved configuration |
 
 ## Review Gate
 
@@ -696,7 +696,7 @@ and the zero-value and guard rule. Run in a context that did not write the code.
 |----------|---------|------|------------|
 | ISSUE | The AS derivation fails open three ways, so "the config declares no peer AS" and "I could not read it" produce the same silent mirror. A group or template declaration is invisible, a config supplied through `option=file:path=` is never read, and several ASNs with no `connection` address return empty with a nil error | `internal/test/runner/peer_asn.go` | Fixed. `asDeclaration.coversEveryEBGPPeer` refuses a file whose derivation reached a known-eBGP peer with nothing, naming the file, the peer and both ASNs. iBGP stays exempt because the mirror answers it correctly. `inheritedByPeer` reads group and template; `configuredPeerAS` reads `Record.ConfigFile`. `TestPeerASDerivationReachesEveryCIFile` runs the derivation over every `.ci` in the tree and refuses zero |
 | ISSUE | A `.ci`-stated capability 65 suppressed the builder's ASN4 while the header still carried the resolved AS, so the OPEN asserted two different ASNs. `TestPeerOpenExplicitRoleWins` pinned that exact state and asserted nothing about the My AS field | `internal/test/peer/open.go` | Fixed. `statedOpenAS` makes a stated four-octet code 65 the AS declaration, outranking `option=asn` and the derivation, and `myASField` narrows from it. A stated code 65 of any other length declares no AS and goes out as written. The missing assertion added |
-| ISSUE | Five sender facts left mirrored sit inside this spec's own goal sentence, so a journal row alone is a scope reduction the author may not take | `plan/journal/mirrored-field-asserts-the-wrong-sender.md` | Fixed by disposition. `plan/pre-release/spec-test-peer-open-mirrors-five-more-sender-facts.md` written, carrying the Graceful Restart producer evidence, and named in `Work Not Done`. The journal row stays; it records the class |
+| ISSUE | Five sender facts left mirrored sit inside this spec's own goal sentence, so a journal row alone is a scope reduction the author may not take | `plan/journal/mirrored-field-asserts-the-wrong-sender.md` | Fixed by disposition. `spec-test-peer-open-mirrors-five-more-sender-facts` written, carrying the Graceful Restart producer evidence, and named in `Work Not Done`. That spec was implemented and CLOSED on 2026-09-08, so it is no longer on disk. The journal row stays; it records the class |
 | NOTE | `encodeOpen` bounded the parameters, not the message, so a parameter block of 65504..65535 octets wrapped the two-octet Length field | `internal/test/peer/open.go` | Fixed. `openMsgMax = 4096` bounds the message, per RFC 4271 Section 4.1 with RFC 8654 Section 4 excluding OPEN and KEEPALIVE from the Extended Message Capability and Section 6 restating that against the 4096 number itself |
 | NOTE | The second Optional-Parameters walker contradicts the Key Design Decision row without saying why, and copies ze's RFC 9072 detection gap | `internal/test/peer/open.go` | Fixed as documentation. The file header carries the reason a decode is not octet-preserving, and states that correcting `UnpackOpen` must correct `parseOpenParams` in the same change |
 | NOTE | `zeTestRunServerOnly` discarded both the parse error and the zero, and `resolveOpenAS` read absence out of a zero value | `internal/test/cli/cmd_bgp.go`, `internal/test/peer/open.go` | Fixed. `recordOpenAS` refuses a non-numeric value and AS 0; `resolveOpenAS` returns a real `declared` bool; two unkeyed `option=asn` lines in one block are refused |
@@ -809,3 +809,48 @@ the loop and the work commits.
 | ISSUE | The AS_TRANS guard still failed open, one call site from where Round 4 closed it. Its precondition was `dropped`, set only in the `!override.Add` branch, but a STATED capability 65 removes the four-octet carrier just as effectively: `reconcileParams` sets `stated[65]` for ANY `Add` override whatever its length and then skips ze's own ASN4 TLV in both the read loop and the tail emit. So `option=asn:value=4200000000` with `add-capability:code=65:hex=1122` and NO drop at all loaded clean, and the OPEN claimed AS_TRANS with a two-octet capability 65 carrying 0x1122 while nothing carried 4200000000. Reproduced live through `ze-test peer`, which reached "listening" | `internal/test/peer/open.go` | Fixed by asking BOTH questions and naming both, because asking only one is how this failed open twice. `suppressesOwnASN4` is the precondition, true for a drop OR any add of code 65, which is the same predicate `reconcileParams` reads. `carriesTheAS` is the exemption, counted by `statedAS`, because only a four-octet stated capability carries the AS. The two are independently load-bearing: the discrimination walk breaks each one alone and each takes the test RED. `statedAS` itself was confirmed correct by the round and is unchanged. The refusal message now says "drops or states", because a reader who wrote only the add-capability line was sent looking for a drop they never wrote. Four cases now pin the matrix, and all four were re-verified at the real entry point rather than in the unit test alone: four-octet AS with a stated 65 carrying no AS refuses, with a drop refuses, with a stated 65 carrying the AS is accepted, and a two-octet AS with a stated 65 carrying no AS is accepted because the My AS field carries it alone |
 | NOTE | `complementaryRole`'s two error strings cited "RFC 9234 Section 4" for the one-octet length and for the defined values. Section 4 is "BGP Role" and names the roles in prose only; `Length: 1 (octet)` and Table 1's values 0 to 4 are both in Section 4.1, "BGP Role Capability" | `internal/test/peer/open.go` | Fixed. Every citation in the function now matches what it cites, read from the headings in `rfc/full/rfc9234.txt`: 4.1 for the length and for Table 1's values, 4.2 for Table 2's pairs and for the Role Mismatch quote. The doc comment states which section carries which, so the next reader does not have to re-derive it. Fourth citation defect in this one function, and the reason the reading is now done before the number is written rather than after |
 | NOTE | `test/encode/peer-open-four-octet-as.ci` timed out 2 of 26 runs, both inside a concurrent batch | `plan/journal/gate-verdict-depends-on-the-machine.md` | Not fixed, and the round MEASURED the diagnosis rather than accepting it: all 60 `test/encode/*.ci` share `timeout=10s`, and under stress the two new files and the untouched control `ebgp-encode` are indistinguishable (min 2.7s, avg 3.4s, max 6.3/6.3/6.4s, 8 of 8 each). A file whose timing tracks an untouched control to 0.1s is not flakier for a reason inside this spec, so the journal row is the right home and no discrimination record is owed |
+
+### Run 6
+
+Owner-authorised. Five rounds are what a session may spend alone
+(`ai/rules/planning.md`); Thomas was asked whether the loop should run again
+and answered "go for round 6".
+
+Scope, fixed before the round ran: the Run 5 fix only, plus the sibling call
+sites it touched. That is `(*Config).validateOpenDeclarations` and its two
+named predicates `suppressesOwnASN4` and `carriesTheAS`, `statedAS` and its
+callers, and the `complementaryRole` citations, all in
+`internal/test/peer/open.go`; and the test cases added for each. The eight
+always-in-scope classes stay in scope everywhere.
+
+Rounds 1 through 5 each found one defect class, one layer further out each
+time: a lookup or a guard that could not tell "nothing was declared" from "I
+could not read it". Round 5's instance was the AS_TRANS refusal reading its
+precondition off the wrong predicate. This round decides whether naming the two
+questions separately ended the class or hid it.
+
+**CLEAN. No BLOCKER, no ISSUE, no NOTE. The loop closes here.**
+
+| Severity | Finding | File | Resolution |
+|----------|---------|------|------------|
+
+What the round checked to earn that verdict, reviewing the COMMITTED state at
+`c7aa4e63e` rather than a working tree:
+
+| # | Checked | Result |
+|---|---------|--------|
+| 1 | Round 5's exact input reproduced at the real entry point | REFUSED, and the message names both 4200000000 and AS_TRANS |
+| 1 | Over-refusal, the opposite defect: a four-octet AS with a stated four-octet 65 carrying the same AS, an AS below 65535 with a stated two-octet 65, and a plain `option=asn` | all three still ACCEPTED |
+| 2 | `suppressesOwnASN4` against what `reconcileParams` really does | exact in the direction that matters: an override for code 65 if and only if the builder's TLV is suppressed. The converse gap is unreachable, because `own.add = id.as > 65535` is the same condition the refusal branch requires |
+| 3 | A third spelling of either question anywhere | none. `statedAS` is the only length-4 test over a `CapabilityOverride`; `zeAdvertisedAS` reads a TLV in ZE's OPEN and `inject.go` writes ze-peer's own dialed OPEN, both a different subject |
+| 4 | Both call sites unconditional and unbypassable | `LoadExpectFile` before its sole success return, and `New` before `&Peer{}`. `New` is the only non-test construction of `*Peer` |
+| 5 | Every citation in `complementaryRole`, not only the ones Run 5 named | all six correct against the headings in `rfc/full/rfc9234.txt`, and the complement map matches Table 2. `validRolePairs` holds the same five pairs |
+| 6 | Whether each predicate is INDEPENDENTLY load-bearing | yes, and verified live rather than from the table: one case is refused only by `suppressesOwnASN4`'s add-arm, another accepted only by `carriesTheAS` |
+
+One boundary the round probed and cleared, recorded so a later reader does not
+mistake it for the class returning: the guard reads `c.OpenAS`, so it cannot see
+the AS when nothing is declared and `openAS` mirrors ze's. A `.ci` with
+`drop-capability:code=65` and no `option=asn` therefore loads clean. That is
+correct rather than a gap. A speaker with no ASN4 capability putting AS_TRANS in
+the My AS field is what RFC 6793 Section 3 prescribes, and refusing it at load
+time is impossible in any case, because ze's OPEN has not been read yet.
