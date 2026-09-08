@@ -1,0 +1,154 @@
+# Test: ze holds a peer's routes for the PEER's Long-Lived Stale Time.
+#
+# VALIDATES: RFC 9494 Section 3 gives capability 71 one 7-octet tuple per family,
+# carrying a 24-bit Long-Lived Stale Time that is the SENDER's declaration.
+# enterLLGRLocked arms one time.AfterFunc per family on that value, and
+# handleLLSTExpired writes "LLST timer expired" when it fires
+# (internal/component/bgp/plugins/gr/gr_state.go).
+#
+# PREVENTS: the mirror returning. ze-peer copied ze's own code 71 back, so the
+# stale time ze held the PEER's routes for was the one ze had configured for
+# ITSELF, and the five existing llgr-*.ci could not tell the two apart.
+#
+# THE DISCRIMINATION. The peer states a Restart Time of 1 second against ze's
+# 120, and a Long-Lived Stale Time of 2 seconds against ze's 3600. The observer
+# requires the gr-state row to carry 1, and then to reach the restart time of 0
+# that only onLLGREnter writes. Under the mirror the graceful-restart timer alone
+# is two minutes, so neither happens inside this file's budget.
+#
+# THE STALE TIME'S OWN NUMBER IS NOT ASSERTED HERE. Every effect of the LLST
+# timer acts on an Adj-RIB-In that RIBManager.handleState already released on
+# peer-down, so nothing it does changes a value a command can read. The octets
+# ze-peer writes are held by TestPeerOpenLLGRIsTheHarnessOwn instead
+# (internal/test/peer/open_test.go).
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=30s
+# One second against ze's 120, and two seconds against ze's 3600.
+option=open:value=graceful-restart:restart-time=1
+option=open:value=llgr:stale-time=2
+
+# Connection 1: ze's static route, then its End-of-RIB.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# TCP close, with no NOTIFICATION: RFC 4724 Section 4.2's graceful-restart trigger.
+action=close:conn=1:seq=2
+EOF_PEER
+
+# A second peer on 127.0.0.2 that establishes and holds. It asserts nothing about
+# graceful restart: it exists so the run outlives the observer.
+#
+# The runner tears the daemon down when the peer processes finish, and the
+# observer's own stderr reaches the log only while the daemon lives. With this
+# peer's session the only one left, the teardown comes from the observer's own
+# `request shutdown` instead, which is after it has printed its verdict.
+stdin=holder:terminator=EOF_HOLDER
+option=tcp_connections:value=1
+option=linger:value=true
+option=timeout:value=30s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_HOLDER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal gr {
+		use bgp-gr
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+	external gr-sender-facts {
+		run "ze-test fixture plugin/llgr-peer-stale-time-drives-timer"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart {
+					restart-time 120
+					long-lived-stale-time 3600
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		timer { connect-retry 5; }
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+
+		attach process gr {
+			receive [ open-received state eor ]
+			send [ update ]
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+
+	peer holder {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.5
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=holder
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=35s
+expect=stderr:contains=OK: ze entered LLGR on the peer's own graceful-restart and stale times
+reject=stderr:pattern=panic

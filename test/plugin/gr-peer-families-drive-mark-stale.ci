@@ -1,0 +1,151 @@
+# Test: the PEER's graceful-restart FAMILY tuple is what makes ze act at all.
+#
+# VALIDATES: RFC 4724 Section 3 pairs the Restart Time with a list of
+# <AFI, SAFI, Flags> tuples, and grStateManager.onSessionDown builds its
+# stale-family set from that list. The set decides everything: with it empty the
+# function returns false at its `len(staleFamilies) == 0` guard and dispatches
+# nothing, so `purge-stale`, `retain-routes` and `mark-stale` never run
+# (internal/component/bgp/plugins/gr/gr_state.go).
+#
+# PREVENTS: the mirror returning. ze-peer copied ze's own code 64 back, and ze's
+# own carries NO tuples at all: parseGRCapValue (internal/component/bgp/plugins/gr/gr.go)
+# emits the four flag bits and the twelve-bit restart time and stops. So every
+# graceful-restart test in this tree ran with the receiving path dead, and the
+# re-announcement they read as proof came from RIBManager.handleState replaying
+# ribOut on the peer-up edge.
+#
+# THE DISCRIMINATION IS THE FAMILY, NOT THE VALUE. The restart time here is 120,
+# the same number ze is configured with, so the value cannot tell a mirror from a
+# resolution. What can is the gr-state row EXISTING: it is written by
+# markStaleCommand, which runs only if the bgp-gr plugin dispatched mark-stale,
+# which happens only after the empty-family guard passes. Under the mirror there
+# is no row.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=30s
+# The same restart time ze is configured with, and one family stated outright.
+option=open:value=graceful-restart:restart-time=120:family=ipv4/unicast
+
+# Connection 1: ze's static route, then its End-of-RIB.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# TCP close, with no NOTIFICATION: RFC 4724 Section 4.2's graceful-restart trigger.
+action=close:conn=1:seq=2
+EOF_PEER
+
+# A second peer on 127.0.0.2 that establishes and holds. It asserts nothing about
+# graceful restart: it exists so the run outlives the observer.
+#
+# The runner tears the daemon down when the peer processes finish, and the
+# observer's own stderr reaches the log only while the daemon lives. With this
+# peer's session the only one left, the teardown comes from the observer's own
+# `request shutdown` instead, which is after it has printed its verdict.
+stdin=holder:terminator=EOF_HOLDER
+option=tcp_connections:value=1
+option=linger:value=true
+option=timeout:value=30s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_HOLDER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal gr {
+		use bgp-gr
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+	external gr-sender-facts {
+		run "ze-test fixture plugin/gr-peer-families-drive-mark-stale"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart {
+					restart-time 120
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		timer { connect-retry 5; }
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+
+		attach process gr {
+			receive [ open-received state eor ]
+			send [ update ]
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+
+	peer holder {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.5
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=holder
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=35s
+expect=stderr:contains=OK: the peer's declared family made ze dispatch mark-stale
+reject=stderr:pattern=panic

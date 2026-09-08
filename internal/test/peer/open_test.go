@@ -609,17 +609,21 @@ func peerGR(t *testing.T, open []byte) *capability.GracefulRestart {
 // (internal/component/bgp/plugins/gr/gr.go) formats the 12-bit time and nothing
 // else. Mirroring it is what left onSessionDown returning at its empty-family
 // guard.
-func zeGRTLV(restart uint16) []byte {
+//
+// The time is the 120 the YANG default gives `restart-time`, which is what most
+// of the suite's graceful-restart tests configure.
+func zeGRTLV() []byte {
 	value := make([]byte, 2)
-	binary.BigEndian.PutUint16(value, restart&0x0FFF)
+	binary.BigEndian.PutUint16(value, 120)
 	return capTLV(byte(capability.CodeGracefulRestart), value...)
 }
 
-// mpTLV is ze's Multiprotocol capability for one family (RFC 4760 Section 8).
-func mpTLV(afi uint16, safi byte) []byte {
+// mpTLV is ze's Multiprotocol capability for one unicast family (RFC 4760
+// Section 8: AFI(2), Reserved(1), SAFI(1)).
+func mpTLV(afi uint16) []byte {
 	value := make([]byte, 4)
 	binary.BigEndian.PutUint16(value, afi)
-	value[3] = safi
+	value[3] = byte(capability.SAFIUnicast)
 	return capTLV(byte(capability.CodeMultiprotocol), value...)
 }
 
@@ -631,7 +635,7 @@ func mpTLV(afi uint16, safi byte) []byte {
 // time into sessionHealth.startEORTimer as if the PEER had asked for it
 // (internal/component/bgp/reactor/peer_run.go).
 func TestPeerOpenGracefulRestartIsTheHarnessOwn(t *testing.T) {
-	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1), zeGRTLV(120))
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1), zeGRTLV())
 	cfg := &Config{GracefulRestart: &GracefulRestartDecl{RestartTime: 7, ForwardState: true}}
 
 	peer := &Peer{config: cfg}
@@ -651,7 +655,7 @@ func TestPeerOpenGracefulRestartIsTheHarnessOwn(t *testing.T) {
 // (internal/component/bgp/plugins/gr/gr_state.go) and leaves retain-routes,
 // mark-stale and purge-stale undispatched in every graceful-restart test.
 func TestPeerOpenGracefulRestartCarriesDeclaredFamilies(t *testing.T) {
-	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1), mpTLV(2, 1), zeGRTLV(120))
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1), mpTLV(2), zeGRTLV())
 	cfg := &Config{GracefulRestart: &GracefulRestartDecl{
 		RestartTime:  30,
 		Families:     []family.Family{{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}},
@@ -676,7 +680,7 @@ func TestPeerOpenGracefulRestartCarriesDeclaredFamilies(t *testing.T) {
 // PREVENTS: the family list being inherited from ze's code 64, which carries
 // none at all.
 func TestPeerOpenGracefulRestartDefaultsToItsOwnFamilies(t *testing.T) {
-	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1), mpTLV(2, 1), zeGRTLV(120))
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1), mpTLV(2), zeGRTLV())
 
 	peer := &Peer{config: &Config{}}
 	open, err := buildOpen(ze, peer.openIdentity(ze, nil), &Config{})
@@ -696,7 +700,7 @@ func TestPeerOpenGracefulRestartDefaultsToItsOwnFamilies(t *testing.T) {
 // onSessionReestablished (F bit clear -> purge that family's stale routes)
 // unreachable from any .ci.
 func TestPeerOpenGracefulRestartForwardStateIsDeclarable(t *testing.T) {
-	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1), zeGRTLV(120))
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1), zeGRTLV())
 	cfg := &Config{GracefulRestart: &GracefulRestartDecl{RestartTime: 30, ForwardState: false}}
 
 	peer := &Peer{config: cfg}
@@ -715,7 +719,7 @@ func TestPeerOpenGracefulRestartForwardStateIsDeclarable(t *testing.T) {
 // PREVENTS: the mirror, under which enterLLGRLocked arms its per-family timer on
 // ze's own configured stale time (internal/component/bgp/plugins/gr/gr_state.go).
 func TestPeerOpenLLGRIsTheHarnessOwn(t *testing.T) {
-	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1), zeGRTLV(120),
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1), zeGRTLV(),
 		capTLV(71, 0, 1, 1, 0x80, 0, 0x0E, 0x10))
 	cfg := &Config{LLGR: &LLGRDecl{StaleTime: 42, ForwardState: false}}
 
@@ -738,7 +742,7 @@ func TestPeerOpenLLGRIsTheHarnessOwn(t *testing.T) {
 // internal/component/bgp/cli/decode_open.go).
 func TestPeerOpenSoftwareVersionIsTheHarnessOwn(t *testing.T) {
 	zeVersion := append([]byte{byte(len("Ze/0.1.0"))}, []byte("Ze/0.1.0")...)
-	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1), capTLV(75, zeVersion...))
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1), capTLV(75, zeVersion...))
 
 	peer := &Peer{config: &Config{}}
 	open, err := buildOpen(ze, peer.openIdentity(ze, nil), &Config{})
@@ -759,7 +763,7 @@ func TestPeerOpenSoftwareVersionIsTheHarnessOwn(t *testing.T) {
 // with ze's own number and CommitService.enforcePathsLimit then polices ze's
 // sending by a limit ze set for itself.
 func TestPeerOpenPathsLimitIsTheHarnessOwn(t *testing.T) {
-	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1),
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1),
 		capTLV(76, 0, 1, 1, 0, 10))
 	cfg := &Config{PathsLimit: []PathsLimitDecl{
 		{Family: family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}, Limit: 1},
@@ -803,7 +807,7 @@ func TestPeerOpenHoldTimeIsDeclared(t *testing.T) {
 // says nothing, which is the case that covers most of the suite.
 func TestPeerOpenDefaultsInheritNoOctetFromZe(t *testing.T) {
 	zeVersion := append([]byte{byte(len("Ze/0.1.0"))}, []byte("Ze/0.1.0")...)
-	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1), zeGRTLV(120),
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1), zeGRTLV(),
 		capTLV(71, 0, 1, 1, 0x80, 0, 0x0E, 0x10), capTLV(75, zeVersion...),
 		capTLV(76, 0, 1, 1, 0, 10))
 
@@ -846,13 +850,13 @@ func TestPeerOpenStatedCapabilityBeatsOwnedValue(t *testing.T) {
 		zeTLV []byte
 		value []byte
 	}{
-		{"graceful restart", 64, zeGRTLV(120), []byte{0x80, 0x0A}},
+		{"graceful restart", 64, zeGRTLV(), []byte{0x80, 0x0A}},
 		{"llgr", 71, capTLV(71, 0, 1, 1, 0x80, 0, 0x0E, 0x10), []byte{0, 1, 1, 0, 0, 0, 5}},
 		{"software version", 75, capTLV(75, 2, 'h', 'i'), []byte{3, 'a', 'b', 'c'}},
 		{"paths limit", 76, capTLV(76, 0, 1, 1, 0, 10), []byte{0, 1, 1, 0, 3}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1), tc.zeTLV)
+			ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1), tc.zeTLV)
 			cfg := &Config{CapabilityOverrides: []CapabilityOverride{
 				{Code: tc.code, Value: tc.value, Add: true},
 			}}
@@ -886,7 +890,7 @@ func TestPeerOpenStatedCapabilityBeatsOwnedValue(t *testing.T) {
 // restart test while testing the session's establishment
 // (plan/learned/005-runner-drops-what-it-cannot-honor.md).
 func TestPeerOpenRefusesADeclarationZeCannotCarry(t *testing.T) {
-	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1))
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1))
 	cfg := &Config{GracefulRestart: &GracefulRestartDecl{RestartTime: 30, ForwardState: true}}
 
 	peer := &Peer{config: cfg}

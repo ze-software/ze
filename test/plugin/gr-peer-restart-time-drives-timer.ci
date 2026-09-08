@@ -1,0 +1,154 @@
+# Test: ze times a peer's graceful restart by the PEER's Restart Time.
+#
+# VALIDATES: RFC 4724 Section 3 makes the Restart Time the restarting speaker's
+# own declaration, and grStateManager.onSessionDown arms its timer on the value
+# the peer sent (internal/component/bgp/plugins/gr/gr_state.go). The bgp-gr
+# plugin passes that number to `request bgp rib mark-stale`, and markStaleCommand
+# stores it in the gr-state row `show bgp rib status` answers with
+# (internal/component/bgp/plugins/rib/rib_commands.go).
+#
+# PREVENTS: the mirror returning. ze-peer copied ze's own code 64 back, so the
+# restart time ze timed the PEER's restart by was the one ze had configured for
+# ITSELF. The distinction the shipped YANG already documents -- "It does not set
+# the timer Ze runs when the peer restarts: that timer takes the Restart Time the
+# peer itself advertised" (ze-graceful-restart.yang) -- was untestable.
+#
+# THE DISCRIMINATION. Ze is configured with restart-time 120 and the peer states
+# 7. The observer requires 7 in the gr-state row, so the file fails on the value
+# a mirror would produce.
+#
+# NON-VACUITY. The gr-state row exists at all only because the peer's code-64
+# value carries an <AFI, SAFI, Flags> tuple: onSessionDown returns false at its
+# empty-staleFamilies guard otherwise, and nothing is dispatched. Ze's own code 64
+# carries no tuples (parseGRCapValue), which is why no test in this tree reached
+# this path before. Break the bgp-gr state dispatch and this file goes red naming
+# the guard.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=30s
+# Seven seconds, against ze's own 120.
+option=open:value=graceful-restart:restart-time=7
+
+# Connection 1: ze's static route, then its End-of-RIB.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# TCP close, with no NOTIFICATION: RFC 4724 Section 4.2's graceful-restart trigger.
+action=close:conn=1:seq=2
+EOF_PEER
+
+# A second peer on 127.0.0.2 that establishes and holds. It asserts nothing about
+# graceful restart: it exists so the run outlives the observer.
+#
+# The runner tears the daemon down when the peer processes finish, and the
+# observer's own stderr reaches the log only while the daemon lives. With this
+# peer's session the only one left, the teardown comes from the observer's own
+# `request shutdown` instead, which is after it has printed its verdict.
+stdin=holder:terminator=EOF_HOLDER
+option=tcp_connections:value=1
+option=linger:value=true
+option=timeout:value=30s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_HOLDER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal gr {
+		use bgp-gr
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+	external gr-sender-facts {
+		run "ze-test fixture plugin/gr-peer-restart-time-drives-timer"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart {
+					restart-time 120
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		timer { connect-retry 5; }
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+
+		attach process gr {
+			receive [ open-received state eor ]
+			send [ update ]
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+
+	peer holder {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.5
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=holder
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=35s
+expect=stderr:contains=OK: ze timed the peer's restart by the peer's own 7 seconds
+reject=stderr:pattern=panic

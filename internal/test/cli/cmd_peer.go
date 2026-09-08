@@ -247,6 +247,22 @@ func zeTestMergePeerFileConfig(config, fileConfig *peer.Config) {
 	if fileConfig.AwaitEOR {
 		config.AwaitEOR = true
 	}
+	// The four sender facts of the OPEN. Each REPLACES rather than joins: a
+	// second Hold Time, a second Restart Time or a second Max Paths for one
+	// family would be two answers to one question, and the file is the only
+	// place either can be stated.
+	if fileConfig.HoldTime != nil {
+		config.HoldTime = fileConfig.HoldTime
+	}
+	if fileConfig.GracefulRestart != nil {
+		config.GracefulRestart = fileConfig.GracefulRestart
+	}
+	if fileConfig.LLGR != nil {
+		config.LLGR = fileConfig.LLGR
+	}
+	if len(fileConfig.PathsLimit) > 0 {
+		config.PathsLimit = fileConfig.PathsLimit
+	}
 }
 
 func zeTestBuildInjectSpec(prefixStr string, count int, nextHopStr string, asn uint, dwell time.Duration) (*peer.InjectSpec, error) {

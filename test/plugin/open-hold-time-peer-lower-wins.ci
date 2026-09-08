@@ -1,0 +1,82 @@
+# Test: the PEER's Hold Time wins the negotiation when it is the smaller one.
+#
+# RFC requirement: RFC4271-4.2-1 positive -- ze holds the session on the hold
+#   time the PEER proposed, proven by the byte-exact NOTIFICATION with Error Code
+#   Hold Timer Expired (4) arriving inside the peer's 3 seconds rather than after
+#   ze's own 180. RFC 4271 Section 4.2: "A BGP speaker MUST calculate the value
+#   of the Hold Timer by using the smaller of its configured Hold Time and the
+#   Hold Time received in the OPEN message."
+#
+# VALIDATES: session_negotiate takes min(peerHold, localHold) and passes it to
+# timers.SetHoldTime (internal/component/bgp/reactor/session_negotiate.go).
+#
+# PREVENTS: the mirror returning. ze-peer copied the two Hold Time octets out of
+# ze's own OPEN body, so the two advertised values were always EQUAL and the
+# minimum was always ze's. RFC 4271 Section 4.2's min-selection had never been
+# exercised by any session this suite has ever run: the branch was reached, and
+# it could only ever choose the value it would have chosen with no branch at all.
+#
+# THE DISCRIMINATION. ze proposes 180 and the peer proposes 3. Under the mirror
+# the peer would propose 180 too, the session would hold for 180 seconds, and the
+# NOTIFICATION below would not arrive inside the 20 s budget: the file fails on
+# the value rather than on the mechanism.
+#
+# THE PEER IS SILENT ON PURPOSE (option=silent), as in deadpeer-holddown.ci: a
+# check peer answers every message with a KEEPALIVE, and each reply would reset
+# ze's receive hold timer, so "the peer went quiet" is otherwise unexpressible.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=silent:value=true
+option=timeout:value=20s
+# 3 seconds, the RFC 4271 Section 4.2 floor, against ze's 180.
+option=open:value=hold-time:seconds=3
+
+# End-of-RIB from ze once the (empty) initial sync completes.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# NOTIFICATION, Hold Timer Expired (4), subcode 0, no data: 21 octets. It can
+# only arrive this soon if ze armed its hold timer on the PEER's 3 seconds.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030400
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		# 180 seconds, sixty times the peer's. Ze can only tear the session down
+		# inside this test's budget by holding on the peer's number.
+		timer {
+			receive-hold-time 180
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
