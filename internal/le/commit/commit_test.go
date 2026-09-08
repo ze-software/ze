@@ -43,6 +43,16 @@ func TestDiscoveryIndexGateReadsOnlyTheHeaderTheMapDerivesFrom(t *testing.T) {
 			t.Errorf("committing %s alone was refused, and the map takes no text from it: %v", path, err)
 		}
 	}
+	// A bare err != nil is the whole assertion this row can carry, and it is
+	// enough. checkDiscoveryIndex has a second refusal, a stale index, but the
+	// omits-branch returns before the stale check runs, so no fixture state can
+	// answer this row through the other one. Measured 2026-09-08: with the
+	// index left unseeded the two rows ABOVE go red on the stale branch, which
+	// is where a drifted fixture shows up, and reordering the two branches
+	// leaves this row green because the seeded index is fresh. An assertion on
+	// the message would therefore need the reorder AND a stale index together,
+	// which no run here reaches, so it would never fail and would read as
+	// coverage it does not have.
 	if err := checkDiscoveryIndex(root, []string{"internal/core/x/x.go"}); err == nil {
 		t.Error("the file the map derives its row from did not demand a refreshed index")
 	}
