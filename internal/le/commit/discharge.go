@@ -333,6 +333,13 @@ func debtRowDigest(raw string) string {
 // Each record's verdict is re-derived here, on every read. Nothing is read from
 // the record but the kind and the evidence, so a discharge whose evidence stops
 // deriving returns its row to open with no file edited (AC-13).
+//
+// Every record is judged BEFORE any row is overlaid, so no record is judged
+// against a row an earlier record discharged. `discharged` is this function's
+// own product and never an on-disk status, and `verifyDischarge` asks the row
+// what the LEDGER says: a second record for one row is redundant, which two
+// sessions discharging the same row produce, and reporting it as invalid would
+// spend the tamper signal on a record that derives.
 func applyDischarges(root string, rows []Debt) []string {
 	records, invalid := readDischargeRecords(root)
 	if len(records) == 0 {
@@ -343,6 +350,7 @@ func applyDischarges(root string, rows []Debt) []string {
 		at[rows[index].Shard+":"+strconv.Itoa(rows[index].Line)] = index
 	}
 	commits := newCommitCache()
+	discharged := make(map[int]dischargeRecord, len(records))
 	for _, record := range records {
 		key := record.Shard + ":" + strconv.Itoa(record.Line)
 		index, exists := at[key]
@@ -350,18 +358,20 @@ func applyDischarges(root string, rows []Debt) []string {
 			invalid = append(invalid, key+": the ledger holds no row there")
 			continue
 		}
-		row := &rows[index]
-		if record.Digest != debtRowDigest(row.Raw) {
+		if record.Digest != debtRowDigest(rows[index].Raw) {
 			invalid = append(invalid, key+": the row's digest does not match the record")
 			continue
 		}
-		if err := verifyDischarge(root, *row, record, commits); err != nil {
+		if err := verifyDischarge(root, rows[index], record, commits); err != nil {
 			invalid = append(invalid, key+": "+err.Error())
 			continue
 		}
-		row.Status = statusDischarged
-		row.DischargeKind = record.Kind
-		row.DischargeEvidence = record.evidence()
+		discharged[index] = record
+	}
+	for index, record := range discharged {
+		rows[index].Status = statusDischarged
+		rows[index].DischargeKind = record.Kind
+		rows[index].DischargeEvidence = record.evidence()
 	}
 	slices.Sort(invalid)
 	return invalid

@@ -1050,3 +1050,111 @@ func TestAReviewGateArtifactMustNameAFile(t *testing.T) {
 		}
 	}
 }
+
+// TestADischargeReplacesTheRecordItSupersedes pins that one debt row holds one
+// record, and that the tamper signal survives the rule.
+//
+// The first half is the guard: a record that does not derive, and that nothing
+// supersedes, is reported by name and leaves its row open. The second half
+// discharges the same row for real and reads the file back: the superseded
+// attempt is GONE rather than kept beside its replacement. Kept, it re-derives
+// on every read and prints INVALID for ever, which teaches a reader to skim
+// past the one line that means a hand edit (R-1).
+func TestADischargeReplacesTheRecordItSupersedes(t *testing.T) {
+	const authorisation = "Thomas, 2026-09-08: I ordered this commit."
+	root := newDischargeRepository(t)
+	shard, line := debtRowFor(t, root, "the discharged commit", gateReviewName)
+	row := debtRowNow(t, root, shard, line)
+
+	// An owner discharge carrying no authorisation: it parses, so the reader
+	// reaches it, and it fails to derive, so the reader refuses it.
+	writeCommitFixture(t, root, dischargePath(dischargeSession),
+		strings.Join(dischargeHeader(dischargeSession), "\n")+"\n"+
+			"| 2026-09-08 | "+shard+" | "+strconv.Itoa(line)+" | "+debtRowDigest(row.Raw)+
+			" | "+kindOwner+" |  |  |  |\n")
+	ledger, err := readDebt(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reported := strings.Join(ledger.Invalid, " ")
+	if !strings.Contains(reported, shard+":"+strconv.Itoa(line)) {
+		t.Fatalf("the record that derives nothing was not named: %v", ledger.Invalid)
+	}
+	if !strings.Contains(reported, "no authorisation") {
+		t.Fatalf("the report %v does not say what the record lacks", ledger.Invalid)
+	}
+	if row := debtRowNow(t, root, shard, line); row.Status != statusOpen {
+		t.Fatalf("the row is %q under a record that derives nothing, want open", row.Status)
+	}
+
+	if _, exit := discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
+		"kind", kindOwner, "owner", authorisation); exit != 0 {
+		t.Fatalf("the replacing discharge exited %d", exit)
+	}
+	record := readFixtureFile(t, root, dischargePath(dischargeSession))
+	rows := dischargeRowsFor(record, shard, line)
+	if len(rows) != 1 {
+		t.Fatalf("the file holds %d records for %s:%d, want the one that stands:\n%s",
+			len(rows), shard, line, record)
+	}
+	if !strings.Contains(rows[0], authorisation) {
+		t.Fatalf("the record that stands is %q, want the authorisation just written", rows[0])
+	}
+	ledger, err = readDebt(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ledger.Invalid) != 0 {
+		t.Fatalf("a superseded attempt still reports: %v", ledger.Invalid)
+	}
+	if row := debtRowNow(t, root, shard, line); row.Status != statusDischarged {
+		t.Fatalf("the row is %q after its discharge, want discharged", row.Status)
+	}
+}
+
+// TestARecordIsJudgedAgainstTheLedgerRowNotTheOverlay pins which status the
+// verifier reads.
+//
+// Records live one file per session, so two sessions CAN hold a record for one
+// row and neither is a tamper. A reader that judged the second against the row
+// the first had already overlaid would read `discharged` where the ledger says
+// `open`, and report a record that derives. The refusal itself is not weakened:
+// a record over a row the ledger says is `cleared` is still reported, which
+// TestADischargeAnswersOnlyAnOpenRow drives.
+func TestARecordIsJudgedAgainstTheLedgerRowNotTheOverlay(t *testing.T) {
+	root := newDischargeRepository(t)
+	shard, line := debtRowFor(t, root, "the discharged commit", gateReviewName)
+	if _, exit := discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
+		"kind", kindOwner, "owner", "the owner's sentence"); exit != 0 {
+		t.Fatal("the discharge was refused, so the second record below proves nothing")
+	}
+	rows := dischargeRowsFor(readFixtureFile(t, root, dischargePath(dischargeSession)), shard, line)
+	if len(rows) != 1 {
+		t.Fatalf("the pass wrote %d records for %s:%d, want one", len(rows), shard, line)
+	}
+	writeCommitFixture(t, root, dischargePath("bbbbbbbb"),
+		strings.Join(dischargeHeader("bbbbbbbb"), "\n")+"\n"+rows[0]+"\n")
+
+	ledger, err := readDebt(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ledger.Invalid) != 0 {
+		t.Fatalf("a second session's record over the same row was reported: %v", ledger.Invalid)
+	}
+	if row := debtRowNow(t, root, shard, line); row.Status != statusDischarged {
+		t.Fatalf("the row is %q under two records that derive, want discharged", row.Status)
+	}
+}
+
+// dischargeRowsFor answers every record row in one file that names one debt
+// row, which is the population the write rule holds to exactly one.
+func dischargeRowsFor(file, shard string, line int) []string {
+	rows := make([]string, 0)
+	for text := range strings.SplitSeq(file, "\n") {
+		if dischargeRowAnswers(text, shard, line) {
+			rows = append(rows, text)
+		}
+	}
+	return rows
+}

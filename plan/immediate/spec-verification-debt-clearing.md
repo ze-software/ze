@@ -136,7 +136,7 @@ has been DISCHARGED, and the discharge is recoverable.
 2. `parseKeywords` accepts only the closed keywords; an unknown keyword or a missing value is exit 2.
 3. The named shard and lines are read through `ListDebt`, so the row text under judgement is the row the ledger holds.
 4. The kind's verifier runs. Every kind but `owner` reads git: `not-applicable` reads the named commit's file list, `closed` reads the removed spec at the closure commit's PARENT, and `reviewed` reads the artifact plus the commit's blobs. `owner` reads nothing.
-5. On a verified verdict, one discharge row per debt row is appended to `plan/verification-debt/discharged/<session>.md` under an exclusive `flock`.
+5. On a verified verdict, one discharge row per debt row is written to `plan/verification-debt/discharged/<session>.md` under an exclusive `flock`, in the place of the record that debt row already holds.
 6. Every later read of the ledger re-runs step 4 from the recorded evidence, so the record holds the INPUT and never a cached verdict.
 
 ### Boundaries Crossed
@@ -218,7 +218,7 @@ has been DISCHARGED, and the discharge is recoverable.
 | AC-7 | `kind closed commit <closure-sha>` where the removed spec's `## Review Gate` at the parent carries a filled artifact reference and a rounds count | The row is discharged. Both era spellings of the verdict row are accepted, because the predicate reads the section's rows and never one field label |
 | AC-7b | The same, where the gate section is absent, is the unfilled template, or records "not recorded" or "not run", and the removed spec's Status at the parent is `ready`, `in-progress` or `verification` | Refused, quoting what the gate said. An implemented spec with no recorded review does NOT discharge through the skeleton branch |
 | AC-8 | `kind owner owner "<authorisation>"` with a non-empty string | The row is discharged and the string is recorded verbatim; an empty string is exit 2 |
-| AC-9 | Any accepted discharge | One row per debt row is appended to `plan/verification-debt/discharged/<session>.md`, carrying the date, the shard and line, the SHA-256 of the debt row's raw text, the kind, and the evidence |
+| AC-9 | Any accepted discharge | One row per debt row is written to `plan/verification-debt/discharged/<session>.md`, carrying the date, the shard and line, the SHA-256 of the debt row's raw text, the kind, and the evidence. It REPLACES the record that debt row already holds, so a superseded attempt leaves no bytes a later read re-derives and reports |
 | AC-10 | `ListDebt` over a ledger holding a valid discharge record | That row's Status is `discharged`, and its discharge kind and evidence are on the row |
 | AC-11 | A discharge record whose digest does not match the debt row at that shard and line, or that names a shard or line the ledger does not hold | The record is not applied, the debt row reports `open`, and the record is reported as invalid by name |
 | AC-12 | A ledger whose only remaining rows are discharged, and an authorized push | `refusePushWithDebt` allows the push; `openDebt`, `clearDebtRows` and the session hook each treat the row as not open, with no second copy of the rule |

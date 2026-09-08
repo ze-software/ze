@@ -228,6 +228,10 @@ A red verification exits non-zero. The pass cleared nothing, so the exit code an
 
 A discharge answers a gate no verification can RUN, and it answers an OPEN row. Both are read from the row itself before any kind runs, in `verifyDischarge` (`internal/le/commit/discharge.go`), so a fifth kind inherits them. Where a verification re-runs the gate, the fact a kind derives says nothing about what that gate would report, and the row clears by running it through `debt-clear`: the check is `debtGates[at].Runnable`, the same declaration `debt-clear` reads. A gate `debtGates` declares neither as a Name nor as an alias is refused too. A row already `cleared` had its gate run green, which answers more than a discharge does, so the overlay leaves it cleared and reports the record rather than reclassifying the row.
 
+One debt row holds at most ONE record. A second discharge of that row replaces the first where it stands, and `replaceDischargeRow` (`internal/le/commit/dischargerecord.go`) drops any further row the file already held for it. An appended attempt stays on disk and re-derives on every read, so evidence the operator has already replaced prints INVALID for ever. That line is the whole tamper signal, and a permanent false one teaches a reader to skim past it.
+
+Every record is judged BEFORE any row is overlaid, in `applyDischarges`. `discharged` is that function's own product and never an on-disk status, so each record is read against what the LEDGER says. Records live one file per session, so two sessions CAN hold a record for one row: the second is redundant, it derives, and it is not reported.
+
 Each kind answers the gates its evidence is about. `closed` and `reviewed` both assert that a REVIEW ran, so they answer `independent critical review` alone: an owner's approval of an RFC-tagged test change is an act no reviewer performs. `not-applicable` re-runs the producer the row's own gate names. `owner` is an attestation and answers any unrunnable gate.
 
 One row covers every commit its session made under the same gate and reason, so `commit <sha>` REPEATS and the row discharges only when every commit it covers is named. `debtCovered` gives the count from the `(+N more)` suffix, no commit is named twice, and each named commit is bound to the row: it carries the row's subject, or it wrote the row's ledger shard, which every commit a row covers does. At least one must carry the subject. A row whose `(+N more)` counts more RECORDINGS than commits, which a re-run of `create` with a reworded subject leaves behind, cannot be answered this way and stays open: over-refusing is the safe direction, because the alternative discharges N commits' obligation on evidence about one.
@@ -260,7 +264,7 @@ That query is not a certificate and MUST NOT be read as one. It answers about PA
 <!-- source: internal/le/verify/engine/stages.go -- Structural -->
 <!-- source: internal/le/commit/debt.go -- Debt, ListDebt, readDebt, recordDebt, extendDebtRow, debtGates -->
 <!-- source: internal/le/commit/discharge.go -- dischargeDebt, applyDischarges, verifyDischarge, dischargeCommits, reviewGateRecorded -->
-<!-- source: internal/le/commit/dischargerecord.go -- writeDischargeRecords, readDischargeRecords, parseDischargeRow -->
+<!-- source: internal/le/commit/dischargerecord.go -- writeDischargeRecords, replaceDischargeRow, readDischargeRecords, parseDischargeRow -->
 
 ## Producer contract
 

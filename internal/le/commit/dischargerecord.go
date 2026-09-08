@@ -43,8 +43,14 @@ func dischargeHeader(session string) []string {
 	}
 }
 
-// writeDischargeRecords appends one row per record under an exclusive lock, and
+// writeDischargeRecords writes one row per record under an exclusive lock, and
 // answers the record file's path. The caller MUST have verified every record.
+//
+// A row REPLACES the record its debt row already holds, so one debt row keeps
+// at most one record here. An appended second attempt leaves the first on disk,
+// and the reader re-derives it for ever: a superseded attempt then prints as an
+// invalid record on every read, which is the one line that has to mean a tamper
+// (R-1).
 func writeDischargeRecords(root, session string, records []dischargeRecord) (string, error) {
 	relative := dischargePath(session)
 	if len(records) == 0 {
@@ -74,7 +80,7 @@ func writeDischargeRecords(root, session string, records []dischargeRecord) (str
 		lines = strings.Split(strings.TrimSuffix(string(content), "\n"), "\n")
 	}
 	for _, record := range records {
-		lines = append(lines, record.row())
+		lines = replaceDischargeRow(lines, record)
 	}
 	rendered := strings.Join(lines, "\n") + "\n"
 	if _, err := file.Seek(0, 0); err != nil {
@@ -90,6 +96,51 @@ func writeDischargeRecords(root, session string, records []dischargeRecord) (str
 		return "", err
 	}
 	return relative, nil
+}
+
+// replaceDischargeRow writes one record into the file's lines, in the place of
+// every record its debt row already holds.
+//
+// The first of them keeps its position, so the file's order stays the order the
+// discharges were made in, and any further one is dropped: a file written
+// before this rule can hold several rows for one debt row, and collapsing them
+// here is what stops a reader re-deriving an attempt the operator has replaced.
+func replaceDischargeRow(lines []string, record dischargeRecord) []string {
+	kept := make([]string, 0, len(lines)+1)
+	written := false
+	for _, line := range lines {
+		if !dischargeRowAnswers(line, record.Shard, record.Line) {
+			kept = append(kept, line)
+			continue
+		}
+		if written {
+			continue
+		}
+		kept = append(kept, record.row())
+		written = true
+	}
+	if written {
+		return kept
+	}
+	return append(kept, record.row())
+}
+
+// dischargeRowAnswers answers whether this line is a record of the named debt
+// row. A line whose own cells are wrong answers no: the reader reports such a
+// line by name, and a writer that overwrote it would erase the evidence of a
+// hand edit rather than surface it.
+func dischargeRowAnswers(line, shard string, number int) bool {
+	record, problem, isRecord := parseDischargeRow(line)
+	if !isRecord {
+		return false
+	}
+	if problem != "" {
+		return false
+	}
+	if record.Shard != shard {
+		return false
+	}
+	return record.Line == number
 }
 
 // row renders one record as a markdown table row.
