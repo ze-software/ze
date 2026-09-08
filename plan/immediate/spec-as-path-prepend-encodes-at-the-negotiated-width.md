@@ -125,7 +125,7 @@ AS4_PATH as RFC 6793 Section 4.2.2 requires.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The three call sites each hold, at the point of the call, the width of the payload the prepend is spliced into | `filter_ordered.go` reads `srcASN4` from `wireUpdate.SourceCtxID()` on import and takes `asn4` as a parameter on export; `policy_dryrun.go` takes `asn4` as a parameter | The fix would encode against the wrong width and change nothing | Reading the producer of each value, then the unit tests at both widths | CONFIRMED 2026-09-08: `TestImportChainPassesTheSourceContextWidthToThePrepend` and `TestExportChainPassesItsWidthToThePrepend` drive the chains themselves, at both widths, and both go RED when either call site passes a literal `true` or a literal `false` |
 | A-2 | Nothing between the export filter override and the socket re-encodes the AS_PATH | `session_write.go` `writeRawUpdateBody` copies `body` behind a header; `peer_run.go` installs `exportFilterForBody` as `egressRouteFilter` | The wire claim in Blast Radius is too strong and must be reduced to a local-store claim | Reading `writeRawUpdateBody` and both `egressRouteFilter` call sites | CONFIRMED 2026-09-08: FRR accepts the prepended path over a real session in the interop scenario, so the bytes the filter wrote are the bytes that reached the socket |
-| A-3 | A mappable local AS prepended at two-octet width needs no AS4_PATH edit | RFC 6793 Section 4.2.3 reconstructs by taking the LEADING part of AS_PATH, which is where the prepend lands | The fix would leave a count skew for every mappable prepend | `AS4PathForRewrite` returning nil for that case, asserted in the unit test | CONFIRMED: `TestPrependAtTwoOctetWidthEncodesTwoOctetASNs` records no AS4_PATH operation |
+| A-3 | A mappable local AS prepended at two-octet width needs no AS4_PATH edit | RFC 6793 Section 4.2.3 reconstructs by taking the LEADING part of AS_PATH, which is where the prepend lands | The fix would leave a count skew for every mappable prepend | `AS4PathForRewrite` returning nil for that case, asserted in the unit test | CONFIRMED: `TestPrependAtTwoOctetWidthCarriesTheRealASNInAS4Path/mappable_local_as_needs_no_as4_path` records no AS4_PATH operation |
 | A-4 | `ExtractRemovePrivateASOps` records an AS4_PATH operation only when the payload already carries an AS4_PATH | `filter_delta.go` guards that branch on `len(rawAS4Path) > 0` | The two extractors could both record an AS4_PATH Set and the last one would win | Reading the guard, plus the combination test | CONFIRMED: `TestPrependAS4PathDoesNotUndoRemovePrivateAS` |
 
 ### Risks
@@ -187,7 +187,7 @@ are not wiring tests: a literal width at either call site leaves both green.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestExtractASPathPrependOps` | `internal/component/bgp/reactor/filter_delta_test.go` | AC-1, AC-9 -- the existing subtests, re-pointed at the four-octet width | |
-| `TestPrependAtTwoOctetWidthEncodesTwoOctetASNs` | `internal/component/bgp/reactor/filter_delta_test.go` | AC-2 | |
+| `TestPrependAtTwoOctetWidthEncodesTwoOctetASNs` | `internal/component/bgp/reactor/filter_delta_test.go` | AC-2 | Written as `TestPrependEncodesAtTheNegotiatedASNWidth`, one test over both widths |
 | `TestPrependAtTwoOctetWidthCarriesTheRealASNInAS4Path` | `internal/component/bgp/reactor/filter_delta_test.go` | AC-3, AC-4, AC-5 | |
 | `TestPrependAS4PathDoesNotUndoRemovePrivateAS` | `internal/component/bgp/reactor/filter_delta_test.go` | AC-8 | |
 | `TestImportPrependEncodesAtTheSourceASNWidth` | `internal/component/bgp/reactor/filter_delta_test.go` | AC-6, wiring | |
@@ -569,7 +569,7 @@ file needs approval, which has not been given, so it stays.
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
 | AC-1 | Done | `TestExtractASPathPrependOps` | Four-octet bytes unchanged |
-| AC-2 | Done | `TestPrependAtTwoOctetWidthEncodesTwoOctetASNs` | |
+| AC-2 | Done | `TestPrependEncodesAtTheNegotiatedASNWidth` | The spec planned the name `TestPrependAtTwoOctetWidthEncodesTwoOctetASNs`; the implementation wrote one test over both widths |
 | AC-3 | Done | `TestPrependAtTwoOctetWidthCarriesTheRealASNInAS4Path/creates_as4_path_when_the_local_as_is_non_mappable` | |
 | AC-4 | Done | `.../extends_a_received_as4_path` and `.../carries_the_whole_path_when_the_received_as4_path_is_shorter` | Wording corrected at closure |
 | AC-5 | Done | `.../four_octet_width_never_records_an_as4_path` | |
@@ -582,7 +582,7 @@ file needs approval, which has not been given, so it stays.
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
 | `TestExtractASPathPrependOps` | Done | `reactor/filter_delta_test.go` | |
-| `TestPrependAtTwoOctetWidthEncodesTwoOctetASNs` | Done | `reactor/filter_delta_test.go` | |
+| `TestPrependEncodesAtTheNegotiatedASNWidth` | Changed | `reactor/filter_delta_test.go` | Planned as `TestPrependAtTwoOctetWidthEncodesTwoOctetASNs`; written as one test over both widths |
 | `TestPrependAtTwoOctetWidthCarriesTheRealASNInAS4Path` | Done | `reactor/filter_delta_test.go` | Gained the shorter-AS4_PATH case |
 | `TestPrependAS4PathDoesNotUndoRemovePrivateAS` | Done | `reactor/filter_delta_test.go` | |
 | `TestImportPrependEncodesAtTheSourceASNWidth` | Changed | `reactor/filter_delta_test.go` | Kept as the extractor-level test; the wiring claim moved to the chain test below |
@@ -591,6 +591,8 @@ file needs approval, which has not been given, so it stays.
 | `TestExportChainPassesItsWidthToThePrepend` | Done | `reactor/filter_ordered_test.go` | New at closure; drives `runEgressPolicyChainASN4` |
 | `TestPolicyDryRunPrependReportsAtTheSessionWidth` | Done | `reactor/policy_dryrun_test.go` | Drives `computeWireChanges` at both widths |
 | `TestRFC6793PrependedAS4PathReconstructsTheWholePath` | Done | `wireu/aspath_rewrite_test.go` | New at closure |
+| `TestPrependRecordsNothingWithoutAnAttributeSection` | Done | `reactor/filter_delta_test.go` | New at closure, round 3: the fail-closed branch had no test that reached it |
+| `TestForwardedExportChainPassesTheSourceContextWidthToThePrepend` | Done | `reactor/filter_ordered_test.go` | New at closure, round 3: the forwarded rail's width producer |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -604,11 +606,11 @@ file needs approval, which has not been given, so it stays.
 | `test/interop/scenarios/as-path-prepend-two-octet-peer/` | Changed | Written by the spec, corrected here after its first run |
 
 ### Audit Summary
-- **Total items:** 29
-- **Done:** 26
+- **Total items:** 31
+- **Done:** 27
 - **Partial:** 0
 - **Skipped:** 0
-- **Changed:** 3 (recorded in Deviations)
+- **Changed:** 4 (recorded in Deviations)
 
 ## Goal Validation (BLOCKING)
 
@@ -617,7 +619,7 @@ file needs approval, which has not been given, so it stays.
 | The prepend segment is encoded at the width of the payload it is spliced into | interop | `INTEROP_SCENARIO=as-path-prepend-two-octet-peer ./le integration interop` returns `"passed": 1` on 2026-09-08. Forced back to a four-octet segment on a rebuilt image it returns `"passed": 0` with `scenario as-path-prepend-two-octet-peer assertion 2: wait for FRR route 10.99.0.0/24 timed out before the peer became ready` |
 | A local AS above 65535 appears as AS_TRANS in a two-octet AS_PATH | interop | The same run's `opFRRNoAS` assertions on 64086 and 59905, the two halves of 4200000001: FRR's path holds neither, so the segment is AS_TRANS rather than a widened pair |
 | The real four-octet value is carried in AS4_PATH as RFC 6793 Section 4.2.2 requires | functional, byte-level | `TestRFC6793PrependedAS4PathReconstructsTheWholePath` reconstructs through `attribute.MergeAS4Path`, ze's declaration of the receiver's rule, and asserts `[4200000001, 64500, 4200000002, 64496]`. Observed RED against the previous derivation |
-| The wiring: each call site passes the width it holds | functional | `TestImportChainPassesTheSourceContextWidthToThePrepend` and `TestExportChainPassesItsWidthToThePrepend` drive the chains; a literal `true` or `false` at either call site reddens both, observed |
+| The wiring: each call site passes the width it holds | functional | `TestImportChainPassesTheSourceContextWidthToThePrepend`, `TestExportChainPassesItsWidthToThePrepend` and `TestForwardedExportChainPassesTheSourceContextWidthToThePrepend` drive the three chain entries; a literal width at any of those call sites reddens the matching test, observed |
 
 ## Work Not Done
 
@@ -632,8 +634,8 @@ file needs approval, which has not been given, so it stays.
 |-------|-------|
 | Artifact | `tmp/review/as-path-prepend-encodes-at-the-negotiated-width-84ea723f-8e13-4b16-ba76-2cb15a57eb40.md` |
 | `./le spec session review check` | recorded, verdict `findings`, every finding fixed in the tree |
-| Rounds | 4 |
-| Reviewer lenses used | round 1: AC coverage, wiring, single-declaration, RFC comments; round 2: re-verification plus the new code; round 3: the producers behind each width, the guard's reachability, and every closure-table row read against the tree; round 4: confirmation |
+| Rounds | 5 |
+| Reviewer lenses used | round 1: AC coverage, wiring, single-declaration, RFC comments; round 2: re-verification plus the new code; round 3: the producers behind each width, the guard's reachability, and every closure-table row read against the tree; round 4: the same rows read again, which is what found a comment still false and three records naming a test that does not exist; round 5: confirmation |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
@@ -649,6 +651,9 @@ file needs approval, which has not been given, so it stays.
 | 9 | ISSUE | The export wiring test enters at `runEgressPolicyChainASN4`, which still takes the width as an argument, so the forwarded rail's producer was untested | `reactor/filter_ordered.go`, `runEgressPolicyChain` | `TestForwardedExportChainPassesTheSourceContextWidthToThePrepend`, both widths, observed red with a literal at that call site |
 | 10 | NOTE | The Wiring Test table still named the two extractor-level tests | this spec | The table names the chain-driven tests and says why the other two are not wiring tests |
 | 11 | NOTE | Documentation Updates claimed no other page names the symbols | this spec | Corrected: two pages do, and neither is made wrong |
+| 12 | ISSUE | The guard's replacement comment was still false: an unindexable section does NOT reach the branch (it yields an `AttributesWire` carrying `indexErr`), and `advertiseGate` does not refuse a body whose attribute length is zero beside a non-empty NLRI section | `reactor/filter_delta.go`, `prependAS4PathValue` | The comment names what `WireUpdate.Attrs` actually answers nil for, and the reason the branch is load-bearing: `AttributesWire.GetRaw` reads a field of its receiver, so the call panics without it |
+| 13 | NOTE | Three rows named `TestPrependAtTwoOctetWidthEncodesTwoOctetASNs`, a test that does not exist | this spec | The rows name `TestPrependEncodesAtTheNegotiatedASNWidth` and the mappable subtest, and say what the plan called them |
+| 14 | NOTE | The two round-3 tests were missing from the record | this spec | Added to the TDD table, the audit counts and the goal-validation wiring row |
 
 ## Pre-Commit Verification
 

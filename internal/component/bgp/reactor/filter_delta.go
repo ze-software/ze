@@ -738,17 +738,18 @@ func prependAS4PathValue(scratch *valueScratch, attrs *attribute.AttributesWire,
 		return nil, true
 	}
 
-	// A body whose attribute section did not index leaves the AS-path family
-	// unreadable, so this derivation cannot say whether RFC 6793 Section 4.2.2
-	// owes an AS4_PATH. It answers "record nothing" rather than "nothing owed",
-	// which is the same answer the unparseable-AS_PATH branch below gives.
+	// A nil attrs is what WireUpdate.Attrs answers for a body it could not parse
+	// and for one whose attribute section is absent or truncated (wire_update.go,
+	// via UpdateSections.Attrs). An UNINDEXABLE section is NOT this case: that
+	// one yields an AttributesWire carrying its indexErr, and GetRaw below
+	// surfaces the error rather than a value.
 	//
-	// No reachable path emits AS_TRANS with the real AS carried nowhere today:
-	// a section that fails to index makes buildModifiedPayload suppress the
-	// route, and a body with no section advertises nothing, so advertiseGate
-	// (forward_build.go) refuses to create an AS_PATH on it. Both of those are
-	// properties of another file. This branch is what makes the extractor's own
-	// answer safe to read without them.
+	// So the family cannot be read here, and this derivation cannot say whether
+	// RFC 6793 Section 4.2.2 owes an AS4_PATH. It answers "record nothing"
+	// rather than "nothing owed", which is what the unparseable-AS_PATH branch
+	// below answers for the same reason. Without the branch the call is not
+	// merely wrong, it panics: AttributesWire.GetRaw reads a field of its
+	// receiver.
 	//
 	// Debug rather than Warn: a withdrawal-only UPDATE carries no attribute
 	// section by construction and has no AS_PATH to prepend to, so this line
