@@ -19,7 +19,7 @@ The feature is two things that share collectors but not enforcement.
 | Enforced by | `./le test-sensitivity check`, stage 10 of `./le verify current mode full` | `./le test-health check`, inside `./le repository generated-check` |
 | Reads | `test/health/sensitivity-baseline.json` + the working tree | the committed report vs the tree |
 | Source | `internal/le/testsensitivity.Answer` | `internal/le/testhealth.Answer` |
-<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
+<!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 
 The ratchets do NOT depend on the report. `./le test-sensitivity check` reads only
 the baseline and the tree, so a stale or wrong report cannot weaken the
@@ -123,7 +123,7 @@ weakens, written in the ledger shard your own commit session owns.
 | Reads | `test/weakened/<session>.md` + the HEAD content of the paths the commit names |
 | Source | `internal/le/testweakened.Answer`, called by both gates |
 | Parse gate | `./le test-weakened check`, in `./le verify current mode full` both modes |
-<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
+<!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 
 ### The shard is named after your commit session
 

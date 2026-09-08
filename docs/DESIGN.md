@@ -885,7 +885,7 @@ Linux/amd64 package graph. The action needs network access to the live Go
 vulnerability database.
 <!-- source: internal/le/verify/engine/stages.go -- StagesForMode -->
 <!-- source: internal/le/verify/deps/actions.go -- Actions -->
-<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
+<!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 
 `./le verify current mode full` is the pre-commit gate. Not `go test`, not any subset. Every commit
 passes the full suite.
