@@ -582,7 +582,7 @@ Both are in `plan/journal/unwired-feature.md` and neither is fixed here.
 | Surface | What it is |
 |---------|-----------|
 | `CommitService.enforcePathsLimit` | Its per-prefix drop has no producer that can reach it. A named commit keys its announcements by prefix with no Path Identifier, so a second path replaces the first before `Commit` ever runs |
-| `RIBManager.handleState` on peer-down | It releases the peer's Adj-RIB-In unless `retainedPeers` already holds the peer, and `retain-routes` is dispatched by another plugin process reacting to the same event. Measured twice: `mark-stale` ran over an empty RIB. RFC 4724's retention therefore does not happen, which is why the two GR files assert the dispatch rather than the marking |
+| `RIBManager.handleState` and `RIBManager.handleStructuredState` on peer-down | Both carry the same release, and `handleStructuredState` is the live one (AC-9 measured the JSON path dead). Either releases the peer's Adj-RIB-In unless `retainedPeers` already holds the peer, and `retain-routes` is dispatched by another plugin process reacting to the same event. Measured twice: `mark-stale` ran over an empty RIB. RFC 4724's retention therefore does not happen, which is why the two GR files assert the dispatch rather than the marking |
 
 ## Known Limitations
 - Ze's own Graceful Restart capability carries a restart time and zero
@@ -644,15 +644,201 @@ The harness is not protocol-implementing code and adds no `RFC requirement:` tag
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only
 
+## Implementation Summary
+
+### What Was Implemented
+- `ownedCapabilities` (`internal/test/peer/open_capability.go`) resolves codes 64, 71, 75 and 76 beside the 9, 65, 69 and 73 it already held. `open_capability.go` is a new file: the capability half of `open.go`, moved whole with `complementaryRole` and `invertedAddPath`, plus the four new builders.
+- `encodeOpen` (`internal/test/peer/open.go`) writes `id.holdTime` where it copied `zeBody[3:5]`. `newOpenIdentity` is the one place every sender fact takes its harness default, and `resolveFamilies` fills a family list the `.ci` left unstated from ze-peer's own advertised set.
+- `Config` (`internal/test/peer/peer.go`) gains `HoldTime`, `GracefulRestart`, `LLGR` and `PathsLimit`, with `GracefulRestartDecl`, `LLGRDecl` and `PathsLimitDecl` beside them.
+- The `option=open:` switch (`internal/test/peer/expect.go`) gains `hold-time`, `graceful-restart`, `llgr` and `paths-limit`. Every numeric key is range-checked against its RFC field width and refused rather than truncated.
+- Two guards: `validateOwnedCodesStatedOnce` refuses a fact stated by a typed option AND by `add-capability` for the same code; `refuseUnofferedDeclarations` refuses a fact for a capability ze did not offer.
+- Four `.ci` under `test/plugin/`, with the compiled observers in `internal/test/fixture/plugin_fixture_gr_sender_facts.go` and their registration in `register_gr_sender_facts.go`.
+- `zeTestMergePeerFileConfig` (`internal/test/cli/cmd_peer.go`) carries the four new facts from the peer file into the running config. Without it a declared Hold Time never reached the peer process.
+
+### Bugs Found/Fixed
+- `zeTestMergePeerFileConfig` dropped every new fact on the floor. Found by `open-hold-time-peer-lower-wins.ci` timing out on a NOTIFICATION 180 seconds away; covered by that file now.
+- Two product defects were found and NOT fixed here. Both are in `plan/journal/unwired-feature.md` and both are named in "Defects this work walked into" above.
+
+### Documentation Updates
+- `docs/architecture/testing/ci-format.md`: new "Sender Facts" section (grammar, key table, defaults table, the two refusals), the Options table gains four rows, and "Capability Control" now names all nine resolved facts. Anchors: `<!-- source: internal/test/peer/expect.go -- parseOpenHoldTime, parseGracefulRestartDecl, parseLLGRDecl, parsePathsLimitDecl -->` and `<!-- source: internal/test/peer/open_capability.go -- ownedCapabilities, refuseUnofferedDeclarations -->`.
+- `docs/functional-tests.md` is deliberately unchanged. Its line 1886 states that the peer-block directive set is not listed there, that `ClaimLine` is the definition and `ci-format.md` the documentation, and that the list it removed had drifted. Adding four rows would rebuild that list.
+- `./le repository check` passed, which is the source-anchor pass. `./le doc check links` was run; its result is in Pre-Commit Verification.
+
+### Deviations from Plan
+- `test/plugin/paths-limit-peer-declared.ci` was NOT written. A-5 broke: `CommitService.enforcePathsLimit`'s drop has no producer that can offer it two paths for one prefix. See Work Not Done.
+- The spec planned "LLGR (70 and 71)". Code 70 is Enhanced Route Refresh and describes the session, so it stays mirrored. Corrected in the research table at the head of this spec.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-5 assumed `enforcePathsLimit` is observable from a `.ci` | `Transaction.nlriIndex` (`internal/component/bgp/transaction/commit_manager.go`) keys by AFI, SAFI and `NLRI.WriteTo`, and `INET.WriteTo` (`internal/core/bgp/nlri/inet.go`) writes the prefix length and prefix bytes only. A second path for one prefix replaces the first in `QueueAnnounce` before the commit ends | writing the `.ci` and finding no producer that could reach the drop | journal row in `plan/journal/unwired-feature.md`; AC-5 met for the capability and not for the enforcement |
+| assumption | A-1 assumed all five mirrored values have a consumer that acts on them | Three act (64, 71, 76), one is display-only and offline (75: `capability.Parse` holds no code-75 arm), and the Hold Time acts in `session_negotiate` | reading each consumer at its producing function | 75 is still owned, because the property is about the octets rather than about their reader, and it gets no option |
+| approach | The functional tests were first written to assert that `mark-stale` MARKED routes | `RIBManager.handleState` and `handleStructuredState` release the peer's Adj-RIB-In on peer-down unless `retainedPeers` is already set, and only the `bgp-gr` plugin's `retain-routes` sets it, from another process reacting to the same event. `mark-stale` ran over an empty RIB | `show bgp rib status` answered a gr-state row beside `routes-in: 0`, twice | the three files assert the DISPATCH instead, which is what this spec owns; the retention defect is journalled |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Every fact ze-peer's OPEN asserts about ze-peer is resolved from the test's own configuration | Done | `ownedCapabilities`, `newOpenIdentity`, `encodeOpen` (`internal/test/peer/`) | Nine facts now: 9, 64, 65, 69, 71, 73, 75, 76 and the Hold Time |
+| Producer-verify the four facts the spec left unverified | Done | the consumer table in Current Behavior | Each row read at its producing function; A-1 broke and is refined |
+| Size and absorb the blast radius on the graceful-restart tests | Done | A-3 and AC-7 | `plugin` compared against a mirror-restored baseline, `encode` 61/61, `decode` 39/39, `runner` 10/10 |
+| Make the graceful-restart receiving path reachable | Done | AC-9 | `gr-mark-stale`, `llgr-transition` and `llgr-rib-stale` still PASS with the dispatch broken; the three new files FAIL |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestPeerOpenGracefulRestartIsTheHarnessOwn`, `test/plugin/gr-peer-restart-time-drives-timer.ci` | ze configured 120, peer states 7, observer requires 7 |
+| AC-2 | Done | `TestPeerOpenGracefulRestartCarriesDeclaredFamilies`, `...DefaultsToItsOwnFamilies`, `test/plugin/gr-peer-families-drive-mark-stale.ci` | that file's restart time equals ze's, so only the family tuple can produce the row |
+| AC-3 | Changed | `TestPeerOpenLLGRIsTheHarnessOwn`, `test/plugin/llgr-peer-stale-time-drives-timer.ci` | met for the octets and the decode. The stale time's NUMBER has no functional witness: every LLST effect acts on an Adj-RIB-In already released. See Work Not Done |
+| AC-4 | Done | `TestPeerOpenSoftwareVersionIsTheHarnessOwn` | no `.ci` can observe it: `capability.Parse` holds no code-75 arm |
+| AC-5 | Changed | `TestPeerOpenPathsLimitIsTheHarnessOwn`, and the wire: ze-peer sends `4C05 0001010001` where ze sends `4C05 000101000A` | met for the capability. The enforcement half is unreachable; A-5 carries the producer chain |
+| AC-6 | Done | `TestPeerOpenHoldTimeIsDeclared`, `test/plugin/open-hold-time-peer-lower-wins.ci` | RFC 4271 Section 4.2's min-selection is exercised for the first time |
+| AC-7 | Done | `TestPeerOpenDefaultsInheritNoOctetFromZe`, plus four suites against a mirror-restored baseline | |
+| AC-8 | Done | `TestPeerOpenStatedCapabilityBeatsOwnedValue`, one subtest per newly owned code | |
+| AC-9 | Done | the recorded break in `handleStructuredState` | The same break in `handleStateEvent`, the JSON path, moved NO verdict, which is how that path was found dead |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| the twelve unit tests | Done | `internal/test/peer/open_test.go`, `expect_test.go` | all green, plus `GracefulRestartDefaultsToItsOwnFamilies`, `GracefulRestartForwardStateIsDeclarable`, `RefusesADeclarationZeCannotCarry`, `RefusesAFactDeclaredTwice`, `HoldTimeStatedTwiceIsRefused` |
+| `gr-peer-restart-time-drives-timer` | Done | `test/plugin/` | PASS, 2.6s |
+| `gr-peer-families-drive-mark-stale` | Done | `test/plugin/` | PASS, 2.6s |
+| `llgr-peer-stale-time-drives-timer` | Done | `test/plugin/` | PASS, 3.4s |
+| `open-hold-time-peer-lower-wins` | Done | `test/plugin/` | PASS, 5.3s |
+| `paths-limit-peer-declared` | Skipped | not written | A-5 broke. See Work Not Done |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/test/peer/open.go` | Done | plus `internal/test/peer/open_capability.go`, the capability half moved out |
+| `internal/test/peer/peer.go` | Done | |
+| `internal/test/peer/expect.go` | Done | |
+| `docs/architecture/testing/ci-format.md` | Done | |
+| `docs/functional-tests.md` | Changed | deliberately unchanged; the reason is documentation row 10 |
+| the five `.ci` | Changed | four written, the fifth unreachable |
+| `internal/test/cli/cmd_peer.go` | Changed | not in the plan; the merge function had to carry the new facts |
+| `internal/test/fixture/plugin_fixture_gr_sender_facts.go`, `register_gr_sender_facts.go` | Changed | not in the plan; the three GR observers |
+
+### Audit Summary
+- **Total items:** 27
+- **Done:** 21
+- **Partial:** 0
+- **Skipped:** 1 (`paths-limit-peer-declared.ci`, blocked by a product defect, in Work Not Done)
+- **Changed:** 5 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| No octet of a fact ze-peer's OPEN asserts about itself is inherited from ze's OPEN | functional | `TestPeerOpenDefaultsInheritNoOctetFromZe`, which reads the OPEN ze-peer builds against a ze OPEN carrying different values for all nine facts. RED under the revert, recorded in the TDD section |
+| Ze acts on the PEER's restart time, not its own | functional | `test/plugin/gr-peer-restart-time-drives-timer.ci`: ze configured `restart-time 120`, the peer states 7, and `show bgp rib status` answers `restart-time: 7`. The file fails on the value a mirror would produce |
+| The graceful-restart receiving path stops being unreachable | discrimination | AC-9's recorded break: with `handleStructuredState` returning immediately the three new files FAIL, while `gr-mark-stale`, `llgr-transition` and `llgr-rib-stale` PASS. That last half is the finding: those three were green over dead code and still are |
+| RFC 4271 Section 4.2's hold-time minimum becomes exercisable | functional | `test/plugin/open-hold-time-peer-lower-wins.ci`. Before this spec the two advertised values were always equal, so the min-selection had nothing to choose between |
+| Every existing `.ci` keeps its verdict | functional | `plugin` run twice, once resolved and once with the mirror restored: 14 failures common to both, and every one re-ran green in isolation. `encode` 61/61, `decode` 39/39, `runner` 10/10. Re-checked at closure: `gr-mark-stale`, `llgr-transition`, `llgr-rib-stale`, `llgr-readvertise`, `llgr-readvertise-multipeer` and `llgr-egress-state-unloaded` all PASS |
+
+## Work Not Done
+
+<!-- Neither row names a spec, and that is the owner directive of 2026-08-10
+     rather than an omission: a DEFECT walked into gets ONE journal row, and
+     writing a spec for it is banned (ai/rules/rule-precedence.md, "A DEFECT you
+     walked into"). Both rows below are blocked by the same two defects, both
+     are recorded in plan/journal/unwired-feature.md, and the class file is what
+     earns the fix in a deliberate pass over the journal. -->
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| `test/plugin/paths-limit-peer-declared.ci`, the functional half of AC-5 | `CommitService.enforcePathsLimit`'s drop has no producer that can reach it. `CommitService.Commit` has one caller, `commitToPeer`, reached only from `handleNamedCommitEnd` over `tx.Routes()`, and `Transaction.nlriIndex` keys by AFI, SAFI and `NLRI.WriteTo` with no Path Identifier, so a second path for a prefix replaces the first before the commit ends. `update text` is not a second producer: it reaches `AnnounceNLRIBatch` | `plan/journal/unwired-feature.md`, the `CommitService.enforcePathsLimit` row of 2026-09-08. A defect walked into gets a row, not a spec (owner directive, 2026-08-10) |
+| A functional witness for the LLGR stale time's own NUMBER, the second half of AC-3 | Every effect of the LLST timer (`purge-stale`, `release-routes`) acts on an Adj-RIB-In that `RIBManager.handleState` and `handleStructuredState` already released on peer-down, so no command can read a difference. The number is held by `TestPeerOpenLLGRIsTheHarnessOwn` over the octets ze-peer writes | `plan/journal/unwired-feature.md`, the `RIBManager.handleState` row of 2026-09-08. Same directive |
+
 ## Review Gate
 
-<!-- Filled by /ze-close's Review Gate step, which runs /ze-review until the
-     tables show 0 BLOCKER and 0 ISSUE. Left empty at design time. -->
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/test-peer-open-mirrors-five-more-sender-facts-d64e7b3f-bfdc-4614-8db4-f12043eb77cc.md`, 13 code files, verdict clean |
+| `./le spec session review check` | `review_gate: OK (13 code files, clean, hashes match ...)` |
+| Rounds | 1 |
+| Reviewer lenses used | wiring plus functional-test coverage; logic plus guard audit plus the zero-value trap; RFC conformance plus ze-go-style plus simplicity. Run inline by the closure context, which did not author the diff |
 
-### Run 1
-| Severity | Finding | File | Resolution |
-|----------|---------|------|------------|
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | none: the run reported 0 BLOCKER and 0 ISSUE | - | - |
 
-### Run 2
-| Severity | Finding | File | Resolution |
-|----------|---------|------|------------|
+### Notes recorded, not blocking
+| # | Finding | Location | Why it does not block |
+|---|---------|----------|----------------------|
+| N-1 | `capabilityTLV` panics on a value above 255 octets, and its input length scales with the family list read off ze's OPEN. 37 families would reach it through `llgrTLV`'s 7-octet tuples | `internal/test/peer/open_capability.go` -- `capabilityTLV`, `llgrTLV` | `family.LookupFamily` and ze's own configuration both draw on one registry with 25 `RegisterFamily` call sites, so 175 octets is the ceiling. The code is under `internal/test/peer/`, which no shipped binary imports: a grep for that import path outside `internal/test/` returns nothing |
+| N-2 | `awaitLLGREntry` asserts `number13(row["restart-time"]) == 0`, and `number13` returns 0 for an ABSENT key, so a renamed key would pass it | `internal/test/fixture/plugin_fixture_gr_sender_facts.go` -- `awaitLLGREntry`, and `number13` in `plugin_fixture_13.go` | its only caller, `llgrPeerStaleTimeDrivesTimer`, runs `requireRestartTime(row, 1)` first, which fails on an absent key. The coupling is implicit rather than absent |
+| N-3 | The Defects table and the journal row named `RIBManager.handleState`; the LIVE handler is `handleStructuredState`, which carries byte-identical release logic | `internal/component/bgp/plugins/rib/rib.go` | a record defect, not a product one. Fixed in ONE edit to the Defects table above; the journal row's mechanism claim is true of both handlers and is left as written |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/gr-peer-families-drive-mark-stale.ci` | yes | `ls -la`: 4249 bytes |
+| `test/plugin/gr-peer-restart-time-drives-timer.ci` | yes | `ls -la`: 4351 bytes |
+| `test/plugin/llgr-peer-stale-time-drives-timer.ci` | yes | `ls -la`: 4312 bytes |
+| `test/plugin/open-hold-time-peer-lower-wins.ci` | yes | `ls -la`: 2962 bytes |
+| `test/plugin/paths-limit-peer-declared.ci` | **no** | `ls: cannot access ... No such file or directory`. Named in Work Not Done |
+| `internal/test/peer/open_capability.go` | yes | `gopls symbols` lists `ownedCapabilities`, `gracefulRestartTLV`, `llgrTLV`, `softwareVersionTLV`, `pathsLimitTLV`, `refuseUnofferedDeclarations` |
+| `internal/test/fixture/plugin_fixture_gr_sender_facts.go`, `register_gr_sender_facts.go` | yes | `gopls symbols` lists the three scenarios, and the register file registers all three by `.ci` name |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | the peer's restart time drives ze's timer | the plugin suite, run at closure over the four new files: `PASS 325 gr-peer-restart-time-drives-timer`, 2.6s |
+| AC-2 | the peer's family tuple makes ze dispatch | `PASS 324 gr-peer-families-drive-mark-stale`, 2.6s |
+| AC-3 | ze enters LLGR on the peer's numbers | `PASS 383 llgr-peer-stale-time-drives-timer`, 3.4s |
+| AC-4 | code 75 is ze-peer's own | `--- PASS: TestPeerOpenSoftwareVersionIsTheHarnessOwn (0.00s)` |
+| AC-5 | code 76 is ze-peer's own | `--- PASS: TestPeerOpenPathsLimitIsTheHarnessOwn (0.00s)` |
+| AC-6 | the peer's lower hold time wins | `PASS 472 open-hold-time-peer-lower-wins`, 5.3s, and `--- PASS: TestPeerOpenHoldTimeIsDeclared` |
+| AC-7 | a silent `.ci` inherits no octet | `--- PASS: TestPeerOpenDefaultsInheritNoOctetFromZe`, plus the six pre-existing GR and LLGR files re-run green at closure |
+| AC-8 | stated octets beat the resolved value | `--- PASS: TestPeerOpenStatedCapabilityBeatsOwnedValue` |
+| AC-9 | the GR receiving path is reachable | the recorded break in `handleStructuredState`: the three new files FAIL, and `gr-mark-stale`, `llgr-transition` and `llgr-rib-stale` PASS |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| a `.ci` peer block against a ze offering GR | `gr-peer-restart-time-drives-timer.ci` | yes: the file states `option=open:value=graceful-restart:restart-time=7` against `restart-time 120` in the ze block, and the observer requires 7 |
+| `option=open:value=graceful-restart:...` | -- | yes: `parseGracefulRestartDecl` fills `Config.GracefulRestart`, read by `newOpenIdentity` and `buildOpen`. `TestPeerOptionGracefulRestartParses` PASS |
+| `option=open:value=hold-time:seconds=N` | `open-hold-time-peer-lower-wins.ci` | yes: `encodeOpen` writes `id.holdTime`; the mirror slice `copy(body[3:5], zeBody[3:5])` is gone from `open.go` |
+| `option=open:value=llgr:...` | `llgr-peer-stale-time-drives-timer.ci` | yes: `llgrTLV` writes the 7-octet tuples; `TestPeerOptionLLGRParses` PASS |
+| `option=open:value=paths-limit:...` | -- | yes to `ownedCapabilities`; the `.ci` half is Work Not Done. `TestPeerOptionPathsLimitParses` PASS |
+| a `.ci` peer restart time driving `onSessionDown` | `gr-peer-families-drive-mark-stale.ci` | yes: its restart time EQUALS ze's, so only the family tuple can produce the gr-state row |
+| a declared fact reaching the peer PROCESS | all four | yes: `zeTestMergePeerFileConfig` (`internal/test/cli/cmd_peer.go`) carries all four from the file into the running config |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken, refined | three act (64, 71, 76), 75 is display-only and offline, and the Hold Time acts in `session_negotiate`. Read at each consumer |
+| A-2 | confirmed | the recorded break: the three new files RED, the three old ones GREEN |
+| A-3 | confirmed | default 65535, so RFC 4271 Section 4.2's minimum stays ze's. Four suites compared against a mirror-restored baseline |
+| A-4 | confirmed | no verdict moved in any suite |
+| A-5 | **broken** | `Transaction.nlriIndex` (`internal/component/bgp/transaction/commit_manager.go`) and `INET.WriteTo` (`internal/core/bgp/nlri/inet.go`) read at closure: the key is AFI, SAFI, prefix length and prefix bytes, with no Path Identifier. Mistake Log row written; journal row written |
+| A-6 | confirmed | the largest OPEN observed is 0x0038, 56 octets. No framing changed |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `ci-format.md` "Sender Facts" default table | every value compared against its constant in `internal/test/peer/open.go`: `peerHoldTime = 65535`, `peerRestartTime = 300`, `peerStaleTime = 600`, `peerPathsLimit = 65535`, `peerSoftwareVersion = "ze-peer"` | yes, all five agree |
+| `ci-format.md` "Capability Control" names the owned set | the nine facts it lists compared against `ownedCapabilities` and `newOpenIdentity` | yes |
+| `ci-format.md` refusal sentences | `validateOwnedCodesStatedOnce` and `refuseUnofferedDeclarations` read at their producing functions, and both are reached from `LoadExpectFile` and from `New` | yes |
+| row 10: `docs/functional-tests.md` correctly left alone | its line 1886 states in its own words that the directive set is not listed there, and names `ClaimLine` as the definition | yes |
+| row 16: no doc source anchor on a changed file is stale | `./le repository check` answered "all checks passed", which includes the source-anchor pass | yes |
+| doc links | `./le doc check links` reported 27 broken references, all pre-existing and none in a file this spec touched. The three citers of this spec's own path were repointed to the bare stem in commit A | yes |
+| rows 1-9, 11, 13-15 answered No | no operator-visible surface changed: no `ze` command, no YANG leaf, no RPC, no metric, no registration. A grep for the `internal/test/peer` import path outside `internal/test/` returns nothing, so no shipped binary links the changed package | yes |
+
+## Core Insight
+
+A mirror can make a whole receiving path UNREACHABLE, and the tests over that
+path stay green because a different subsystem produces the observable they
+assert. Ze's own code-64 capability carries no `<AFI, SAFI, Flags>` tuples, so
+`onSessionDown` returned at its empty-family guard and nothing was dispatched;
+the re-announcement that 32 `.ci` read as proof of graceful restart came from
+`bgp-rib`'s peer-up replay instead. The tell was two runs and one control: run
+the test with the subsystem deliberately unreachable and see whether the verdict
+moves. It cost minutes, and it was available to every session that ever touched
+those files.

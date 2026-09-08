@@ -1,6 +1,6 @@
 # Handoff: graceful restart, the sender facts, and three findings
 
-**Spec:** `plan/pre-release/spec-test-peer-open-mirrors-five-more-sender-facts.md` (closure in flight when this was written)
+**Spec:** `spec-test-peer-open-mirrors-five-more-sender-facts`, closed on 2026-09-08, so it is no longer on disk. Its implementation is in commits `1e9951ab4`, `d2ce72db0` and `693eb7553`, and its closure record is the commit that removed it
 **Branch:** main
 **Goal:** The test peer now owns the sender facts it used to mirror from Ze. Getting there proved that Ze's Graceful Restart does not work on either half, and that the tests which should have caught it pass over dead code.
 

@@ -240,7 +240,8 @@ from this session, correctly: the fifth round is the last a session may spend on
 would produce a sixth round with no such decision behind it. Its spec stays `in-progress`
 deliberately, with the reason in `tmp/session/.closure-ack-test-peer-open-inherits-zes-identity`,
 and `plan/learned/008-mirror-asserts-sameness.md` stays uncommitted for the same reason.
-It handed over one spec, `plan/pre-release/spec-test-peer-open-mirrors-five-more-sender-facts.md`:
+It handed over one spec, `spec-test-peer-open-mirrors-five-more-sender-facts`, closed on
+2026-09-08 and so no longer on disk:
 five sender facts the test peer still asserts about Ze by mirroring them, of which the
 Graceful Restart restart time is the one that makes a real test vacuous.
 
