@@ -61,7 +61,7 @@ func Evidence() []Invocation {
 		{Command: "show env list | json compact", Evidence: "show env list"},
 		{Command: "show env get ze.cli.format | json compact", Evidence: "show env get"},
 		{Command: "show env registered | json compact", Evidence: "show env registered"},
-		{Command: "show plugins | json compact", Evidence: "show plugins"},
+		{Command: "show plugin list | json compact", Evidence: "show plugin list"},
 	}
 }
 
@@ -644,7 +644,7 @@ func runScenario(output io.Writer, work string) error {
 		return err
 	}
 
-	payload, err = localJSON("show plugins | json compact", "show plugins", output)
+	payload, err = localJSON("show plugin list | json compact", "show plugin list", output)
 	if err != nil {
 		return err
 	}
@@ -657,7 +657,7 @@ func runScenario(output io.Writer, work string) error {
 	if err := requireAnyRow(values, func(row map[string]any) bool {
 		description, ok := row["description"].(string)
 		return row["name"] == "rib" && ok && description != ""
-	}, "show plugins lost the system RIB row or its description"); err != nil {
+	}, "show plugin list lost the system RIB row or its description"); err != nil {
 		return err
 	}
 	// Every row carries the setup outcome its plugin's own init() recorded, so
@@ -671,11 +671,11 @@ func runScenario(output io.Writer, work string) error {
 		}
 		name, hasName := row["name"].(string)
 		outcome, hasOutcome := row["outcome"].(string)
-		if err := require(hasName && name != "", "show plugins row has no name: %#v", value); err != nil {
+		if err := require(hasName && name != "", "show plugin list row has no name: %#v", value); err != nil {
 			return err
 		}
 		if err := require(hasOutcome && outcome != "" && outcome != "invalid",
-			"show plugins row %q carries outcome %#v", name, row["outcome"]); err != nil {
+			"show plugin list row %q carries outcome %#v", name, row["outcome"]); err != nil {
 			return err
 		}
 	}

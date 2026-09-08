@@ -1191,7 +1191,7 @@ func Reset() {
 	clear(metricsPending)
 	clear(metricsConfigured)
 	// Cleared with the registry it belongs to: a setup record surviving Reset
-	// names a plugin the registry no longer holds, so `show plugins` would
+	// names a plugin the registry no longer holds, so `show plugin list` would
 	// answer for a plugin this binary cannot run.
 	clear(setupResults)
 	eventBusInstance = nil

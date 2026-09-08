@@ -90,14 +90,14 @@ func TestBashContainsSubcommands(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-5 — dynamic plugin completion calls ze cli -c "show plugins | json".
+// VALIDATES: AC-5 — dynamic plugin completion calls ze cli -c "show plugin list | json".
 func TestBashDynamicPlugins(t *testing.T) {
 	var buf strings.Builder
 	generate("bash", &buf)
 	out := buf.String()
 
-	if !strings.Contains(out, `ze cli -c 'show plugins | json'`) {
-		t.Error(`bash output missing dynamic plugin completion via "ze cli -c 'show plugins | json'"`)
+	if !strings.Contains(out, `ze cli -c 'show plugin list | json'`) {
+		t.Error(`bash output missing dynamic plugin completion via "ze cli -c 'show plugin list | json'"`)
 	}
 }
 
@@ -239,15 +239,15 @@ func TestFishDepthGuards(t *testing.T) {
 	}
 }
 
-// VALIDATES: fish plugin completion is dynamic (calls ze cli -c "show plugins | json").
+// VALIDATES: fish plugin completion is dynamic (calls ze cli -c "show plugin list | json").
 // PREVENTS: fish missing dynamically registered plugin names.
 func TestFishDynamicPlugins(t *testing.T) {
 	var buf strings.Builder
 	generate("fish", &buf)
 	out := buf.String()
 
-	if !strings.Contains(out, `ze cli -c 'show plugins | json'`) {
-		t.Error(`fish output missing dynamic plugin completion via "ze cli -c 'show plugins | json'"`)
+	if !strings.Contains(out, `ze cli -c 'show plugin list | json'`) {
+		t.Error(`fish output missing dynamic plugin completion via "ze cli -c 'show plugin list | json'"`)
 	}
 }
 
@@ -356,7 +356,7 @@ func TestBashPluginArgCompletion(t *testing.T) {
 	generate("bash", &buf)
 	out := buf.String()
 
-	// Should have a prev-based check for --plugin that calls ze cli -c "show plugins | json".
+	// Should have a prev-based check for --plugin that calls ze cli -c "show plugin list | json".
 	if !strings.Contains(out, `"${prev}"`) {
 		t.Error("bash should check prev for flag argument completion")
 	}
@@ -478,8 +478,8 @@ func TestNushellDynamicPlugins(t *testing.T) {
 	generate("nushell", &buf)
 	out := buf.String()
 
-	if !strings.Contains(out, `^ze cli -c "show plugins | json"`) {
-		t.Error(`nushell output missing dynamic plugin completion via '^ze cli -c "show plugins | json"'`)
+	if !strings.Contains(out, `^ze cli -c "show plugin list | json"`) {
+		t.Error(`nushell output missing dynamic plugin completion via '^ze cli -c "show plugin list | json"'`)
 	}
 }
 

@@ -139,7 +139,7 @@ phase itself.
     | Config/YANG/parser | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md`, and any guide examples use accepted syntax |
     | CLI command/output | `docs/guide/command-reference.md` and command docs match handler grammar/output |
     | API/RPC/event/send type | `docs/architecture/api/commands.md`, `docs/architecture/api/process-protocol.md`, and plugin docs match types/handlers |
-    | Plugin registration/inventory | Runtime inventory docs match registry or `bin/ze show plugins` output |
+    | Plugin registration/inventory | Runtime inventory docs match registry or `bin/ze show plugin list` output |
     | Architecture/data flow | Relevant `docs/architecture/*` claims match current source and have source anchors |
     | Metrics | Telemetry docs list metric names and labels |
     | New feature, native action, or verification gate | `ai/INDEX.md` keyword + task rows updated; `docs/architecture/` if the decision is structural; `ai/rules/repo-maintenance.md` if a new hook/gate. Per `ai/rules/repo-maintenance.md`. A feature that cannot be found from `ai/INDEX.md` or a discovery surface is an ISSUE. |

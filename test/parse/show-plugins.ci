@@ -1,4 +1,4 @@
-# Test: show plugins carries the setup outcome each plugin recorded
+# Test: show plugin list carries the setup outcome each plugin recorded
 #
 # VALIDATES: AC-4 and AC-7. Every registered plugin is listed, a plugin that
 #   recorded nothing is listed as unknown rather than dropped, and `| json`,
@@ -21,7 +21,7 @@
 # The suite is `parse` rather than `ui` or `plugin` because only this suite's
 # parser splits an exec line on quotes (splitCommand, internal/test/runner/
 # parsing.go). The other suites use strings.Fields, which tears
-# `-c "show plugins | json"` into five arguments.
+# `-c "show plugin list | json"` into five arguments.
 
 stdin=config:terminator=EOF_CONF
 # The runner requires a config on stdin. This command reads none.
@@ -45,7 +45,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze cli -c "show plugins | json":exit=0
+cmd=foreground:seq=1:exec=ze cli -c "show plugin list | json":exit=0
 expect=exit:code=0
 expect=stdout:contains="name"
 expect=stdout:contains="outcome"
@@ -53,13 +53,13 @@ expect=stdout:contains="routing-table"
 expect=stdout:contains="unknown"
 reject=stdout:contains="invalid"
 
-cmd=foreground:seq=2:exec=ze cli -c "show plugins | yaml":exit=0
+cmd=foreground:seq=2:exec=ze cli -c "show plugin list | yaml":exit=0
 expect=exit:code=0
 expect=stdout:contains=outcome
 expect=stdout:contains=routing-table
 expect=stdout:contains=unknown
 
-cmd=foreground:seq=3:exec=ze cli -c "show plugins | table":exit=0
+cmd=foreground:seq=3:exec=ze cli -c "show plugin list | table":exit=0
 expect=exit:code=0
 expect=stdout:contains=outcome
 expect=stdout:contains=routing-table

@@ -2,7 +2,7 @@
 // Related: resolve.go — InternalPluginInfo, the registry walk this answers with
 // Related: registry/setup.go — SetupResults, the record each row's outcome comes from
 //
-// register.go registers `show plugins`, the one command that answers which
+// register.go registers `show plugin list`, the one command that answers which
 // plugins this binary carries and what each plugin's own init() recorded about
 // its setup. Both facts describe one set, so they are one row rather than two
 // commands: InternalPluginInfo walks registry.All, SetupResults walks the same
@@ -22,7 +22,7 @@ import (
 )
 
 // modeOffline is the help tag for a command that answers with no running
-// daemon. `show plugins` reads a registry this process filled at init, so it is
+// daemon. `show plugin list` reads a registry this process filled at init, so it is
 // one.
 const modeOffline = "offline"
 
@@ -37,7 +37,7 @@ const keyPlugins = "plugins"
 // whole setup record exists to show.
 const descriptionUnregistered = "recorded a setup outcome and did not register"
 
-// pluginRow is one row of `show plugins`: what the plugin IS, from its
+// pluginRow is one row of `show plugin list`: what the plugin IS, from its
 // Registration, and what its own init() achieved, from the setup record.
 //
 // PluginInfo is embedded, so encoding/json writes its fields beside outcome
@@ -54,7 +54,7 @@ type pluginRow struct {
 // reaches it as no path at all, so the command would be reported as declared in
 // YANG and served by nobody.
 func init() {
-	cmdregistry.MustRegisterLocalData("show plugins", dataPlugins, cmdregistry.Meta{
+	cmdregistry.MustRegisterLocalData("show plugin list", dataPlugins, cmdregistry.Meta{
 		Description: "Every plugin compiled into this binary, with its setup outcome.",
 		LongHelp: "One row is written for each plugin the binary links. The row names the " +
 			"families it registers, the RFCs it implements and the capability codes it " +
@@ -66,13 +66,13 @@ func init() {
 	// operator applies and the published page can say so before the command
 	// runs. reason is last because it is free text an operator acts on, and a
 	// long cell in the middle pushes the short ones off the terminal.
-	command.RegisterShape([]string{"show plugins"}, command.ShapeTab)
-	command.RegisterColumns([]string{"show plugins"},
+	command.RegisterShape([]string{"show plugin list"}, command.ShapeTab)
+	command.RegisterColumns([]string{"show plugin list"},
 		command.ColumnOrder{"name", "description", "outcome", "families", "rfcs", "capabilities", "reason"},
 	)
 }
 
-// dataPlugins answers `show plugins` with every plugin this binary carries and
+// dataPlugins answers `show plugin list` with every plugin this binary carries and
 // the setup outcome it recorded, in name order.
 //
 // It takes no arguments: the answer is the whole set, and a reader who wants

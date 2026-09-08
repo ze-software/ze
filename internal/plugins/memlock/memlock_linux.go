@@ -28,7 +28,7 @@ import (
 // that are never faulted, so a ze binary of 40 MiB or more needs a limit well
 // above the 8 MiB systemd default. The outcome is RECORDED rather than logged,
 // because init() runs before the daemon has a logger; the `outcome` column of
-// `show plugins` is what says it out loud.
+// `show plugin list` is what says it out loud.
 //
 // The failure is SOFT: the daemon serves every session correctly with an
 // unlocked executable, and only pays for a page fault when the kernel has

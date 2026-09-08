@@ -358,17 +358,17 @@ Internal mode (`use pluginname`) runs a compiled-in plugin as a goroutine within
 List available plugins:
 
 ```
-ze show plugins
+ze show plugin list
 ```
 
 ## Reporting a Setup Outcome
 
 A plugin that sets something up in its own `init()` records what happened, so
 an operator can ask why a feature is absent. The `outcome` and `reason` columns
-of `show plugins` carry it:
+of `show plugin list` carry it:
 
 ```
-ze show plugins
+ze show plugin list
 ```
 
 The record is one call, made from the plugin's `init()` beside its

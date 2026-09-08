@@ -69,7 +69,7 @@ func zeUsage() {
 		Examples: []string{
 			"ze start config.conf                 Start with config",
 			"ze --plugin ze.hostname -            Start with hostname plugin, config on stdin",
-			"ze show plugins                      List the plugins in this build",
+			"ze show plugin list                  List the plugins in this build",
 			"ze help ai                           AI reference (commands, RPCs, MCP tools)",
 			"ze help ai api                       Daemon API endpoints (ze-show:*, ...)",
 			"ze cli                               Interactive CLI",

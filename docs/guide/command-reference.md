@@ -397,7 +397,7 @@ as context, `show host *` when you want hardware-first.
 
 <!-- source: internal/component/cmd/show/system.go -- handleShowSystemMemory/CPU/Date -->
 
-### show plugins
+### show plugin list
 
 The plugins compiled into this binary, and what each one's own `init()`
 recorded when it set itself up. Answered in the operator's own process from the
@@ -405,13 +405,13 @@ plugin registry, so it needs no daemon and no configuration. A plugin that this
 build compiles out is absent from the answer.
 
 ```
-ze show plugins                          # every plugin, one row each
-ze show plugins | ze pipe match rpki     # narrow the list from a shell
-ze show plugins | ze pipe match memlock  # one plugin and its setup outcome
+ze show plugin list                          # every plugin, one row each
+ze show plugin list | ze pipe match rpki     # narrow the list from a shell
+ze show plugin list | ze pipe match memlock  # one plugin and its setup outcome
 ```
 
 In the interactive CLI and through `ze cli -c`, the whole operator language
-applies to the answer: `show plugins | json`, `| yaml`, `| table`, `| count`,
+applies to the answer: `show plugin list | json`, `| yaml`, `| table`, `| count`,
 `| match <text>`, `| first <n>`. The rows carry these keys:
 
 | Key | Value |
@@ -442,7 +442,7 @@ that failed before it had anything to probe.
 `| resolve` and `| origin` are refused by name: no field of this answer holds an
 IP address.
 
-<!-- source: internal/component/plugin/register.go -- dataPlugins, pluginRows, show plugins registration -->
+<!-- source: internal/component/plugin/register.go -- dataPlugins, pluginRows, show plugin list registration -->
 <!-- source: internal/component/plugin/registry/setup.go -- SetupResults, the outcome each row carries -->
 
 ### show host

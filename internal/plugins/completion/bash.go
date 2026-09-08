@@ -10,7 +10,7 @@ import "github.com/ze-software/ze/internal/core/textbuf"
 //
 // Top-level commands are derived from the command registry at generation time.
 // Dynamic completions call back to ze at tab time for YANG-driven data:
-// plugin names (ze cli -c "show plugins | json"), schema modules (ze schema list),
+// plugin names (ze cli -c "show plugin list | json"), schema modules (ze schema list),
 // show subcommands (ze completion words show), and env keys
 // (ze completion words env).
 func bashScript() string {
@@ -71,7 +71,7 @@ _ze() {
     case "${prev}" in
         --plugin)
             local plugins
-            plugins=$(ze cli -c 'show plugins | json' 2>/dev/null | grep -o '"name": *"[^"]*"' | sed 's/.*: *"//;s/"$//')
+            plugins=$(ze cli -c 'show plugin list | json' 2>/dev/null | grep -o '"name": *"[^"]*"' | sed 's/.*: *"//;s/"$//')
             COMPREPLY=($(compgen -W "${plugins}" -- "${cur}"))
             return
             ;;
@@ -176,7 +176,7 @@ _ze() {
             if [[ ${depth} -eq 1 ]]; then
                 # Dynamic: plugin names from YANG-driven registry
                 local plugins
-                plugins=$(ze cli -c 'show plugins | json' 2>/dev/null | grep -o '"name": *"[^"]*"' | sed 's/.*: *"//;s/"$//')
+                plugins=$(ze cli -c 'show plugin list | json' 2>/dev/null | grep -o '"name": *"[^"]*"' | sed 's/.*: *"//;s/"$//')
                 plugins="${plugins} test help"
                 COMPREPLY=($(compgen -W "${plugins}" -- "${cur}"))
             fi

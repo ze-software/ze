@@ -23,7 +23,7 @@ import (
 // lock the ze executable at all?
 //
 // The two are one topic in two tiers, and neither derives from the other.
-// `show plugins` replays what a ze process's own init() ACHIEVED, so it needs a
+// `show plugin list` replays what a ze process's own init() ACHIEVED, so it needs a
 // host where ze already started and it answers for that one run. This check
 // reads the ENVIRONMENT, before ze runs and with no lock taken, so an operator
 // preparing a host learns the limit is too small without booting the daemon

@@ -104,9 +104,9 @@ function __ze_under_command
 end
 
 # __ze_complete_plugins outputs dynamic plugin names for completion.
-# Uses ze cli -c "show plugins | json" at tab time, plus the static test/help entries.
+# Uses ze cli -c "show plugin list | json" at tab time, plus the static test/help entries.
 function __ze_complete_plugins
-    ze cli -c 'show plugins | json' 2>/dev/null | string match -r '"name": *"[^"]*"' | string replace -r '"name": *"([^"]*)"' '$1'
+    ze cli -c 'show plugin list | json' 2>/dev/null | string match -r '"name": *"[^"]*"' | string replace -r '"name": *"([^"]*)"' '$1'
     echo test
     echo help
 end

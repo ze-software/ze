@@ -312,9 +312,9 @@ func TestCLIVerbUnaffectedByHardSetupFailure(t *testing.T) {
 	registerGatePlugin(t, gatePlugin)
 	registry.RecordSetup(gatePlugin, registry.SetupFailedHard, "the kernel does not support it")
 
-	answer, code, served := command.ServeLocal("show plugins | json", "")
+	answer, code, served := command.ServeLocal("show plugin list | json", "")
 	if !served {
-		t.Fatal("show plugins was not served in this process")
+		t.Fatal("show plugin list was not served in this process")
 	}
 	if code != 0 {
 		t.Fatalf("a CLI verb exited %d while a hard failure was recorded: %s", code, answer)

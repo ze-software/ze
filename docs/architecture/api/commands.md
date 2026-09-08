@@ -164,7 +164,7 @@ local-data command has no daemon side at all, registers no RPC, and therefore
 owes no `wire-methods.snapshot` row.
 
 `internal/component/plugin/register.go` serves one of them, and it is the
-template: `show plugins` answers which plugins this binary carries and what
+template: `show plugin list` answers which plugins this binary carries and what
 each plugin's own `init()` recorded about its setup. It is owned by the package
 that owns the registry it reads, so removing the plugin host removes the
 command with it.

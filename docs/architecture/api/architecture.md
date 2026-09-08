@@ -396,7 +396,7 @@ No other wiring is needed. The engine discovers it through registry queries, the
 | `YANGSchemas()` | YANG loader | All YANG schemas for CLI generation |
 | `ResolveDependencies()` | Engine startup | Expand dependency graph (with cycle detection) |
 | `TopologicalTiers()` | Engine startup | Order plugins for startup (Kahn's algorithm) |
-| `SetupResults()` | `show plugins` | Every plugin and the setup outcome it recorded |
+| `SetupResults()` | `show plugin list` | Every plugin and the setup outcome it recorded |
 | `HardSetupFailures()` | `hub.run` first statement | The plugins whose recorded failure stops the daemon |
 <!-- source: internal/component/plugin/registry/registry.go -- FamilyMap, CapabilityMap, YANGSchemas, ResolveDependencies, TopologicalTiers -->
 

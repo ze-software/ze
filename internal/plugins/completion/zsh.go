@@ -161,7 +161,7 @@ _ze() {
                     if (( CURRENT == 2 )); then
                         # Dynamic: plugin names from YANG-driven registry
                         local -a plugin_names
-                        plugin_names=(${(f)"$(ze cli -c 'show plugins | json' 2>/dev/null | grep -o '` + `"name": *"[^"]*"` + `' | sed 's/.*: *\"//;s/\"$//')"})
+                        plugin_names=(${(f)"$(ze cli -c 'show plugin list | json' 2>/dev/null | grep -o '` + `"name": *"[^"]*"` + `' | sed 's/.*: *\"//;s/\"$//')"})
                         plugin_names+=(test help)
                         _describe 'plugin' plugin_names
                     fi

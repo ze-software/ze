@@ -22,7 +22,7 @@ Ze establishes BGP sessions, exchanges routes, and handles the full FSM lifecycl
 
 ### Address Families
 
-All families decode. Most encode. Use `ze show plugins` to see the current state.
+All families decode. Most encode. Use `ze show plugin list` to see the current state.
 
 | Family | Decode | Encode | Config Routes |
 |--------|--------|--------|---------------|
@@ -75,7 +75,7 @@ The current binary reports 97 registered plugins and schemas covering protocol f
 | ExaBGP config migration | Working -- auto-detect and convert |
 | ExaBGP plugin bridge | Partial -- compatibility bridge exists, but not all ExaBGP behavior is equivalent |
 | Chaos testing (ze-chaos) | Working -- deterministic replay, property validation |
-| Plugin setup results | Working -- each plugin records what its own `init()` achieved, `show plugins` replays it in the `outcome` and `reason` columns, and the daemon refuses to start on a recorded hard failure. `memlock` is the migrated example; the other plugins record nothing yet and list as `unknown` |
+| Plugin setup results | Working -- each plugin records what its own `init()` achieved, `show plugin list` replays it in the `outcome` and `reason` columns, and the daemon refuses to start on a recorded hard failure. `memlock` is the migrated example; the other plugins record nothing yet and list as `unknown` |
 | Local certificate authority | Working -- ze generates one root at its first start, keeps it in ZeFS, and issues its own components' certificates from it. `show pki local-ca pem` exports the root for an operator to give to each node that must trust this one. `ze doctor` reports the root as absent, unloadable, or within 90 days of expiry |
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- YANG config; internal/component/config/cli/ -- config CLI; internal/component/cli/ -- interactive CLI; internal/core/slogutil/ -- hierarchical logging; internal/exabgp/ -- ExaBGP migration -->
 <!-- source: internal/component/pki/ca.go -- LoadOrGenerateRoot, Root.IssueLeaf; internal/component/pki/doctor.go -- caRootDoctorCheck -->

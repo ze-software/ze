@@ -188,7 +188,7 @@ kmsg-visible half, which is what an appliance console sees), and `return 1`.
 `RunWebOnly` does not go through `run`, so `ze start --web-only` does not
 consult the registry. It runs no protocol and programs nothing.
 
-A CLI verb never reaches `run` either, which is deliberate: `show plugins`
+A CLI verb never reaches `run` either, which is deliberate: `show plugin list`
 is the command that reports the fault, and it has to keep working on a host
 where the daemon will not boot.
 <!-- source: cmd/ze/hub/main.go -- run, the gate at its first statement -->

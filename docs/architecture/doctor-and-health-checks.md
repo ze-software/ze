@@ -6,7 +6,7 @@ Ze has three tiers of self-diagnosis, and they differ by WHEN they answer.
 |------|---------|---------------------------|
 | Offline readiness | `ze doctor` | At read time, in the operator's own process, by re-probing config and the environment |
 | Live health | `show health` | At read time, inside the daemon, by running a registered probe now |
-| Recorded setup outcome | `show plugins` | Once, in a plugin's own `init()`, before `main()`. The `outcome` and `reason` columns replay it |
+| Recorded setup outcome | `show plugin list` | Once, in a plugin's own `init()`, before `main()`. The `outcome` and `reason` columns replay it |
 
 The third tier is the only one that remembers. A plugin that failed to set
 itself up is often a plugin that never reached the line where it would have
@@ -125,7 +125,7 @@ neither derives from the other.
 | Question | Tier | What answers it |
 |----------|------|-----------------|
 | Can THIS HOST lock the ze executable at all? | `ze doctor`, before ze runs | The `memlock-rlimit` check compares `RLIMIT_MEMLOCK` against the size of `/proc/self/exe` |
-| Did THIS PROCESS lock it? | `show plugins`, after ze ran | The `memlock` row's `outcome`, recorded by the plugin's own `init()` |
+| Did THIS PROCESS lock it? | `show plugin list`, after ze ran | The `memlock` row's `outcome`, recorded by the plugin's own `init()` |
 
 The doctor check warns under `doctor-memlock-rlimit-low` when the limit is
 below the executable's size. The file size is a FLOOR for the mapped size, so a

@@ -237,7 +237,7 @@ func joinPath(parent, tok string) string {
 // no YANG node, so R3 does not reach it -- which is what ai/rules/cli.md already
 // says, that the --flag form "belongs ONLY" to the offline cmd/ze/ tooling and
 // "never in the YANG layer". No root is flag-shaped today: `--plugins` was the
-// last one and is now `show plugins`.
+// last one and is now `show plugin list`.
 //
 // R9 is different and DOES bind a root whatever its shape, because a name
 // colliding with a YANG namespace confuses a reader no matter which surface

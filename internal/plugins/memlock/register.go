@@ -24,7 +24,7 @@ const pluginName = "memlock"
 func init() { //nolint:gochecknoinits // plugin registration
 	// The doctor check is a PRE-FLIGHT probe of the host, not a report of the
 	// lock. `ze doctor` runs in the operator's own process, so it can never say
-	// whether the DAEMON took its lock; `show plugins` answers that, by
+	// whether the DAEMON took its lock; `show plugin list` answers that, by
 	// replaying what the daemon's own init() recorded. What the doctor check
 	// adds is the tier before ze runs: whether this host could lock the
 	// executable at all. See doctor_linux.go.

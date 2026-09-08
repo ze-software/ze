@@ -218,7 +218,7 @@ the command it belongs to.
 
 Three further items are deliberately untouched. A root-level flag is a
 different rule's question, and the feeder skips leading-hyphen roots. No root
-is flag-shaped today: `--plugins` was the last one and is now `show plugins`.
+is flag-shaped today: `--plugins` was the last one and is now `show plugin list`.
 The two `format` value vocabularies, the CLI output format and the editor pipe
 operator, are both preserved and unreconciled. `ze pipe` takes one shell-quoted
 pipe expression rather than repeated operators.

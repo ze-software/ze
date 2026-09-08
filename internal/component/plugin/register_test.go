@@ -1,7 +1,7 @@
-// Design: docs/guide/command-reference.md — show plugins
+// Design: docs/guide/command-reference.md — show plugin list
 // Related: register.go — the registration these tests exercise
 //
-// register_test.go proves four things about `show plugins`: it answers, it
+// register_test.go proves four things about `show plugin list`: it answers, it
 // answers with DATA rather than with text a renderer already formatted, it
 // refuses by name the operators its answer's shape cannot carry, and each row
 // carries the setup outcome the plugin's own init() recorded rather than a
@@ -27,8 +27,8 @@ import (
 // nothing.
 const probePluginName = "show-plugins-probe"
 
-// commandShowPlugins is the path an operator types, as register.go publishes it.
-const commandShowPlugins = "show plugins"
+// commandShowPluginList is the path an operator types, as register.go publishes it.
+const commandShowPluginList = "show plugin list"
 
 // probeOnce registers the probe exactly once. The plugin registry is
 // process-wide and refuses a duplicate name, and every test in this package
@@ -44,7 +44,7 @@ func registerProbePlugin(t *testing.T) {
 	probeOnce.Do(func() {
 		err = registry.Register(registry.Registration{
 			Name:            probePluginName,
-			Description:     "Probe plugin for the show plugins command tests",
+			Description:     "Probe plugin for the show plugin list command tests",
 			RunEngine:       func(net.Conn) int { return 0 },
 			CLIHandler:      func([]string) int { return 0 },
 			RFCs:            []string{"9999"},
@@ -57,26 +57,26 @@ func registerProbePlugin(t *testing.T) {
 	}
 }
 
-// TestShowPluginsAnswersEveryRegisteredPlugin proves the handler answers the
+// TestShowPluginListAnswersEveryRegisteredPlugin proves the handler answers the
 // registry rather than a fixed list, and that it carries the optional metadata a
 // plugin declares.
-func TestShowPluginsAnswersEveryRegisteredPlugin(t *testing.T) {
+func TestShowPluginListAnswersEveryRegisteredPlugin(t *testing.T) {
 	registerProbePlugin(t)
 
 	payload, code := dataPlugins(nil)
 	if code != 0 {
-		t.Fatalf("show plugins exit code = %d, want 0", code)
+		t.Fatalf("show plugin list exit code = %d, want 0", code)
 	}
 
 	// The payload MUST satisfy ResponseData, which is what keeps text a
 	// renderer already formatted out of a command's answer (ai/rules/cli.md).
 	if _, ok := payload.(ResponseData); !ok {
-		t.Fatalf("show plugins answered %T, which is not ResponseData", payload)
+		t.Fatalf("show plugin list answered %T, which is not ResponseData", payload)
 	}
 
 	answer, ok := payload.(Map)
 	if !ok {
-		t.Fatalf("show plugins answered %T, want plugin.Map", payload)
+		t.Fatalf("show plugin list answered %T, want plugin.Map", payload)
 	}
 	rows, ok := answer[keyPlugins].([]pluginRow)
 	if !ok {
@@ -109,15 +109,15 @@ func TestShowPluginsAnswersEveryRegisteredPlugin(t *testing.T) {
 	}
 }
 
-// TestShowPluginsRendersAsJSON proves the answer reaches the pipe layer, which
+// TestShowPluginListRendersAsJSON proves the answer reaches the pipe layer, which
 // is what a structured payload buys: `| json` renders the same payload
 // `| yaml` and `| table` render.
-func TestShowPluginsRendersAsJSON(t *testing.T) {
+func TestShowPluginListRendersAsJSON(t *testing.T) {
 	registerProbePlugin(t)
 
-	answer, code, served := command.ServeLocal(commandShowPlugins+" | json", "")
+	answer, code, served := command.ServeLocal(commandShowPluginList+" | json", "")
 	if !served {
-		t.Fatal("show plugins was not served in this process")
+		t.Fatal("show plugin list was not served in this process")
 	}
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (answer: %q)", code, answer)
@@ -146,15 +146,15 @@ func TestShowPluginsRendersAsJSON(t *testing.T) {
 	t.Errorf("the probe plugin is missing from the | json answer: %q", answer)
 }
 
-// TestShowPluginsCountsItsRows proves the declared shape admits the row
+// TestShowPluginListCountsItsRows proves the declared shape admits the row
 // operators, so the count is over plugins rather than over the keys of an
 // envelope.
-func TestShowPluginsCountsItsRows(t *testing.T) {
+func TestShowPluginListCountsItsRows(t *testing.T) {
 	registerProbePlugin(t)
 
-	answer, code, served := command.ServeLocal(commandShowPlugins+" | count", "")
+	answer, code, served := command.ServeLocal(commandShowPluginList+" | count", "")
 	if !served || code != 0 {
-		t.Fatalf("show plugins | count: served=%v code=%d answer=%q", served, code, answer)
+		t.Fatalf("show plugin list | count: served=%v code=%d answer=%q", served, code, answer)
 	}
 	counted, err := strconv.Atoi(strings.TrimSpace(answer))
 	if err != nil {
@@ -165,13 +165,13 @@ func TestShowPluginsCountsItsRows(t *testing.T) {
 	}
 }
 
-// TestShowPluginsRefusesAddressOperatorsByName proves the answer's shape is
+// TestShowPluginListRefusesAddressOperatorsByName proves the answer's shape is
 // declared: no field holds an IP address, so `| resolve` is refused before the
 // command runs rather than answered with something plausible.
-func TestShowPluginsRefusesAddressOperatorsByName(t *testing.T) {
-	answer, code, served := command.ServeLocal(commandShowPlugins+" | resolve", "")
+func TestShowPluginListRefusesAddressOperatorsByName(t *testing.T) {
+	answer, code, served := command.ServeLocal(commandShowPluginList+" | resolve", "")
 	if !served {
-		t.Fatal("show plugins was not served in this process")
+		t.Fatal("show plugin list was not served in this process")
 	}
 	if code == 0 {
 		t.Fatalf("| resolve was accepted over an answer holding no address (first line: %q)",
@@ -182,19 +182,19 @@ func TestShowPluginsRefusesAddressOperatorsByName(t *testing.T) {
 	}
 }
 
-// TestShowPluginsDeclaresItsShapeAndColumns proves the published catalog can say
+// TestShowPluginListDeclaresItsShapeAndColumns proves the published catalog can say
 // what the command supports before the command runs.
-func TestShowPluginsDeclaresItsShapeAndColumns(t *testing.T) {
-	shape, declared := command.ShapeForCommand(commandShowPlugins)
+func TestShowPluginListDeclaresItsShapeAndColumns(t *testing.T) {
+	shape, declared := command.ShapeForCommand(commandShowPluginList)
 	if !declared {
-		t.Fatal("show plugins declares no answer shape")
+		t.Fatal("show plugin list declares no answer shape")
 	}
 	if shape != command.ShapeTab {
 		t.Errorf("declared shape = %v, want tab", shape)
 	}
-	orders := command.ColumnsForCommand(commandShowPlugins)
+	orders := command.ColumnsForCommand(commandShowPluginList)
 	if len(orders) != 1 {
-		t.Fatalf("show plugins declares %d column orders, want 1", len(orders))
+		t.Fatalf("show plugin list declares %d column orders, want 1", len(orders))
 	}
 	if strings.Join(orders[0], ",") != "name,description,outcome,families,rfcs,capabilities,reason" {
 		t.Errorf("declared columns = %v", orders[0])
@@ -224,7 +224,7 @@ func registerPlugin(t *testing.T, name string) {
 	t.Helper()
 	err := registry.Register(registry.Registration{
 		Name:        name,
-		Description: "Probe plugin for the show plugins tests",
+		Description: "Probe plugin for the show plugin list tests",
 		RunEngine:   func(net.Conn) int { return 0 },
 		CLIHandler:  func([]string) int { return 0 },
 	})
@@ -233,7 +233,7 @@ func registerPlugin(t *testing.T, name string) {
 	}
 }
 
-// TestShowPluginsCarriesTheRecordedSetupOutcome is the wiring test for the
+// TestShowPluginListCarriesTheRecordedSetupOutcome is the wiring test for the
 // join: what a plugin records from its init() is what the row carries.
 //
 // VALIDATES: dataPlugins takes the outcome and the reason from
@@ -241,18 +241,18 @@ func registerPlugin(t *testing.T, name string) {
 //
 // PREVENTS: a command that answers a list this package keeps for itself, which
 // would stay green while the registry the daemon reads says something else.
-func TestShowPluginsCarriesTheRecordedSetupOutcome(t *testing.T) {
+func TestShowPluginListCarriesTheRecordedSetupOutcome(t *testing.T) {
 	isolateRegistry(t)
 	registerPlugin(t, recordingPluginName)
 	registry.RecordSetup(recordingPluginName, registry.SetupFailedSoft, "RLIMIT_MEMLOCK is too small")
 
 	payload, code := dataPlugins(nil)
 	if code != 0 {
-		t.Fatalf("show plugins exit code = %d, want 0", code)
+		t.Fatalf("show plugin list exit code = %d, want 0", code)
 	}
 	answer, ok := payload.(Map)
 	if !ok {
-		t.Fatalf("show plugins answered %T, want plugin.Map", payload)
+		t.Fatalf("show plugin list answered %T, want plugin.Map", payload)
 	}
 	rows, ok := answer[keyPlugins].([]pluginRow)
 	if !ok {
@@ -275,20 +275,20 @@ func TestShowPluginsCarriesTheRecordedSetupOutcome(t *testing.T) {
 	}
 }
 
-// TestShowPluginsNamesAPluginThatRecordedNothing proves AC-4 at the command.
+// TestShowPluginListNamesAPluginThatRecordedNothing proves AC-4 at the command.
 //
 // VALIDATES: a registered plugin that recorded nothing is listed with the
 // unknown outcome and no reason.
 //
 // PREVENTS: the failure the setup record exists to remove. An absent row reads
 // as "not built in", so the plugin that owes a record is the one nobody sees.
-func TestShowPluginsNamesAPluginThatRecordedNothing(t *testing.T) {
+func TestShowPluginListNamesAPluginThatRecordedNothing(t *testing.T) {
 	isolateRegistry(t)
 	registerPlugin(t, silentPluginName)
 
-	answer, code, served := command.ServeLocal(commandShowPlugins+" | json", "")
+	answer, code, served := command.ServeLocal(commandShowPluginList+" | json", "")
 	if !served {
-		t.Fatal("show plugins was not served in this process")
+		t.Fatal("show plugin list was not served in this process")
 	}
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (answer: %q)", code, answer)
@@ -316,7 +316,7 @@ func TestShowPluginsNamesAPluginThatRecordedNothing(t *testing.T) {
 	}
 }
 
-// TestShowPluginsRendersTheOutcomeInEveryFormat proves AC-7.
+// TestShowPluginListRendersTheOutcomeInEveryFormat proves AC-7.
 //
 // VALIDATES: `| json`, `| yaml` and `| table` each render the same rows,
 // outcome and reason included.
@@ -324,16 +324,16 @@ func TestShowPluginsNamesAPluginThatRecordedNothing(t *testing.T) {
 // PREVENTS: a handler that returns finished text, which one renderer would
 // hand back unchanged while the other two produce something a parser cannot
 // read.
-func TestShowPluginsRendersTheOutcomeInEveryFormat(t *testing.T) {
+func TestShowPluginListRendersTheOutcomeInEveryFormat(t *testing.T) {
 	isolateRegistry(t)
 	registerPlugin(t, recordingPluginName)
 	registry.RecordSetup(recordingPluginName, registry.SetupFailedSoft, "RLIMIT_MEMLOCK is too small")
 
 	for _, format := range []string{"json", "yaml", "table"} {
 		t.Run(format, func(t *testing.T) {
-			answer, code, served := command.ServeLocal(commandShowPlugins+" | "+format, "")
+			answer, code, served := command.ServeLocal(commandShowPluginList+" | "+format, "")
 			if !served {
-				t.Fatalf("show plugins | %s was not served in this process", format)
+				t.Fatalf("show plugin list | %s was not served in this process", format)
 			}
 			if code != 0 {
 				t.Fatalf("exit code = %d, want 0 (answer: %q)", code, answer)
@@ -347,7 +347,7 @@ func TestShowPluginsRendersTheOutcomeInEveryFormat(t *testing.T) {
 	}
 }
 
-// TestShowPluginsKeepsAPluginThatRecordedAndDidNotRegister proves the loudest
+// TestShowPluginListKeepsAPluginThatRecordedAndDidNotRegister proves the loudest
 // case survives the join.
 //
 // VALIDATES: a name that recorded an outcome and never completed its Register
@@ -357,7 +357,7 @@ func TestShowPluginsRendersTheOutcomeInEveryFormat(t *testing.T) {
 // PREVENTS: the join dropping the one plugin whose setup failed hard enough to
 // take its own registration with it, which is the absence-reads-as-fine defect
 // the whole setup record exists to remove.
-func TestShowPluginsKeepsAPluginThatRecordedAndDidNotRegister(t *testing.T) {
+func TestShowPluginListKeepsAPluginThatRecordedAndDidNotRegister(t *testing.T) {
 	isolateRegistry(t)
 	registry.RecordSetup("never-registered", registry.SetupFailedHard, "the kernel does not support it")
 
@@ -376,7 +376,7 @@ func TestShowPluginsKeepsAPluginThatRecordedAndDidNotRegister(t *testing.T) {
 	}
 }
 
-// TestShowPluginsRowsAgreeWithInternalPluginInfo pins the ONE divergence the
+// TestShowPluginListRowsAgreeWithInternalPluginInfo pins the ONE divergence the
 // join is allowed to have.
 //
 // VALIDATES: every row either matches an InternalPluginInfo entry of the same
@@ -388,7 +388,7 @@ func TestShowPluginsKeepsAPluginThatRecordedAndDidNotRegister(t *testing.T) {
 // sees rows with the outcome filled in; a walk that stopped agreeing would
 // render blank outcome cells, or silently drop plugins, and no other assertion
 // in this package would go red.
-func TestShowPluginsRowsAgreeWithInternalPluginInfo(t *testing.T) {
+func TestShowPluginListRowsAgreeWithInternalPluginInfo(t *testing.T) {
 	t.Run("live registry", func(t *testing.T) {
 		registerProbePlugin(t)
 		assertRowsAgreeWithPluginInfo(t)
@@ -439,7 +439,7 @@ func assertRowsAgreeWithPluginInfo(t *testing.T) {
 
 	for name := range described {
 		if !seen[name] {
-			t.Errorf("the registered plugin %q has no row in show plugins", name)
+			t.Errorf("the registered plugin %q has no row in show plugin list", name)
 		}
 	}
 }

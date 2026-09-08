@@ -100,7 +100,7 @@ filename order.
 | `SetupUnknown` | Recorded nothing. A stored state, never a valid ARGUMENT to `RecordSetup` | None |
 
 The record is optional at the call site, so no existing registration changes.
-`show plugins` carries the outcome on each of its rows, derived from the same
+`show plugin list` carries the outcome on each of its rows, derived from the same
 registry, so a plugin that recorded nothing is listed as `unknown` rather than
 dropped: absence would read as "not built into this binary", which is precisely
 the silence this record exists to remove.

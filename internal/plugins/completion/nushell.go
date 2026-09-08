@@ -19,7 +19,7 @@ func nushellScript() string {
 ` + nushellRootCompleter() + `
 def "nu-complete ze plugins" [] {
     try {
-        ^ze cli -c "show plugins | json"
+        ^ze cli -c "show plugin list | json"
         | from json
         | each {|p| { value: $p.name, description: $p.description? } }
         | append [{ value: "test", description: "Run plugin tests" } { value: "help", description: "Show help" }]
