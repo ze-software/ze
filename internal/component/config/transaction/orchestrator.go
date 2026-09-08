@@ -253,11 +253,11 @@ func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSect
 			o.publishAbort(err.Error())
 			return &TxResult{State: StateAborted, Err: err}
 		}
-		// The verb is what the graph orders by, so an operation that
-		// declares none cannot be placed. It aborts the transaction here,
-		// before anything is applied, rather than being ordered as if it
-		// depended on nothing.
-		if err := ValidateOperationVerbs(ops); err != nil {
+		// The verb and the declared resources are what the graph orders by,
+		// so an operation missing either cannot be placed. It aborts the
+		// transaction here, before anything is applied, rather than being
+		// ordered as if it depended on nothing.
+		if err := ValidateOperations(ops); err != nil {
 			o.publishAbort(err.Error())
 			return &TxResult{State: StateAborted, Err: err}
 		}

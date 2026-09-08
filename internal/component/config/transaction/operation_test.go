@@ -90,3 +90,70 @@ func TestRegisterConstraintRule(t *testing.T) {
 	rules := ConstraintRules()
 	assert.Contains(t, rules, rule)
 }
+
+// TestValidateOperationsRefusesBlankResource verifies that an operation
+// declaring a resource with no identity is refused before it reaches the graph,
+// and that the refusal names the plugin, the root, the operation and the
+// declaration without quoting a single parameter.
+//
+// The entry is attacker-influenced: an operation crosses a JSON boundary from a
+// plugin process. An entry naming nothing cannot be matched against any other
+// operation's declaration, so accepting it would leave the operation ordered
+// against nothing while looking ordered.
+//
+// VALIDATES: a blank Produces or Consumes entry aborts the transaction.
+// PREVENTS: a blank entry read as "any resource", and config values in an error line.
+func TestValidateOperationsRefusesBlankResource(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		op   ConfigOperation
+	}{
+		{
+			name: "produces nothing identifiable",
+			op: ConfigOperation{
+				ID: "op-1", Root: "vpn", Owner: "vpn-plugin", Type: testOpAddInterface, Verb: VerbCreate,
+				Produces: []ResourceRef{{Kind: ResourceInterface}},
+				Params:   ConfigOperationParams{Value: "the-pre-shared-key"},
+			},
+		},
+		{
+			name: "consumes an entry with no kind at all",
+			op: ConfigOperation{
+				ID: "op-1", Root: "vpn", Owner: "vpn-plugin", Type: testOpAddInterface, Verb: VerbCreate,
+				Consumes: []ResourceRef{{Name: "eth0"}},
+				Params:   ConfigOperationParams{Value: "the-pre-shared-key"},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := ValidateOperations([]ConfigOperation{tc.op})
+			require.ErrorIs(t, err, ErrOperationBlankResource)
+			assert.Contains(t, err.Error(), "vpn-plugin")
+			assert.Contains(t, err.Error(), "op-1")
+			assert.NotContains(t, err.Error(), "the-pre-shared-key", "the message names the operation, never its params")
+		})
+	}
+}
+
+// TestValidateOperationsAcceptsDeclaredResources verifies the validator passes
+// an operation whose declarations name real resources, so the refusal above is
+// about the blank entry and not about declaring one at all.
+//
+// VALIDATES: a declared producer and consumer pair is accepted.
+// PREVENTS: a fail-closed check that closes on everything.
+func TestValidateOperationsAcceptsDeclaredResources(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateOperations([]ConfigOperation{{
+		ID: "op-1", Root: "interface", Owner: "interface", Type: testOpAddAddress, Verb: VerbCreate,
+		Produces: []ResourceRef{{Kind: ResourceAddress, Address: "10.0.0.1/24"}},
+		Consumes: []ResourceRef{{Kind: ResourceInterface, Name: "dum0"}},
+	}})
+	require.NoError(t, err)
+}

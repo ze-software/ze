@@ -817,7 +817,7 @@ Those two are the whole ordering vocabulary:
 An operation that declares no verb is REFUSED at planning, and the transaction
 aborts naming the plugin, the root and the operation id. It is never read as
 `modify`: a default would give a create the dependencies of a change in place.
-<!-- source: internal/component/config/transaction/operation.go -- ValidateOperationVerbs -->
+<!-- source: internal/component/config/transaction/operation.go -- ValidateOperations -->
 
 The `Type` label is the emitting component's own word for the work, carried
 unchanged to the owner that applies it. There is no list of labels here and
@@ -833,17 +833,51 @@ One label is the engine's own, `section-apply`, and it names the coarse node the
 orchestrator synthesizes for a participant that owns no operation. A plugin that
 returns it is refused.
 
+#### Derived edges: produces and consumes
+
+Most ordering edges are DERIVED. Every operation declares the resources it owns
+in `Produces` and the resources it needs another operation to have made in
+`Consumes`, and the graph builder pairs the two declarations over one resource
+identity.
+
+| Verb of the operation | Edge it earns |
+|-----------------------|---------------|
+| `create` | It runs BEFORE every operation that consumes what it produces, excluding a `destroy` consumer, which needs the resource to still exist rather than to have just been created |
+| `destroy` | Every `destroy` that consumes the resource runs BEFORE it |
+| `modify` | None of its own. It consumes, so it lands after the create of what it binds |
+
+Two entries name one resource when their identities are equal. A resource is
+identified by its kind and the one value that names it: an interface by its
+name, a peer by its name, an address by its IP. The prefix length is no part of
+an address's name, and neither is the interface carrying it, because a peer
+declares the address it binds without knowing which device holds it. A kind no
+constant names is identified the same way, so a config root can declare a
+resource the engine never heard of.
+
+An entry that names no resource matches NOTHING. `ValidateOperations` refuses an
+operation carrying one, and the graph index leaves it out, because an entry read
+as "any resource" would order a hostile plugin against the whole transaction.
+<!-- source: internal/component/config/transaction/depgraph.go -- addDerivedEdges, resourceIdentity -->
+
+So a config root joins the ordering by declaring what its operations produce and
+consume. It registers nothing centrally, and it never spells another root's
+operation labels. The nine constraint rules that stated a produce and consume
+fact by hand are deleted, and the iface and bgp declarations reproduce the edges
+they made.
+
 #### Constraint rules
 
-Ordering edges are produced by `ConstraintRule` values registered as data in
-`operation.go`. A rule matches a pair of operations via selectors (type +
-resource kind) and a relation (how their resources are connected). When both
-selectors match and the relation holds, the graph builder adds an edge
-`before -> after`.
+A constraint rule states what a produce and consume pair CANNOT: a fact about
+two operations over DIFFERENT resources. Two survive, both in `iface`, and no
+component registers another.
+
+A rule matches a pair of operations via selectors (type + resource kind) and a
+relation (how their resources are connected). When both selectors match and the
+relation holds, the graph builder adds an edge `before -> after`.
 
 | Field | Purpose |
 |-------|---------|
-| `ID` | Unique rule identifier (e.g., `iface-add-interface-before-address`) |
+| `ID` | Unique rule identifier (e.g., `iface-remove-address-before-add-same-address`) |
 | `Before` | `OperationSelector{Type, ResourceKind}` matching the operation that must run first |
 | `After` | `OperationSelector{Type, ResourceKind}` matching the operation that must run second |
 | `Relation` | How the two operations' resources relate (see below) |
@@ -854,22 +888,16 @@ Resource relations:
 |----------|---------|
 | (empty) | Any pair of matching operations |
 | `same-resource` | Both target the same resource (same kind + key) |
-| `interface-address` | The "before" operation's interface matches the "after" operation's address interface |
-| `address-used-by` | The address in one operation matches the address used by the other |
+| `same-interface` | Both operations act on the same interface |
 | `same-address` | Both operations target the same IP address |
 
 Rules are registered via `RegisterConstraintRule` in component `init()` functions.
-Examples from the codebase:
+The two in the codebase:
 
-| Rule ID | Before | After | Relation | Component |
-|---------|--------|-------|----------|-----------|
-| `iface-add-interface-before-address` | `add-interface/interface` | `add-address/address` | `interface-address` | iface |
-| `iface-remove-address-before-interface` | `remove-address/address` | `remove-interface/interface` | `interface-address` | iface |
-| `iface-remove-address-before-add-same-address` | `remove-address/address` | `add-address/address` | `same-address` | iface |
-| `bgp-add-address-before-peer` | `add-address/address` | `add-peer/peer` | `address-used-by` | bgp |
-| `bgp-remove-peer-before-address` | `remove-peer/peer` | `remove-address/address` | `address-used-by` | bgp |
-| `bgp-add-address-before-listener` | `add-address/address` | `add-listener/listener` | `address-used-by` | bgp |
-| `bgp-remove-listener-before-address` | `remove-listener/listener` | `remove-address/address` | `address-used-by` | bgp |
+| Rule ID | Before | After | Relation | What it states |
+|---------|--------|-------|----------|----------------|
+| `iface-remove-address-before-add-same-address` | `remove-address/address` | `add-address/address` | `same-address` | One address lives on one interface, so it leaves the old one before it arrives on the new one |
+| `iface-add-address-before-remove-same-interface` | `add-address/address` | `remove-address/address` | `same-interface` | An interface is never left with no address: make before break |
 
 Rules are sorted by ID before graph construction for deterministic edge ordering.
 
@@ -880,10 +908,10 @@ to break its config root into atomic operations registers a decomposer via
 `RegisterOperationDecomposer(root, fn)` in its `init()`. The planner calls
 `OperationDecomposerFor(root)` per affected root and collects the results.
 
-| Component | Config root | Decomposer | What it produces |
-|-----------|------------|------------|-----------------|
-| iface | `interface` | `decomposeIfaceOperations` | `add-interface`, `remove-interface`, `add-address`, `remove-address` per managed interface and IP |
-| bgp | `bgp` | `decomposeBGPOperations` | `add-peer`, `remove-peer`, `modify-peer` per changed peer |
+| Component | Config root | Decomposer | What it emits | What it declares |
+|-----------|------------|------------|---------------|------------------|
+| iface | `interface` | `decomposeIfaceOperations` | `add-interface`, `remove-interface`, `add-address`, `remove-address` per managed interface and IP | an interface operation produces the interface; an address operation produces the address and consumes the interface |
+| bgp | `bgp` | `decomposeBGPOperations` | `add-peer`, `remove-peer`, `modify-peer` per changed peer | a peer operation produces the peer and consumes the local address it binds, or declares no address when the peer lets the kernel pick its source |
 
 A decomposer receives a `DecomposeRequest` with the transaction ID, the config
 root name, the active and candidate root data (full JSON for that root), and
@@ -905,9 +933,12 @@ themselves. No code change is needed in those components.
 ### Graph construction and topological sort
 
 `BuildOperationGraph` (in `depgraph.go`) takes the flat operation list and the
-sorted constraint rules, then matches every operation pair against every rule.
-When both selectors match and the resource relation holds, it adds a directed
-edge. Duplicate edges (same from/to pair) are suppressed.
+sorted constraint rules, and adds a directed edge two ways. It matches every
+operation pair against every rule, and adds an edge when both selectors match
+and the resource relation holds. It then pairs every `Produces` entry with every
+`Consumes` entry naming the same resource, and adds the edge the two verbs ask
+for. Duplicate edges (same from/to pair) are suppressed, whichever way produced
+them.
 
 `TopologicalSort` (in `solver.go`) runs Kahn's algorithm on the graph. If all
 operations are emitted, the sort is complete. If some operations remain (a cycle
@@ -937,8 +968,8 @@ The solver handles this with `tryRelaxCycle`:
 3. **Re-run Kahn's algorithm** on the reduced edge set. If the sort completes,
    the cycle is resolved.
 
-4. **Mark dual-presence.** `ADD_ADDRESS` operations that were part of the relaxed
-   cycle get `Params.AllowDual = true`. This tells the iface plugin that the
+4. **Mark dual-presence.** The cycle members that CREATE a resource of kind
+   `address`, whatever they are labelled, get `Params.AllowDual = true`. This tells the iface plugin that the
    address may temporarily exist on two interfaces during the transition. The
    kernel allows this; the solver makes it explicit.
 

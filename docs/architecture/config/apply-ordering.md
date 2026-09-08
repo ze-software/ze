@@ -22,6 +22,29 @@ executor runs `Verify`, then `Execute`, then `Commit`.
 central switch.** `iface` and `bgp` each register their own decomposition
 through `init()`. Remove a component and its operation handling goes with it.
 
+**An ordering fact is DECLARED by the operation, and only what no declaration
+can state is written as a rule.** Each operation names the resources it owns in
+`Produces` and the resources it needs in `Consumes`, and the graph derives one
+edge per producer and consumer pair over the same resource identity: a create
+runs before what consumes it, and a destroy runs after every destroy that
+consumes it. Nine hand-written rules said exactly that for two roots, and each
+one had to spell the other root's operation labels to say it. They are deleted.
+
+Two rules survive, both in `iface`, and both state a fact about two operations
+over DIFFERENT resources, which no pair of declarations can carry: one address
+lives on one interface (`iface-remove-address-before-add-same-address`), and an
+interface is never left without an address
+(`iface-add-address-before-remove-same-interface`). A root that adds a rule
+today is almost certainly describing a produce and consume fact instead.
+<!-- source: internal/component/config/transaction/depgraph.go -- addDerivedEdges -->
+
+**A declared resource that names nothing orders nothing.** An entry carrying no
+identifying value has an empty identity, `ValidateOperations` refuses the
+operation that declares one, and the graph index leaves it out. An operation
+crosses a JSON boundary from a plugin process, so an entry read as "any
+resource" would let a hostile plugin order itself against every operation in the
+transaction.
+
 **Every participant with a diff is a node, decomposer or not.** A participant
 the planner produced no operation for gets one COARSE node, synthesized by
 `operationNodes`, which the executor applies through that participant's section
@@ -79,7 +102,7 @@ as `modify`: a default would give a create the dependencies of a change in
 place, which is the silently wrong value `ai/rules/principles.md` bans. Ze is
 pre-release with no shipped external plugin, so no compatibility shim accepts a
 payload without one.
-<!-- source: internal/component/config/transaction/operation.go -- ValidateOperationVerbs -->
+<!-- source: internal/component/config/transaction/operation.go -- ValidateOperations -->
 
 **Address-only cross-interface cycles relax. Everything else is rejected.** A
 swap of two addresses between interfaces is a cycle by construction. The solver
@@ -123,5 +146,17 @@ named in the design and not enforced in the graph builder. Config is operator
 supplied and bounded, so neither is a security boundary.
 
 The step-3 owner state check is not implemented in `armSettlementWaiters`, which
-subscribes and nothing more. The current decomposers never emit an `ADD_ADDRESS`
-for an address that is already present.
+subscribes and nothing more.
+
+The iface decomposer skips an address that the ACTIVE config already gives to
+the SAME interface with the same prefix length, and skips nothing else: an
+address moving to another interface, and an address whose prefix length changes,
+each produce a create beside the destroy of the old one. That is the pair the
+dual-presence window exists for, so "an address create never meets an address
+that is already there" was never true and is not what the ordering relies on.
+<!-- source: internal/component/iface/operation.go -- decomposeIfaceOperations -->
+
+A root outside `iface` that declares an address in `Produces` would be a second
+producer of one resource. Nothing does today, and the derivation gives two
+producers of one resource no edge between them: what orders them is the
+uniqueness rule above.

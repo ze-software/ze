@@ -26,16 +26,6 @@ import (
 
 const configRootBGP = "bgp"
 
-// The labels the `interface` root gives its address operations. The four
-// constraint rules below are the only reason this package names them: a rule
-// selects on a label, so a rule about another root's operations has to spell
-// that root's vocabulary. That is the coupling derived produce and consume
-// sets remove, and these two constants go with the rules.
-const (
-	operationAddAddress    rpc.ConfigOperationType = "add-address"
-	operationRemoveAddress rpc.ConfigOperationType = "remove-address"
-)
-
 var (
 	errBGPOperationNoReactor          = errors.New("bgp operation: no reactor available")
 	errBGPOperationUnsupportedReactor = errors.New("bgp operation: reactor does not support operation callbacks")
@@ -51,38 +41,12 @@ func init() {
 		slog.Error("register bgp operation decomposer", "error", err)
 		panic("BUG: register bgp operation decomposer failed")
 	}
-	if err := configtx.RegisterConstraintRule(configtx.ConstraintRule{
-		ID:       "bgp-add-address-before-peer",
-		Before:   configtx.OperationSelector{Type: operationAddAddress, ResourceKind: configtx.ResourceAddress},
-		After:    configtx.OperationSelector{Type: configop.AddPeer, ResourceKind: configtx.ResourcePeer},
-		Relation: configtx.ResourceRelationAddressUsedBy,
-	}); err != nil {
-		slog.Error("register bgp constraint rule", "error", err)
-	}
-	if err := configtx.RegisterConstraintRule(configtx.ConstraintRule{
-		ID:       "bgp-remove-peer-before-address",
-		Before:   configtx.OperationSelector{Type: configop.RemovePeer, ResourceKind: configtx.ResourcePeer},
-		After:    configtx.OperationSelector{Type: operationRemoveAddress, ResourceKind: configtx.ResourceAddress},
-		Relation: configtx.ResourceRelationAddressUsedBy,
-	}); err != nil {
-		slog.Error("register bgp constraint rule", "error", err)
-	}
-	if err := configtx.RegisterConstraintRule(configtx.ConstraintRule{
-		ID:       "bgp-add-address-before-listener",
-		Before:   configtx.OperationSelector{Type: operationAddAddress, ResourceKind: configtx.ResourceAddress},
-		After:    configtx.OperationSelector{Type: configop.AddListener, ResourceKind: configtx.ResourceListener},
-		Relation: configtx.ResourceRelationAddressUsedBy,
-	}); err != nil {
-		slog.Error("register bgp constraint rule", "error", err)
-	}
-	if err := configtx.RegisterConstraintRule(configtx.ConstraintRule{
-		ID:       "bgp-remove-listener-before-address",
-		Before:   configtx.OperationSelector{Type: configop.RemoveListener, ResourceKind: configtx.ResourceListener},
-		After:    configtx.OperationSelector{Type: operationRemoveAddress, ResourceKind: configtx.ResourceAddress},
-		Relation: configtx.ResourceRelationAddressUsedBy,
-	}); err != nil {
-		slog.Error("register bgp constraint rule", "error", err)
-	}
+	// This root registers no constraint rule. Its four rules each said one
+	// thing, that a peer or a listener needs its local address to exist, and
+	// each had to spell the `interface` root's operation labels to say it.
+	// The peer operations declare that address in Consumes instead, and the
+	// graph derives the same two edges from the address operation that
+	// produces it (BuildOperationGraph in the transaction package).
 	if err := configtx.RegisterSettlementRule(configtx.SettlementRule{
 		ID:           "bgp-add-peer-settles-listener-ready",
 		Operation:    configtx.OperationSelector{Type: configop.AddPeer, ResourceKind: configtx.ResourcePeer},
@@ -260,32 +224,63 @@ func bgpPeerOperation(opType configtx.ConfigOperationType, name, localAddress st
 		params.OldConfig = oldConfig
 	}
 	return configtx.ConfigOperation{
-		ID:    "bgp-" + word + "-peer-" + sanitizeBGPOperationID(name),
-		Root:  configRootBGP,
-		Owner: pluginNameBGP,
-		Type:  opType,
-		Verb:  verb,
-		Target: configtx.ResourceRef{
-			Kind:    configtx.ResourcePeer,
-			Peer:    name,
-			Address: localAddress,
-		},
-		Params: params,
+		ID:     "bgp-" + word + "-peer-" + sanitizeBGPOperationID(name),
+		Root:   configRootBGP,
+		Owner:  pluginNameBGP,
+		Type:   opType,
+		Verb:   verb,
+		Target: peerResource(name, localAddress),
+		// The session is what this operation owns, and the local address it
+		// binds is what it needs the `interface` root to have put on a device.
+		// The create then runs after that address exists and the destroy runs
+		// before it goes, which is the ordering the four deleted rules
+		// hand-wrote for this one pair.
+		Produces: []configtx.ResourceRef{{Kind: configtx.ResourcePeer, Peer: name}},
+		Consumes: peerAddressConsumes(localAddress),
+		Params:   params,
 	}
+}
+
+// peerResource is the peer a peer operation targets. The address rides along
+// because the settlement rule reads it (SettlementResourceAddress), and it is
+// no part of the peer's identity.
+func peerResource(name, localAddress string) configtx.ResourceRef {
+	return configtx.ResourceRef{
+		Kind:    configtx.ResourcePeer,
+		Peer:    name,
+		Address: localAddress,
+	}
+}
+
+// peerAddressConsumes declares the local address a peer binds, and declares
+// NOTHING for a peer with no local address configured.
+//
+// A peer whose `connection.local.ip` is absent or `auto` lets the kernel pick
+// the source address, so there is no address this operation waits for. An
+// entry naming no address would be refused by ValidateOperations, and it is
+// the operation that must not carry one rather than the check that must
+// tolerate it (ai/rules/principles.md).
+func peerAddressConsumes(localAddress string) []configtx.ResourceRef {
+	if localAddress == "" {
+		return nil
+	}
+	return []configtx.ResourceRef{{Kind: configtx.ResourceAddress, Address: localAddress}}
 }
 
 func bgpModifyPeerOperation(name, localAddress string, config, oldConfig json.RawMessage) configtx.ConfigOperation {
 	return configtx.ConfigOperation{
-		ID:    "bgp-modify-peer-" + sanitizeBGPOperationID(name),
-		Root:  configRootBGP,
-		Owner: pluginNameBGP,
-		Type:  configop.ModifyPeer,
-		Verb:  configtx.VerbModify,
-		Target: configtx.ResourceRef{
-			Kind:    configtx.ResourcePeer,
-			Peer:    name,
-			Address: localAddress,
-		},
+		ID:     "bgp-modify-peer-" + sanitizeBGPOperationID(name),
+		Root:   configRootBGP,
+		Owner:  pluginNameBGP,
+		Type:   configop.ModifyPeer,
+		Verb:   configtx.VerbModify,
+		Target: peerResource(name, localAddress),
+		// A modify keeps the session it changes, so it produces the peer as
+		// the create does. It still binds the local address, which is what
+		// puts it after that address where one transaction moves the address
+		// and changes the peer.
+		Produces: []configtx.ResourceRef{{Kind: configtx.ResourcePeer, Peer: name}},
+		Consumes: peerAddressConsumes(localAddress),
 		Params: configtx.ConfigOperationParams{
 			Peer:      name,
 			Address:   localAddress,

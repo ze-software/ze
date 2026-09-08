@@ -193,12 +193,12 @@ func waitDecomposeAck(ctx context.Context, pluginName, root string, okCh, failed
 // plugin did not declare, one that declares no verb, and one carrying the
 // section-apply label.
 //
-// The verb is refused here, at the planner, so a plugin process that sends a
-// payload with no verb is named in the error and nothing it emitted reaches
-// the graph. The orchestrator refuses the same operation again when the plan
-// comes back, because it accepts a plan from any installed planner and a value
-// that cannot be ordered must not be reachable through either door
-// (ai/rules/principles.md).
+// A missing verb and a resource entry naming nothing are both refused here, at
+// the planner, so a plugin process that sends either is named in the error and
+// nothing it emitted reaches the graph. The orchestrator refuses the same
+// operation again when the plan comes back, because it accepts a plan from any
+// installed planner and a value that cannot be ordered must not be reachable
+// through either door (ai/rules/principles.md).
 //
 // The section-apply label belongs to the coarse node the orchestrator
 // synthesizes for a participant with no operations, and the executor routes it
@@ -206,7 +206,7 @@ func waitDecomposeAck(ctx context.Context, pluginName, root string, okCh, failed
 // declared and emitted it would have its whole section applied under an
 // operation's name, in the position the graph gave that operation.
 func validateOperationDeclarations(participants []transaction.Participant, operations []transaction.ConfigOperation) error {
-	if err := transaction.ValidateOperationVerbs(operations); err != nil {
+	if err := transaction.ValidateOperations(operations); err != nil {
 		return err
 	}
 	for i := range operations {

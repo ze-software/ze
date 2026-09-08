@@ -25,13 +25,10 @@ import (
 // engine never compares one. It orders by the verb and the target kind that
 // each operation below also carries.
 const (
-	operationAddInterface       sdk.ConfigOperationType = "add-interface"
-	operationRemoveInterface    sdk.ConfigOperationType = "remove-interface"
-	operationAddAddress         sdk.ConfigOperationType = "add-address"
-	operationRemoveAddress      sdk.ConfigOperationType = "remove-address"
-	operationAddBridgeMember    sdk.ConfigOperationType = "add-bridge-member"
-	operationRemoveBridgeMember sdk.ConfigOperationType = "remove-bridge-member"
-	operationAddTunnel          sdk.ConfigOperationType = "add-tunnel"
+	operationAddInterface    sdk.ConfigOperationType = "add-interface"
+	operationRemoveInterface sdk.ConfigOperationType = "remove-interface"
+	operationAddAddress      sdk.ConfigOperationType = "add-address"
+	operationRemoveAddress   sdk.ConfigOperationType = "remove-address"
 )
 
 func init() {
@@ -39,22 +36,14 @@ func init() {
 		slog.Error("register iface operation decomposer", "error", err)
 		panic("BUG: register iface operation decomposer failed")
 	}
-	if err := tx.RegisterConstraintRule(tx.ConstraintRule{
-		ID:       "iface-add-interface-before-address",
-		Before:   tx.OperationSelector{Type: operationAddInterface, ResourceKind: tx.ResourceInterface},
-		After:    tx.OperationSelector{Type: operationAddAddress, ResourceKind: tx.ResourceAddress},
-		Relation: tx.ResourceRelationInterfaceAddress,
-	}); err != nil {
-		slog.Error("register iface constraint rule", "error", err)
-	}
-	if err := tx.RegisterConstraintRule(tx.ConstraintRule{
-		ID:       "iface-remove-address-before-interface",
-		Before:   tx.OperationSelector{Type: operationRemoveAddress, ResourceKind: tx.ResourceAddress},
-		After:    tx.OperationSelector{Type: operationRemoveInterface, ResourceKind: tx.ResourceInterface},
-		Relation: tx.ResourceRelationInterfaceAddress,
-	}); err != nil {
-		slog.Error("register iface constraint rule", "error", err)
-	}
+	// Two rules survive, and each states a fact about two operations over
+	// DIFFERENT resources, which is what no produce and consume pair can
+	// carry. One address leaves its old interface before it arrives on the
+	// new one, and an interface is never left with no address at all.
+	//
+	// The five rules that stated a produce and consume fact are gone. Each
+	// operation below declares what it owns and what it needs instead, and
+	// BuildOperationGraph derives their edges from the pair.
 	if err := tx.RegisterConstraintRule(tx.ConstraintRule{
 		ID:       "iface-remove-address-before-add-same-address",
 		Before:   tx.OperationSelector{Type: operationRemoveAddress, ResourceKind: tx.ResourceAddress},
@@ -67,7 +56,7 @@ func init() {
 		ID:       "iface-add-address-before-remove-same-interface",
 		Before:   tx.OperationSelector{Type: operationAddAddress, ResourceKind: tx.ResourceAddress},
 		After:    tx.OperationSelector{Type: operationRemoveAddress, ResourceKind: tx.ResourceAddress},
-		Relation: tx.ResourceRelationInterfaceAddress,
+		Relation: tx.ResourceRelationSameInterface,
 	}); err != nil {
 		slog.Error("register iface constraint rule", "error", err)
 	}
@@ -79,30 +68,6 @@ func init() {
 		Timeout:      5 * time.Second,
 	}); err != nil {
 		slog.Error("register iface settlement rule", "error", err)
-	}
-	if err := tx.RegisterConstraintRule(tx.ConstraintRule{
-		ID:       "iface-add-interface-before-tunnel",
-		Before:   tx.OperationSelector{Type: operationAddInterface, ResourceKind: tx.ResourceInterface},
-		After:    tx.OperationSelector{Type: operationAddTunnel, ResourceKind: tx.ResourceTunnel},
-		Relation: tx.ResourceRelationInterfaceAddress,
-	}); err != nil {
-		slog.Error("register iface constraint rule", "error", err)
-	}
-	if err := tx.RegisterConstraintRule(tx.ConstraintRule{
-		ID:       "iface-add-interface-before-bridge-member",
-		Before:   tx.OperationSelector{Type: operationAddInterface, ResourceKind: tx.ResourceInterface},
-		After:    tx.OperationSelector{Type: operationAddBridgeMember, ResourceKind: tx.ResourceBridgeMember},
-		Relation: tx.ResourceRelationInterfaceAddress,
-	}); err != nil {
-		slog.Error("register iface constraint rule", "error", err)
-	}
-	if err := tx.RegisterConstraintRule(tx.ConstraintRule{
-		ID:       "iface-remove-bridge-member-before-interface",
-		Before:   tx.OperationSelector{Type: operationRemoveBridgeMember, ResourceKind: tx.ResourceBridgeMember},
-		After:    tx.OperationSelector{Type: operationRemoveInterface, ResourceKind: tx.ResourceInterface},
-		Relation: tx.ResourceRelationInterfaceAddress,
-	}); err != nil {
-		slog.Error("register iface constraint rule", "error", err)
 	}
 	if err := tx.RegisterSettlementRule(tx.SettlementRule{
 		ID:           "iface-add-interface-settles-created",
@@ -221,7 +186,13 @@ func ifaceAddressOperation(opType tx.ConfigOperationType, ifaceName, cidr string
 			Interface: ifaceName,
 			Address:   cidr,
 		},
-		Params: tx.ConfigOperationParams{Interface: ifaceName, CIDR: cidr},
+		// The address is what this operation owns, and the interface is what
+		// it needs somebody else to have made. Declaring both is what orders
+		// this operation against the interface it sits on and against every
+		// root that binds the address, with no rule naming either side.
+		Produces: []tx.ResourceRef{{Kind: tx.ResourceAddress, Address: cidr}},
+		Consumes: []tx.ResourceRef{{Kind: tx.ResourceInterface, Name: ifaceName}},
+		Params:   tx.ConfigOperationParams{Interface: ifaceName, CIDR: cidr},
 	}
 }
 
@@ -242,7 +213,11 @@ func ifaceInterfaceOperation(opType tx.ConfigOperationType, ifaceName, ifaceType
 			Kind: tx.ResourceInterface,
 			Name: ifaceName,
 		},
-		Params: tx.ConfigOperationParams{Name: ifaceName, Property: ifaceType},
+		// The interface is what this operation owns. A create runs before
+		// every operation that consumes it, and a destroy runs after every
+		// destroy that does.
+		Produces: []tx.ResourceRef{{Kind: tx.ResourceInterface, Name: ifaceName}},
+		Params:   tx.ConfigOperationParams{Name: ifaceName, Property: ifaceType},
 	}
 }
 

@@ -25,8 +25,26 @@ type OperationGraph struct {
 	out        map[string][]OperationEdge
 }
 
-// BuildOperationGraph applies data constraint rules to operations and returns
-// the dependency graph used by the solver.
+// The two derived orderings, named on the edge they produce so an abort
+// message says which one holds an operation back.
+const (
+	edgeProduceBeforeConsume = "derived-produce-before-consume"
+	edgeConsumeBeforeDestroy = "derived-consume-before-destroy"
+)
+
+// BuildOperationGraph orders operations two ways and returns the dependency
+// graph the solver reads.
+//
+// Most edges are DERIVED: every operation declares the resources it produces
+// and the resources it consumes, and one edge falls out of each producer and
+// consumer pair over the same resource identity. A root joins the ordering by
+// declaring those sets, so no component registers a rule naming another
+// component's operation labels (ai/rules/principles.md).
+//
+// A constraint rule states what no produce and consume pair can state: address
+// uniqueness across interfaces, and make-before-break within one interface are
+// both facts about two operations over DIFFERENT resources, which the
+// derivation has no pair to hang an edge on.
 func BuildOperationGraph(ops []ConfigOperation, rules []ConstraintRule) (*OperationGraph, error) {
 	graph := &OperationGraph{
 		operations: make([]ConfigOperation, 0, len(ops)),
@@ -60,19 +78,103 @@ func BuildOperationGraph(ops []ConfigOperation, rules []ConstraintRule) (*Operat
 				if !operationsRelated(before, after, rule.Relation) {
 					continue
 				}
-				var tb textbuf.Buffer
-				key := tb.Str(before.ID).Byte(0).Str(after.ID).String()
-				if _, exists := seenEdge[key]; exists {
-					continue
-				}
-				seenEdge[key] = struct{}{}
-				edge := OperationEdge{FromID: before.ID, ToID: after.ID, RuleID: rule.ID}
-				graph.edges = append(graph.edges, edge)
-				graph.out[before.ID] = append(graph.out[before.ID], edge)
+				graph.addEdge(before.ID, after.ID, rule.ID, seenEdge)
 			}
 		}
 	}
+	graph.addDerivedEdges(ops, seenEdge)
 	return graph, nil
+}
+
+// addEdge records one dependency edge, ignoring a pair another rule already
+// produced. The edge order is what the solver's queue order follows, so this
+// is called in operation order and never from a map walk.
+func (g *OperationGraph) addEdge(fromID, toID, ruleID string, seenEdge map[string]struct{}) {
+	var tb textbuf.Buffer
+	key := tb.Str(fromID).Byte(0).Str(toID).String()
+	if _, exists := seenEdge[key]; exists {
+		return
+	}
+	seenEdge[key] = struct{}{}
+	edge := OperationEdge{FromID: fromID, ToID: toID, RuleID: ruleID}
+	g.edges = append(g.edges, edge)
+	g.out[fromID] = append(g.out[fromID], edge)
+}
+
+// addDerivedEdges adds one edge for every producer and consumer pair sharing a
+// resource identity. The verbs decide the direction, and the two directions
+// mirror each other:
+//
+//   - A create makes its resource available, so it runs BEFORE every operation
+//     that consumes the resource. A consumer that destroys is excluded: it needs
+//     the resource to still exist, never to have just been created, and an edge
+//     to it would order a teardown behind an unrelated creation.
+//   - A destroy takes the resource away, so every destroy that consumes the
+//     resource runs BEFORE it. That keeps an address alive until the last peer
+//     bound to it is gone.
+//
+// A modify neither creates nor destroys, so it produces no edge of its own. It
+// still consumes, which is what puts a modification after the create of what it
+// binds.
+//
+// An entry with no identity matches nothing. ValidateOperations refuses one
+// before a transaction reaches this point, and the check is repeated here
+// because a blank entry that matched every resource is the reachable silently
+// wrong value ai/rules/principles.md bans.
+func (g *OperationGraph) addDerivedEdges(ops []ConfigOperation, seenEdge map[string]struct{}) {
+	producers := indexResourceRefs(ops, func(op *ConfigOperation) []ResourceRef { return op.Produces })
+	consumers := indexResourceRefs(ops, func(op *ConfigOperation) []ResourceRef { return op.Consumes })
+
+	for i := range ops {
+		from := &ops[i]
+		switch from.Verb {
+		case VerbCreate:
+			for k := range from.Produces {
+				identity := resourceIdentity(&from.Produces[k])
+				for _, j := range consumers[identity] {
+					if j == i || ops[j].Verb == VerbDestroy {
+						continue
+					}
+					g.addEdge(from.ID, ops[j].ID, edgeProduceBeforeConsume, seenEdge)
+				}
+			}
+		case VerbDestroy:
+			for k := range from.Consumes {
+				identity := resourceIdentity(&from.Consumes[k])
+				for _, j := range producers[identity] {
+					if j == i || ops[j].Verb != VerbDestroy {
+						continue
+					}
+					g.addEdge(from.ID, ops[j].ID, edgeConsumeBeforeDestroy, seenEdge)
+				}
+			}
+		case VerbModify:
+			// A modify makes no resource and takes none away, so it starts no
+			// edge. It is reached as the far end of a create's edge, through
+			// what it consumes.
+		}
+	}
+}
+
+// indexResourceRefs groups operation indexes by the identity of the resources
+// refs(op) names. Indexes stay in operation order, so the edges a walk of this
+// index produces are ordered by the operations rather than by a map.
+//
+// An entry with no identity never enters the index, so a lookup for one finds
+// nothing. That is where the blank entry is stopped from matching everything.
+func indexResourceRefs(ops []ConfigOperation, refs func(*ConfigOperation) []ResourceRef) map[string][]int {
+	index := make(map[string][]int, len(ops))
+	for i := range ops {
+		list := refs(&ops[i])
+		for k := range list {
+			identity := resourceIdentity(&list[k])
+			if identity == "" {
+				continue
+			}
+			index[identity] = append(index[identity], i)
+		}
+	}
+	return index
 }
 
 // HasEdge reports whether the graph contains a dependency edge from -> to.
@@ -106,12 +208,9 @@ func operationsRelated(before, after *ConfigOperation, relation ResourceRelation
 		left := resourceKey(before)
 		right := resourceKey(after)
 		return left != "" && left == right
-	case ResourceRelationInterfaceAddress:
-		iface := opIfaceName(before)
-		addrIface := opAddrIface(after)
-		return iface != "" && iface == addrIface
-	case ResourceRelationAddressUsedBy:
-		return addrMatchesUse(before, after)
+	case ResourceRelationSameInterface:
+		iface := opInterface(before)
+		return iface != "" && iface == opInterface(after)
 	case ResourceRelationSameAddress:
 		return opAddr(before) != "" && opAddr(before) == opAddr(after)
 	default:
@@ -119,20 +218,56 @@ func operationsRelated(before, after *ConfigOperation, relation ResourceRelation
 	}
 }
 
-func addrMatchesUse(left, right *ConfigOperation) bool {
-	if left.Target.Kind == ResourceAddress {
-		addr := opAddr(left)
-		used := usedAddr(right)
-		return addr != "" && addr == used
+// resourceIdentity is the key one operation's Produces entry and another's
+// Consumes entry are matched on. Two entries name one resource when their
+// identities are equal.
+//
+// An entry that carries no identifying value has an EMPTY identity, and an
+// empty identity matches nothing. An operation crosses a JSON boundary from a
+// plugin process, so a blank entry that matched every resource would let a
+// hostile plugin order itself against the whole transaction
+// (ai/rules/principles.md).
+//
+// An address is identified by its IP alone. The prefix length is a property of
+// the address rather than part of its name, and the interface is where the
+// address lives rather than what it is: a peer that binds 192.0.2.1 says so
+// without knowing which interface carries it, and the box holds that address
+// once, which is what the surviving uniqueness rule says.
+//
+// A kind this package does not name still gets an identity, through the
+// default branch, so a root can declare a resource nothing here has heard of.
+func resourceIdentity(ref *ResourceRef) string {
+	var tb textbuf.Buffer
+	switch ref.Kind {
+	case ResourceInterface:
+		return identityKey(&tb, ref.Kind, firstNonEmpty(ref.Name, ref.Interface))
+	case ResourceAddress:
+		return identityKey(&tb, ref.Kind, normalizeAddress(ref.Address))
+	case ResourcePeer:
+		return identityKey(&tb, ref.Kind, ref.Peer)
+	case ResourceListener:
+		if ref.Address == "" {
+			return ""
+		}
+		return tb.Str(string(ref.Kind)).Byte(':').Str(normalizeAddress(ref.Address)).Byte(':').Uint16(ref.Port).String()
+	case ResourceStaticRoute:
+		if ref.Prefix == "" {
+			return ""
+		}
+		return tb.Str(string(ref.Kind)).Byte(':').Str(ref.Prefix).Byte(':').Str(normalizeAddress(ref.NextHop)).String()
+	default:
+		return identityKey(&tb, ref.Kind, firstNonEmpty(ref.Name, ref.Interface, ref.Address, ref.Peer, ref.Prefix))
 	}
-	if right.Target.Kind == ResourceAddress {
-		addr := opAddr(right)
-		used := usedAddr(left)
-		return addr != "" && addr == used
+}
+
+// identityKey joins a kind and the value that names one resource of that kind.
+// It answers "" for a ref with no kind or no value, which is how an
+// unidentified entry stops matching.
+func identityKey(tb *textbuf.Buffer, kind ResourceKind, value string) string {
+	if kind == "" || value == "" {
+		return ""
 	}
-	leftAddr := usedAddr(left)
-	rightAddr := usedAddr(right)
-	return leftAddr != "" && leftAddr == rightAddr
+	return tb.Str(string(kind)).Byte(':').Str(value).String()
 }
 
 func resourceKey(op *ConfigOperation) string {
@@ -145,7 +280,7 @@ func resourceKey(op *ConfigOperation) string {
 	case ResourcePeer:
 		return tb.Str(string(ResourcePeer)).Byte(':').Str(firstNonEmpty(op.Target.Peer, op.Params.Peer)).String()
 	case ResourceListener:
-		return tb.Str(string(ResourceListener)).Byte(':').Str(normalizeAddress(firstNonEmpty(op.Target.Address, op.Params.Address))).Byte(':').Str(fmt.Sprint(firstNonZeroUint16(op.Target.Port, op.Params.Port))).String()
+		return tb.Str(string(ResourceListener)).Byte(':').Str(normalizeAddress(firstNonEmpty(op.Target.Address, op.Params.Address))).Byte(':').Uint16(firstNonZeroUint16(op.Target.Port, op.Params.Port)).String()
 	case ResourceStaticRoute:
 		return tb.Str(string(ResourceStaticRoute)).Byte(':').Str(firstNonEmpty(op.Target.Prefix, op.Params.Prefix)).Byte(':').Str(normalizeAddress(firstNonEmpty(op.Target.NextHop, op.Params.NextHop))).String()
 	default:
@@ -163,10 +298,6 @@ func opAddrIface(op *ConfigOperation) string {
 
 func opAddr(op *ConfigOperation) string {
 	return normalizeAddress(firstNonEmpty(op.Target.Address, op.Params.CIDR, op.Params.Address))
-}
-
-func usedAddr(op *ConfigOperation) string {
-	return normalizeAddress(firstNonEmpty(op.Params.Address, op.Target.Address, op.Params.CIDR))
 }
 
 func normalizeAddress(value string) string {

@@ -63,23 +63,54 @@ func IsSectionApply(op *ConfigOperation) bool {
 // dependencies of a modification.
 var ErrOperationNoVerb = errors.New("config operation declares no verb")
 
-// ValidateOperationVerbs refuses the first operation carrying no verb, naming
-// the plugin that emitted it, its config root and the operation id. The error
-// names no parameter: those carry config values, keys among them.
+// ErrOperationBlankResource reports a Produces or Consumes entry that names no
+// resource. It is refused rather than ignored: the entry is a claim about what
+// the operation needs, and an operation whose claim cannot be read is ordered
+// against nothing at all.
+var ErrOperationBlankResource = errors.New("config operation declares a resource with no identity")
+
+// ValidateOperations refuses the first operation the engine cannot order,
+// naming the plugin that emitted it, its config root and the operation id. The
+// error names no parameter and no resource value: those carry config, keys
+// among them.
+//
+// Two refusals, and both are about a value the engine would otherwise read as
+// permission: an operation with no verb, and a Produces or Consumes entry
+// naming no resource. An operation arrives from a plugin process over JSON, so
+// both are attacker-influenced when a plugin is hostile, and a blank entry that
+// matched every resource would order that plugin against the whole transaction.
 //
 // The coarse section-apply node the orchestrator synthesizes is exempt. It
 // stands for a whole participant section rather than one resource, so it has
 // no verb to declare and no edge to earn from one.
-func ValidateOperationVerbs(operations []ConfigOperation) error {
+func ValidateOperations(operations []ConfigOperation) error {
 	for i := range operations {
 		op := &operations[i]
 		if IsSectionApply(op) {
 			continue
 		}
-		if op.Verb != "" {
+		if op.Verb == "" {
+			return fmt.Errorf("%w: plugin %s, root %s, operation %s", ErrOperationNoVerb, op.Owner, op.Root, op.ID)
+		}
+		if err := validateResourceRefs(op, op.Produces, "produces"); err != nil {
+			return err
+		}
+		if err := validateResourceRefs(op, op.Consumes, "consumes"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateResourceRefs refuses the first entry of one declaration whose
+// identity is empty, naming the declaration and the position rather than the
+// entry's own values.
+func validateResourceRefs(op *ConfigOperation, refs []ResourceRef, declaration string) error {
+	for i := range refs {
+		if resourceIdentity(&refs[i]) != "" {
 			continue
 		}
-		return fmt.Errorf("%w: plugin %s, root %s, operation %s", ErrOperationNoVerb, op.Owner, op.Root, op.ID)
+		return fmt.Errorf("%w: plugin %s, root %s, operation %s, %s entry %d", ErrOperationBlankResource, op.Owner, op.Root, op.ID, declaration, i)
 	}
 	return nil
 }
@@ -121,14 +152,19 @@ type OperationSelector struct {
 
 // ResourceRelation describes when two selector-matched operations are related
 // enough for a constraint rule to produce an edge.
+//
+// No relation here states that one operation produces what the other consumes.
+// That fact is DECLARED by the operations themselves, in Produces and Consumes,
+// and the graph derives its edge from the pair (BuildOperationGraph). A rule
+// carries what a pair cannot: a fact about two operations over DIFFERENT
+// resources.
 type ResourceRelation string
 
 const (
-	ResourceRelationAny              ResourceRelation = ""
-	ResourceRelationSameResource     ResourceRelation = "same-resource"
-	ResourceRelationInterfaceAddress ResourceRelation = "interface-address"
-	ResourceRelationAddressUsedBy    ResourceRelation = "address-used-by"
-	ResourceRelationSameAddress      ResourceRelation = "same-address"
+	ResourceRelationAny           ResourceRelation = ""
+	ResourceRelationSameResource  ResourceRelation = "same-resource"
+	ResourceRelationSameInterface ResourceRelation = "same-interface"
+	ResourceRelationSameAddress   ResourceRelation = "same-address"
 )
 
 // ConstraintRule is a data rule that produces an ordering edge when both

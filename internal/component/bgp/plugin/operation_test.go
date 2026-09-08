@@ -2,9 +2,10 @@ package plugin
 
 import (
 	"context"
-	"github.com/ze-software/ze/internal/core/bgp/configop"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/bgp/configop"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -132,42 +133,81 @@ func TestBGPOperationDecomposerNoPeerChangesFallsBack(t *testing.T) {
 	assert.Empty(t, ops)
 }
 
-// TestBGPConstraintRulesOrderPeerAgainstAddress verifies BGP registers its
-// address dependency rules as data consumed by the generic graph builder.
-//
-// VALIDATES: ADD_ADDRESS -> ADD_PEER and REMOVE_PEER -> REMOVE_ADDRESS edges are registry rules.
-// PREVENTS: hardcoded BGP ordering logic in the transaction graph solver.
-func TestBGPConstraintRulesOrderPeerAgainstAddress(t *testing.T) {
-	ops := []tx.ConfigOperation{
-		{ID: "addr-add", Type: operationAddAddress, Target: tx.ResourceRef{Kind: tx.ResourceAddress, Interface: "dum0", Address: "192.0.2.2/32"}},
-		{ID: "peer-add", Type: configop.AddPeer, Target: tx.ResourceRef{Kind: tx.ResourcePeer, Peer: "edge"}, Params: tx.ConfigOperationParams{Address: "192.0.2.2"}},
-		{ID: "peer-remove", Type: configop.RemovePeer, Target: tx.ResourceRef{Kind: tx.ResourcePeer, Peer: "edge"}, Params: tx.ConfigOperationParams{Address: "192.0.2.1"}},
-		{ID: "addr-remove", Type: operationRemoveAddress, Target: tx.ResourceRef{Kind: tx.ResourceAddress, Interface: "dum0", Address: "192.0.2.1/32"}},
+// The `interface` root's address operations, as this test needs them to stand
+// beside the peer operations in one graph. The labels are the interface root's
+// own and this package no longer names them: the four rules that had to spell
+// another root's vocabulary are deleted, and the ordering comes from the
+// address these operations produce and the peer operations consume.
+func testAddressOperation(id string, verb tx.OperationVerb, ifaceName, cidr string) tx.ConfigOperation {
+	label := tx.ConfigOperationType("add-address")
+	if verb == tx.VerbDestroy {
+		label = "remove-address"
 	}
-
-	graph, err := tx.BuildOperationGraph(ops, tx.ConstraintRules())
-	require.NoError(t, err)
-	assert.True(t, graph.HasEdge("addr-add", "peer-add"), "new local address must exist before adding peer")
-	assert.True(t, graph.HasEdge("peer-remove", "addr-remove"), "peer must be removed before deleting its local address")
+	return tx.ConfigOperation{
+		ID: id, Root: "interface", Owner: "interface", Type: label, Verb: verb,
+		Target:   tx.ResourceRef{Kind: tx.ResourceAddress, Interface: ifaceName, Address: cidr},
+		Produces: []tx.ResourceRef{{Kind: tx.ResourceAddress, Address: cidr}},
+		Consumes: []tx.ResourceRef{{Kind: tx.ResourceInterface, Name: ifaceName}},
+	}
 }
 
-// TestBGPListenerConstraintRules verifies BGP registers O6 and O7 listener
-// ordering rules as data consumed by the generic graph builder.
+// TestBGPOperationsDeclareConsumeAddress verifies that a peer operation
+// declares the local address it binds, and that the declaration is what orders
+// it against the address operations of the `interface` root.
 //
-// VALIDATES: ADD_ADDRESS -> ADD_LISTENER and REMOVE_LISTENER -> REMOVE_ADDRESS edges are registry rules.
-// PREVENTS: future listener operations executing without address ordering constraints.
-func TestBGPListenerConstraintRules(t *testing.T) {
+// This replaces TestBGPConstraintRulesOrderPeerAgainstAddress, which asserted
+// the same two edges over the two constraint rules this spec deleted. The
+// edges are unchanged. What produces them is the pair of declarations, so this
+// root registers no rule at all.
+//
+// VALIDATES: add-address -> add-peer and remove-peer -> remove-address, derived from Consumes.
+// PREVENTS: a peer started before its local address exists, or an address removed under a live session.
+func TestBGPOperationsDeclareConsumeAddress(t *testing.T) {
+	addPeer := bgpPeerOperation(configop.AddPeer, "edge", "192.0.2.2", nil, nil)
+	removePeer := bgpPeerOperation(configop.RemovePeer, "edge-old", "192.0.2.1", nil, nil)
+	modifyPeer := bgpModifyPeerOperation("edge-same", "192.0.2.3", nil, nil)
+
+	for _, op := range []tx.ConfigOperation{addPeer, removePeer, modifyPeer} {
+		assert.Equal(t, []tx.ResourceRef{{Kind: tx.ResourceAddress, Address: op.Params.Address}}, op.Consumes,
+			"%s binds a local address, so it declares it", op.ID)
+		assert.Equal(t, []tx.ResourceRef{{Kind: tx.ResourcePeer, Peer: op.Params.Peer}}, op.Produces,
+			"%s owns the session it names", op.ID)
+	}
+
+	assert.Nil(t, bgpPeerOperation(configop.AddPeer, "auto", "", nil, nil).Consumes,
+		"a peer that lets the kernel pick its source address waits for no address, and declares no entry rather than a blank one")
+
 	ops := []tx.ConfigOperation{
-		{ID: "addr-add", Type: operationAddAddress, Target: tx.ResourceRef{Kind: tx.ResourceAddress, Interface: "dum0", Address: "192.0.2.2/32"}},
-		{ID: "listener-add", Type: configop.AddListener, Target: tx.ResourceRef{Kind: tx.ResourceListener, Address: "192.0.2.2", Port: 179}},
-		{ID: "listener-remove", Type: configop.RemoveListener, Target: tx.ResourceRef{Kind: tx.ResourceListener, Address: "192.0.2.1", Port: 179}},
-		{ID: "addr-remove", Type: operationRemoveAddress, Target: tx.ResourceRef{Kind: tx.ResourceAddress, Interface: "dum0", Address: "192.0.2.1/32"}},
+		testAddressOperation("addr-add", tx.VerbCreate, "dum0", "192.0.2.2/32"),
+		addPeer,
+		removePeer,
+		testAddressOperation("addr-remove", tx.VerbDestroy, "dum0", "192.0.2.1/32"),
 	}
 
 	graph, err := tx.BuildOperationGraph(ops, tx.ConstraintRules())
 	require.NoError(t, err)
-	assert.True(t, graph.HasEdge("addr-add", "listener-add"), "address must exist before starting listener")
-	assert.True(t, graph.HasEdge("listener-remove", "addr-remove"), "listener must stop before removing address")
+	assert.True(t, graph.HasEdge("addr-add", addPeer.ID), "new local address must exist before adding peer")
+	assert.True(t, graph.HasEdge(removePeer.ID, "addr-remove"), "peer must be removed before deleting its local address")
+}
+
+// TestBGPOperationsOrderAgainstAnAddressOnAnyInterface verifies that a peer is
+// ordered against its address wherever that address sits, because an address is
+// identified by its IP and never by the device carrying it.
+//
+// VALIDATES: the derived edge holds when the address moves to another interface.
+// PREVENTS: an identity that includes the interface, which no peer knows.
+func TestBGPOperationsOrderAgainstAnAddressOnAnyInterface(t *testing.T) {
+	addPeer := bgpPeerOperation(configop.AddPeer, "edge", "192.0.2.2", nil, nil)
+
+	ops := []tx.ConfigOperation{
+		testAddressOperation("addr-add-elsewhere", tx.VerbCreate, "dum7", "192.0.2.2/24"),
+		addPeer,
+	}
+
+	graph, err := tx.BuildOperationGraph(ops, tx.ConstraintRules())
+	require.NoError(t, err)
+	assert.True(t, graph.HasEdge("addr-add-elsewhere", addPeer.ID),
+		"the peer binds 192.0.2.2 without knowing which device holds it, and the prefix length is no part of its name")
 }
 
 // TestBGPSettlementRulesWaitForListenerReady verifies BGP registers the

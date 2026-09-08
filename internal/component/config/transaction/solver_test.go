@@ -8,21 +8,24 @@ import (
 )
 
 // TestTopologicalSort verifies that the solver returns operations in an order
-// that respects graph edges produced by constraint rules.
+// that respects the graph edges, here the ones derived from what each
+// operation produces and consumes.
 //
-// VALIDATES: Topological sort respects ADD_INTERFACE -> ADD_ADDRESS -> ADD_PEER.
+// VALIDATES: Topological sort respects add-interface -> add-address -> add-peer.
 // PREVENTS: Executor receiving operation order based on input slice order.
 func TestTopologicalSort(t *testing.T) {
 	t.Parallel()
 
 	graph, err := BuildOperationGraph([]ConfigOperation{
-		{ID: "peer-add", Type: testOpAddPeer, Verb: VerbCreate, Target: ResourceRef{Kind: ResourcePeer, Peer: "203.0.113.1"}, Params: ConfigOperationParams{Address: "192.0.2.1"}},
-		{ID: "addr-add", Type: testOpAddAddress, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceAddress, Interface: "eth0", Address: "192.0.2.1"}},
-		{ID: "iface-add", Type: testOpAddInterface, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceInterface, Name: "eth0"}},
-	}, []ConstraintRule{
-		{ID: "O1", Before: OperationSelector{Type: testOpAddInterface, ResourceKind: ResourceInterface}, After: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationInterfaceAddress},
-		{ID: "O2", Before: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpAddPeer, ResourceKind: ResourcePeer}, Relation: ResourceRelationAddressUsedBy},
-	})
+		{ID: "peer-add", Type: testOpAddPeer, Verb: VerbCreate, Target: ResourceRef{Kind: ResourcePeer, Peer: "203.0.113.1"},
+			Consumes: []ResourceRef{{Kind: ResourceAddress, Address: "192.0.2.1"}},
+			Params:   ConfigOperationParams{Address: "192.0.2.1"}},
+		{ID: "addr-add", Type: testOpAddAddress, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceAddress, Interface: "eth0", Address: "192.0.2.1"},
+			Produces: []ResourceRef{{Kind: ResourceAddress, Address: "192.0.2.1"}},
+			Consumes: []ResourceRef{{Kind: ResourceInterface, Name: "eth0"}}},
+		{ID: "iface-add", Type: testOpAddInterface, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceInterface, Name: "eth0"},
+			Produces: []ResourceRef{{Kind: ResourceInterface, Name: "eth0"}}},
+	}, nil)
 	require.NoError(t, err)
 
 	sorted, err := TopologicalSort(graph)
@@ -73,7 +76,7 @@ func TestTopologicalSortCycleResolution(t *testing.T) {
 	}
 	rules := []ConstraintRule{
 		{ID: "R5-remove-before-add-same", Before: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameAddress},
-		{ID: "add-before-remove-same-iface", Before: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationInterfaceAddress},
+		{ID: "add-before-remove-same-iface", Before: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameInterface},
 	}
 
 	graph, err := BuildOperationGraph(ops, rules)
@@ -111,7 +114,7 @@ func TestTopologicalSortThreeWayRotation(t *testing.T) {
 	}
 	rules := []ConstraintRule{
 		{ID: "R5-remove-before-add-same", Before: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameAddress},
-		{ID: "add-before-remove-same-iface", Before: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationInterfaceAddress},
+		{ID: "add-before-remove-same-iface", Before: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameInterface},
 	}
 
 	graph, err := BuildOperationGraph(ops, rules)
@@ -188,7 +191,7 @@ func TestTopologicalSortRelaxesCycleByVerbAndKind(t *testing.T) {
 	}
 	rules := []ConstraintRule{
 		{ID: "release-before-bind-same-address", Before: OperationSelector{Type: releaseVIP, ResourceKind: ResourceAddress}, After: OperationSelector{Type: bindVIP, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameAddress},
-		{ID: "bind-before-release-same-iface", Before: OperationSelector{Type: bindVIP, ResourceKind: ResourceAddress}, After: OperationSelector{Type: releaseVIP, ResourceKind: ResourceAddress}, Relation: ResourceRelationInterfaceAddress},
+		{ID: "bind-before-release-same-iface", Before: OperationSelector{Type: bindVIP, ResourceKind: ResourceAddress}, After: OperationSelector{Type: releaseVIP, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameInterface},
 	}
 
 	graph, err := BuildOperationGraph(ops, rules)

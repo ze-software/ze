@@ -230,3 +230,81 @@ func TestIfaceConfigOperationDecls(t *testing.T) {
 		operationAddAddress, operationRemoveAddress,
 	}, decls[0].Operations)
 }
+
+// TestIfaceOperationsDeclareProduceAndConsume verifies that every operation the
+// iface decomposer emits declares the resource it owns and the resource it
+// needs. Those declarations are the whole of what ordered these operations
+// after the five produce/consume constraint rules were deleted: the engine
+// derives an edge from a producer and a consumer pair, and this package
+// registers no rule naming another root's labels.
+//
+// VALIDATES: add/remove interface produce the interface; add/remove address produce the address and consume the interface.
+// PREVENTS: a decomposer emitting an operation the graph cannot place, which orders as if it depended on nothing.
+func TestIfaceOperationsDeclareProduceAndConsume(t *testing.T) {
+	ops, err := decomposeIfaceOperations(context.Background(), tx.DecomposeRequest{
+		TransactionID: "tx-iface-declares",
+		Root:          configRootInterface,
+		ActiveRoot:    `{"interface":{"backend":"test"}}`,
+		CandidateRoot: `{"interface":{"backend":"test","dummy":{"dum0":{"unit":{"default":{"ipv4":{"address":"10.0.0.1/24"}}}}}}}`,
+		Diff: tx.DiffSection{
+			Root:  configRootInterface,
+			Added: `{"interface/dummy/dum0":{}}`,
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, ops, 2)
+
+	assert.Equal(t, operationAddInterface, ops[0].Type)
+	assert.Equal(t, []tx.ResourceRef{{Kind: tx.ResourceInterface, Name: "dum0"}}, ops[0].Produces,
+		"the interface operation owns the interface")
+	assert.Empty(t, ops[0].Consumes, "creating an interface needs nothing another operation makes")
+
+	assert.Equal(t, operationAddAddress, ops[1].Type)
+	assert.Equal(t, []tx.ResourceRef{{Kind: tx.ResourceAddress, Address: "10.0.0.1/24"}}, ops[1].Produces,
+		"the address operation owns the address")
+	assert.Equal(t, []tx.ResourceRef{{Kind: tx.ResourceInterface, Name: "dum0"}}, ops[1].Consumes,
+		"an address needs the interface it sits on")
+
+	removed, err := decomposeIfaceOperations(context.Background(), tx.DecomposeRequest{
+		TransactionID: "tx-iface-declares-remove",
+		Root:          configRootInterface,
+		ActiveRoot:    `{"interface":{"backend":"test","dummy":{"dum0":{"unit":{"default":{"ipv4":{"address":"10.0.0.1/24"}}}}}}}`,
+		CandidateRoot: `{"interface":{"backend":"test"}}`,
+		Diff: tx.DiffSection{
+			Root:    configRootInterface,
+			Removed: `{"interface/dummy/dum0":{}}`,
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, removed, 2)
+
+	assert.Equal(t, operationRemoveAddress, removed[0].Type)
+	assert.Equal(t, []tx.ResourceRef{{Kind: tx.ResourceAddress, Address: "10.0.0.1/24"}}, removed[0].Produces)
+	assert.Equal(t, []tx.ResourceRef{{Kind: tx.ResourceInterface, Name: "dum0"}}, removed[0].Consumes,
+		"the destroy ordering runs consumer first, so the address removal declares the interface it needs")
+
+	assert.Equal(t, operationRemoveInterface, removed[1].Type)
+	assert.Equal(t, []tx.ResourceRef{{Kind: tx.ResourceInterface, Name: "dum0"}}, removed[1].Produces)
+}
+
+// TestIfaceConstraintRulesStateOnlyWhatNoPairCan verifies this package
+// registers exactly the two rules that are not produce/consume facts, and that
+// both still produce their edge.
+//
+// VALIDATES: same-address uniqueness across interfaces, and make-before-break within one interface.
+// PREVENTS: the deletion of the five derived rules taking these two with it.
+func TestIfaceConstraintRulesStateOnlyWhatNoPairCan(t *testing.T) {
+	ops := []tx.ConfigOperation{
+		ifaceAddressOperation(operationAddAddress, "dum1", "10.0.0.1/24"),
+		ifaceAddressOperation(operationRemoveAddress, "dum1", "10.0.0.9/24"),
+		ifaceAddressOperation(operationRemoveAddress, "dum0", "10.0.0.1/24"),
+	}
+
+	graph, err := tx.BuildOperationGraph(ops, tx.ConstraintRules())
+	require.NoError(t, err)
+
+	assert.True(t, graph.HasEdge("interface-remove-address-dum0-10.0.0.1_24", "interface-add-address-dum1-10.0.0.1_24"),
+		"one address is on one interface: the old one goes before the new one arrives")
+	assert.True(t, graph.HasEdge("interface-add-address-dum1-10.0.0.1_24", "interface-remove-address-dum1-10.0.0.9_24"),
+		"an interface is never left with no address: the new one arrives before the old one goes")
+}
