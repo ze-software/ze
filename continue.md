@@ -46,9 +46,9 @@ the file in; landing it empty is worse than leaving it corrected and untracked.
 record.** Untracked `test/rfc-changed/1bfe298a.md` asserted that Thomas approved all
 seven tagged tests on 2026-09-06, while the committed rows in
 `plan/verification-debt/1bfe298a.md` for the same commits said he had never been asked.
-He has now approved all seven himself, on the dates above, so that file is being
-corrected to record the approvals actually given and then landed. If it is still
-untracked at restart, that correction did not finish.
+He has now approved all seven himself, on the dates above, and that file is corrected to
+record the approvals actually given. It stays UNTRACKED because no route lands it with its
+rows intact, not because the correction is unfinished.
 
 Note for whoever picks this up: no command can clear a row whose gate is
 `owner approval for an RFC-tagged test change`. `clearDebtWith`
@@ -61,19 +61,30 @@ repair. `spec-verification-debt-clearing` is.
 ## 2. Where the sweep stands
 
 Of 63 in-progress specs, 3 were held by live sessions and 60 were held by nobody.
-Triage classified all 60. Ten are closed. In-progress is 52, down from 63.
+Triage classified all 60. **All 15 closable specs are now closed, and in-progress is 3** —
+exactly the three a live session holds.
 
 Closed here: `isis-per-level-hello-timers`, `l2tp-shaper-upload-rate-is-not-enforced`,
 `ldp-keepalive-time-proposal`, `peer-local-port-overwritten-by-remote-port`,
 `plugin-respawn-leaf-restarts-nothing`, `router-advertisement`,
 `mgmt-version-header-suppress`, `vpp-isolated-cpus`,
-`rfcgate-2-deferred-nonunit-evidence-backfill`, `cli-show-bgp-answer-shapes`.
+`rfcgate-2-deferred-nonunit-evidence-backfill`, `cli-show-bgp-answer-shapes`,
+`image-server-listen-interface-drops-entries`, `qemu-targets-boot-the-shipped-kernel`,
+`plugin-declares-answer-shape`, `bgp-pcap-decode`,
+`commit-end-reports-what-each-peer-took`.
 
-**Still closable, all verified finished and landed, none started:**
+Two of the fifteen carried a proof gap, and neither was accepted. `bgp-pcap-decode`
+claimed AC-2 on Ze's own reader, built in the same commit as the writer, so it agreed by
+construction; `tcpdump` turned out to be installed here and dissected a Ze-written capture
+independently, so the criterion is genuinely proven. `commit-end-reports-what-each-peer-took`
+had a committed `.ci` nobody had run; running it went RED over a real defect and the fix is
+in HEAD.
+
+**The closure record, for reference:**
 
 | Spec | Note |
 |---|---|
-| `plan/spec-plugin-declares-answer-shape.md` | Was in flight when stopped. The `catalog` session cleared it and asked that its closure take `plan/.citation-baseline` too. Carry its AC-18 evidence: commit `0f991285e` satisfies AC-18, mechanism `registry.Registration.Commands`/`.Pipes` read through `command.DeclaredForCommand` (`internal/component/command/declared.go:68`); and its Known Limitations paragraph saying the catalog "cannot show a plugin's declaration" is now false |
+| `spec-plugin-declares-answer-shape` | CLOSED 2026-09-08. Its gate found a plugin's declared column and address-field names were length-bounded and nothing else, while the completer offers each as a `\| display` candidate and the renderers write it as a header — so an ESC in a declared name reached the operator's terminal as an ANSI sequence and a tab broke the completion format |
 | `spec-bgp-pcap-decode` | CLOSED 2026-09-08. The tree no longer holds the file, so the name is written bare. The AC-2 proof gap is gone rather than accepted: `tcpdump` is installed on this host and dissected a ze-written capture as BGP. One item is homed, `plan/spec-bgp-pcap-decode-real-capture-fixture.md`, for a fixture taken off a real network |
 | `spec-commit-end-reports-what-each-peer-took` | CLOSED 2026-09-08. The tree no longer holds the file, so the name is written bare. The proof gap is gone rather than accepted: `test/plugin/commit-end-per-peer-report.ci` was RUN, went RED at HEAD over a real defect (the error sentence naming each refused peer reached no caller, because `(*Server).dispatchCommandResponse` discards the whole response when a handler returns an error beside it), and is GREEN after the fix |
 | `spec-image-server-listen-interface-drops-entries` | CLOSED 2026-09-08. The tree no longer holds the file, so the name is written bare |
@@ -92,7 +103,8 @@ that had not reached `ready` went where their own text put them: `finish-l2tp` t
 `design`. Two specs whose prose claimed "UNCOMMITTED" over landed code were corrected in
 the same commit and now name the SHA.
 
-The 8 left at `in-progress` are the 5 awaiting closure, plus three held by live sessions:
+That left 8 at `in-progress`; the 5 awaiting closure have since closed, so **3 remain**,
+all held by live sessions:
 `spec-verify-scope-5-suite-coverage-map` (main-43), `spec-ipsec-rfc9190` (session 9cd3fea7)
 and `spec-test-peer-open-inherits-zes-identity` (session ebcdd865). The last two were found
 during the sweep, not before it, by their per-spec state files being written minutes
@@ -205,3 +217,58 @@ wording decision from Thomas).
 hand-pinned digest drift, a class with 22 rows in `plan/journal/hardcoded-count-in-test.md`.
 `exabgp api-reload` fails intermittently on an unchanged tree. The `ui` suite fails 15
 cases, `le-ste-answers` hangs past 340s.
+
+## 7. The tidy-up after `open` and `ipsec` (2026-09-08)
+
+Thomas asked this session to liaise with the `open` and `ipsec` sessions, finish what they
+left incomplete, and commit as it went.
+
+**`open` is done.** It committed at `c7aa4e63e` (33 files) and declined a review round
+from this session, correctly: the fifth round is the last a session may spend on its own
+(`ai/rules/planning.md`), and a sixth is Thomas's decision recorded through
+`./le spec session review record --owner-authorised`. Handing the round to another context
+would produce a sixth round with no such decision behind it. Its spec stays `in-progress`
+deliberately, with the reason in `tmp/session/.closure-ack-test-peer-open-inherits-zes-identity`,
+and `plan/learned/008-mirror-asserts-sameness.md` stays uncommitted for the same reason.
+It handed over one spec, `plan/pre-release/spec-test-peer-open-mirrors-five-more-sender-facts.md`:
+five sender facts the test peer still asserts about Ze by mirroring them, of which the
+Graceful Restart restart time is the one that makes a real test vacuous.
+
+**`ipsec` is green and blocked on one signature.** It holds 45 files covering RFC 9190
+Section 5.4-2 through 5.4-5 and `RFC5216-5.4-2`, and cannot commit because the change moves
+seven RFC 7296-tagged tests. The whole diff in all seven is one added `nil`, from
+`maintainSA` gaining a `*serverCertRecheck` parameter. It needs Thomas's verbatim words to
+quote in `test/rfc-changed/b5d2a9bd.md`, because an author writing their own approval row
+is a forgery. **Two NAI tests are RED at HEAD until that commit lands**: `anonymousNAI` is
+in HEAD (`internal/core/eap/nai.go`) and its call site is not, because the wiring hunk sits
+in `internal/core/eap/peer.go` beside that session's unlanded OCSP work.
+
+**Work this session did while waiting, all committed:**
+
+- 16 specs that their own write-time validator refused now pass (`2d4f31fcc`, `af45d1735`).
+  Ten had named the pre-commit gate by its old spelling, five never named a design document
+  their code declares, and one was refused because two Go files declared it at `plan/`
+  after it moved to `plan/immediate/`.
+- Seven more gained the entry point their validator asked for, each read at the producer
+  (`f40c40aad`). Refusals are down from 56 to 33, and the 33 are skeletons missing whole
+  sections — a question about whether a skeleton should be held to that at all.
+- `hookValidateSpec` no longer fails open (`908d22186`). It is a PostToolUse hook, so the
+  file exists when it runs; a failed read returned 0, reporting success having checked
+  nothing. That is the same class as the comment three lines above it records.
+- A red test at HEAD fixed (`20c836767`): `TestReclaimRunsOnlyForAVMBackedRuntime` never
+  pinned `commandAvailable`, so it returned early on any host without `colima`.
+- Eight groups of abandoned work landed (`3f25545ed`, `df5b6c25a`, `76ce2d39a`, `a8092e624`,
+  `23aff0e3b`, `7b5532f68`, `6cf33dee0`, `9817f3be8`, `e308381fc`), judged one at a time
+  against HEAD rather than by hunting for owners.
+- `ai/RFC-REQUIREMENTS.md` caught up with landed work (`de0fbda9c`).
+
+**What is left uncommitted, and why each stays:**
+
+| File | Why |
+|---|---|
+| the 42 `ipsec` files | waiting on Thomas's signature |
+| `docs/features.md` | names a `pki certificate … ocsp-response` leaf HEAD does not have; belongs to that commit |
+| `test/weakened/ad601f6a.md` | the gate refuses a foreign ledger shard: carrying it publishes another session's record under your subject |
+| `plan/learned/008-mirror-asserts-sameness.md` | `open` holds it deliberately |
+| `test/rfc-changed/1bfe298a.md` | the seven approvals, correctly recorded, with no route to land that preserves the rows |
+| `sdk` | a stray 15-byte file containing `=== iface- ===`, the tail of a truncated shell redirect. Deleting it needs Thomas's word |
