@@ -440,7 +440,63 @@ wearing a skip's clothing.
 | `drop-capability` | Remove a capability from ze-peer's OPEN response |
 | `add-capability` | Add a capability to ze-peer's OPEN response |
 | `router-id` | Send an explicit BGP Identifier instead of the mirrored one |
+| `hold-time` | State the Hold Time of the OPEN body (`seconds=<N>`) |
+| `graceful-restart` | State ze-peer's own Graceful Restart capability (`restart-time=<N>`, `family=`, `forward-state=`) |
+| `llgr` | State ze-peer's own Long-Lived Graceful Restart capability (`stale-time=<N>`, `family=`, `forward-state=`) |
+| `paths-limit` | State ze-peer's own PATHS-LIMIT entries (`family=`, `limit=<N>`) |
 <!-- source: internal/test/peer/expect.go -- parseOptionConfig; internal/test/peer/open.go -- buildOpen -->
+
+### Sender Facts (hold-time, graceful-restart, llgr, paths-limit)
+
+Each of these four values states a fact about ZE-PEER that a receiver acts on.
+They exist because a mirror asserts sameness: mirrored, each one made ze read its
+own configuration back out of the peer's OPEN and believe the peer had said it.
+
+```
+option=open:value=hold-time:seconds=<N>
+option=open:value=graceful-restart:restart-time=<N>[:family=<f>[,<f>]][:forward-state=true|false]
+option=open:value=llgr:stale-time=<N>[:family=<f>[,<f>]][:forward-state=true|false]
+option=open:value=paths-limit:family=<f>[,<f>]:limit=<N>
+```
+
+| Key | Range | What reads it |
+|-----|-------|---------------|
+| `seconds` | 0, or 3 to 65535 | `session_negotiate` takes the smaller of this and ze's `receive-hold-time`, then calls `timers.SetHoldTime`. RFC 4271 Section 4.2. 1 and 2 fail the file |
+| `restart-time` | 0 to 4095 | `grStateManager.onSessionDown` arms the restart timer on it, `runPeer` gives it to `startEORTimer`, and `show bgp peer` prints it. RFC 4724 Section 3 gives the field 12 bits |
+| `stale-time` | 0 to 16777215 | `enterLLGRLocked` arms one timer per family on it. RFC 9494 Section 3 gives the field 24 bits |
+| `limit` | 0 to 65535 | `CommitService.enforcePathsLimit` drops paths past it, so ze sends this peer no more than `limit` paths for one prefix |
+| `family` | a family name, or a comma-separated list | The `<AFI, SAFI, Flags>` tuples of code 64, the 7-octet tuples of code 71, and the entries of code 76 |
+| `forward-state` | `true` (default) or `false` | The F bit of every tuple. `onSessionReestablished` purges the stale routes of a family whose F bit is clear |
+
+**The families are what make graceful restart act at all.** RFC 4724 Section 3
+pairs the Restart Time with a tuple list, and `onSessionDown` builds its stale
+family set from that list and returns without dispatching anything when the set is
+empty. Ze's own code 64 carries the time and no tuples (`parseGRCapValue`), so
+until ze-peer owned the value, `retain-routes`, `mark-stale` and `purge-stale`
+were never dispatched in any test.
+
+**A file that states none of them gets the harness's own defaults, never ze's.**
+
+| Fact | Default |
+|------|---------|
+| Hold Time | 65535, the largest the two-octet field states. RFC 4271 Section 4.2 takes the smaller of the two, so the negotiated value stays ze's own and no existing test changes cadence. Only a `.ci` stating a smaller one opts in |
+| Restart Time | 300 seconds, longer than any functional test runs |
+| Long-Lived Stale Time | 600 seconds |
+| Max Paths | 65535, which bounds nothing |
+| Software version (code 75) | `ze-peer`. It has no option, because no session decision turns on it: `capability.Parse` holds no code-75 arm and the only reader is the offline `ze bgp decode` |
+| Families, for all three capabilities | the families ze-peer's own OPEN advertises, read from its Multiprotocol capabilities. An OPEN carrying none is an `ipv4/unicast` speaker (RFC 4760 Section 8) |
+
+Two refusals fail the file rather than dropping a line in silence:
+
+- Stating a fact AND `add-capability` or `drop-capability` for the same code. The
+  stated octets would win, and the typed line would be read, validated and then
+  lost.
+- Stating a fact for a capability **ze does not offer**. The capability SET
+  ze-peer sends mirrors ze's, so the value would have no place to go. Configure
+  ze to offer the capability, or drop the option.
+
+<!-- source: internal/test/peer/expect.go -- parseOpenHoldTime, parseGracefulRestartDecl, parseLLGRDecl, parsePathsLimitDecl -->
+<!-- source: internal/test/peer/open_capability.go -- ownedCapabilities, refuseUnofferedDeclarations -->
 
 ### BGP Identifier Control (router-id)
 
@@ -454,11 +510,11 @@ Ze-peer's default OPEN carries ze's own BGP Identifier with the last octet incre
 
 ### Capability Control (drop-capability / add-capability)
 
-Ze-peer mirrors the capability SET of ze's OPEN, so a `.ci` that says nothing about capabilities still negotiates whatever ze offers. It does NOT mirror the values that describe the SENDER. The AS, the BGP Identifier, the Role (code 9), the ADD-PATH directions (code 69) and the FQDN (code 73) are each resolved from the test's own configuration and written into ze-peer's OPEN, because a mirror asserts sameness and every one of those facts is about the speaker rather than about the session.
+Ze-peer mirrors the capability SET of ze's OPEN, so a `.ci` that says nothing about capabilities still negotiates whatever ze offers. It does NOT mirror the values that describe the SENDER. The AS, the BGP Identifier, the Hold Time, the Role (code 9), the Graceful Restart time, families and flags (code 64), the ADD-PATH directions (code 69), the Long-Lived Graceful Restart stale time and flags (code 71), the FQDN (code 73), the software version (code 75) and the PATHS-LIMIT entries (code 76) are each resolved from the test's own configuration and written into ze-peer's OPEN, because a mirror asserts sameness and every one of those facts is about the speaker rather than about the session. `ownedCapabilities` (`internal/test/peer/open_capability.go`) is the list: a code absent from it is mirrored by construction.
 
 The `drop-capability` and `add-capability` options act on that reconciled OPEN at wire level, allowing tests to control exactly which capabilities ze-peer advertises.
 
-**A capability the `.ci` states REPLACES the one ze-peer would have resolved.** An `add-capability` naming code 9, 65, 69 or 73 is sent as written and ze-peer adds no second capability of that code, so a file that drops a code and adds it back gets exactly what it asked for. Dropping code 65 removes the four-octet AS capability, which leaves the two-octet My Autonomous System field as the only carrier of the peer's AS: above 65535 that field can carry AS_TRANS alone, which is what RFC 6793 Section 3 defines for a speaker with no two-octet AS.
+**A capability the `.ci` states REPLACES the one ze-peer would have resolved.** An `add-capability` naming any resolved code -- 9, 64, 65, 69, 71, 73, 75 or 76 -- is sent as written and ze-peer adds no second capability of that code, so a file that drops a code and adds it back gets exactly what it asked for. Dropping code 65 removes the four-octet AS capability, which leaves the two-octet My Autonomous System field as the only carrier of the peer's AS: above 65535 that field can carry AS_TRANS alone, which is what RFC 6793 Section 3 defines for a speaker with no two-octet AS.
 
 **An `add-capability:code=65` carrying four octets IS the AS declaration, and the My Autonomous System field follows it.** It outranks `option=asn` and the derivation, because it names the octets that reach the wire and RFC 6793 Section 4.1 makes those the octets a receiver reads. Letting the header field come from anywhere else would put two ASNs in one OPEN, which is the disagreement ze answers with NOTIFICATION 2/2 Bad Peer AS. A stated code 65 of any OTHER length declares no AS: it is a malformed capability the test is driving on purpose, so it is sent as written and the header field keeps the AS the rest of the configuration resolved. That is the one case where the two carriers differ, and they differ because the `.ci` asked.
 

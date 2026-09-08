@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // zeOpenBody builds an OPEN body carrying one Capabilities Optional Parameter
@@ -97,7 +98,7 @@ func TestPeerOpenASReachesBothCarriers(t *testing.T) {
 	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000))
 	cfg := &Config{OpenAS: []OpenASBinding{{AS: 65010}}}
 
-	open, err := buildOpen(ze, openIdentity{as: 65010, routerID: 0x01020305}, cfg)
+	open, err := buildOpen(ze, newOpenIdentity(65010, 0x01020305), cfg)
 	require.NoError(t, err)
 
 	assert.Equal(t, uint16(65010), peerMyAS(open), "the My AS field carries the declared AS")
@@ -115,7 +116,7 @@ func TestPeerOpenASReachesBothCarriers(t *testing.T) {
 func TestPeerOpenFourOctetASUsesASTrans(t *testing.T) {
 	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000))
 
-	open, err := buildOpen(ze, openIdentity{as: 4200000000, routerID: 0x01020305}, &Config{})
+	open, err := buildOpen(ze, newOpenIdentity(4200000000, 0x01020305), &Config{})
 	require.NoError(t, err)
 
 	assert.Equal(t, uint16(asTrans), peerMyAS(open), "RFC 6793 Section 3 puts AS_TRANS in the My AS field")
@@ -134,7 +135,7 @@ func TestPeerOpenFourOctetASUsesASTrans(t *testing.T) {
 func TestPeerOpenFourOctetASAddsTheCapability(t *testing.T) {
 	ze := zeOpenBody(65000, 0x01020304, capTLV(byte(capability.CodeRouteRefresh)))
 
-	open, err := buildOpen(ze, openIdentity{as: 4200000000, routerID: 1}, &Config{})
+	open, err := buildOpen(ze, newOpenIdentity(4200000000, 1), &Config{})
 	require.NoError(t, err)
 
 	as, present := peerASN4(t, open)
@@ -152,7 +153,7 @@ func TestPeerOpenFourOctetASAddsTheCapability(t *testing.T) {
 func TestPeerOpenDefaultASMatchesZesExpectation(t *testing.T) {
 	ze := zeOpenBody(asTrans, 0x01020304, asn4TLV(4200000000))
 
-	open, err := buildOpen(ze, openIdentity{as: zeAdvertisedAS(ze), routerID: 1}, &Config{})
+	open, err := buildOpen(ze, newOpenIdentity(zeAdvertisedAS(ze), 1), &Config{})
 	require.NoError(t, err)
 
 	as, present := peerASN4(t, open)
@@ -201,7 +202,7 @@ func TestPeerOpenRoleIsComplementary(t *testing.T) {
 	for zeRole, want := range pairs {
 		ze := zeOpenBody(65000, 0x01020304, capTLV(byte(capability.CodeRole), zeRole))
 
-		open, err := buildOpen(ze, openIdentity{as: 65001, routerID: 1}, &Config{})
+		open, err := buildOpen(ze, newOpenIdentity(65001, 1), &Config{})
 		require.NoError(t, err)
 
 		role, present := peerRoleValue(t, open)
@@ -237,7 +238,7 @@ func TestPeerOpenExplicitRoleWins(t *testing.T) {
 		{Code: byte(capability.CodeRole), Value: []byte{4}, Add: true},
 	}}
 
-	open, err := buildOpen(ze, openIdentity{as: 65001, routerID: 1}, cfg)
+	open, err := buildOpen(ze, newOpenIdentity(65001, 1), cfg)
 	require.NoError(t, err)
 
 	roles := 0
@@ -335,7 +336,7 @@ func TestPeerOpenAddPathDirectionsInverted(t *testing.T) {
 	}
 	ze := zeOpenBody(65000, 0x01020304, capTLV(byte(capability.CodeAddPath), value...))
 
-	open, err := buildOpen(ze, openIdentity{as: 65001, routerID: 1}, &Config{})
+	open, err := buildOpen(ze, newOpenIdentity(65001, 1), &Config{})
 	require.NoError(t, err)
 
 	var addPath *capability.AddPath
@@ -362,7 +363,7 @@ func TestPeerOpenFQDNIsTheHarnessName(t *testing.T) {
 	fqdn.WriteTo(tlv, 0)
 	ze := zeOpenBody(65000, 0x01020304, tlv)
 
-	open, err := buildOpen(ze, openIdentity{as: 65001, routerID: 1}, &Config{})
+	open, err := buildOpen(ze, newOpenIdentity(65001, 1), &Config{})
 	require.NoError(t, err)
 
 	var answered *capability.FQDN
@@ -394,7 +395,7 @@ func TestPeerOpenReadsExtendedParameterFraming(t *testing.T) {
 	body = append(body, params...)
 
 	cfg := &Config{CapabilityOverrides: []CapabilityOverride{{Code: byte(capability.CodeRouteRefresh)}}}
-	open, err := buildOpen(body, openIdentity{as: 65001, routerID: 1}, cfg)
+	open, err := buildOpen(body, newOpenIdentity(65001, 1), cfg)
 	require.NoError(t, err)
 
 	caps := peerCaps(t, open)
@@ -419,7 +420,7 @@ func TestPeerOpenEmitsExtendedFramingAbove255(t *testing.T) {
 		{Code: 201, Value: make([]byte, 10), Add: true},
 	}}
 
-	open, err := buildOpen(ze, openIdentity{as: 65001, routerID: 1}, cfg)
+	open, err := buildOpen(ze, newOpenIdentity(65001, 1), cfg)
 	require.NoError(t, err)
 
 	body := open[HeaderLen:]
@@ -447,7 +448,7 @@ func TestPeerOpenPassThroughIsByteIdentical(t *testing.T) {
 	}
 	ze := zeOpenBody(65000, 0x01020304, caps...)
 
-	open, err := buildOpen(ze, openIdentity{as: 65000, routerID: 0x01020305}, &Config{})
+	open, err := buildOpen(ze, newOpenIdentity(65000, 0x01020305), &Config{})
 	require.NoError(t, err)
 
 	assert.Equal(t, ze[openBodyFixedLen:], open[HeaderLen+openBodyFixedLen:],
@@ -471,7 +472,7 @@ func TestPeerOpenCapabilityOverridesUnchanged(t *testing.T) {
 		{Code: byte(capability.CodeExtendedMessage), Add: true},
 	}}
 
-	open, err := buildOpen(ze, openIdentity{as: 65001, routerID: 1}, cfg)
+	open, err := buildOpen(ze, newOpenIdentity(65001, 1), cfg)
 	require.NoError(t, err)
 
 	var codes []capability.Code
@@ -493,7 +494,7 @@ func TestPeerOpenCapabilityOverridesUnchanged(t *testing.T) {
 func TestPeerOpenSendUnknownCapability(t *testing.T) {
 	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000))
 
-	open, err := buildOpen(ze, openIdentity{as: 65000, routerID: 1}, &Config{SendUnknownCapability: true})
+	open, err := buildOpen(ze, newOpenIdentity(65000, 1), &Config{SendUnknownCapability: true})
 	require.NoError(t, err)
 
 	var found *capability.Unknown
@@ -558,15 +559,358 @@ func TestPeerOpenRefusesAMessageAboveTheRFC4271Ceiling(t *testing.T) {
 	}
 	ze := zeExtendedOpenBody(65000, 0x01020304, caps...)
 
-	_, err := buildOpen(ze, openIdentity{as: 65001, routerID: 1}, &Config{})
+	_, err := buildOpen(ze, newOpenIdentity(65001, 1), &Config{})
 	require.Error(t, err, "an OPEN past the RFC 4271 ceiling must be refused, not truncated")
 	assert.Contains(t, err.Error(), "4096", "the error names the ceiling")
 
 	// One octet under it still builds, and its Length field states the truth.
 	caps = caps[:15]
 	ze = zeExtendedOpenBody(65000, 0x01020304, caps...)
-	open, err := buildOpen(ze, openIdentity{as: 65001, routerID: 1}, &Config{})
+	open, err := buildOpen(ze, newOpenIdentity(65001, 1), &Config{})
 	require.NoError(t, err)
 	assert.Equal(t, len(open), int(binary.BigEndian.Uint16(open[16:])),
 		"the header Length field states the whole message")
+}
+
+// peerCapValue is the raw Capability Value ze-peer's OPEN carries for one code,
+// and whether it carries the code at all.
+//
+// Codes 71 and 75 have no arm in capability.Parse, so peerCaps cannot see them:
+// the bgp-gr and softver plugins own those two and decode them themselves. This
+// reads the octets the way each plugin's decoder does.
+func peerCapValue(t *testing.T, open []byte, code byte) ([]byte, bool) {
+	t.Helper()
+	read, err := parseOpenParams(open[HeaderLen:])
+	require.NoError(t, err)
+	for _, param := range read.params {
+		for _, tlv := range param.caps {
+			if tlv[0] == code {
+				return tlv[2:], true
+			}
+		}
+	}
+	return nil, false
+}
+
+// peerGR is the Graceful Restart capability ze-peer's OPEN carries.
+func peerGR(t *testing.T, open []byte) *capability.GracefulRestart {
+	t.Helper()
+	for _, entry := range peerCaps(t, open) {
+		if gr, ok := entry.(*capability.GracefulRestart); ok {
+			return gr
+		}
+	}
+	require.FailNow(t, "ze-peer's OPEN carries no Graceful Restart capability")
+	return nil
+}
+
+// zeGRTLV is ze's own Graceful Restart capability, which carries the Restart
+// Time and NO family tuples: parseGRCapValue
+// (internal/component/bgp/plugins/gr/gr.go) formats the 12-bit time and nothing
+// else. Mirroring it is what left onSessionDown returning at its empty-family
+// guard.
+func zeGRTLV(restart uint16) []byte {
+	value := make([]byte, 2)
+	binary.BigEndian.PutUint16(value, restart&0x0FFF)
+	return capTLV(byte(capability.CodeGracefulRestart), value...)
+}
+
+// mpTLV is ze's Multiprotocol capability for one family (RFC 4760 Section 8).
+func mpTLV(afi uint16, safi byte) []byte {
+	value := make([]byte, 4)
+	binary.BigEndian.PutUint16(value, afi)
+	value[3] = safi
+	return capTLV(byte(capability.CodeMultiprotocol), value...)
+}
+
+// TestPeerOpenGracefulRestartIsTheHarnessOwn is AC-1.
+//
+// VALIDATES: the Restart Time ze-peer states is the one the .ci declared, and no
+// octet of ze's own comes with it.
+// PREVENTS: the mirror, under which runPeer feeds ze's own configured restart
+// time into sessionHealth.startEORTimer as if the PEER had asked for it
+// (internal/component/bgp/reactor/peer_run.go).
+func TestPeerOpenGracefulRestartIsTheHarnessOwn(t *testing.T) {
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1), zeGRTLV(120))
+	cfg := &Config{GracefulRestart: &GracefulRestartDecl{RestartTime: 7, ForwardState: true}}
+
+	peer := &Peer{config: cfg}
+	open, err := buildOpen(ze, peer.openIdentity(ze, nil), cfg)
+	require.NoError(t, err)
+
+	gr := peerGR(t, open)
+	assert.Equal(t, uint16(7), gr.RestartTime, "the Restart Time is the .ci's, not ze's 120")
+}
+
+// TestPeerOpenGracefulRestartCarriesDeclaredFamilies is AC-2.
+//
+// VALIDATES: a declared family reaches the wire as an RFC 4724 Section 3
+// <AFI, SAFI, Flags> tuple with the Forwarding State bit the .ci declared.
+// PREVENTS: the empty family list ze advertises reaching the wire in ze-peer's
+// name, which makes onSessionDown return false at its empty-staleFamilies guard
+// (internal/component/bgp/plugins/gr/gr_state.go) and leaves retain-routes,
+// mark-stale and purge-stale undispatched in every graceful-restart test.
+func TestPeerOpenGracefulRestartCarriesDeclaredFamilies(t *testing.T) {
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1), mpTLV(2, 1), zeGRTLV(120))
+	cfg := &Config{GracefulRestart: &GracefulRestartDecl{
+		RestartTime:  30,
+		Families:     []family.Family{{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}},
+		ForwardState: true,
+	}}
+
+	peer := &Peer{config: cfg}
+	open, err := buildOpen(ze, peer.openIdentity(ze, nil), cfg)
+	require.NoError(t, err)
+
+	gr := peerGR(t, open)
+	require.Len(t, gr.Families, 1, "one declared family is one tuple")
+	assert.Equal(t, family.AFIIPv6, gr.Families[0].AFI)
+	assert.Equal(t, family.SAFIUnicast, gr.Families[0].SAFI)
+	assert.True(t, gr.Families[0].ForwardingState, "the F bit the .ci declared")
+}
+
+// TestPeerOpenGracefulRestartDefaultsToItsOwnFamilies is AC-2 and AC-7 together.
+//
+// VALIDATES: a .ci that declares nothing still puts a tuple on the wire for each
+// family ze-peer advertises, so the receiving path is reachable by default.
+// PREVENTS: the family list being inherited from ze's code 64, which carries
+// none at all.
+func TestPeerOpenGracefulRestartDefaultsToItsOwnFamilies(t *testing.T) {
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1), mpTLV(2, 1), zeGRTLV(120))
+
+	peer := &Peer{config: &Config{}}
+	open, err := buildOpen(ze, peer.openIdentity(ze, nil), &Config{})
+	require.NoError(t, err)
+
+	gr := peerGR(t, open)
+	assert.Equal(t, uint16(peerRestartTime), gr.RestartTime, "the harness default, not ze's 120")
+	require.Len(t, gr.Families, 2, "one tuple per family ze-peer advertises")
+	assert.Equal(t, family.AFIIPv4, gr.Families[0].AFI)
+	assert.Equal(t, family.AFIIPv6, gr.Families[1].AFI)
+}
+
+// TestPeerOpenGracefulRestartForwardStateIsDeclarable is AC-2.
+//
+// VALIDATES: forward-state=false clears the F bit of every tuple.
+// PREVENTS: an F bit nothing can vary, which would leave the purge branch of
+// onSessionReestablished (F bit clear -> purge that family's stale routes)
+// unreachable from any .ci.
+func TestPeerOpenGracefulRestartForwardStateIsDeclarable(t *testing.T) {
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1), zeGRTLV(120))
+	cfg := &Config{GracefulRestart: &GracefulRestartDecl{RestartTime: 30, ForwardState: false}}
+
+	peer := &Peer{config: cfg}
+	open, err := buildOpen(ze, peer.openIdentity(ze, nil), cfg)
+	require.NoError(t, err)
+
+	gr := peerGR(t, open)
+	require.Len(t, gr.Families, 1)
+	assert.False(t, gr.Families[0].ForwardingState, "forward-state=false clears the F bit")
+}
+
+// TestPeerOpenLLGRIsTheHarnessOwn is AC-3.
+//
+// VALIDATES: the code-71 tuples carry the stale time and F bit the .ci declared,
+// in the RFC 9494 Section 3 shape decodeLLGR reads.
+// PREVENTS: the mirror, under which enterLLGRLocked arms its per-family timer on
+// ze's own configured stale time (internal/component/bgp/plugins/gr/gr_state.go).
+func TestPeerOpenLLGRIsTheHarnessOwn(t *testing.T) {
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1), zeGRTLV(120),
+		capTLV(71, 0, 1, 1, 0x80, 0, 0x0E, 0x10))
+	cfg := &Config{LLGR: &LLGRDecl{StaleTime: 42, ForwardState: false}}
+
+	peer := &Peer{config: cfg}
+	open, err := buildOpen(ze, peer.openIdentity(ze, nil), cfg)
+	require.NoError(t, err)
+
+	value, carried := peerCapValue(t, open, 71)
+	require.True(t, carried, "ze offered code 71, so ze-peer answers with one")
+	require.Len(t, value, 7, "one family, one 7-octet tuple")
+	assert.Equal(t, []byte{0, 1, 1, 0, 0, 0, 42}, value,
+		"ipv4/unicast, F bit clear, stale time 42 rather than ze's 3600")
+}
+
+// TestPeerOpenSoftwareVersionIsTheHarnessOwn is AC-4.
+//
+// VALIDATES: ze-peer names itself in capability 75.
+// PREVENTS: ze-peer reporting ze's own build as its own, which is what
+// `ze bgp decode` prints for that OPEN (capabilityToZeJSON,
+// internal/component/bgp/cli/decode_open.go).
+func TestPeerOpenSoftwareVersionIsTheHarnessOwn(t *testing.T) {
+	zeVersion := append([]byte{byte(len("Ze/0.1.0"))}, []byte("Ze/0.1.0")...)
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1), capTLV(75, zeVersion...))
+
+	peer := &Peer{config: &Config{}}
+	open, err := buildOpen(ze, peer.openIdentity(ze, nil), &Config{})
+	require.NoError(t, err)
+
+	value, carried := peerCapValue(t, open, 75)
+	require.True(t, carried)
+	require.Len(t, value, 1+len(peerSoftwareVersion))
+	assert.Equal(t, byte(len(peerSoftwareVersion)), value[0], "the one-octet version length")
+	assert.Equal(t, peerSoftwareVersion, string(value[1:]))
+	assert.NotContains(t, string(value), "Ze/", "no octet of ze's build reaches the wire in ze-peer's name")
+}
+
+// TestPeerOpenPathsLimitIsTheHarnessOwn is AC-5.
+//
+// VALIDATES: the Max Paths ze-peer states is the one the .ci declared.
+// PREVENTS: the mirror, under which negotiatePathsLimit fills pathsLimitSend
+// with ze's own number and CommitService.enforcePathsLimit then polices ze's
+// sending by a limit ze set for itself.
+func TestPeerOpenPathsLimitIsTheHarnessOwn(t *testing.T) {
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1),
+		capTLV(76, 0, 1, 1, 0, 10))
+	cfg := &Config{PathsLimit: []PathsLimitDecl{
+		{Family: family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}, Limit: 1},
+	}}
+
+	peer := &Peer{config: cfg}
+	open, err := buildOpen(ze, peer.openIdentity(ze, nil), cfg)
+	require.NoError(t, err)
+
+	value, carried := peerCapValue(t, open, 76)
+	require.True(t, carried)
+	assert.Equal(t, []byte{0, 1, 1, 0, 1}, value, "ipv4/unicast limit 1 rather than ze's 10")
+}
+
+// TestPeerOpenHoldTimeIsDeclared is AC-6.
+//
+// VALIDATES: option=open:value=hold-time reaches the two-octet Hold Time field
+// of the OPEN body.
+// PREVENTS: the copy out of ze's body, which made the two advertised values
+// equal and left RFC 4271 Section 4.2's min-selection unexercised by every
+// session the suite has ever run (session_negotiate,
+// internal/component/bgp/reactor).
+func TestPeerOpenHoldTimeIsDeclared(t *testing.T) {
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000))
+	declared := uint16(9)
+	cfg := &Config{HoldTime: &declared}
+
+	peer := &Peer{config: cfg}
+	open, err := buildOpen(ze, peer.openIdentity(ze, nil), cfg)
+	require.NoError(t, err)
+
+	assert.Equal(t, uint16(9), binary.BigEndian.Uint16(open[HeaderLen+3:]),
+		"the declared hold time, not the 180 ze advertised")
+}
+
+// TestPeerOpenDefaultsInheritNoOctetFromZe is AC-7.
+//
+// VALIDATES: a .ci that declares none of the five facts still states each one
+// from the harness's own defaults.
+// PREVENTS: the shape this spec removes -- a fact that is ze's whenever the file
+// says nothing, which is the case that covers most of the suite.
+func TestPeerOpenDefaultsInheritNoOctetFromZe(t *testing.T) {
+	zeVersion := append([]byte{byte(len("Ze/0.1.0"))}, []byte("Ze/0.1.0")...)
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1), zeGRTLV(120),
+		capTLV(71, 0, 1, 1, 0x80, 0, 0x0E, 0x10), capTLV(75, zeVersion...),
+		capTLV(76, 0, 1, 1, 0, 10))
+
+	peer := &Peer{config: &Config{}}
+	open, err := buildOpen(ze, peer.openIdentity(ze, nil), &Config{})
+	require.NoError(t, err)
+
+	assert.Equal(t, uint16(peerHoldTime), binary.BigEndian.Uint16(open[HeaderLen+3:]),
+		"the Hold Time is the harness's, and above every value ze advertises so the "+
+			"negotiated minimum stays ze's")
+
+	gr := peerGR(t, open)
+	assert.Equal(t, uint16(peerRestartTime), gr.RestartTime)
+
+	llgr, carried := peerCapValue(t, open, 71)
+	require.True(t, carried)
+	stale := uint32(peerStaleTime)
+	assert.Equal(t, []byte{0, 1, 1, 0x80, byte(stale >> 16), byte(stale >> 8), byte(stale)}, llgr)
+
+	version, carried := peerCapValue(t, open, 75)
+	require.True(t, carried)
+	assert.Equal(t, peerSoftwareVersion, string(version[1:]))
+
+	limit, carried := peerCapValue(t, open, 76)
+	require.True(t, carried)
+	assert.Equal(t, []byte{0, 1, 1, 0xFF, 0xFF}, limit, "the harness default bounds nothing")
+}
+
+// TestPeerOpenStatedCapabilityBeatsOwnedValue is AC-8.
+//
+// VALIDATES: an add-capability for a newly owned code reaches the wire as
+// written, and ze-peer sends no second capability of that code.
+// PREVENTS: the harness overriding the octets a test wrote out itself, which
+// would silently change what a capability-mode or malformed-capability test
+// drives.
+func TestPeerOpenStatedCapabilityBeatsOwnedValue(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		code  byte
+		zeTLV []byte
+		value []byte
+	}{
+		{"graceful restart", 64, zeGRTLV(120), []byte{0x80, 0x0A}},
+		{"llgr", 71, capTLV(71, 0, 1, 1, 0x80, 0, 0x0E, 0x10), []byte{0, 1, 1, 0, 0, 0, 5}},
+		{"software version", 75, capTLV(75, 2, 'h', 'i'), []byte{3, 'a', 'b', 'c'}},
+		{"paths limit", 76, capTLV(76, 0, 1, 1, 0, 10), []byte{0, 1, 1, 0, 3}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1), tc.zeTLV)
+			cfg := &Config{CapabilityOverrides: []CapabilityOverride{
+				{Code: tc.code, Value: tc.value, Add: true},
+			}}
+
+			peer := &Peer{config: cfg}
+			open, err := buildOpen(ze, peer.openIdentity(ze, nil), cfg)
+			require.NoError(t, err)
+
+			read, err := parseOpenParams(open[HeaderLen:])
+			require.NoError(t, err)
+			seen := 0
+			for _, param := range read.params {
+				for _, tlv := range param.caps {
+					if tlv[0] == tc.code {
+						seen++
+						assert.Equal(t, tc.value, tlv[2:], "the octets the .ci stated")
+					}
+				}
+			}
+			assert.Equal(t, 1, seen, "one capability of that code, never two")
+		})
+	}
+}
+
+// TestPeerOpenRefusesADeclarationZeCannotCarry states what happens when a .ci
+// declares a fact for a capability ze never offered.
+//
+// VALIDATES: the build fails and names the option and the code.
+// PREVENTS: the silent drop. The capability SET mirrors ze's, so the declared
+// value would have no TLV to replace, and the file would read as a graceful
+// restart test while testing the session's establishment
+// (plan/learned/005-runner-drops-what-it-cannot-honor.md).
+func TestPeerOpenRefusesADeclarationZeCannotCarry(t *testing.T) {
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1, 1))
+	cfg := &Config{GracefulRestart: &GracefulRestartDecl{RestartTime: 30, ForwardState: true}}
+
+	peer := &Peer{config: cfg}
+	_, err := buildOpen(ze, peer.openIdentity(ze, nil), cfg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "graceful-restart")
+	assert.Contains(t, err.Error(), "64")
+}
+
+// TestPeerOpenRefusesAFactDeclaredTwice states what happens when one capability
+// is declared by a typed option AND by raw octets.
+//
+// VALIDATES: the peer block is refused, naming both lines.
+// PREVENTS: the typed line being read, validated and then dropped, because
+// reconcileParams gives the stated octets precedence: the author reads their
+// restart time in the file and never on the wire.
+func TestPeerOpenRefusesAFactDeclaredTwice(t *testing.T) {
+	cfg := &Config{
+		GracefulRestart:     &GracefulRestartDecl{RestartTime: 30, ForwardState: true},
+		CapabilityOverrides: []CapabilityOverride{{Code: 64, Value: []byte{0x00, 0x0A}, Add: true}},
+	}
+
+	err := cfg.validateOpenDeclarations()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "graceful-restart")
+	assert.Contains(t, err.Error(), "add-capability")
 }

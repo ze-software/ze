@@ -553,3 +553,138 @@ func TestPeerOptionRefusesContradictoryOpenDeclarations(t *testing.T) {
 	require.Error(t, err, "New sees both halves and must refuse")
 	assert.Contains(t, err.Error(), "4200000000")
 }
+
+// optionOpen parses one option=open line into a Config, the way LoadExpectFile
+// does, and returns the parser's own error.
+func optionOpen(config *Config, keys ...string) error {
+	kv := map[string]string{}
+	for _, key := range keys {
+		name, value, _ := strings.Cut(key, "=")
+		kv[name] = value
+	}
+	_, err := parseOptionConfig(config, "open", kv)
+	return err
+}
+
+// TestPeerOptionHoldTimeParses covers the option=open:value=hold-time grammar
+// and its RFC 4271 Section 4.2 bounds.
+//
+// VALIDATES: 0 and 3..65535 reach Config, and 1, 2 and 65536 fail the file where
+// it is read.
+// PREVENTS: a hold time the harness clamped or truncated reaching the wire, which
+// would make the file assert a negotiation it never asked for.
+func TestPeerOptionHoldTimeParses(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		seconds string
+		want    uint16
+		refused bool
+	}{
+		{name: "zero disables the timer", seconds: "0", want: 0},
+		{name: "the RFC floor", seconds: "3", want: 3},
+		{name: "the largest the field states", seconds: "65535", want: 65535},
+		{name: "one is refused", seconds: "1", refused: true},
+		{name: "two is refused", seconds: "2", refused: true},
+		{name: "above the field", seconds: "65536", refused: true},
+		{name: "not a number", seconds: "soon", refused: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			config := &Config{}
+			err := optionOpen(config, "value=hold-time", "seconds="+tc.seconds)
+			if tc.refused {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "hold-time")
+				assert.Nil(t, config.HoldTime, "a refused line declares nothing")
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, config.HoldTime)
+			assert.Equal(t, tc.want, *config.HoldTime)
+		})
+	}
+}
+
+// TestPeerOptionHoldTimeStatedTwiceIsRefused pins the one-declaration rule.
+//
+// VALIDATES: a second hold-time line fails the file rather than winning by
+// accident of order.
+// PREVENTS: two proposals for one OPEN, where the last line silently decides.
+func TestPeerOptionHoldTimeStatedTwiceIsRefused(t *testing.T) {
+	config := &Config{}
+	require.NoError(t, optionOpen(config, "value=hold-time", "seconds=30"))
+	err := optionOpen(config, "value=hold-time", "seconds=40")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "twice")
+}
+
+// TestPeerOptionGracefulRestartParses covers the
+// option=open:value=graceful-restart grammar and the 12-bit Restart Time of RFC
+// 4724 Section 3.
+//
+// VALIDATES: the restart time, the family list and the F bit each reach Config,
+// and 4096 is refused rather than masked to 0.
+// PREVENTS: the encoder's 0x0FFF mask turning a number the .ci wrote into a
+// different one on the wire.
+func TestPeerOptionGracefulRestartParses(t *testing.T) {
+	config := &Config{}
+	require.NoError(t, optionOpen(config, "value=graceful-restart", "restart-time=120",
+		"family=ipv4/unicast,ipv6/unicast", "forward-state=false"))
+	require.NotNil(t, config.GracefulRestart)
+	assert.Equal(t, uint16(120), config.GracefulRestart.RestartTime)
+	assert.False(t, config.GracefulRestart.ForwardState)
+	require.Len(t, config.GracefulRestart.Families, 2)
+	assert.Equal(t, "ipv4/unicast", config.GracefulRestart.Families[0].String())
+	assert.Equal(t, "ipv6/unicast", config.GracefulRestart.Families[1].String())
+
+	assert.NoError(t, optionOpen(&Config{}, "value=graceful-restart", "restart-time=4095"))
+	assert.Error(t, optionOpen(&Config{}, "value=graceful-restart", "restart-time=4096"))
+	assert.Error(t, optionOpen(&Config{}, "value=graceful-restart", "restart-time=soon"))
+	assert.Error(t, optionOpen(&Config{}, "value=graceful-restart", "restart-time=30", "family=ipv4/nonsense"))
+	assert.Error(t, optionOpen(&Config{}, "value=graceful-restart", "restart-time=30", "forward-state=yes"))
+}
+
+// TestPeerOptionLLGRParses covers the option=open:value=llgr grammar and the
+// 24-bit Long-Lived Stale Time of RFC 9494 Section 3.
+//
+// VALIDATES: the stale time, the family list and the F bit each reach Config,
+// and 16777216 is refused.
+// PREVENTS: the clamp ze applies to its own value (parseLLGRCapValue) being
+// copied into the harness, where it would put a stale time on the wire that no
+// line of the .ci states.
+func TestPeerOptionLLGRParses(t *testing.T) {
+	config := &Config{}
+	require.NoError(t, optionOpen(config, "value=llgr", "stale-time=3600", "family=ipv4/unicast"))
+	require.NotNil(t, config.LLGR)
+	assert.Equal(t, uint32(3600), config.LLGR.StaleTime)
+	assert.True(t, config.LLGR.ForwardState, "the F bit defaults to set")
+	require.Len(t, config.LLGR.Families, 1)
+
+	assert.NoError(t, optionOpen(&Config{}, "value=llgr", "stale-time=16777215"))
+	assert.Error(t, optionOpen(&Config{}, "value=llgr", "stale-time=16777216"))
+	assert.Error(t, optionOpen(&Config{}, "value=llgr", "stale-time=long"))
+}
+
+// TestPeerOptionPathsLimitParses covers the option=open:value=paths-limit
+// grammar and the two-octet Max Paths field.
+//
+// VALIDATES: one line per family set, repeated lines appending, and a family
+// stated twice being refused.
+// PREVENTS: two limits for one family, where the entry that reaches the wire
+// depends on the order parsePathsLimit happens to read.
+func TestPeerOptionPathsLimitParses(t *testing.T) {
+	config := &Config{}
+	require.NoError(t, optionOpen(config, "value=paths-limit", "family=ipv4/unicast", "limit=1"))
+	require.NoError(t, optionOpen(config, "value=paths-limit", "family=ipv6/unicast", "limit=4"))
+	require.Len(t, config.PathsLimit, 2)
+	assert.Equal(t, "ipv4/unicast", config.PathsLimit[0].Family.String())
+	assert.Equal(t, uint16(1), config.PathsLimit[0].Limit)
+	assert.Equal(t, uint16(4), config.PathsLimit[1].Limit)
+
+	err := optionOpen(config, "value=paths-limit", "family=ipv4/unicast", "limit=9")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "twice")
+
+	assert.NoError(t, optionOpen(&Config{}, "value=paths-limit", "family=ipv4/unicast", "limit=65535"))
+	assert.Error(t, optionOpen(&Config{}, "value=paths-limit", "family=ipv4/unicast", "limit=65536"))
+	assert.Error(t, optionOpen(&Config{}, "value=paths-limit", "limit=1"))
+}

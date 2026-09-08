@@ -1,6 +1,11 @@
 // Design: docs/architecture/testing/ci-format.md — .ci file loading and option parsing
 // Overview: peer.go — Config struct populated by these parsers
 // Related: checker.go — expect rules parsed here feed the Checker
+// RFC: rfc/short/rfc4271.md — the Hold Time a .ci proposes here
+// RFC: rfc/short/rfc4724.md — the Graceful Restart Restart Time and its 12 bits
+// RFC: rfc/short/rfc9494.md — the Long-Lived Stale Time and its 24 bits
+// RFC: rfc/short/rfc5492.md — the one-octet Capability Code and Capability Length
+// RFC: rfc/short/draft-abraitis-idr-addpath-paths-limit.md — the Max Paths field
 
 package peer
 
@@ -11,15 +16,27 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/test/ci"
 )
 
 // optTrue is the spelling a .ci boolean option must use to enable itself.
 const optTrue = "true"
+
+// The option=open: values that declare a fact ze-peer's OPEN asserts about
+// ze-peer. Each one names the capability it resolves, and open.go names the same
+// constant where it refuses the option beside raw octets for that code.
+const (
+	optOpenHoldTime        = "hold-time"
+	optOpenGracefulRestart = "graceful-restart"
+	optOpenLLGR            = "llgr"
+	optOpenPathsLimit      = "paths-limit"
+)
 
 // The four .ci actions a ze-peer stdin block can carry, left of the '=' in
 // `action=type:key=value`.
@@ -328,6 +345,34 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) (cl
 			id := binary.BigEndian.Uint32(octets[:])
 			config.RouterID = &id
 
+		case optOpenHoldTime:
+			seconds, herr := parseOpenHoldTime(config, kv["seconds"])
+			if herr != nil {
+				return false, herr
+			}
+			config.HoldTime = &seconds
+
+		case optOpenGracefulRestart:
+			decl, gerr := parseGracefulRestartDecl(config, kv)
+			if gerr != nil {
+				return false, gerr
+			}
+			config.GracefulRestart = decl
+
+		case optOpenLLGR:
+			decl, lerr := parseLLGRDecl(config, kv)
+			if lerr != nil {
+				return false, lerr
+			}
+			config.LLGR = decl
+
+		case optOpenPathsLimit:
+			entries, perr := parsePathsLimitDecl(config, kv)
+			if perr != nil {
+				return false, perr
+			}
+			config.PathsLimit = entries
+
 		case "add-capability":
 			code, cerr := parseCapabilityCode("add-capability", kv["code"])
 			if cerr != nil {
@@ -476,6 +521,200 @@ func parseBulkSpec(kv map[string]string) (InjectSpec, error) {
 	spec.EndOfRIB = kv["eor"] == optTrue
 
 	return spec, nil
+}
+
+// parseOpenHoldTime reads the seconds= key of an option=open:value=hold-time
+// line.
+//
+// RFC 4271 Section 4.2: "Hold Time: ... This 2-octet unsigned integer indicates
+// the number of seconds the sender proposes for the value of the Hold Timer",
+// and the value "MUST be either zero or at least three seconds". 1 and 2 are
+// therefore refused HERE, where the .ci is read, rather than clamped: a hold
+// time the harness silently raised would make the file assert a negotiation it
+// never asked for.
+func parseOpenHoldTime(config *Config, value string) (uint16, error) {
+	if config.HoldTime != nil {
+		return 0, fmt.Errorf(
+			"the peer block states option=open:value=hold-time twice, so it proposes two hold times " +
+				"for one OPEN; state one")
+	}
+	seconds, err := strconv.ParseUint(value, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("option=open:value=hold-time:seconds=%q is not a number", value)
+	}
+	if seconds > 65535 {
+		return 0, fmt.Errorf(
+			"option=open:value=hold-time:seconds=%d is above 65535, the two-octet Hold Time field of "+
+				"RFC 4271 Section 4.2", seconds)
+	}
+	if seconds == 1 || seconds == 2 {
+		return 0, fmt.Errorf(
+			"option=open:value=hold-time:seconds=%d is refused: RFC 4271 Section 4.2 states the Hold "+
+				"Time \"MUST be either zero or at least three seconds\"", seconds)
+	}
+	return uint16(seconds), nil //nolint:gosec // the range check above bounds it
+}
+
+// parseGracefulRestartDecl reads an option=open:value=graceful-restart line.
+//
+// RFC 4724 Section 3 gives the Restart Time 12 bits, so 4095 is the largest
+// value the field can state and 4096 is refused rather than truncated: the
+// encoder masks with 0x0FFF, and a masked restart time is a number the .ci
+// never wrote reaching the wire in its name.
+func parseGracefulRestartDecl(config *Config, kv map[string]string) (*GracefulRestartDecl, error) {
+	if config.GracefulRestart != nil {
+		return nil, fmt.Errorf(
+			"the peer block states option=open:value=graceful-restart twice, so it states two Restart " +
+				"Times for one capability; state one")
+	}
+	restart, err := strconv.ParseUint(kv["restart-time"], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("option=open:value=graceful-restart:restart-time=%q is not a number", kv["restart-time"])
+	}
+	if restart > 4095 {
+		return nil, fmt.Errorf(
+			"option=open:value=graceful-restart:restart-time=%d is above 4095, the 12-bit Restart Time "+
+				"of RFC 4724 Section 3", restart)
+	}
+	families, err := parseOptionFamilies(optOpenGracefulRestart, kv["family"])
+	if err != nil {
+		return nil, err
+	}
+	forward, err := parseOptionFlag(optOpenGracefulRestart, "forward-state", kv["forward-state"])
+	if err != nil {
+		return nil, err
+	}
+	return &GracefulRestartDecl{
+		Families:     families,
+		RestartTime:  uint16(restart), //nolint:gosec // the range check above bounds it
+		ForwardState: forward,
+	}, nil
+}
+
+// parseLLGRDecl reads an option=open:value=llgr line.
+//
+// RFC 9494 Section 3 gives the Long-Lived Stale Time 24 bits, so 16777215 is the
+// largest value a tuple can state. Ze clamps its own configured value to that
+// number (parseLLGRCapValue, internal/component/bgp/plugins/gr/gr_llgr.go); the
+// harness refuses instead, because a clamp inside the builder would put a stale
+// time on the wire that no line of the .ci states.
+func parseLLGRDecl(config *Config, kv map[string]string) (*LLGRDecl, error) {
+	if config.LLGR != nil {
+		return nil, fmt.Errorf(
+			"the peer block states option=open:value=llgr twice, so it states two stale times for one " +
+				"capability; state one")
+	}
+	stale, err := strconv.ParseUint(kv["stale-time"], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("option=open:value=llgr:stale-time=%q is not a number", kv["stale-time"])
+	}
+	if stale > 16777215 {
+		return nil, fmt.Errorf(
+			"option=open:value=llgr:stale-time=%d is above 16777215, the 24-bit Long-Lived Stale Time "+
+				"of RFC 9494 Section 3", stale)
+	}
+	families, err := parseOptionFamilies(optOpenLLGR, kv["family"])
+	if err != nil {
+		return nil, err
+	}
+	forward, err := parseOptionFlag(optOpenLLGR, "forward-state", kv["forward-state"])
+	if err != nil {
+		return nil, err
+	}
+	return &LLGRDecl{
+		Families:     families,
+		StaleTime:    uint32(stale), //nolint:gosec // the range check above bounds it
+		ForwardState: forward,
+	}, nil
+}
+
+// parsePathsLimitDecl reads an option=open:value=paths-limit line and appends
+// its entries to the ones already declared.
+//
+// draft-abraitis-idr-addpath-paths-limit Section 3 gives Max Paths two octets
+// and one entry per family, so a family stated twice is two answers to one
+// question and is refused. Repeating the LINE with other families is how a .ci
+// states a limit for several families.
+func parsePathsLimitDecl(config *Config, kv map[string]string) ([]PathsLimitDecl, error) {
+	limit, err := strconv.ParseUint(kv["limit"], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("option=open:value=paths-limit:limit=%q is not a number", kv["limit"])
+	}
+	if limit > 65535 {
+		return nil, fmt.Errorf(
+			"option=open:value=paths-limit:limit=%d is above 65535, the two-octet Max Paths field of "+
+				"draft-abraitis-idr-addpath-paths-limit Section 3", limit)
+	}
+	families, err := parseOptionFamilies(optOpenPathsLimit, kv["family"])
+	if err != nil {
+		return nil, err
+	}
+	if len(families) == 0 {
+		return nil, fmt.Errorf(
+			"option=open:value=paths-limit states no family=, and the capability carries one Max Paths " +
+				"for each family rather than one for the session")
+	}
+
+	entries := config.PathsLimit
+	for _, fam := range families {
+		for _, held := range entries {
+			if held.Family != fam {
+				continue
+			}
+			return nil, fmt.Errorf(
+				"the peer block states option=open:value=paths-limit for %s twice, with limits %d and "+
+					"%d, so it states two limits for one family; state one",
+				fam, held.Limit, limit)
+		}
+		entries = append(entries, PathsLimitDecl{Family: fam, Limit: uint16(limit)}) //nolint:gosec // the range check above bounds it
+	}
+	return entries, nil
+}
+
+// parseOptionFamilies reads a family= key holding a comma-separated list of
+// family names, and returns the empty list when the key is absent.
+//
+// A name no family registry knows fails the file where it is read. The builder
+// cannot refuse it later: it would have to choose between sending a capability
+// short of a family the .ci asked for and sending none at all, and both are the
+// silent drop this parser exists to close.
+func parseOptionFamilies(option, value string) ([]family.Family, error) {
+	if value == "" {
+		return nil, nil
+	}
+	var families []family.Family
+	for name := range strings.SplitSeq(value, ",") {
+		name = strings.TrimSpace(name)
+		fam, known := family.LookupFamily(name)
+		if !known {
+			return nil, fmt.Errorf("option=open:value=%s:family=%q names no family ze knows", option, name)
+		}
+		if slices.Contains(families, fam) {
+			return nil, fmt.Errorf("option=open:value=%s:family= names %s twice", option, name)
+		}
+		families = append(families, fam)
+	}
+	return families, nil
+}
+
+// parseOptionFlag reads a boolean key of an option=open line, which defaults to
+// true when the key is absent.
+//
+// It refuses every spelling that is not "true" or "false", because the usual
+// `kv[key] == "true"` test reads a typo as false: the .ci would then state the
+// opposite of what it wrote, and the F bit is exactly the field where that
+// silently inverts what a receiver believes about the sender.
+func parseOptionFlag(option, key, value string) (bool, error) {
+	switch value {
+	case "":
+		return true, nil
+	case optTrue:
+		return true, nil
+	case "false":
+		return false, nil
+	default:
+		return false, fmt.Errorf("option=open:value=%s:%s=%q is neither true nor false", option, key, value)
+	}
 }
 
 // parseCapabilityCode reads the code= key of a drop-capability or

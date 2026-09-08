@@ -5,6 +5,11 @@
 // RFC: rfc/short/rfc9234.md — the BGP Role capability and its pairing rule
 // RFC: rfc/short/rfc7911.md — the ADD-PATH Send/Receive field
 // RFC: rfc/short/rfc9072.md — the two-octet Optional Parameters Length
+// RFC: rfc/short/rfc4271.md — the Hold Time field and its negotiation
+// RFC: rfc/short/rfc4724.md — the Graceful Restart Restart Time and family tuples
+// RFC: rfc/short/rfc9494.md — the Long-Lived Graceful Restart stale time
+// RFC: rfc/short/rfc4760.md — the Multiprotocol capability that names the families
+// RFC: rfc/short/draft-abraitis-idr-addpath-paths-limit.md — the Max Paths field
 //
 // ze-peer answers ze's OPEN with an OPEN of its own. The capability SET is
 // mirrored from ze's, so a .ci that says nothing about capabilities still
@@ -52,6 +57,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 const (
@@ -81,6 +87,59 @@ const (
 	// ignores a capability it does not recognize (RFC 5492 Section 3).
 	unknownCapabilityCode  = 66
 	unknownCapabilityValue = "loremipsum"
+	// peerSoftwareVersion is the version string ze-peer states in capability 75.
+	// The mirror states ze's own build, which is a claim about ze made in the
+	// test peer's name. It carries no version number after the name because the
+	// harness has none: it is built from the checkout under test, so any number
+	// here would be a second declaration of ze's version with nothing to keep
+	// the two in step.
+	peerSoftwareVersion = "ze-peer"
+)
+
+// The capability codes ze-peer resolves that internal/core/bgp/capability holds
+// no constant for, because a plugin owns each one.
+const (
+	// capabilityCodeLLGR is Long-Lived Graceful Restart. RFC 9494 Section 3
+	// assigns code 71, and the bgp-gr plugin builds ze's own value
+	// (parseLLGRCapValue, internal/component/bgp/plugins/gr/gr_llgr.go).
+	capabilityCodeLLGR capability.Code = 71
+	// capabilityCodeSoftwareVersion is the software version capability.
+	// draft-abraitis-bgp-version-capability assigns code 75, and the softver
+	// plugin builds ze's own value (encodeValue,
+	// internal/component/bgp/plugins/softver/softver.go).
+	capabilityCodeSoftwareVersion capability.Code = 75
+)
+
+// The harness defaults, used for every fact a `.ci` states nothing about.
+//
+// Each one is a NUMBER the harness chose, never a number read out of ze's OPEN.
+// That is the whole property: a file that declares nothing still asserts facts
+// about ze-peer that ze-peer resolved, so no assertion in the suite can be
+// satisfied by ze agreeing with itself.
+const (
+	// peerHoldTime is the Hold Time ze-peer proposes when no .ci declares one.
+	//
+	// RFC 4271 Section 4.2 makes the negotiated hold time the smaller of the two
+	// advertised values, so the largest value the two-octet field can state is
+	// the one value that can never be the smaller. Every existing test therefore
+	// negotiates exactly what it negotiated under the mirror -- ze's own
+	// configured hold time -- and only a .ci that declares a smaller one opts
+	// into changing what ze holds.
+	peerHoldTime = 65535
+	// peerRestartTime is the Graceful Restart Restart Time ze-peer states when no
+	// .ci declares one, in the 0..4095 RFC 4724 Section 3 gives the 12-bit field.
+	// It is longer than any functional test runs, so a file that says nothing
+	// about graceful restart never reaches the restart timer's expiry.
+	peerRestartTime = 300
+	// peerStaleTime is the Long-Lived Stale Time ze-peer states when no .ci
+	// declares one, in the 0..16777215 RFC 9494 Section 3 gives the 24-bit field.
+	peerStaleTime = 600
+	// peerPathsLimit is the Max Paths ze-peer states for each family when no .ci
+	// declares one. draft-abraitis-idr-addpath-paths-limit Section 4 makes the
+	// receiver's limit a bound on what the sender may send, so the largest value
+	// the two-octet field can state is the one that bounds nothing: a file that
+	// says nothing about paths limits sees every path ze would otherwise send.
+	peerPathsLimit = 65535
 )
 
 // openIdentity is every fact ze-peer's OPEN asserts about ze-peer.
@@ -96,6 +155,85 @@ type openIdentity struct {
 	as uint32
 	// routerID is the BGP Identifier ze-peer claims.
 	routerID uint32
+	// holdTime is the Hold Time ze-peer proposes, RFC 4271 Section 4.2.
+	holdTime uint16
+	// gracefulRestart is ze-peer's own code-64 value: the Restart Time, the
+	// families whose forwarding state it preserves, and the F bit.
+	gracefulRestart GracefulRestartDecl
+	// llgr is ze-peer's own code-71 value: the Long-Lived Stale Time, the
+	// families, and the F bit.
+	llgr LLGRDecl
+	// pathsLimit is ze-peer's own code-76 entries, one Max Paths per family.
+	pathsLimit []PathsLimitDecl
+}
+
+// newOpenIdentity is the only place a sender-fact takes its harness default.
+//
+// Every fact has one here, so no caller can leave one at the Go zero value and
+// no zero can be read two ways: a Restart Time of 0 means RFC 4724 Section 3's
+// "the peer will not preserve forwarding state", and it must reach the wire only
+// because a .ci asked for it (ai/rules/principles.md).
+//
+// The family lists stay empty here on purpose. They are the one fact that cannot
+// be resolved before ze's OPEN is read, because ze-peer's own families are the
+// mirrored capability SET, and resolveFamilies fills them.
+func newOpenIdentity(as, routerID uint32) openIdentity {
+	return openIdentity{
+		as:              as,
+		routerID:        routerID,
+		holdTime:        peerHoldTime,
+		gracefulRestart: GracefulRestartDecl{RestartTime: peerRestartTime, ForwardState: true},
+		llgr:            LLGRDecl{StaleTime: peerStaleTime, ForwardState: true},
+	}
+}
+
+// resolveFamilies fills every family list a `.ci` left unstated with the
+// families ze-peer's own OPEN advertises.
+//
+// The default is ze-peer's OWN capability SET, which is a mirror of ze's by
+// design and is therefore what ze-peer itself asserts. It is not ze's code-64
+// family list: that one carries no families at all (parseGRCapValue,
+// internal/component/bgp/plugins/gr/gr.go), so inheriting it would leave every
+// receiving path guarded on an empty set.
+func (id *openIdentity) resolveFamilies(advertised []family.Family) {
+	if len(id.gracefulRestart.Families) == 0 {
+		id.gracefulRestart.Families = advertised
+	}
+	if len(id.llgr.Families) == 0 {
+		id.llgr.Families = advertised
+	}
+	if len(id.pathsLimit) > 0 {
+		return
+	}
+	for _, fam := range advertised {
+		id.pathsLimit = append(id.pathsLimit, PathsLimitDecl{Family: fam, Limit: peerPathsLimit})
+	}
+}
+
+// advertisedFamilies is the family set ze-peer's OPEN carries, read from the
+// Multiprotocol capabilities it mirrors.
+//
+// RFC 4760 Section 8 gives capability 1 a four-octet value of AFI(2),
+// Reserved(1) and SAFI(1). A speaker that sends none is an IPv4 unicast speaker,
+// which RFC 4271 defines with no capability at all, so that is what the empty
+// read means rather than "this speaker has no families".
+func advertisedFamilies(read openParams) []family.Family {
+	var families []family.Family
+	for _, param := range read.params {
+		for _, tlv := range param.caps {
+			if capability.Code(tlv[0]) != capability.CodeMultiprotocol || len(tlv) != 6 {
+				continue
+			}
+			families = append(families, family.Family{
+				AFI:  family.AFI(binary.BigEndian.Uint16(tlv[2:])),
+				SAFI: family.SAFI(tlv[5]),
+			})
+		}
+	}
+	if len(families) > 0 {
+		return families
+	}
+	return []family.Family{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}}
 }
 
 // openParam is one Optional Parameter of ze's OPEN, kept in the order it was read.
@@ -162,6 +300,10 @@ func (c *Config) resolveOpenAS(local, remote netip.Addr) (uint32, bool) {
 // again in New, because the two halves can also arrive one from the command line
 // and one from the file.
 func (c *Config) validateOpenDeclarations() error {
+	if err := c.validateOwnedCodesStatedOnce(); err != nil {
+		return err
+	}
+
 	// TWO questions, and they are not the same one. Naming both is the point:
 	// asking only the first is what let this guard fail open twice.
 	//
@@ -241,6 +383,44 @@ func (c *Config) validateOpenDeclarations() error {
 				"capability the only carrier of an AS above 65535: the OPEN would claim AS_TRANS "+
 				"(%d) and nothing would carry %d. Carry %d in the capability you state, or lower the AS",
 			binding.AS, asTrans, binding.AS, binding.AS)
+	}
+	return nil
+}
+
+// validateOwnedCodesStatedOnce refuses a peer block that declares one
+// capability twice: once as a typed option=open value, and once as raw octets in
+// an add-capability or as a drop-capability.
+//
+// The two lines are legal apart and contradictory together, which is why neither
+// line's own parser can see it. reconcileParams gives the stated octets
+// precedence, so the typed line would be read, validated, and then dropped in
+// silence -- the .ci author reads their restart time in the file and never on
+// the wire.
+func (c *Config) validateOwnedCodesStatedOnce() error {
+	declared := map[byte]string{}
+	if c.GracefulRestart != nil {
+		declared[byte(capability.CodeGracefulRestart)] = optOpenGracefulRestart
+	}
+	if c.LLGR != nil {
+		declared[byte(capabilityCodeLLGR)] = optOpenLLGR
+	}
+	if len(c.PathsLimit) > 0 {
+		declared[byte(capability.CodePathsLimit)] = optOpenPathsLimit
+	}
+
+	for _, override := range c.CapabilityOverrides {
+		option, isDeclared := declared[override.Code]
+		if !isDeclared {
+			continue
+		}
+		stated := "add-capability"
+		if !override.Add {
+			stated = "drop-capability"
+		}
+		return fmt.Errorf(
+			"the peer block states option=open:value=%s and option=open:value=%s:code=%d, so it "+
+				"declares capability %d twice and the stated octets would win in silence; state one",
+			option, stated, override.Code, override.Code)
 	}
 	return nil
 }
@@ -343,8 +523,13 @@ func buildOpen(zeBody []byte, id openIdentity, cfg *Config) ([]byte, error) {
 		return nil, fmt.Errorf("read ze's OPEN: %w", err)
 	}
 
+	id.resolveFamilies(advertisedFamilies(read))
+
 	owned, err := ownedCapabilities(read, id)
 	if err != nil {
+		return nil, err
+	}
+	if err := refuseUnofferedDeclarations(owned, cfg); err != nil {
 		return nil, err
 	}
 
@@ -352,127 +537,6 @@ func buildOpen(zeBody []byte, id openIdentity, cfg *Config) ([]byte, error) {
 	params = append(params, addedParams(cfg)...)
 
 	return encodeOpen(zeBody, id, params)
-}
-
-// ownedCapabilities holds the capability TLVs the builder resolves itself,
-// keyed by capability code. Each one replaces the mirrored TLV of the same code,
-// in the place the mirror held it, so the parameter order ze sent is the order
-// ze-peer answers with.
-//
-// A code that ze did not send and that ze-peer must nevertheless assert is
-// carried here with add set, and appended as its own parameter.
-type ownedCapability struct {
-	tlv []byte
-	add bool
-}
-
-// ownedCapabilities resolves every capability whose value describes ze-peer.
-func ownedCapabilities(read openParams, id openIdentity) (map[byte]ownedCapability, error) {
-	owned := make(map[byte]ownedCapability, 4)
-
-	// RFC 6793 Section 4.1: "The AS number of the BGP speaker MUST be carried in
-	// the Capability Value field of the 'support for four-octet AS number
-	// capability'." A mirrored capability 65 is therefore ze's AS asserted in
-	// ze-peer's name, and it is the carrier a conforming receiver reads first.
-	asn4 := &capability.ASN4{ASN: id.as}
-	asn4TLV := make([]byte, asn4.Len())
-	asn4.WriteTo(asn4TLV, 0)
-	// Above 65535 the My Autonomous System field can only carry AS_TRANS, so the
-	// capability is the ONLY carrier of the real AS and ze-peer adds it when ze
-	// offered none. At or below 65535 the header field carries the AS on its own,
-	// and adding a capability ze did not offer would change what the session
-	// negotiates.
-	owned[byte(capability.CodeASN4)] = ownedCapability{tlv: asn4TLV, add: id.as > 65535}
-
-	for _, param := range read.params {
-		for _, tlv := range param.caps {
-			code := tlv[0]
-			value := tlv[2:]
-			switch capability.Code(code) { //nolint:exhaustive // only the codes whose value describes the SENDER are resolved here
-			case capability.CodeRole:
-				role, err := complementaryRole(value)
-				if err != nil {
-					return nil, err
-				}
-				owned[code] = ownedCapability{tlv: role}
-			case capability.CodeAddPath:
-				addPath, err := invertedAddPath(value)
-				if err != nil {
-					return nil, err
-				}
-				owned[code] = ownedCapability{tlv: addPath}
-			case capability.CodeFQDN:
-				fqdn := &capability.FQDN{Hostname: peerHostname}
-				tlv := make([]byte, fqdn.Len())
-				fqdn.WriteTo(tlv, 0)
-				owned[code] = ownedCapability{tlv: tlv}
-			}
-		}
-	}
-
-	return owned, nil
-}
-
-// complementaryRole answers ze's Role capability with the role RFC 9234 Section
-// 4.2, Table 2 pairs with it.
-//
-// Section 4.1 defines the capability: code 9, "Length: 1 (octet)", and a value
-// from Table 1. Section 4.2 defines which pairs correspond. Both are cited
-// below, each at the section that carries what it claims.
-//
-// RFC 9234 Section 4.2: "If the Roles do not correspond, the BGP speaker MUST
-// reject the connection using the Role Mismatch Notification." A mirror sends
-// ze's own role back, which corresponds for Peer alone and is refused for the
-// other four values. validateOpenRolePair
-// (internal/component/bgp/plugins/role/validate.go) holds the same table.
-func complementaryRole(value []byte) ([]byte, error) {
-	if len(value) != 1 {
-		return nil, fmt.Errorf("ze's Role capability carries %d octets, RFC 9234 Section 4.1 defines 1", len(value))
-	}
-	// RFC 9234 Section 4.1, Table 1 names the values: Provider(0), RS(1),
-	// RS-Client(2), Customer(3), Peer(4), with 5 to 255 unassigned. Section 4.2,
-	// Table 2 pairs them: Provider with Customer, RS with RS-Client, and Peer
-	// with itself.
-	complement := map[byte]byte{0: 3, 3: 0, 1: 2, 2: 1, 4: 4}
-	pair, known := complement[value[0]]
-	if !known {
-		return nil, fmt.Errorf("ze's Role capability carries %d, which RFC 9234 Section 4.1 Table 1 leaves unassigned", value[0])
-	}
-	return []byte{byte(capability.CodeRole), 1, pair}, nil
-}
-
-// invertedAddPath answers ze's ADD-PATH capability with the directions that make
-// the negotiation non-empty.
-//
-// RFC 7911 Section 4: the Send/Receive field says whether the SENDER can receive
-// (1), send (2) or both (3). Negotiate (internal/core/bgp/capability/negotiated.go)
-// intersects the local Send with the remote Receive and the local Receive with
-// the remote Send, so a mirrored one-directional capability intersects to
-// AddPathNone and the session negotiates ADD-PATH off with no error anywhere.
-func invertedAddPath(value []byte) ([]byte, error) {
-	parsed, err := capability.Parse(append([]byte{byte(capability.CodeAddPath), byte(len(value))}, value...))
-	if err != nil {
-		return nil, fmt.Errorf("read ze's ADD-PATH capability: %w", err)
-	}
-	addPath, ok := parsed[0].(*capability.AddPath)
-	if !ok {
-		return nil, fmt.Errorf("ze's ADD-PATH capability did not decode as one")
-	}
-	for i, family := range addPath.Families {
-		switch family.Mode {
-		case capability.AddPathSend:
-			addPath.Families[i].Mode = capability.AddPathReceive
-		case capability.AddPathReceive:
-			addPath.Families[i].Mode = capability.AddPathSend
-		case capability.AddPathBoth, capability.AddPathNone:
-			// Both is its own complement, and None is what RFC 7911 Section 4
-			// leaves undefined. Neither is changed, so a .ci that drove an
-			// invalid direction still drives it.
-		}
-	}
-	tlv := make([]byte, addPath.Len())
-	addPath.WriteTo(tlv, 0)
-	return tlv, nil
 }
 
 // reconcileParams rebuilds ze's parameter list with every asserted value owned
@@ -609,7 +673,11 @@ func encodeOpen(zeBody []byte, id openIdentity, params []openParam) ([]byte, err
 	body := open[HeaderLen:]
 	body[0] = zeBody[0] // BGP version, mirrored: ze-peer speaks the version ze offered.
 	binary.BigEndian.PutUint16(body[1:], myASField(id.as))
-	copy(body[3:5], zeBody[3:5]) // Hold Time, mirrored: no .ci declares one.
+	// RFC 4271 Section 4.2 makes the Hold Time the SENDER's proposal, and the
+	// negotiation takes the smaller of the two. Mirroring it made the two values
+	// equal, so session_negotiate's min-selection had nothing to choose between
+	// and could not be reached from any .ci.
+	binary.BigEndian.PutUint16(body[3:], id.holdTime)
 	binary.BigEndian.PutUint32(body[5:], id.routerID)
 
 	at := openBodyFixedLen
@@ -675,9 +743,22 @@ func paramValueLen(param openParam) int {
 // openIdentity resolves every fact ze-peer's OPEN asserts about ze-peer, from
 // the test's own configuration, before the OPEN is built.
 func (p *Peer) openIdentity(zeBody []byte, conn net.Conn) openIdentity {
-	id := openIdentity{
-		as:       p.openAS(zeBody, conn),
-		routerID: peerRouterID(zeBody),
+	id := newOpenIdentity(p.openAS(zeBody, conn), peerRouterID(zeBody))
+	// Each declaration REPLACES the harness default whole. A .ci that states a
+	// Restart Time and no family is stating the time alone, and resolveFamilies
+	// fills the list from ze-peer's own advertised families once ze's OPEN is
+	// read.
+	if p.config.HoldTime != nil {
+		id.holdTime = *p.config.HoldTime
+	}
+	if p.config.GracefulRestart != nil {
+		id.gracefulRestart = *p.config.GracefulRestart
+	}
+	if p.config.LLGR != nil {
+		id.llgr = *p.config.LLGR
+	}
+	if len(p.config.PathsLimit) > 0 {
+		id.pathsLimit = p.config.PathsLimit
 	}
 	// A capability 65 the .ci wrote out itself IS the AS declaration, and it wins
 	// over every other. It names the octets that go on the wire, and RFC 6793

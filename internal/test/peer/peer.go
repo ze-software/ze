@@ -2,6 +2,9 @@
 // Detail: message.go — BGP message types, wire helpers, and Message struct
 // Detail: checker.go — message validation against expected patterns
 // Detail: expect.go — .ci file loading and option parsing
+// RFC: rfc/short/rfc4724.md — the Graceful Restart capability a .ci declares here
+// RFC: rfc/short/rfc9494.md — the Long-Lived Graceful Restart stale time
+// RFC: rfc/short/draft-abraitis-idr-addpath-paths-limit.md — the PATHS-LIMIT entry
 //
 // Package testpeer provides a BGP test peer for functional testing.
 //
@@ -28,6 +31,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/test/decode"
 )
@@ -112,6 +116,50 @@ type OpenASBinding struct {
 	AS   uint32
 }
 
+// GracefulRestartDecl is what a `.ci` states about ze-peer's OWN Graceful
+// Restart capability (option=open:value=graceful-restart:...).
+//
+// RFC 4724 Section 3 makes every one of these fields a statement by the SENDER:
+// the Restart Time it asks a receiver to wait, the families whose forwarding
+// state it preserves, and the F bit that says it preserved them. A mirror puts
+// ze's answers to those three questions in ze-peer's name.
+type GracefulRestartDecl struct {
+	// Families is the <AFI, SAFI, Flags> list. Empty means the .ci stated none,
+	// and ze-peer then states the families its own OPEN advertises.
+	Families []family.Family
+	// RestartTime is the Restart Time in seconds, 0..4095 (12 bits).
+	RestartTime uint16
+	// ForwardState is the F bit, set for every family in the list.
+	ForwardState bool
+}
+
+// LLGRDecl is what a `.ci` states about ze-peer's OWN Long-Lived Graceful
+// Restart capability (option=open:value=llgr:...).
+//
+// RFC 9494 Section 3 gives code 71 one 7-octet tuple per family, carrying the
+// AFI, the SAFI, a flags octet and a 24-bit Long-Lived Stale Time. The stale
+// time and the F bit are both the sender's declarations.
+type LLGRDecl struct {
+	// Families is the tuple list. Empty means the .ci stated none, and ze-peer
+	// then states the families its own OPEN advertises.
+	Families []family.Family
+	// StaleTime is the Long-Lived Stale Time in seconds, 0..16777215 (24 bits).
+	StaleTime uint32
+	// ForwardState is the F bit, set for every family in the list.
+	ForwardState bool
+}
+
+// PathsLimitDecl is one entry of ze-peer's OWN PATHS-LIMIT capability
+// (option=open:value=paths-limit:family=<f>:limit=<N>).
+//
+// draft-abraitis-idr-addpath-paths-limit Section 3 makes the limit the number of
+// paths the SENDER accepts for each prefix of that family, so a mirrored one
+// makes ze police its own sending by its own number.
+type PathsLimitDecl struct {
+	Family family.Family
+	Limit  uint16
+}
+
 // Config holds test peer configuration.
 type Config struct {
 	// Port to listen on (default 179)
@@ -182,6 +230,27 @@ type Config struct {
 	// identifier with the last octet incremented. Set it to drive an RFC-invalid identifier:
 	// 0.0.0.0 (RFC 6286 Section 2.2 zero), or ze's own router-id over an iBGP session.
 	RouterID *uint32
+	// HoldTime is the Hold Time ze-peer's OPEN states
+	// (option=open:value=hold-time:seconds=N). Nil means the .ci stated none, and
+	// ze-peer states peerHoldTime.
+	//
+	// RFC 4271 Section 4.2 makes the negotiated hold time the smaller of the two
+	// advertised values, so this is the only way a .ci can make ze hold on the
+	// PEER's number rather than on its own.
+	HoldTime *uint16
+	// GracefulRestart is ze-peer's own code-64 value
+	// (option=open:value=graceful-restart:...). Nil means the .ci stated none,
+	// and ze-peer states peerRestartTime over its own advertised families.
+	GracefulRestart *GracefulRestartDecl
+	// LLGR is ze-peer's own code-71 value (option=open:value=llgr:...). Nil means
+	// the .ci stated none, and ze-peer states peerStaleTime over its own
+	// advertised families.
+	LLGR *LLGRDecl
+	// PathsLimit is ze-peer's own code-76 entries
+	// (option=open:value=paths-limit:family=<f>:limit=N). An empty list means the
+	// .ci stated none, and ze-peer states peerPathsLimit for each of its own
+	// advertised families.
+	PathsLimit []PathsLimitDecl
 	// ConnMap determines how accepted connections map to conn= numbers in .ci files.
 	// "router-id": sort each accepted batch by OPEN router-id.
 	// "remote-ip": sort each accepted batch by TCP source address.
