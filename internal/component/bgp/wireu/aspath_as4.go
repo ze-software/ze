@@ -132,7 +132,8 @@ func joinSequences(path *attribute.ASPath) *attribute.ASPath {
 		// it would write over AS numbers the source still owns.
 		run := make([]uint32, 0, len(joined[last].ASNs)+len(seg.ASNs))
 		run = append(run, joined[last].ASNs...)
-		joined[last].ASNs = append(run, seg.ASNs...)
+		run = append(run, seg.ASNs...)
+		joined[last].ASNs = run
 	}
 	return &attribute.ASPath{Segments: joined}
 }

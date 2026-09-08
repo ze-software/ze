@@ -148,9 +148,16 @@ AS4_PATH as RFC 6793 Section 4.2.2 requires.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Import chain: `runIngressPolicyChain` passes the source session width | → | `ExtractASPathPrependOps` | `TestImportPrependEncodesAtTheSourceASNWidth` |
-| Export chain: `runEgressPolicyChainASN4` passes the width of the payload it edits | → | `ExtractASPathPrependOps` | `TestExportPrependEncodesAtTheDestinationASNWidth` |
+| Import chain: `runIngressPolicyChain` passes the source session width | → | `ExtractASPathPrependOps` | `TestImportChainPassesTheSourceContextWidthToThePrepend` |
+| Export chain: `runEgressPolicyChainASN4` passes the width of the payload it edits | → | `ExtractASPathPrependOps` | `TestExportChainPassesItsWidthToThePrepend` |
+| Forwarded export: `runEgressPolicyChain` reads the source context and passes that width | → | `ExtractASPathPrependOps` | `TestForwardedExportChainPassesTheSourceContextWidthToThePrepend` |
 | Dry run: `computeWireChanges` passes its own `asn4` | → | `ExtractASPathPrependOps` | `TestPolicyDryRunPrependReportsAtTheSessionWidth` |
+
+The two names this table carried until 2026-09-08,
+`TestImportPrependEncodesAtTheSourceASNWidth` and
+`TestExportPrependEncodesAtTheDestinationASNWidth`, call the extractor directly
+with a width they choose themselves. They are kept as extractor tests and they
+are not wiring tests: a literal width at either call site leaves both green.
 
 ## Acceptance Criteria
 
@@ -528,8 +535,10 @@ file needs approval, which has not been given, so it stays.
   `// Design:` header of `wireu/aspath_as4.go`: the policy prepend's width rule
   landed with the implementation, and the whole-path AS4_PATH statement landed
   with this session's fix.
-- No other page names `AS4PathForRewrite` or `ExtractASPathPrependOps`
-  (`grep -rn "AS4PathForRewrite\|ExtractASPathPrependOps" docs/`).
+- `docs/guide/plugins.md` and `docs/architecture/perf-round-3.md` also name
+  `ExtractASPathPrependOps`. Neither states anything this change makes false:
+  the first names it as the surface a filter's text reaches, the second as a
+  cost in an allocation round. Both are unedited on purpose.
 
 ### Deviations from Plan
 - The spec named `filter_delta_test.go` for every new test. Two of them live in
@@ -623,8 +632,8 @@ file needs approval, which has not been given, so it stays.
 |-------|-------|
 | Artifact | `tmp/review/as-path-prepend-encodes-at-the-negotiated-width-84ea723f-8e13-4b16-ba76-2cb15a57eb40.md` |
 | `./le spec session review check` | recorded, verdict `findings`, every finding fixed in the tree |
-| Rounds | 2 |
-| Reviewer lenses used | round 1: AC coverage, wiring, single-declaration, RFC comments; round 2: re-verification of every round-1 item plus the new code |
+| Rounds | 4 |
+| Reviewer lenses used | round 1: AC coverage, wiring, single-declaration, RFC comments; round 2: re-verification plus the new code; round 3: the producers behind each width, the guard's reachability, and every closure-table row read against the tree; round 4: confirmation |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
@@ -632,10 +641,14 @@ file needs approval, which has not been given, so it stays.
 | 1 | BLOCKER | Two Wiring Test rows supplied their own width, so the call sites were unproven | `reactor/filter_delta_test.go` | Two new chain-driven tests in `reactor/filter_ordered_test.go`, at both widths |
 | 2 | BLOCKER | No interop verdict existed | `test/interop/scenarios/as-path-prepend-two-octet-peer` | The scenario runs, passes, and was observed RED against the defect |
 | 3 | ISSUE | The merged AS4_PATH did not reconstruct when the received AS4_PATH was shorter | `wireu/aspath_as4.go`, `AS4PathForRewrite` | `attribute.MergeAS4Path` plus `joinSequences` |
-| 4 | ISSUE | `attrs == nil` was the permissive door | `reactor/filter_delta.go`, `prependAS4PathValue` | Fails closed, at Debug because a withdrawal reaches it by construction |
+| 4 | ISSUE | `attrs == nil` returned "nothing owed" where the honest answer is "cannot say" | `reactor/filter_delta.go`, `prependAS4PathValue` | Fails closed, at Debug because a withdrawal reaches it by construction. Round 3 corrected the claim behind it: no reachable path emitted AS_TRANS with the real AS lost, because `buildModifiedPayload` suppresses an unindexable section and `advertiseGate` refuses an AS_PATH on a body that advertises nothing. Both are properties of another file; the guard makes the extractor's own answer safe to read |
 | 5 | ISSUE | The wiring proof was single-polarity | `reactor/filter_ordered_test.go` | Both tests run two-octet and four-octet subtests |
 | 6 | ISSUE | AC-4 stated the invariant the defect satisfies | this spec | AC-4 restated, and a reactor case with a non-zero count difference added |
 | 7 | ISSUE | The commit route refuses a changed RFC-tagged test file | `wireu/rfc6793_as4_test.go` | The new untagged test moved to `wireu/aspath_rewrite_test.go`; the tagged file is untouched |
+| 8 | ISSUE | The new fail-closed guard had no test that reaches it: every fixture passing a nil section also passed the four-octet width, which returns above it | `reactor/filter_delta.go`, `prependAS4PathValue` | `TestPrependRecordsNothingWithoutAnAttributeSection`, observed red with the guard removed |
+| 9 | ISSUE | The export wiring test enters at `runEgressPolicyChainASN4`, which still takes the width as an argument, so the forwarded rail's producer was untested | `reactor/filter_ordered.go`, `runEgressPolicyChain` | `TestForwardedExportChainPassesTheSourceContextWidthToThePrepend`, both widths, observed red with a literal at that call site |
+| 10 | NOTE | The Wiring Test table still named the two extractor-level tests | this spec | The table names the chain-driven tests and says why the other two are not wiring tests |
+| 11 | NOTE | Documentation Updates claimed no other page names the symbols | this spec | Corrected: two pages do, and neither is made wrong |
 
 ## Pre-Commit Verification
 

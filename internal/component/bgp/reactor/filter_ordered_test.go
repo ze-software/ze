@@ -620,3 +620,45 @@ func TestExportChainPassesItsWidthToThePrepend(t *testing.T) {
 		})
 	}
 }
+
+// TestForwardedExportChainPassesTheSourceContextWidthToThePrepend drives
+// runEgressPolicyChain, the FORWARDED egress entry, whose width is not an
+// argument: it reads the source encoding context, because a forwarded wire is
+// still in the sending peer's encoding.
+//
+// The chain test above enters one layer lower, at runEgressPolicyChainASN4, so
+// it proves the shared body forwards the width it is given and says nothing
+// about where that width comes from. This is the other producer.
+//
+// VALIDATES: the Wiring Test row for the export chain, on the forwarded rail.
+// PREVENTS: a relayed route prepended at the destination's width when the bytes
+// are still in the source's.
+func TestForwardedExportChainPassesTheSourceContextWidthToThePrepend(t *testing.T) {
+	for _, asn4 := range []bool{false, true} {
+		t.Run(widthName(asn4), func(t *testing.T) {
+			ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(asn4))
+			require.NoError(t, err, "the source session negotiated a width")
+
+			r := &Reactor{
+				api:              &pluginserver.Server{},
+				policyFilterSeam: prependingFilter("2"),
+				attrModHandlers:  attrModHandlersWithDefaults(),
+			}
+			filters := []filterapi.FilterRef{{Name: "prepend-twice"}}
+
+			body := asPathBodyAtWidth(asn4)
+			res := r.runEgressPolicyChain(filters, "10.0.0.22", 65001, 65000,
+				wireu.NewWireUpdate(body, ctxID))
+
+			require.True(t, res.accept, "the forwarded export chain accepted the modified route")
+			require.NotNil(t, res.wireOverride, "the forwarded export chain produced a wire override")
+
+			value, found := attrValueFromPayload(t, res.wireOverride.Payload(), attribute.AttrASPath)
+			require.True(t, found, "the override carries an AS_PATH")
+			path, err := attribute.ParseASPath(value, asn4)
+			require.NoError(t, err, "the override's AS_PATH decodes at the source session's width")
+			assert.Equal(t, []uint32{65000, 65000, 64496}, flatASNs(path),
+				"the local AS leads the path twice, at the source session's width")
+		})
+	}
+}

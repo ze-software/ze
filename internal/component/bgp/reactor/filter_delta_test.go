@@ -2106,3 +2106,22 @@ func TestPrependRecordsNothingWhenTheAS4PathCannotBeDerived(t *testing.T) {
 
 	assert.Equal(t, 0, mods.Len(), "neither an AS_PATH nor an AS4_PATH operation is recorded")
 }
+
+// TestPrependRecordsNothingWithoutAnAttributeSection pins the other fail-closed
+// door of the extractor. An UPDATE body whose attribute section did not index
+// leaves the AS-path family unreadable, so the derivation cannot say whether
+// RFC 6793 Section 4.2.2 owes an AS4_PATH beside the prepend.
+//
+// The width matters: at four octets the extractor returns before it looks at the
+// attributes at all, so the two-octet case is the one that reaches this branch.
+//
+// VALIDATES: the spec's Security Review "Fail closed" row, for an absent
+// attribute section rather than an unparseable AS_PATH.
+// PREVENTS: an AS_PATH prepend recorded with no AS4_PATH decision behind it.
+func TestPrependRecordsNothingWithoutAnAttributeSection(t *testing.T) {
+	var mods filterapi.ModAccumulator
+	ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("as-path-prepend 1"), nil, false, 131072, &mods)
+
+	assert.Equal(t, 0, mods.Len(),
+		"an unreadable attribute section records neither an AS_PATH nor an AS4_PATH operation")
+}

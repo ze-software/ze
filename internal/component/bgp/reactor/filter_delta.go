@@ -739,10 +739,16 @@ func prependAS4PathValue(scratch *valueScratch, attrs *attribute.AttributesWire,
 	}
 
 	// A body whose attribute section did not index leaves the AS-path family
-	// unreadable, and at two-octet width the prepend then writes AS_TRANS for a
-	// non-mappable local AS with the real number carried nowhere. That is the
-	// RFC 6793 Section 4.2.2 violation this derivation exists to prevent, so an
-	// absent section fails closed like an unparseable AS_PATH does below.
+	// unreadable, so this derivation cannot say whether RFC 6793 Section 4.2.2
+	// owes an AS4_PATH. It answers "record nothing" rather than "nothing owed",
+	// which is the same answer the unparseable-AS_PATH branch below gives.
+	//
+	// No reachable path emits AS_TRANS with the real AS carried nowhere today:
+	// a section that fails to index makes buildModifiedPayload suppress the
+	// route, and a body with no section advertises nothing, so advertiseGate
+	// (forward_build.go) refuses to create an AS_PATH on it. Both of those are
+	// properties of another file. This branch is what makes the extractor's own
+	// answer safe to read without them.
 	//
 	// Debug rather than Warn: a withdrawal-only UPDATE carries no attribute
 	// section by construction and has no AS_PATH to prepend to, so this line
