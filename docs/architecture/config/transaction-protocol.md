@@ -740,43 +740,52 @@ graph, and executes them one at a time with inter-operation settlement.
 
 ### When the operation path activates
 
-The operation path is not the default. It activates only when all three conditions
-hold:
+The operation path runs whenever an operation planner is installed, and it
+carries every participant with a diff. Two conditions decide it:
 
 1. **Full-config verify succeeds.** Phase 1 (section 2) runs exactly as before.
    Every plugin validates the candidate config. Verify-failed or timeout aborts
    the transaction before the operation path is considered.
 
 2. **An operation planner is registered.** The orchestrator holds an optional
-   `OperationPlanner` set via `TxCoordinator.SetOperationPlanner`. If no planner
-   is set, the orchestrator always takes the existing full-diff apply path.
+   `OperationPlanner` set via `TxCoordinator.SetOperationPlanner`. `reloadConfig`
+   always installs one (`runTxCoordinator`, `reload_tx.go`), so the unordered
+   Phase 2 apply is the path of a coordinator built without a planner.
 
-3. **The planner returns operations.** The planner calls each registered
-   `OperationDecomposer` for the affected config roots. If all decomposers return
-   empty slices (no ordering-sensitive changes), the planner returns nil and the
-   orchestrator falls through to the existing Phase 2 broadcast apply.
+The planner calls each registered `OperationDecomposer` for the affected config
+roots. A root with no decomposer, and a root whose decomposer declines the diff,
+produce no operations, and their participants are covered a second way:
+`operationNodes` synthesizes one COARSE NODE per participant that has diffs and
+owns no operation. The graph therefore holds a node for every participant, which
+is what makes the ordering unconditional. The path used to be abandoned for the
+whole transaction as soon as one participant could not be decomposed, and the
+operations that WERE ordered lost their order with it.
 
-When the planner returns a non-empty operation list, the orchestrator calls
-`runOperationPath` instead of `runApply`. The existing full-diff apply, rollback,
-and commit paths are skipped entirely for that transaction.
+A coarse node is applied through the participant's section apply event, so the
+plugin answers `config-apply`, the callback every plugin implements. It owes no
+per-operation verify (Phase 1 verified its whole candidate config) and no
+per-operation commit or rollback: the broadcast `committed` and `rollback`
+events reach it, as they always did.
 
 ```
 orchestrator.go: Execute(ctx, diffs)
   |
   | Phase 1: full-config verify (unchanged)
   |
-  | operationPlanner(ctx, OperationPlanRequest{diffs})
-  |   \-- calls OperationDecomposerFor(root) per affected root
+  +-- no planner --> Phase 2: full-diff apply (runApply)
   |
-  +-- ops == nil  --> Phase 2: full-diff apply (existing path)
-  |
-  +-- ops != nil  --> runOperationPath(ctx, ops)
+  +-- planner    --> operationPlanner(ctx, OperationPlanRequest{diffs})
+                     |   \-- calls OperationDecomposerFor(root) per affected root
+                     | operationNodes(ops, diffs)
+                     |   \-- one coarse node per uncovered participant
+                     | runOperationPath(ctx, nodes, diffs)
                         |
-                        | BuildOperationGraph(ops, ConstraintRules())
+                        | BuildOperationGraph(nodes, ConstraintRules())
                         | TopologicalSort(graph)
-                        | executor.Verify(ctx, sorted)
-                        | executor.Execute(ctx, sorted)   // per-op apply + settlement
-                        | executor.Commit(ctx, sorted)
+                        | executor.Verify(ctx, sorted)    // decomposed operations only
+                        | executor.Execute(ctx, sorted)   // per-op apply + settlement,
+                        |                                 // section apply for a coarse node
+                        | executor.Commit(ctx, sorted)    // decomposed owners only
 ```
 
 ### Operation types and the constraint rule registry
@@ -983,7 +992,11 @@ begins rollback.
 
 ### Operation verify phase
 
-Before applying any operations, the executor runs a per-operation verify pass.
+Before applying any operations, the executor runs a per-operation verify pass
+over the DECOMPOSED operations. A coarse node is skipped: Phase 1 verified the
+whole candidate config for its participant, and that participant registered no
+`config-operation-verify` callback to ask again with.
+
 For each operation in sorted order, it emits
 `(config, operation-verify-<owner>)` and waits for `operation-verify-ok` or
 `operation-verify-failed`. A single failure aborts the transaction. This is
@@ -1004,8 +1017,9 @@ previously applied operations in reverse order:
 
 2. **Broadcast full-config rollback.** After per-operation rollback completes,
    the orchestrator emits the standard `(config, rollback)` broadcast (section 2,
-   Phase 3) so that all transaction participants (including plugins that used the
-   full-diff path for their roots) can undo via their journals.
+   Phase 3) so that all transaction participants can undo via their journals.
+   This is what undoes a coarse node: its owner applied a section and answers
+   `config-rollback`, so the executor emits no per-operation rollback for it.
 
 3. **Reverse-tier ack collection.** Rollback acks are collected in reverse
    dependency-tier order, exactly as described in section 2.
@@ -1065,16 +1079,17 @@ and operation types they handle.
 ### Integration with existing phases
 
 The operation graph extension does not replace the existing transaction protocol.
-It is an optional secondary path within a single transaction:
+It is the apply path a coordinator with a planner takes, and the columns below
+say what each phase does with and without one:
 
-| Phase | Without operations | With operations |
-|-------|-------------------|-----------------|
+| Phase | No planner | Planner installed |
+|-------|-----------|-------------------|
 | Verify (Phase 1) | Full-config verify, all plugins | Identical -- unchanged |
-| Plan | Skipped | Planner calls decomposers, builds operation list |
-| Operation verify | Skipped | Per-operation verify in sorted order |
-| Apply (Phase 2) | Full-diff broadcast to all plugins | Per-operation apply in sorted order with settlement |
-| Commit | `(config, committed)` broadcast | Per-owner `operation-commit`, then `(config, committed)` broadcast |
-| Rollback (Phase 3) | `(config, rollback)` broadcast | Per-operation reverse rollback, then `(config, rollback)` broadcast |
+| Plan | Skipped | Planner calls decomposers, then one coarse node per uncovered participant |
+| Operation verify | Skipped | Per-operation verify in sorted order, decomposed operations only |
+| Apply (Phase 2) | Full-diff broadcast to all plugins | Per-operation apply in sorted order with settlement; a coarse node takes the participant's section apply |
+| Commit | `(config, committed)` broadcast | Per-owner `operation-commit` for decomposed owners, then `(config, committed)` broadcast |
+| Rollback (Phase 3) | `(config, rollback)` broadcast | Per-operation reverse rollback for decomposed operations, then `(config, rollback)` broadcast, which is what undoes a coarse node |
 | Finalize | `(config, applied)` or `(config, rolled-back)` | Identical -- unchanged |
 
 Transaction exclusion (section 6), apply journals (section 7), persistence

@@ -39,13 +39,35 @@ const (
 	OperationRemoveListener     = rpc.OperationRemoveListener
 	OperationAddStaticRoute     = rpc.OperationAddStaticRoute
 	OperationRemoveStaticRoute  = rpc.OperationRemoveStaticRoute
-	OperationSetDistance   = rpc.OperationSetDistance
+	OperationSetDistance        = rpc.OperationSetDistance
 	OperationSetSysctl          = rpc.OperationSetSysctl
 	OperationStartDHCP          = rpc.OperationStartDHCP
 	OperationStopDHCP           = rpc.OperationStopDHCP
 	OperationAddTunnel          = rpc.OperationAddTunnel
 	OperationRemoveTunnel       = rpc.OperationRemoveTunnel
 )
+
+// OperationSectionApply labels the coarse node the orchestrator synthesizes for
+// a participant that has diffs and owns no operation. The node stands for that
+// participant's whole section, so the executor applies it through the section
+// apply event and the plugin answers the `config-apply` callback it already
+// implements. The five `config-operation-*` callbacks have no SDK default
+// (initCallbackDefaults in pkg/plugin/sdk/sdk_callbacks.go), so a plugin that
+// registered none of them answers "unknown method" to a per-operation apply.
+//
+// The label is core-owned: no component emits it, and the planner refuses an
+// operation that arrives from a plugin carrying it
+// (validateOperationDeclarations in internal/component/plugin/server/reload_tx.go).
+const OperationSectionApply ConfigOperationType = "section-apply"
+
+// IsSectionApply reports whether op is a coarse node standing for one
+// participant's whole section apply rather than one atomic operation.
+func IsSectionApply(op *ConfigOperation) bool {
+	if op == nil {
+		return false
+	}
+	return op.Type == OperationSectionApply
+}
 
 const (
 	ResourceInterface    = rpc.ResourceInterface

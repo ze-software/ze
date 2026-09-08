@@ -12,11 +12,17 @@ import (
 	"time"
 )
 
+// SectionDiffs returns the diff sections one participant receives through the
+// section apply, and reports whether that participant has any. The orchestrator
+// installs it so a coarse node applies what the section apply applies.
+type SectionDiffs func(name string) ([]DiffSection, bool)
+
 // OperationExecutor applies sorted operations through config operation events.
 type OperationExecutor struct {
-	gateway    EventGateway
-	txID       string
-	deadlineMS int64
+	gateway      EventGateway
+	txID         string
+	deadlineMS   int64
+	sectionDiffs SectionDiffs
 }
 
 // NewOperationExecutor creates an executor for one transaction.
@@ -26,6 +32,12 @@ func NewOperationExecutor(gateway EventGateway, txID string) *OperationExecutor 
 
 // SetDeadlineMS sets the Unix-millis deadline propagated to per-operation events.
 func (e *OperationExecutor) SetDeadlineMS(ms int64) { e.deadlineMS = ms }
+
+// SetSectionDiffs installs the source of a coarse node's diff sections. A
+// sorted list carrying a coarse node MUST have one installed: without it the
+// executor cannot say what that participant receives, and it refuses the node
+// rather than applying an empty section.
+func (e *OperationExecutor) SetSectionDiffs(fn SectionDiffs) { e.sectionDiffs = fn }
 
 // Verify asks operation owners to validate every operation before mutation.
 func (e *OperationExecutor) Verify(ctx context.Context, ops []ConfigOperation) error {
@@ -53,6 +65,12 @@ func (e *OperationExecutor) Verify(ctx context.Context, ops []ConfigOperation) e
 
 	for i := range ops {
 		op := &ops[i]
+		// A coarse node owes no verify: phase 1 verified the whole candidate
+		// config for its participant before the planner ran, and the plugin
+		// implements no per-operation verify callback to ask twice with.
+		if IsSectionApply(op) {
+			continue
+		}
 		if op.Owner == "" {
 			return fmt.Errorf("operation %q has no owner", op.ID)
 		}
@@ -82,9 +100,26 @@ func (e *OperationExecutor) Execute(ctx context.Context, ops []ConfigOperation) 
 	applyFailedCh := make(chan ConfigOperationApplyAck, len(ops))
 	rollbackOKCh := make(chan ConfigOperationRollbackAck, len(ops))
 	rollbackFailedCh := make(chan ConfigOperationRollbackAck, len(ops))
+	sectionOKCh := make(chan ApplyAck, len(ops))
+	sectionFailedCh := make(chan ApplyAck, len(ops))
 	applyFilter := &ackFilter{}
 	rollbackFilter := &ackFilter{}
+	// A coarse node is applied through the section apply, so its ack is the
+	// section ack, which carries the plugin name and no operation id.
+	sectionFilter := &ackFilter{}
 	unsubs := []func(){
+		e.gateway.SubscribeConfigEvent(EventApplyOK, func(payload []byte) {
+			var ack ApplyAck
+			if err := json.Unmarshal(payload, &ack); err == nil && ack.TransactionID == e.txID && sectionFilter.match(ack.Plugin) {
+				trySendSectionApplyAck(sectionOKCh, ack)
+			}
+		}),
+		e.gateway.SubscribeConfigEvent(EventApplyFailed, func(payload []byte) {
+			var ack ApplyAck
+			if err := json.Unmarshal(payload, &ack); err == nil && ack.TransactionID == e.txID && sectionFilter.match(ack.Plugin) {
+				trySendSectionApplyAck(sectionFailedCh, ack)
+			}
+		}),
 		e.gateway.SubscribeConfigEvent(EventOperationApplyOK, func(payload []byte) {
 			var ack ConfigOperationApplyAck
 			if err := json.Unmarshal(payload, &ack); err == nil && ack.TransactionID == e.txID && applyFilter.match(ack.OperationID) {
@@ -115,6 +150,13 @@ func (e *OperationExecutor) Execute(ctx context.Context, ops []ConfigOperation) 
 	executed := make([]ConfigOperation, 0, len(ops))
 	for i := range ops {
 		op := &ops[i]
+		if IsSectionApply(op) {
+			if err := e.applySection(ctx, op, sectionOKCh, sectionFailedCh, sectionFilter); err != nil {
+				return e.rollbackApplied(ctx, executed, rollbackOKCh, rollbackFailedCh, rollbackFilter, err)
+			}
+			executed = append(executed, *op)
+			continue
+		}
 		waiters := e.armSettlementWaiters(op)
 		if op.Owner == "" {
 			unsubWaiters(waiters)
@@ -188,9 +230,44 @@ func (e *OperationExecutor) Commit(ctx context.Context, ops []ConfigOperation) e
 	return nil
 }
 
+// applySection applies one coarse node through the section apply event, the
+// same event and payload the orchestrator's own apply phase publishes. The
+// participant answers it with the `config-apply` callback every plugin
+// implements, and its ack is the section apply ack.
+func (e *OperationExecutor) applySection(ctx context.Context, op *ConfigOperation, okCh, failedCh <-chan ApplyAck, filter *ackFilter) error {
+	if op.Owner == "" {
+		return fmt.Errorf("section apply node %q has no owner", op.ID)
+	}
+	if e.sectionDiffs == nil {
+		return fmt.Errorf("section apply node %q has no diff source: the caller did not call SetSectionDiffs", op.ID)
+	}
+	diffs, ok := e.sectionDiffs(op.Owner)
+	if !ok {
+		return fmt.Errorf("section apply node %q: participant %s has no diffs to apply", op.ID, op.Owner)
+	}
+	filter.set(op.Owner)
+	if err := emitSectionApply(e.gateway, e.txID, op.Owner, diffs, e.deadlineMS); err != nil {
+		return err
+	}
+	if err := waitSectionApplyAck(ctx, op.Owner, okCh, failedCh); err != nil {
+		return err
+	}
+	filter.clear()
+	return nil
+}
+
 func (e *OperationExecutor) rollbackApplied(ctx context.Context, executed []ConfigOperation, okCh, failedCh <-chan ConfigOperationRollbackAck, filter *ackFilter, cause error) error {
 	for i := len(executed) - 1; i >= 0; i-- {
 		op := &executed[i]
+		// The inverse of a section apply is the section rollback, and that one
+		// is transaction-wide: the orchestrator publishes EventRollback to
+		// every participant when Execute returns this error, and the bridge
+		// turns it into one `config-rollback` per plugin. Emitting a
+		// per-operation rollback here would reach a callback the participant
+		// does not implement.
+		if IsSectionApply(op) {
+			continue
+		}
 		if filter != nil {
 			filter.set(op.ID)
 		}
@@ -256,6 +333,14 @@ func trySendOpRollbackAck(ch chan<- ConfigOperationRollbackAck, ack ConfigOperat
 	}
 }
 
+func trySendSectionApplyAck(ch chan<- ApplyAck, ack ApplyAck) {
+	select {
+	case ch <- ack:
+	default:
+		logger().Warn("section apply ack channel full, dropping ack", "tx", ack.TransactionID, "plugin", ack.Plugin)
+	}
+}
+
 func trySendOpCommitAck(ch chan<- ConfigOperationCommitAck, ack ConfigOperationCommitAck) {
 	select {
 	case ch <- ack:
@@ -280,6 +365,31 @@ func waitApplyAck(ctx context.Context, opID string, okCh, failedCh <-chan Config
 				continue
 			}
 			return fmt.Errorf("operation %s apply failed: %s", opID, ack.Error)
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+// waitSectionApplyAck waits for one participant's section apply ack. The ack
+// carries the plugin name rather than an operation id, so the match is on the
+// name and a stray ack from another participant is left for its own wait.
+func waitSectionApplyAck(ctx context.Context, name string, okCh, failedCh <-chan ApplyAck) error {
+	for {
+		select {
+		case ack := <-okCh:
+			if ack.Plugin != name {
+				continue
+			}
+			if ack.Status != CodeOK {
+				return fmt.Errorf("section apply for %s failed: %s", name, ack.Error)
+			}
+			return nil
+		case ack := <-failedCh:
+			if ack.Plugin != name {
+				continue
+			}
+			return fmt.Errorf("section apply for %s failed: %s", name, ack.Error)
 		case <-ctx.Done():
 			return ctx.Err()
 		}
@@ -492,11 +602,18 @@ func waitCommitAck(ctx context.Context, owner string, okCh, failedCh <-chan Conf
 	}
 }
 
+// owners returns the plugins that must finalize an operation journal, in first
+// appearance order. A coarse node's owner is not one of them: it journals
+// through the section apply, and the broadcast `committed` event the
+// orchestrator publishes is what tells it to discard that journal.
 func owners(ops []ConfigOperation) []string {
 	seen := make(map[string]struct{}, len(ops))
 	owners := make([]string, 0, len(ops))
 	for i := range ops {
 		op := &ops[i]
+		if IsSectionApply(op) {
+			continue
+		}
 		if op.Owner == "" {
 			continue
 		}

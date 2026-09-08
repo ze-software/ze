@@ -90,6 +90,14 @@ func (a *reactorAPIAdapter) applyConfigOperation(op *rpc.ConfigOperation, j conf
 		if err != nil {
 			return nil, err
 		}
+		swapped, err := a.swapPeerForOperation(newSettings, j)
+		if err != nil {
+			return nil, err
+		}
+		if swapped {
+			a.emitOperationListenerReady(newSettings)
+			return bgpOperationApplyOutput(newSettings), nil
+		}
 		if err := j.Record(
 			func() error { return a.removePeerForOperation(oldSettings) },
 			func() error { return a.r.AddPeer(oldSettings) },
@@ -228,6 +236,51 @@ func operationPeerRemotePortExplicit(peer map[string]any) bool {
 
 func (a *reactorAPIAdapter) removePeerForOperation(settings *PeerSettings) error {
 	return a.r.RemovePeer(settings.Address)
+}
+
+// swapPeerForOperation applies a modify-peer to the RUNNING session where the
+// change is one a running session can take, and reports whether it did.
+//
+// The decision is peerSettingsSwapPlan's, which is the decision
+// reconcilePeersJournaled takes for the same peer on the section apply path
+// (reactor_api.go). Both paths MUST reach it: a modify-peer that always removed
+// and re-added bounced the session for a change the reload was able to swap in
+// place, so the operator lost the session, the peer re-learned every route, and
+// which path the reload took decided whether that happened.
+//
+// A dynamic peer is never swapped. Its running settings were resolved at
+// establishment rather than read from the configuration
+// (resolveDynamicPeerSettings, reactor_dynamic.go), so they are not a candidate
+// the config entry can be diffed against, and its establishment goroutine
+// writes fields applyHotSwappableSettings would write here.
+func (a *reactorAPIAdapter) swapPeerForOperation(next *PeerSettings, j configJournal) (bool, error) {
+	if next == nil {
+		return false, nil
+	}
+	key := next.PeerKey()
+
+	a.r.mu.RLock()
+	peer := a.r.peers[key]
+	a.r.mu.RUnlock()
+	if peer == nil {
+		return false, nil
+	}
+
+	current := peer.settingsSnapshot()
+	if current == nil || current.IsDynamic {
+		return false, nil
+	}
+
+	apply, reason := peerSettingsSwapPlan(current, next, peer.currentSession())
+	if reason != "" {
+		reactorLogger().Info("peer restart required", "phase", "operation", "peer", key, "changed", reason)
+		return false, nil
+	}
+	if err := a.swapPeerSettingsJournaled([]peerSettingsSwap{{key: key, next: next, apply: apply}}, j); err != nil {
+		return false, err
+	}
+	reactorLogger().Debug("peer settings swapped in place", "phase", "operation", "peer", key)
+	return true, nil
 }
 
 func bgpOperationApplyOutput(settings *PeerSettings) *rpc.ConfigOperationApplyOutput {

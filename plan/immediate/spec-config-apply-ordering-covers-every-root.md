@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | config |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-07 |
+| Updated | 2026-09-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -139,11 +139,11 @@ ordering, and the plugin RPC contract is Ze's own.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A coarse root node applied through `config-apply` applies exactly what the section apply applies today, because it carries the same `DiffSection` slice `filterDiffs` produces | `orchestrator.go` `runApply` and `filterDiffs`; `config_tx_bridge.go` `phaseApply.runRPC` | The coarse node changes what an uncovered participant receives, and a root silently applies a different change | Unit test comparing the payload the coarse node emits against the payload `runApply` emits for the same participant and the same diffs | unvalidated |
-| A-2 | Phase 1 verify already covers a coarse root node, so the node owes no per-operation verify | `orchestrator.go` `Execute` runs `runVerify` for every participant before the planner | A coarse node reaches apply with its root unverified | Unit test asserting the participant received `config-verify` and the coarse node emits no `config-operation-verify` | unvalidated |
-| A-3 | The five `config-operation-*` callbacks have no SDK default, so routing a coarse node to `config-operation-apply` fails with "unknown method" | `pkg/plugin/sdk/sdk_callbacks.go` `initCallbackDefaults`; `sdk_dispatch.go` | The design's reason for the section route is wrong, and a simpler route exists | Read at both sites during design; re-assert with a unit test over a plugin that registers no operation callbacks | unvalidated |
+| A-1 | A coarse root node applied through `config-apply` applies exactly what the section apply applies today, because it carries the same `DiffSection` slice `filterDiffs` produces | `orchestrator.go` `runApply` and `filterDiffs`; `config_tx_bridge.go` `phaseApply.runRPC` | The coarse node changes what an uncovered participant receives, and a root silently applies a different change | Unit test comparing the payload the coarse node emits against the payload `runApply` emits for the same participant and the same diffs | confirmed (phase 1). One function emits both, `emitSectionApply` (`orchestrator.go`), and both take their diffs from `filterDiffs`: `runApply` calls it directly, the coarse node through `sectionDiffsFor`. `TestExecuteCoarseNodeAppliesSection` asserts the emitted `ApplyEvent.Diffs` equals the participant's diffs |
+| A-2 | Phase 1 verify already covers a coarse root node, so the node owes no per-operation verify | `orchestrator.go` `Execute` runs `runVerify` for every participant before the planner | A coarse node reaches apply with its root unverified | Unit test asserting the participant received `config-verify` and the coarse node emits no `config-operation-verify` | confirmed (phase 1). `Execute` runs `runVerify` over every participant with diffs before it calls the planner (`orchestrator.go`), and `OperationExecutor.Verify` skips a coarse node. `TestExecuteCoarseNodeEmitsNoOperationVerify` asserts one full-config verify and no operation verify, apply or commit event for that participant |
+| A-3 | The five `config-operation-*` callbacks have no SDK default, so routing a coarse node to `config-operation-apply` fails with "unknown method" | `pkg/plugin/sdk/sdk_callbacks.go` `initCallbackDefaults`; `sdk_dispatch.go` | The design's reason for the section route is wrong, and a simpler route exists | Read at both sites during design; re-assert with a unit test over a plugin that registers no operation callbacks | confirmed (phase 1) by reading the producers. `initCallbackDefaults` (`pkg/plugin/sdk/sdk_callbacks.go`) registers defaults for `config-verify`, `config-apply`, `config-rollback`, deliver-event, deliver-batch, validate-open, doctor-check, enrich-show, bye and post-startup, and for none of the five `config-operation-*` callbacks. An unregistered method answers "unknown method" at both dispatch sites, `handleBridgeCallback` and the event loop (`pkg/plugin/sdk/sdk_dispatch.go`). The unit test named for phase 2 is still owed |
 | A-4 | `ResourceKind` is already open, because `resourceKey` has a default branch, so a root can carry a kind the core does not name | `depgraph.go` `resourceKey` | The vocabulary change has to open `ResourceKind` as well as the operation label | Unit test with an unnamed resource kind on both ends of a produce/consume pair | unvalidated |
-| A-5 | The `static` plugin (`ConfigRoots` is `static`) is a real uncovered participant, usable as the third root in the mixed-root functional test | `internal/plugins/static/register.go`; only iface and bgp register decomposers or operation callbacks | The mixed-root test needs a different third root | Run the mixed-root test before the fix and confirm the fallback log line appears | unvalidated |
+| A-5 | The `static` plugin (`ConfigRoots` is `static`) is a real uncovered participant, usable as the third root in the mixed-root functional test | `internal/plugins/static/register.go`; only iface and bgp register decomposers or operation callbacks | The mixed-root test needs a different third root | Run the mixed-root test before the fix and confirm the fallback log line appears | confirmed as a FACT about static, and the premise under it is broken (phase 1). `static` declares `WantsConfig: []string{pluginName, "interface"}` (`internal/plugins/static/register.go`) and registers no decomposer: `RegisterOperationDecomposer` has exactly two non-test callers, `internal/component/iface/operation.go` and `internal/component/bgp/plugin/operation.go`. It is therefore a real uncovered participant. What is broken is "uncovered participants are rare": a dozen BGP plugins declare the `bgp` root and none decomposes (`rib`, `gr`, `rpki`, `bmp`, `rs`, `watchdog`, `hostname`, `softver`, `llnh`, `healthcheck`, `route_refresh`, the `filter_*` set), so EVERY bgp reload took the fallback. Phase 1's coarse-root functional test uses the `rsvp-te` root instead of `static`, because the static plugin applies to the kernel FIB and the coarse-root case needs no privilege |
 | A-6 | No other `plan/` spec is editing these files | Working tree inspection at design time | A merge conflict, or two designs for one defect | `git status` plus a grep of `plan/` for `apply-ordering` before implementation starts | unvalidated |
 | A-7 | Nothing outside `solver.go` reads `Params.AllowDual`, so the dual-presence window is produced by the removed edges alone | grep over `internal/` and `pkg/`: the only non-test hits are `solver.go` and the field declaration | Deleting or keeping the flag changes apply behavior | The dual-presence functional test asserts both addresses present during the window, independent of the flag | unvalidated |
 
@@ -208,13 +208,13 @@ ordering, and the plugin RPC contract is Ze's own.
 | `TestBuildOperationGraphDerivedEdgesMatchDeletedRules` | `internal/component/config/transaction/depgraph_test.go` | On the existing iface and bgp operation fixtures, the derived edge set equals the set the nine deleted rules produced | |
 | `TestTopologicalSortRelaxesCycleByVerbAndKind` | `internal/component/config/transaction/solver_test.go` | The relaxation decides on the verb plus the address resource kind, not on the operation label | |
 | `TestTopologicalSortRejectsNonAddressCycle` | `internal/component/config/transaction/solver_test.go` | Preserved rejection, restated against the verb test | |
-| `TestExecuteMixedRootTakesOperationPath` | `internal/component/config/transaction/orchestrator_test.go` | A transaction with one decomposed root and one uncovered participant runs `runOperationPath` (AC-1) | |
-| `TestExecuteCoarseNodeAppliesSection` | `internal/component/config/transaction/orchestrator_test.go` | The coarse node emits the participant's section apply event with the diffs `runApply` would have sent (A-1, AC-2) | |
-| `TestExecuteCoarseNodeEmitsNoOperationVerify` | `internal/component/config/transaction/orchestrator_test.go` | The coarse node owes no per-operation verify (A-2) | |
-| `TestParticipantsWithoutOperationsEmptyAfterSynthesis` | `internal/component/config/transaction/orchestrator_test.go` | Coverage is total, so no fallback branch is reachable | |
+| `TestExecuteMixedRootTakesOperationPath` | `internal/component/config/transaction/orchestrator_test.go` | A transaction with one decomposed root and one uncovered participant runs `runOperationPath` (AC-1) | PASS |
+| `TestExecuteCoarseNodeAppliesSection` | `internal/component/config/transaction/orchestrator_test.go` | The coarse node emits the participant's section apply event with the diffs `runApply` would have sent (A-1, AC-2) | PASS |
+| `TestExecuteCoarseNodeEmitsNoOperationVerify` | `internal/component/config/transaction/orchestrator_test.go` | The coarse node owes no per-operation verify (A-2) | PASS |
+| `TestParticipantsWithoutOperationsEmptyAfterSynthesis` | `internal/component/config/transaction/orchestrator_test.go` | Coverage is total, so no fallback branch is reachable | PASS |
 | `TestExecuteRefusesOperationWithNoVerb` | `internal/component/config/transaction/orchestrator_test.go` | AC-6, fail closed with a named error | |
 | `TestOperationPathCarriesUnknownLabel` | `internal/component/config/transaction/executor_test.go` | AC-5, the label reaches the owner unchanged | |
-| `TestExecuteRollsBackMixedTransaction` | `internal/component/config/transaction/executor_test.go` | AC-7 across both node kinds | |
+| `TestExecuteRollsBackMixedTransaction` | `internal/component/config/transaction/executor_test.go` | AC-7 across both node kinds | PASS |
 | `TestIfaceOperationsDeclareProduceAndConsume` | `internal/component/iface/operation_test.go` | The iface decomposer declares the sets the deleted rules used to state | |
 | `TestBGPOperationsDeclareConsumeAddress` | `internal/component/bgp/plugin/operation_test.go` | The bgp decomposer declares address consumption for peers and listeners | |
 | `TestSDKPluginWithoutOperationCallbacksAnswersUnknownMethod` | `pkg/plugin/sdk/sdk_test.go` | A-3, the reason a coarse node takes the section route | |
@@ -233,7 +233,7 @@ bounds so implementation does not invent one.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `config-apply-ordering-mixed-root` | `test/reload/config-apply-ordering-mixed-root.ci` | An interface address plus a static route in one commit keeps address ordering (AC-1) | |
-| `config-apply-ordering-coarse-root` | `test/reload/config-apply-ordering-coarse-root.ci` | A commit touching only a root with no decomposer still applies (AC-2) | |
+| `config-apply-ordering-coarse-root` | `test/reload/config-apply-ordering-coarse-root.ci` | A commit touching only a root with no decomposer still applies (AC-2) | PASS, and observed RED under its own revert |
 | `config-apply-ordering-address-swap` | `test/reload/config-apply-ordering-address-swap.ci` | Two interfaces swap addresses, both present for the window, and a BGP peer bound to one of them stays reachable (AC-4, closes D4) | |
 | `config-apply-ordering-mixed-rollback` | `test/reload/config-apply-ordering-mixed-rollback.ci` | A failed apply in a mixed transaction rolls back both node kinds (AC-7) | |
 
@@ -384,6 +384,7 @@ This spec does not answer them from memory.
    - Tests: `config-apply-ordering-address-swap.ci`, `config-apply-ordering-mixed-root.ci`, `config-apply-ordering-mixed-rollback.ci`, and the discrimination walk for all four new tests
    - Files: the four new `.ci` files, and the comment corrections in the three existing ordering tests
    - Verify: each new test is observed RED under its own named revert and GREEN after restore, with both outputs recorded
+   - Observed at phase 1, and owed an answer here: `config-apply-ordering-rotation` timed out once in five `./le functional reload` runs over the phase-1 tree, at 30.0s against a 2.2s average, reporting "all expected messages received but test still timed out". It is one of the three tests D4 says emit `remove-peer` and `add-peer` rather than the address operations they stand in for, and this phase rewrites them. Reproduce it before rewriting, so the rewrite is known to remove the timeout rather than to hide it
 5. **Phase: Documentation** -- the pages named in the checklist, written inside this same work
    - Files: `docs/architecture/config/apply-ordering.md`, `docs/architecture/config/transaction-protocol.md`, `docs/architecture/api/process-protocol.md`, `docs/plugin-development/protocol.md`
    - Verify: `./le doc check verify` passes, and every anchor named in row 16 is either updated or named as unaffected with a reason

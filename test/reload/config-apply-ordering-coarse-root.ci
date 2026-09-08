@@ -1,0 +1,133 @@
+# Test: a commit touching only a root with no decomposer still applies.
+#
+# The reload changes `rsvp-te { refresh-period }` and nothing else. No component
+# registers an operation decomposer for that root, so the planner returns no
+# operations at all and every participant with a diff is uncovered. The
+# orchestrator represents each of them with one coarse node and applies it
+# through the section apply, which is the callback every plugin implements
+# (`config-apply`; the five `config-operation-*` callbacks have no SDK default).
+#
+# VALIDATES: AC-2 -- the change reaches the plugin and the transaction commits.
+# PREVENTS: the operation path reaching operation OWNERS only, which would leave
+#           a root with no decomposer verified, never applied, and its change
+#           discarded while the reload reported success.
+#
+# DISCRIMINATION: the assertion is the plugin's own line, printed from
+# OnConfigApply (runCoarseRootObserver, internal/test/fixture/register_config_apply_ordering_coarse_root.go).
+# Deleting the coarse-node synthesis (operationNodes in
+# internal/component/config/transaction/orchestrator.go) leaves this transaction
+# with no nodes, the observer receives no apply, and the line is never printed.
+# The rejected patterns are the second half: an abort or a rollback would also
+# leave the line unprinted, so they are named rather than left to look like the
+# defect this test is about.
+
+# The observer is an external plugin: its stderr joins the daemon's.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external config-apply-ordering-coarse-root {
+		run "ze-test fixture reload/config-apply-ordering-coarse-root"
+		encoder json
+	}
+}
+
+rsvp-te {
+	router-id 10.0.0.1
+	refresh-period 30
+	interface lo {
+		max-bandwidth 10e9
+		max-reservable-bandwidth 8e9
+		address 127.0.0.1/8
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# Reloaded config: refresh-period alone changes, so the diff holds the rsvp-te
+# root and nothing else. The bgp section is byte-identical, so bgp declares no
+# operations and the transaction carries coarse nodes only.
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external config-apply-ordering-coarse-root {
+		run "ze-test fixture reload/config-apply-ordering-coarse-root"
+		encoder json
+	}
+}
+
+rsvp-te {
+	router-id 10.0.0.1
+	refresh-period 10
+	interface lo {
+		max-bandwidth 10e9
+		max-reservable-bandwidth 8e9
+		address 127.0.0.1/8
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=ze-test fixture reload/config-apply-ordering-coarse-root-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=sighup reload complete
+expect=stderr:contains=OK: coarse root applied root=rsvp-te
+reject=stderr:pattern=config verify failed
+reject=stderr:pattern=config apply partial failure
+reject=stderr:pattern=apply timeout

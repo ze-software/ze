@@ -192,6 +192,14 @@ func (p phaseKind) eventType(name string) string {
 // the diff payload decoded from the stream event (which the orchestrator has
 // already filtered per participant). A non-empty statusErr means the plugin
 // rejected the change; a non-nil err means transport or encoding failure.
+//
+// The apply event reaches this method from two places, and SendConfigApply is
+// the answer to both: the orchestrator's own apply phase, and the executor
+// applying a coarse root node inside the ordered path
+// (emitSectionApply in ../../config/transaction/orchestrator.go). The payload
+// is the same ApplyEvent either way, so the bridge needs no way to tell them
+// apart, and a participant that never registered an operation callback is
+// reached through the `config-apply` one it did.
 func (p phaseKind) runRPC(ctx context.Context, conn *ipc.PluginConn, verifySections []rpc.ConfigSection, applyDiffs []transaction.DiffSection) (statusErr string, err error) {
 	if p == phaseApply {
 		out, rpcErr := conn.SendConfigApply(ctx, diffSectionsToDiffRPCSections(applyDiffs))

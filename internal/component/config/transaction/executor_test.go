@@ -280,3 +280,92 @@ func registerTestSettlementRule(t *testing.T) {
 		assert.Contains(t, err.Error(), "already registered")
 	}
 }
+
+// TestExecuteRollsBackMixedTransaction covers the rollback of a transaction
+// mixing decomposed operations with one coarse node. The decomposed
+// operations replay their inverses in reverse order through
+// config-operation-rollback. The coarse node does not: its inverse is the
+// transaction-wide section rollback the orchestrator publishes when Execute
+// returns this error, and its participant answers `config-rollback`, not
+// `config-operation-rollback`.
+//
+// VALIDATES: AC-7 -- rollback reaches both node kinds, each through the callback its owner implements.
+// PREVENTS: a coarse node's participant being sent an operation rollback it answers "unknown method" to.
+func TestExecuteRollsBackMixedTransaction(t *testing.T) {
+	gw := newTestGateway()
+	executor := NewOperationExecutor(gw, "tx-exec-mixed-rollback")
+	executor.SetSectionDiffs(func(name string) ([]DiffSection, bool) {
+		return []DiffSection{{Root: "static", Added: `{"static/route/10.0.0.0/8":{}}`}}, name == "static"
+	})
+	var sectionApplied []string
+	var rolledBack []string
+
+	gw.SubscribeConfigEvent(EventApplyFor("static"), func(payload []byte) {
+		var ev ApplyEvent
+		require.NoError(t, json.Unmarshal(payload, &ev))
+		sectionApplied = append(sectionApplied, ev.Diffs[0].Root)
+		ack, err := json.Marshal(ApplyAck{TransactionID: ev.TransactionID, Plugin: "static", Status: CodeOK})
+		require.NoError(t, err)
+		gw.mustEmit(EventApplyOK, ack)
+	})
+	gw.SubscribeConfigEvent(EventOperationApplyFor("iface"), func(payload []byte) {
+		var ev ConfigOperationApplyEvent
+		require.NoError(t, json.Unmarshal(payload, &ev))
+		ack, err := json.Marshal(ConfigOperationApplyAck{TransactionID: ev.TransactionID, Plugin: ev.Operation.Owner, OperationID: ev.Operation.ID, Status: CodeOK})
+		require.NoError(t, err)
+		gw.mustEmit(EventOperationApplyOK, ack)
+	})
+	gw.SubscribeConfigEvent(EventOperationApplyFor("bgp"), func(payload []byte) {
+		var ev ConfigOperationApplyEvent
+		require.NoError(t, json.Unmarshal(payload, &ev))
+		ack, err := json.Marshal(ConfigOperationApplyAck{TransactionID: ev.TransactionID, Plugin: ev.Operation.Owner, OperationID: ev.Operation.ID, Status: CodeError, Error: "bind failed"})
+		require.NoError(t, err)
+		gw.mustEmit(EventOperationApplyFailed, ack)
+	})
+	for _, owner := range []string{"iface", "static"} {
+		gw.SubscribeConfigEvent(EventOperationRollbackFor(owner), func(payload []byte) {
+			var ev ConfigOperationRollbackEvent
+			require.NoError(t, json.Unmarshal(payload, &ev))
+			require.Len(t, ev.Operations, 1)
+			rolledBack = append(rolledBack, ev.Operations[0].ID)
+			ack, err := json.Marshal(ConfigOperationRollbackAck{TransactionID: ev.TransactionID, Plugin: ev.Operations[0].Owner, OperationID: ev.Operations[0].ID, Status: CodeOK})
+			require.NoError(t, err)
+			gw.mustEmit(EventOperationRollbackOK, ack)
+		})
+	}
+
+	ops := []ConfigOperation{
+		{ID: "iface-add", Owner: "iface", Type: OperationAddInterface, Target: ResourceRef{Kind: ResourceInterface, Name: "eth0"}},
+		{ID: "section-apply-static", Owner: "static", Type: OperationSectionApply},
+		{ID: "peer-add", Owner: "bgp", Type: OperationAddPeer, Target: ResourceRef{Kind: ResourcePeer, Peer: "203.0.113.1"}},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	err := executor.Execute(ctx, ops)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "bind failed")
+	assert.Equal(t, []string{"static"}, sectionApplied, "the coarse node applied its participant's section")
+	assert.Equal(t, []string{"iface-add"}, rolledBack, "only the decomposed operation replays an inverse")
+}
+
+// TestExecuteRefusesCoarseNodeWithoutDiffSource fences the coarse node's
+// payload. The executor holds no diffs of its own, so a sorted list carrying a
+// coarse node with no diff source cannot be applied. It is refused, and never
+// applied as an empty section that a participant would read as "delete
+// everything I own".
+//
+// VALIDATES: a coarse node with no installed SectionDiffs aborts, naming the node.
+// PREVENTS: an empty section apply passing for a real one.
+func TestExecuteRefusesCoarseNodeWithoutDiffSource(t *testing.T) {
+	gw := newTestGateway()
+	executor := NewOperationExecutor(gw, "tx-exec-coarse-no-source")
+	ops := []ConfigOperation{{ID: "section-apply-static", Owner: "static", Type: OperationSectionApply}}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	err := executor.Execute(ctx, ops)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "section-apply-static")
+	assert.Empty(t, gw.findEmitted(EventApplyFor("static")), "a node with no diffs emitted an apply anyway")
+}

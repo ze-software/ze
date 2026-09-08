@@ -189,9 +189,19 @@ func waitDecomposeAck(ctx context.Context, pluginName, root string, okCh, failed
 	}
 }
 
+// validateOperationDeclarations refuses a planned operation the emitting
+// plugin did not declare, and one carrying the section-apply label. That label
+// belongs to the coarse node the orchestrator synthesizes for a participant
+// with no operations, and the executor routes it to the section apply instead
+// of the per-operation callback. A plugin that declared and emitted it would
+// have its whole section applied under an operation's name, in the position
+// the graph gave that operation.
 func validateOperationDeclarations(participants []transaction.Participant, operations []transaction.ConfigOperation) error {
 	for i := range operations {
 		op := &operations[i]
+		if op.Type == transaction.OperationSectionApply {
+			return fmt.Errorf("plugin %s returned operation %s for root %s with the reserved type %s", op.Owner, op.ID, op.Root, op.Type)
+		}
 		if !declaresOperation(participants, op) {
 			return fmt.Errorf("plugin %s does not declare config operation %s for root %s", op.Owner, op.Type, op.Root)
 		}

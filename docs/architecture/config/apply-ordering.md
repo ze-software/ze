@@ -21,13 +21,47 @@ executor runs `Verify`, then `Execute`, then `Commit`.
 **Decomposition and constraint rules live in the owning component, never in a
 central switch.** `iface` and `bgp` each register their own decomposition
 through `init()`. Remove a component and its operation handling goes with it.
+
+**Every participant with a diff is a node, decomposer or not.** A participant
+the planner produced no operation for gets one COARSE node, synthesized by
+`operationNodes`, which the executor applies through that participant's section
+apply. So a root nobody decomposes is ordered relative to the other roots, and
+applied by the `config-apply` callback every plugin implements.
+
+Coverage is what makes the ordering unconditional. Until 2026-09-08 the
+orchestrator abandoned the operation path for the WHOLE transaction as soon as
+one participant could not be decomposed, and fell back to the unordered section
+apply, so the operations that were ordered correctly lost their order with it.
+Every reload took that fallback in practice: a dozen plugins declare the `bgp`
+root and none of them decomposes. The fallback is deleted, and a coarse node is
+what replaced it.
+<!-- source: internal/component/config/transaction/orchestrator.go -- operationNodes -->
+<!-- source: internal/component/config/transaction/executor.go -- applySection -->
+
+**A coarse node's position is a tie-break, never an ordering claim.** It sits
+after the decomposed operations, because an unconstrained node keeps its slice
+position through the sort and a root that declares no operations consumes the
+resources the decomposed roots produce more often than it produces them. An
+edge decides the order wherever one exists.
 <!-- source: internal/component/iface/operation.go -- iface-owned decomposition -->
 <!-- source: internal/component/bgp/plugin/operation.go -- BGP-owned decomposition -->
 <!-- source: internal/component/bgp/reactor/operation.go -- peer add, remove and modify primitives -->
 
 **`verify -> execute -> commit` with rollback, not best-effort apply.** Rollback
 replays the inverse operations in reverse order and excludes the operation that
-failed.
+failed. A coarse node's inverse is the transaction-wide section rollback the
+orchestrator broadcasts, so the executor emits no per-operation rollback for it.
+
+**A modify-peer swaps the running session's settings in place where the change
+allows it.** The decision is `peerSettingsSwapPlan`, the same one the section
+apply's reconcile takes, so which path a reload travels does not decide whether
+the operator's session bounces.
+<!-- source: internal/component/bgp/reactor/operation.go -- swapPeerForOperation -->
+<!-- source: internal/component/bgp/reactor/peer_settings_apply.go -- peerSettingsSwapPlan -->
+
+**A test that reaches a plugin: `test/reload/config-apply-ordering-coarse-root.ci`.**
+It changes one root nothing decomposes and asserts the line the receiving plugin
+prints from its own `config-apply` handler.
 
 **Address-only cross-interface cycles relax. Everything else is rejected.** A
 swap of two addresses between interfaces is a cycle by construction. The solver

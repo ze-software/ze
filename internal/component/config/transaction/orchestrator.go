@@ -237,6 +237,13 @@ func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSect
 		return &TxResult{State: StateAborted, Err: err}
 	}
 
+	// Phase 2, ordered: every participant with a diff is a node in the
+	// operation graph, so the ordered path runs whenever a planner is
+	// installed. A participant the planner produced no operation for is
+	// carried by a coarse section-apply node (operationNodes), which is what
+	// makes the coverage unconditional: the path used to be abandoned for the
+	// whole transaction as soon as one participant could not be decomposed,
+	// and the operations that WERE ordered lost their order with it.
 	if o.operationPlanner != nil {
 		ops, err := o.operationPlanner(ctx, OperationPlanRequest{TransactionID: o.txID, Diffs: diffs})
 		if err != nil {
@@ -246,26 +253,11 @@ func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSect
 			o.publishAbort(err.Error())
 			return &TxResult{State: StateAborted, Err: err}
 		}
-		uncovered := o.participantsWithoutOperations(ops, diffs)
-		if len(ops) > 0 && len(uncovered) == 0 {
-			return o.runOperationPath(ctx, ops)
-		}
-		if len(uncovered) > 0 {
-			// The operation path reaches operation OWNERS only
-			// (runOperationPath emits per-operation events keyed by op.Owner),
-			// so taking it here would leave every uncovered participant
-			// verified but never applied -- its config change silently
-			// discarded while the transaction reports success. Fall through to
-			// the section apply, which reaches every participant with diffs.
-			// The cost is this transaction's cross-participant operation
-			// ORDERING, which is what reloads got before the operation path
-			// existed: losing ordering is recoverable, losing the change is not.
-			logger().Info("config transaction: operations do not cover every participant, using section apply",
-				"tx", o.txID, "operations", len(ops), "uncovered", textbuf.Join(uncovered, ","))
-		}
+		return o.runOperationPath(ctx, o.operationNodes(ops, diffs), diffs)
 	}
 
-	// Phase 2: Apply.
+	// Phase 2, unordered: the section apply, which is the path when no
+	// operation planner is installed.
 	if err := o.runApply(ctx, diffs); err != nil {
 		if canceledByShutdown(ctx) {
 			return o.abortForShutdown("apply", err)
@@ -434,17 +426,8 @@ func (o *TxCoordinator) runApply(ctx context.Context, diffs map[string][]DiffSec
 		if len(pluginDiffs) == 0 {
 			continue
 		}
-		ev := ApplyEvent{
-			TransactionID: o.txID,
-			Diffs:         pluginDiffs,
-			DeadlineMS:    deadlineMS,
-		}
-		payload, err := json.Marshal(ev)
-		if err != nil {
-			return fmt.Errorf("marshal apply event for %s: %w", p.Name, err)
-		}
-		if _, err := o.gateway.EmitConfigEvent(EventApplyFor(p.Name), payload); err != nil {
-			return fmt.Errorf("emit apply event for %s: %w", p.Name, err)
+		if err := emitSectionApply(o.gateway, o.txID, p.Name, pluginDiffs, deadlineMS); err != nil {
+			return err
 		}
 	}
 
@@ -480,7 +463,73 @@ func (o *TxCoordinator) runApply(ctx context.Context, diffs map[string][]DiffSec
 	return nil
 }
 
-func (o *TxCoordinator) runOperationPath(ctx context.Context, ops []ConfigOperation) *TxResult {
+// emitSectionApply publishes one participant's section apply event. The
+// orchestrator's own apply phase and the executor's coarse node both call it,
+// so a coarse node carries the payload the section apply carries: same
+// participant, same diffs, same deadline.
+func emitSectionApply(gateway EventGateway, txID, name string, diffs []DiffSection, deadlineMS int64) error {
+	payload, err := json.Marshal(ApplyEvent{TransactionID: txID, Diffs: diffs, DeadlineMS: deadlineMS})
+	if err != nil {
+		return fmt.Errorf("marshal apply event for %s: %w", name, err)
+	}
+	if _, err := gateway.EmitConfigEvent(EventApplyFor(name), payload); err != nil {
+		return fmt.Errorf("emit apply event for %s: %w", name, err)
+	}
+	return nil
+}
+
+// operationNodes returns every node the operation graph carries: the
+// operations the planner produced, plus one coarse section-apply node for each
+// participant that has diffs and owns none of them.
+//
+// Coverage is what makes the ordering unconditional. A participant with no
+// node is reached by no phase of the operation path, so it would be verified
+// and never applied, and its config change would be discarded while the
+// transaction reported success.
+//
+// The coarse nodes come last. An unconstrained node keeps its slice position
+// through the sort (kahnSort seeds its queue in slice order), and a root that
+// declares no operations consumes the resources the decomposed roots produce
+// more often than it produces them. The position is a tie-break and nothing
+// more: an edge decides the order wherever one exists.
+//
+// A coarse node carries no Root and no Target on purpose. It stands for one
+// PARTICIPANT, which receives one section apply carrying every root it
+// declared, so no single root names it; and it has no resource identity to
+// order by, so no constraint rule matches it and the graph gives it no edge.
+func (o *TxCoordinator) operationNodes(ops []ConfigOperation, diffs map[string][]DiffSection) []ConfigOperation {
+	uncovered := o.participantsWithoutOperations(ops, diffs)
+	nodes := make([]ConfigOperation, 0, len(ops)+len(uncovered))
+	nodes = append(nodes, ops...)
+	for _, name := range uncovered {
+		var tb textbuf.Buffer
+		nodes = append(nodes, ConfigOperation{
+			ID:    tb.Str(string(OperationSectionApply)).Byte('-').Str(name).String(),
+			Owner: name,
+			Type:  OperationSectionApply,
+		})
+	}
+	return nodes
+}
+
+// sectionDiffsFor returns the diff sections one participant receives through
+// the section apply, and reports whether that participant has any. The
+// executor installs it for the coarse nodes, so filterDiffs stays the single
+// predicate deciding what a participant is sent, whichever path sends it.
+func (o *TxCoordinator) sectionDiffsFor(diffs map[string][]DiffSection) SectionDiffs {
+	return func(name string) ([]DiffSection, bool) {
+		for _, p := range o.participants {
+			if p.Name != name {
+				continue
+			}
+			sections := o.filterDiffs(diffs, p)
+			return sections, len(sections) > 0
+		}
+		return nil, false
+	}
+}
+
+func (o *TxCoordinator) runOperationPath(ctx context.Context, ops []ConfigOperation, diffs map[string][]DiffSection) *TxResult {
 	graph, err := BuildOperationGraph(ops, ConstraintRules())
 	if err != nil {
 		o.publishAbort(err.Error())
@@ -492,6 +541,7 @@ func (o *TxCoordinator) runOperationPath(ctx context.Context, ops []ConfigOperat
 		return &TxResult{State: StateAborted, Err: err}
 	}
 	executor := NewOperationExecutor(o.gateway, o.txID)
+	executor.SetSectionDiffs(o.sectionDiffsFor(diffs))
 	o.mu.Lock()
 	o.applyDeadline = o.computeApplyDeadline()
 	deadline := o.applyDeadline
@@ -547,21 +597,23 @@ func (o *TxCoordinator) filterDiffs(allDiffs map[string][]DiffSection, p Partici
 }
 
 // participantsWithoutOperations returns the names of participants that have
-// diffs to apply but own none of ops, sorted for a deterministic log line.
+// diffs to apply but own none of ops, sorted so the synthesized nodes are the
+// same on every run.
 //
-// It is the coverage test for the operation path. runVerify, runApply and this
-// function all decide "does this participant take part" with the same
-// filterDiffs predicate, so a participant can never be verified by one and
-// skipped by another.
+// It is the input to coarse-node synthesis (operationNodes). runVerify,
+// runApply and this function all decide "does this participant take part" with
+// the same filterDiffs predicate, so a participant can never be verified by
+// one and skipped by another.
 //
 // The check is per-PARTICIPANT rather than per-root because that is the
-// granularity the apply events use. It relies on each decomposer being
-// all-or-nothing for a root it claims: iface returns no operations at all when
-// any key in its diff is non-decomposable (ifaceDiffHasDecomposableChanges),
-// and bgp returns none unless the diff touches a peer (bgpDiffTouchesPeer). A
-// decomposer that instead emitted operations covering only PART of its root's
-// diff would satisfy this check while still dropping the remainder -- that
-// would be a defect in the decomposer, and this is the contract it must meet.
+// granularity the apply events use: one participant receives one section apply
+// carrying every root it declared. So a decomposer MUST be all-or-nothing for
+// a root it claims. iface returns no operations at all when any key in its
+// diff is non-decomposable (ifaceDiffHasDecomposableChanges) and bgp returns
+// none unless the diff touches a peer (bgpDiffTouchesPeer). A decomposer that
+// instead emitted operations covering only PART of its root's diff would make
+// its participant look covered, and the remainder would reach nothing: that is
+// a defect in the decomposer, and this is the contract it must meet.
 func (o *TxCoordinator) participantsWithoutOperations(ops []ConfigOperation, diffs map[string][]DiffSection) []string {
 	owners := make(map[string]struct{}, len(ops))
 	for i := range ops {

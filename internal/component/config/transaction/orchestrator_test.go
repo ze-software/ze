@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"slices"
 	"sync"
 	"testing"
@@ -1412,22 +1413,43 @@ func autoAckOperations(gw *testGateway, owner string, seen *[]string) {
 	})
 }
 
-// TestOrchestratorAppliesParticipantThatYieldedNoOperations is the data-loss
-// fence. A reload that touches BOTH a section that decomposes (bgp: a peer was
-// added) and one that does not (interface: a wireguard property changed --
-// ifaceKeyDecomposable rejects it) must still apply BOTH. Before this, Execute
-// took the operation path as soon as any operation existed, and that path
-// reaches only operation OWNERS: the interface participant was verified, never
-// applied, and its change was silently dropped while the reload reported
-// success.
+// autoAckSectionApply acks the section apply event for one participant, so a
+// test can assert which path each participant took without hand-driving the
+// phases. Records every section apply the participant received.
+func autoAckSectionApply(gw *testGateway, name string, seen *[]string) {
+	gw.SubscribeConfigEvent(EventApplyFor(name), func(payload []byte) {
+		*seen = append(*seen, EventApplyFor(name))
+		var ev ApplyEvent
+		if err := json.Unmarshal(payload, &ev); err != nil {
+			return
+		}
+		ack, _ := json.Marshal(ApplyAck{TransactionID: ev.TransactionID, Plugin: name, Status: CodeOK})
+		gw.mustEmit(EventApplyOK, ack)
+	})
+}
+
+// TestExecuteMixedRootTakesOperationPath is the ordering fence, and it carries
+// the data-loss fence with it. A reload that touches BOTH a section that
+// decomposes (bgp: a peer was added) and one that does not (interface: a
+// wireguard property changed -- ifaceKeyDecomposable rejects it) runs through
+// the operation path, and BOTH are applied: the decomposed root through its
+// per-operation callbacks, the other through one coarse node routed to the
+// section apply.
 //
-// VALIDATES: a participant with diffs but no operations still receives a config apply.
-// PREVENTS: a mixed reload silently discarding the config of every participant that cannot decompose.
-func TestOrchestratorAppliesParticipantThatYieldedNoOperations(t *testing.T) {
+// Before this, one participant the planner could not cover sent the whole
+// transaction down the unordered section apply, so the operations that WERE
+// ordered lost their order. Applying the operation path as it stood instead
+// would have left that participant verified and never applied.
+//
+// VALIDATES: AC-1 -- a mixed transaction keeps the operation path, and the uncovered participant is applied by a coarse node.
+// PREVENTS: one undecomposable participant costing the whole reload its cross-participant ordering.
+func TestExecuteMixedRootTakesOperationPath(t *testing.T) {
 	gw := newTestGateway()
 	orch, participants, diffs := mixedOperationCoverage(t, gw, "bgp")
 	var operationEvents []string
+	var sectionApplies []string
 	autoAckOperations(gw, "bgp", &operationEvents)
+	autoAckSectionApply(gw, "iface", &sectionApplies)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -1437,10 +1459,6 @@ func TestOrchestratorAppliesParticipantThatYieldedNoOperations(t *testing.T) {
 	for i := range participants {
 		waitForEmit(t, gw, EventVerifyFor(participants[i].name))
 		participants[i].respondVerify(gw, orch.TransactionID())
-	}
-	for i := range participants {
-		waitForEmit(t, gw, EventApplyFor(participants[i].name))
-		participants[i].respondApply(gw, orch.TransactionID())
 	}
 
 	select {
@@ -1452,13 +1470,140 @@ func TestOrchestratorAppliesParticipantThatYieldedNoOperations(t *testing.T) {
 		t.Fatal("timed out waiting for the transaction to commit")
 	}
 
-	for _, name := range []string{"iface", "bgp"} {
-		if applies := gw.findEmitted(EventApplyFor(name)); len(applies) != 1 {
-			t.Fatalf("participant %s received %d applies, want 1", name, len(applies))
+	if !slices.Contains(operationEvents, EventOperationApplyFor("bgp")) {
+		t.Fatalf("the decomposed root did not take the operation path: %v", operationEvents)
+	}
+	if applies := gw.findEmitted(EventApplyFor("bgp")); len(applies) != 0 {
+		t.Fatalf("the decomposed root received %d section applies, want 0", len(applies))
+	}
+	if applies := gw.findEmitted(EventApplyFor("iface")); len(applies) != 1 {
+		t.Fatalf("the uncovered participant received %d section applies, want 1", len(applies))
+	}
+}
+
+// TestExecuteCoarseNodeAppliesSection reads the coarse node's payload. The
+// node exists to apply exactly what the section apply applied for the same
+// participant, so the diffs it carries are the diffs filterDiffs produces --
+// the predicate runVerify and runApply already use.
+//
+// VALIDATES: AC-2, A-1 -- a coarse node emits the participant's section apply with that participant's diffs.
+// PREVENTS: a root whose change is applied under a different payload than the section apply sent it.
+func TestExecuteCoarseNodeAppliesSection(t *testing.T) {
+	gw := newTestGateway()
+	orch, participants, diffs := mixedOperationCoverage(t, gw, "bgp")
+	var operationEvents []string
+	var sectionApplies []string
+	autoAckOperations(gw, "bgp", &operationEvents)
+	autoAckSectionApply(gw, "iface", &sectionApplies)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	resultCh := make(chan *TxResult, 1)
+	go func() { resultCh <- orch.Execute(ctx, diffs) }()
+
+	for i := range participants {
+		waitForEmit(t, gw, EventVerifyFor(participants[i].name))
+		participants[i].respondVerify(gw, orch.TransactionID())
+	}
+	if result := <-resultCh; result.State != StateCommitted {
+		t.Fatalf("state = %s (err %v), want %s", result.State, result.Err, StateCommitted)
+	}
+
+	applies := gw.findEmitted(EventApplyFor("iface"))
+	if len(applies) != 1 {
+		t.Fatalf("the coarse node emitted %d section applies, want 1", len(applies))
+	}
+	var event ApplyEvent
+	if err := json.Unmarshal(applies[0].Payload, &event); err != nil {
+		t.Fatalf("unmarshal the coarse node's apply event: %v", err)
+	}
+	if event.TransactionID != orch.TransactionID() {
+		t.Errorf("apply event tx = %q, want %q", event.TransactionID, orch.TransactionID())
+	}
+	want := diffs["interface"]
+	if !reflect.DeepEqual(event.Diffs, want) {
+		t.Errorf("the coarse node carried %v, want the participant's diffs %v", event.Diffs, want)
+	}
+}
+
+// TestExecuteCoarseNodeEmitsNoOperationVerify holds the second half of the
+// coarse node's contract. Phase 1 verified the whole candidate config for that
+// participant before the planner ran, and the plugin implements no
+// config-operation-verify callback to ask again with, so the node owes no
+// per-operation verify and no per-operation commit.
+//
+// VALIDATES: A-2 -- a coarse node reaches its participant through the section events only.
+// PREVENTS: a coarse node emitting an operation callback its participant answers "unknown method" to.
+func TestExecuteCoarseNodeEmitsNoOperationVerify(t *testing.T) {
+	gw := newTestGateway()
+	orch, participants, diffs := mixedOperationCoverage(t, gw, "bgp")
+	var operationEvents []string
+	var sectionApplies []string
+	autoAckOperations(gw, "bgp", &operationEvents)
+	autoAckSectionApply(gw, "iface", &sectionApplies)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	resultCh := make(chan *TxResult, 1)
+	go func() { resultCh <- orch.Execute(ctx, diffs) }()
+
+	for i := range participants {
+		waitForEmit(t, gw, EventVerifyFor(participants[i].name))
+		participants[i].respondVerify(gw, orch.TransactionID())
+	}
+	if result := <-resultCh; result.State != StateCommitted {
+		t.Fatalf("state = %s (err %v), want %s", result.State, result.Err, StateCommitted)
+	}
+
+	if verifies := gw.findEmitted(EventVerifyFor("iface")); len(verifies) != 1 {
+		t.Fatalf("the coarse node's participant received %d full-config verifies, want 1", len(verifies))
+	}
+	for _, eventType := range []string{
+		EventOperationVerifyFor("iface"),
+		EventOperationApplyFor("iface"),
+		EventOperationCommitFor("iface"),
+	} {
+		if emitted := gw.findEmitted(eventType); len(emitted) != 0 {
+			t.Errorf("the coarse node emitted %s %d times, want 0", eventType, len(emitted))
 		}
 	}
-	if len(operationEvents) != 0 {
-		t.Fatalf("operation path ran for a transaction it could not fully cover: %v", operationEvents)
+}
+
+// TestParticipantsWithoutOperationsEmptyAfterSynthesis states the property the
+// deleted fallback tested for: after synthesis no participant with diffs is
+// left without a node. The fallback branch is unreachable because coverage is
+// total, and it is gone.
+//
+// VALIDATES: every participant with diffs owns a node in the graph the executor runs.
+// PREVENTS: a participant reaching apply through no path at all.
+func TestParticipantsWithoutOperationsEmptyAfterSynthesis(t *testing.T) {
+	gw := newTestGateway()
+	orch, _, diffs := mixedOperationCoverage(t, gw, "bgp")
+
+	ops, err := orch.operationPlanner(context.Background(), OperationPlanRequest{TransactionID: orch.TransactionID(), Diffs: diffs})
+	if err != nil {
+		t.Fatalf("plan operations: %v", err)
+	}
+	if uncovered := orch.participantsWithoutOperations(ops, diffs); len(uncovered) != 1 {
+		t.Fatalf("the planner covered %v, want the iface participant uncovered before synthesis", uncovered)
+	}
+
+	nodes := orch.operationNodes(ops, diffs)
+	if uncovered := orch.participantsWithoutOperations(nodes, diffs); len(uncovered) != 0 {
+		t.Fatalf("participants without a node after synthesis: %v", uncovered)
+	}
+	if len(nodes) != len(ops)+1 {
+		t.Fatalf("synthesis produced %d nodes from %d operations, want one coarse node added", len(nodes), len(ops))
+	}
+	coarse := nodes[len(nodes)-1]
+	if !IsSectionApply(&coarse) {
+		t.Fatalf("the synthesized node is %q, want the section-apply type", coarse.Type)
+	}
+	if coarse.Owner != "iface" {
+		t.Errorf("the coarse node's owner is %q, want the uncovered participant", coarse.Owner)
+	}
+	if coarse.ID == "" {
+		t.Error("the coarse node has no id, so the graph cannot hold it")
 	}
 }
 
