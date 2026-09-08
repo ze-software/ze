@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -269,9 +270,60 @@ func TestFeedsNamesTheIndexEachSourceDrifts(t *testing.T) {
 		{"internal/core/x/x.go", "package x", false},
 		{"internal/core/x/x_test.go", "// Package x does x.", false},
 		{"docs/architecture/one.md", "", false},
+		// Outside the roots the walk covers, or inside a directory it skips.
+		// The map cannot describe any of these, so committing one drifts it
+		// however the file is named and whatever header it carries.
+		{"vendor/github.com/x/y/y.go", "// Package y does y.", false},
+		{"vendor/github.com/x/y/register.go", "", false},
+		{"internal/core/x/testdata/x.go", "// Package x does x.", false},
+		{"internal/core/x/.hidden/x.go", "// Package x does x.", false},
+		{"internal/core/x/node_modules/x/x.go", "// Package x does x.", false},
+		{"tools.go", "// Package main pins tools.", false},
+		{"third_party/y/y.go", "// Package y does y.", false},
 	} {
 		if got := IsSource(tc.path, tc.header); got != tc.want {
 			t.Errorf("IsSource(%q, header=%q) = %v, want %v", tc.path, tc.header, got, tc.want)
+		}
+	}
+}
+
+// TestIsSourceAgreesWithTheWalkAboutTheFilesTheMapDescribes derives the wanted
+// answer from Build over one tree, rather than restating it. A file the walk
+// never reaches cannot change a byte of the map, so calling it a source refuses
+// a commit over an index that could not have moved. That is what a
+// `go mod vendor` result met until 2026-09-08: 765 files outside the walk read
+// as sources of a map whose walk skips vendor outright.
+func TestIsSourceAgreesWithTheWalkAboutTheFilesTheMapDescribes(t *testing.T) {
+	const header = "// Package x does x.\npackage x\n"
+	sources := []string{
+		"internal/core/x/x.go",
+		"pkg/y/y.go",
+		"cmd/z/z.go",
+		"vendor/github.com/dep/dep/dep.go",
+		"vendor/github.com/dep/dep/register.go",
+		"internal/core/x/testdata/fixture.go",
+		"third_party/dep/dep.go",
+	}
+	files := map[string]string{"ai/.keep": ""}
+	for _, rel := range sources {
+		files[rel] = header
+	}
+	root := tree(t, files)
+
+	packages, err := Build(root)
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	described := make(map[string]bool, len(packages))
+	for _, pkg := range packages {
+		described[pkg.Path] = true
+	}
+
+	for _, rel := range sources {
+		want := described[path.Dir(rel)]
+		if got := IsSource(rel, header); got != want {
+			t.Errorf("IsSource(%q) = %v, but Build %s the package holding it",
+				rel, got, map[bool]string{true: "describes", false: "never reaches"}[want])
 		}
 	}
 }

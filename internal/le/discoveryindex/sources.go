@@ -29,6 +29,31 @@ const packageMarker = "// Package"
 // view. The working tree still generates both files on demand.
 var outputs = [...]string{OutputRel}
 
+// inPopulation reports whether the walk Build performs can reach path.
+//
+// It reads the same roots and skipDirs that walk uses, so the trigger predicate
+// and the generator answer one population. Deriving it a second time is what
+// let a `go mod vendor` result refuse to commit: every vendored Go file
+// carrying a package header read as a source of a map that skips vendor
+// outright, and each dependency bump had to spend stale-index-ok on a premise
+// the generator contradicts.
+//
+// A path is a slash-separated repository path. Its last segment is the file, so
+// only the segments before it are judged as directories, the way scanDir judges
+// the entries it descends into.
+func inPopulation(path string) bool {
+	segments := strings.Split(path, "/")
+	if len(segments) < 2 || !slices.Contains(roots[:], segments[0]) {
+		return false
+	}
+	for _, name := range segments[1 : len(segments)-1] {
+		if skipDirs[name] || strings.HasPrefix(name, ".") {
+			return false
+		}
+	}
+	return true
+}
+
 // feeds answers the indexes that committing path can drift, sorted, or nothing
 // when path feeds none.
 //
@@ -44,9 +69,17 @@ func feeds(path, headerText string) []string {
 		return []string{path}
 	}
 
-	// A generator feeds exactly the output it writes.
+	// A generator feeds exactly the output it writes. It is judged before the
+	// population, because a generator is a source of the map without being one
+	// of the files the map describes.
 	if path == generator {
 		return []string{OutputRel}
+	}
+
+	// Every rule below reads a file the walk visits, so a path the walk cannot
+	// reach drifts nothing whatever it is named or whatever header it carries.
+	if !inPopulation(path) {
+		return nil
 	}
 
 	// A register.go Description feeds the map, whether or not the file carries
