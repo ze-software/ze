@@ -2,17 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Scope | plugin |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-07 |
-
-<!-- Skeleton only. Research below is transcribed from work already done at the
-     producers on 2026-09-07. Design, acceptance criteria and test plan are NOT
-     written yet: the sections that carry template placeholders are unwritten,
-     not skipped. -->
+| Updated | 2026-09-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -33,38 +28,46 @@ that it is being interrogated rather than run. The plugin answers with its
 declarations and performs none of a live start's work: no data initialisation,
 no connection, no socket bind, no listener, no timer.
 
-**Why it is not already true.** Every field of a plugin's command declaration is
-a static property of its source, and the only way to read it today is to start
-the plugin for real. So a reader that wants the declarations has to accept every
-side effect a live start carries, and the ones that run before the plugin speaks
-its first protocol word are the reason a reader currently refuses to try.
+**Which plugins still need it, measured 2026-09-08.** An in-tree plugin's
+command and pipe declarations are ALREADY readable with no process: the closed
+`spec-daemon-backed-command-catalog` put the same `commandDecls()` slice on
+`registry.Registration`, and `Collect` (`internal/le/command/list/commandlist.go`)
+reads it today. The population still trapped behind a live start is the
+EXTERNAL plugin, whose code lives in another binary and therefore has no
+compiled-in twin. That is what this spec serves.
 
-**One fact, one declaration.** This spec adds no second copy of anything.
-There is one declaration, each plugin's own `commandDecls()` in its own package,
-and query mode reads it through the same Stage 1 message a running daemon reads.
-No manifest, no build-time emission, no generated list, nothing to compare, and
-nothing that can disagree with the plugin (`ai/rules/principles.md`).
+**One fact, one declaration.** This spec adds no second copy of anything. There
+is one declaration, each plugin's own `commandDecls()` in its own package, and
+query mode emits it as the SAME Stage 1 `declare-registration` message a running
+daemon receives, written to stdout instead of to the hub connection. No manifest,
+no build-time emission, no generated list, nothing that can disagree with the
+plugin (`ai/rules/principles.md`).
 
-**Prior art, not a dependency.** `spec-daemon-backed-command-catalog` made the
-catalog read a plugin's declarations from its `registry.Registration`, and
-rejected a collector that would start engines to introspect them. Its audit of
-all 97 registered runners is the evidence for that rejection. That spec closed
-on 2026-09-08 and its text now lives in
-`plan/learned/007-declaration-on-the-registration.md`, which carries the audit
-table whole. This spec transcribes the part of it that bears on query mode.
+**Prior art, not a dependency.** `spec-daemon-backed-command-catalog` rejected a
+collector that would start engines to introspect them, on the evidence of an
+audit of all registered runners. It closed on 2026-09-08 and its text lives in
+`plan/learned/007-declaration-on-the-registration.md`. This spec transcribes the
+part of it that bears on query mode.
 
 ## Required Reading
 
-<!-- NEVER tick [ ] to [x]. Annotations below are the ones already established;
-     the unannotated rows are reading this spec still owes at design. -->
+<!-- NEVER tick [ ] to [x]. -->
 
 ### Architecture Docs
 - [ ] `docs/architecture/api/process-protocol.md` - the five startup stages and what each carries
-  → Constraint: Stage 1 `declare-registration` is the message that already carries every declaration this spec wants to read
+  -> Constraint: Stage 1 `declare-registration` is the FIRST engine call, carries the whole `DeclareRegistrationInput`, and is sent unconditionally even for an empty registration. Query mode emits that same message and nothing else
+  -> Constraint: the wire format is newline-framed `#<id> <method> <json>`, so an answer written to stdout in that framing is the protocol's own format rather than a second one
+  -> Constraint: each stage has a 5-second budget (`defaultStageTimeout`, `internal/component/plugin/server/server.go`, overridden by `ze.plugin.stage.timeout`). The query budget is set from the same number
 - [ ] `docs/architecture/cli/plugin-modes.md` - internal and external plugin modes
+  -> Decision: the page names three modes (CLI, engine decode, engine). Query mode is a FOURTH and the page gains a row; `--features` and `--yang` are the existing precedent for a mode answered before any connection
 - [ ] `docs/architecture/plugin/plugin-system.md` - registration, discovery, process boundary
+  -> Constraint: removing a plugin must remove every one of its features, so the reader spells no plugin name and walks the registry and the config instead
 - [ ] `docs/plugin-development/protocol.md` - what a plugin author is told the protocol is
+  -> Constraint: this is where a third-party author learns query mode exists and which SDK entry point makes their plugin answer it
 - [ ] `ai/rules/plugins.md` - what a plugin owns and what a generic package must not spell
+  -> Constraint: no plugin spelling in a generic package; the reader is registered by the plugin component, which already owns `show plugin list`
+- [ ] `ai/rules/cli.md` - command grammar, answer shape, pipes
+  -> Constraint: the reader answers with structured rows through `MustRegisterLocalData`, so `json`, `yaml` and `table` are three renderings of one payload; a row's state is a FIELD, never a character glued to the name
 - [ ] `ai/patterns/plugin.md` - the structural template for a plugin and its runner
 
 ### RFC Summaries (Scope: protocol)
@@ -72,298 +75,416 @@ N-A. No wire protocol and no RFC obligation: the protocol here is Ze's own
 plugin RPC.
 
 **Key insights:** (minimal context to resume after compaction)
-- The declarations are static data trapped behind a process start. That is the entire gap.
-- The dirty work is in the runner body BEFORE `p.Run`, which no protocol stage gates.
+- The declarations of an IN-TREE plugin are already readable with no process. Only the EXTERNAL plugin needs interrogating.
+- The dirty work is in the runner body BEFORE `p.Run`, which no protocol stage gates. Query mode never enters a runner body, so that work is out of scope and named as a follow-up spec.
 - Five states must be distinguishable, and "declared none" is not "sent nothing".
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:** (read at the producer on 2026-09-07)
-- [ ] `pkg/plugin/rpc/types.go` - `CommandDecl` (line 449) carries 11 wire fields: name, description, long-help, help (retired), args, completable, hidden, deprecated-names, shape, columns, address-fields. `PipeDecl` (line 354) carries the pipe aliases: command, name, description, expansion. Every one is a static property of the plugin's source, and each plugin's own `commandDecls()` is a pure function of that source. Nothing in a declaration is discovered at run time
-- [ ] `pkg/plugin/sdk/sdk.go` - `(*Plugin).Run` (line 364) runs the 5-stage startup. Stage 1 `declare-registration` (line 375) is the FIRST engine call it makes, before Stage 2 configure. `Run` sends Stage 1 unconditionally, including for an empty `Registration`
-- [ ] `internal/component/plugin/process/process.go` - `(*Process).startExternal` tells an external plugin exactly five environment variables (lines 665-670): `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN`, `ZE_PLUGIN_CA_PEM`, `ZE_PLUGIN_NAME`. That block is a carrier the tree can already take for a mode
-- [ ] `internal/component/plugin/registry/registry.go` - `RunEngine func(conn net.Conn) int` (line 42) is the whole engine-mode entry point. It carries no environment block, so the process-start carrier above does not reach an in-tree runner
-- [ ] `internal/component/plugin/inprocess.go` - an in-tree plugin's engine already runs in-process over a `net.Conn` and reaches `reg.RunEngine(conn)` (line 127). A mode read inside `(*Plugin).Run` is therefore reachable by in-tree runners too
-- [ ] `internal/plugins/dhcpserver/register.go` - `runDHCPServerPlugin` (line 61) is the clean shape: it binds only inside its `OnConfigure` closure, through `startServer` to `startListeners` (line 107). An engine that records `onRegistration` and never sends configure gets the full declaration from a plugin that opened nothing. No plugin change is needed for this shape
-- [ ] `internal/component/ike/engine/register.go` - `runEngine` (line 355) calls `dataplane.Load` (line 359) and then `installIKEBypass` (line 366) unconditionally, writing four node-wide XFRM policies before Stage 1. Its `defer` (line 387) removes them, and because the policies are node-wide that removal also strips a live ike daemon's bypass
-- [ ] `internal/plugins/flowspec-firewall/engine.go` - `runEngine` (line 227) subscribes to the event bus and, under `firewall.LegacySweepPending()`, calls `firewall.ApplyAll()` (line 268) before `p.Run` (line 273). `ApplyAll` under that documented exemption autoloads the OS backend for an EMPTY desired set, so it issues nftables syscalls
-- [ ] `internal/plugins/trafficusage/register.go` - `runEngine` calls `att.Available()` (line 50) before its own `!p.IsInternal()` gate (line 67), and `Available` performs `rlimit.RemoveMemlock()` (`internal/plugins/trafficusage/attach_linux.go`, line 33), a `setrlimit` on the calling process
-- [ ] `internal/component/plugin/register.go` - `show plugins` writes one row per plugin and NEVER drops a row it could not read: a plugin that recorded a setup outcome and never completed `Register` keeps its row with `descriptionUnregistered` (line 37), and a registered plugin that recorded nothing keeps its row with the unknown outcome. That is the precedent for the state answer this spec owes
+**Source files read:** (2026-09-07 at the producers, re-measured 2026-09-08)
+- [ ] `pkg/plugin/rpc/types.go` - `CommandDecl` carries 11 wire fields: name, description, long-help, help (retired), args, completable, hidden, deprecated-names, shape, columns, address-fields. `PipeDecl` carries command, name, description, expansion. Every one is a static property of the plugin's source
+  -> Constraint: the answer is this value, encoded once by `encoding/json` through the tags these types already carry
+- [ ] `pkg/plugin/sdk/sdk.go` - `(*Plugin).Run` runs the five stages in a straight line: Stage 1 `declare-registration` is the first engine call, `OnConfigure` fires at Stage 2, `OnStarted` after Stage 5. `Registration` is `Run`'s SECOND ARGUMENT: there is no field, setter or getter for it on `Plugin`, so the value is built at the `p.Run` call site inside the runner body. `Run` mutates one field of the caller's copy, `WantsValidateOpen`, derived from the callbacks registered before it
+  -> Constraint: the SDK cannot fetch a plugin's declaration without the runner body having run. A query-mode entry point must therefore take the declaration and the activation function as SEPARATE arguments, which is what makes activation unreachable rather than discouraged
+  -> Constraint: `NewWithConn` decides `IsInternal` by type-asserting `rpc.Bridger`; `NewWithIO` and `NewFromTLSEnv` can never be internal
+- [ ] `internal/component/plugin/cli/main.go` - `cli.Run` looks the plugin up with `registry.Lookup(args[0])` and holds the whole `*registry.Registration` BEFORE it calls `reg.CLIHandler(args[1:])`. `test` and `help` are the only reserved words
+  -> Decision: this is where query mode is answered for the ze binary. Nothing of the plugin's own code has run at that point, so inertness is a property of unreachability rather than of a promise
+- [ ] `internal/component/plugin/cli/cli.go` - `RunPlugin` answers `--features` and `--yang` and returns 0 before any connection; `connFromEnv()` and `cfg.RunEngine(conn)` come after. `PluginConfig` carries `Name`, `Features`, `RunEngine`, and NOT the registration
+  -> Constraint: the pre-connection answer already exists as a shape; the registration it would need is held one level up, in `cli.Run`
+- [ ] `internal/component/plugin/process/process.go` - `(*Process).startExternal` runs the config's `run` string under a shell, so no argv can be appended by the forker; its env is `os.Environ()` plus one `append` of the five `ZE_PLUGIN_*` variables, so a sixth variable is a one-line addition. `(*Process).monitorCmd` discards the child's exit status
+  -> Decision: the carrier is an environment variable, because argv cannot reach a shell-quoted run string. The daemon's own start path is NOT changed: the reader forks the run string itself
+  -> Constraint: a query reader cannot learn "I could not answer" from a `Process` exit code, because that path discards it. The reader forks and waits itself
+- [ ] `internal/component/plugin/registry/registry.go` - `Registration` carries `Commands []rpc.CommandDecl` and `Pipes []rpc.PipeDecl` for an in-tree plugin, plus `RunEngine func(conn net.Conn) int` and `CLIHandler func(args []string) int`. There is no `Internal` field: internal against external is `p.config.Internal`, read at `(*Process).Start`
+- [ ] `internal/component/plugin/register.go` - `show plugin list` writes one row per plugin and NEVER drops a row it could not read: a plugin that recorded a setup outcome and never completed `Register` keeps its row with `descriptionUnregistered`, and a registered plugin that recorded nothing keeps its row with the unknown outcome. It is registered with `MustRegisterLocalData`, `Mode: modeOffline`, and declares its shape and column order
+  -> Decision: this is the structural template for the reader. Same package, same registration call, same never-omit rule
+- [ ] `internal/le/command/list/commandlist.go` - `Collect` walks `pluginregistry.All()` and reads `registration.Commands`, with no engine started. `internal/le/wikicatalog/catalog.go` is the second reader of the same field
+  -> Constraint: in-tree commands and pipes are already answerable with no process, so query mode adds nothing for that population and must not grow a second path for it
+- [ ] `internal/component/plugin/server/startup.go`, `startup_driver.go` - a plugin that sends Stage 1 and then closes is a FAILURE to the engine: `deliverConfig` errors, `PluginFailed` fires, `rollbackStartupProcess` runs, and a `FailureFatal` plugin stops the daemon
+  -> Constraint: query mode must NOT be implemented by driving the real handshake and hanging up after Stage 1. The child writes its declaration to stdout and exits 0
 
-**The audit of all 97 registered runners, 2026-09-07.** Transcribed from
-`plan/learned/007-declaration-on-the-registration.md`, section 1, which carries
-it whole. About 19 distinct plugins do something beyond callback
-wiring and a signal handler before Stage 1:
+**The audit of registered runners, re-measured 2026-09-08.** 92 registered
+product runners were enumerated (99 `RunEngine:` sites, minus six test fakes and
+one re-dispatch). 19 do work that reaches outside the runner's own locals before
+`p.Run` sends Stage 1. Every row of the 2026-09-07 audit was confirmed at the
+producer, with three corrections and seven additions:
 
 | Finding | Runners | What runs before Stage 1 |
 |---------|---------|--------------------------|
 | Mutates the HOST | `flowspec-firewall`, `ike` | nftables syscalls through `ApplyAll` under `LegacySweepPending`; four node-wide XFRM policies through `installIKEBypass`, whose defer beside a live IKE engine removes that daemon's too |
-| Mutates the calling PROCESS | `trafficusage` | `rlimit.RemoveMemlock()`, a `setrlimit` |
-| Opens a kernel handle | `fib/kernel` | `netlink.NewHandle`, whose close sits after the abort's `return 1` |
-| Allocates the process-wide default Loc-RIB | `connected`, `rib`, `static` | `locrib.Default()` |
-| Leaves a process global pointing at a dead plugin | `adj_rib_in`, `rib`, `redistribute_egress`, `sysrib`, `isis`, `ospf`, `iface` | only two carry any unwind; `ospf` also registers an opaque type, whose second registration returns `ErrOpaqueTypeRegistered` and is only logged |
-| Leaks goroutines on an abort | `iface` | four, because its stops are straight-line code AFTER `p.Run` rather than defers |
+| Mutates the calling PROCESS | `trafficusage` | `rlimit.RemoveMemlock()`, a `setrlimit`, before its own `!p.IsInternal()` gate |
+| Opens a kernel handle | `fib/kernel`, `fib/p4`, `sysctl` | `newBackend()`, `netlink.NewHandle` inside it, closed after the abort's `return 1` |
+| Allocates the process-wide default Loc-RIB | `connected`, `rib`, `static`, `sysrib` | `locrib.Default()` |
+| Starts a goroutine | `iface` (four), `rpki`, `adj_rib_in` | workers started before the declaration; `iface`'s stops are straight-line code after `p.Run`, so its `return 1` skips all six |
+| Leaves a process global pointing at a dead plugin | `adj_rib_in`, `rib`, `redistribute_egress`, `sysrib`, `isis`, `ospf`, `iface`, `kernel`, `connected` | exactly ONE is a defer (`rib`'s `activeManager.Store(nil)`, which does not unwind its route-injector registration); `ospf` also registers an opaque type whose second registration returns `ErrOpaqueTypeRegistered` and is only logged |
+| Constructs a manager and subscribes | `as112` | `newAS112Producer`, `newServerManager`, `subscribeReplay` |
 
-**Seven runners never reach Stage 1 at all.** `capa`, `loop` and `srpolicy`
-return without calling `p.Run`. `as112`, `flowexport`, `vrrp` and `trafficusage`
-return 1 at `if !p.IsInternal()`, which a bare `net.Pipe` always fails because
-`NewWithConn` sets the bridge by type-asserting `rpc.Bridger`. Since `Run` sends
-Stage 1 unconditionally even for an empty `Registration`, "declared nothing" and
-"sent nothing" are different states, and about 60 of the 97 are legitimately the
-former.
+Corrections to the 2026-09-07 table: the netlink handle is
+`internal/plugins/fib/kernel`, not `internal/plugins/kernel`, which is a
+different plugin with its own early source registration; `sysrib` also allocates
+the default Loc-RIB; and the unwind count was optimistic, one defer rather than
+two.
+
+**Seven runners never reach Stage 1 at all.** `capa`, `loop` (the reactor filter
+plugin) and `srpolicy` return without calling `p.Run`. `as112`, `flowexport`,
+`vrrp` and `trafficusage` return 1 at `if !p.IsInternal()`, which a bare
+`net.Pipe` always fails because `NewWithConn` sets the bridge by type-asserting
+`rpc.Bridger`. Since `Run` sends Stage 1 unconditionally even for an empty
+`Registration`, "declared nothing" and "sent nothing" are different states.
+
+**Nothing built early is passed into the declaration.** Across the 122 in-tree
+`p.Run(ctx, sdk.Registration{...})` call sites, every field value is a package
+constant or a pure declaration function; the one exception is `runSDKMode`
+(`internal/plugins/exabgp/main_sdk.go`), which builds `Families` from a CLI
+argument. `runRIBPlugin` looks like a counter-example and is not: its
+`commandDecls()` calls `registerBuiltinCommands()` itself under a `sync.Once`.
 
 **Behavior to preserve:**
-- The five startup stages and their order. Query mode reads the EXISTING Stage 1 message and adds no second declaration path.
-- A live start is unchanged in every particular: same env block plus whatever carries the mode, same stages, same side effects.
-- `show plugins` keeps answering from the compiled-in registry with no daemon.
+- The five startup stages and their order. Query mode reads no new declaration and adds no stage.
+- A live start is unchanged in every particular: same env block, same stages, same side effects. `startExternal` is not edited.
+- `show plugin list` keeps answering from the compiled-in registry with no daemon.
+- `--features` and `--yang` keep answering before any connection.
 
 **Behavior to change:**
-- A plugin process started in query mode knows it is being interrogated, answers with its declarations, and performs none of a live start's work.
+- A plugin process started in query mode knows it is being interrogated, writes its Stage 1 declaration to stdout, exits 0, and performs none of a live start's work.
+- `show plugin declarations` answers, for every plugin the binary carries and every external plugin the config names, either the declaration or the state that says why there is none.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Unwritten: which reader asks, and how the mode reaches the plugin, are open design questions below]
-- [Format at entry]
+- `show plugin declarations`, and `show plugin declarations config <path>` when the operator wants the external plugins a config file names. Offline mode: no daemon, no hub, no TLS listener.
+- Format at entry: command tokens from the CLI or from the SSH command surface, answered as structured rows.
 
 ### Transformation Path
-1. Reader asks for a plugin's declarations (caller not yet decided)
-2. The plugin process is started, carrying the mode
-3. The plugin sends Stage 1 `declare-registration` and performs no live-start work
-4. The reader records the declarations, or the state that says why it has none
+1. The reader builds the row set: one row per plugin in the compiled-in registry, plus one row per external plugin the named config file declares.
+2. An IN-TREE row is answered from `registry.Registration` (`Commands`, `Pipes`). No process is started, because the answer is already linked into this binary.
+3. An EXTERNAL row is answered by forking the plugin's own `run` string with the mode variable in its environment and no hub variables, then reading the child's stdout until it exits or the budget expires.
+4. The child recognises the mode before it does anything else, writes one newline-framed `#1 ze-plugin-engine:declare-registration <json>` line to stdout, and exits 0.
+5. The reader parses the framed line, ignoring any other stdout content, and records the declaration or the state that says why there is none.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Engine ↔ external plugin process | five environment variables at `startExternal`, then the Stage 1 RPC | No |
-| Engine ↔ in-tree plugin | `RunEngine(conn net.Conn) int` over an in-process conn, no environment block | No |
+| Reader -> external plugin process | fork of the config's `run` string with one added environment variable; answer read from the child's stdout | Yes: `startExternal` reads env from `os.Environ()` plus an append, and runs the string under a shell, so an environment variable is the only carrier a shell-quoted run string cannot swallow |
+| Reader -> in-tree plugin | none: the declaration is a field of the compiled-in `registry.Registration` | Yes: `Collect` reads that field today with no process |
+| ze binary -> its own plugin code | `cli.Run` answers the mode from the looked-up `Registration` and never calls `CLIHandler` | Yes: `cli.Run` holds the registration before the dispatch |
+| Third-party binary -> its own plugin code | the SDK entry point sends the declaration and returns without calling the activation function | Yes for a plugin that adopts the entry point; a plugin that does not adopt it is reported as having sent nothing |
 
 ### Integration Points
-- `(*Plugin).Run`, `pkg/plugin/sdk/sdk.go` - owns the stage order a mode would have to be read in
-- `(*Process).startExternal`, `internal/component/plugin/process/process.go` - owns the environment block a mode would travel in
-- `show plugins`, `internal/component/plugin/register.go` - the precedent for reporting a per-plugin state rather than dropping a row
+- `cli.Run`, `internal/component/plugin/cli/main.go` - answers query mode for every `ze plugin <name>` process, in-tree or forked
+- `internal/component/plugin/register.go` - the sibling command, the registration call, the never-omit rule and the column declaration
+- `pkg/plugin/sdk` - the entry point that owns the order for a third-party plugin
+- `internal/core/env` - the two new keys, registered like every other
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | The answer is the Stage 1 `DeclareRegistrationInput` value in its own wire framing; no second format, no second declaration |
+| No unintended coupling (components stay isolated) | Yes | The reader lives in the plugin component beside `show plugin list`, walks the registry and the config, and spells no plugin name |
+| No duplicated functionality (extends existing, does not recreate) | Yes | In-tree rows reuse `registry.Registration.Commands`, the field the closed catalog spec created; query mode is added only for the population that has no such field |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | An offline introspection command on a cold path; no wire encoding, no pool buffer |
+| Registration over hardcoding | Yes | The command registers through `cmdregistry.MustRegisterLocalData`; the rows come from `registry.All()` and the config tree; the two env keys register through `env.MustRegister` |
 
-## Open Design Questions
+## Design
 
-<!-- These are the questions this spec exists to answer. They are RECORDED here,
-     not answered: answering them is the design phase. -->
+**D-1. The reader is `show plugin declarations`.** It is registered by the
+plugin component beside `show plugin list`, with `MustRegisterLocalData` and
+`Mode: offline`, so every pipe operator renders one payload. One row per plugin,
+never an omission. The optional `config <path>` keyword adds the external
+plugins a config file names; without it the answer covers the plugins this
+binary carries.
 
-**Q-1. Enforcement shape.** A mode the plugin merely READS is convention, and
-convention binds a port the day an author forgets. `p.Run` cannot enforce it,
-because the runner body already ran by the time `Run` is called, which is
-exactly where the audit above found the side effects. The candidate that does
-enforce is an SDK entry point that OWNS the call order: the SDK sends Stage 1
-from the registration and invokes the plugin's activation function only when the
-mode is not query, which makes side-effecting code unreachable rather than
-discouraged. That is the leading candidate. Anything short of it is convention,
-and the design MUST label it so. A supervisor that denies the process a socket
-is NOT a substitute: it stops a bind and does not stop `installIKEBypass`, which
-needs no socket.
+**D-2. The carrier is an environment variable, `ze.plugin.mode`**, registered
+through `env.MustRegister` and read as `ZE_PLUGIN_MODE`. An external plugin is
+started as a shell-quoted run string, so a forker cannot append a flag to it,
+and the environment block is already built by appending. The daemon's own start
+path never sets the variable, so a live start is untouched.
 
-**Q-2. The five-state answer.** A configured plugin that cannot be asked MUST
-appear in the answer carrying its state, and MUST NOT be omitted: an answer that
-drops what it could not read returns a silently wrong value
-(`ai/rules/principles.md`). Five states must be distinguishable:
+**D-3. The answer is the Stage 1 message, written to stdout.** The child writes
+one newline-framed `#1 ze-plugin-engine:declare-registration <json>` line and
+exits 0. The framing is the protocol's own, so a line that is not the framed
+message (a log line, a banner) is ignored rather than corrupting the answer, and
+the JSON is the `DeclareRegistrationInput` value with the tags it already
+carries. The child opens no connection, so it needs neither the hub token nor
+the CA.
+
+**D-4. Enforcement is by unreachability where Ze owns the binary, and by an SDK
+entry point where it does not.** For every `ze plugin <name>` process, `cli.Run`
+answers from the looked-up `Registration` and never calls `CLIHandler`, so no
+plugin code runs at all. For a third-party binary, the SDK gains an entry point
+that takes the declaration and the activation function as separate arguments and
+calls activation only when the mode is absent; a plugin that adopts it cannot
+side-effect in query mode. A plugin that does NOT adopt it is not silently
+trusted: it is reported as having sent nothing. For third-party code this is
+enforcement for adopters and CONVENTION for everyone else, and this spec says so
+in those words.
+
+**D-5. The five states are fields of the row.** The budget is 5 seconds, the
+same number as `defaultStageTimeout`, overridable with `ze.plugin.query.timeout`.
 
 | State | What it means |
 |-------|---------------|
-| declared commands | Stage 1 arrived and carried declarations |
-| declared none | Stage 1 arrived and carried an empty registration. About 60 of 97 runners are legitimately here |
-| sent nothing | the runner returned before Stage 1, as the seven named above do. The answer must NAME these, never report them as declaring nothing |
-| could not be started | the process did not start |
-| started and did not answer | the process started and Stage 1 never arrived inside the budget |
+| `declared` | an answer arrived carrying declarations |
+| `declared-none` | an answer arrived carrying an empty declaration |
+| `no-answer` | the process ran and exited without writing a framed declaration. A plugin that does not implement query mode reads as this, never as `declared-none` |
+| `unstartable` | the process could not be started |
+| `timeout` | the process started and no answer arrived inside the budget |
 
-`show plugins` is the precedent for the shape. The last state needs a STATED
-timeout budget, because without one "did not answer" is indistinguishable from
-"still starting".
+**Alternatives considered.**
 
-**Q-3. Scope of the pre-`p.Run` split.** Whether the runners the audit named are
-fixed as part of this spec, or named as its precondition, is open. Every one of
-them puts work in the runner body that no protocol stage gates.
+| Approach | Why it was not chosen |
+|----------|----------------------|
+| Drive the real 5-stage handshake against a query sink and hang up after Stage 1 | The engine treats a plugin that closes after Stage 1 as a startup failure (`deliverConfig` to `PluginFailed` to rollback, and a daemon stop for a `FailureFatal` plugin). It also needs a hub listener, a token and a CA for a read that needs none of them |
+| A mode the runner reads inside its own body | Convention with no enforcement: the audit's 19 runners do their damage before the body reaches any check. This is the shape the closed catalog spec already rejected on that evidence |
+| Put every Stage 1 field on `registry.Registration` and start nothing | Works only for in-tree plugins. A third-party binary is not linked into ze, so nothing compiled-in can carry its declaration, and the owner asked for the started-and-queried shape |
+| A supervisor that denies the query process a socket | Stops a bind and does not stop `installIKEBypass`, which needs no socket |
 
-**Q-4. Whether in-tree plugins are in scope.** External-only is a SCOPE
-DECISION, not a property of the transport. An in-tree plugin's engine already
-runs in-process over a `net.Conn` (`internal/component/plugin/inprocess.go`), so
-a mode read inside `(*Plugin).Run` reaches in-tree runners too, and the roughly
-19 runners above are what would then need suppressing. What IS settled is
-narrower: `RunEngine func(conn net.Conn) int` carries no environment block, so
-the process-start carrier does not reach an in-tree runner. That says the
-carrier differs, not that in-tree plugins are out of reach.
+**Answers to the skeleton's open questions.**
+
+| Q | Answer |
+|---|--------|
+| Q-1 enforcement shape | D-4: unreachable for a ze-owned binary, an order-owning SDK entry point for a third-party one, labelled convention for a third-party plugin that adopts neither |
+| Q-2 the five-state answer | D-5, with a stated 5-second budget and one row per plugin |
+| Q-3 pre-`p.Run` split | Out of scope, because query mode never enters a runner body. The 19 runners are recorded in Current Behavior above and named as `spec-plugin-runner-inertness` |
+| Q-4 in-tree plugins | In scope for the ANSWER and out of scope for the PROCESS: an in-tree row is answered from the compiled-in registration, which is strictly better than starting anything |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Every field of a command declaration is static, so a query-mode answer equals a live daemon's answer | `CommandDecl` and `PipeDecl`, `pkg/plugin/rpc/types.go`; each plugin's `commandDecls()` | A plugin whose declaration varies with configuration would answer differently in the two modes, and the catalog would publish the wrong one | compare a query-mode answer against a running daemon's `show command help` for the same plugin | unvalidated |
-| A-2 | Stage 1 is reachable with no configure, so a plugin can declare without activating | `(*Plugin).Run`, `pkg/plugin/sdk/sdk.go` line 375, and `runDHCPServerPlugin` binding only inside `OnConfigure` | Query mode would need a protocol change rather than a mode | the dhcpserver shape, exercised with no Stage 2 | unvalidated |
-| A-3 | The audit's runner findings still hold when this spec is implemented | `plan/learned/007-declaration-on-the-registration.md`, section 1, measured 2026-09-07 | The pre-`p.Run` scope in Q-3 is the wrong size | re-read the named runners at design | unvalidated |
+| A-1 | Every field of a command declaration is static, so a query-mode answer equals a live daemon's answer | `CommandDecl` and `PipeDecl`, `pkg/plugin/rpc/types.go`; 122 `p.Run` call sites read 2026-09-08, all constant or pure except `runSDKMode` | A plugin whose declaration varies with configuration answers differently in the two modes | AC-7: the same plugin's query answer and its live Stage 1 declaration compared field by field | unvalidated |
+| A-2 | `cli.Run` holds the registration before any plugin code runs | `cli.Run`, `internal/component/plugin/cli/main.go`: `registry.Lookup` precedes `reg.CLIHandler` | Query mode for the ze binary would need the plugin's own cooperation, and inertness would drop to convention | AC-3: the fake plugin's `CLIHandler` is never called in query mode | confirmed at the producer 2026-09-08 |
+| A-3 | The audit's runner findings still hold | re-measured at every producer 2026-09-08, three corrections recorded above | The follow-up spec is the wrong size | already re-measured | confirmed |
+| A-4 | An external plugin's `run` string can be forked by the reader with the same semantics the daemon uses | `(*Process).startExternal`: the run string under a shell, env from `os.Environ()` plus an append | A plugin startable by the daemon is unstartable by the reader, so a row reads `unstartable` when the plugin is fine | AC-5: the functional test starts the same run string both ways | unvalidated |
+| A-5 | A third-party plugin that ignores query mode cannot damage the host through the reader | the reader passes no hub variables, so an unaware plugin fails to connect and exits | An unaware plugin runs its live start under a query, which is the one thing this spec exists to prevent | AC-6: an unaware plugin is reported `no-answer`, and R-1 states the residual | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A query-mode start still mutates the host, because the mode is convention and a runner ignores it | a query run changes nftables, XFRM policy, or an rlimit | Q-1: an SDK entry point that owns the call order, so the code cannot run |
-| R-2 | The answer silently drops a plugin it could not read | a plugin that is configured and absent from the answer | Q-2: five states, one row per plugin, never an omission |
-| R-3 | A query-mode start beside a LIVE daemon damages the live daemon | ike loses its bypass; a plugin global is left pointing at a dead process | Q-3, and the ike defer is the worked example |
+| R-1 | A third-party plugin that adopts neither the ze binary nor the SDK entry point still runs its live start under a query, because nothing but its own code can stop it | a query run changes host state for a plugin Ze does not compile | D-4 makes the SDK entry point the documented route and the reader passes no hub credentials; the residual is stated in Known Limitations rather than hidden |
+| R-2 | The answer silently drops a plugin it could not read | a configured plugin absent from the rows | D-5: five states, one row per plugin, never an omission. AC-4 asserts a row for every state |
+| R-3 | The child writes something else to stdout and the answer is misparsed | a plugin whose banner or log line lands on stdout | D-3: the answer is newline-framed with the protocol's own prefix, and every other line is ignored |
+| R-4 | The budget cannot tell "did not answer" from "still starting" | a slow plugin reported `timeout` on a loaded machine | D-5 states the budget, ties it to `defaultStageTimeout`, and makes it configurable with `ze.plugin.query.timeout` |
+| R-5 | A query run beside a LIVE daemon disturbs it | the live daemon loses state after a query | The reader starts no in-tree runner and passes no hub variables, so a query process joins no hub and claims no plugin name. The in-tree runners that would disturb a daemon are never entered |
+| R-6 | The new command's name collides conceptually with `show plugin list` | an operator cannot guess which command answers what | One noun, two answers: `show plugin list` is what the binary carries, `show plugin declarations` is what each plugin declares. The owner chose both spellings on 2026-09-08 |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | A query-mode start that is not inert mutates the host it was only asked to interrogate: nftables tables, four node-wide XFRM policies, the calling process's memlock rlimit. Beside a running daemon it can strip that daemon's IKE bypass |
-| How is it reverted? | Single commit revert while the mode has no reader. Once a published catalog reads it, the reader has to be repointed as well |
-| Who else touches this path? | `spec-daemon-backed-command-catalog` (closed 2026-09-08, same Stage 1 declarations, read from `registry.Registration`; see `plan/learned/007-declaration-on-the-registration.md`), and every plugin runner the audit named |
+| What breaks if this is wrong? | An operator-facing read returns a wrong or missing row. The forked child is the one thing that can reach the host, and only for a third-party plugin that implements neither route (R-1) |
+| How is it reverted? | Single commit revert: the command, the SDK entry point and two env keys, with no caller inside the daemon |
+| Who else touches this path? | `spec-daemon-backed-command-catalog` (closed 2026-09-08, same declarations read from `registry.Registration`), and the follow-up spec for the 19 runners |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
-| Entry Point | → | Feature Code | Test |
+| Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| [unwritten: reader not yet chosen, see Q-1 and Q-4] | → | [feature function] | [test name proving the chain] |
+| `show plugin declarations` typed at the CLI | -> | the row builder in `internal/component/plugin/declarations.go` | `test/plugin/plugin-declarations-external.ci` |
+| `ze plugin <name>` started with the mode variable | -> | the query answer in `cli.Run` | `TestQueryModeAnswersBeforeTheHandler`, `internal/component/plugin/cli/main_test.go` |
+| a third-party plugin's `main` | -> | the SDK query entry point | `TestQueryModeSkipsActivation`, `pkg/plugin/sdk/sdk_query_test.go` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | [unwritten: written at design, after Q-1 through Q-4 are answered] | [observable outcome] |
+| AC-1 | `ze plugin <name>` run with `ZE_PLUGIN_MODE=declare` in its environment | Writes one newline-framed `#1 ze-plugin-engine:declare-registration <json>` line to stdout carrying the plugin's `Commands` and `Pipes`, exits 0, opens no connection and reads no hub variable |
+| AC-2 | The same invocation for a plugin whose registration declares no command and no pipe | Writes the framed line with an empty declaration and exits 0. The reader records `declared-none`, never `no-answer` |
+| AC-3 | A plugin whose `CLIHandler` records that it ran, invoked in query mode | The handler is never called: the query is answered from the looked-up `Registration` in `cli.Run` |
+| AC-4 | `show plugin declarations config <path>` over a config naming one plugin per state: a good external plugin, a plugin whose `run` string does not exist, a plugin that exits without answering, a plugin that sleeps past the budget | The five row states are distinguishable and every configured plugin has a row: `declared`, `declared-none`, `no-answer`, `unstartable`, `timeout`. No plugin is omitted |
+| AC-5 | The same external `run` string started by the daemon and by the reader | Both start; the daemon's live start reaches Stage 5, the reader's query start exits 0 after one line and never appears in the hub |
+| AC-6 | An external plugin binary that implements neither route, queried | The row reads `no-answer`, and the reader names it as a plugin that does not support query mode |
+| AC-7 | The declaration a plugin sends at Stage 1 to a live daemon, and the declaration the same plugin writes in query mode | The two JSON values are equal |
+| AC-8 | `show plugin declarations` rendered through `json`, `yaml` and `table`, and through a row operator such as `match` | Each is a rendering of the same payload, with the state carried as a field rather than glued to the name |
+| AC-9 | `show plugin declarations` with no `config` keyword and no daemon running | Answers a row for every plugin the binary carries, from the compiled-in registration, starting no process |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | [unwritten: depends on which reader asks, Q-1] | [path] | [test name] |
+| 1 | Asks what commands an external plugin adds, before running it in a router | `show plugin declarations config <path>` -> fork with the mode variable -> framed Stage 1 line -> rows | `test/plugin/plugin-declarations-external.ci` |
+| 2 | Asks the same of a plugin that is broken or does not support the mode | same path, the child fails or answers nothing -> the row carries `unstartable` or `no-answer` | `test/plugin/plugin-declarations-states.ci` |
+| 3 | Writes a third-party plugin and makes it answer a query without activating | the plugin's `main` calls the SDK query entry point with its declaration and its activation function | `TestQueryModeSkipsActivation` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestXxx` | `pkg/plugin/sdk/*_test.go` | [unwritten] | |
+| `TestQueryModeAnswersBeforeTheHandler` | `internal/component/plugin/cli/main_test.go` | AC-1, AC-3: the framed line is written and `CLIHandler` never runs | |
+| `TestQueryModeEmptyDeclarationIsNotSilence` | `internal/component/plugin/cli/main_test.go` | AC-2: an empty declaration still writes the framed line | |
+| `TestQueryModeSkipsActivation` | `pkg/plugin/sdk/sdk_query_test.go` | AC-1, AC-6: the SDK entry point writes the declaration and does not call the activation function | |
+| `TestQueryModeActivatesWithoutTheMode` | `pkg/plugin/sdk/sdk_query_test.go` | the same entry point runs activation normally when the variable is absent, so a live start is unchanged | |
+| `TestDeclarationRowsCarryEveryState` | `internal/component/plugin/declarations_test.go` | AC-4: the five states, one row each, none omitted | |
+| `TestDeclarationRowsAnswerInTreeFromTheRegistration` | `internal/component/plugin/declarations_test.go` | AC-9: an in-tree row starts no process | |
+| `TestDeclarationAnswerMatchesStageOne` | `internal/component/plugin/declarations_test.go` | AC-7: the query answer equals the Stage 1 declaration for the same plugin | |
+| `TestDeclarationIgnoresUnframedStdout` | `internal/component/plugin/declarations_test.go` | R-3: a banner line before the framed answer does not corrupt the row | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| query answer timeout | [budget unwritten, see Q-2] | | | |
+| query answer budget (`ze.plugin.query.timeout`) | positive duration, default 5s | an answer written just inside the budget is `declared` | zero or negative is refused, never treated as no wait | an answer written after the budget is `timeout`, and the child is stopped |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-xxx` | `test/plugin/*.ci` | [unwritten] | |
+| `plugin-declarations-external` | `test/plugin/plugin-declarations-external.ci` | An operator reads an external plugin's commands with no daemon running | |
+| `plugin-declarations-states` | `test/plugin/plugin-declarations-states.ci` | The same read over a config whose plugins are broken, silent or slow: every one has a row | |
+| `plugin-declarations-pipes` | `test/plugin/plugin-declarations-pipes.ci` | AC-8: the same answer rendered through each operator | |
 
 ### Interop Tests (Scope: protocol)
-N-A. No wire-visible protocol change and no peer daemon: the plugin RPC is Ze's own.
+N-A. No wire-visible protocol change and no peer daemon: the plugin RPC is Ze's
+own, and query mode emits an existing message on an existing framing.
 
 ## Files to Modify
-<!-- Candidates the design will confirm or replace. Nothing here is decided. -->
-- `pkg/plugin/sdk/sdk.go` - where the stage order is owned, so where a mode would be enforced (Q-1)
-- `internal/component/plugin/process/process.go` - the environment block a mode would travel in for an external plugin
-- `internal/component/plugin/registry/registry.go` - the in-tree entry point, if Q-4 puts in-tree plugins in scope
-- the runners the audit named, if Q-3 puts the pre-`p.Run` split in this spec
+- `internal/component/plugin/cli/main.go` - answer query mode in `cli.Run` from the looked-up registration, before `CLIHandler`
+- `pkg/plugin/sdk/sdk.go` - the package the new query entry point joins, and the doc comment that points a plugin author at it
+- `docs/architecture/cli/plugin-modes.md` - the fourth mode: its carrier, its answer and its inertness guarantee
+- `docs/architecture/api/process-protocol.md` - query mode beside the five stages: the same Stage 1 message, on stdout, with no Stage 2
+- `docs/plugin-development/protocol.md` - what a third-party plugin author calls to support the mode
+- `docs/architecture/plugin/plugin-system.md` - the reader command in the introspection surface
+- `ai/rules/plugins.md` - one directive: a plugin that declares must be answerable without activating
 
 ## Files to Create
-- [unwritten]
+- `internal/component/plugin/declarations.go` - `show plugin declarations`: the row builder, the five states, the fork and the framed-line parse
+- `internal/component/plugin/declarations_test.go` - the unit tests above
+- `pkg/plugin/sdk/sdk_query.go` - the entry point that owns the order for a third-party plugin
+- `pkg/plugin/sdk/sdk_query_test.go` - the two SDK tests above
+- `test/plugin/plugin-declarations-external.ci`, `test/plugin/plugin-declarations-states.ci`, `test/plugin/plugin-declarations-pipes.ci`
+
+### Discovery (`ai/rules/repo-maintenance.md`)
+| Question | Answer |
+|----------|--------|
+| Where does an agent look first? | `ai/INDEX.md`, keywords `plugin declarations` and `query mode`, pointing at `docs/architecture/cli/plugin-modes.md` |
+| What rule prevents regression? | `ai/rules/plugins.md` gains the directive that a declaration must be answerable without activating |
+| What registry prevents drift? | `registry.Registration` stays the single in-tree declaration, and `./le plugin declarations check` already holds it against the runner's literal |
+| What verification proves it? | The three `.ci` tests, the unit tests above, and `./le verify worktree` |
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | | unanswered at skeleton |
-| YANG validation constraints | | unanswered at skeleton |
-| YANG custom validators | | unanswered at skeleton |
-| CLI commands/flags | | unanswered at skeleton |
-| CLI grammar (keyword before value) | | unanswered at skeleton |
-| Editor autocomplete | | unanswered at skeleton |
-| Functional test for new RPC/API | | unanswered at skeleton |
-| Pipe completeness | | unanswered at skeleton |
-| Env var registration | | unanswered at skeleton, and note the five `ZE_PLUGIN_*` variables are process-start environment rather than registered `ze.*` config leaves |
-| Doctor check for runtime dependencies | | unanswered at skeleton |
-| Prometheus counters/metrics | | unanswered at skeleton |
+| YANG schema (new RPCs/config) | N-A | An offline local-data command, registered exactly as `show plugin list` is; `./le docvalid command-contract` governs the pairing |
+| YANG validation constraints | N-A | no YANG node added |
+| YANG custom validators | N-A | no YANG node added |
+| CLI commands/flags | Yes | `show plugin declarations`, `internal/component/plugin/declarations.go` |
+| CLI grammar (keyword before value) | Yes | the only value is `config <path>`, typed by its keyword; `./le cli-grammar` is the check |
+| Editor autocomplete | Yes | derived from the command declaration, as `show plugin list` is |
+| Functional test for new RPC/API | Yes | the three `.ci` tests above |
+| Pipe completeness | Yes | `MustRegisterLocalData` plus `RegisterShape` and `RegisterColumns`, as `show plugin list` does; AC-8 |
+| Env var registration | Yes | `ze.plugin.mode` and `ze.plugin.query.timeout`, through `env.MustRegister` |
+| Doctor check for runtime dependencies | N-A | no new file, socket, port, module, binary or kernel interface: the reader forks a command the config already names |
+| Prometheus counters/metrics | N-A | an operator-invoked offline read |
 | BGP family surface (new SAFI / capability / attribute) | N-A | no family, capability or attribute |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | | unanswered at skeleton |
-| 2 | Config syntax changed? | | unanswered at skeleton |
-| 3 | CLI command added/changed? | | unanswered at skeleton |
-| 4 | API/RPC added/changed? | | unanswered at skeleton |
-| 5 | Plugin added/changed? | | unanswered at skeleton |
-| 6 | Has a user guide page? | | unanswered at skeleton |
+| 1 | New user-facing feature? | Yes | `docs/architecture/cli/plugin-modes.md`, and the command reaches the published catalog through its registration |
+| 2 | Config syntax changed? | N-A | no config node added |
+| 3 | CLI command added/changed? | Yes | `docs/architecture/cli/plugin-modes.md`; the catalog page is generated from the registration |
+| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/process-protocol.md`: the same Stage 1 message on a second carrier |
+| 5 | Plugin added/changed? | N-A | no plugin added |
+| 6 | Has a user guide page? | Yes | `docs/architecture/cli/plugin-modes.md` is the page an operator reads for plugin invocation |
 | 7 | Wire format changed? | N-A | no wire format |
-| 8 | Plugin SDK/protocol changed? | | likely `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md`, `docs/plugin-development/protocol.md`; confirmed at design |
+| 8 | Plugin SDK/protocol changed? | Yes | `docs/plugin-development/protocol.md`, `docs/architecture/api/process-protocol.md`, `ai/rules/plugins.md` |
 | 9 | RFC behavior implemented, changed, or newly proven? | N-A | no RFC |
-| 10 | Test infrastructure changed? | | unanswered at skeleton |
-| 11 | Affects daemon comparison? | | unanswered at skeleton |
-| 12 | Internal architecture changed? | | unanswered at skeleton |
+| 10 | Test infrastructure changed? | N-A | the `.ci` tests use the existing runner |
+| 11 | Affects daemon comparison? | N-A | no daemon behavior changes |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/plugin/plugin-system.md` |
 | 13 | Route metadata keys added/changed? | N-A | no route metadata |
-| 14 | Prometheus counters added/changed? | | unanswered at skeleton |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | | unanswered at skeleton |
-| 16 | Any changed source file referenced by existing doc source anchors? | | DERIVED: `./le spec citation anchors spec plan/spec-plugin-query-mode.md` at design |
-| 17 | Existing docs show config/CLI/API examples for this area? | | unanswered at skeleton |
+| 14 | Prometheus counters added/changed? | N-A | none added |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | one command registered; the generated catalog and completion follow from the registration |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED: `./le spec citation anchors spec plan/spec-plugin-query-mode.md` before the first code edit; `internal/component/plugin/cli/main.go` already carries a `Design:` anchor to `docs/architecture/api/process-protocol.md` |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/architecture/cli/plugin-modes.md` carries the invocation examples the new mode joins |
 
 ## Implementation Steps
 
-<!-- Unwritten. The phases cannot be ordered until Q-1 through Q-4 are answered:
-     Q-1 decides what the wiring phase registers, and Q-3 and Q-4 decide how
-     many runners are in the diff. -->
-
-1. **Phase: Wiring (MANDATORY FIRST)** -- [unwritten, see Q-1]
-   - Tests: [from the Wiring Test table]
-   - Files: [entry point]
-   - Verify: the entry point exists and is reachable, and the wiring test fails because the feature is a stub
+0. **Precondition, landed as its own commit before this spec starts** -- `show plugins` is renamed to `show plugin list` (owner directive, 2026-09-08), so the plugin namespace carries one noun before a second command joins it. Ze is unreleased, so the old spelling is replaced outright rather than aliased. This spec does not carry that rename.
+1. **Phase: Wiring (MANDATORY FIRST)** -- register `show plugin declarations` as a local-data command answering a stub row set
+   - Tests: `test/plugin/plugin-declarations-external.ci`, red because the row carries no declaration
+   - Files: `internal/component/plugin/declarations.go`
+   - Verify: the command is reachable from the CLI, and the test fails because the feature is a stub
+2. **Phase: the query answer in the ze binary** -- `cli.Run` reads the mode, writes the framed Stage 1 line from the looked-up registration, and returns before `CLIHandler`
+   - Tests: `TestQueryModeAnswersBeforeTheHandler`, `TestQueryModeEmptyDeclarationIsNotSilence`
+   - Files: `internal/component/plugin/cli/main.go`, the `env` registration
+   - Docs: `docs/architecture/cli/plugin-modes.md` in this phase, not later
+3. **Phase: the reader** -- fork the config's `run` string with the mode, read stdout under the budget, parse the framed line, build the five states, and answer in-tree rows from the registration
+   - Tests: `TestDeclarationRowsCarryEveryState`, `TestDeclarationRowsAnswerInTreeFromTheRegistration`, `TestDeclarationIgnoresUnframedStdout`, `test/plugin/plugin-declarations-states.ci`
+   - Files: `internal/component/plugin/declarations.go`
+4. **Phase: the SDK entry point** -- declaration and activation as separate arguments, activation unreachable under the mode
+   - Tests: `TestQueryModeSkipsActivation`, `TestQueryModeActivatesWithoutTheMode`
+   - Files: `pkg/plugin/sdk/sdk_query.go`, `pkg/plugin/sdk/sdk.go`
+   - Docs: `docs/plugin-development/protocol.md`, `docs/architecture/api/process-protocol.md`, `ai/rules/plugins.md` in this phase
+5. **Phase: equality and rendering** -- prove the query answer equals the live Stage 1 declaration, and that the payload renders through every operator
+   - Tests: `TestDeclarationAnswerMatchesStageOne`, `test/plugin/plugin-declarations-pipes.ci`
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Inertness | A query-mode start touches no nftables table, no XFRM policy, no rlimit, no socket, no timer, no process global |
-| No silent omission | Every configured plugin has a row, carrying one of the five states in Q-2 |
-| State distinctness | "declared none" and "sent nothing" are separate answers, and the seven runners that never reach Stage 1 read as the second |
-| One fact | The answer comes from the plugin's own `commandDecls()` through Stage 1, and no second declaration is introduced |
-| Enforcement, not convention | If the mode is only read by the plugin, the spec says so in those words |
+| Inertness | A query-mode start touches no nftables table, no XFRM policy, no rlimit, no socket, no timer, no process global. For a ze-owned binary this is unreachability, not a promise |
+| No silent omission | Every plugin in the registry and every plugin the config names has a row, carrying one of the five states |
+| State distinctness | `declared-none` and `no-answer` are separate answers, and a plugin that does not implement the mode reads as the second |
+| One fact | The answer is the plugin's own declaration through the Stage 1 message; no second declaration, no second format |
+| Enforcement, not convention | The spec states plainly where the guarantee is unreachability and where it is convention (D-4, R-1, Known Limitations) |
+| No layering | In-tree rows and external rows are one mechanism stated once: the process that owns the plugin's code answers. No fallback chain, no hybrid |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| [unwritten] | [command that proves it] |
+| `show plugin declarations` answers with no daemon | `ze show plugin declarations` with nothing running |
+| An external plugin answers without activating | `test/plugin/plugin-declarations-external.ci` |
+| Every state is reachable and none is omitted | `test/plugin/plugin-declarations-states.ci` |
+| A third-party plugin can support the mode | `TestQueryModeSkipsActivation` |
+| The answer equals the live declaration | `TestDeclarationAnswerMatchesStageOne` |
 
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
-| Privilege at start | A query-mode start must not need, take, or keep the privilege a live start needs (`rlimit.RemoveMemlock`, netlink handles, nftables) |
-| Credential exposure | Whether a query-mode process needs the hub token and CA at all |
+| Privilege at start | A query-mode start must not need, take, or keep the privilege a live start needs. The ze-owned route runs no plugin code at all |
+| Credential exposure | The reader passes no hub token and no CA: a query process joins no hub and authenticates to nothing |
+| Command execution | The reader forks a string the config already tells the daemon to run. It adds no new source of executable text, and it takes a run string from nowhere but the config file the operator named |
 
 ### Failure Routing
 | Failure | Route To |
 |---------|----------|
 | Compilation error | Fix in the phase that introduced it |
 | Test fails for the wrong reason | Fix the test assertion or setup |
-| Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
-| Lint failure | Fix inline. If architectural → DESIGN |
-| Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
+| Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood -> RESEARCH |
+| Lint failure | Fix inline. If architectural -> DESIGN |
+| Functional test fails | Check the AC: wrong AC -> DESIGN, correct AC -> IMPLEMENT |
 | Audit finds a missing AC | Back to the relevant phase and implement |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
-- The declarations are static data trapped behind a process start. That is the whole gap, and it is why no new declaration format is needed.
-- The protocol already splits declaring from activating for the common case, and `runDHCPServerPlugin` is the worked example. What is unguarded is the runner body before `p.Run`.
+- The declarations of an in-tree plugin are no longer trapped: the closed catalog spec freed them. What is still trapped is the external plugin's, and only because its code is in another binary.
+- The protocol already splits declaring from activating for the common case. What is unguarded is the runner body before `p.Run`, and the way past it is not to enter the runner at all.
+- `cli.Run` holding the registration before the dispatch is what turns inertness from a promise into a property.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| `show plugin declarations`, beside the renamed `show plugin list` | `show plugin declaration list`; `show plugin declarations list` | Owner decision, 2026-09-08: the number follows what the token names, so the noun is singular and the plural names the many declarations the answer carries |
+| Answer in `cli.Run`, before the plugin's own handler | a mode read inside the runner; a mode read inside `p.Run` | Both let the runner body run first, which is where the 19 measured side effects are |
+| An environment variable as the carrier | a flag on `ze plugin <name>`; both | An external plugin runs under a shell as a config-supplied string, so a forker cannot append a flag. Two carriers for one mode can disagree |
+| The Stage 1 message on stdout, in its own framing | a bespoke JSON document; a connect-back to a query listener | One declaration in one format, and a framed line survives a plugin that also writes to stdout. A connect-back needs a listener, a token and a CA for a read that needs none |
+| Commands and pipes only | every Stage 1 field | The untwinned fields are a separate change with a separate blast radius, named as a follow-up spec |
+| The 19 early-side-effecting runners stay as they are | fix them here | Query mode never enters a runner body, so it does not depend on them. Folding a 19-runner refactor into this commit costs it its single focus |
 
 ## Known Limitations
-- [unwritten]
+- A third-party plugin that implements neither route cannot be queried. It is reported `no-answer`, never guessed at. For such a plugin, query mode is convention, and this spec does not pretend otherwise (R-1).
+- Query mode answers commands and pipes. The Stage 1 fields with no compiled-in twin (config operations, filters, doctor checks, enrichers, schema, budgets, failure policy) are not answered: `spec-plugin-declaration-fields-on-registration`.
+- The 19 runners that mutate the host, the process or a global before they declare are unchanged: `spec-plugin-runner-inertness`.
 
 ## RFC Documentation (Scope: protocol)
 
 N-A. No RFC governs the plugin RPC.
+
+## Review Gate
+
+<!-- Filled by /ze-review at implementation time. Never delete this section. -->
+
+| Run | Blockers | Issues | Notes |
+|-----|----------|--------|-------|
 
 ## Checklist
 
@@ -371,27 +492,34 @@ N-A. No RFC governs the plugin RPC.
 - [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
 - [ ] `ai/INDEX.md` keyword table checked
 - [ ] An `rfc/short/` summary exists for every RFC referenced
-- [ ] Template format followed: the 🧪 emoji, tables rather than prose, `[ ]` never `[x]`
+- [ ] Template format followed: tables rather than prose, `[ ]` never `[x]`
 - [ ] No code snippets
 - [ ] Files to Modify names feature code, not only tests
 - [ ] Current Behavior and Data Flow sections completed
 - [ ] AC-N rows carry testable assertions
 - [ ] Every assumption has a Basis and a validation method; every failure mode is a risk row
-- [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
+- [ ] Required Reading carries `-> Decision:` / `-> Constraint:` checkpoints
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 - [ ] Q-1 through Q-4 each answered in the spec, not in conversation
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-N all demonstrated
+- [ ] AC-1..AC-9 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
+- [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
+
+### Goal Validation
+| Goal | Evidence |
+|------|----------|
+| A plugin can be asked for its details while it is started and aware it is being queried | |
+| A query-mode start performs none of a live start's work | |
+| No configured plugin is missing from the answer | |
 
 ### TDD
 - [ ] Tests written
@@ -406,4 +534,4 @@ N-A. No RFC governs the plugin RPC.
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
-- [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+- [ ] **Commit B:** the spec removal only (commit A preserves the spec in history)
