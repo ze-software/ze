@@ -18,7 +18,7 @@ I use AI to help write these articles too. I am lazy, and my time is limited, so
 
 Calling it "AI slop" is easy, but the label says little about what is wrong. Slop is code accepted without enough scrutiny: merged because it compiled, or trusted because the demo worked once. Human-written code can be slop too. AI makes it much cheaper to produce.
 
-In many cases, though, AI has written better code than I could have written myself. It has been more meticulous, and it writes far more tests than I ever did.
+In many cases, though, AI has written better code than I could have written myself. It has been more meticulous, and it writes far more tests per feature than I ever did.
 
 *This article was drafted and revised with OpenAI Codex. The ideas, experience and conclusions are mine.*
 
