@@ -229,7 +229,7 @@ N/A. Scope is `plugin`. No RFC governs a YANG leaf-list or an nftables lowering.
 | A-3 | A term registered through `RegisterTables` is never checked by `firewall.ValidateName` | `ValidateTables` has exactly two callers, `engine.go:216` and `engine.go:321`, both over the firewall engine's own `cfg.Tables`. `RegisterTables` checks the table-name prefix only | The `termName` comment's stated reason is right as written, and the position suffix keeps the same justification either way | `grep -rn "ValidateTables(" internal/component/firewall internal/plugins/firewall` returning those two call sites and no third | confirmed. `ValidateTables` has exactly two non-test callers, `engine.go:216` and `engine.go:321`, both over `cfg.Tables`. `ValidateName(term.Name)` is reached only from `validateTerm` (`validate.go:88`), and `RegisterTables` checks the `ze_` prefix alone. The `termName` comment is corrected in this work |
 | A-4 | The chain order is fixed before translation: policies by name, then rules by `order` then name | `slices.Sort(policyNames)` (`config.go:75`) and `sort.Slice` on `Order` then `Name` (`config.go:126`) | The `order` acceptance criterion tests the wrong thing | `TestPolicyInterfaceListKeepsRuleOrder` asserting the four term names in sequence | confirmed. The test drives `parsePolicyConfig` with the `order 10` rule written first and reads `steer-early-1`, `-2`, `steer-late-1`, `-2` back |
 | A-5 | Nothing reorders `Chain.Terms` between `translate` and the kernel | `programChain` iterates `chain.Terms` by index (`backend_linux.go:230`) | A per-interface group could be split by another rule's terms, and `order` would stop meaning what the help says | The same unit test, plus the `.ci` asserting the `RULE` lines in sequence | confirmed. `TestPolicyInterfaceListKeepsRuleOrder` reads the four terms back in slice order after `translate` |
-| A-6 | `show policy routes` is unaffected | `formatPolicies` (`register.go`) renders the parsed `[]PolicyRoute`, never the terms | `test/plugin/policy-routes-show.ci` goes red and the show path joins this spec | broken as a validation METHOD, holds as a fact. `formatPolicies` (`register.go:248`) reads `[]PolicyRoute` and never a term, so no code this spec touches reaches the show path. `test/plugin/policy-routes-show.ci` was NOT run: it times out in the ad-hoc QEMU guest this session used, waiting on `ze cli`, before any assertion. The gate must run it | confirmed at the producer, unrun as a test |
+| A-6 | `show policy routes` is unaffected | `formatPolicies` (`register.go`) renders the parsed `[]PolicyRoute`, never the terms | `test/plugin/policy-routes-show.ci` goes red and the show path joins this spec | confirmed, and now proven by the test. `test/plugin/policy-routes-show.ci` ran in the QEMU guest and PASSES (2.5s), reading `test-pbr` and `allow-http` back through `formatPolicies`. It was red before this work for two reasons that predate the spec and that the interface-list change never reaches: the config declared no SSH server and no user, so `ze cli` stopped at "no credentials for 127.0.0.1:2222: no stored username and none supplied" before dispatching anything, and the daemon then rendered a table while the driver parses JSON. Both are fixed in the `.ci` itself | confirmed, and green |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -272,7 +272,7 @@ N/A. Scope is `plugin`. No RFC governs a YANG leaf-list or an nftables lowering.
 | AC-4 | A policy names `eth0` and `l2tp*` in one leaf-list | The `eth0` rule compares the full 16-byte interface name, and the `l2tp*` rule compares the 4-byte prefix. Each entry keeps its own wildcard state, and mixing the two forms in one list is accepted | `TestPolicyInterfaceListOneTermPerInterface` asserts `{Name: "eth0"}` and `{Name: "l2tp", Wildcard: true}` on their own terms. The `.ci` proves it at the kernel: nft prints `iifname "eth0"` for the 16-byte compare and `iifname "l2tp*"` for the prefix compare, on two separate rules |
 | AC-5 | A policy names two interfaces and carries two rules, `order 0` and `order 10` | Four nftables rules are installed. Both rules of the `order 0` group precede both rules of the `order 10` group, so the `order` leaf keeps deciding evaluation sequence | `TestPolicyInterfaceListKeepsRuleOrder`: `parsePolicyConfig` is given the `order 10` rule first, and the four terms read back `steer-early-1`, `steer-early-2`, `steer-late-1`, `steer-late-2` |
 | AC-6 | A policy names two interfaces and one rule selects `table 100` | One fwmark is allocated and one ip rule maps it to table 100. Both nftables rules set that same mark | `TestPolicyInterfaceListOneTermPerInterface` asserts both terms carry the same `SetMark` value and that it equals `result.IPRules[0].Mark`, with `len(result.IPRules) == 1`. The `.ci` asserts `meta mark set` on both `RULE` lines |
-| AC-7 | A multi-interface policy is applied and `show firewall ruleset` is read | Each interface's rule is reported as its own counter row. No two rules of the group are summed into one row | `termName` gives the two terms distinct names, so `mergeRuleCounters` (which merges only on an equal name) cannot sum them. Not asserted through `show firewall ruleset` in this work: see Work Not Done |
+| AC-7 | A multi-interface policy is applied and `show firewall ruleset` is read | Each interface's rule is reported as its own counter row. No two rules of the group are summed into one row | `test/policy/policy-interface-list-counters.ci`, PASS in 6.0s in the QEMU guest. It drives `show firewall ruleset pr` with the json pipe over the real `ze cli` SSH path, and asserts `"steer-webmark-1"` and `"steer-webmark-2"` with `reject=stdout:contains="steer-webmark"`, the unsuffixed name a merged group prints. The Vacuity Walk below records its RED: with `termName` returning `base` for every interface, the one row the client printed was `"name": "steer-webmark"` carrying `"packets": 136` |
 | AC-8 | An interface name carrying a character a term name may not carry, for example `l2tp*` | The apply succeeds. The term name carries the interface's position, never the interface string, so no interface name can reach a name check | `termName` builds the suffix from `strconv.Itoa(index+1)`, so no operator string enters a term name. The `.ci` commits `interface "l2tp*"` and the apply succeeds (`policy routes applied count=1` in the guest log) |
 
 ## End-to-End User Stories
@@ -484,6 +484,45 @@ The daemon applied the policy and installed ONE rule, so the fixture's
 "at least two rules in `ze_pr`" predicate never held and it failed on the
 observer error rather than on an assertion mismatch. That is what R-4 predicted.
 
+## Vacuity Walk, AC-7 (`test/policy/policy-interface-list-counters.ci`)
+
+The counter-row assertion was also written against code that already worked, so
+it owes its own forced red. The producer broken here is `termName`
+(`internal/plugins/policyroute/translate.go`), which is what gives a group's
+terms distinct names; `mergeRuleCounters`
+(`internal/plugins/firewall/nft/backend_linux.go`) merges on an equal name, so
+one name for the group is the whole failure. Each step cross-builds `ze` and
+`ze-test` for the guest, so the break reaches the daemon under test.
+
+| Step | Tree | Result |
+|------|------|--------|
+| 1 | `termName` as it stands | PASS, 6.0s |
+| 2 | `termName` returning `base` for every interface of a group | FAIL |
+| 3 | `termName` restored, `git status` clean on `translate.go` | PASS, 6.4s |
+
+### Step 2, RED under the broken producer
+
+The client reached the daemon and printed the ruleset. The answer carried ONE
+term row for the two interfaces, which is the merged shape AC-7 forbids:
+
+```
+      "terms": [
+        {
+          "bytes": 28952,
+          "name": "steer-webmark",
+          "packets": 136
+        },
+```
+
+```
+    5 x expect stdout-contains -> stdout does not contain "\"steer-webmark-1\""
+fail  0/1  0.0%  5.9s  failed 1 [2]
+```
+
+`test/policy/policy-interface-list.ci` stayed GREEN through that same step, which
+is the second half of the discrimination: the rule COUNT is unchanged by the
+break, so only the counter-row assertion can see it.
+
 ```
 6.5s     1/1  FAIL  2  policy-interface-list
 fail  0/1  0.0%  6.5s  failed 1 [2]
@@ -575,8 +614,7 @@ No product Go changed. `df5b6c25af` had already landed it.
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
 | `policy-interface-list` added to `netnsSelections[netnsPolicy]` (`internal/le/qemu/netns_linux.go`), so `./le qemu netns-test suites policy` reaches it | That file was out of the editing scope this phase was given: another session holds uncommitted work under `internal/le/`. `./le qemu all-tests` finds the test with no registration, so only the focused developer loop misses it | Unhomed. Named here for the main thread to route: it is a one-line edit, not a spec |
-| AC-7 asserted through `show firewall ruleset` output | The AC is met by construction (`termName` gives the group's terms distinct names, and `mergeRuleCounters` merges only equal names), and the `.ci` proves the two rules exist separately. No test reads the counter rows back | Unhomed. Named here rather than claimed |
-| `test/plugin/policy-routes-show.ci` re-run (A-6) | It times out in the ad-hoc QEMU guest this session used, waiting on `ze cli`, before any assertion. `formatPolicies` reads the parsed config and no code this spec touches reaches it, so the fact holds at the producer | The verification gate runs it |
+| `policy-interface-list-counters` added to `netnsSelections[netnsPolicy]` (`internal/le/qemu/netns_linux.go`) | Same scope boundary as the row above it: another session holds uncommitted work under `internal/le/`. `./le qemu all-tests` finds the test with no registration | Unhomed. A one-line edit, not a spec |
 
 ## Design Insights
 <!-- LIVE: write immediately when you learn something. At closure these route to

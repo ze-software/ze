@@ -39,6 +39,7 @@ var netnsSelections = map[string][]string{
 	netnsPolicy: {
 		"policy-boot-apply", "policy-set-table", "policy-tcp-flags", "policy-tcp-mss",
 		"policy-next-hop", "policy-reload", "policy-interface-list",
+		"policy-interface-list-counters",
 	},
 	netnsOSPF: {
 		"ospf-instance-demux", "ospf-multiaf", "ospf-multiaf-reconcile", "ospf-multiaf-show",

@@ -43,10 +43,51 @@ policy {
         }
     }
 }
+system {
+    authentication {
+        user operator {
+            # bcrypt hash of testpass.
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO";
+        }
+    }
+}
+environment {
+    # The driver parses the answer as JSON and passes no `| json` pipe, so the
+    # daemon has to render JSON by default. With the table default it read
+    # "interfaces  name  rules" and failed on the first character.
+    cli {
+        format {
+            default json;
+        }
+    }
+    ssh {
+        enabled true;
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
 EOF_CONF
 
 option=env:var=ze.log.policy.routes:value=info
 option=env:var=ze.log.firewall:value=info
+
+# The driver runs `ze cli -c "show policy routes"`, and `ze cli` speaks SSH and
+# nothing else (runBGP, internal/component/cli/client/main.go). Until 2026-09-08
+# this test declared no SSH server and no user, so the client stopped at
+# "no credentials for 127.0.0.1:2222: no stored username and none supplied"
+# before any command was dispatched, and the test timed out having asserted
+# nothing. It is recorded as the 2026-08-24 row in
+# plan/journal/test-against-broken-path.md.
+#
+# ze.ssh.username stands in for the --user flag the driver does not pass
+# (resolveUsername, internal/core/ssh/client/client.go), and ze.ssh.insecure
+# skips the host-key check the zefs store would otherwise answer.
+option=env:var=ze.ssh.username:value=operator
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.insecure:value=true
+option=env:var=ze.ssh.port:value=$PORT2
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
 cmd=foreground:seq=2:exec=ze-test fixture plugin/policy-routes-show:timeout=15s

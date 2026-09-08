@@ -136,6 +136,11 @@ func TestIsQuickExitZeCommand(t *testing.T) {
 		{"run", "help"}, // run help is quick-exit, unlike a run daemon
 		{"interface", "list"},
 		{"-d", "config", "validate", "-"}, // leading flag, still quick
+		// `ze cli -c` sends one command over SSH, prints the answer and exits.
+		// Classed as a daemon it is never awaited, and teardown kills the
+		// daemon it is talking to before the answer lands.
+		{"cli", "-c", "show firewall ruleset pr | json"},
+		{"cli", "-c", "show config dump - | json"},
 	}
 	for _, a := range quick {
 		if !isQuickExitZeCommand(a) {

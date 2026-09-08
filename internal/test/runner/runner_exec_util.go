@@ -773,7 +773,27 @@ func isQuickExitZeCommand(args []string) bool {
 	if zeDaemonConfigArgIndex(args) >= 0 || zeDaemonUsesWeb(args) {
 		return false
 	}
+	if zeCLIRunsOneCommand(args) {
+		return true
+	}
 	return !zeDaemonVerbs[firstZeSubcommand(args)]
+}
+
+// zeCLIRunsOneCommand reports whether a `ze cli` invocation carries -c, which
+// sends one command over SSH, prints the answer and exits. Only the
+// interactive form blocks on stdin, so the verb alone does not say which shape
+// this is.
+//
+// The runner has to know, because a foreground command it classes as a daemon
+// is never awaited: teardown kills the daemon the client is talking to while
+// the answer is still in flight, and the assertion then reads an empty buffer.
+// That is what `test/policy/policy-interface-list-counters.ci` met, roughly
+// 200ms after the client started.
+func zeCLIRunsOneCommand(args []string) bool {
+	if firstZeSubcommand(args) != "cli" {
+		return false
+	}
+	return slices.Contains(args, "-c")
 }
 
 // startWithETXTBSYRetry starts proc, retrying on ETXTBSY -- which occurs when a

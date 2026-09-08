@@ -1,0 +1,115 @@
+# Test: each interface of a multi-interface policy is its own counter row in
+#       `show firewall ruleset`.
+# VALIDATES: spec-policyroute-interface-list-matches-no-packet AC-7 -- an
+#            operator who reads the ruleset back sees steer-webmark-1 and
+#            steer-webmark-2, one row for each named interface, and no row
+#            carrying the pair's summed packets.
+# PREVENTS: the group's terms taking one name again. mergeRuleCounters
+#           (internal/plugins/firewall/nft/backend_linux.go) adds the packets of
+#           every rule that shares a term name into ONE TermCounter, because a
+#           term split over an IPv4 and an IPv6 rule is one term to the operator.
+#           Two interfaces are two terms, so one name for both would report the
+#           pair's packets as the total of each row.
+#
+# THE DISCRIMINATING ASSERTION is the reject line. handleShowFirewallRuleset
+# (internal/plugins/firewall/nft/cmd_show.go) prints one row for each APPLIED
+# term and looks its counter up by name, so a group whose terms shared the base
+# name prints "steer-webmark" twice, each row carrying the merged total. The two
+# expect lines require the suffixed names, and the reject line refuses the
+# unsuffixed one, which no correct output ever carries.
+#
+# The packet counts are NOT asserted, and they would not discriminate: applyChain
+# prepends the counter expression BEFORE the term's matches, so every rule in the
+# chain counts every packet the chain sees and both rows report the same number
+# whichever interface the traffic arrived on.
+#
+# WHY THIS IS A SEPARATE FILE from policy-interface-list.ci, which proves the
+# same policy installs two rules. `ze cli` is a foreground `ze`, and the runner
+# waits for a foreground ze only when it is the LAST command. Placed before the
+# ze-test fixture step, the client is left running, the fixture stops the daemon,
+# and the answer never reaches the assertion buffer. So this test ends on the
+# client, and the daemon is stopped by teardown.
+#
+# `ze cli` speaks SSH and nothing else (runBGP, internal/component/cli/client/
+# main.go), so the daemon declares a server and a user, and the client takes its
+# name and password from the environment. Without them it stops at "no
+# credentials for 127.0.0.1:<port>" before any command is dispatched.
+#
+# The sleep step is a fence the runner has no primitive for. The daemon writes
+# ze.ready.file (cmd/ze/hub/main.go), which the runner waits on, BEFORE the SSH
+# listener accepts: an unfenced `ze cli` answered "cannot connect to daemon:
+# connect to 127.0.0.1:<port>: connection refused" and the listener logged "SSH
+# server listening" 200ms later. `await=stderr` cannot serve as the fence
+# because it tears the daemon down.
+#
+# Neither interface has to exist. An iifname match compares packet metadata
+# rather than looking an index up, so no option=netns-link is declared.
+#
+# Requires CAP_NET_ADMIN.
+#
+# ISOLATION: read the header of policy-boot-apply.ci. Every test in test/policy/
+# writes the same `inet ze_pr` table and the same global ip-rule table, so the
+# suite runs serial with a per-test namespace. Do NOT raise its parallelism.
+
+option=needs-linux:caps=net-admin
+option=timeout:value=40s
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+}
+policy {
+	route steer {
+		interface eth0;
+		interface "l2tp*";
+		rule webmark {
+			from {
+				destination-port 80,443;
+				protocol tcp;
+			}
+			then {
+				table 100;
+			}
+		}
+	}
+}
+system {
+	authentication {
+		user operator {
+			# bcrypt hash of testpass.
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO";
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+EOF_CONF
+
+# The key is DOTTED: the engine maps the registry name "policy-routes" to the
+# subsystem "policy.routes" (CanonicalSubsystemName), so ze.log.policy-routes
+# matches nothing. policy-boot-apply.ci carries the full explanation.
+option=env:var=ze.log.policy.routes:value=info
+option=env:var=ze.log.firewall:value=info
+
+# The client's credentials. ze.ssh.username stands in for the --user flag
+# (resolveUsername, internal/core/ssh/client/client.go), and ze.ssh.insecure
+# skips the host-key check the zefs store would otherwise answer.
+option=env:var=ze.ssh.username:value=operator
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.insecure:value=true
+option=env:var=ze.ssh.port:value=$PORT2
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=sleep 5
+cmd=foreground:seq=3:exec=ze cli -c "show firewall ruleset pr | json"
+expect=stderr:contains=policy routes applied
+expect=stdout:contains="steer-webmark-1"
+expect=stdout:contains="steer-webmark-2"
+reject=stdout:contains="steer-webmark"
