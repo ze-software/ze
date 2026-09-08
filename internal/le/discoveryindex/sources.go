@@ -109,8 +109,11 @@ func feeds(path, headerText string) []string {
 	}
 
 	// A generator feeds exactly the output it writes. It is judged before the
-	// population, because a generator is a source of the map without being one
-	// of the files the map describes.
+	// population and before any content test, because it can change every row
+	// at once: the rules below ask what ONE package contributes, and that
+	// question does not reach a change to how every package is read. It is also
+	// the only clause that can fire when the caller has no text to give, which
+	// is a deleted file.
 	if path == generator {
 		return []string{OutputRel}
 	}

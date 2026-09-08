@@ -205,9 +205,9 @@ func isDocSource(root, path string) (bool, error) {
 // index.
 //
 // The path rules are the generator's own (internal/le/discoveryindex), so the
-// router and the index cannot disagree about what feeds it. Here the header
-// marker is matched against the working tree PLUS head, because a change either
-// adds such a header or removes one.
+// router and the index cannot disagree about what feeds it. Here the package
+// header LINE the generator reads a summary from is looked for in the working
+// tree PLUS head, because a change either adds such a line or removes one.
 func isDiscoverySource(root, path string) (bool, error) {
 	header := ""
 	if strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go") {

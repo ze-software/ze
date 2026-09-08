@@ -11,9 +11,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/discoveryindex"
 )
 
 func TestExportedSymbolsReadsEachDeclarationForm(t *testing.T) {
@@ -489,6 +492,48 @@ func docDriftTree(t *testing.T) string {
 		}
 	}
 	return root
+}
+
+// TestDiscoverySourceSeesAHeaderOnlyHEADStillHolds drives the router over the
+// one case isDiscoverySource joins two trees for: a change that REMOVES a
+// package header. The working tree then carries no header at all, so only the
+// HEAD copy can say the map's row is about to move.
+//
+// It is a guard on HOW the two trees are bounded, not on whether they are read.
+// Each is cut to its own first HeaderLines lines and the results are joined,
+// because a bound applied to the JOIN falls inside the working-tree copy and
+// hides the HEAD one whenever the working-tree file is that long. Nothing else
+// reaches isDiscoverySource, so a later edit that bounds the join instead would
+// stay green without this.
+func TestDiscoverySourceSeesAHeaderOnlyHEADStillHolds(t *testing.T) {
+	const rel = "internal/core/x/x.go"
+	filler := strings.Repeat("// filler\n", discoveryindex.HeaderLines)
+	root := tree(t, map[string]string{rel: "// Package x does x.\n" + filler + "package x\n"})
+	for _, args := range [][]string{
+		{"init", "-q"},
+		{"add", "-A"},
+		{"-c", "user.email=t@ze", "-c", "user.name=t", "commit", "-qm", "fixture"},
+	} {
+		cmd := exec.Command("git", append([]string{"-C", root}, args...)...) //nolint:gosec,noctx // this test's own fixture
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, out)
+		}
+	}
+	// The header goes, and the file stays long enough that a bound over the
+	// joined text would never reach the HEAD copy behind it.
+	body := filler + "package x\n"
+	if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(rel)), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	actions, err := selectedActions(root, []string{rel})
+	if err != nil {
+		t.Fatalf("selectedActions: %v", err)
+	}
+	if !slices.Contains(actions, actionDiscoveryIndexCheck) {
+		t.Errorf("removing the header the map quotes selected %v, without %s",
+			actions, actionDiscoveryIndexCheck)
+	}
 }
 
 // editDocumented rewrites the body of Documented and leaves Other untouched.
