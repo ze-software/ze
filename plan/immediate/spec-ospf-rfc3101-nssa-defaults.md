@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Scope | protocol |
 | Depends | learned 972 (OSPF AF seam), learned 975 (OSPFv3 NSSA redistribution) |
 | Phase | IMPLEMENTATION partly landed. AC-1 to AC-4 are in `01f8306378`. AC-5 to AC-12 are in the working tree (see the 2026-09-05 note). AC-13 and AC-14, and the three interop scenarios, are outstanding and are their own work packages. Implementation carries no model requirement (`ai/rules/planning.md`) |

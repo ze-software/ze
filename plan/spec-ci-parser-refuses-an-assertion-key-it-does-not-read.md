@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Scope | tooling |
 | Depends | - |
 | Phase | implemented and landed at `8c7f0a5bf2`; the sibling parser is a spec of its own |

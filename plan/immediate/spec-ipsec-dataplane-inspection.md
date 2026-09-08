@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Scope | cli |
 | Depends | - |
 | Phase | 5/8 (phases 1-5 done; 6 delegated, 7-8 open) |

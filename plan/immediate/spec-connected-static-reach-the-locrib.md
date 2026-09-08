@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Scope | plugin |
 | Depends | spec-fib-depth (owns `BestChangeEntry.TableID` and the VRF dimension) |
 | Phase | 6/7 |

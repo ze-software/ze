@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Scope | tooling |
 | Depends | `plan/spec-ci-parser-refuses-an-assertion-key-it-does-not-read.md` (landed at `8c7f0a5bf2`, which set the vocabulary this one adopts) |
 | Phase | in flight: `internal/test/runner/parsing.go` is rewritten in the working tree, UNCOMMITTED |

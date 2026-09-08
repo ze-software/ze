@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | skeleton |
 | Depends | - |
 | Phase | - |
 | Updated | 2026-08-07 |

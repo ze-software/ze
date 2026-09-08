@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Scope | protocol |
 | Depends | `plan/immediate/spec-bgp-local-as-options.md` |
 | Phase | - |

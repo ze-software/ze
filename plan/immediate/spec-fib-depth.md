@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Depends | spec-vrf-0-umbrella (VRF/table support) |
 | Phase | 7/12 |
 | Updated | 2026-07-22 |

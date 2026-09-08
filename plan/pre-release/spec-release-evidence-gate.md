@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Depends | - |
 | Phase | 5/6 |
 | Updated | 2026-07-22 |

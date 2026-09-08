@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Scope | protocol |
 | Depends | - (both owner decisions answered 2026-08-02, see "Owner decisions, 2026-08-02") |
 | Phase | 5/5 |

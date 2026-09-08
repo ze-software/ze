@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Scope | protocol |
 | Depends | `plan/pre-release/spec-followup-rfc-enrollment.md` (owns `rfc/enrolled.txt`, the coverage rollup, and the drain the retired rfcgate-0-umbrella shard called "the drain itself") |
 | Phase | - |

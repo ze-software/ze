@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Scope | protocol |
 | Depends | spec-bcp194-0-umbrella |
 | Phase | 3b/6 |

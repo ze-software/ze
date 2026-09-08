@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Scope | tooling |
 | Depends | - |
 | Phase | implemented and landed at `bc987697e1`; closure sections unwritten |

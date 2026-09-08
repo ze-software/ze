@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Scope | tooling |
 | Depends | - |
-| Phase | implemented in the working tree, UNCOMMITTED |
+| Phase | product code landed `27a41cb32`; AC-3 proof and closure outstanding |
 | Handoff | - |
 | Updated | 2026-09-06 |
 
@@ -161,9 +161,9 @@ the ledger WITHOUT preparing a commit.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| shard reading and foreign-shard refusal | `internal/le/commit/ledger_test.go` | AC-2, AC-4 | written, uncommitted |
-| ledger audit over shards | `internal/le/testweakened/audit_test.go` | AC-1, AC-5, AC-6 | written, uncommitted |
-| parity between the ledger reader and the gate | `internal/le/testweakened/parity_test.go` | AC-5, AC-6 | written, uncommitted |
+| shard reading and foreign-shard refusal | `internal/le/commit/ledger_test.go` | AC-2, AC-4 | landed `27a41cb32` |
+| ledger audit over shards | `internal/le/testweakened/audit_test.go` | AC-1, AC-5, AC-6 | landed `27a41cb32` |
+| parity between the ledger reader and the gate | `internal/le/testweakened/parity_test.go` | AC-5, AC-6 | landed `27a41cb32` |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -220,8 +220,7 @@ the ledger WITHOUT preparing a commit.
 4. **Phase: Visibility** - the `check` verb prints the whole population.
 5. **Phase: Migration and documentation** - move the live rows into their owners'
    shards, and reconcile the three pages and `ai/rules/testing.md`.
-6. **Phase: Land it** - the change is running unlanded in every session in this
-   checkout, which is the condition below.
+6. **Phase: Land it** - DONE, `27a41cb32` on 2026-09-06.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -297,19 +296,17 @@ the ledger WITHOUT preparing a commit.
 
 ## Current Condition and What Remains
 
-**The change is complete and UNCOMMITTED.** `./le` rebuilds `bin/le` from the
-working tree (`build_le` in `./le` compiles `$root`), so every session in this
-checkout has been writing shards all morning while HEAD still describes two flat
-files. A fresh clone and this tree disagree about where a weakened row goes, and
-nothing records that except a journal row. Landing it is the first thing this
-spec owes.
+**The change is complete and LANDED.** The product code, the three unit tests
+and the documentation edits went in as `27a41cb32` on 2026-09-06. A fresh clone
+and this tree now agree about where a weakened row goes. What this spec still
+owes is the AC-3 proof, not the landing.
 
 | Item | State |
 |------|-------|
-| Product code | `internal/le/testweakened/shard.go` and `internal/le/lepath/commitsession.go` (new), plus the two gates. UNCOMMITTED at the time of writing; no SHA can be cited |
+| Product code | `internal/le/testweakened/shard.go` and `internal/le/lepath/commitsession.go` (new), plus the two gates. Landed `27a41cb32` |
 | Prior art in the tree | `test/weakened/c7ef7dc3.md` was committed by `8c7f0a5bf2` (reachable from HEAD, count 1) by a session that invented this layout BY HAND, and a second session had already overwritten its rows there. That is the sixth occurrence, found while implementing the fix |
-| Documentation | the three pages and `ai/rules/testing.md` are edited in the working tree, not landed |
-| Journal row | written, `plan/journal/concurrent-session-corruption.md`, fifth occurrence, marked FIXED 2026-09-06 against work that has not landed |
+| Documentation | the three pages and `ai/rules/testing.md` landed in `27a41cb32` |
+| Journal row | written, `plan/journal/concurrent-session-corruption.md`, fifth occurrence, marked FIXED 2026-09-06; the work it names landed the same day as `27a41cb32` |
 | PROVEN | AC-1, AC-2, AC-4, AC-5 and AC-6, by the unit tests in `ledger_test.go`, `audit_test.go` and `parity_test.go` |
 | ASSERTED, not proven | AC-3. `LandedRows` and `PruneLanded` are read off the code; no test named here forces a row to land and then proves the gate drops it. A-2 and A-3 are unvalidated |
-| Remains | (1) LAND IT; (2) a test for AC-3; (3) validate A-2 by walking the migration for an orphaned row; (4) the `check` functional test; (5) closure sections |
+| Remains | (1) a test for AC-3; (2) validate A-2 by walking the migration for an orphaned row; (3) the `check` functional test; (4) closure sections |

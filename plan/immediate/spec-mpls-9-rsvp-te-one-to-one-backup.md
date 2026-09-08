@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | design |
 | Depends | mpls-4-rsvp-te-fast-reroute (facility backup), mpls-3-rsvp-te (closed), mpls-1-kernel (closed) |
 | Phase | - |
 | Updated | 2026-09-05 |

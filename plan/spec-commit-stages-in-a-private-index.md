@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Scope | tooling |
 | Depends | `plan/spec-ledger-shards-per-commit-session.md` (both touch `internal/le/commit/prepare.go`) |
-| Phase | implemented in the working tree, UNCOMMITTED |
+| Phase | product code landed `a9f2207a3` and `06f6185cb`; end-to-end proof and closure outstanding |
 | Handoff | - |
 | Updated | 2026-09-06 |
 
@@ -165,8 +165,8 @@ care is irrelevant to whether that holds.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| snapshot round-trip and refusal cases | `internal/le/commit/snapshot_test.go` | AC-6, A-1 | written, uncommitted |
-| rendered block shape | `internal/le/commit/commit_test.go` | AC-1, AC-3, AC-4 | written, uncommitted |
+| snapshot round-trip and refusal cases | `internal/le/commit/snapshot_test.go` | AC-6, A-1 | landed `a9f2207a3` |
+| rendered block shape | `internal/le/commit/commit_test.go` | AC-1, AC-3, AC-4 | landed `a9f2207a3` |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -220,8 +220,7 @@ care is irrelevant to whether that holds.
 4. **Phase: End-to-end** - a test that runs a generated script in a throwaway
    repository with a foreign path staged.
 5. **Phase: Documentation** - `docs/contributing/committing.md`.
-6. **Phase: Land it** - the change is running unlanded in every session in this
-   checkout, which is the condition below.
+6. **Phase: Land it** - DONE, `a9f2207a3` and `06f6185cb` on 2026-09-06.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -305,18 +304,17 @@ care is irrelevant to whether that holds.
 
 ## Current Condition and What Remains
 
-**The change is complete and UNCOMMITTED.** `./le` rebuilds `bin/le` from the
-working tree (`build_le` in `./le` compiles `$root`), so every session in this
-checkout has been committing through the private index all morning while HEAD
-still carries the deleted guard. A fresh clone and this tree therefore disagree
-about how committing works, and nothing records that except a journal row.
-Landing it is the first thing this spec owes.
+**The change is complete and LANDED.** The product code, the two unit tests and
+the `docs/contributing/committing.md` reconciliation went in as `a9f2207a3` on
+2026-09-06, and `06f6185cb` followed with the drift note fix. A fresh clone and
+this tree now agree about how committing works. What this spec still owes is the
+end-to-end proof, not the landing.
 
 | Item | State |
 |------|-------|
-| Product code | `internal/le/commit/snapshot.go` (new), `script.go`, `prepare.go`. UNCOMMITTED at the time of writing; no SHA can be cited |
-| Documentation | `docs/contributing/committing.md` not yet reconciled with the new contract |
+| Product code | `internal/le/commit/snapshot.go` (new), `script.go`, `prepare.go`. Landed `a9f2207a3`, with `06f6185cb` on top |
+| Documentation | `docs/contributing/committing.md` reconciled with the new contract in `a9f2207a3` and `06f6185cb` |
 | Journal row | written, `plan/journal/concurrent-session-corruption.md`, seventh occurrence |
 | PROVEN | the snapshot round-trip and the rendered block shape, by the two unit tests. The drift-rewrite trap was measured directly on 2026-09-06 |
 | ASSERTED, not proven | AC-1, AC-2 and AC-5. No test runs a generated script against a repository with a foreign path staged, so the property the whole change exists for is read off the rendered text rather than observed. A-2 and A-3 are unvalidated |
-| Remains | (1) LAND IT; (2) the end-to-end script run that proves AC-1, AC-2 and AC-5; (3) validate A-2 and A-3; (4) the documentation reconciliation; (5) the residual gap in Known Limitations, which needs a decision rather than a repair; (6) closure sections |
+| Remains | (1) the end-to-end script run that proves AC-1, AC-2 and AC-5; (2) validate A-2 and A-3; (3) the residual gap in Known Limitations, which needs a decision rather than a repair; (4) closure sections |

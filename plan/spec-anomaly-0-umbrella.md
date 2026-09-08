@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Depends | 1046 (traffic-analysis), 1048 (anomaly-1-detect), 1049 (anomaly-2-shape) |
 | Phase | - |
 | Updated | 2026-07-02 |

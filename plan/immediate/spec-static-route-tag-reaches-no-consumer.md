@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Scope | plugin |
 | Depends | - |
 | Phase | 1/3 |

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Depends | - |
 | Phase | 5/8 (all 4 families migrated & verified; community-extraction + final cleanup remain; 2 deviations noted) |
 | Updated | 2026-06-18 |

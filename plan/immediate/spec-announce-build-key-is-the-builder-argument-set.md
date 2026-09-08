@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Scope | protocol |
 | Depends | - |
 | Phase | in flight: `announceFacts` exists in the working tree, UNCOMMITTED |
