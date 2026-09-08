@@ -1,0 +1,65 @@
+# Test: an interface leaf-list is an OR, one nftables rule per named interface.
+# VALIDATES: spec-policyroute-interface-list-matches-no-packet AC-1, AC-4, AC-6 --
+#            a policy naming eth0 and l2tp* installs TWO rules, one comparing the
+#            full 16-byte name eth0 and one comparing the 4-byte prefix l2tp,
+#            each setting the one fwmark the single `table 100` rule allocated.
+# PREVENTS: the two interface matches returning to one rule. nftables ANDs the
+#           matches inside a rule, so one rule asking for both names matches no
+#           packet: the policy never fires and the traffic follows the main table,
+#           with no log line and no commit error to say so.
+#
+# The DISCRIMINATING assertions are the two reject lines. A whole-table dump
+# cannot tell an AND from an OR, because two matches in one rule print the same
+# substrings as the same two matches in two rules. The fixture prints one RULE
+# line per programmed rule for exactly that reason (policyRuleDump,
+# internal/test/fixture/netfilter_fixture_policy.go), and a rejection on a single
+# line carrying both names is what separates the two shapes.
+#
+# Neither interface has to exist. An iifname match compares packet metadata
+# rather than looking an index up, so no option=netns-link is declared and this
+# test stays out of the netns-only population.
+#
+# Requires CAP_NET_ADMIN.
+#
+# ISOLATION: read the header of policy-boot-apply.ci. Every test in test/policy/
+# writes the same `inet ze_pr` table and the same global ip-rule table, so the
+# suite runs serial with a per-test namespace. Do NOT raise its parallelism.
+
+option=needs-linux:caps=net-admin
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+}
+policy {
+	route steer {
+		interface eth0;
+		interface "l2tp*";
+		rule webmark {
+			from {
+				destination-port 80,443;
+				protocol tcp;
+			}
+			then {
+				table 100;
+			}
+		}
+	}
+}
+EOF_CONF
+
+# The key is DOTTED: the engine maps the registry name "policy-routes" to the
+# subsystem "policy.routes" (CanonicalSubsystemName), so ze.log.policy-routes
+# matches nothing. policy-boot-apply.ci carries the full explanation.
+option=env:var=ze.log.policy.routes:value=info
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test fixture policy/policy-interface-list:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=policy routes applied
+expect=stdout:contains=table inet ze_pr
+expect=stdout:pattern=RULE .*iifname "eth0".*meta mark set
+expect=stdout:pattern=RULE .*iifname "l2tp\*".*meta mark set
+reject=stdout:pattern=RULE .*eth0.*l2tp
+reject=stdout:pattern=RULE .*l2tp.*eth0

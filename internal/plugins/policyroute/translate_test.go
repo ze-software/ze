@@ -367,3 +367,73 @@ func TestPolicyWithoutInterfaceMatchesEveryIngress(t *testing.T) {
 		t.Errorf("term carries %d interface matches, want 0", got)
 	}
 }
+
+// TestPolicyInterfaceListKeepsRuleOrder proves the interface group does not
+// disturb the sequence the order leaf establishes. The method is the whole
+// config path, because the sort by order lives in parsePolicyRoute rather than
+// in translate. The config gives the order 10 rule first. The four terms must
+// still come out as the order 0 group, then the order 10 group, each group
+// contiguous.
+func TestPolicyInterfaceListKeepsRuleOrder(t *testing.T) {
+	input := `{
+		"policy": {
+			"route": {
+				"steer": {
+					"interface": ["eth0", "l2tp*"],
+					"rule": {
+						"late": {
+							"order": "10",
+							"from": { "protocol": "udp" },
+							"then": { "drop": "" }
+						},
+						"early": {
+							"order": "0",
+							"from": { "protocol": "tcp" },
+							"then": { "accept": "" }
+						}
+					}
+				}
+			}
+		}
+	}`
+
+	policies, err := parsePolicyConfig(input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	alloc := newAllocator()
+	result, err := alloc.translate(policies)
+	if err != nil {
+		t.Fatalf("translate: %v", err)
+	}
+
+	chain := result.Tables[0].Chains[0]
+	want := []string{"steer-early-1", "steer-early-2", "steer-late-1", "steer-late-2"}
+	if len(chain.Terms) != len(want) {
+		t.Fatalf("expected %d terms (2 rules x 2 interfaces), got %d", len(want), len(chain.Terms))
+	}
+	for i := range want {
+		if chain.Terms[i].Name != want[i] {
+			t.Errorf("term %d name = %q, want %q", i, chain.Terms[i].Name, want[i])
+		}
+	}
+
+	// Each group carries the two interfaces in leaf-list order, and each term
+	// carries exactly one of them.
+	wantIfaces := []firewall.MatchInputInterface{
+		{Name: "eth0"},
+		{Name: "l2tp", Wildcard: true},
+		{Name: "eth0"},
+		{Name: "l2tp", Wildcard: true},
+	}
+	for i := range chain.Terms {
+		ifaces := interfaceMatches(chain.Terms[i])
+		if len(ifaces) != 1 {
+			t.Fatalf("term %d carries %d interface matches, want 1 (a rule ANDs its matches)", i, len(ifaces))
+		}
+		if ifaces[0] != wantIfaces[i] {
+			t.Errorf("term %d interface match = %+v, want %+v", i, ifaces[0], wantIfaces[i])
+		}
+	}
+}

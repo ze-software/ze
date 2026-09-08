@@ -151,10 +151,17 @@ func ruleTerms(policy PolicyRoute, ruleName string, ruleMatches []firewall.Match
 // internal/plugins/firewall/nft/backend_linux.go) and the show output would
 // then report the group's total once for each interface.
 //
-// The position rather than the interface name: an interface name the kernel
-// accepts can carry a character a term name cannot (ValidateName,
-// internal/component/firewall/model.go), and a term name that fails validation
-// takes down the apply of every firewall owner, not just this policy.
+// The position rather than the interface name: the name is operator input, it
+// reaches the operator again through Rule.UserData and every show path, and it
+// tells the reader nothing the position does not.
+//
+// No check stands behind that choice, so do not read one into it. ValidateName
+// (internal/component/firewall/model.go) reaches a term name only from
+// validateTerm. Only ValidateTables calls validateTerm, and ValidateTables has
+// two callers (internal/component/firewall/engine.go). Both read the firewall
+// engine's OWN cfg.Tables. firewall.RegisterTables checks the ze_ table-name
+// prefix and nothing else. A term this plugin registers is therefore never
+// name-checked.
 func termName(base string, index, count int) string {
 	if count == 1 {
 		return base

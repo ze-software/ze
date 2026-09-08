@@ -39,25 +39,29 @@ module ze-policyroute-conf {
                 description "Policy route name.";
                 ze:help
                     "The name prefixes every nftables term this policy installs,
-                     as <policy>-<rule>. Ze sorts the policies by name and writes
-                     their rules into the ze_pr chain in that order. The name
-                     decides which policy sees a packet first. The name takes 1
-                     to 255 characters: letters, digits, underscore, hyphen and
-                     dot. It does not start with a hyphen or a dot.";
+                     as <policy>-<rule>, or as <policy>-<rule>-<N> for the Nth
+                     interface when the policy names several. Ze sorts the
+                     policies by name and writes their rules into the ze_pr chain
+                     in that order. The name decides which policy sees a packet
+                     first. The name takes 1 to 255 characters: letters, digits,
+                     underscore, hyphen and dot. It does not start with a hyphen
+                     or a dot.";
             }
 
             leaf-list interface {
                 type string;
                 description
-                    "Ingress interface(s) to match. A trailing '*' enables
+                    "Ingress interfaces to match. The policy matches a packet
+                     that arrives on any one of them. A trailing '*' enables
                      prefix (wildcard) matching (e.g. 'l2tp*').";
-                ze:help "Name ONE interface. Ze puts every entry of this leaf-list into the same
-                    nftables rule, and a rule ANDs its matches. Two or more entries produce a rule that
-                    matches no packet, because a packet arrives on one interface and carries one name. A
-                    trailing * matches by prefix, so the single entry l2tp* matches l2tp0 and l2tp1. Write
-                    one policy per interface, or one prefix entry that covers them, until Ze lowers this
-                    leaf-list as an OR. With no interface named, the policy matches every ingress
-                    interface.";
+                ze:help
+                    "Name one interface, or several. The entries are an OR: Ze
+                     installs one nftables rule for each entry, and a packet that
+                     arrives on any one of them matches. A trailing * matches by
+                     prefix, so the entry l2tp* matches l2tp0 and l2tp1. Each
+                     entry keeps its own wildcard state, so one list holds eth0
+                     and l2tp* together. With no interface named, the policy
+                     matches every ingress interface.";
             }
 
             list rule {
@@ -69,7 +73,10 @@ module ze-policyroute-conf {
                      breaks a tie by name. The position of a rule in the config
                      file does not decide its position in the chain. A rule with
                      no order leaf takes 0 and runs first. Each rule becomes one
-                     nftables term named <policy>-<rule>.";
+                     nftables term for each interface the policy names, and one
+                     term when it names none. The terms of one rule stay
+                     together, so the order leaf still decides which rule the
+                     kernel reads first.";
 
                 leaf name {
                     type string;

@@ -20,11 +20,35 @@ firewall component for nftables backend access.
 ### One `ze_pr` table for every policy
 
 <!-- source: internal/plugins/policyroute/translate.go -- table and term construction -->
+<!-- source: internal/plugins/policyroute/translate.go -- ruleTerms, termName -->
 
 All policies merge into one nftables table (type filter, hook prerouting,
-priority -150) with one chain, and terms named `<policy>-<rule>`. Rule ordering
-stays simple, and several tables competing for hook priority does not arise. The
-interface wildcard is prepended to every rule.
+priority -150) with one chain. Rule ordering stays simple, and several tables
+competing for hook priority does not arise.
+
+### One term for each named interface
+
+A rule installs one term for each interface its policy names. A policy that
+names no interface gets one term with no interface match. The interface match is
+the first match of its term, and the rule's own matches follow it.
+
+The interface leaf-list is an OR, because a packet arrives on exactly one
+interface. nftables ANDs the matches inside a rule and has no branch inside one.
+The alternatives therefore cannot share a term: separate rules are the only OR
+nftables has.
+
+A term is named `<policy>-<rule>` when the policy names one interface or none.
+It is named `<policy>-<rule>-<N>` when the policy names several, where N is the
+interface's position in the leaf-list, counted from 1.
+
+The position rather than the interface name, because `mergeRuleCounters`
+(`internal/plugins/firewall/nft/backend_linux.go`) sums every kernel rule that
+shares a term name into one counter row. A shared name would report the group's
+total once for each interface.
+
+The terms of one rule stay together, in leaf-list order, where the single term
+sat. At most one of them can match a packet. Their relative order therefore
+decides nothing, and the `order` leaf keeps deciding which rule runs first.
 
 ### Reserved ranges by construction
 

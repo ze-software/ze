@@ -101,10 +101,11 @@ static {
 
 ## Interface binding
 
-Each policy route binds to one or more ingress interfaces. A trailing
-`*` enables wildcard matching (e.g., `l2tp*` matches all L2TP
-interfaces). The interface match is prepended to every rule in the
-policy.
+Each policy route binds to one or more ingress interfaces. The list is an
+OR: the policy matches a packet that arrives on any one of the named
+interfaces. A trailing `*` enables wildcard matching (e.g., `l2tp*`
+matches all L2TP interfaces), and each entry keeps its own wildcard
+state, so one list mixes `eth1` and `l2tp*`.
 
 ```
 policy {
@@ -115,6 +116,27 @@ policy {
     }
 }
 ```
+
+Ze installs one nftables rule for each named interface, for each rule of
+the policy, with the interface match first. Two interfaces and two rules
+therefore install four nftables rules. nftables ANDs the matches inside
+one rule, so separate rules are the only way to write the alternative.
+
+`show firewall ruleset` reports each of those rules as its own counter
+row. The row is named `<policy>-<rule>` when the policy names one
+interface. It is named `<policy>-<rule>-<N>` when the policy names
+several, where N is the interface's position in the list, counted from
+1. A multi-interface policy therefore reports its traffic per interface
+rather than as one total.
+
+A policy that names no interface matches every ingress interface.
+
+<!-- source: internal/plugins/policyroute/translate.go -- ruleTerms, termName -->
+<!-- source: internal/plugins/firewall/nft/backend_linux.go -- mergeRuleCounters -->
+
+The `order` leaf still decides which rule runs first. The nftables rules
+of one policy rule stay together, in the order the interfaces are
+listed.
 
 ## Match criteria (from block)
 
