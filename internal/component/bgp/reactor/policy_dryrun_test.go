@@ -399,3 +399,54 @@ func TestPolicyDryRunSubjectNamesEveryAttribute(t *testing.T) {
 	assert.Contains(t, string(rendered), result.TextBefore,
 		"`| json` must carry the same subject the text rendering shows")
 }
+
+// TestPolicyDryRunPrependReportsAtTheSessionWidth is the third call site of
+// ExtractASPathPrependOps, and the one an operator reads rather than a peer.
+// computeWireChanges reports the operations `policy test peer` will perform, so
+// a site that did not pass its own width would describe a rewrite the runtime
+// does not do.
+//
+// The width is not printed, so the assertion reads the operation it decides.
+// RFC 6793 Section 4.2.2 obliges an AS4_PATH beside a two-octet AS_PATH that
+// carries AS_TRANS, and Section 4.1 forbids one toward a four-octet peer, so
+// "AS4_PATH set" is present on exactly one of the two widths. Against an
+// extractor that took no width, neither width reported it.
+//
+// VALIDATES: the wiring row for computeWireChanges -- the dry-run passes its
+// own asn4 through to the extractor.
+// PREVENTS: `policy test peer` telling an operator the AS-path family is
+// untouched on the session where the prepend rewrites two attributes.
+func TestPolicyDryRunPrependReportsAtTheSessionWidth(t *testing.T) {
+	// AS_SEQUENCE [64496]. The two encodings of one path, so the only thing
+	// that changes between the subtests is the width the session negotiated.
+	asPath2 := makeAttr(0x40, byte(attribute.AttrASPath), []byte{byte(attribute.ASSequence), 1, 0xFB, 0xF0})
+	asPath4 := makeAttr(0x40, byte(attribute.AttrASPath), []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFB, 0xF0})
+
+	before := "origin igp"
+	after := "origin igp as-path-prepend 2"
+
+	tests := []struct {
+		name       string
+		asn4       bool
+		packed     []byte
+		wantAS4Set bool
+	}{
+		{name: "two_octet_session_owes_an_as4_path", asn4: false, packed: asPath2, wantAS4Set: true},
+		{name: "four_octet_session_owes_none", asn4: true, packed: asPath4, wantAS4Set: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			attrs := attribute.NewAttributesWire(tt.packed, 0)
+
+			// localAS 131072 is above 65535, so it is the AS_TRANS case at two
+			// octets and the plain four-octet case above.
+			changes := computeWireChanges(parseFilterAttrs(before), parseFilterAttrs(after), attrs, directionExport, tt.asn4, 65001, 131072)
+
+			assert.True(t, slices.Contains(changes, "AS_PATH prepend"),
+				"wire changes = %v, want the prepend reported at both widths", changes)
+			assert.Equal(t, tt.wantAS4Set, slices.Contains(changes, "AS4_PATH set"),
+				"wire changes = %v, AS4_PATH is owed at two octets and forbidden at four", changes)
+		})
+	}
+}

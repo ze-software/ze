@@ -674,6 +674,16 @@ func ExtractASPathPrependOps(scratch *valueScratch, modAttrs *filterAttrs, attrs
 		asns = append(asns, localAS)
 	}
 
+	// The AS4_PATH half is derived BEFORE either operation is recorded, because
+	// a derivation that fails must leave the accumulator untouched. Recording
+	// the AS_PATH first and then failing would put AS_TRANS on the wire with
+	// the real local AS carried nowhere, which RFC 6793 Section 4.2.2 forbids
+	// and which is worse than performing no prepend at all.
+	as4Value, ok := prependAS4PathValue(scratch, attrs, asn4, asns, mods)
+	if !ok {
+		return
+	}
+
 	// One AS_SEQUENCE segment, encoded at the width of the payload it joins.
 	//
 	// RFC 6793 Section 4.2.2: "In the AS_PATH attribute encoded with two-octet
@@ -690,12 +700,16 @@ func ExtractASPathPrependOps(scratch *valueScratch, modAttrs *filterAttrs, attrs
 	segment.WriteToWithASN4(buf, 0, asn4)
 	mods.Op(byte(attribute.AttrASPath), filterapi.AttrModPrepend, buf)
 
-	extractPrependAS4PathOp(scratch, attrs, asn4, asns, mods)
+	if as4Value != nil {
+		mods.Op(byte(attribute.AttrAS4Path), filterapi.AttrModSet, as4Value)
+	}
 }
 
-// extractPrependAS4PathOp records the AS4_PATH that RFC 6793 Section 4.2.2
-// obliges alongside a two-octet AS_PATH the prepend above just widened, or
-// records nothing when the section obliges none.
+// prependAS4PathValue returns the AS4_PATH value that RFC 6793 Section 4.2.2
+// obliges alongside a two-octet AS_PATH the prepend above just widened. It
+// returns a nil value when the section obliges none, and ok false when the
+// AS-path family could not be read, which tells the caller to record nothing at
+// all.
 //
 // The decision and the value both come from wireu.AS4PathForRewrite, which is
 // the single declaration of that rule (aspath_as4.go) and already serves the
@@ -710,13 +724,13 @@ func ExtractASPathPrependOps(scratch *valueScratch, modAttrs *filterAttrs, attrs
 // part of the AS_PATH attribute, and then prepending them to the AS4_PATH
 // attribute", and a prepend lands exactly at that leading part, so the
 // reconstruction picks the prepended AS numbers up from AS_PATH by itself.
-func extractPrependAS4PathOp(scratch *valueScratch, attrs *attribute.AttributesWire, asn4 bool, asns []uint32, mods *filterapi.ModAccumulator) {
+func prependAS4PathValue(scratch *valueScratch, attrs *attribute.AttributesWire, asn4 bool, asns []uint32, mods *filterapi.ModAccumulator) (value []byte, ok bool) {
 	// RFC 6793 Section 4.1: "The new attributes, AS4_PATH and AS4_AGGREGATOR,
 	// MUST NOT be carried in an UPDATE message between NEW BGP speakers."
 	// AS4PathForRewrite returns nil here too; returning first also spares the
 	// four-octet path a parse it would throw away.
 	if asn4 || attrs == nil {
-		return
+		return nil, true
 	}
 
 	// What the outgoing AS_PATH will hold once the prepend applies. Read from
@@ -732,10 +746,9 @@ func extractPrependAS4PathOp(scratch *valueScratch, attrs *attribute.AttributesW
 			parsed, err := attribute.ParseASPath(value, asn4)
 			if err != nil {
 				// Fail closed: half an AS-path family is worse on the wire than
-				// no prepend at all, and the AS_PATH operation above is still
-				// correct without this one only while the local AS is mappable.
-				fwdLogger().Warn("as-path-prepend: parse AS_PATH failed, AS4_PATH not derived", "error", err)
-				return
+				// no prepend at all, so the caller records neither operation.
+				fwdLogger().Warn("as-path-prepend: parse AS_PATH failed, no prepend recorded", "error", err)
+				return nil, false
 			}
 			path = parsed
 		}
@@ -765,11 +778,11 @@ func extractPrependAS4PathOp(scratch *valueScratch, attrs *attribute.AttributesW
 
 	out := wireu.AS4PathForRewrite(path, recvAS4, asns, asn4, asn4)
 	if out == nil {
-		return
+		return nil, true
 	}
-	value := scratch.carveBytes(out.Len())
-	out.WriteTo(value, 0)
-	mods.Op(byte(attribute.AttrAS4Path), filterapi.AttrModSet, value)
+	as4Value := scratch.carveBytes(out.Len())
+	out.WriteTo(as4Value, 0)
+	return as4Value, true
 }
 
 // pendingAttrValue reports the last Set or Suppress an earlier extractor

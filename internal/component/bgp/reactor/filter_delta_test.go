@@ -689,6 +689,39 @@ func TestExtractASPathPrependOps(t *testing.T) {
 		ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("as-path-prepend 33"), nil, true, 65000, &mods)
 		assert.Equal(t, 0, mods.Len())
 	})
+
+	// The refusals are stated at both widths, and a non-mappable local AS is
+	// used so that a directive slipping past the count guard would record an
+	// AS4_PATH as well as an AS_PATH. The count guard runs before the width is
+	// read, which is why the AS-path family stays untouched either way.
+	//
+	// VALIDATES: AC-9 -- a count of zero, a count above 32, an unparseable
+	// count, and an absent directive each record nothing, at either width.
+	t.Run("rejected_counts_record_nothing_at_either_width", func(t *testing.T) {
+		texts := map[string]string{
+			"count_zero":     "as-path-prepend 0",
+			"count_over_32":  "as-path-prepend 33",
+			"count_unparsed": "as-path-prepend two",
+			"no_directive":   "origin igp local-preference 200",
+		}
+		for _, asn4 := range []bool{false, true} {
+			asPathValue := []byte{byte(attribute.ASSequence), 1, 0xFB, 0xF0}
+			width := "two_octet"
+			if asn4 {
+				asPathValue = []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFB, 0xF0}
+				width = "four_octet"
+			}
+			attrs, _ := prependFixture(asPathValue, nil)
+
+			for name, text := range texts {
+				t.Run(width+"_"+name, func(t *testing.T) {
+					var mods filterapi.ModAccumulator
+					ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs(text), attrs, asn4, 131072, &mods)
+					assert.Equal(t, 0, mods.Len(), "no AS_PATH and no AS4_PATH operation is recorded")
+				})
+			}
+		}
+	})
 }
 
 // TestAspathHandler verifies AS_PATH handler supports both Set and Prepend.
@@ -2017,4 +2050,29 @@ func TestExportPrependEncodesAtTheDestinationASNWidth(t *testing.T) {
 			assert.Equal(t, []uint32{131072, 64496}, flatAS4ASNs(as4Path), "the real local AS is in AS4_PATH")
 		})
 	}
+}
+
+// TestPrependRecordsNothingWhenTheAS4PathCannotBeDerived pins the fail-closed
+// half of the extractor. At two-octet width a non-mappable local AS is written
+// as AS_TRANS, so the real value exists only in the AS4_PATH the same call
+// records. If that derivation cannot read the AS-path family, recording the
+// AS_PATH alone would put AS_TRANS on the wire with the real AS carried
+// nowhere.
+//
+// RFC 6793 Section 4.2.2: "The NEW BGP speaker MUST also send the AS path
+// information in the AS4_PATH attribute (encoded with four-octet AS numbers)".
+//
+// VALIDATES: the spec's Security Review "Fail closed" row -- a parse failure
+// while deriving the AS4_PATH records no operation and never leaves a
+// half-formed AS-path family.
+// PREVENTS: an AS_PATH prepend of AS_TRANS with no AS4_PATH beside it.
+func TestPrependRecordsNothingWhenTheAS4PathCannotBeDerived(t *testing.T) {
+	// An AS_SEQUENCE header claiming five AS numbers over two octets of value.
+	// ParseASPath refuses it (RFC 4271 Section 6.3, Malformed AS_PATH).
+	attrs, _ := prependFixture([]byte{byte(attribute.ASSequence), 5, 0xFB, 0xF0}, nil)
+
+	var mods filterapi.ModAccumulator
+	ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("as-path-prepend 2"), attrs, false, 131072, &mods)
+
+	assert.Equal(t, 0, mods.Len(), "neither an AS_PATH nor an AS4_PATH operation is recorded")
 }
