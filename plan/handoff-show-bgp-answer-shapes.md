@@ -14,7 +14,7 @@ did not verify something, the row says so.
 
 | Spec | Status | Where its unfinished items went |
 |------|--------|----------------|
-| `spec-cli-show-bgp-answer-shapes` | CLOSED 2026-09-05 and removed from `plan/` | four specs in `plan/immediate/`, listed below |
+| `spec-cli-show-bgp-answer-shapes` | CLOSED 2026-09-08 and removed from `plan/` | four specs in `plan/immediate/`, listed below |
 | `plan/spec-plugin-declares-answer-shape.md` | in-progress, 5 of 5 phases done | `plan/spec-plugin-declaration-names-a-path-it-serves.md`, and `spec-daemon-backed-command-catalog`, CLOSED 2026-09-08 (`plan/learned/007-declaration-on-the-registration.md`) |
 
 Run `/ze-close` on each. It appends `plan/TEMPLATE-CLOSURE.md`, runs the Review
