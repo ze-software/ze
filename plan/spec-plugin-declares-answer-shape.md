@@ -189,7 +189,7 @@ the producing function.
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | The dependency spec's floor rule has landed, so a plugin declaring onto a path the BGP command plugin blanked wins | `spec-cli-show-bgp-answer-shapes` Phase 1 | The declaration is silently dropped, or drops the empty declaration and lets the child inherit `show bgp`'s peer columns | `TestPluginShapeOverridesEmptyDeclaration` | unvalidated |
 | A-2 | No caller depends on `show bgp healthcheck` answering one object for a named probe, nor on `show bgp rpki aspa` answering one object for a customer ASN | The commands are reached only through the dispatcher | A caller breaks | `gopls references` on `handleShow` and `aspaCommand`, and a grep of `test/` for both command paths | confirmed 2026-08-24. `handleShow` is called only by `handleCommand` (`healthcheck.go`) and `aspaCommand` only by `handleCommand` (`rpki.go`); every other reference is a test in the same package. One `.ci` reads the named-probe answer, `test/plugin/as112-probe-anycast-not-loopback.ci`, and it matches the SUBSTRINGS `state: UP` and `state: DOWN` in the `\| yaml` render, which survive the two-space sequence indent `writeMapItem` (`internal/component/command/format.go`) adds. No `.ci` reads the aspa lookup answer |
-| A-3 | A plugin that stops and restarts re-declares, so removal on stop loses nothing | `UnregisterPluginAliases` already works this way | A restarted plugin's commands lose their declarations | `TestUnregisterPluginShapes` and a plugin restart in a `.ci` |ered unvalidated |
+| A-3 | A plugin that stops and restarts re-declares, so removal on stop loses nothing | `UnregisterPluginAliases` already works this way | A restarted plugin's commands lose their declarations | `TestUnregisterPluginShapes` | confirmed 2026-09-08. That test drives the real Stage 1 path: it starts the plugin, asserts `ShapeForCommand` answers `tab`, calls `rollbackStartupProcess`, asserts the path returns to the EMPTY declaration rather than to nothing, and then runs `runPluginPhase` a second time and asserts the shape is declared again |
 | A-4 | `show bgp rpki status` and `show bgp adj-rib-in status` genuinely hold no single row set | Read of `rowsInKeyed` against both producers: one has two candidate keys, the other maps an address to a scalar | Declaring `doc` refuses a row operator that used to answer | A `.ci` asserting the refusal names the operator | confirmed 2026-08-24. `statusCommand` (`rpki.go`) writes two candidate keys, pinned by `TestDocCommandsHoldNoSingleRowSet`; `AdjRIBInManager.status` (`rib_commands.go`) maps an address to an `int`, pinned by `TestStatusHoldsNoRowSet`. `test/ui/show-bgp-plugin-shapes.ci` asserts both refusals by operator name and on `cannot apply here` |
 | A-5 | `show bgp adj-rib-in` holds a row set keyed by peer address, so the `first 1` operator answers one peer's routes. This is the premise of AC-16 and of the Current Behavior row that calls the command `tab` | The Current Behavior table read the payload as "a map keyed by peer address whose values are ARRAYS" and treated that as rows | AC-16 cannot be satisfied, and the command must declare `doc` rather than `tab` | Read of `rowSet` (`internal/component/command/answer_shape.go`) against `AdjRIBInManager.show` (`rib_commands.go`) | **broken 2026-08-24, repaired 2026-09-06**. `rowSet` reads a map as rows only when EVERY value is an object, and the peer map's values are arrays, so it is no row set. The one candidate left is the envelope itself: one row named `adj-rib-in` carrying every peer, over which the `first 1` operator answers the whole table and `count` answers 1. Making AC-16 true needs the peer map to hold objects, which changes a payload "Behavior to preserve" protects and which `test/interop/scenarios/show-rib-under-frr-load/check.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->, `test/interop/scenarios/rpki-frr/rpki-check.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> and `test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> navigate. Phase 4 therefore declares `doc`, which refuses the operator by name, and AC-16 is put to the owner | RULED 2026-09-06: the reader was taught the shape rather than the payload reshaped, so the assumption now HOLDS. `rowSet` reads an identity map whose values share one shape, the command declares `map`, and `| first 1` answers one peer's routes. The Current Behavior row calling the command `tab` stays wrong, because a column name orders the keys of a ROW and a row here is a list.
 
@@ -459,11 +459,17 @@ additively, and it is not a protocol Ze speaks to another implementation.
 
 ## Known Limitations
 
-- The published catalog still cannot show a plugin's declaration.
-  `./le command list` and `ze help command --json` read the compiled tree and
-  start no plugin, so the wiki page lists a plugin's commands without their
-  operators. Recorded in the retired deferral shard "plugin-registers-pipe-operations",
-  row 2, and carried forward here.
+- The published catalog SHOWS an in-tree plugin's declaration. This paragraph
+  used to say it could not, and that was true until 0f991285e (2026-09-07,
+  `spec-daemon-backed-command-catalog`) taught `ze help command --json` and
+  `./le command list` to read `registry.Registration.Commands` and `.Pipes`,
+  which `init()` sets from the same function the runner sends at Stage 1
+  (`command.DeclaredForCommand`, `internal/component/command/declared.go`). The
+  catalogs still start no plugin, and that is why the route is the registration
+  rather than a running daemon. One case is genuinely out of reach: an EXTERNAL
+  plugin registers nothing in the composition root, so its declaration reaches a
+  running daemon alone, through `show command help "<name>"` and Tab completion
+  (`docs/features/introspection.md`).
 - The engine cannot check a declared column name against a payload it has not
   seen. For the eleven commands the `.ci` checks it; for a third-party plugin it
   stays the author's responsibility.
@@ -503,3 +509,278 @@ additively, and it is not a protocol Ze speaks to another implementation.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-plugin-declares-answer-shape.md` only
+
+## Implementation Summary
+
+### What Was Implemented
+- `CommandDecl` (`pkg/plugin/rpc/types.go`) carries `Shape`, `Columns` and
+  `AddressFields`, all optional, all kebab-case on the wire.
+- `ParseAnswerShape` (`internal/component/command/pipe_catalog.go`) reads the
+  wire spelling back, off the one `allShapes` list `String`, `anyShape` and
+  `Shapes` also read.
+- `validateShapeDecls` and `validateDeclaredFieldName`
+  (`internal/component/plugin/server/startup.go`) refuse a bad declaration
+  before anything is stored, and `clampDeclared` bounds every plugin string that
+  reaches the daemon log.
+- `registerPluginShapes` writes under `startupRegistrationMu`, between the pipe
+  aliases and the runtime families, and joins the same unwind.
+  `releasePluginRegistrations` (`restart.go`) takes the declaration back when
+  the plugin stops.
+- `declarationRegistry.declareFor` and `.withdraw`
+  (`internal/component/command/column_order.go`) are the socket-facing write:
+  the conflict `declare` panics on is an error here, and what a path held before
+  an owner wrote is recorded so `withdraw` can put it back.
+- `RegisterPluginShapes` and `UnregisterPluginShapes`
+  (`internal/component/command/answer_shape.go`) write all three registries
+  together and unwind on the first error.
+- Eleven commands declare, each in its own plugin's registration: six in
+  `rpki/rpki.go`, two in `rs/server.go`, two in `adj_rib_in/rib.go`, one in
+  `healthcheck/healthcheck.go`.
+- `handleShow` (healthcheck) and `aspaCommand` (rpki) answer a row set whichever
+  argument they take, and both list producers sort their keys so a row selector
+  picks the same row on every call.
+- `rowSet` (`answer_shape.go`) reads an identity map whose values are LISTS as
+  rows, guarded by `identityValuesShareOneShape`. That is what makes
+  `show bgp adj-rib-in | first 1` answer one peer's routes.
+
+### Bugs Found/Fixed
+- A declared column or address-field name reached the operator's terminal with
+  no control-character refusal. `completeDisplayFields`
+  (`internal/component/command/completer.go`) offers each declared column as a
+  `| display` candidate and the table renderer writes it as a header, and
+  `normalizeCommand` collapses only the whitespace control characters, so an ESC
+  in a plugin's declared name wrote an ANSI sequence to the terminal.
+  `validateDeclaredFieldName` now runs `validateDeclaredText`, the same check a
+  command's `description` gets. Covered by two new cases in
+  `TestValidateShapeDecls`.
+- `show bgp rs peers` and `show bgp healthcheck` answered in Go map iteration
+  order, so `| first 1` picked a different row on each call. Both producers sort
+  now, and `comparePeerAddress` (`rs/server_handlers.go`) is total for whatever
+  the engine sent.
+
+### Documentation Updates
+- `docs/architecture/api/commands.md`: the shape channel beside the alias
+  channel, and the identity-map row rule.
+- `docs/architecture/api/ipc_protocol.md`,
+  `docs/architecture/api/process-protocol.md`,
+  `docs/plugin-development/protocol.md`: the three new Stage 1 fields.
+- `docs/plugin-development/commands.md`, `docs/guide/plugins.md`: what a plugin
+  author writes, and the refusals.
+- `docs/architecture/bgp/healthcheck-plugin.md`, `docs/guide/healthcheck.md`:
+  both spellings answer a row set, the command declares `map`, `| fill` is
+  refused by name.
+- `docs/guide/rpki.md`: the aspa lookup answers rows under `entries`, with
+  `found` beside them.
+- `docs/features/cli-commands.md`, `docs/guide/command-reference.md`.
+- `ai/rules/plugins.md`, rendered from six points under
+  `ai/rules/points/plugins/answer-shape-declaration-stage-1-wire-protocol/`.
+  Those point files were later deleted by 9ee958b7f (2026-08-30, "collapse 1110
+  directives onto ten principles"), which removed 1153 point files corpus-wide.
+  The mechanism survives at `docs/architecture/api/commands.md`, which
+  `ai/rules/plugins.md` routes to by name for answer-shape declaration.
+- `./le doc check verify` NOT RUN. It exits 1 with 3939 findings at HEAD, none
+  on this spec's pages, and re-running it reconfirms a result already read
+  (`ai/rules/pre-release.md`).
+
+### Deviations from Plan
+- `show bgp healthcheck` declares `map`, not the `tab` the Current Behavior
+  table read, and declares no column order. The two branches carry DIFFERENT row
+  fields on purpose, three for the probe list and ten for one named probe, and
+  one column order cannot be read against both. `| display name state` still
+  works, because `display` is admitted by `rowShapes`
+  (`internal/component/command/pipe_catalog.go`), which holds `ShapeMap` and
+  `ShapeTab`. So User Story 2's behavior holds and only its "declared order"
+  path description is wrong. `| fill` is refused by name, which is the one
+  operator the missing column order costs.
+- `show bgp adj-rib-in` declares `map` and its rows are lists, ruled 2026-09-06
+  under AC-16. The Current Behavior row calling it `tab` stays wrong, for the
+  reason A-5 records.
+- `TestAspaLookupAnswersRows` lives in
+  `internal/component/bgp/plugins/rpki/rpki_commands_test.go`, not the
+  `rpki_test.go` the TDD plan named.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-5 read `show bgp adj-rib-in` as a `tab` answer whose rows were peers | `rowSet` read a map as rows only when every value was an OBJECT, and the peer map's values are arrays, so the command held no row set at all | Reading `rowSet` against `AdjRIBInManager.show` | The READER was taught the shape rather than the payload reshaped (c87097bc6). `identityValuesShareOneShape` keeps a mixed map one document |
+| approach | The Security Review row claimed every declared string was validated "against a closed set or a bound BEFORE it is stored", and the bound was the only half that existed | A declared field name reaches the operator's terminal, so it is a declared TEXT and owes a control-character refusal too | The review gate's guard audit, tracing a declared column to `completeDisplayFields` | `validateDeclaredFieldName` now calls `validateDeclaredText`, and `TestValidateShapeDecls` gained the escape and tab cases |
+| escalation | The bound-and-clean rule for a plugin's declared text (`ai/rules/plugins.md`) was written for `description` and `long-help` in e691533a6, a week after this channel shipped, and nothing carried it back to the field names this channel had already added | A rule written for one declared string binds every declared string on the same surface | The same guard audit | Journal row in `plan/journal/rule-written-after-the-surface-it-binds.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A plugin command can declare what its answer holds | Done | `pkg/plugin/rpc/types.go`, `CommandDecl.Shape`, `.Columns`, `.AddressFields` | Three optional fields; absent means undeclared |
+| `validateDeclaredShape` no longer returns early for a plugin command | Done | `internal/component/command/pipe.go`, reached through `shapeRegistry` | A declared path publishes its operators and refuses the rest before dispatch |
+| The operators a plugin command supports are published | Done | `cmd/ze/help_command.go`, `collectCommands` | Satisfied by 0f991285e, which reads `registry.Registration.Commands` |
+| An operator a plugin command cannot support is refused before dispatch | Done | `test/ui/show-bgp-plugin-shapes.ci`, on the string "cannot apply here" | Asserted for eight command-and-operator pairs |
+| `\| display <partial>` completes on a plugin command | Done | `internal/component/command/completer.go`, `completeDisplayFields` | Reads `ColumnsForCommand`, which the plugin declaration now writes |
+| The eleven measured commands declare | Done | four `commandDecls` functions | Six rpki, two rs, two adj-rib-in, one healthcheck |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRegisterPluginShapes` | All three registries written from one Stage 1 message |
+| AC-2 | Done | `TestValidateShapeDecls` cases "a spelling no shape writes" and "a capitalized spelling"; `test/plugin/plugin-shape-declaration-refused.ci` | The `.ci` proves the plugin does not start and the daemon keeps running |
+| AC-3 | Done | `TestValidateShapeDecls` cases "a column order with no shape" and "an address-field list with no shape" | |
+| AC-4 | Done | `TestValidateShapeDecls` case "a shape on a path the message does not declare" | The shape is a FIELD on the `CommandDecl`, so declaring for a foreign path is unwritable; the nameless-path refusal is the reachable form |
+| AC-5 | Done | `TestValidateShapeDecls`, six bound cases plus the two new control-character cases | 64 columns, 16 address fields, names of 1 to 64 bytes |
+| AC-6 | Done | `TestPluginShapeOverridesEmptyDeclaration` | The floor rule in `declareFor` |
+| AC-7 | Done | `TestUnregisterPluginShapes` | The path returns to the EMPTY declaration, and a restart declares again |
+| AC-8 | Done | `TestShapeWriteUnwindsWithStageOne` | A family conflict after the shape write leaves nothing behind |
+| AC-9 | Done | `ui_fixture_show_bgp_plugin_shapes.go`, the `\| display address state` block | Two rows, exactly the two fields |
+| AC-10 | Done | same fixture, the `\| resolve` block | Decorates `address` with TEST-NET reverse lookups that never answer |
+| AC-10b | Done | same fixture, the refusal rows for `show bgp rpki summary \| resolve` and `show bgp rs status \| resolve` | Each judged on its own declared list |
+| AC-11 | Done | refusal row `show bgp rpki summary \| first 2` | |
+| AC-12 | Done | refusal row `show bgp rpki status \| count` | `TestDocCommandsHoldNoSingleRowSet` pins the two candidate keys |
+| AC-13 | Done | fixture `show bgp rs peers \| count` | Answers zero over an empty peer set, which is the count and not a refusal |
+| AC-14 | Done | `TestHealthcheckNamedProbeAnswersRows` | Every field the list branch writes is spelled the same in the named branch |
+| AC-15 | Done | `TestAspaLookupAnswersRows` | `jsonKeys(dumpRow)` equals `jsonKeys(lookupRow)` |
+| AC-16 | Done | `TestApplyTakeKeepsIdentityKeysOverArrayRows`, `TestShowAnswersRowsKeyedByPeer`, `TestShowCountsThePeers`, and the fixture's `\| first 1` block | Ruled 2026-09-06: the row reader was taught, the payload is unchanged |
+| AC-17 | Done, with one deviation | the four `commandDecls` functions; `TestDeclaredColumnsExistInPayload` in `rpki` and `rs` | `show bgp healthcheck` declares no column order: its two branches carry different row field sets, so no single order can be read against both. Recorded in Deviations |
+| AC-18 | Done | 0f991285e, `cmd/ze/help_command.go` `collectCommands`; `cmd/ze/help_command_plugin_test.go` | `cmd/ze` built at `ze_core,ze_bgp` answers, for `show bgp rpki roa`, 17 operators plus answer-shape `tab` and column-orders `[[prefix, max-length, asn]]`; `show bgp rpki` answers 17 plus the plugin-declared alias `summary`; `show bgp adj-rib-in` answers 14 plus answer-shape `map`. Before that commit the catalog held 270 commands and none of the three; it now holds 313 |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestParseAnswerShape` | Done | `internal/component/command/pipe_catalog_test.go` | |
+| `TestValidateShapeDecls` | Done | `internal/component/plugin/server/startup_test.go` | 18 cases, two added by this closure |
+| `TestRegisterPluginShapes` | Done | same file | |
+| `TestPluginShapeOverridesEmptyDeclaration` | Done | same file | |
+| `TestUnregisterPluginShapes` | Done | same file | |
+| `TestShapeWriteUnwindsWithStageOne` | Done | same file | |
+| `TestHealthcheckNamedProbeAnswersRows` | Done | `internal/component/bgp/plugins/healthcheck/healthcheck_test.go` | |
+| `TestAspaLookupAnswersRows` | Changed | `internal/component/bgp/plugins/rpki/rpki_commands_test.go` | The plan named `rpki_test.go`; recorded in Deviations |
+| `show-bgp-plugin-shapes` | Done | `test/ui/show-bgp-plugin-shapes.ci` | |
+| `plugin-shape-declaration-refused` | Done | `test/plugin/plugin-shape-declaration-refused.ci` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `pkg/plugin/rpc/types.go` | Done | |
+| `pkg/plugin/sdk/sdk_types.go` | Done | `sdk.CommandDecl` carries the three fields |
+| `internal/component/plugin/server/startup.go` | Done | Plus `restart.go` for the plugin-stop path, which the plan did not name |
+| `internal/component/command/answer_shape.go` | Done | |
+| `internal/component/command/pipe_catalog.go` | Done | |
+| `internal/component/command/column_order.go` | Changed | The plan did not name it; `declareFor` and `withdraw` had to live beside `declare` |
+| `internal/component/bgp/plugins/rpki/rpki.go` | Done | |
+| `internal/component/bgp/plugins/rs/server.go` | Done | Plus `server_handlers.go` for the sorted peer order |
+| `internal/component/bgp/plugins/adj_rib_in/rib.go` | Done | |
+| `internal/component/bgp/plugins/healthcheck/healthcheck.go` | Done | |
+| every documentation row | Done | Listed under Documentation Updates |
+| `ai/rules/points/plugins/answer-shape-.../` | Changed | Written at 77e42aeab, deleted corpus-wide at 9ee958b7f; the mechanism lives at `docs/architecture/api/commands.md` |
+| `test/ui/show-bgp-plugin-shapes.ci` | Done | |
+| `test/plugin/plugin-shape-declaration-refused.ci` | Done | |
+
+### Audit Summary
+- **Total items:** 48 (6 requirements, 18 ACs, 10 tests, 14 file rows)
+- **Done:** 44
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 4, each in Deviations: the healthcheck column order, the
+  `TestAspaLookupAnswersRows` location, `column_order.go` being unplanned, and
+  the rule points a later corpus refactor deleted
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A command served by a plugin process can declare what its answer holds | functional | `test/ui/show-bgp-plugin-shapes.ci` starts four plugins in-process and asserts eight refusals on the string "cannot apply here", which only `validateDeclaredShape` writes. The file's header states why asserting on the operator name alone would be vacuous: the post-dispatch refusal shares those substrings |
+| The operators a plugin command supports are published | functional | `cmd/ze/help_command_plugin_test.go`, and the measured catalog: `show bgp rpki roa` answers 17 operators plus `answer-shape: tab` and `column-orders: [[prefix, max-length, asn]]`. The catalog went from 270 commands with none plugin-contributed to 313 |
+| An operator a plugin command cannot support is refused BEFORE dispatch | functional | the refusal table in `ui_fixture_show_bgp_plugin_shapes.go`: `show bgp rpki summary \| first 2`, `show bgp rpki status \| count`, `show bgp rs status \| count`, `show bgp adj-rib-in status \| count`, and four `\| resolve` rows |
+| `\| display <partial>` completes on a plugin command | functional and unit | `completeDisplayFields` reads `ColumnsForCommand`, which `registerPluginShapes` writes; `TestRegisterPluginShapes` proves the write through the real Stage 1 path, and the fixture's `\| display address state` block proves the selection end to end |
+| A bad declaration refuses the plugin and never panics the daemon | functional | `test/plugin/plugin-shape-declaration-refused.ci`: the plugin spells its shape `table`, does not start, the daemon log names the plugin, the command and the value, and the daemon still answers |
+| A plugin's declarations leave with the plugin | unit, driven from Stage 1 | `TestUnregisterPluginShapes`: start, assert `tab`, `rollbackStartupProcess`, assert the path returns to the EMPTY declaration and not to nothing, then start again and assert `tab` returns |
+| Interop | N-A | Nothing wire-visible changes. The plugin RPC contract changes additively and is not a protocol Ze speaks to another implementation |
+
+## Work Not Done
+
+An EXTERNAL plugin's declaration is absent from this table on purpose. It was
+never in this spec's scope, Required Reading says so, and it is recorded under
+Known Limitations with the producer that decides it. `spec-daemon-backed-command-catalog`
+did the in-tree half and closed on 2026-09-08; the external half is a property of
+where an external plugin registers, not work this spec left.
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| `\| resolve` over an identity-keyed row set, where the address is the map KEY rather than a field | An address-field list names a field of a row, and `show bgp adj-rib-in`'s address is the row's identity | `plan/immediate/spec-show-bgp-operators-over-identity-keyed-rows.md` |
+| One name for the peer address across the `show bgp` answers | Out of this spec's subject: it declares what the answers hold, it does not rename their fields | `plan/immediate/spec-show-bgp-one-name-for-the-peer-address.md` |
+| A plugin declaring on a command path it does not serve | The pairing makes it unwritable today, so nothing enforces it if the pairing ever loosens | `plan/spec-plugin-declaration-names-a-path-it-serves.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/plugin-declares-answer-shape-d64e7b3f-bfdc-4614-8db4-f12043eb77cc.md`, 12 files, verdict clean |
+| `./le spec session review check` | `review_gate: OK (2 code files, clean, hashes match ...)` |
+| Rounds | 2. Round 1 found the control-character ISSUE; round 2 read the fix and found nothing |
+| Reviewer lenses used | wiring and functional-test coverage; guard audit and security over the strings a plugin declares; removed-behavior audit over the `rowSet` widening; the style pass over every changed Go file |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | A declared column or address-field name was bounded but never checked for control characters, and it reaches the operator's terminal: `completeDisplayFields` offers each declared column as a `\| display` candidate and the table renderer writes it as a header. `normalizeCommand` collapses only the whitespace control characters, so an ESC survived into the terminal. `ai/rules/plugins.md` requires the refusal for every declared text that reaches an operator | `internal/component/plugin/server/startup.go`, `validateDeclaredFieldName` | It now calls `validateDeclaredText(name, maxNameLen, textOneLine)`, the check `description` gets, replacing its own length check so one bound is stated once. `TestValidateShapeDecls` gained "a column name carrying an escape" and "an address-field name carrying a tab" |
+
+Two NOTEs were recorded and did not block: the healthcheck `map` deviation, and
+`TestAspaLookupAnswersRows` living in a file the TDD plan did not name. Both are
+in Deviations.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/ui/show-bgp-plugin-shapes.ci` | Yes | `-rw-rw-r-- 1 thomas thomas 2444 Sep 6 09:53 test/ui/show-bgp-plugin-shapes.ci` |
+| `test/plugin/plugin-shape-declaration-refused.ci` | Yes | `-rw-rw-r-- 1 thomas thomas 1589 Aug 30 22:52 test/plugin/plugin-shape-declaration-refused.ci` |
+| `internal/test/fixture/ui_fixture_show_bgp_plugin_shapes.go` | Yes | the native fixture both `.ci` files name; `git grep -ln 'show-bgp-plugin-shapes' internal/` finds it |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-8 | The Stage 1 channel validates, writes, unwinds and withdraws | `go test -mod=mod -tags <feature-gates> -run Shape ./internal/component/plugin/server/`: `TestValidateShapeDecls`, `TestValidateShapeDeclsClampsTheValueItReports`, `TestRegisterPluginShapes`, `TestPluginShapeDoesNotInheritItsParentsFields`, `TestPluginShapeOverridesEmptyDeclaration`, `TestUnregisterPluginShapes`, `TestShapeWriteUnwindsWithStageOne` and `TestOnRegistrationRefusesConflictingShapeDeclaration` all PASS |
+| AC-5 | A control character in a declared name is refused | `TestValidateShapeDecls/a_column_name_carrying_an_escape` and `/an_address-field_name_carrying_a_tab` PASS after the fix. Before it, `validateDeclaredFieldName` held only an empty check and a length check, so both cases returned nil and `require.Error` failed |
+| AC-14, AC-15 | Both argument branches answer a row set | `ok internal/component/bgp/plugins/healthcheck 3.677s`, `ok internal/component/bgp/plugins/rpki 1.254s` |
+| AC-16 | `\| first 1` answers one peer's routes | `ok internal/component/bgp/plugins/adj_rib_in 0.237s`, `ok internal/component/command 2.517s` |
+| AC-17 | Eleven commands declare | `grep -rn 'Shape:' internal/component/bgp/plugins/{rpki,rs,adj_rib_in,healthcheck}`: six in `rpki.go`, two in `rs/server.go`, two in `adj_rib_in/rib.go`, one in `healthcheck/healthcheck.go` |
+| AC-18 | The catalog lists the operators | 0f991285e, verified at the producer: `command.DeclaredForCommand` (`internal/component/command/declared.go`) reads `registry.Registration.Commands` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| A plugin sends a Stage 1 message carrying a shape | `test/plugin/plugin-shape-declaration-refused.ci` | Yes: the file drives `ze-test fixture plugin/shape-declaration-refused`, which starts a plugin whose only fault is the spelling `table` |
+| A plugin sends an unknown shape spelling | same | Yes: the daemon log names the plugin, the command and the value, and the daemon still answers |
+| A plugin stops | `TestUnregisterPluginShapes` | Yes: `rollbackStartupProcess` on the real process, then a second `runPluginPhase` |
+| `show bgp rpki cache \| display address state` | `test/ui/show-bgp-plugin-shapes.ci` | Yes: the fixture asserts two rows and exactly the two fields |
+| `show bgp rs peers \| resolve` | same | Yes: the refusal table judges `show bgp rs status \| resolve` on its own declared list, and the `\| resolve` block decorates `address` on the rpki cache rows |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestPluginShapeOverridesEmptyDeclaration` PASSES; the floor rule is the `case r.isEmpty(held)` arm of `declareFor` |
+| A-2 | confirmed 2026-08-24 | `gopls references` on `handleShow` and `aspaCommand`; one `.ci` reads the named-probe answer and matches substrings the new sequence indent preserves |
+| A-3 | confirmed 2026-09-08 | `TestUnregisterPluginShapes` restarts the plugin and asserts the shape is declared again |
+| A-4 | confirmed 2026-08-24 | `TestDocCommandsHoldNoSingleRowSet`, `TestStatusHoldsNoRowSet`, and the fixture's refusal table |
+| A-5 | broken 2026-08-24, repaired 2026-09-06, now holds | `rowSet` reads an identity map of lists as rows; `identityValuesShareOneShape` keeps a mixed map one document. Mistake Log row 1 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/features/introspection.md` says the catalogs reach an in-tree plugin's declaration | `cmd/ze/help_command.go` `collectCommands`, `internal/component/command/declared.go` `DeclaredForCommand` | Yes, and it carries both source anchors |
+| `docs/guide/healthcheck.md` says both spellings answer a row set and the command declares `map` | `healthcheck.go` `handleShow`, `commandDecls` | Yes, anchored on both symbols |
+| `docs/guide/rpki.md` says the aspa lookup answers rows under `entries` with `found` beside them | `rpki.go` `aspaCommand`, and `TestAspaLookupAnswersRows` asserting `jsonKeys` equality | Yes, anchored on `aspaCommand` |
+| `docs/architecture/api/commands.md` carries the shape channel | 29 occurrences of the shape vocabulary; `ai/rules/plugins.md` routes to it by name | Yes |
+| The spec's own Known Limitations paragraph claiming the catalog "cannot show a plugin's declaration" | 0f991285e | Corrected in this closure. It had been FALSE since 2026-09-07 |
+
+## Core Insight
+
+The ARITY of the declared value decides how two declaration channels answer the
+same collision. A set of aliases has a union, so a plugin's names merge with what
+the path holds and the merge happens at the call site. A shape and a column order
+have no union, so the answer has to be a floor rule inside the registry:
+`declareFor` lets a real value replace an empty declaration, lets nothing replace
+a real one, and records what the path held so `withdraw` can put it back. The
+empty declaration is not an absence. It is a BARRIER an in-tree package wrote to
+stop a child inheriting its parent's shape, and reading it as an absence puts a
+plugin declaration on the wrong path in either direction.

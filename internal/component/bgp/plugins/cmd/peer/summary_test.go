@@ -1207,10 +1207,13 @@ func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 		{command: "show bgp rib best", orders: []command.ColumnOrder{{"family", "prefix", "best-peer", "multipath-peers", "attributes"}}},
 		{command: "show bgp rib best status", orders: []command.ColumnOrder{{"running", "peers-with-rib", "total-routes"}}},
 		// `show bgp rib commands` is registered by the bgp-rib plugin PROCESS
-		// and has no in-core shim, so nothing declares for it and it still
-		// resolves the route order through the `show bgp rib` prefix. It is
-		// plan/spec-plugin-declares-answer-shape.md, with the other plugin
-		// paths below.
+		// and has no in-core shim. The plugin DOES declare for it (commandDecls,
+		// internal/component/bgp/plugins/rib/rib.go, shape tab over "name" and
+		// "description"), and that declaration reaches the column registry only
+		// once the plugin has registered at Stage 1. This test starts no plugin,
+		// so the path here still resolves the route order through the
+		// `show bgp rib` prefix, with the other plugin paths below. The
+		// declaration channel is spec-plugin-declares-answer-shape.
 		{command: "show bgp rib commands", orders: []command.ColumnOrder{ribRoutes}},
 		{command: "show bgp rib rpf", orders: []command.ColumnOrder{{
 			"source", "family", "found",

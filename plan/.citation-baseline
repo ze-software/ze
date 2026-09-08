@@ -36,6 +36,7 @@ plan/spec-mcp2026-0-umbrella.md
 plan/spec-ospf-0-umbrella.md
 plan/spec-ospf-ext-1-opaque-framework.md
 plan/spec-ospfv3-0-umbrella.md
+plan/spec-plugin-declares-answer-shape.md
 plan/spec-policy-routing.md
 plan/spec-rbac-audit.md
 plan/spec-redistribute-late-join-replay.md

@@ -1154,7 +1154,7 @@ func registerPluginPipes(owner string, pipes []rpc.PipeDecl, commands []rpc.Comm
 // command publishes and which it refuses before dispatch, so a refusal happens
 // before the write.
 //
-// Four declarations are refused, and the message names the command and the
+// Five declarations are refused, and the message names the command and the
 // value each time:
 //
 //   - a spelling no shape writes. Read as ShapeDoc it would publish the
@@ -1166,7 +1166,10 @@ func registerPluginPipes(owner string, pipes []rpc.PipeDecl, commands []rpc.Comm
 //   - a declaration on no command path. A shape belongs to the command it is
 //     declared on, so a nameless command declares nothing;
 //   - a list or a name past its bound. The strings arrive from another process
-//     (docs/contributing/ze-go-style.md, "A limit on everything").
+//     (docs/contributing/ze-go-style.md, "A limit on everything");
+//   - a field name carrying a control character. A declared column reaches the
+//     operator's terminal as a `| display` completion candidate and as a table
+//     header, so it is bound by the rule a command's description is bound by.
 //
 // The bounds are the spec's: 64 columns and 16 address fields for one command,
 // each name 1 to 64 bytes. They are the widest answer in the tree with room
@@ -1213,16 +1216,25 @@ func validateShapeDecls(commands []rpc.CommandDecl) error {
 	return nil
 }
 
-// validateDeclaredFieldName refuses a declared field name that names nothing or
-// runs past the bound. The kind is the word the message uses for it, "column" or
-// "address field", so one check reports both lists.
+// validateDeclaredFieldName refuses a declared field name that names nothing,
+// runs past the bound, or carries a control character. The kind is the word the
+// message uses for it, "column" or "address field", so one check reports both
+// lists.
+//
+// A field name reaches the operator's terminal: completeDisplayFields
+// (internal/component/command/completer.go) offers each declared column as a
+// `| display` candidate, and the table and text renderers write it as a header.
+// So it is a declared text under the same rule as a command's description, and
+// validateDeclaredText is what enforces both the bound and the control
+// characters. A tab breaks the completion format for every candidate after it,
+// and an ESC writes an ANSI sequence to the terminal.
 func validateDeclaredFieldName(command, kind, name string, maxNameLen int) error {
 	if strings.TrimSpace(name) == "" {
 		return fmt.Errorf("command %q declares a %s with no name", clampDeclared(command), kind)
 	}
-	if len(name) > maxNameLen {
-		return fmt.Errorf("command %q declares %s %q, which is %d bytes (max %d)",
-			clampDeclared(command), kind, clampDeclared(name), len(name), maxNameLen)
+	if err := validateDeclaredText(name, maxNameLen, textOneLine); err != nil {
+		return fmt.Errorf("command %q declares an invalid %s %q: %w",
+			clampDeclared(command), kind, clampDeclared(name), err)
 	}
 	return nil
 }

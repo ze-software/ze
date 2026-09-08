@@ -628,6 +628,24 @@ func TestValidateShapeDecls(t *testing.T) {
 			AddressFields: []string{""},
 		}},
 		refuses: []string{"show declared", "address field"},
+	}, {
+		// A declared column is offered as a `| display` completion candidate
+		// (completeDisplayFields, internal/component/command/completer.go) and
+		// written as a table header, so an ESC in one writes an ANSI sequence to
+		// the operator's terminal. normalizeCommand collapses the whitespace
+		// control characters and leaves every other one, so the refusal has to
+		// happen here.
+		name:     "a column name carrying an escape",
+		commands: []rpc.CommandDecl{{Name: "show declared", Shape: "tab", Columns: []string{"sta\x1bte"}}},
+		refuses:  []string{"show declared", "column", "control character"},
+	}, {
+		name: "an address-field name carrying a tab",
+		commands: []rpc.CommandDecl{{
+			Name:          "show declared",
+			Shape:         "tab",
+			AddressFields: []string{"add\tress"},
+		}},
+		refuses: []string{"show declared", "address field", "control character"},
 	}}
 
 	for _, tc := range cases {
