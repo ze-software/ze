@@ -122,9 +122,15 @@ Four specs carry status text their own git history contradicts, claiming
 
 - **Close ONE spec at a time.** The skill requires it and the reason is real: closures
   commit, and the index is shared with four other live sessions.
-- **`./le` rebuilds itself from source on every invocation** (`build_le` in `le`). An
-  edit to `internal/le/` is live for every other session immediately, and a
-  non-compiling `internal/le/` breaks all of them. Never edit it while a closure runs.
+- **`./le` does NOT rebuild on every invocation.** The normal path calls
+  `warn_when_stale` (`le`), which only prints "bin/le is older than committed sources"
+  when a COMMITTED source is newer than the binary; `build_le` runs on `--update` or
+  when the binary is missing. So an edit under `internal/le/` becomes live for another
+  session when that session next updates, not the instant you save it. This session
+  believed the opposite and sequenced work around it: the ledger dedup was held behind
+  a running closure, and closures behind the dedup, for a hazard that was not there.
+  The real care owed is still real, just smaller: a committed non-compiling
+  `internal/le/` breaks every session that updates after it.
 - **A closure costs 210k to 300k tokens and 30 to 90 minutes.**
 - **`./le verify worktree` pins its subject at launch** (`internal/le/verify/lifecycle.go:150`
   resolves an empty commit to `HEAD`, rev-parsed at `:350`) and runs over an hour. Its
