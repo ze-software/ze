@@ -2,9 +2,9 @@
 title: The repository is half the AI harness
 date: 2026-08-09
 author: Thomas Mangin
-description: AI coding needs more than a capable model. The repository must carry its architecture, relationships, tests and checks in a form the agent can discover and the project can enforce.
+description: A plugin change shows how Ze routes an AI agent from a task index to a rule, an implementation and a rejecting check, and what happens when those checks are wrong.
 
-deck: The harness gives an agent tools. The repository provides project-specific meaning and checks that reject work which does not belong.
+deck: An agent needs a way to find the project's decisions before it edits, and useful feedback when it gets them wrong. Maintaining both takes human time.
 
 image: assets/blog/the-repository-is-the-ai-harness.svg
 image-dark: assets/blog/the-repository-is-the-ai-harness-dark.svg
@@ -12,218 +12,72 @@ image-alt: General harness abilities and repository-specific meaning converge on
 
 ---
 
-Ze is a network operating system spread over {{ze:repo-go-packages}} Go packages. A model can open any one of them in under a second and still have no idea which package a change belongs in, which rule it is about to break, or which test would catch it if it gets that wrong. Nothing in the repository tells it.
+Ze is a network operating system spread over {{ze:repo-go-packages}} Go packages. Being able to open a file gives an AI agent very little help in deciding which package a change belongs in. It needs to find the design decision behind the code before it adds another plausible implementation of the same idea somewhere else.
 
-The harness supplies the general abilities: read a file, search the tree, edit code, run a program, keep track of a task and report a failure. The project has to supply the meaning. A developer who misreads a convention usually notices, and a reviewer notices for them when they do not. An agent produces something plausible and moves on.
+The harness provides general tools for reading, editing and running programs. I have been putting the project-specific guidance in the repository, because a correction in one conversation is gone when the next session starts. A task index can direct an agent to the rule and an existing example, while a check can catch some of the mistakes it makes despite reading them.
 
-So an AI-ready repository has to teach the agent how the project works and catch it when it gets that wrong. This article describes how Ze is trying to do both. Why I think every serious project ends up building something similar is a separate argument, in [AI coding has not had its Rails moment](../ai-coding-has-not-had-its-rails-moment/).
+I argued in [AI slop is the wrong test](../ai-slop-is-the-wrong-test/) that I remain responsible for the generated code. The practical difficulty is giving an agent enough information to avoid repeating a mistake without burying it in everything the project knows.
 
-I ended [AI slop is the wrong test](../ai-slop-is-the-wrong-test/) by saying that generated code has to be constrained, reviewed, tested and measured. [The proof is the expensive part](../the-proof-is-the-expensive-part/) explains how Ze ties an RFC claim to requirements, tests, known gaps and commit evidence. This article covers what comes before all of that: helping the agent find the right information before it writes the wrong code.
+*This article was co-authored with Claude and revised with OpenAI Codex. The architecture, design decisions and conclusions come from my work on Ze. The models helped organise the material and draft the text.*
 
-*This article was co-authored with Claude. The architecture, design decisions and conclusions come from my work on Ze. Claude helped organise the material and draft the text.*
+## Finding where a plugin belongs
 
-## What the repository has to carry
+A plugin change starts at [`ai/INDEX.md`](https://github.com/ze-software/ze/blob/main/ai/INDEX.md). Its feature table points to the [plugin pattern](https://github.com/ze-software/ze/blob/main/ai/patterns/plugin.md), then to the plugin rules and goroutine-lifecycle rules. The pattern gives the expected file layout and links to the core architecture. The agent has a route into the relevant material before it needs to search for an implementation.
 
-<p class="blog-section-reveal">Repository links turn scattered design knowledge into context an agent can discover and verify.</p>
+Registration is one decision it finds there. A plugin declares itself to a registry from a `register.go` file. The core can then discover the plugin through the registry instead of carrying an import and a dispatch branch for each extension. A central switch is reasonable for a closed set of commands, but making every new plugin edit that switch would defeat the separation I want.
 
-Ze carries that meaning in several layers.
+The [registration pattern](https://github.com/ze-software/ze/blob/main/ai/patterns/registration.md) explains the mechanism, and the [Graceful Restart plugin's registration](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/register.go) is a concrete example. It declares the plugin name `bgp-gr`, its entry point and the capabilities it provides. Its `init()` function calls `registry.Register`, which rejects invalid registrations such as a duplicate name or a missing engine entry point.
 
-`ai/INDEX.md` is a task-oriented entrance. It answers questions such as where to start when adding a plugin, changing configuration, implementing an RFC or adding a command, so the agent does not have to search hundreds of packages to find the first document.
+`init()` is part of the approved pattern. The rule is about keeping registration in the file where the project expects to find it. The [import generator](https://github.com/ze-software/ze/blob/main/internal/le/plugin/imports/pluginimports.go) scans the plugin roots for `register.go` and derives the packages the binary must load. `./le repository generate` includes that generation step. The agent therefore has both an example to copy and a reason why the filename matters.
 
-`ai/PACKAGE-MAP.md` gives one short description for each of those {{ze:repo-go-packages}} packages, and that saves a great deal of blind exploration.
+That sequence is more useful than an instruction to respect the architecture. The agent can follow a task to a decision, inspect how an existing plugin satisfies it, and see which part of the build depends on the convention.
 
-Production Go files carry a `// Design:` line near their top, so opening the implementation reveals the document explaining why it exists. Closely connected files also point to each other with `// Detail:`, `// Overview:` and `// Related:` comments. There are {{ze:repo-design-comments}} of the first kind and {{ze:repo-detail-comments}} of the second.
+## What the rejection tells the agent
 
-The documents point back into the source through `<!-- source: ... -->` markers. Small programs generate the two reverse indexes, `ai/CODE-TO-DOCS.md` and `ai/DOCS-TO-CODE.md`:
+The [Go edit hook](https://github.com/ze-software/ze/blob/main/internal/le/hookruntime/writeedit.go) looks for registration-like calls near the start of an `init()` function and exempts files whose names begin with `register`. When it recognises that pattern in an ordinary implementation file, it refuses the edit. The diagnostic says `BLOCKED: Implicit behavior in init()`.
 
-```text
-code file       -> documents which explain it
-design document -> source files which implement it
-```
+That wording is less helpful than it should be. Taken literally, it contradicts the example the agent just read, because the example uses `init()` too. The current diagnostic does not include the explanation and link which the earlier hook printed. The useful correction is to put registration in `register.go`, with a reference back to the registration pattern, so the agent can repair the location without removing the mechanism.
 
-Those names are boring, which is useful. An agent can guess them without learning a product name for a simple idea.
+Whatever a check prints becomes part of the agent's next prompt. If it only says that a pattern is forbidden, the model can satisfy it by choosing a different spelling while preserving the mistake. I want the failure to name the affected file and explain the accepted implementation, with a link for the reasoning which would make the message too long.
 
-All of these links are checked. A renamed file, a deleted design or a stale generated index makes verification fail. A hand-written index which quietly becomes fiction is worse than no index at all.
+Catching the mistake during the edit also limits how much code can be written on top of it. A later compiler or test failure is still useful, but by then the agent may have repeated the same decision across several files. Early checks pay for themselves when they recognise a narrow mistake and explain it accurately.
 
-Source files are kept around one concern. Ze uses 1,000 lines as the point at which a production file must be examined for a second concern, which protects the agent's context: changing one thing should not mean paying for several unrelated things on every later step. A coherent file is allowed to stay coherent even when it is large, because mechanical splitting usually makes navigation worse.
+The indexes serve the other direction. `ai/PACKAGE-MAP.md` gives package descriptions, while `ai/CODE-TO-DOCS.md` and `ai/DOCS-TO-CODE.md` provide the links between implementation and documentation. An agent which arrives through a source file can look up its explanation; one which arrives through a design can find the implementing files. I want that route to remain available after the authoring session has ended.
 
-Humans benefit from all of this too. We have longer-lived memory than an AI session, though we still forget, change teams and misunderstand old decisions. Structure reduces the amount everybody has to remember.
+## Finding the right test is another navigation problem
 
-## A rule needs teeth
+The task index also points to [`ai/rules/testing.md`](https://github.com/ze-software/ze/blob/main/ai/rules/testing.md) and the functional-test documentation. A plugin API change needs an observation through the running program. An internal parser test can help isolate a defect, but it cannot show that the plugin was loaded or that the daemon delivered the request to it.
 
-<p class="blog-section-reveal">A written rule becomes useful when checks reject violations and explain the correction.</p>
+Writing down the required test surface avoids asking the agent to choose the cheapest test it can turn green. It does not remove the harder question of whether the selected test reaches the behaviour it names.
 
-Consider command dispatch. A switch is simple and efficient when every possible command is known:
+In August, three redistribution scenarios stayed green with their late-join replay disabled. The route reached the peer through another path, so observing the route did not establish that replay had happened. The tests looked relevant and ran through the program, yet the defect they were supposed to catch could not make them fail.
 
-```go
-switch name {
-case "show":
-    runShow()
-case "configure":
-    runConfigure()
-}
-```
+That led to deliberately breaking the behaviour a new test claims to protect and checking whether the test notices. A Claude session started doing this without being asked. It costs another rebuild and run, and it can expose a fixture which needs to be redesigned before any implementation can be trusted. I have never regretted that expense.
 
-Ze allows features supplied by plugins, including third-party plugins, so the complete set of commands is open. A central switch would force the core to know every extension and would destroy that separation.
+There was a different failure in the BGP reactor tests. Three tests maintained their own map of which address families had been sent an End-of-RIB, although production had no such map. A session reading them nearly reported a conformance violation in code that did not exist. A proposed detector was too noisy because ordinary table-driven tests also build local data, so the replacement was a reading habit: identify the production function and check that the test calls it.
 
-Ze uses a registry instead. A registry is just a table which modules add themselves to:
+These incidents changed what the agent is asked to look for. They did not produce a general check which can recognise a meaningful test. [The proof is the expensive part](../the-proof-is-the-expensive-part/) follows one RFC requirement through its tests and public evidence, including the limits of what those tests observe.
 
-```go
-Register("show", runShow)
-Register("configure", runConfigure)
-```
+## When the check creates its own problem
 
-The main program looks up the name in the table, and a third party can register another command without touching the core.
+The test-edit hook was meant to stop an agent fixing a red test by weakening its assertions. Humans do that too, usually more slowly and with better excuses. A legitimate relaxation needs a reason, but the reason is useful only if someone can distinguish it from the paperwork required to get past a bad check.
 
-A requirement like that needs more than a sentence in an architecture document. The repository provides a chain. `ai/patterns/registration.md` explains why registration is required and what the accepted shape looks like. Nearly four hundred `register.go` files show the normal implementation. `./le repository generate` scans for those files and writes the list of modules loaded at startup, so nobody maintains it by hand. An edit hook rejects hard-coded command lists and registration hidden inside `init()`. A separate check catches dependencies crossing a plugin boundary. Tests prove that registration and discovery actually work.
+An early version counted non-comment lines in a scenario. Replacing several sleeps with one wait condition reduced the line count and was refused, while replacing assertions in place could leave the count unchanged. The check penalised a timing repair and could miss a loss of coverage.
 
-Whatever the hook prints becomes the agent's next prompt, so it has to point somewhere useful:
+The [10 August record](https://github.com/ze-software/ze/blob/main/plan/journal/hook-existing-patterns-false-positive.md) counted 751 `test-relax:` tokens across 466 files, including 362 in scenario files excusing timing refactors. Most of those comments were receipts for getting past the hook. Separating the genuine concessions from them took an audit I should not have needed.
 
-```text
-✘ BLOCKED: Implicit behavior in init()
-  Registration belongs in register.go (or register_*.go), not init().
-  Move Register/Subscribe/AddHandler/Hook calls to register.go.
-  Global assignments belong in var blocks, not init().
-  See ai/patterns/registration.md
-```
+The counter was changed, but the same journal records another false positive two days later: combining peer processes kept the assertions and reduced the command count, so the revised check objected again. A rule can be wrong in several successive implementations. Each refusal costs a detour, and repeated false alarms teach an agent to supply the escape text as routine.
 
-That is the general shape I want from an AI-ready project. An important rule needs an explanation, a visible example, a mechanical check where one is possible, and a behavioural test.
+Those inline markers describe the older workflow. The current rules record approved test changes in per-session ledgers, and the [native edit hook](https://github.com/ze-software/ze/blob/main/internal/le/hookruntime/writeedit.go) reads the proposed edit through the test-weakening checker. Changing an expected value in place or repointing a test at different behaviour can still preserve every structural count. I still have to judge what has been given up.
 
-The check should also run as early as it can. The `init()` mistake above is caught while the file is being written, before anything is compiled, so the agent repairs one file. Caught by a test run half an hour later, the same mistake has a morning's work sitting on top of it, all of it written on the assumption that the first file was acceptable.
+## Keeping the repository useful
 
-Some evidence cannot be had that cheaply. A protocol error may need another routing daemon running beside Ze, so it naturally comes later and costs more. Ze's verification command currently runs twenty-five stages in roughly that order. Cheap structure, documentation and generated-file checks come first, then unit, race, allocation, functional and ExaBGP compatibility tests. Release evidence extends further into fuzzing, interoperability, Linux virtual machines, deployment tests, chaos and performance.
+I would rather not pretend this machinery is free. Every moved design and renamed source file can leave guidance pointing at the wrong place. Generated indexes save us from maintaining large tables by hand, but someone still has to correct the underlying references and decide which document explains a change.
 
-Those twenty-five stages are scar tissue. Almost every one exists because something plausible once passed through a weaker process.
+The checks themselves need the same attention as the code they judge. A bad rule can be copied into many files by an agent doing exactly what it was told, and the resulting consistency makes the mistake harder to recognise. Maintaining a repository for agents includes removing checks which cost more in false refusals than they catch in defects.
 
-## Testing has two directions
+A smaller project could start with one task-oriented index and the patterns its contributors repeatedly get wrong. A reliable check can follow once the mistake is narrow enough to recognise. The useful unit is the route from a common task to its explanation and example, then back from a failure to the correction. Copying Ze's entire verification system would also copy the maintenance burden which produced it.
 
-<p class="blog-section-reveal">Test depth must cover system reach and the conditions most likely to expose failure.</p>
+I discuss the case for shared conventions in [AI coding has not had its Rails moment](../ai-coding-has-not-had-its-rails-moment/). This account began in summer 2026 and has already needed corrections as Ze's tools changed. A more capable model may need less instruction, or may use a richer repository correctly. I would want to know which of these failures still occurs before adding another rule to deal with it.
 
-Unit testing is one form of testing. It answers a small question, and it can give a dangerously reassuring answer when the real requirement is larger.
-
-The functional direction asks how far through the system a behaviour has been proved. At the shallowest level a small piece of code returns the expected result. Deeper, the connected parts work together as a subsystem. Deeper still, a user achieves the result through the real program. At the far end, the program works with software written by somebody else.
-
-A door is the easy analogy. At function level the handle turns and operates its latch. At subsystem level the handle is fitted to a door, and the door still opens and closes. At application level the door has to secure the building, because a door which works perfectly is still useless if it has been fitted next to a large hole in the wall. At interoperability level the door has to work with a frame and a lock supplied by somebody else.
-
-For Ze, a parser can return the right values in a Go test while the complete daemon sends the wrong message on the wire. Ze can also agree with its own test peer while FRR, BIRD or another implementation rejects the result. Each level catches a class of mistake the level below cannot see.
-
-The other direction asks what happens under unusual, hostile or expensive conditions. Fuzzing looks for the inputs the developer did not think to write, and race detection for the failures caused by operations happening at the same time. Mutation testing looks for the tests which stay green after the code has been deliberately broken. Allocation checks watch for unexpected memory use in work which runs frequently, and benchmarks for important work becoming unacceptably slow.
-
-I group benchmarks with the safety checks rather than with performance work because uncontrolled CPU and memory use becomes an operational failure, and occasionally a denial-of-service weakness.
-
-The two directions cross each other. A parser can be tested for correct output and then fuzzed with malformed input. A subsystem can be checked for its normal result and then run under the race detector.
-
-All of that is ordinary engineering judgement, and judgement is the part an agent is worst at. It has to place a change on both axes before writing a line, and everything about its situation pushes the choice downwards. A unit test is faster to write, faster to run and far easier to turn green. So Ze takes the choice away from it, and testing goes through the same chain as the registration rule above.
-
-## Which test a change owes
-
-<p class="blog-section-reveal">Repository rules should assign each change the test depth its risk requires.</p>
-
-`ai/rules/testing.md` is one of the rule files the task index routes to, and it is marked blocking, which puts it in front of the agent before the implementation exists rather than during review. Most of it is a lookup. The kind of change decides the test the change owes and the directory that test lives in.
-
-| Change | Test it owes | Where |
-| --- | --- | --- |
-| BGP wire behaviour | a `.ci` scenario matching the bytes | `test/encode/`, `test/decode/` |
-| A new configuration option | a scenario proving the parse succeeds or fails | `test/parse/` |
-| A CLI subcommand | a scenario running the real command | `test/ui/` |
-| A web endpoint | a scenario with HTTP expectations | `test/web/` |
-| A configuration reload | a scenario driven by SIGHUP | `test/reload/` |
-| Plugin behaviour | a scenario exercising the plugin API | `test/plugin/` |
-
-The rule continues in the same way for interoperability, editor behaviour, fleet management and cross-component work. Unit tests on their own are accepted for genuinely internal logic, and the rule lists those cases so the exception cannot be invented on the spot. Everything else owes both kinds. Around {{ze:e2e-tests}} `.ci` scenarios and {{ze:editor-tests}} editor `.et` scenarios are what that produces, next to the Go unit tests.
-
-The test comes first and has to fail before the implementation is written. Each one carries `VALIDATES:` and `PREVENTS:` comments, so a later reader learns what the test proves and which regression it was written against.
-
-The writing happens in an incubator. `test/draft/` is gitignored and skipped by every repository-wide gate, so a half-finished scenario cannot turn somebody else's verification run red while its author is still iterating on it. A draft ends in one of two moves, promotion into the live suite or deletion, and stopping anywhere else is refused. A scenario sitting in the incubator tells the next session nothing about whether it is abandoned scaffolding or work in progress.
-
-## A test can gate nothing and still be green
-
-<p class="blog-section-reveal">A green test is evidence only when the intended defect can make it fail.</p>
-
-A test which exists can still guard nothing. A scenario passes happily when the result it observes arrives through some path other than the one under test. Three of Ze's redistribution tests stayed green with the late-join replay they existed to prove disabled: the route reached the peer another way, and nothing had ever asked them to prove otherwise.
-
-So a new behavioural test is broken on purpose before it is trusted. Disable the function the test exists to prove, rebuild the real program, confirm the scenario fails, restore the function and confirm it passes again. Claude 5 started doing that on its own, and nobody had asked for it.
-
-It catches tests which observe an unchanged path, along with tests which assert something that was already true before the feature existed, and it is now written into the rule as mandatory for any test meant to guard a specific behaviour. Automation does not reach that far: gomu rewrites production Go code and checks whether the unit tests notice, and nothing in the pipeline runs the `.ci` and `.et` scenarios under mutation.
-
-Two detectors run as stage ten of the verification command. One finds a test with no reachable failure call, which cannot go red whatever the code does. The other finds a test file whose build tag no target ever supplies, so it never compiles into anything. Neither shows up in a count of tests, which is how the published totals grew for years with both hiding inside them. The counts are committed as floors which may only go down, so a regression cannot be laundered into the baseline by regenerating it.
-
-The class nothing catches is a test which rebuilds the logic it names inside itself and asserts against its own copy. It is green against the correct implementation and the broken one alike, and its name reads as coverage of the real thing.
-
-Three of those sat in the BGP reactor tests until a few days before this article, each maintaining its own map of which address families a peer had been sent an End-of-RIB for, a structure which existed in no production code. A session read them and was one step away from reporting a conformance violation which does not exist.
-
-A detector was tried and rejected. Every table-driven test builds local fixtures, so it fired on hundreds of correct tests, and a check that noisy gets switched off. What replaced it is a habit an agent can apply while reading: name the function under test, then confirm the test body calls it.
-
-Test volume alone creates false confidence. Ze's test-health page records volume, and it also reports the tests which assert nothing, the enrolled RFCs with no proven requirement, the mutation kill rate package by package, and how much of the suite expects a specific error rather than any error at all. The useful question is whether a plausible defect would make the evidence fail.
-
-## Protect the proof from its author
-
-<p class="blog-section-reveal">Evidence stays credible when weakening it requires visible and independent approval.</p>
-
-An AI which sees a failing test will sometimes change the test to match its implementation. The result is green, internally consistent and wrong. Humans do this too, usually more slowly and with better excuses.
-
-A single edit does the damage, and every later stage then agrees with it, which is why this check sits at the earliest point there is. An edit hook reads every write to a test file and refuses the recognisable moves: adding a skip, dropping assertions, downgrading a fatal assertion to a warning, deleting table rows, removing expectations from a scenario. When a relaxation is genuine, the reason goes on the line and the edit proceeds:
-
-```text
-# test-relax: <why this test/assertion no longer applies>
-```
-
-Around 60 lines in the tree carry a genuine one, and reading them is how I find out what has been given up. There are 755 markers across 468 files, so most of them are receipts left by a hook which fires on edits that relax nothing, and separating the two took an audit I should not have needed. The agent writing the relaxation also writes its reason, so what I am reading is its own account of why the test no longer applies. On the tests that matter most, that is not good enough.
-
-A test tagged with an RFC requirement is the evidence behind a public compliance claim, and there the hook refuses outright:
-
-```text
-✘ BLOCKED: RFC-tagged test - ask the user before changing it
-  grmarker_test.go enforces RFC obligations:
-    - RFC4724-4.1-4 positive
-  These are the proof behind a public compliance claim
-  (docs/features/rfc-status.md), counted by `./le rfc check`.
-  Editing the test to match the code inverts that: the obligation stops
-  being proven while still being advertised.
-  Fix the CODE. If you believe the test is genuinely wrong, STOP and show
-  the user the RFC text next to the test.
-  `// test-relax:` does NOT authorize this: it is your own justification,
-  not the user's approval.
-```
-
-Approval leaves its own record on the changed test, dated and greppable, so a decision I made in one conversation is still visible to the session that arrives a month later.
-
-I described the ledger behind those tags in [The proof is the expensive part](../the-proof-is-the-expensive-part/), so I will not repeat it here beyond the principle it rests on: the authoring process has to make every attempt to weaken the evidence visible, whether the author is a model or a person.
-
-## What this costs
-
-<p class="blog-section-reveal">Repository context and deeper checks trade maintainer time for stronger automated evidence.</p>
-
-I would rather not pretend this machinery is free.
-
-The generated indexes are large. `ai/CODE-TO-DOCS.md` and `ai/DOCS-TO-CODE.md` are around a quarter of a megabyte each, and the RFC requirement ledger is over a megabyte. Nobody reads those files, but they are regenerated, checked and committed, and they make diffs noisier.
-
-The six thousand cross-reference comments have to stay true. Every renamed file, every moved design document and every merged package is a small maintenance debt. The checks stop them rotting silently, which means they turn into failures somebody has to clear.
-
-A full verification run is slow enough that I do not run it after every edit, so most of the day I run the cheap stages and rely on the full run before a commit is accepted. That is a real gap and I know it. Breaking every new behavioural test on purpose adds a rebuild and a second run on top of that, minutes at a time, and it is the one item on this list I have never regretted paying for.
-
-The hooks fire on code which is correct. A pattern which is right ninety-five times out of a hundred still blocks the other five, and arguing with a hook is more annoying than arguing with a person. When a rule turns out to be wrong, it has already been copied into hundreds of files by an agent which was doing exactly what it was told.
-
-I still think the trade is worth it, because the alternative is reading every diff myself. None of that is automated, and it spends my time instead of machine time. It is a trade though, and a smaller project should pick the parts which pay for themselves rather than copying all of it.
-
-## A project can build this incrementally
-
-<p class="blog-section-reveal">Projects can add repository context gradually through conventions that prevent repeated mistakes.</p>
-
-Ze's machinery is large because Ze is large and because we have been learning while building it. Another project can start with the useful core, roughly in this order.
-
-1. **Make the project folder runnable.** Keep configuration, fixtures and working data in predictable places, and reduce the differences between development, testing and installation.
-2. **Write a short architecture map.** Explain the major directories, what belongs in each one and which dependencies are allowed.
-3. **Create one task-oriented index.** Route the common jobs to the relevant design, rule and example.
-4. **Link source to design and back again.** Put the link where an agent opening the source will see it, generate the reverse index so no large table is maintained by hand, and fail the build when either side goes stale.
-5. **Record the approved patterns.** Show how the project implements registration, configuration, commands, storage and the other repeated concerns.
-6. **Turn repeated mistakes into checks.** Start with the cheap ones, for patterns which can be recognised reliably.
-7. **Test for depth and under pressure.** Cover function, subsystem, application and third-party software where the feature needs it, then add fuzzing, race detection, mutation checks, memory limits and benchmarks according to the risk. Write down which kind of change owes which kind of test, so an agent looks the answer up instead of deciding how much proof it feels like producing.
-8. **Provide one verification command.** Run the cheap failures before the expensive evidence, and continue far enough to report every useful failure rather than stopping at the first.
-9. **Make every failure useful.** Name the problem, the affected file, the expected pattern and the document which explains the correction.
-
-The point of writing any of it down is retention. A prompt correction lasts for one conversation. A documented pattern, linked from the code and backed by a check, survives the next agent, the next human and the next year.
-
-Ze has not found the solution, and we are still working on it. This describes summer 2026, and model releases arrive almost every month. Each one moves the boundary: a more capable model may make some of this machinery unnecessary, or it may use a richer structure correctly and justify adding more. If you are reading this later, check which of these problems have already been solved before copying anything.
-
-Claude has developed its own vocabulary while helping me build all of it. For every RFC `MUST`, Ze tests the valid case and the failure case. I called those positive and negative tests. Claude calls them the two polarities. Claude also calls important decisions load-bearing, so often that it has become an online joke. If this continues, I expect the larger ones to become load-banging. I normally cut the phrase from prose. This time the joke has earned its place.
+*Last updated: 8 September 2026. The history of this article is available in the [project's Git repository](https://github.com/ze-software/ze/commits/main/website/blog/posts/the-repository-is-the-ai-harness.md).*

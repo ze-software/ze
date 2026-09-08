@@ -2,9 +2,9 @@
 title: AI slop is the wrong test
 date: 2026-08-03
 author: Thomas Mangin
-description: Ze is an AI-written NOS. The useful question is whether the code is constrained, reviewed, tested and measured.
+description: Ze is an AI-written network operating system. I remain responsible for what it ships, including the mistakes a model makes and the limits of the tests meant to catch them.
 
-deck: Authorship says little about whether code belongs in a network operating system. Constraints, review, tests and measurements decide that.
+deck: I use AI to write Ze, but accepting its output requires expertise I can answer for when the software fails.
 
 image: assets/blog/ai-slop-is-the-wrong-test.svg
 image-dark: assets/blog/ai-slop-is-the-wrong-test-dark.svg
@@ -12,116 +12,50 @@ image-alt: Fast generated output enters a narrowing evidence path through protoc
 
 ---
 
-Ze is an AI-written NOS. I decide the architecture, the tradeoffs, what the code must never break and what gets rejected. Claude turns that into implementation.
+Ze is an AI-written network operating system. I decide the architecture, the tradeoffs, what the code must never break and what gets rejected. Claude turns that into implementation.
 
-That is also how I use it for these articles. I am lazy, and my time is limited. I want the time I do have spent on the judgement, the corrections and the parts only I can supply.
+I use AI to help write these articles too. I am lazy, and my time is limited, so I want to spend it on the judgement and the corrections, with help putting them into words. That does not transfer responsibility for either the software or the articles to the model.
 
-That makes some people uncomfortable. I understand why.
+"AI slop" tells me how someone thinks the code was produced, but gives me little to investigate. A claim that Ze mishandles a packet or that a test cannot catch the error gives me something I can answer. I want the argument about generated code to reach that level, because accepting code on the strength of a working demo is a failure whether a person typed it or a model produced it.
 
-Calling it "AI slop" is easy. It is also too vague to be useful. Slop is code accepted because it was generated, merged because it compiled, or trusted because the demo worked once. AI makes that failure mode cheap. It can produce more bad code in an afternoon than a bad programmer could type in a week.
+*This article was drafted and revised with OpenAI Codex. The ideas, experience and conclusions are mine.*
 
-Manual code can be slop too. AI just removes the production cost.
+## The objections need their scope
 
-*This article was drafted with OpenAI Codex. The ideas, experience and conclusions are mine.*
+In July 1983, [Real Programmers Don't Use Pascal](https://www.pbm.com/~lindahl/real.programmers.html) satirised programmers who treated FORTRAN and assembly as evidence of competence. I recognise the temptation to judge someone by their tools, though the comparison has limits. A compiler translates a program under language rules; a model can invent an API or misunderstand the requested behaviour, and the history of compilers cannot tell us how reliable AI coding will become.
 
-## I have heard this argument before
+There is evidence of the risks. Veracode's [2025 GenAI Code Security Report](https://www.veracode.com/blog/genai-code-security-report/) reported that 45 per cent of generated samples failed its security tests, across Java, Python, C# and JavaScript. That is a result from its evaluation, rather than an estimate of the vulnerable share of every AI-written codebase, and it is enough to reject the assumption that plausible output is safe output.
 
-<p class="blog-section-reveal">Expert judgement survives each new abstraction because it governs decisions automation cannot make.</p>
+Productivity also needs measurement. In [METR's early-2025 study](https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/), 16 experienced open-source developers took 19 per cent longer on tasks in familiar repositories when AI tools were allowed, while believing they had been faster. METR now says that result no longer reflects current tools, but its [February 2026 update](https://metr.org/blog/2026-02-24-uplift-update/) also says the follow-up data gives only very weak evidence for the size of any improvement. Developers' reluctance to work without AI had introduced selection effects, and concurrent agent use made time spent harder to measure.
 
-In 1983, Ed Post published [Real Programmers Don't Use Pascal](https://www.pbm.com/~lindahl/real.programmers.html), a satire of the culture which treated FORTRAN and assembly as real programming and everything else as soft. It was funny because the attitude existed.
-
-The serious version of the argument was stronger than people now remember. Hand-written assembly was faster. It gave direct control over the machine. It avoided weak compilers, poor optimisers and unpredictable output. If you were writing the inner loop of a graphics engine or a codec, a good assembly programmer could beat the compiler.
-
-For a while, that was true.
-
-Then compilers improved and software got larger. The economics changed. The question became less about whether a human could beat the compiler in one loop, and more about whether a team could still understand, port and change the whole program.
-
-The history of id Software shows the transition well. The released [Quake source](https://github.com/id-Software/Quake) still contains hand-written x86 assembly in the rendering path, and Michael Abrash's [Graphics Programming Black Book](https://www.jagregory.com/abrash-black-book/) is still worth reading. By [Doom 3](https://github.com/id-Software/DOOM-3), the engine was a large C++ codebase with isolated SIMD paths and the GPU doing the rasterisation work.
-
-Assembly did not disappear. [FFmpeg still carries pages of x86 SIMD assembly](https://github.com/FFmpeg/FFmpeg/tree/master/libavcodec/x86), because there are places where it still pays, but nobody sane writes a control plane in assembly anymore.
-
-It found its place.
-
-## Generated code has the same problem
-
-<p class="blog-section-reveal">Current evidence should determine which generated-code risks remain credible.</p>
-
-Many objections to AI-written code are fair. Models hallucinate APIs. They miss context. They produce code which looks plausible and fails at the edge. Security is a real concern: Veracode's 2025 GenAI Code Security Report says [45% of generated samples failed security tests](https://www.veracode.com/blog/genai-code-security-report/).
-
-Productivity is also less obvious than the marketing suggests. METR's early-2025 study found that experienced open-source developers working in familiar repositories were [19% slower with AI tools](https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/), while believing they had been faster. METR then [updated the picture in 2026](https://metr.org/blog/2026-02-24-uplift-update/), saying the early result no longer reflected current tools and that follow-up measurement had become difficult because many developers did not want to work without AI.
-
-That is a useful warning in both directions. The tools can waste time. The tools also move fast enough that confident claims expire quickly.
-
-I agree with the warning. I disagree with the conclusion some people attach to it.
+I cannot use either study to claim a productivity gain for Ze. They do give me a reason to distrust the feeling of progress when an agent has produced a large patch, and to examine how much of that patch survives review and correction.
 
 ## Ze assumes the generator is untrusted
 
-<p class="blog-section-reveal">Project rules and independent evidence determine whether generated output is safe to accept.</p>
+I treat Claude as a generator which can follow precise constraints and will sometimes fail to follow them. It can explore alternatives and run tools, then revise the implementation against the design. I still have to decide whether the result is acceptable, including whether the tests themselves are asking the right thing.
 
-Ze does not treat Claude as an engineer who understands the system. It treats Claude as a fast generator which can follow precise constraints and will sometimes fail to follow them. It can explore alternatives, write tests, run tools and revise code until the evidence matches the design.
+For a BGP encoder, I want evidence that the bytes meet the protocol's requirements and that the implementation respects the ownership rules of the surrounding code. A test which calls a Go function checks a different boundary from one which starts Ze and talks to it as a peer. Both can pass while a case we did not think of remains broken.
 
-That distinction matters.
+Ze's public [quality model](https://ze-software.net/quality/) sets out which kinds of evidence belong at those different boundaries. A parser failure should leave a test or a fuzz corpus entry, and a claim about Linux behaviour needs an exercise on Linux. For a memory optimisation, I want a repeatable benchmark with a stated allocation contract. These are acceptance requirements; listing them is no claim that every part of Ze has met them.
 
-A BGP encoder is not correct because Claude wrote it. It is correct when it emits legal wire bytes, rejects illegal inputs, preserves ownership rules, passes the protocol tests and still behaves correctly when a test starts Ze and talks to it as a peer, rather than calling a Go function directly. A memory optimisation is not correct because a benchmark got faster once. It is correct when the allocation contract is explicit, the benchmark is repeatable and the failure mode is safe.
+A generated test can repeat the same misunderstanding as the generated implementation, so a green run needs scrutiny too. A model may remove the assertion which exposed a bug or change the expected result to match the code, and that leaves the failure in place. [The proof is the expensive part](../the-proof-is-the-expensive-part/) describes how Ze connects requirements to evidence and what it costs to check that the connection means anything.
 
-That is why Ze has a public [quality model](https://ze-software.net/quality/). Local Go tests, fuzz targets, mutation checks, functional transcripts, browser tests, QEMU runs, interop tests, performance gates and release evidence all have different jobs. A parser bug should leave a test or corpus entry. A CLI bug should leave a functional transcript. A Linux behaviour should run on Linux. A performance claim should have a benchmark and a scope.
+## I have to be able to debug it
 
-Claude can write a parser, a protocol encoder, a web page, a benchmark and a hundred test cases in the time a human would spend preparing the first patch. The output earns nothing by existing. It has to match the protocol, preserve the invariants, fit the ownership model, pass the narrow check, then pass the wider gate.
+I know BGP because I have operated it, implemented it, broken it and been called to fix my own code late at night. That background matters when Claude proposes a route-selection shortcut or a peer-state transition. I can compare the suggestion with something beyond the explanation the model supplies.
 
-If a piece of generated code cannot be explained, bounded, tested or measured, it does not belong in Ze.
+I had not implemented IS-IS or OSPF before Ze, but I could bring my experience of protocol debugging to them. With link-state routing I have to reason about the topology database and the route calculation, as well as how information reaches neighbouring routers. If the implementation behaves strangely, I need to reduce the failure to a packet or a state transition that I can explain.
 
-## The skill has moved
+My maths is very rusty, but I understand Dijkstra's algorithm and enough set theory to reason about reachability and shortest paths. My networking knowledge is low-level enough to know when the packet, socket or kernel behaviour is the suspect, and my debugging skills come from maintaining my own code in production. I still use Wireshark to decode TCP when I need help, and I need to recognise when its answer contradicts what I expected.
 
-<p class="blog-section-reveal">Expertise defines the constraints and recognises failures that generated code cannot explain.</p>
+When Claude is wrong, I must be able to stop it and read the RFC, then build a reproduction which demonstrates the rule it broke. If I cannot debug the problem without the model, I cannot safely ask the model to write the code. Writing down more instructions does not remove that limit.
 
-The uncomfortable part is that this does not remove expertise. It moves where the expertise is spent.
+## Accepting the code makes it mine
 
-I know BGP because I have operated it, implemented it, debugged it, broken it and been called to fix my own code late at night. That background matters when Claude proposes a route-selection shortcut, a peer-state transition, a capability rule or an error path. The same kind of knowledge carries across protocol work.
+Reviewing a plausible diff is insufficient when the failure only appears across a peer connection or at capacity. I need to know which test would fail if the change were wrong, and which decisions the model took that it had no authority to take. Those questions apply to human-written code too, though generating a large change quickly makes it easy to leave them unanswered.
 
-I had not implemented IS-IS or OSPF before Ze. That does not mean starting from nothing. Link-state protocols still have a graph, a database, flooding rules, timers, sequence numbers, checksums, authentication, neighbour state and Dijkstra at the centre. If the implementation behaves strangely, the work is to reduce the failure to a packet, a state transition, a graph invariant or a route calculation.
+Claude cannot be responsible for an outage, a route leak or a security hole. The people who accept generated code and ship it are responsible, and I will not ask users to excuse a defect because of how Ze was written. My decision to use AI gives me the obligation to understand what I accept.
 
-My maths is very rusty, but enough for that job. I understand Dijkstra's algorithm and enough set theory to reason about reachability, membership, shortest paths and convergence. My networking knowledge is low-level enough to know when the packet, socket or kernel behaviour is the suspect, and my debugging skills come from maintaining my own code in production and being the person called to fix it. That teaches a lot. I still use Wireshark to decode TCP when I need help. That is normal. The important part is knowing what question to ask and when the answer looks wrong.
+I expected Ze to be finished by now. It is not ready, and the issues we keep finding have taken longer to fix than I expected. The repository is open, with the tests and design notes available for scrutiny, but I would rather delay Ze than release it with problems I already know about.
 
-That is the skill I need when Claude is wrong. I must be able to stop it, inspect the packet, read the RFC, build the reproduction, write the narrow test and explain what rule it broke. If I cannot debug the problem without the model, I cannot safely ask the model to write the code.
-
-## The useful question
-
-<p class="blog-section-reveal">Software quality rests on enforceable rules and evidence that exposes plausible defects.</p>
-
-In my opinion, authorship is the least interesting part of the argument. What matters is whether the software practice is strong enough to produce good-quality software and surface the bugs which are inevitable. That is the same question a large team has to answer.
-
-For Ze, the useful questions are practical. Which rule must the code never break? Where is that checked? What input breaks it? What happens at capacity? Which test fails if this code is wrong? Which benchmark proves the optimisation? Which source of truth generates the documentation? Which human decision did the model make that it had no authority to make?
-
-Those questions matter for human-written code too. AI makes them harder to avoid because it produces so much code so quickly. It also makes responsibility easier to dodge if people allow it. Claude cannot be responsible for an outage, a route leak or a security hole. Users should not have to care how the code was written. Vendors are expected to have done their work properly. The authors who accept generated code and ship it are responsible, and they must not hide behind the model. I will not.
-
-The old review habit of reading a diff and deciding whether it looks reasonable is weak against generated work. The diff can look reasonable and still be wrong in a way that only a protocol test, fuzz target or integration run will catch, and even that is not a silver bullet.
-
-This is where I think many AI projects will fail. They will use AI to create code volume without changing the verification model. That deserves the word slop.
-
-Ze is trying to do the opposite. The code is cheap. The proof is the expensive part.
-
-## Where I think this goes
-
-<p class="blog-section-reveal">AI coding can improve while current risks still demand disciplined human control.</p>
-
-AI coding is a young technology. The tooling is immature, the best practices supporting it are still being invented, and the training the models receive is imperfect. A model will still sometimes change a test to make bad code pass. It will still sometimes remove the assertion which was catching the bug, or produce the shape of a fix without understanding the failure. A lot remains to be done before vibe coding can be trusted for serious systems.
-
-That sounds very much like compilers looked to the assembly crowd.
-
-It worked, but good human output was often superior.
-
-There is another pressure this time. The world wants more software than we have good programmers to write and maintain. It is easy to blame AI code because the failure is new and visible. We should also be critical of the industry which existed before AI. Plenty of human software is slow, wasteful and hard to reason about. Some of that comes from treating "Clean Code" as a substitute for taste, and from using high-level languages as permission to stop caring what the program compiles to. We have lived with atrociously performing software for decades.
-
-The skeptics are right about many present failure modes. Their mistake is treating those failure modes as the ceiling. The optimists are right about the trajectory. Their mistake is treating trajectory as permission to skip evidence today.
-
-If I could talk to assembly programmers in 1988, I would say: keep the assembly for the hot loops, and learn C before the economics change around you.
-
-The equivalent now is simple. Learn to work with AI. Keep control of architecture, invariants, review and release. Use it where the evidence says it helps. Push it out of the path where it produces risk.
-
-That is how Ze is being built, and it is why it is taking longer than I expected.
-
-Some people will still call it slop. Fine. The repository is open, the tests are there, the design notes are there, the benchmarks are there. I expected Ze to be finished by now. It is not ready because we see the issues and are fixing them instead of releasing slop.
-
-Good software eventually finds users and earns appreciation, even when it is niche. Bad software just makes up most of GitHub's content, the underwater part of the iceberg that almost nobody sees or discusses, but which still exists. I would rather Ze be late than join that pile.
-
-When Ze is ready, I hope the result speaks for itself. I hope you will like it.
+*Last updated: 8 September 2026. The history of this article is available in the [project's Git repository](https://github.com/ze-software/ze/commits/main/website/blog/posts/ai-slop-is-the-wrong-test.md).*

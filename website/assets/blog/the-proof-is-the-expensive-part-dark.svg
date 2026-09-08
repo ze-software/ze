@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc" viewBox="0 0 1200 675">
   <title id="title">The proof behind a public RFC claim</title>
-  <desc id="desc">A public RFC claim connects to the standard and requirement ID, executed positive and negative tests, a disclosed partial status and gap, and the exact verified change.</desc>
+  <desc id="desc">An RFC requirement connects to tagged positive and negative tests, a public record of remaining work, and a commit snapshot with explicit verification evidence or debt.</desc>
   <defs>
     <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#17141f"/>
@@ -36,7 +36,7 @@
 
   <rect width="1200" height="675" rx="38" fill="url(#canvas)"/>
 
-  <text x="74" y="108" class="headline">A claim is only as strong as its trace.</text>
+  <text x="74" y="108" class="headline">Following one RFC requirement.</text>
 
   <g aria-label="Public RFC claim" filter="url(#shadow)">
     <rect x="74" y="142" width="1052" height="90" rx="22" class="panel" stroke="#42d8bd"/>
@@ -69,10 +69,10 @@
     <text x="139" y="501" class="mono" fill="#b990ff">RFC7606-7.1-1</text>
   </g>
 
-  <g aria-label="Executed positive and negative tests" filter="url(#shadow)">
+  <g aria-label="Tagged positive and negative tests" filter="url(#shadow)">
     <rect x="437" y="284" width="326" height="278" rx="24" class="panel" stroke="#5bc4f0"/>
     <rect x="437" y="284" width="326" height="7" rx="3.5" fill="#5bc4f0"/>
-    <text x="461" y="322" class="eyebrow" fill="#5bc4f0">EXECUTED EVIDENCE</text>
+    <text x="461" y="322" class="eyebrow" fill="#5bc4f0">TAGGED TESTS</text>
 
     <rect x="461" y="342" width="278" height="74" rx="16" fill="#42d8bd" fill-opacity="0.08" stroke="#42d8bd" stroke-width="2"/>
     <circle cx="487" cy="379" r="13" fill="none" stroke="#42d8bd" stroke-width="3"/>
@@ -87,10 +87,10 @@
     <text x="512" y="480" class="detail">bad attribute contained</text>
 
     <path d="M461 527 H476 L483 520 L490 527 H505" fill="none" stroke="#5bc4f0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="519" y="533" class="tiny" fill="#5bc4f0">RUNNER CONFIRMED BOTH</text>
+    <text x="519" y="533" class="tiny" fill="#5bc4f0">RUNNER CLASSIFICATION</text>
   </g>
 
-  <g aria-label="Disclosed gap and verified change" filter="url(#shadow)">
+  <g aria-label="Disclosed status and commit snapshot" filter="url(#shadow)">
     <rect x="800" y="284" width="326" height="278" rx="24" class="panel" stroke="#ffda63"/>
     <path d="M824 284 H963" stroke="#ffda63" stroke-width="7" stroke-linecap="round"/>
     <path d="M963 284 H1102" stroke="#42d8bd" stroke-width="7" stroke-linecap="round"/>
@@ -98,15 +98,15 @@
     <text x="824" y="322" class="eyebrow" fill="#ffda63">DISCLOSED STATUS</text>
     <path d="M838 341 L852 366 H824 Z" fill="#ffda63" fill-opacity="0.12" stroke="#ffda63" stroke-width="2.5" stroke-linejoin="round"/>
     <text x="870" y="356" class="card-title" fill="#ffda63">Partial</text>
-    <text x="824" y="389" class="detail">gap: semantic audit sampled</text>
+    <text x="824" y="389" class="detail">remaining work listed</text>
 
     <path d="M824 411 H1102" stroke="#ffda63" stroke-opacity="0.3" stroke-width="2"/>
 
-    <text x="824" y="443" class="eyebrow" fill="#42d8bd">VERIFIED CHANGE</text>
+    <text x="824" y="443" class="eyebrow" fill="#42d8bd">COMMIT SNAPSHOT</text>
     <rect x="824" y="461" width="48" height="48" rx="12" fill="#42d8bd" fill-opacity="0.1" stroke="#42d8bd" stroke-width="2"/>
     <path d="M837 485 L846 494 L861 476" fill="none" stroke="#42d8bd" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="890" y="481" class="body">exact tree checked</text>
-    <text x="890" y="504" class="detail">commit carries evidence</text>
+    <text x="890" y="481" class="body">named files only</text>
+    <text x="890" y="504" class="detail">evidence or declared debt</text>
     <rect x="824" y="527" width="278" height="18" rx="9" fill="#42d8bd" fill-opacity="0.12"/>
     <rect x="824" y="527" width="226" height="18" rx="9" fill="#42d8bd"/>
     <rect x="1055" y="527" width="47" height="18" rx="9" fill="#ffda63"/>

@@ -2,164 +2,86 @@
 title: The proof is the expensive part
 date: 2026-08-06
 author: Thomas Mangin
-description: Ze uses AI to write code, but an RFC claim only counts after the standard, the tests, the public gap list and the commit process all agree.
+description: Following one malformed BGP attribute from the RFC through Ze's tests to its public evidence shows where the proof stops and what still needs human judgement.
 
-deck: A feature is unfinished until every support claim can be traced from the standard through tests, known gaps and the exact change being committed.
+deck: A requirement ID can connect the standard to a test and a public claim. Deciding whether those things mean the same thing remains the expensive part.
 
 image: assets/blog/the-proof-is-the-expensive-part.svg
 image-dark: assets/blog/the-proof-is-the-expensive-part-dark.svg
-image-alt: A public RFC claim connects to the standard and requirement ID, executed positive and negative tests, a disclosed partial status and gap, and the exact verified change.
+image-alt: An RFC requirement connects to tagged tests and their runner classification, a partial support declaration with remaining work listed, and a commit snapshot carrying evidence or declared verification debt.
 
 ---
 
-I ended [AI slop is the wrong test](../ai-slop-is-the-wrong-test/) with this line: the code is cheap, the proof is the expensive part. This post is the missing explanation.
+Ze is a network operating system being written with AI assistance. A routing daemon can parse the usual BGP UPDATEs and pass the examples its author thought to test, then mishandle a malformed attribute from a peer. A convincing diff gives me very little assurance about that case.
 
-When people hear that Ze is an AI-written network operating system, they usually imagine the worst version of that idea. Ask a model for a routing feature, glance at the diff, run a quick test, merge it. That would be reckless.
+I use Claude to write code and tests, and its speed is useful until it produces both from the same mistaken reading of a requirement. In [AI slop is the wrong test](../ai-slop-is-the-wrong-test/) I called the proof the expensive part. Much of that expense comes from checking the relationship between things which look reasonable on their own.
 
-A routing daemon can look convincing for a long time. It can parse the usual BGP UPDATEs, pass the happy-path examples, and still break when a real peer sends a malformed attribute, a timer fires in the wrong state, or a policy edge case leaks a route.
+Which RFC rule does a feature claim to implement? Which test would fail if it did something else? Does that test run, and can a user follow the public support claim back to what it observes?
 
-I do use Claude to write code. I also use it to write tests, fixtures, small tools and documentation. It is useful because it is fast. It is dangerous for the same reason. It can create a large amount of plausible work before anyone has noticed that the premise was wrong.
+*This article was drafted and revised with OpenAI Codex. The ideas, experience and conclusions are mine.*
 
-So I do not try to make the model more careful by asking nicely. I make Claude show its work, then the tests and checks decide whether that work is good enough.
+## One malformed attribute
 
-Here, proof means quite practical things. Which RFC rule is this feature claiming to implement? Which test proves the normal case? Which test proves the bad packet is rejected? Does that test actually run? If Ze has not implemented a part of the RFC, is that gap written down? If the public web page says an RFC is supported, can we trace that statement back to the code and tests?
+[RFC 7606 section 7.1](https://www.rfc-editor.org/rfc/rfc7606.html#section-7.1) gives a small enough example to follow. BGP's ORIGIN attribute is malformed if its length is not one octet or it has an undefined value. An UPDATE carrying that attribute SHALL be handled using treat-as-withdraw.
 
-That is the system Ze is being built around.
+That last phrase has an operational meaning. Under [section 2](https://www.rfc-editor.org/rfc/rfc7606.html#section-2), all the routes in the affected UPDATE are treated as withdrawn and removed from the routes held for that peer. Ignoring the packet would leave an older route installed. Resetting the session would affect other routes as well.
 
-*This article was drafted with OpenAI Codex. The ideas, experience and conclusions are mine.*
+Ze's [RFC 7606 checklist](https://github.com/ze-software/ze/blob/main/rfc/short/rfc7606.md) gives the ORIGIN rule the ID `RFC7606-7.1-1`. The ID names the document, section and obligation within that section. The same ID can then appear beside a test or a recorded gap without relying on someone remembering which paragraph a test name was meant to cover.
 
-## Start with the standard
+In [`rfc7606_test.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go), `TestRFC7606MalformedOriginLength` constructs an ORIGIN attribute two octets long, calls `ValidateUpdateRFC7606`, and requires the returned action to be exactly `RFC7606ActionTreatAsWithdraw`. Its comment carries the tag `RFC requirement: RFC7606-7.1-1 negative`.
 
-<p class="blog-section-reveal">Naming each obligation gives its tests and public status a stable point of reference.</p>
+The [validator](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606.go) checks the length and the value in `validateOriginAttr`. Other tests in the same file supply the defined values, IGP, EGP and INCOMPLETE, and require acceptance. A router that accepts everything can pass many positive tests, while one that rejects everything can pass many negative tests. Requiring the exact error action also stops a session reset from passing as an acceptable way to contain the bad packet.
 
-A routing feature often starts with an RFC. That already makes life difficult.
+These tests inspect the validator's decision. They cannot tell us whether the running daemon acts on it.
 
-RFCs are prose. They were written by many people, over many years, for human readers. Some are crisp. Some carry old history. Some use the capitalised words `MUST`, `SHOULD` and `MAY`, as described by RFC 2119. Some important rules are in a table, a diagram, a state machine, or an ordinary sentence which never says `MUST` at all. Some describe behaviour for a role Ze does not play. Some quote another RFC, where the real rule actually lives.
+## Following the test into the daemon
 
-This is how compliance becomes vague by accident. You implement the part you remember, add tests for the examples you thought about, and write that the RFC is supported. The code may even be good code. The problem is earlier than the code: nobody wrote down exactly what the code was meant to satisfy.
+The same requirement is tagged in [`test/plugin/rfc7606-withdraw.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-withdraw.ci). That scenario starts Ze and a test peer, sends an UPDATE with the malformed ORIGIN, and expects a later valid announcement over the same connection. It exercises the session-survival part of the behaviour through the running program.
 
-Ze starts by giving each obligation a name.
+Its own comments explain what it cannot establish: it never reads the routing table. Receiving a later UPDATE says nothing about whether the earlier malformed one removed a previously installed route. The scenario therefore does not claim `RFC7606-2-1`, the separate requirement that the routes be treated as withdrawn. That obligation has its own tests.
 
-The hand-written checklists live under `rfc/short/*.md`. A requirement id such as `RFC7606-7.1-1` is meant to be boring and useful. It says: RFC 7606, section 7.1, first obligation in that section. That lets a test, a known gap, an audit result and a public status row all point to the same rule in the same document.
+This is the sort of distinction I need a reviewer to make. The scenario's filename sounds broad enough to cover withdrawal, and its tag is attached to the relevant RFC. Someone still has to read the assertions and notice where their reach ends. Adding another tag would make the report look better without proving any more behaviour.
 
-The gate treats `MUST`, `MUST NOT`, `SHALL`, `SHALL NOT` and `REQUIRED` as obligations. `SHOULD` and `MAY` can still be recorded, but they do not decide whether a commit is allowed to pass. That distinction matters in operations. A nice-to-have and a must-have are different kinds of promise.
+The generated [requirement table](https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc7606.md) puts these tests on the same row. The Go tests are labelled `unit/verify`, and the scenario is `functional/verify`. Those labels describe the kind of test and the verification machinery responsible for it. They are not receipts from a successful run: functional verification selects suites according to the change, so a green verification result alone does not establish that this particular scenario ran.
 
-Cloudflare arrived at the same conclusion from the other end. Their standards are internal documents rather than IETF ones, and [How Cloudflare enforces engineering standards using AI](https://blog.cloudflare.com/engineering-standards-enforcement/) describes giving each statement a stable name which survives edits to the text around it, for the same reason: a rule nobody can point at cannot be checked later. Naming the obligation is what makes everything after it possible, whoever wrote the document. I come back to that convergence in [AI coding has not had its Rails moment](../ai-coding-has-not-had-its-rails-moment/).
+The [carrier code](https://github.com/ze-software/ze/blob/main/internal/le/rfc/carriers.go) derives the functional classification from the verifier's suite list and refuses tags in recognised test formats which have no automatic runner. This catches a test placed outside a live suite. It cannot replace the run result or decide whether the test asserts enough.
 
-## Then check the checklist
+## What reaches the public page
 
-<p class="blog-section-reveal">Bidirectional extraction checks expose requirements omitted from either the RFC or its checklist.</p>
+The [public RFC 7606 ledger](../../quality/rfc-compliance/rfc7606/) publishes the requirement text with those test references. It also separates tags from recorded discrimination evidence: an observed failure after deliberately breaking the claimed behaviour. Where that record is absent, the tagged unit is labelled `unproven`.
 
-A checklist can still miss something. Anyone who has worked with standards, audits or change control knows this failure mode. If the obligation was never written down, every later check can be green while the implementation is still wrong.
+At this revision, RFC 7606 has tagged tests but no stored discrimination file. Its extraction sign-off is absent too. Following this requirement through the repository therefore ends with evidence to inspect and missing records to disclose, rather than a claim that every step has been completed.
 
-That is why Ze has extraction sign-offs in `rfc/extraction/<stem>.json`.
+The connection to the public page is generated. [`RequirementRows`](https://github.com/ze-software/ze/blob/main/internal/le/rfc/render.go) assembles the checklist and test tags, and the [site producer](https://github.com/ze-software/ze/blob/main/internal/le/site/rfcledger.go) consumes those same rows alongside the stored audits and proof records. A separate, hand-maintained public table would give us another place to forget a correction.
 
-The name is dry, but the idea is simple. The checklist says what Ze thinks it must implement. The extraction file says where those requirements came from in the RFC text.
+The overall support status is still a declaration in the summary's metadata, and RFC 7606 is declared `Partial`. One passing ORIGIN test cannot establish support for the rest of the document. The summary records a deliberate gap in section 5.1, and that admission is published alongside the support claim.
 
-A source location means the place in the RFC where the rule was found: a section, a quoted sentence, a table entry, or another small piece of text. Ze checks the link in both directions.
+A missing corner of an RFC may be harmless in one deployment and unacceptable in another. I want an operator to be able to find the missing part before relying on it. The ledger is a statement by the project about its implementation and evidence; it is no IETF certificate.
 
-First, every possible requirement found in the RFC text must either point to a checklist id, or be excluded with a reason. Otherwise Ze may have missed a rule.
+## The checklist also needs review
 
-Second, every requirement in the checklist must point back to the RFC text, or say that a reviewer found it while reading prose the extractor missed. Otherwise Ze may have invented a rule, or attached a test to the wrong part of the standard.
+The ORIGIN rule is unusually easy to extract. RFCs also put obligations in tables and state machines, or in ordinary prose without a capitalised `MUST`. Some requirements apply to a role Ze does not play, and others depend on a different document. An AI can produce an orderly checklist while getting any of those decisions wrong.
 
-This does not prove that Ze understands every RFC perfectly. The extractor can miss prose. A `manual-walk` sign-off records that a human read the document; it does not prove the human understood every obligation. The useful property is smaller and more honest: a missed obligation becomes a named risk, rather than an invisible green check.
+Ze records extraction reviews under `rfc/extraction/`. The [sign-off checker](https://github.com/ze-software/ze/blob/main/internal/le/rfc/signoff.go) compares the source inventory with that record in both directions. A detected source passage needs a classification, and a gated checklist requirement needs a source mapping or a declaration that it came from prose the inventory did not capture. The reviewer supplies the reasons for exclusions.
 
-That helps a lot with AI. A model can read an RFC and produce a plausible list of tests. Plausible is not enough. If it invents a requirement, the link back to the RFC fails. If it ignores a sentence the extractor flagged, the link from the RFC to the checklist fails. If it tries to hide behind a hand-written count, the generated inventory disagrees.
+That exposes an unmatched passage or an unsupported checklist entry. It does not discover an obligation missed by both the extractor and the reviewer. A `manual-walk` sign-off records a review which the gate cannot reproduce mechanically, and a reason for excluding a passage can still be wrong.
 
-The process is boring on purpose. Boring checks are harder to fool.
+Giving requirements stable names is also part of [Cloudflare's engineering standards system](https://blog.cloudflare.com/engineering-standards-enforcement/). Their standards are internal rather than IETF documents, but the need to refer back to the same statement survives that difference. I discuss shared repository conventions in [AI coding has not had its Rails moment](../ai-coding-has-not-had-its-rails-moment/); the cost here is deciding what each named statement obliges Ze to do.
 
-## Tests have to say what they prove
+## Evidence belongs to a particular change
 
-<p class="blog-section-reveal">A test supports an RFC claim only when its tag is valid and its runner executes it.</p>
+The original version of this article described a commit gate which refused a normal commit unless the whole working tree matched a successful verification run. That is no longer the policy. The [current commit path](https://github.com/ze-software/ze/blob/main/docs/contributing/committing.md) permits local commits with failed or missing verification and records the resulting debt. An authorised push is refused while verification debt remains open. Structural failures attributed to the commit still require a recorded reason before it can proceed.
 
-A normal test name is not enough. `TestBadOriginLength` tells a programmer roughly what is being tested. It does not tell the rest of the system which standard claim depends on that test.
+There is a separate problem when several agents share a checkout: the files checked and the files committed may differ. The generated commit script now uses a private index and the contents captured when the commit was prepared. Another session's staged file cannot join that commit, and a later edit to one of its named files stays in the working tree.
 
-Ze's RFC tests carry tags. A Go test can contain a line like this:
+Neither mechanism improves a test's meaning. They preserve which change the evidence or the outstanding debt belongs to, so a local commit is not mistaken for a verified result. The command details belong in the committing guide, where they can change without turning this article into a second manual.
 
-```go
-// RFC requirement: RFC7606-7.1-1 negative - ORIGIN length 2 selects treat-as-withdraw.
-```
+## Where I pay for it
 
-You do not need to read Go to get the point. The tag says that this test is about RFC 7606, section 7.1, first obligation, and that it tests a bad packet. In this case the bad packet has an ORIGIN attribute with the wrong length, and the required result is treat-as-withdraw.
+For the ORIGIN example, the code which selects an action is short. The review has to connect section 7.1 to section 2, distinguish the validator's result from the daemon's behaviour, and refuse to count session survival as proof that a route disappeared. A generated table can retain those decisions, but it cannot make them on my behalf with enough reliability for me to stop questioning them.
 
-Ze normally wants both sides of a MUST-level rule. A positive test proves the good case still works. A negative test proves the bad case fails in the required way.
+I also have to decide whether an exception is legitimate and whether a disclosed gap is acceptable in the design. Those decisions interrupt implementation. A test which was attached to the wrong obligation needs another review even if its code has not changed, and an extraction review can end by adding requirements the implementation does not yet meet.
 
-Without both, tests can lie while still passing. A router that accepts everything can pass many positive tests. A router that rejects everything can pass many negative tests. The useful behaviour is in the middle: accept the legal packet, reject or contain the illegal one, and do both for the reason the RFC gives.
+AI helps with the repetitive parts, including drafting cases and following a precise failure back to its source. It also produces more plausible material for review. I still need to judge whether the test would catch the defect we care about, and an empty gap list cannot tell me what we both failed to notice.
 
-A tag does not make a weak test strong, but it gives the gate something precise to argue about.
-
-The runner also matters. A test only counts if something actually runs it. Ze records what kind of evidence it has: a small Go test, a command transcript which drives the daemon like an operator would, or an interop scenario with another implementation. A tag in a file that no pipeline runs is refused. It is not weak evidence. It is no evidence.
-
-This is one of the places where the system helps AI a lot. Claude will happily create a good-looking test in the wrong directory if the prompt lets it. The RFC gate does not care that the file looks like a test. It asks whether anything executes it. If nothing does, the tag is rejected instead of becoming a false comfort.
-
-## Gaps are allowed to exist
-
-<p class="blog-section-reveal">Published gaps let operators judge whether partial RFC support fits their deployment.</p>
-
-A useful compliance system has to admit failure.
-
-Some RFC requirements do not apply to Ze. Some can only sensibly be tested on the good side or the bad side. Some are real gaps. Ze records those cases as annotations.
-
-A gap is a promise that the requirement is known and not yet met. It is still counted. It is also tied to the public RFC status page.
-
-That page is not an IETF certificate. It is a support ledger for users. It says which RFCs Ze implements, partially implements, does not implement, or has deferred. If a feature is partial, the page should say which part is partial. If an RFC has no gated obligations, it should show why. If the implementation has a known gap, users should not have to guess from marketing language.
-
-Networks are operated on risk, not slogans. A missing corner of an RFC may be harmless in one deployment and unacceptable in another. Hiding the gap does not make the product better. It only moves the risk from the vendor to the operator.
-
-## The gates push back
-
-<p class="blog-section-reveal">Early gates block generated changes that weaken RFC evidence or leave its ledger stale.</p>
-
-The same idea appears while code is being edited. Ze's edit rules reject some changes before they can become part of Ze.
-
-RFC-tagged tests are one example. They are part of a public compliance claim. If Claude tries to change the behaviour of an RFC-tagged test, or remove the tag, the edit hook blocks the change unless the text carries an explicit approval marker. The marker is not magic. It is a human process boundary.
-
-The failure it prevents is common with generated code. The model sees a failing test, changes the test to match the bug, gets a green run, and presents that as progress. For normal code this is already bad. For a public RFC claim it is much worse.
-
-The generated ledger is protected too. `ai/RFC-REQUIREMENTS.md` is built by `./le rfc index-update`. It maps requirements back to tests, annotations, evidence type and audit state. If the ledger is stale, `./le rfc check` says so. The fix is to regenerate it from source rather than edit the table by hand.
-
-Again, this is for the AI as much as for the human. The model gets concrete failure messages: missing bad-packet test, unknown requirement id, tag in a file that no pipeline runs, gap missing from the public status page, stale audit verdict, stale generated ledger. Those messages are much better prompts than "make the quality better".
-
-## Commits have to carry the proof
-
-<p class="blog-section-reveal">Commit evidence belongs to the exact tree and file set that passed verification.</p>
-
-The final guard is the commit path. A commit should carry evidence that this exact set of files was checked. That matters more when several agents can share one working tree and one git index. A failed commit can leave files staged, and the next commit could accidentally carry them.
-
-Ze does not let an agent type `git add` and `git commit` directly. The approved path is `./le commit create`, followed by the exact generated script it reports.
-
-Before the helper prepares a commit script, it asks whether the current tree is byte-for-byte identical to the last successful verify run. The fingerprint includes the current commit, tracked changes and untracked file contents. If the tree changed, or the last verify failed, the helper refuses a normal commit.
-
-When the helper does prepare a commit, it writes a message file and an executable script. The script stages only the explicit files listed for that commit. Then it checks the shared index. If any staged file exists which is not part of this commit, the script aborts. Only then does it run `git commit -F`.
-
-There is one extra check after commits containing Go code. `./le repository tracked-build check` runs after the commit because it tests the source tree git now holds. A pre-commit test can check the working tree. This check catches the case where the committed set itself does not build.
-
-That sounds fussy because it is fussy. It is change control for generated code.
-
-## Why this makes AI useful
-
-<p class="blog-section-reveal">AI becomes useful when precise failures direct its speed towards evidence the system can check.</p>
-
-The usual way to use an AI coding tool is to ask for a feature and then inspect the diff. That is weak. The diff can look reasonable and still break the protocol.
-
-Network engineers already know this pattern. Nobody serious accepts a network change only because the proposed config looks plausible. We use linting, lab tests, staged rollout, telemetry, rollback plans and change windows because the expensive part is proving that the change behaves in the real system.
-
-Ze applies the same instinct to code.
-
-The model is good at the repetitive work: read the failure, find the requirement, patch the file, rerun the narrow check, update the generated ledger, try again. The rules and generated files supply memory and boundaries. The human supplies judgement when the question is about meaning: what role Ze plays, whether a gap is acceptable, whether the test really captures the behaviour, and whether the implementation is still a good design.
-
-This is the part people miss when they ask whether AI can write production code. The answer depends on the production system around it. If the system accepts plausible output, AI will produce plausible output. If the system demands evidence, AI can help produce evidence.
-
-## This is still not finished
-
-<p class="blog-section-reveal">Checks make the remaining risks visible while imperfect tests and human decisions still limit the proof.</p>
-
-There are limits.
-
-Extraction sign-off is still being expanded. Semantic audits are sampled, not total. A `manual-walk` record is an honest declaration, not a proof of understanding. A model can still produce a bad test, a narrow test or a correct test for the wrong reason. A human can still approve the wrong thing.
-
-Those risks are named. They are in the system. They are counted, surfaced or blocked, which is safer than trusting a confident paragraph in a pull request.
-
-I do not think the unique part of Ze is that AI writes a lot of the code. Many projects will do that. Some already do. The unique part is that Ze is being built around the assumption that generated code is untrusted until it earns its place.
-
-The code is cheap. The proof is the expensive part.
+*Last updated: 8 September 2026. The history of this article is available in the [project's Git repository](https://github.com/ze-software/ze/commits/main/website/blog/posts/the-proof-is-the-expensive-part.md).*
