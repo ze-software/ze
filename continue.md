@@ -908,3 +908,156 @@ sessions' in-flight work. It healed later that night and the whole reload suite
 went 44 of 44. A red and a green taken across two different trees are not a pair,
 so nothing was recorded from the runs that straddled a rebuild. Expect to check
 that the tree builds before starting item 1.
+
+### Addendum: BFD work that `a8f7323f64` did not take
+
+Written after that commit. Verify each line against `git ls-tree -r HEAD` and
+`git status` before acting: a sweep to land these was started and its outcome is
+not recorded here.
+
+**A scenario is referenced by HEAD but is not in it.**
+`test/interop/scenarios/bgp-bfd-strict-speaker/` (its `speaker-args` and
+`ze.conf`) was untracked when this was written, while the checker entry naming it
+DID land. The sibling scenarios `bgp-bfd-strict-frr`, `-preup-speaker` and
+`-reload-speaker` are all in HEAD. The missing one is the positive interop half:
+it proves Ze withholds its KEEPALIVE until BFD is Up against a peer that
+negotiates capability 74. Until it lands, that proof exists nowhere in history.
+
+**Also uncommitted at the time of writing:** `rfc/requirements/rfc5882.md`, which
+holds the four tagged units for Section 4.4; `internal/core/bgp/capability/capability_test.go`
+and `negotiated_test.go`; and `internal/plugins/ospf/instance.go`,
+`instance_test.go` and `virtual_link.go`, whose ownership was not established.
+
+**The four generated RFC index files need judgement, not a commit.**
+`rfc/enrolled.txt`, `rfc/not-enrolled.txt`, `ai/RFC-REQUIREMENTS.md` and
+`docs/features/rfc-status.md` have been held back across several closures, for
+the reason recorded earlier in this file: `./le rfc index-update` is whole-tree,
+and running it would publish a `Supported` row for
+`draft-ietf-idr-bgp-bfd-strict-mode` whose producer was not in HEAD. Part of that
+producer IS in HEAD as of `a8f7323f64`, but the reactor half is not, so the row
+would still over-claim. `ai/rules/rfc-compliance.md` forbids publishing a
+conformance claim the tree cannot support, and forbids repairing an over-claim by
+lowering the row instead of proving it. Land these only when the reactor half is
+in HEAD.
+
+**How this was found, because it generalises.** The committing agent's report
+listed three scenario directories as landed and the commit contained three, but a
+fourth existed on disk and in a committed checker. The report was accurate about
+what it did and silent about what it left. Check `git ls-tree -r HEAD` against the
+working tree after any large scoped commit in a shared checkout, rather than
+reading the commit's own summary.
+
+**Outcome of that sweep: `ecb3bfc1b7`**, "bfd: the positive interop scenario and
+the Section 4.4 ledger row", 5 files. The speaker scenario and
+`rfc/requirements/rfc5882.md` are now in HEAD, so the tree no longer names a
+scenario directory it does not contain.
+
+Two things that sweep deliberately left, and they are still open:
+
+- `internal/core/bgp/capability/capability_test.go` is dirty and the commit gate
+  reports it REMOVES `TestParsePathsLimitEmpty`, `TestParsePathsLimitShortRead`
+  and `TestPathsLimitLen`. Those belong to the paths-limit session. Only its
+  author knows whether something replaced them, and `ai/rules/testing.md` wants a
+  `test/weakened/` row for a removal, which nobody else can write honestly. Ask
+  that session before carrying this file.
+- `rfc/enrolled.txt` and `rfc/not-enrolled.txt` stay held. The
+  `draft-ietf-idr-bgp-bfd-strict-mode` row cites `session_bfd_strict.go` and
+  `parsePeerFromTree`, neither in HEAD.
+
+One judgement in that commit worth knowing, because it is the kind a later reader
+might mistake for sloppiness: `rfc/requirements/rfc5882.md` names
+`config_bfd_strict_test.go`, which is held back with the reactor half. It was
+landed anyway because `rfc/discrimination/rfc5882.json` in HEAD already cites the
+same test, so the two artifacts now agree rather than leaving three HEAD-resident
+tags with no ledger row. Both references resolve when the reactor half lands.
+
+## Final state of this session, 2026-09-09
+
+Three commits landed. A large part of the work did not, and this is the exact
+inventory. Verify it with `git status` before acting; other sessions write here.
+
+| Landed | What |
+|---|---|
+| `c3b6433ba8` | as-notation, 140 files. Commit A only, the spec was not removed |
+| `a8f7323f64` | BFD strict mode, 51 files, the self-contained half |
+| `ecb3bfc1b7` | BFD sweep: the positive interop scenario and the Section 4.4 ledger row |
+
+| NOT committed | Files |
+|---|---|
+| update-delay, all of it | `reactor/update_delay.go` and its test, `config/update_delay.go`, `plugin/types_bgp.go`, `test/plugin/bgp-update-delay.ci`, `test/plugin/bgp-update-delay-validation.ci`, `test/ui/bgp-update-delay-command.ci`, `test/interop/scenarios/bgp-update-delay-frr/` |
+| BFD reactor half | `reactor/session_bfd_strict.go` (untracked), `peer_bfd.go`, `peer_run.go`, `peer_settings.go`, `session.go`, `session_handlers.go`, `session_connection.go`, `config.go`, `cmd/peer/*` |
+| as-notation's three owed files | `config/loader_create.go`, `reactor/reactor_api.go`, `plugins/cmd/peer/peer.go` |
+
+update-delay is the exposed one: finished, reviewed clean over four rounds,
+closure done, and none of it is in history. It stopped one step short of
+committing.
+
+### The order, and why each step is where it is
+
+1. **Commit update-delay.** It owns `plugin/types_bgp.go` and
+   `updateDelayPeerDown`, so it is what puts `UpdateDelayStatus` into HEAD.
+   Nothing blocks it today. Run `./le spec session review check` first; if the
+   artifact under `tmp/review/` is gone (that path is gitignored), a fresh review
+   pass is owed and `review-override` is NOT the answer, it records verification
+   debt and is an owner decision.
+2. **Wait for `session_paths_limit.go`.** It is untracked, belongs to a fourth
+   session, and its `nlrisplit` symbols are not in HEAD. `reactor/session.go`
+   cannot be committed by anybody until it lands. This blocks step 3 and belongs
+   to neither spec open here.
+3. **Commit the BFD reactor half**, once 1 and 2 are in HEAD.
+4. **Fix BFD's three round-6 issues**, then round 7, which needs Thomas's
+   authorisation, then closure. The three are listed earlier in this block: the
+   `SO_BINDTODEVICE` regression in `pluginService.EnsureSession`, multi-hop still
+   outside RFC 5882 Section 4.4 while the ledger records it met, and the VRF-blind
+   link table.
+5. **as-notation commit B.** Needs `reactor_api.go` and `cmd/peer/peer.go` in
+   HEAD, which is step 3. Then the four red tests go green and the spec leaves
+   `plan/`.
+
+### Still open, not blocking
+
+- `internal/core/bgp/capability/capability_test.go` removes three paths-limit
+  tests. Ask that session; a removal owes a `test/weakened/` row only its author
+  can write.
+- `rfc/enrolled.txt` and `rfc/not-enrolled.txt` stay held until the BFD reactor
+  half is in HEAD, or they publish conformance for absent code.
+- Two verification-debt rows against `c3b6433ba8` in
+  `plan/verification-debt/fcd89c36.md`.
+- Nothing was pushed. The repository carries verification debt that refuses a
+  push, and no owner authorisation for one was given.
+
+## 9. The work left, as one list
+
+Ordered. Each item says what "done" means, so nobody has to reconstruct it.
+
+1. **Decide the three uncommitted OSPF files.** `internal/plugins/ospf/instance.go`,
+   `instance_test.go`, `virtual_link.go`. Measured 2026-09-09: `go vet
+   ./internal/plugins/ospf/` exits 0, so they compile and block nobody. They are
+   the killed closure agent's fix for a round-4 Review Gate finding, and the
+   finding itself was never written down. Read the diff, decide whether it is a
+   real fix worth finishing with its red observed, or drop it. Do not commit it
+   as it stands: a change with no recorded red and no round closing it is what
+   the rest of this sweep exists to avoid.
+2. **Close `spec-ospf-auto-cost-reference-bandwidth`.** Re-enter `/ze-close` at
+   step 5, its Review Gate, not at the top: deliverables, security and
+   documentation are done and rounds 1 to 3 are clean and recorded. Item 1 is
+   part of this. The session claim is still on the spec.
+3. **Fix the ddos round-5 BLOCKER and close that spec.** `clearStaleDropRule`
+   runs before the FIREWALL engine is configured, so `ApplyAll` autoloads nft and
+   a `backend vpp` box has the wrong table cleared while the VPP drop survives.
+   Fix shape: move the call to the head of ddos-local's `OnConfigure`, verified
+   at `runPluginPhase` first. Paste
+   `tmp/session/2026-09-08-0a21e591-.../scratch/round5-review-gate.md` into the
+   spec's Review Gate; it is not there yet. Correct the guide's exposure table
+   with it. Then round 6, then close.
+4. **Run the three IPsec artifacts, then close that spec.** The two `.ci` and the
+   `dataplane-readback` strongSwan scenario from `03a77aa12` have never executed.
+   The build blocker has cleared. Vacuity walk each, then close.
+5. **Put the `cost` leaf question to Thomas.** He ruled on the router-wide leaf
+   only, so ze gives two answers to what a cost change costs. Extending it is not
+   a one-liner: `reconcile`'s re-pricing arm never writes `e.running`, and
+   `lsdbTopology` prices from that map.
+
+Not in this list on purpose: every journal row this session wrote is committed and
+is a record, not a task. A class file earns its fix in a deliberate pass over the
+journal, never by whoever trips over it next.
