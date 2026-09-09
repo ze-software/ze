@@ -2,7 +2,8 @@
 // RFC: rfc/short/rfc6793.md -- ASN4-to-ASN2 transcoding for RS-client forwarding
 // RFC: rfc/short/rfc7947.md -- Route Server: MUST NOT modify AS_PATH semantics
 // Related: aspath_slot.go -- ASPathEdit, the edit-set rail that prepends on EBGP egress
-// Related: aspath_rewrite.go -- RewriteASPath (prepend + transcode), which ASPathEdit replaced
+// Related: aspath_collapse.go -- CollapseAS4Family, the ingest step that makes every
+// payload here four-octet truth, which is why this file only narrows
 // Related: aspath_as4.go -- shared AS4_PATH construction rule (RFC 6793 Section 4.2.2)
 
 package wireu
@@ -14,28 +15,34 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
-// TranscodeASPath re-encodes the AS_PATH attribute in an UPDATE payload from
-// srcASN4 encoding to dstASN4 encoding without prepending any AS numbers.
+// TranscodeASPath narrows the AS-path family of a four-octet UPDATE payload for
+// an OLD-speaker destination, without prepending any AS numbers.
 //
-// Only the 4→2 direction (srcASN4=true, dstASN4=false) is currently used.
-// The 2→4 direction re-encodes AS_PATH to 4-byte but does NOT merge an
-// existing AS4_PATH (RFC 6793 Section 4.2.3); that merge is done at ingress
-// by the receiving session. Callers needing 2→4 with merge must do so
-// separately.
+// It narrows only. Every payload on the forward path is four-octet truth,
+// because the ingest collapse reconciles the AS-path family once per received
+// UPDATE (aspath_collapse.go, CollapseAS4Family) and relabels the encoding
+// context, so widening has no caller left and the direction is a defect rather
+// than a request. A two-octet source is therefore REFUSED: answering 0 would
+// hand the destination a two-octet AS_PATH labeled four-octet, which is a
+// silently wrong answer rather than a reported one (ai/rules/principles.md).
 //
-// RFC 6793 Section 4.2.2: When sending to an OLD speaker (dstASN4=false),
-// ASNs > 65535 are encoded as AS_TRANS (23456) in AS_PATH, and the original
-// 4-byte values are carried in a new AS4_PATH attribute (type 17).
+// RFC 6793 Section 4.2.2: when sending to an OLD speaker, an AS number above
+// 65535 is encoded as AS_TRANS (23456) in AS_PATH, and the real four-octet
+// values are carried in a new AS4_PATH attribute. The AGGREGATOR follows the
+// same rule through AS4_AGGREGATOR.
 //
-// RFC 7947 Section 2.2.2: Route servers MUST NOT modify AS_PATH for RS-client
-// peers. Transcoding preserves semantic content (same AS numbers) while
-// changing wire encoding, so it does not violate RFC 7947.
+// RFC 7947 Section 2.2.2: a route server MUST NOT modify AS_PATH for an RS
+// client. Narrowing preserves the AS numbers and changes only the wire
+// encoding, so it does not violate that rule.
 //
-// Returns 0 when srcASN4 == dstASN4 (no transcoding needed).
-// Returns the number of bytes written to dst on success.
+// Returns 0 when srcASN4 == dstASN4, which is the destination that needs no
+// work at all. Returns the number of bytes written to dst on success.
 func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 	if srcASN4 == dstASN4 {
 		return 0, nil
+	}
+	if !srcASN4 {
+		return 0, fmt.Errorf("transcode AS_PATH: %w", ErrASPathSourceNotASN4)
 	}
 
 	if len(payload) < 4 {
@@ -156,20 +163,12 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 	var aggIP []byte
 	var needAS4Agg bool
 	var newAggValueLen int
-	if aggAttrOff != -1 && srcASN4 != dstASN4 {
+	if aggAttrOff != -1 && aggValueLen == 8 {
 		aggValueStart := aggAttrOff + aggHdrLen
-		if srcASN4 && aggValueLen == 8 {
-			// 4→2: re-encode 8-byte to 6-byte.
-			aggASN = binary.BigEndian.Uint32(payload[aggValueStart : aggValueStart+4])
-			aggIP = payload[aggValueStart+4 : aggValueStart+8]
-			needAS4Agg = aggASN > 65535
-			newAggValueLen = 6
-		} else if !srcASN4 && aggValueLen == 6 {
-			// 2→4: re-encode 6-byte to 8-byte.
-			aggASN = uint32(binary.BigEndian.Uint16(payload[aggValueStart : aggValueStart+2]))
-			aggIP = payload[aggValueStart+2 : aggValueStart+6]
-			newAggValueLen = 8
-		}
+		aggASN = binary.BigEndian.Uint32(payload[aggValueStart : aggValueStart+4])
+		aggIP = payload[aggValueStart+4 : aggValueStart+8]
+		needAS4Agg = aggASN > 65535
+		newAggValueLen = 6
 	}
 
 	// --- Compute new attrLen ---
@@ -231,19 +230,14 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 				n += attribute.WriteHeaderTo(dst, n,
 					attribute.FlagOptional|attribute.FlagTransitive,
 					attribute.AttrAggregator, uint16(newAggValueLen)) //nolint:gosec // bounded by BGP max
-				if newAggValueLen == 6 {
-					// RFC 6793 Section 4.2.2: "set the AS number field in the
-					// existing AGGREGATOR attribute to the reserved AS number, AS_TRANS"
-					asn := aggASN
-					if asn > 65535 {
-						asn = 23456
-					}
-					binary.BigEndian.PutUint16(dst[n:], uint16(asn)) //nolint:gosec // AS_TRANS handles overflow
-					n += 2
-				} else {
-					binary.BigEndian.PutUint32(dst[n:], aggASN)
-					n += 4
+				// RFC 6793 Section 4.2.2: "set the AS number field in the existing
+				// AGGREGATOR attribute to the reserved AS number, AS_TRANS".
+				asn := aggASN
+				if asn > 65535 {
+					asn = asTrans
 				}
+				binary.BigEndian.PutUint16(dst[n:], uint16(asn)) //nolint:gosec // AS_TRANS handles overflow
+				n += 2
 				n += copy(dst[n:], aggIP)
 			case length != 6 && length != 8:
 				// Genuinely malformed: no other AGGREGATOR length is readable

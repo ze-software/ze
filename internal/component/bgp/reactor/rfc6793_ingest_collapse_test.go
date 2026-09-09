@@ -17,6 +17,7 @@ import (
 	"encoding/binary"
 	"log/slog"
 	"maps"
+	"math"
 	"net"
 	"net/netip"
 	"sync"
@@ -104,6 +105,29 @@ func collapseMixedWidthAttrs() []byte {
 	attrs = append(attrs, collapseAttr(0xC0, byte(attribute.AttrAS4Path),
 		collapseASPathValue(4, collapseSourceAS, collapseRealAS))...)
 	return attrs
+}
+
+// collapseAggregatorAttrs is the attribute section an OLD speaker sends for a
+// path aggregated by aggAS. Its AS_PATH holds one mappable AS number, so the
+// aggregator is the only thing the forward assertion has to narrow.
+//
+// The encoding is the one RFC 6793 Section 4.2.2 obliges the NEW speaker
+// upstream to have used: a non-mappable aggAS travels as AS_TRANS in AGGREGATOR
+// with the real value in AS4_AGGREGATOR, and a mappable one travels in
+// AGGREGATOR alone.
+func collapseAggregatorAttrs(aggAS uint32) []byte {
+	attrs := collapseAttr(0x40, byte(attribute.AttrOrigin), []byte{0x00})
+	attrs = append(attrs, collapseAttr(0x40, byte(attribute.AttrASPath),
+		collapseASPathValue(2, collapseSourceAS))...)
+	attrs = append(attrs, collapseAttr(0x40, byte(attribute.AttrNextHop), []byte{1, 1, 1, 1})...)
+	if aggAS <= math.MaxUint16 {
+		return append(attrs, collapseAttr(0xC0, byte(attribute.AttrAggregator),
+			collapseAggregatorValue(2, aggAS))...)
+	}
+	attrs = append(attrs, collapseAttr(0xC0, byte(attribute.AttrAggregator),
+		collapseAggregatorValue(2, collapseASTrans))...)
+	return append(attrs, collapseAttr(0xC0, byte(attribute.AttrAS4Aggregator),
+		collapseAggregatorValue(4, aggAS))...)
 }
 
 // collapseRecvSession builds a session whose receive encoding context reports
@@ -295,10 +319,19 @@ type collapseDest struct {
 }
 
 // collapseFrame is what one destination received: the AS numbers of its AS_PATH
-// and those of its AS4_PATH when it got one.
+// and of its AS4_PATH when it got one, and the aggregating AS of its AGGREGATOR
+// and AS4_AGGREGATOR when it got those.
+//
+// Each aggregator carries a presence flag beside its value, because absence is
+// what RFC 6793 Section 4.2.2 requires for a mappable aggregating AS, and a
+// bare zero cannot be told from an AS number of 0.
 type collapseFrame struct {
-	asPath  []uint32
-	as4Path []uint32
+	asPath   []uint32
+	as4Path  []uint32
+	agg      uint32
+	aggOK    bool
+	as4Agg   uint32
+	as4AggOK bool
 }
 
 // collapseForwardEnv holds the reactor one forward run drives, with the source
@@ -323,7 +356,7 @@ type collapseForwardEnv struct {
 // cache directly: the whole claim of this spec is that the forward rails become
 // correct because of what ingest did, so a fixture that seeded the cache would
 // prove nothing about either.
-func collapseForwardIngest(t *testing.T, dests []collapseDest) *collapseForwardEnv {
+func collapseForwardIngest(t *testing.T, attrs []byte, dests []collapseDest) *collapseForwardEnv {
 	t.Helper()
 
 	ctx4 := bgpctx.EncodingContextForASN4(true)
@@ -379,6 +412,15 @@ func collapseForwardIngest(t *testing.T, dests []collapseDest) *collapseForwardE
 				if as4, hasAS4 := bodyPathAttr(t, body, byte(attribute.AttrAS4Path)); hasAS4 {
 					frame.as4Path = collapseReadASNs(t, as4, 4)
 				}
+				if agg, hasAgg := bodyPathAttr(t, body, byte(attribute.AttrAggregator)); hasAgg {
+					frame.agg = collapseReadAggregator(t, agg, octetsFor[addr])
+					frame.aggOK = true
+				}
+				if as4Agg, hasAS4Agg := bodyPathAttr(t, body, byte(attribute.AttrAS4Aggregator)); hasAS4Agg {
+					// AS4_AGGREGATOR is four-octet by definition (RFC 6793 Section 3).
+					frame.as4Agg = collapseReadAggregator(t, as4Agg, 4)
+					frame.as4AggOK = true
+				}
 				frames[addr] = frame
 			}
 		}
@@ -420,10 +462,10 @@ func collapseForwardIngest(t *testing.T, dests []collapseDest) *collapseForwardE
 	sourcePeer.mu.Unlock()
 	session.onMessageReceived = r.notifyMessageReceiver
 
-	body := makeUpdateBody(nil, collapseMixedWidthAttrs(), fwdTestNLRI)
+	body := makeUpdateBody(nil, attrs, fwdTestNLRI)
 	hdr := message.Header{Length: uint16(message.HeaderLen + len(body)), Type: msgtype.TypeUPDATE} //nolint:gosec // fixture bodies are small
 	processErr, _ := session.processMessage(&hdr, body, BufHandle{ID: noPoolBufID, Buf: body})
-	require.NoError(t, processErr, "the mixed-width UPDATE must reach the forward cache")
+	require.NoError(t, processErr, "the received UPDATE must reach the forward cache")
 	require.NotZero(t, updateID, "the receive path must hand the forward cache a message id")
 
 	return &collapseForwardEnv{
@@ -522,6 +564,21 @@ func collapseReadASNs(t *testing.T, value []byte, octets int) []uint32 {
 	return asns
 }
 
+// collapseReadAggregator reads an AGGREGATOR or AS4_AGGREGATOR value and answers
+// the aggregating AS number.
+//
+// It refuses any other length rather than answering short, for the reason
+// collapseReadASNs gives: a value this test cannot read means the rail wrote
+// something the assertion is not looking at.
+func collapseReadAggregator(t *testing.T, value []byte, octets int) uint32 {
+	t.Helper()
+	require.Len(t, value, octets+4, "an aggregator value is one AS number and one IPv4 address")
+	if octets == 2 {
+		return uint32(binary.BigEndian.Uint16(value))
+	}
+	return binary.BigEndian.Uint32(value)
+}
+
 // await waits for every destination of a forward run to be dispatched, and
 // answers what each one received.
 func (e *collapseForwardEnv) await(t *testing.T, count int) map[string]collapseFrame {
@@ -553,7 +610,7 @@ func TestForwardUpdateCarriesReconstructedPathToNewSpeaker(t *testing.T) {
 		name: "four-octet eBGP destination", addr: "10.9.0.2",
 		wantPath: []uint32{collapseLocalAS, collapseSourceAS, collapseRealAS},
 	}}
-	env := collapseForwardIngest(t, dests)
+	env := collapseForwardIngest(t, collapseMixedWidthAttrs(), dests)
 
 	sel, err := selector.Parse("*")
 	require.NoError(t, err)
@@ -580,7 +637,7 @@ func TestForwardUpdateNarrowsReconstructedPathToOldSpeaker(t *testing.T) {
 		wantPath:    []uint32{collapseLocalAS, collapseSourceAS, collapseASTrans},
 		wantAS4Path: []uint32{collapseLocalAS, collapseSourceAS, collapseRealAS},
 	}}
-	env := collapseForwardIngest(t, dests)
+	env := collapseForwardIngest(t, collapseMixedWidthAttrs(), dests)
 
 	sel, err := selector.Parse("*")
 	require.NoError(t, err)
@@ -591,6 +648,68 @@ func TestForwardUpdateNarrowsReconstructedPathToOldSpeaker(t *testing.T) {
 		assert.Equal(t, dest.wantPath, frames[dest.addr].asPath, dest.name)
 		assert.Equal(t, dest.wantAS4Path, frames[dest.addr].as4Path,
 			"RFC 6793 Section 4.2.2: the real four-octet AS numbers ride the AS4_PATH")
+	}
+}
+
+// TestForwardUpdateNarrowsAggregatorToOldSpeaker proves the AGGREGATOR half of
+// the same narrowing. The collapse hands the forward path one four-octet
+// aggregating AS, and the rail encodes it for the width the destination
+// negotiated, without the forward rail needing an arm of its own.
+//
+// VALIDATES: AC-12, entered through ForwardUpdate. Both polarities run, because
+// RFC 6793 Section 4.2.2 states two obligations and only the pair pins them:
+// "if the aggregating Autonomous System's AS number is a non-mappable
+// four-octet AS number, then the speaker MUST use the AS4_AGGREGATOR attribute
+// and set the AS number field in the existing AGGREGATOR attribute to the
+// reserved AS number, AS_TRANS. Note that if the AS number is mappable, then
+// the AS4_AGGREGATOR attribute MUST NOT be sent."
+// PREVENTS: a two-octet neighbor losing the aggregating AS behind AS_TRANS with
+// nothing to recover it from, and a spurious AS4_AGGREGATOR beside a mappable
+// one. A single-polarity test passes over the second failure.
+func TestForwardUpdateNarrowsAggregatorToOldSpeaker(t *testing.T) {
+	cases := []struct {
+		name         string
+		aggAS        uint32
+		wantAgg      uint32
+		wantAS4Agg   uint32
+		wantAS4AggOK bool
+	}{
+		{
+			name: "non-mappable aggregating AS", aggAS: collapseRealAS,
+			wantAgg: collapseASTrans, wantAS4Agg: collapseRealAS, wantAS4AggOK: true,
+		},
+		{
+			name: "mappable aggregating AS", aggAS: collapseSourceAS,
+			wantAgg: collapseSourceAS,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dest := collapseDest{
+				name: "two-octet eBGP destination", addr: "10.9.0.3", asn2: true,
+				wantPath: []uint32{collapseLocalAS, collapseSourceAS},
+			}
+			env := collapseForwardIngest(t, collapseAggregatorAttrs(tc.aggAS), []collapseDest{dest})
+
+			sel, err := selector.Parse("*")
+			require.NoError(t, err)
+			require.NoError(t, env.api.ForwardUpdate(sel, env.updateID, "test-plugin", plugin.OperatorSender()))
+
+			frame := env.await(t, 1)[dest.addr]
+			assert.Equal(t, dest.wantPath, frame.asPath, dest.name)
+			assert.Nil(t, frame.as4Path,
+				"RFC 6793 Section 4.2.2: a mappable-only AS path carries no AS4_PATH")
+
+			require.True(t, frame.aggOK, "the AGGREGATOR must reach a two-octet destination")
+			assert.Equal(t, tc.wantAgg, frame.agg, "the AGGREGATOR is written at two octets")
+			assert.Equal(t, tc.wantAS4AggOK, frame.as4AggOK,
+				"an AS4_AGGREGATOR is owed for a non-mappable aggregating AS and forbidden for a mappable one")
+			if tc.wantAS4AggOK {
+				assert.Equal(t, tc.wantAS4Agg, frame.as4Agg,
+					"the AS4_AGGREGATOR carries the real four-octet aggregating AS")
+			}
+		})
 	}
 }
 
@@ -607,7 +726,7 @@ func TestForwardRSCarriesReconstructedPathToClient(t *testing.T) {
 		name: "four-octet route-server client", addr: "10.9.0.4", rsClient: true,
 		wantPath: []uint32{collapseSourceAS, collapseRealAS},
 	}}
-	env := collapseForwardIngest(t, dests)
+	env := collapseForwardIngest(t, collapseMixedWidthAttrs(), dests)
 
 	update, ok := env.reactor.recentUpdates.Get(env.updateID)
 	require.True(t, ok, "the received UPDATE must be in the forward cache")

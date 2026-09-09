@@ -12,4 +12,10 @@ var (
 
 	// ErrUpdateMalformed indicates a structural error in the UPDATE message.
 	ErrUpdateMalformed = errors.New("UPDATE malformed")
+
+	// ErrASPathSourceNotASN4 reports a payload offered for narrowing whose
+	// encoding context says two-octet. Every payload on the forward path is
+	// four-octet truth once the ingest collapse has run (aspath_collapse.go), so
+	// this is a mislabeled payload rather than a request to widen one.
+	ErrASPathSourceNotASN4 = errors.New("AS_PATH source encoding is not four-octet")
 )

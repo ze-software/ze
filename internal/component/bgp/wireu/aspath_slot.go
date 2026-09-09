@@ -148,6 +148,14 @@ func (e *ASPathEdit) Record(mods *filterapi.ModAccumulator, payload []byte, in A
 // MUST NOT be carried in an UPDATE message between NEW BGP speakers." The
 // prepend rail drops it through recordAS4Path, and a withdrawal must not become
 // the one shape that carries it onward.
+//
+// A RECEIVED payload can no longer arrive here holding an AS4_PATH: the ingest
+// collapse drops both AS4 attributes from every UPDATE it reconciles, and takes
+// its fast path only when the peer sent neither (aspath_collapse.go). What is
+// left is the raw override an export filter plugin may return, which
+// filter_ordered.go relays as the destination's base payload after checking its
+// length alone. So the drop below still has a producer, and removing it would
+// leave that one path free to carry the attribute between two NEW speakers.
 func (e *ASPathEdit) recordWithdrawOnly(mods *filterapi.ModAccumulator, section []byte, spans *attribute.SpanIndex, in ASPathIntent) (bool, error) {
 	changed, err := e.recordTranscode(mods, section, spans, in)
 	if err != nil {

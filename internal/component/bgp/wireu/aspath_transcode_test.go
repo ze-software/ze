@@ -56,6 +56,32 @@ func parseAS4PathFromPayload(t *testing.T, payload []byte) *attribute.AS4Path {
 	return nil
 }
 
+// TestTranscodeASPathRefusesATwoOctetSource pins the guard that replaced the 2 to
+// 4 widening arm.
+//
+// VALIDATES: a payload whose encoding context says two octets is REFUSED rather
+// than widened or silently passed through. The ingest collapse relabels every
+// received UPDATE four-octet (aspath_collapse.go), so a two-octet source here is
+// a mislabeled payload, and its caller suppresses the route for that
+// destination rather than sending it.
+// PREVENTS: the shape a plain deletion would have left, which is answering 0 and
+// letting buildFwdBody forward a two-octet AS_PATH to a peer that reads it at
+// four octets. That is a silently wrong value rather than a reported failure
+// (ai/rules/principles.md).
+func TestTranscodeASPathRefusesATwoOctetSource(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{64512}},
+	}, false)
+	payload := buildPayload(nil, concatAttrs(origin, aspath), nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := TranscodeASPath(dst, payload, false, true)
+	require.ErrorIs(t, err, ErrASPathSourceNotASN4,
+		"a two-octet source is a mislabeled payload, not a request to widen one")
+	assert.Zero(t, n, "a refusal writes nothing")
+}
+
 // TestTranscodeASPath_SameEncoding verifies no-op when srcASN4 == dstASN4.
 //
 // VALIDATES: TranscodeASPath returns 0 when no transcoding needed.
@@ -730,36 +756,4 @@ func TestTranscodeASPath_4to2_MalformedAggregatorTinyValue(t *testing.T) {
 	// Verify output contains the original malformed AGGREGATOR bytes.
 	// The attribute header (C0 07 01) + value (FF) should appear in the output.
 	assert.Contains(t, string(result), string(malformedAgg), "malformed AGGREGATOR bytes preserved")
-}
-
-// TestTranscodeASPath_2to4_Aggregator verifies the 2→4 AGGREGATOR transcoding
-// direction (6-byte to 8-byte).
-//
-// VALIDATES: AGGREGATOR re-encoded from 2-byte ASN to 4-byte ASN.
-// PREVENTS: Untested 2→4 code path at TranscodeASPath line 173.
-func TestTranscodeASPath_2to4_Aggregator(t *testing.T) {
-	origin := buildOriginAttr()
-	aspath := buildASPathAttr([]attribute.ASPathSegment{
-		{Type: attribute.ASSequence, ASNs: []uint32{64512}},
-	}, false) // 2-byte AS_PATH
-	aggAddr := netip.MustParseAddr("10.0.0.1")
-	agg := buildAggregatorAttr(65001, aggAddr, false) // 6-byte AGGREGATOR
-	attrs := concatAttrs(origin, aspath, agg)
-	payload := buildPayload(nil, attrs, nil)
-
-	dst := make([]byte, len(payload)+128)
-	n, err := TranscodeASPath(dst, payload, false, true)
-	require.NoError(t, err)
-	require.Positive(t, n)
-	result := dst[:n]
-
-	// AGGREGATOR should be 8 bytes (4-byte ASN + 4-byte IP).
-	asn, valLen, found := parseAggregatorFromPayload(t, result)
-	require.True(t, found, "AGGREGATOR must be present")
-	assert.Equal(t, 8, valLen, "AGGREGATOR value should be 8 bytes for 4-byte encoding")
-	assert.Equal(t, uint32(65001), asn)
-
-	// No AS4_AGGREGATOR needed (2→4 direction).
-	_, _, found = parseAS4AggregatorFromPayload(t, result)
-	assert.False(t, found, "AS4_AGGREGATOR should not be present in 2→4 direction")
 }
