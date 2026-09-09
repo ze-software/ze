@@ -101,7 +101,7 @@ func entryASPath(t *testing.T, entry RouteEntry) []byte {
 func TestRFC6793LongerASPathPrependsLeadingHops(t *testing.T) {
 	raw := concat(wireOriginIGP, wireASPathThreeHops, wireAS4PathOneHop)
 
-	entry, err := ParseAttributes(raw, false)
+	entry, err := ParseAttributes(raw)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -127,7 +127,7 @@ func TestRFC6793LongerASPathPrependsLeadingHops(t *testing.T) {
 func TestRFC6793LongerAS4PathIsIgnored(t *testing.T) {
 	raw := concat(wireOriginIGP, wireASPathTwoHops, wireAS4PathThreeHops)
 
-	entry, err := ParseAttributes(raw, false)
+	entry, err := ParseAttributes(raw)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -149,7 +149,7 @@ func TestRFC6793LongerAS4PathIsIgnored(t *testing.T) {
 func TestRFC6793LeadingConfedSegmentIsPrepended(t *testing.T) {
 	raw := concat(wireOriginIGP, wireASPathConfedLeading, wireAS4PathOneHop)
 
-	entry, err := ParseAttributes(raw, false)
+	entry, err := ParseAttributes(raw)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -172,7 +172,7 @@ func TestRFC6793LeadingConfedSegmentIsPrepended(t *testing.T) {
 func TestRFC6793UnadjacentConfedSegmentIsNotPrepended(t *testing.T) {
 	raw := concat(wireOriginIGP, wireASPathConfedTrailing, wireAS4PathTwoHops)
 
-	entry, err := ParseAttributes(raw, false)
+	entry, err := ParseAttributes(raw)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -213,7 +213,7 @@ func TestRFC6793AggregatorWithRealASIgnoresAS4Attributes(t *testing.T) {
 		rfc6793WireAS4Path,
 		rfc6793WireAS4Aggregator)
 
-	entry, err := ParseAttributes(raw, false)
+	entry, err := ParseAttributes(raw)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -265,7 +265,7 @@ func TestRFC6793AggregatorWithASTransPromotesAS4Aggregator(t *testing.T) {
 		rfc6793WireAS4Path,
 		rfc6793WireAS4Aggregator)
 
-	entry, err := ParseAttributes(raw, false)
+	entry, err := ParseAttributes(raw)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -280,30 +280,6 @@ func TestRFC6793AggregatorWithASTransPromotesAS4Aggregator(t *testing.T) {
 		0x02, 0x02, 0x00, 0x00, 0xFD, 0xE9, 0xFA, 0x56, 0xEA, 0x01,
 	}, entryASPath(t, entry),
 		"the reconstruction runs and the four-octet AS replaces AS_TRANS")
-}
-
-// TestReconstructionCostsNothingWithoutAS4Path pins the cost of the common
-// case. An UPDATE from a session that negotiated four-octet AS support carries
-// no AS4_PATH, so the reconstruction must not run and must not allocate. The
-// two-octet case pays exactly one allocation, the widening buffer, as it did
-// before the reconstruction existed.
-func TestReconstructionCostsNothingWithoutAS4Path(t *testing.T) {
-	asPath4Byte := []byte{0x02, 0x02, 0x00, 0x00, 0xFB, 0xF4, 0x00, 0x00, 0xFD, 0xE9}
-	asPath2Byte := []byte{0x02, 0x02, 0xFB, 0xF4, 0xFD, 0xE9}
-
-	allocs := testing.AllocsPerRun(100, func() {
-		if canonicalizeASPath(asPath4Byte, nil, true) == nil {
-			t.Fatal("the four-octet AS_PATH must be returned as it is")
-		}
-	})
-	assert.Equal(t, 0.0, allocs, "a four-octet AS_PATH with no AS4_PATH allocates nothing")
-
-	allocs = testing.AllocsPerRun(100, func() {
-		if canonicalizeASPath(asPath2Byte, nil, false) == nil {
-			t.Fatal("the two-octet AS_PATH must be widened")
-		}
-	})
-	assert.Equal(t, 1.0, allocs, "widening a two-octet AS_PATH costs one buffer")
 }
 
 // TestParseAttributesCostsNothingExtraWithoutAS4Path pins the same cost at the
@@ -321,12 +297,12 @@ func TestParseAttributesCostsNothingExtraWithoutAS4Path(t *testing.T) {
 
 	// Warm the pools, so the run measures the parse rather than the first
 	// intern of each value.
-	warm, err := ParseAttributes(raw, true)
+	warm, err := ParseAttributes(raw)
 	require.NoError(t, err)
 	warm.Release()
 
 	allocs := testing.AllocsPerRun(100, func() {
-		entry, err := ParseAttributes(raw, true)
+		entry, err := ParseAttributes(raw)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -348,12 +324,12 @@ func TestParseAttributesCostsNothingExtraWithoutAS4Path(t *testing.T) {
 func TestParseAttributesReconstructionCost(t *testing.T) {
 	raw := concat(wireOriginIGP, wireASPathThreeHops, wireAS4PathOneHop)
 
-	warm, err := ParseAttributes(raw, false)
+	warm, err := ParseAttributes(raw)
 	require.NoError(t, err)
 	warm.Release()
 
 	allocs := testing.AllocsPerRun(100, func() {
-		entry, err := ParseAttributes(raw, false)
+		entry, err := ParseAttributes(raw)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -404,7 +380,7 @@ var wireAggregatorWrongWidth = []byte{
 func TestRFC6793EqualCountsPrependNothing(t *testing.T) {
 	raw := concat(wireOriginIGP, wireASPathTwoHops, wireAS4PathTwoHops)
 
-	entry, err := ParseAttributes(raw, false)
+	entry, err := ParseAttributes(raw)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -428,7 +404,7 @@ func TestRFC6793EqualCountsPrependNothing(t *testing.T) {
 func TestRFC6793LeadingASSetIsTakenWhole(t *testing.T) {
 	raw := concat(wireOriginIGP, wireASPathWithLeadingSet, wireAS4PathOneHop)
 
-	entry, err := ParseAttributes(raw, false)
+	entry, err := ParseAttributes(raw)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -453,7 +429,7 @@ func TestRFC6793LeadingASSetIsTakenWhole(t *testing.T) {
 func TestRFC6793MalformedAS4PathIsDiscarded(t *testing.T) {
 	raw := concat(wireOriginIGP, wireASPathTwoHops, wireAS4PathMalformed)
 
-	entry, err := ParseAttributes(raw, false)
+	entry, err := ParseAttributes(raw)
 	require.NoError(t, err, "a malformed AS4_PATH must not cost the UPDATE")
 	defer entry.Release()
 
@@ -478,7 +454,7 @@ func TestRFC6793AggregatorOfTheWrongWidthIsNotRead(t *testing.T) {
 	raw := concat(wireOriginIGP, wireASPathThreeHops, wireAS4PathOneHop,
 		wireAggregatorWrongWidth, rfc6793WireAS4Aggregator)
 
-	entry, err := ParseAttributes(raw, false)
+	entry, err := ParseAttributes(raw)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -502,7 +478,7 @@ func TestRFC6793AggregatorOfTheWrongWidthIsNotRead(t *testing.T) {
 func TestRFC6793LoneAS4AggregatorIsKeptUninterpreted(t *testing.T) {
 	raw := concat(wireOriginIGP, wireASPathTwoHops, rfc6793WireAS4Aggregator)
 
-	entry, err := ParseAttributes(raw, false)
+	entry, err := ParseAttributes(raw)
 	require.NoError(t, err)
 	defer entry.Release()
 

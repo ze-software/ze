@@ -104,10 +104,14 @@ type relaySource struct {
 // resolveRelaySource resolves the source peer's forwarding facts and receive
 // encoding context under a single r.mu read.
 //
-// The receive context is load-bearing: the stored attribute bytes are still in
-// the SOURCE peer's encoding, so AS_PATH is 2- or 4-octet per what that peer
-// negotiated. Handing the reconstructed wire a different context would make every
-// attribute-matching egress filter read a corrupt AS_PATH.
+// The context is load-bearing, and it is the source peer's receive context with
+// ASN4 forced true. The stored attribute bytes went through the ingest
+// reconciliation (collapseASPathFamily, session_read.go), so their AS_PATH is
+// four-octet whatever the source session negotiated, while recvContextID still
+// describes the wire that session reads. Labeling the reconstructed wire with
+// the unmodified receive context would make every attribute-matching egress
+// filter decode a four-octet AS_PATH at two octets. Everything else that
+// context declares, the ADD-PATH map included, is preserved by the relabel.
 func (a *reactorAPIAdapter) resolveRelaySource(srcAddr netip.Addr) relaySource {
 	out := relaySource{addr: srcAddr}
 	a.r.mu.RLock()
@@ -135,7 +139,7 @@ func (a *reactorAPIAdapter) resolveRelaySource(srcAddr netip.Addr) relaySource {
 				GroupName: s.GroupName,
 			}
 		}
-		out.ctxID = srcPeer.recvContextID()
+		out.ctxID = fwdContextIDWithASN4(srcPeer.recvContextID(), true)
 		out.srcID = srcPeer.SourceID()
 		out.strAdr = srcPeer.addrString
 		out.ok = true
@@ -342,8 +346,9 @@ func (a *reactorAPIAdapter) buildRelayUpdate(route *rpc.StoredRoute, src relaySo
 		return nil, 0, errRelayFamily
 	}
 
-	// The reconstruction is emitted under the SOURCE peer's receive context, so
-	// it must carry the framing that context declares. fwdReencodeNLRIs converts
+	// The reconstruction is emitted under the source's relabeled receive
+	// context, whose ADD-PATH map is the source peer's own, so it must carry the
+	// framing that context declares. fwdReencodeNLRIs converts
 	// it per destination afterwards, in both directions, exactly as it does for a
 	// live forward -- so there is one framing decision here and none below.
 	srcAddPath := false
@@ -466,9 +471,10 @@ func (a *reactorAPIAdapter) buildRelayUpdate(route *rpc.StoredRoute, src relaySo
 		// Proven by TestOTCEgressSuppressProviderLearnedWithoutMeta.
 		Meta: nil,
 	}
-	// The stored bytes are still in the SOURCE peer's encoding, so the wire must
-	// carry that peer's receive context or every attribute-matching egress filter
-	// decodes AS_PATH at the wrong ASN width.
+	// The stored bytes carry the four-octet AS path the ingest reconciliation
+	// produced, so the wire must carry the relabeled context resolveRelaySource
+	// built or every attribute-matching egress filter decodes AS_PATH at the
+	// wrong ASN width.
 	wireu.InitWireUpdate(&ru.wireUpdateInline, out.Buf[:n], src.ctxID)
 	updateID := nextMsgID()
 	ru.wireUpdateInline.SetMessageID(updateID)

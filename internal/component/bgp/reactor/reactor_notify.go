@@ -284,8 +284,15 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 				peer.incrUpdatesReceived()
 				// Additionally count EOR as a subset of updates.
 				if wireUpdate != nil {
-					if _, isEOR := wireUpdate.IsEOR(); isEOR {
+					if eorFamily, isEOR := wireUpdate.IsEOR(); isEOR {
 						peer.incrEORReceived()
+						// RFC 4724 Section 4.1 defers the initial routing
+						// update until the End-of-RIB marker has arrived from
+						// every peer it waits for. This is the one site that
+						// decodes an inbound marker, so the startup
+						// convergence hold learns about it here rather than
+						// keeping a second decode of its own (update_delay.go).
+						peer.updateDelayEndOfRIB(eorFamily)
 						// Cancel EOR timeout warning (AC-11).
 						if peer.health != nil {
 							peer.health.onEORReceived()
@@ -452,18 +459,20 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 			src.ClusterID = peer.settings.LoopClusterID
 			src.LoopDisabled = peer.settings.LoopDisabled
 		}
-		// ASN4 from negotiated capabilities (peer may have disconnected).
-		// AC-5 verified-benign unlocked peer.session read: this whole block runs only on
-		// the received path (direction == DirectionReceived, guarded above), which
-		// executes on the peer's session read goroutine — the SAME goroutine that writes
-		// p.session under p.mu in runOnce (peer_run.go). Program order gives a
-		// happens-before edge, so no lock is needed here and none is added (unlike the
-		// sent path, whose callbacks run on other goroutines). Negotiated() itself takes
-		// s.mu.RLock for the field it reads.
-		if hasPeer && peer.session != nil {
-			if neg := peer.session.Negotiated(); neg != nil {
-				src.ASN4 = neg.ASN4
-			}
+		// ASN4 describes the PAYLOAD the filters are about to parse, so it is
+		// read from that payload's own encoding context and not from the
+		// negotiated capability. The ingest reconciliation rewrites a
+		// mixed-width UPDATE into four-octet truth and relabels it
+		// (collapseASPathFamily, session_read.go), so the session and the bytes
+		// disagree on width for exactly the peers this matters for. Its one
+		// reader is LoopIngress (filter/loop.go), which iterates AS_PATH at this
+		// width; reading the session there would make it compare ze's own AS
+		// against a path it decoded at the wrong stride.
+		//
+		// A payload with no registered context leaves the field as it was: the
+		// width is unknown rather than four-octet, and nothing here invents one.
+		if srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID()); srcCtx != nil {
+			src.ASN4 = srcCtx.ASN4()
 		}
 		payload := wireUpdate.Payload()
 		var ingressMeta map[string]any

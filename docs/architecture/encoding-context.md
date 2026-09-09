@@ -465,6 +465,46 @@ func (p *ASPath) WriteTo(buf []byte, off int, ctx *EncodingContext) int {
 }
 ```
 
+#### The receive-side ASN4 relabel
+
+A context relabel is normally an egress step. There is one on the RECEIVE
+path, and it exists because a received payload and the session that read
+it can disagree about width.
+
+`Session.collapseASPathFamily`
+(`internal/component/bgp/reactor/session_read.go`) reconciles the AS-path
+family of every received UPDATE to four-octet truth (RFC 6793 Sections
+4.1 and 4.2.3). The reconciled bytes are four-octet while the session's
+`recvCtxID` still describes the wire that session reads, so the rewritten
+payload is carried by a `WireUpdate` labeled with
+`fwdContextIDWithASN4(recvCtxID, true)`
+(`internal/component/bgp/reactor/forward_context.go`). That helper copies
+the source encoding, flips ASN4, and preserves the ADD-PATH map, the
+family list and the extended-next-hop map, so nothing else about the
+context moves.
+
+The relabel is reached from three sites and each one is load-bearing:
+
+| Site | Why the label must change |
+|------|---------------------------|
+| `collapseASPathFamily` (`session_read.go`) | the reconciled payload the RIB, the ingress filters, the forward cache and both forward rails all read |
+| `resolveRelaySource` (`reactor_api_relay.go`) | `buildRelayUpdate` reconstructs a wire from stored `adj_rib_in` bytes, which are post-reconciliation four-octet ones |
+| the two forward rails | the egress narrowing an OLD-speaker destination gets |
+
+`computeHash` folds ASN4, so two contexts differing only in width can
+never share an id and the relabel always yields a distinct one
+(`TestEncodingContextIDDiffersOnASN4Alone`).
+
+Every consumer of a received UPDATE reads the width from the payload's
+own context rather than from the negotiated capability, which is what
+makes the relabel sufficient: `rib_structured.go` reads
+`ctx == nil || ctx.ASN4()`, `forward_body.go` reads `srcCtx.ASN4()`, and
+`notifyMessageReceiver` sets `PeerFilterInfo.ASN4` from the WireUpdate's
+context for `LoopIngress` to parse AS_PATH at.
+
+<!-- source: internal/component/bgp/reactor/session_read.go -- collapseASPathFamily -->
+<!-- source: internal/component/bgp/reactor/forward_context.go -- fwdContextIDWithASN4 -->
+
 ### Transcoding (srcCtx → dstCtx)
 
 For attributes that may need transcoding between different encoding contexts:

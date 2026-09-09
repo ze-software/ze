@@ -5,6 +5,8 @@ package attribute
 
 import (
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"net/netip"
 
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -500,4 +502,313 @@ func countASNs(segments []ASPathSegment) int {
 		}
 	}
 	return count
+}
+
+// ReceivedASPathFamily carries the four attribute values RFC 6793 Section 4.2.3
+// reconciles, exactly as one received UPDATE carried them, beside the AS number
+// width the sending session negotiated.
+//
+// A nil value says the UPDATE carried no such attribute. A non-nil empty value
+// is a present attribute of zero length, which the reconciliation judges rather
+// than treats as absent.
+type ReceivedASPathFamily struct {
+	ASPath        []byte
+	AS4Path       []byte
+	Aggregator    []byte
+	AS4Aggregator []byte
+	// SourceASN4 is what the SENDING session negotiated, which is what decides
+	// whether the sender is a NEW or an OLD BGP speaker (RFC 6793 Section 4.1).
+	SourceASN4 bool
+}
+
+// ASPathDiscard names one attribute the reconciliation dropped and why.
+//
+// It is a report for the operator log, never a failure: the canonical AS path
+// beside it is always usable. RFC 6793 Section 6 asks for exactly this ("The
+// error SHOULD be logged locally for analysis") and the attribute package holds
+// no logger, so each caller writes the line under its own subsystem.
+type ASPathDiscard struct {
+	Code   AttributeCode
+	Reason error
+}
+
+// CanonicalASPathFamily is the four-octet AS path information and aggregating
+// node one received UPDATE reduces to.
+//
+// ASPath is an AS_PATH attribute value encoded with four-octet AS numbers, and
+// Aggregator an AGGREGATOR attribute value carrying a four-octet AS number.
+// Either is nil when the UPDATE carried no such attribute. No AS4_PATH and no
+// AS4_AGGREGATOR survive: RFC 6793 Section 4.1 forbids carrying either between
+// NEW BGP speakers, and everything downstream of the reconciliation is one.
+type CanonicalASPathFamily struct {
+	ASPath     []byte
+	Aggregator []byte
+	// Discards is nil whenever nothing was dropped, which is every UPDATE that
+	// is well formed. Callers MUST read it and log each entry.
+	Discards []ASPathDiscard
+}
+
+// errAS4FromNewSpeaker is the reason an AS4_PATH or AS4_AGGREGATOR sent by a
+// NEW BGP speaker is dropped rather than used.
+var errAS4FromNewSpeaker = errors.New("RFC 6793 Section 4.1: the attribute MUST NOT be sent between NEW BGP speakers")
+
+// errAS4AggregatorNotChosen is the reason an AS4_AGGREGATOR that was not taken
+// as the information about the aggregating node is dropped.
+var errAS4AggregatorNotChosen = errors.New("RFC 6793 Section 4.2.3: the AS4_AGGREGATOR was not taken as the aggregating node")
+
+// ErrASPathUnreadable reports an AS_PATH attribute value that cannot be read at
+// the width its sender negotiated, so no four-octet form of it exists.
+//
+// A caller rewriting a payload MUST refuse the UPDATE on this error rather than
+// publish one whose AS path is half rewritten.
+var ErrASPathUnreadable = errors.New("AS_PATH is unreadable at the negotiated AS number width")
+
+// ReconcileASPathFamily returns the four-octet AS path information and
+// aggregating node RFC 6793 Section 4.2.3 constructs from one received UPDATE.
+//
+// It is the single declaration of the receive-side reconciliation, so the bytes
+// ze relays and the routes ze stores are built by one rule rather than two.
+// MergeAS4Path beside it owns the construction itself; this function owns which
+// attributes that construction is given.
+//
+// The error is returned only when no canonical AS path exists, which is an
+// AS_PATH that does not parse at the width its sender negotiated. Every other
+// outcome is a usable CanonicalASPathFamily, and the discards it carries are a
+// report for the log rather than a failure (ai/rules/principles.md).
+func ReconcileASPathFamily(recv ReceivedASPathFamily) (CanonicalASPathFamily, error) {
+	// RFC 6793 Section 4.1: "A NEW BGP speaker that receives the AS4_PATH
+	// attribute or the AS4_AGGREGATOR attribute in an UPDATE message from
+	// another NEW BGP speaker MUST discard the path attribute and continue
+	// processing the UPDATE message."
+	//
+	// Both attribute values are already four-octet on this branch, so the
+	// discard is the whole of the work: nothing is merged and nothing is
+	// widened.
+	if recv.SourceASN4 {
+		out := CanonicalASPathFamily{ASPath: recv.ASPath, Aggregator: recv.Aggregator}
+		if recv.AS4Path != nil {
+			out.Discards = append(out.Discards, ASPathDiscard{Code: AttrAS4Path, Reason: errAS4FromNewSpeaker})
+		}
+		if recv.AS4Aggregator != nil {
+			out.Discards = append(out.Discards, ASPathDiscard{Code: AttrAS4Aggregator, Reason: errAS4FromNewSpeaker})
+		}
+		return out, nil
+	}
+
+	// RFC 6793 Section 4.2.3: "A NEW BGP speaker MUST also be prepared to
+	// receive the AS4_AGGREGATOR attribute along with the AGGREGATOR attribute
+	// from an OLD BGP speaker."
+	aggregator, fromAS4, useAS4Path := selectAggregator(recv.Aggregator, recv.AS4Aggregator)
+
+	var out CanonicalASPathFamily
+	if aggregator == nil && recv.Aggregator != nil {
+		// The AGGREGATOR could not be read, so nothing chose between the pair.
+		// It is optional transitive, so it travels on exactly as it arrived
+		// (RFC 4271 Section 5.1.7) and nothing here reinterprets it.
+		out.Aggregator = recv.Aggregator
+	} else {
+		out.Aggregator = canonicalAggregator(aggregator)
+	}
+
+	// An AS4_AGGREGATOR that was not taken as the aggregating node carries no
+	// information forward. RFC 6793 Section 4.1 forbids relaying it to a NEW
+	// BGP speaker, and everything downstream of this reconciliation is one, so
+	// it is dropped and the drop is reported rather than performed in silence.
+	if recv.AS4Aggregator != nil && !fromAS4 {
+		out.Discards = append(out.Discards, ASPathDiscard{Code: AttrAS4Aggregator, Reason: errAS4AggregatorNotChosen})
+	}
+
+	// RFC 6793 Section 4.2.3: "the AS4_AGGREGATOR attribute and the AS4_PATH
+	// attribute SHALL be ignored, ... and the AS_PATH attribute SHALL be taken
+	// as the AS path information." An ignored AS4_PATH reaches the
+	// reconstruction as an absent one.
+	as4Path := recv.AS4Path
+	if !useAS4Path {
+		as4Path = nil
+	}
+
+	canonical, discards, err := canonicalizeASPath(recv.ASPath, as4Path)
+	if err != nil {
+		return CanonicalASPathFamily{}, err
+	}
+	out.ASPath = canonical
+	out.Discards = append(out.Discards, discards...)
+	return out, nil
+}
+
+// selectAggregator returns the attribute value that is the information about
+// the aggregating node, whether that value came from the AS4_AGGREGATOR, and
+// whether the received AS4_PATH is used. A nil value says nothing could be
+// taken as the aggregating node.
+//
+// RFC 6793 Section 4.2.3: "When both of the attributes are received, if the AS
+// number in the AGGREGATOR attribute is not AS_TRANS, then: - the AS4_AGGREGATOR
+// attribute and the AS4_PATH attribute SHALL be ignored, - the AGGREGATOR
+// attribute SHALL be taken as the information about the aggregating node, and
+// - the AS_PATH attribute SHALL be taken as the AS path information."
+//
+// RFC 6793 Section 4.2.3: "Otherwise, - the AGGREGATOR attribute SHALL be
+// ignored, - the AS4_AGGREGATOR attribute SHALL be taken as the information
+// about the aggregating node, and - the AS path information would need to be
+// constructed, as in all other cases."
+//
+// The rule is written for the pair, so one attribute arriving without the other
+// leaves nothing to choose between: the received AGGREGATOR is the aggregating
+// node and the AS4_PATH is used.
+//
+// It is reached only for an UPDATE from an OLD BGP speaker, because the
+// AS4_AGGREGATOR of a NEW one is discarded before the choice arises, so the
+// AGGREGATOR under judgement is always the two-octet form.
+func selectAggregator(aggregatorValue, as4AggregatorValue []byte) (aggregator []byte, fromAS4, useAS4Path bool) {
+	if aggregatorValue == nil || as4AggregatorValue == nil {
+		return aggregatorValue, false, true
+	}
+
+	isASTrans, ok := aggregatorASIsTrans(aggregatorValue)
+	if !ok {
+		// RFC 7606 Section 7.7 discards an AGGREGATOR whose length does not
+		// match the negotiated AS width, so one that reaches here cannot be
+		// read and decides nothing. Guessing its width would answer the choice
+		// above on a value nobody parsed.
+		return nil, false, true
+	}
+	if !isASTrans {
+		return aggregatorValue, false, false
+	}
+	return as4AggregatorValue, true, true
+}
+
+// aggregatorASIsTrans reports whether the AS number leading an AGGREGATOR
+// attribute received from an OLD BGP speaker is AS_TRANS, and whether that AS
+// number could be read.
+//
+// RFC 6793 Section 3: the AGGREGATOR attribute carries a two-octet AS number
+// toward an OLD speaker and a four-octet one between NEW speakers, so its width
+// follows the negotiated four-octet AS capability. RFC 7606 Section 7.7 rejects
+// every other length, which is what makes a disagreeing length unreadable here
+// rather than a shorter form to accommodate.
+func aggregatorASIsTrans(value []byte) (isASTrans, ok bool) {
+	if len(value) != 6 {
+		return false, false
+	}
+	return uint32(binary.BigEndian.Uint16(value[0:2])) == ASTrans, true
+}
+
+// canonicalAggregator returns an AGGREGATOR attribute value carrying a
+// four-octet AS number, widening the two-octet form an OLD BGP speaker sends.
+//
+// RFC 6793 Section 3: the AGGREGATOR attribute carries a two-octet AS number
+// toward an OLD speaker and a four-octet one between NEW speakers, and RFC 7606
+// Section 7.7 rejects every other length. A value of any other length was never
+// read, so it travels on unchanged: nothing here can tell which of its octets
+// are the AS number.
+func canonicalAggregator(value []byte) []byte {
+	if len(value) != 6 {
+		return value
+	}
+	out := make([]byte, 8)
+	binary.BigEndian.PutUint32(out, uint32(binary.BigEndian.Uint16(value[0:2])))
+	copy(out[4:], value[2:6])
+	return out
+}
+
+// canonicalizeASPath returns AS_PATH value bytes in canonical four-octet
+// encoding, and every attribute the construction discarded.
+//
+// With no AS4_PATH beside it the received AS_PATH is the AS path information,
+// widened from the two-octet encoding its sender used. With an AS4_PATH beside
+// it the two are merged per RFC 6793 Section 4.2.3.
+func canonicalizeASPath(aspathValue, as4pathValue []byte) ([]byte, []ASPathDiscard, error) {
+	if aspathValue == nil {
+		// The UPDATE carried no AS_PATH attribute, so RFC 6793 Section 4.2.3
+		// has no AS number count to compare an AS4_PATH against and no leading
+		// part to prepend. The route records no AS path.
+		return nil, nil, nil
+	}
+
+	widened := expandASPath2to4(aspathValue)
+	if widened == nil {
+		return nil, nil, fmt.Errorf("%w: %d octets", ErrASPathUnreadable, len(aspathValue))
+	}
+	if len(as4pathValue) == 0 {
+		return widened, nil, nil
+	}
+	return reconstructASPath(aspathValue, widened, as4pathValue)
+}
+
+// reconstructASPath merges a received AS_PATH and AS4_PATH into the AS path
+// information, in four-octet encoding. widened is the received AS_PATH already
+// expanded to four octets, which is what the two ignore arms answer.
+//
+// This runs only for an UPDATE that carries an AS4_PATH, which an OLD speaker
+// sends and a session between NEW speakers never does. Parsing both attributes
+// into segments costs an allocation each; the common path above reaches none of
+// it.
+func reconstructASPath(aspathValue, widened, as4pathValue []byte) ([]byte, []ASPathDiscard, error) {
+	as4Path, err := ParseAS4Path(as4pathValue)
+	if err != nil {
+		// RFC 6793 Section 6: "A NEW BGP speaker that receives a malformed
+		// AS4_PATH attribute in an UPDATE message from an OLD BGP speaker MUST
+		// discard the attribute and continue processing the UPDATE message.
+		// The error SHOULD be logged locally for analysis."
+		//
+		//nolint:nilerr // the discard IS the outcome: the UPDATE continues, and the reason is reported for the log
+		return widened, []ASPathDiscard{{Code: AttrAS4Path, Reason: err}}, nil
+	}
+
+	asPath, err := ParseASPath(aspathValue, false)
+	if err != nil {
+		// A malformed AS_PATH is judged by the RFC 7606 validators ahead of the
+		// reconciliation. Nothing can be merged into it here, so the widened
+		// bytes stand as they did before an AS4_PATH was ever consulted.
+		//
+		//nolint:nilerr // the merge is skipped rather than failed: the widened AS_PATH is a usable answer
+		return widened, []ASPathDiscard{{Code: AttrAS4Path, Reason: err}}, nil
+	}
+
+	merged := MergeAS4Path(asPath, as4Path)
+	out := make([]byte, merged.LenWithASN4(true))
+	merged.WriteToWithASN4(out, 0, true)
+	return out, nil, nil
+}
+
+// expandASPath2to4 converts two-octet encoded AS_PATH segments to the
+// four-octet encoding, and answers nil for a value that does not parse.
+func expandASPath2to4(data []byte) []byte {
+	if len(data) == 0 {
+		return data
+	}
+	// Pre-scan to validate and compute output size.
+	segments := 0
+	totalASNs := 0
+	offset := 0
+	for offset+2 <= len(data) {
+		segments++
+		count := int(data[offset+1])
+		offset += 2
+		needed := count * 2
+		if offset+needed > len(data) {
+			return nil
+		}
+		totalASNs += count
+		offset += needed
+	}
+	if offset != len(data) {
+		return nil
+	}
+
+	out := make([]byte, 0, segments*2+totalASNs*4)
+	offset = 0
+	for offset+2 <= len(data) {
+		segType := data[offset]
+		count := int(data[offset+1])
+		out = append(out, segType, data[offset+1])
+		offset += 2
+		for range count {
+			asn16 := uint16(data[offset])<<8 | uint16(data[offset+1])
+			out = append(out, 0, 0, byte(asn16>>8), byte(asn16))
+			offset += 2
+		}
+	}
+	return out
 }

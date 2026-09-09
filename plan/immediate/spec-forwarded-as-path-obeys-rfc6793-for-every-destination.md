@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 4/8 |
 | Handoff | - |
-| Updated | 2026-09-08 |
+| Updated | 2026-09-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -331,7 +331,7 @@ every in-process ingress filter parse a four-octet AS_PATH at two octets.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Every consumer of a received UPDATE reads its width from the WireUpdate's encoding context, never from the negotiated capability | `rib_structured.go` (`asn4 := ctx == nil \|\| ctx.ASN4()`), `forward_body.go` (`srcCtx.ASN4()`), `buildFwdBody`'s context comparison | A consumer parses a four-octet AS_PATH at two octets and corrupts every path it reads | A grep for `Negotiated().ASN4` and `neg.ASN4` over every path reached from a received UPDATE, recorded in the spec at implementation time; `PeerFilterInfo.ASN4` is already known to be one such site and is fixed by this spec | CONFIRMED 2026-09-08, and it found a FOURTH relabel site the spec did not name. `resolveRelaySource` (`reactor_api_relay.go`) stamps `srcPeer.recvContextID()`, the SESSION's receive context, onto the wire `buildRelayUpdate` reconstructs from stored `adj_rib_in` bytes. Those bytes are post-collapse four-octet while `recvCtxID` still says two octets, so the relay would label them wrong and every egress filter behind it would parse at the wrong width. The relabel is FOUR sites, and the two comments in that file asserting the stored bytes are still in the source's encoding are made false by this work. Two reads deliberately KEEP the negotiated width: `enforceRFC7606` (`session_validation.go`) judges what the peer sent and runs before the collapse, and every `sendASN4` reader is outgoing. `PeerFilterInfo.ASN4` has exactly one reader, `LoopIngress` |
-| A-2 | Two peers of different negotiated widths can never share a `ContextID`, so the relabel always yields a distinct registered context | `computeHash` folds ASN4 (`internal/core/bgp/context/context.go`) and `ContextRegistry` dedups by that hash | The relabel could return a context another peer reads, and a four-octet label would reach a two-octet session | `TestEncodingContextIDDiffersOnASN4Alone`, registering two contexts that differ only in ASN4 | unvalidated |
+| A-2 | Two peers of different negotiated widths can never share a `ContextID`, so the relabel always yields a distinct registered context | `computeHash` folds ASN4 (`internal/core/bgp/context/context.go`) and `ContextRegistry` dedups by that hash | The relabel could return a context another peer reads, and a four-octet label would reach a two-octet session | `TestEncodingContextIDDiffersOnASN4Alone`, registering two contexts that differ only in ASN4 | CONFIRMED 2026-09-09. The test is written and passes in `internal/core/bgp/context/registry_test.go`: two contexts sharing an identity and an ADD-PATH map and differing only in ASN4 register to different ids, and each id resolves back to a context of its own width |
 | A-3 | `attribute.MergeAS4Path` implements RFC 6793 Section 4.2.3 correctly, including the count comparison and the confederation adjacency rule | `internal/core/bgp/attribute/as4.go` carries the quoted requirement at :383, :396 and :408, and `RFC6793-4.2.3-8`, `-9`, `-10` carry no `{gap}` | The ingest collapse inherits a wrong reconstruction and spreads it to the relayed bytes as well as the RIB | Reading `MergeAS4Path` and its tests, plus the new ingest tests asserting the exact reconstructed path | unvalidated |
 | A-4 | The egress policy prepend (`ExtractASPathPrependOps`, `filter_delta.go`) runs over the pre-narrowing payload, so its `recvAS4` is nil once no AS4_PATH survives ingest | `AS4PathForRewrite`'s doc comment says that caller "edits ONE payload rather than transcoding between two", and passes one width for both ends | The `MergeAS4Path` branch of `AS4PathForRewrite` and `joinSequences` stay reachable and MUST NOT be deleted | Tracing the payload `ExtractASPathPrependOps` is given back to its producer at implementation time, before the deletion in step 6 | BROKEN 2026-09-08, in the safe direction. `exportFilterForBody` (`egress_inject_filter.go`) passes `facts.sendASN4`, so a two-octet destination still reaches the extractor with `asn4` false, and `computeWireChanges` takes an operator-supplied width. So `AS4PathForRewrite`'s merged branch and `joinSequences` are NOT deleted by this spec. What they lose is every FORWARDING caller: an originated body carries no AS4_PATH (no encoder in `internal/component/bgp/message/update_build*.go` emits one), so `recvAS4` is nil on that arm, and the merged branch survives only on the `policy dry-run` path with an operator-supplied body. `AS4PathForRewrite`'s doc comment explains itself in terms of an OLD-speaker SOURCE and is made wrong for the forwarding rails by this work, so it is corrected in the same change (`ai/rules/stale-comments.md`) |
 | A-5 | `ParseAttributes` is reached only with payloads that already passed the ingest collapse, or with injected attributes that are already four-octet | `PeerRIB.Insert` call sites pass a literal `true` except `rib_structured.go`, which passes `ctx.ASN4()` | The RIB's call to the moved rule is still load-bearing for a real two-octet input, and the parameter cannot be reasoned away | A grep over every `Insert` and `ParseRouteEntry` call site, including `rib_commands.go`, `rib_inject.go` and `capture_replay.go`, recorded in the spec | BROKEN 2026-09-08, and it makes the move SIMPLER than the spec said. `storage.ParseAttributes` has no caller outside its own package, and every `PeerRIB.Insert` / `ParseRouteEntry` caller passes a literal `true` except `rib_structured.go`, which the relabel turns into `true` as well. So post-collapse the `asn4` parameter is constant and is DELETED rather than defaulted (`ai/rules/no-layering.md`), and `ParseAttributes` calls none of the moved helpers: it reads a canonical four-octet AS_PATH. The helpers move OUT of `rib/storage` for the ingest rail to use, rather than moving up for the RIB to keep calling. `capture_replay.go` is a writer only and its replay re-enters `processMessage`, so it gets the collapse |
@@ -407,26 +407,26 @@ every in-process ingress filter parse a four-octet AS_PATH at two octets.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestReceiveCollapsesAS4PathIntoASPath` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | AC-1, entry point `processMessage` | |
+| `TestReceiveCollapsesAS4PathIntoASPath` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | AC-1, entry point `processMessage` | PASS |
 | `TestReceiveWidensASPathWithoutAS4Path` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | AC-2 | |
-| `TestReceiveDiscardsAS4PathFromNewSpeaker` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | AC-3, the RFC 6793 Section 4.1 receive obligation | |
-| `TestReceiveKeepsPayloadWhenNoAS4WorkIsOwed` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | AC-9, asserting the returned slice and the context ID are the SAME values, not merely equal | |
-| `TestReceiveCollapseRunsAfterRFC7606` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | R-7, an UPDATE that is both malformed and mixed-width | |
-| `TestReceiveCollapseLogsDiscardedMalformedAS4Path` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | AC-8, both the log line and the continued processing | |
-| `TestCollapseAS4SelectsAggregatorPerSection423` | `internal/component/bgp/wireu/aspath_collapse_test.go` | AC-4 and AC-5, both arms of the AGGREGATOR gate | |
-| `TestCollapseAS4IgnoresOversizedAS4Path` | `internal/component/bgp/wireu/aspath_collapse_test.go` | AC-6, the RFC 6793 Section 4.2.3 count comparison | |
-| `TestCollapseAS4AppliesConfedAdjacencyRule` | `internal/component/bgp/wireu/aspath_collapse_test.go` | AC-7 | |
-| `TestCollapseAS4RewritesAggregatorToFourOctets` | `internal/component/bgp/wireu/aspath_collapse_test.go` | AC-5's AGGREGATOR half and the 2→4 cases moving off `aspath_transcode_test.go` (R-6) | |
-| `FuzzCollapseAS4` | `internal/component/bgp/wireu/aspath_collapse_test.go` | The collapse never panics on peer-supplied input, replacing `FuzzRewriteASPath`'s coverage | |
+| `TestReceiveDiscardsAS4PathFromNewSpeaker` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | AC-3, the RFC 6793 Section 4.1 receive obligation | PASS |
+| `TestReceiveKeepsPayloadWhenNoAS4WorkIsOwed` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | AC-9, asserting the returned slice and the context ID are the SAME values, not merely equal | PASS |
+| `TestReceiveCollapseRunsAfterRFC7606` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | R-7, an UPDATE that is both malformed and mixed-width | PASS |
+| `TestReceiveCollapseLogsDiscardedMalformedAS4Path` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | AC-8, both the log line and the continued processing | PASS |
+| `TestCollapseAS4SelectsAggregatorPerSection423` | `internal/component/bgp/wireu/aspath_collapse_test.go` | AC-4 and AC-5, both arms of the AGGREGATOR gate | PASS |
+| `TestCollapseAS4IgnoresOversizedAS4Path` | `internal/component/bgp/wireu/aspath_collapse_test.go` | AC-6, the RFC 6793 Section 4.2.3 count comparison | PASS |
+| `TestCollapseAS4AppliesConfedAdjacencyRule` | `internal/component/bgp/wireu/aspath_collapse_test.go` | AC-7 | PASS |
+| `TestCollapseAS4RewritesAggregatorToFourOctets` | `internal/component/bgp/wireu/aspath_collapse_test.go` | AC-5's AGGREGATOR half and the 2→4 cases moving off `aspath_transcode_test.go` (R-6) | PASS |
+| `FuzzCollapseAS4` | `internal/component/bgp/wireu/aspath_collapse_test.go` | The collapse never panics on peer-supplied input, replacing `FuzzRewriteASPath`'s coverage | PASS, 2.7M execs clean |
 | `TestCanonicalASPathMatchesMergeAS4Path` | `internal/core/bgp/attribute/as4_test.go` | AC-15, the moved rule producing what `MergeAS4Path` produces for the same inputs | |
 | `TestRIBStoresReconstructedPathFromCollapsedPayload` | `internal/component/bgp/plugins/rib/storage/attrparse_test.go` | Story 2, the RIB reading a collapsed payload at `ctx.ASN4()` true | |
-| `TestForwardUpdateCarriesReconstructedPathToNewSpeaker` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | AC-10, entry point `ForwardUpdate`, eBGP and iBGP and RR-client as subtests | |
-| `TestForwardUpdateNarrowsReconstructedPathToOldSpeaker` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | AC-11, both the non-mappable and mappable-only arms | |
-| `TestForwardRSCarriesReconstructedPathToClient` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | AC-10, entry point `reactorForwardRS` | |
+| `TestForwardUpdateCarriesReconstructedPathToNewSpeaker` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | AC-10, entry point `ForwardUpdate`, eBGP and iBGP and RR-client as subtests | PASS |
+| `TestForwardUpdateNarrowsReconstructedPathToOldSpeaker` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | AC-11, both the non-mappable and mappable-only arms | PASS |
+| `TestForwardRSCarriesReconstructedPathToClient` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | AC-10, entry point `reactorForwardRS` | PASS |
 | `TestForwardUpdateNarrowsAggregatorToOldSpeaker` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | AC-12 | |
 | `TestLoopIngressSeesReconstructedASPath` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | AC-13, and the `plan/journal/gate-excludes-part-of-its-population.md` row | |
-| `TestEncodingContextIDDiffersOnASN4Alone` | `internal/core/bgp/context/registry_test.go` | A-2 | |
-| `TestMessageObserverSeesTheReceivedBytesNotTheCollapse` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | AC-17. It registers an observer, drives the receive path, and asserts the observer's `rawBytes` still parse at two octets and still carry attribute 17, while the dispatched `WireUpdate` carries neither | |
+| `TestEncodingContextIDDiffersOnASN4Alone` | `internal/core/bgp/context/registry_test.go` | A-2 | PASS |
+| `TestReceivedBytesReachTheObserversUncollapsed` | `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` | AC-17. It drives `processMessage` and asserts the `rawBytes` argument is the received slice ITSELF, still two-octet and still carrying attribute 17, while the dispatched `WireUpdate` carries neither. `notifyObservers` (`reactor_notify.go`) hands every observer and `r.rawCapture` that same argument, so the assertion covers the observer view at the site the collapse touches | PASS |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |

@@ -51,8 +51,12 @@ const (
 	actionAlloc           = Area + "/" + VerbAlloc
 )
 
+// allocPackages is the population `./le verify deps alloc` benchmarks. A
+// ceiling registered in perf.AllocCeilings for a benchmark outside this list is
+// reported MISSING and fails the gate, so the two lists are added to together.
 var allocPackages = []string{
 	"./internal/component/bgp/reactor/...",
+	"./internal/component/bgp/wireu/...",
 	"./internal/component/plugin",
 }
 

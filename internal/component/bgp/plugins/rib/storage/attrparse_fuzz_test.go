@@ -27,7 +27,7 @@ func FuzzParseAttributes(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		// ParseAttributes MUST NOT panic on any input.
-		entry, err := ParseAttributes(data, true)
+		entry, err := ParseAttributes(data)
 		if err != nil {
 			// Errors are acceptable.
 			return

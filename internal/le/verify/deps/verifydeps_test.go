@@ -379,6 +379,7 @@ func TestAStageThatPlannedNoCommandRefusesInsteadOfPassing(t *testing.T) {
 func TestAllocPlanPreservesBenchmarkContract(t *testing.T) {
 	root := t.TempDir()
 	mkdir(t, root, "internal/component/bgp/reactor")
+	mkdir(t, root, "internal/component/bgp/wireu")
 	mkdir(t, root, "internal/component/plugin")
 	deps := fakeDependencies(root)
 	deps.getenv = func(key string) string {
@@ -400,7 +401,8 @@ func TestAllocPlanPreservesBenchmarkContract(t *testing.T) {
 	}
 	assertContainsSequence(t, plan.Commands[0].Command,
 		"-run", "^$", "-bench", ".", "-benchmem", "-benchtime=450x",
-		"./internal/component/bgp/reactor/...", "./internal/component/plugin")
+		"./internal/component/bgp/reactor/...", "./internal/component/bgp/wireu/...",
+		"./internal/component/plugin")
 	assertOverride(t, plan.Commands[0], "CGO_ENABLED=0")
 }
 
@@ -442,6 +444,7 @@ func TestAllocationVerdictsEnforceBoundaryWorstAndMissing(t *testing.T) {
 func TestAllocRunLogsAndEnforcesTheSameOutput(t *testing.T) {
 	root := t.TempDir()
 	mkdir(t, root, "internal/component/bgp/reactor")
+	mkdir(t, root, "internal/component/bgp/wireu")
 	mkdir(t, root, "internal/component/plugin")
 	deps := fakeDependencies(root)
 	deps.ceilings = func() map[string]int { return map[string]int{"BenchmarkHot": 0} }

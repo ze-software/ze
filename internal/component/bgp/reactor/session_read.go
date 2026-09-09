@@ -23,6 +23,8 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -221,6 +223,28 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 			wireUpdate = primary
 		}
 
+		// RFC 6793 Sections 4.1 and 4.2.3: the AS-path family is reconciled to
+		// four-octet truth ONCE, here, and every consumer below reads that one
+		// answer -- the ingress filters, the forward cache, the RIB and both
+		// forward rails. It runs AFTER enforceRFC7606, which judges what the
+		// PEER sent and must not judge ze's own rewrite, and BEFORE the import
+		// policy chain, which reads the AS path and must read the truth.
+		collapsed, collapseErr := s.collapseASPathFamily(wireUpdate)
+		if collapseErr != nil {
+			// The UPDATE is dropped, not answered with a NOTIFICATION: RFC 7606
+			// has already ruled on these attributes and found them acceptable,
+			// so the session survives exactly as it does for the family drop and
+			// the prefix-limit drop below. What must not happen is dispatch: a
+			// payload whose AS path is half rewritten reaches every consumer.
+			// The FSM handler for EventUpdateMsg restarts the HoldTimer per RFC
+			// 4271 Section 8.2.2 Event 27.
+			sessionLogger().Error("dropped an UPDATE whose AS path family could not be reconciled",
+				"peer", s.settings.Address, "error", collapseErr)
+			s.logFSMEvent(fsm.EventUpdateMsg)
+			return nil, false
+		}
+		wireUpdate = collapsed
+
 		// ActionNone or ActionAttributeDiscard: continue to dispatch.
 		// For attribute-discard, the malformed attributes are logged but the
 		// UPDATE is still dispatched — the attribute bytes are still present
@@ -346,6 +370,98 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		err = s.handleUnknownType(hdr.Type)
 	}
 	return err, kept
+}
+
+// collapseASPathFamily reconciles the AS-path family of a received UPDATE to
+// four-octet truth, and answers the WireUpdate the rest of the receive path
+// carries.
+//
+// RFC 6793 Section 4.2.3 constructs the AS path information from a received
+// AS_PATH and AS4_PATH, and Section 4.1 forbids either AS4 attribute in an
+// UPDATE between NEW BGP speakers. Running both once, here, is what lets every
+// consumer downstream read one canonical path rather than resolve the pair for
+// itself. FRR (aspath_reconcile_as4, from bgp_attr_parse) and BIRD
+// (bgp_process_as4_attrs) both place it on the receive decode for the same
+// reason.
+//
+// The answer is wireUpdate itself whenever nothing is owed, which is every
+// UPDATE a NEW BGP speaker sends. That path allocates nothing and parses no
+// AS_PATH, so a four-octet fleet pays nothing for the transition machinery.
+//
+// A rewritten payload is carried by a NEW WireUpdate, because Attrs FREEZES the
+// attribute index of the one it replaces, and it is labeled with a context
+// reporting four octets: the bytes are four-octet while the session's receive
+// context still describes the wire, and every consumer reads the width from the
+// payload's own context.
+//
+// The error means no canonical AS path exists. The caller MUST drop the UPDATE
+// on it and MUST NOT dispatch: half of a rewritten AS path is a malformed
+// attribute value toward every peer at once.
+func (s *Session) collapseASPathFamily(wireUpdate *wireu.WireUpdate) (*wireu.WireUpdate, error) {
+	// The width is read from the context the PAYLOAD carries, never from the
+	// negotiated capability, so it describes the bytes rather than the session.
+	// rib_structured.go reads the same field the same way, missing context
+	// included: with no width to read there is nothing to reconcile against, so
+	// the UPDATE travels on exactly as it arrived.
+	srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
+	srcASN4 := srcCtx == nil || srcCtx.ASN4()
+
+	if srcASN4 && !carriesAS4Attributes(wireUpdate) {
+		return wireUpdate, nil
+	}
+
+	payload := wireUpdate.Payload()
+	dst := make([]byte, wireu.CollapseAS4FamilySize(payload))
+	n, discards, err := wireu.CollapseAS4Family(dst, payload, srcASN4)
+	if err != nil {
+		return nil, fmt.Errorf("reconcile the AS path family: %w", err)
+	}
+
+	for _, discard := range discards {
+		// RFC 6793 Section 6: "The error SHOULD be logged locally for
+		// analysis." The attribute package holds no logger and takes none, so
+		// each caller writes the line under its own subsystem and this one is
+		// the session's.
+		sessionLogger().Warn("discarded a received AS4 attribute",
+			"peer", s.settings.Address, "attribute", discard.Code, "reason", discard.Reason)
+	}
+
+	if n == 0 {
+		return wireUpdate, nil
+	}
+
+	// Capped at n so nothing appends into the headroom CollapseAS4FamilySize
+	// reserved for the widest possible reconciliation.
+	collapsed := wireu.NewWireUpdate(dst[:n:n], fwdContextIDWithASN4(wireUpdate.SourceCtxID(), true))
+	collapsed.SetSourceID(wireUpdate.SourceID())
+	return collapsed, nil
+}
+
+// carriesAS4Attributes reports whether a received UPDATE holds an AS4_PATH or
+// an AS4_AGGREGATOR, which is the only reason an UPDATE from a NEW BGP speaker
+// owes the RFC 6793 reconciliation.
+//
+// It answers from the span index enforceRFC7606 already built, so the question
+// costs two bit tests and no allocation. An attribute section that did not
+// index answers false: enforceRFC7606 owns the verdict on such a section, and
+// the reconciliation adds none of its own.
+func carriesAS4Attributes(wireUpdate *wireu.WireUpdate) bool {
+	attrs, err := wireUpdate.Attrs()
+	if err != nil || attrs == nil {
+		return false
+	}
+	hasAS4Path, err := attrs.Has(attribute.AttrAS4Path)
+	if err != nil {
+		return false
+	}
+	if hasAS4Path {
+		return true
+	}
+	hasAS4Aggregator, err := attrs.Has(attribute.AttrAS4Aggregator)
+	if err != nil {
+		return false
+	}
+	return hasAS4Aggregator
 }
 
 // handleConnectionClose handles TCP connection close.

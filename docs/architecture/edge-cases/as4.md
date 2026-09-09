@@ -96,9 +96,9 @@ used.
 | not AS_TRANS | the AGGREGATOR | the AS_PATH. The AS4_AGGREGATOR and the AS4_PATH are ignored |
 | AS_TRANS | the AS4_AGGREGATOR. The AGGREGATOR is ignored | constructed, as below |
 
-`selectAggregator` makes that choice on the ingest path, and an ignored AS4_PATH
-reaches `canonicalizeASPath` as an absent one.
-<!-- source: internal/component/bgp/plugins/rib/storage/attrparse.go -- selectAggregator, canonicalizeASPath -->
+`ReconcileASPathFamily` makes that choice, and an ignored AS4_PATH reaches the
+construction below as an absent one.
+<!-- source: internal/core/bgp/attribute/as4.go -- ReconcileASPathFamily, selectAggregator, canonicalizeASPath -->
 
 ### The AS path construction
 
@@ -119,18 +119,50 @@ segment that is prepended, and it spends none of the count budget. Ze walks the
 leading segments in order and stops at the first segment it does not prepend,
 which is what leaves a confederation segment further along unreached.
 
-`MergeAS4Path` owns the whole construction, and both callers take its verdict:
-the RIB ingest path and the filter-text builder that every text-mode filter
-judges.
+`MergeAS4Path` owns the whole construction, and every caller takes its verdict:
+`ReconcileASPathFamily` beside it, and the filter-text builder that every
+text-mode filter judges.
 <!-- source: internal/core/bgp/attribute/as4.go -- MergeAS4Path, appendLeadingSegments, countASNs -->
 <!-- source: internal/component/bgp/reactor/filter_format.go -- asPathForFilter -->
 
+### Where it runs
+
+The reconciliation runs ONCE, at ingest, over the received UPDATE payload, and
+everything downstream of it reads one four-octet truth. `Session.processMessage`
+calls `collapseASPathFamily` after RFC 7606 enforcement and before the import
+policy chain; that calls `wireu.CollapseAS4Family`, which rewrites the payload
+and calls `attribute.ReconcileASPathFamily` for the rule itself.
+
+No AS4_PATH and no AS4_AGGREGATOR survives that step. RFC 6793 Section 4.1
+forbids carrying either between NEW BGP speakers, and everything downstream of
+the reconciliation is one, so the RIB stores a canonical path, both forward
+rails relay canonical bytes, and neither rail needs a Section 4.2.3 step of its
+own. FRR (`aspath_reconcile_as4`, from `bgp_attr_parse`) and BIRD
+(`bgp_process_as4_attrs`) place it on the receive decode for the same reason.
+
+The reconciled payload is four-octet while the session's receive context still
+describes the wire, so it is carried by a `WireUpdate` relabeled with
+`fwdContextIDWithASN4(recvCtxID, true)`
+(`docs/architecture/encoding-context.md`).
+
+The bytes an observer records are NOT the reconciled ones. `processMessage`
+hands `onMessageReceived` the socket's own body beside the reconciled
+`WireUpdate`, so an MRT archive and a pcap keep recording what the peer sent.
+<!-- source: internal/component/bgp/reactor/session_read.go -- collapseASPathFamily -->
+<!-- source: internal/component/bgp/wireu/aspath_collapse.go -- CollapseAS4Family -->
+
 ### What it costs
 
-The reconstruction runs only for an UPDATE that carries an AS4_PATH, which an
-OLD speaker sends and a session between NEW speakers never does. The common
-path parses nothing and allocates nothing beyond the widening buffer a
-two-octet AS_PATH already needed.
+An UPDATE from a NEW BGP speaker carrying neither AS4 attribute costs nothing:
+`CollapseAS4Family` answers 0, the caller keeps the payload it already has, no
+AS_PATH is parsed and nothing is allocated. `BenchmarkCollapseAS4FastPath`
+carries a ceiling of 0 allocations in `internal/perf/allocgate.go`, so a
+regression on that path is a red gate rather than a review question.
+
+A two-octet session, or any UPDATE carrying an AS4 attribute, takes the slow
+path: one attribute-section walk, the reconciliation, and one heap payload sized
+by `CollapseAS4FamilySize`. That is a mixed-width peering, not a fleet of NEW
+speakers.
 
 ---
 

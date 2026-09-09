@@ -42,6 +42,13 @@ PASS
 ok  	github.com/ze-software/ze/internal/component/bgp/reactor	0.081s
 goos: linux
 goarch: amd64
+pkg: github.com/ze-software/ze/internal/component/bgp/wireu
+cpu: AMD EPYC 7351 16-Core Processor
+BenchmarkCollapseAS4FastPath-4        	     300	        24.0 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/ze-software/ze/internal/component/bgp/wireu	0.044s
+goos: linux
+goarch: amd64
 pkg: github.com/ze-software/ze/internal/component/plugin
 cpu: AMD EPYC 7351 16-Core Processor
 BenchmarkRecordAnswerRows-4           	     300	       310.0 ns/op	      64 B/op	       0 allocs/op
@@ -134,6 +141,7 @@ func TestParseAllocsPerOp(t *testing.T) {
 		"BenchmarkCheckPrefixLimitsInstalledChurn": 2,
 		"BenchmarkFilterModifyEgress":              6,
 		"BenchmarkFilterDispatch_ZeroAlloc":        0,
+		"BenchmarkCollapseAS4FastPath":             0,
 		"BenchmarkRecordAnswerRows":                0,
 	}
 	if len(got) != len(want) {
