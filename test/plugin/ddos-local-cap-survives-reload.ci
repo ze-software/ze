@@ -1,0 +1,111 @@
+# Test: an operator's unrelated commit does not orphan a live ddos local drop
+# rule. The cap still removes it after the reload, proven by an nft readback and
+# by `show ddos local` while the flood is still running.
+#
+# VALIDATES: spec-ddos-timing-leaves-reach-no-worker AC-6 across a config apply.
+#            A drop rule installed before the reload is still known to the
+#            responder the apply builds (register.go replaceResponder ->
+#            responder.go adoptMitigation), so the plugin's worker
+#            (startMaxDurationWorker -> enforceMaxDuration -> removeMitigation)
+#            reaches it and the kernel loses the rule.
+# PREVENTS:  the config apply building a fresh idle responder over a live rule.
+#            The firewall registry is keyed by table name, so the kernel keeps
+#            ze_ddos-local after the responder that installed it is dropped. Both
+#            removal paths return on !active -- enforceMaxDuration and onCleared
+#            alike -- so the drop would be bounded by neither the cap nor a clear
+#            and the box would blackhole the victim for the life of the daemon
+#            while `show ddos local` reported no mitigation. One ordinary commit
+#            on any ddos local leaf reaches that state.
+#
+# WHAT THE PROBE WATCHES FOR. Two outcomes, in one poll. The ORPHAN is the kernel
+# holding the rule while `show ddos local` reports no mitigation: that state is
+# reachable only after the apply, and it is terminal. The PASS is the cap
+# removing the rule after the reload, read back from the kernel and from the
+# daemon. `ddos-local: reconfigured` below is the third half: it is what says the
+# apply ran at all, so a reload that never landed cannot be read as a pass.
+#
+# WHAT THE RELOAD CHANGES. `confidence-min`, which gates a CHARACTERIZED
+# mitigation. characterize-enable is false, so the leaf reaches the plugin and
+# touches no drop rule: the reload is exactly the unrelated commit this test is
+# about.
+#
+# WHY THE FLOOD NEVER STOPS. The removal is asserted while the probe is still
+# flooding, so no AttackCleared can have arrived: the detector needs
+# clear-consecutive-checks evaluations under the threshold, which the config puts
+# at 100. The cap is the only path left, which is what makes the assertion
+# discriminate.
+#
+# WHY THE CAP IS 20. The rule must still be live when the reload lands, and the
+# reload is one file write and one signal after the install is observed. Twenty
+# seconds leaves the apply room to complete while the rule is up, and still ends
+# the test inside its own timeout.
+#
+# STATUS: a Linux/QEMU integration test; NOT executable on the darwin dev host.
+#   It needs a fully privileged host and two capability families.
+#     - net-admin: ddos-local writes the nftables table, and the probe reads it
+#       back through netlink.
+#     - bpf (CAP_BPF + CAP_SYS_RESOURCE): the traffic-usage block drives
+#       rlimit.RemoveMemlock() and link.AttachTCX()
+#       (internal/plugins/trafficusage/attach_linux.go). Without it the victim
+#       prefix never resolves, and applyMitigation refuses to install an
+#       unscoped rule -- so the test could only fail.
+option=needs-linux:caps=net-admin,bpf
+# Serialize against every other ddos test: they all flood the SAME loopback
+# interface and the detector picks the victim by top-destination-bytes over that
+# interface, so a sibling's concurrent flood is indistinguishable from this
+# test's own. Rationale in full: test/plugin/ddos-direction.ci.
+option=exclusive:group=ddos-flood
+option=env:var=ze.log.ddos.detect:value=info
+option=env:var=ze.log.ddos.local:value=info
+# 50s to install the drop under a flood, then 40s for the reload and the
+# one-second cap worker to reach it, plus daemon startup.
+option=timeout:value=180s
+
+stdin=ze-bgp:terminator=EOF_CONF
+ddos {
+	detect {
+		enabled true
+		absolute-floor 1000
+		confirm-duration 1
+		clear-consecutive-checks 100
+		startup-grace 0
+		baseline-window 10
+		check-interval 1
+		characterize-enable false
+	}
+	observe {
+		incident-ring-size 100
+	}
+	local {
+		response-level enforce
+		max-mitigation-duration 20
+	}
+}
+
+traffic {
+	usage {
+		enabled true
+		track-ip true
+		interfaces {
+			interface lo {
+				enabled true
+			}
+		}
+	}
+}
+
+plugin {
+	external ddos-local-cap-survives-reload-probe {
+		run "ze-test fixture plugin/ddos-local-cap-survives-reload-driver"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=175s
+expect=exit:code=0
+expect=stderr:contains=RELOAD-CAP-INSTALLED 127.0.0.10
+expect=stderr:contains=RELOAD-CAP-REMOVED 127.0.0.10
+expect=stderr:contains=ddos-local: drop rule installed
+expect=stderr:contains=ddos-local: reconfigured
+expect=stderr:contains=ddos-local: max-mitigation-duration reached

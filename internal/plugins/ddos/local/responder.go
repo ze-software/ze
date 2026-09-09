@@ -42,16 +42,19 @@ type responder struct {
 	mu  sync.Mutex
 	cfg *Config
 	bus eventBus
-	// active and target are guarded by mu. setStatus is their ONLY writer, in
-	// production and in tests: it is what keeps `published` in step with them.
+	// active and target are guarded by mu. setStatus is their ONLY writer once
+	// this responder is live, in production and in tests: it is what keeps
+	// `published` in step with them. adoptMitigation seeds them, with installedAt
+	// and the clock beside them, from the responder a config apply replaces, and
+	// it runs before this one is published.
 	active bool
 	target ddosevent.VectorTuple
 	// installedAt is when the live drop rule went in, and now is the clock that
-	// reads it. enforceMaxDuration compares the two against
+	// stamped it. enforceMaxDuration compares the two against
 	// cfg.MaxMitigationDuration. setStatus writes installedAt on the transition
 	// into a live rule, so a refresh cannot restart the cap. now is a field so a
-	// test can move time without sleeping; production gets time.Now from
-	// newResponder.
+	// test can move time without sleeping; newResponder MUST set it, and does,
+	// so clock() never has to answer for a nil.
 	installedAt time.Time
 	now         func() time.Time
 	// published mirrors {active, target} for readers that must not wait on mu.
@@ -103,6 +106,50 @@ func (r *responder) setStatus(active bool, target ddosevent.VectorTuple) {
 	r.active = active
 	r.target = target
 	r.published.Store(&mitigationStatus{active: active, target: target})
+}
+
+// adoptMitigation carries a live drop rule from the responder a config apply
+// replaces into the one that replaces it, so the new responder can remove what
+// the old one installed.
+//
+// Without it a config apply orphans the rule. The firewall registry is keyed by
+// table name rather than by responder, so the kernel keeps the drop while the
+// fresh responder believes there is none, and both removal paths return on
+// !active: enforceMaxDuration and onCleared alike.
+//
+// The cap clock comes across unchanged, and so does the time source that stamped
+// it: an instant is only meaningful against the clock that produced it, and the
+// rule is the same rule, so its age is the same age. Resetting it would let a box
+// under attack renew its own cap on every unrelated commit. The new cfg governs
+// from here, so a reload that shortens max-mitigation-duration applies the
+// shorter cap to the rule already installed.
+//
+// Caller MUST call this before the new responder is published, and on a
+// responder that has installed nothing of its own. prev MAY be nil and MAY be
+// idle, which are the first configure and the common case.
+func (r *responder) adoptMitigation(prev *responder) {
+	if prev == nil {
+		return
+	}
+
+	prev.mu.Lock()
+	active, target, installedAt, now := prev.active, prev.target, prev.installedAt, prev.now
+	prev.mu.Unlock()
+
+	if !active {
+		return
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	// Written here rather than through setStatus: setStatus stamps installedAt
+	// with the current clock on the transition into a live rule, which is right
+	// for an install this responder performs and wrong for one it inherits.
+	r.active = true
+	r.target = target
+	r.installedAt = installedAt
+	r.now = now
+	r.published.Store(&mitigationStatus{active: true, target: target})
 }
 
 // onDetected installs the fast coarse drop for the victim (all traffic to the
@@ -262,12 +309,10 @@ func (r *responder) onCleared(_ *ddosevent.AttackCleared) {
 	r.removeMitigation()
 }
 
-// clock reads the responder's time source. A zero-value responder leaves now
-// nil; newResponder sets time.Now.
+// clock reads the responder's time source. newResponder is the only constructor
+// and always sets it, so there is no nil to guard: a branch for one would make a
+// zero-value responder look serviceable when it is not.
 func (r *responder) clock() time.Time {
-	if r.now == nil {
-		return time.Now()
-	}
 	return r.now()
 }
 

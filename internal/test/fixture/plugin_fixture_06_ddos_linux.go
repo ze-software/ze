@@ -26,6 +26,7 @@ func init() {
 	Register("plugin/ddos-transit-forward-drop-driver", fixture06DDOSTransitDriver)
 	Register("plugin/ddos-local-max-duration-driver", fixture06DDOSLocalMaxDuration)
 	Register("plugin/ddos-announce-rate-limit-driver", fixture06DDOSAnnounceRateLimit)
+	Register("plugin/ddos-local-cap-survives-reload-driver", fixture06DDOSLocalCapSurvivesReload)
 }
 
 func fixture06DDOSTransitSetup(context.Context, []string) error {
@@ -310,6 +311,27 @@ func fixture06DDOSLocalMaxDuration(ctx context.Context, args []string) error {
 // mitigation, so only a remote one reaches announce at all.
 const fixture06AnnounceRateLimitVictim = "203.0.113.9"
 
+// fixture06AnnounceWindow is the period announce-rate-limit states its budget
+// over (responder.go announceLimiter). Every assertion that an announcement was
+// REFUSED must land inside it: once the window slides past the announcement that
+// spent the budget, the limiter frees it and a second announcement is correct
+// behavior rather than a defect.
+const fixture06AnnounceWindow = 60 * time.Second
+
+// fixture06AnnounceWindowMargin keeps the last poll clear of the window edge.
+// The driver takes its start instant when it OBSERVES the announce, which is up
+// to one poll and one blast after the announce really went out, so the deadline
+// it computes is late by that much. The margin absorbs the lag and leaves the
+// asserted window shorter than the real one, which is the safe direction.
+const fixture06AnnounceWindowMargin = 8 * time.Second
+
+// fixture06SecondGenerationFlood is the least flood the second generation needs
+// for the responder to be ASKED to announce: confirm-duration is 1 evaluation
+// and check-interval is 1 second in the .ci, plus the detector's own baseline
+// and feed latency. A run with less than this left inside the window has not
+// tested the refusal, and says so rather than printing the marker.
+const fixture06SecondGenerationFlood = 10 * time.Second
+
 // fixture06DDOSAnnounceRateLimit proves ddos flowspec refuses a second
 // announcement inside one announce-rate-limit window.
 //
@@ -341,6 +363,9 @@ func fixture06DDOSAnnounceRateLimit(ctx context.Context, args []string) error {
 		}) {
 			return fmt.Errorf("ddos-flowspec announced nothing for remote victim %s within 50s of an unbroken flood (sent %d packets)", victim, sent)
 		}
+		// The budget was spent at or just before this instant, so the window the
+		// refusal must be asserted inside closes here plus fixture06AnnounceWindow.
+		spent := time.Now()
 		if _, err := fmt.Fprintf(os.Stderr, "ANNOUNCED %s (sent %d)\n", victim, sent); err != nil {
 			return fmt.Errorf("report the announce: %w", err)
 		}
@@ -364,22 +389,198 @@ func fixture06DDOSAnnounceRateLimit(ctx context.Context, args []string) error {
 			return err
 		}
 
-		// The second generation. The responder is asked once at its onset and
-		// must refuse: one announcement per minute is what the leaf allows, and
-		// the first generation spent it. The whole window below stays inside the
-		// 60 seconds the budget takes to return, or the announce would be allowed
-		// on its own terms and prove nothing.
-		for range 100 {
+		// The second generation. The responder is asked once at its onset and must
+		// refuse: one announcement per minute is what the leaf allows, and the
+		// first generation spent it.
+		//
+		// The loop is bounded by the WINDOW and not by an iteration count. An
+		// iteration count is a nominal duration, and a slower guest stretches it
+		// past the window, at which point the limiter legitimately frees the budget
+		// and a second announcement is correct: the fixture would then report a red
+		// against correct code.
+		deadline := spent.Add(fixture06AnnounceWindow - fixture06AnnounceWindowMargin)
+		floodStart := time.Now()
+		for time.Now().Before(deadline) {
 			sent += sockets.blast(4000)
 			if announced() {
-				return fmt.Errorf("a second announcement went out inside the announce-rate-limit window (sent %d packets)", sent)
+				return fmt.Errorf("a second announcement went out %s into the announce-rate-limit window (sent %d packets)",
+					time.Since(spent).Round(time.Second), sent)
 			}
 			if err := fixture06Wait(ctx, 250*time.Millisecond); err != nil {
 				return err
 			}
 		}
+		if flooded := time.Since(floodStart); flooded < fixture06SecondGenerationFlood {
+			return fmt.Errorf("only %s of the announce-rate-limit window was left for the second generation, and it needs %s: "+
+				"the announce and the withdraw took %s, so the refusal was never really tested (sent %d packets)",
+				flooded.Round(time.Second), fixture06SecondGenerationFlood, time.Since(spent).Round(time.Second), sent)
+		}
 		if _, err := fmt.Fprintf(os.Stderr, "ANNOUNCE-REFUSED %s (sent %d)\n", victim, sent); err != nil {
 			return fmt.Errorf("report the refusal: %w", err)
+		}
+		return nil
+	})
+}
+
+// fixture06LocalReloadVictim is the box-owned address the reload driver floods.
+// Every ddos test floods loopback and the suite serializes them, but each one
+// takes an address of its own so a failure names one test.
+const fixture06LocalReloadVictim = "127.0.0.10"
+
+// fixture06LocalReloadConfig is the config the reload installs. It differs from
+// the .ci's own block in one ddos local leaf and nothing else: confidence-min
+// gates a CHARACTERIZED mitigation, and the .ci sets characterize-enable false,
+// so the change reaches the plugin and touches no drop rule.
+//
+// The whole file is rewritten because the daemon reloads the whole file. The
+// plugin block has to come with it: a reload that dropped it would stop this
+// probe through autoStopForRemovedConfigPaths, and the test would end with no
+// assertion having run.
+const fixture06LocalReloadConfig = `ddos {
+	detect {
+		enabled true
+		absolute-floor 1000
+		confirm-duration 1
+		clear-consecutive-checks 100
+		startup-grace 0
+		baseline-window 10
+		check-interval 1
+		characterize-enable false
+	}
+	observe {
+		incident-ring-size 100
+	}
+	local {
+		response-level enforce
+		max-mitigation-duration 20
+		confidence-min 1
+	}
+}
+
+traffic {
+	usage {
+		enabled true
+		track-ip true
+		interfaces {
+			interface lo {
+				enabled true
+			}
+		}
+	}
+}
+
+plugin {
+	external ddos-local-cap-survives-reload-probe {
+		run "ze-test fixture plugin/ddos-local-cap-survives-reload-driver"
+		encoder json
+	}
+}
+`
+
+// fixture06ReloadDaemon rewrites the daemon's config file and signals it, which
+// is the path an operator's commit takes. The runner materializes the .ci's
+// stdin=ze-bgp block as ze-bgp.conf in the work directory and the daemon reads
+// that file back on SIGHUP (internal/test/runner/runner_config.go).
+func fixture06ReloadDaemon(config string) error {
+	if err := os.WriteFile("ze-bgp.conf", []byte(config), 0o600); err != nil {
+		return fmt.Errorf("rewrite the daemon config: %w", err)
+	}
+	pidBytes, err := os.ReadFile("daemon.pid")
+	if err != nil {
+		return fmt.Errorf("read the daemon pid: %w", err)
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(pidBytes)))
+	if err != nil {
+		return fmt.Errorf("parse the daemon pid %q: %w", pidBytes, err)
+	}
+	if err := syscall.Kill(pid, syscall.SIGHUP); err != nil {
+		return fmt.Errorf("signal the daemon to reload: %w", err)
+	}
+	return nil
+}
+
+// fixture06DDOSLocalCapSurvivesReload proves an operator's unrelated commit
+// cannot orphan a live drop rule.
+//
+// It installs a drop under an unbroken flood, reloads the daemon on a ddos local
+// leaf that has nothing to do with the rule, and then watches for two outcomes
+// at once. The ORPHAN is the kernel still holding the rule while `show ddos
+// local` reports no mitigation: that state is only reachable after the apply,
+// and from it neither the cap nor a clear can remove the rule ever again. The
+// PASS is the cap removing the rule after the reload, read back from the kernel
+// and from the daemon.
+//
+// The flood never stops, so no AttackCleared can arrive: the .ci puts
+// clear-consecutive-checks at 100. The cap is therefore the only path that could
+// remove the rule, which is what makes the removal discriminate.
+func fixture06DDOSLocalCapSurvivesReload(ctx context.Context, args []string) error {
+	return p05Observe(ctx, args, "ddos-local-cap-survives-reload-probe", func(ctx context.Context, plugin *sdk.Plugin) error {
+		victim := fixture06LocalReloadVictim
+		sockets, err := p05OpenFlood("", victim, 64)
+		if err != nil {
+			return err
+		}
+		defer sockets.Close()
+
+		sent := 0
+		summary := ""
+		installed := Poll(ctx, 200, 250*time.Millisecond, func() bool {
+			sent += sockets.blast(4000)
+			live, _, state, stateErr := fixture06DDOSDropState(victim)
+			summary = state
+			if stateErr != nil || !live {
+				return false
+			}
+			row, showErr := p05ShowMap(ctx, plugin, "show ddos local")
+			return showErr == nil && row["active"] == true
+		})
+		if !installed {
+			return fmt.Errorf("ddos-local installed no drop for %s within 50s of an unbroken flood (sent %d packets):\n%s",
+				victim, sent, summary)
+		}
+		// The markers go to stderr, not stdout: this fixture runs as a plugin of
+		// the daemon, and a plugin's stdout is the JSON protocol channel the
+		// encoder owns.
+		if _, err := fmt.Fprintf(os.Stderr, "RELOAD-CAP-INSTALLED %s (sent %d)\n", victim, sent); err != nil {
+			return fmt.Errorf("report the install: %w", err)
+		}
+
+		if err := fixture06ReloadDaemon(fixture06LocalReloadConfig); err != nil {
+			return err
+		}
+
+		orphan := ""
+		var lastShow map[string]any
+		removed := Poll(ctx, 160, 250*time.Millisecond, func() bool {
+			sent += sockets.blast(4000)
+			live, _, state, stateErr := fixture06DDOSDropState(victim)
+			if stateErr != nil {
+				return false
+			}
+			summary = state
+			row, showErr := p05ShowMap(ctx, plugin, "show ddos local")
+			if showErr != nil {
+				return false
+			}
+			lastShow = row
+			if live && row["active"] == false {
+				// The apply built a responder that knows nothing of the rule the
+				// kernel is enforcing. Stop the poll and let the caller name it.
+				orphan = state
+				return true
+			}
+			return !live && row["active"] == false
+		})
+		if orphan != "" {
+			return fmt.Errorf("the config apply orphaned the drop for %s: the kernel still holds the rule while show ddos local reports no mitigation, "+
+				"so neither max-mitigation-duration nor an AttackCleared can remove it again (sent %d packets):\n%s", victim, sent, orphan)
+		}
+		if !removed {
+			return fmt.Errorf("the drop for %s was still installed 40s after a config apply, with max-mitigation-duration set and the flood still running "+
+				"(sent %d packets, show ddos local=%v):\n%s", victim, sent, lastShow, summary)
+		}
+		if _, err := fmt.Fprintf(os.Stderr, "RELOAD-CAP-REMOVED %s (sent %d)\n", victim, sent); err != nil {
+			return fmt.Errorf("report the removal: %w", err)
 		}
 		return nil
 	})

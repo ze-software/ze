@@ -58,6 +58,44 @@ func countingFirewall() (applies *atomic.Int64, restore func()) {
 	}
 }
 
+// runWorker starts the cap worker for one test and returns the stop that WAITS
+// for it (ai/rules/goroutine-lifecycle.md). The wait is what keeps a tick in
+// flight from reading the firewall stubs after the test has swapped them back:
+// a stop that only cancels leaves the worker running through the restore.
+//
+// Defer the returned stop AFTER the firewall stub's own restore, so LIFO runs it
+// BEFORE it.
+func runWorker(t *testing.T) (stop func()) {
+	t.Helper()
+	ctx, cancel := context.WithCancel(t.Context())
+	exited := startMaxDurationWorker(ctx, workerTick)
+	return func() {
+		cancel()
+		<-exited
+	}
+}
+
+// withdrawingFirewall replaces the firewall entry points and reports whether the
+// ddos-local table has been withdrawn, meaning registered with no tables at all.
+//
+// A test that asserts a REMOVAL reads this rather than r.status(): a responder
+// that never knew about the rule also reports no mitigation, so status() alone
+// would pass against the very defect such a test exists to catch.
+func withdrawingFirewall() (withdrawn func() bool, restore func()) {
+	origReg := registerTables
+	origApply := applyAll
+	var gone atomic.Bool
+	registerTables = func(_ string, tables []firewall.Table) error {
+		gone.Store(len(tables) == 0)
+		return nil
+	}
+	applyAll = func() error { return nil }
+	return gone.Load, func() {
+		registerTables = origReg
+		applyAll = origApply
+	}
+}
+
 // publishResponder makes r the responder the worker acts on, the way a config
 // apply does, and detaches it when the test ends.
 func publishResponder(t *testing.T, r *responder) {
@@ -97,7 +135,7 @@ func TestLocalMaxDurationRemovesTheRule(t *testing.T) {
 	r.now = now
 	publishResponder(t, r)
 
-	startMaxDurationWorker(t.Context(), workerTick)
+	defer runWorker(t)()
 
 	r.onDetected(&ddosevent.AttackDetected{
 		Interface: "xe0",
@@ -140,7 +178,7 @@ func TestLocalMaxDurationZeroMeansNoCap(t *testing.T) {
 	r.now = now
 	publishResponder(t, r)
 
-	startMaxDurationWorker(t.Context(), workerTick)
+	defer runWorker(t)()
 
 	r.onDetected(&ddosevent.AttackDetected{Target: floodVictim(), Family: ddosevent.FamilyUDPFlood})
 	if active, _ := r.status(); !active {
@@ -173,7 +211,7 @@ func TestLocalMaxDurationClockStartsOnTheFirstInstall(t *testing.T) {
 	r.now = now
 	publishResponder(t, r)
 
-	startMaxDurationWorker(t.Context(), workerTick)
+	defer runWorker(t)()
 
 	r.onDetected(&ddosevent.AttackDetected{Target: floodVictim(), Family: ddosevent.FamilyUDPFlood})
 	if active, _ := r.status(); !active {
@@ -217,7 +255,7 @@ func TestLocalMaxDurationIdleWorkerRemovesNothing(t *testing.T) {
 	r.now = now
 	publishResponder(t, r)
 
-	startMaxDurationWorker(t.Context(), workerTick)
+	defer runWorker(t)()
 
 	advance(72 * time.Hour)
 	// Many ticks pass at workerTick, and none of them has a rule to remove.
@@ -251,5 +289,91 @@ func TestLocalMaxDurationWorkerStops(t *testing.T) {
 	case <-exited:
 	case <-time.After(2 * time.Second):
 		t.Error("the worker did not exit after its context was canceled")
+	}
+}
+
+// TestLocalMitigationSurvivesAConfigApply proves an operator's unrelated commit
+// cannot orphan a live drop rule.
+//
+// VALIDATES: AC-6 across a config apply -- the cap still removes a rule that
+// went in before the apply, and it counts from the FIRST install.
+// PREVENTS: the responder swap in OnConfigApply losing the mitigation. The
+// firewall registry is keyed by table name, so the kernel keeps the rule after
+// the responder that installed it is dropped. A fresh idle responder returns on
+// !active in enforceMaxDuration and in onCleared alike, so the drop is bounded
+// by neither the cap nor a clear, while show ddos local reports no mitigation.
+// One ordinary commit on any ddos local leaf reaches that state.
+//
+// The swap is driven through replaceResponder, the one function OnConfigApply
+// uses, so deleting the carry turns this test red rather than leaving it green
+// over a helper nothing calls.
+func TestLocalMitigationSurvivesAConfigApply(t *testing.T) {
+	defer withNoopFirewall()()
+
+	now, advance := movableClock()
+	first := newResponder(&Config{ResponseLevel: responseEnforce, MaxMitigationDuration: 60}, nil)
+	first.now = now
+	publishResponder(t, first)
+
+	defer runWorker(t)()
+
+	first.onDetected(&ddosevent.AttackDetected{Target: floodVictim(), Family: ddosevent.FamilyUDPFlood})
+	if active, _ := first.status(); !active {
+		t.Fatal("setup: the drop rule must be installed before an apply can orphan it")
+	}
+
+	// Ten seconds into a sixty-second cap the operator commits an unrelated ddos
+	// local change. This call is the whole of what OnConfigApply does with the
+	// responder.
+	advance(10 * time.Second)
+	second := replaceResponder(&Config{ResponseLevel: responseEnforce, MaxMitigationDuration: 60}, nil, first)
+	if active, target := second.status(); !active || target.DstPrefix != floodVictim().DstPrefix {
+		t.Errorf("a config apply left the drop rule in the kernel and the new responder reporting no mitigation: active=%v target=%v", active, target.DstPrefix)
+	}
+
+	// Sixty-one seconds after the FIRST install, not after the apply: the rule is
+	// the same rule, so its age is the same age.
+	advance(61 * time.Second)
+	if removed := waitFor(2*time.Second, func() bool {
+		active, _ := second.status()
+		return !active
+	}); !removed {
+		t.Error("the cap never fired after a config apply: the drop rule outlived max-mitigation-duration with the flood still running")
+	}
+}
+
+// TestLocalClearSurvivesAConfigApply proves the other removal path is armed too.
+//
+// VALIDATES: AC-6's premise -- a drop rule is removed when the attack clears,
+// including when the clear arrives after a config apply replaced the responder.
+// PREVENTS: onCleared returning on !active over a rule the previous responder
+// installed, which leaves the kernel dropping the victim's traffic after the
+// attack is over.
+func TestLocalClearSurvivesAConfigApply(t *testing.T) {
+	withdrawn, restore := withdrawingFirewall()
+	defer restore()
+
+	first := newResponder(&Config{ResponseLevel: responseEnforce, MaxMitigationDuration: 0}, nil)
+	publishResponder(t, first)
+
+	first.onDetected(&ddosevent.AttackDetected{Target: floodVictim(), Family: ddosevent.FamilyUDPFlood})
+	if active, _ := first.status(); !active {
+		t.Fatal("setup: the drop rule must be installed before the clear can lift it")
+	}
+	if withdrawn() {
+		t.Fatal("setup: the install must leave the ddos-local table registered")
+	}
+
+	second := replaceResponder(&Config{ResponseLevel: responseEnforce, MaxMitigationDuration: 0}, nil, first)
+	second.onCleared(&ddosevent.AttackCleared{})
+
+	// The kernel is what this asserts, not the snapshot: an orphaning responder
+	// publishes active=false having withdrawn nothing, so a status() assertion
+	// would pass over a drop rule the box is still enforcing.
+	if !withdrawn() {
+		t.Error("an AttackCleared after a config apply left the drop rule installed in the kernel")
+	}
+	if active, _ := second.status(); active {
+		t.Error("the responder still reports a live mitigation after the clear")
 	}
 }

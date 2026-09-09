@@ -423,7 +423,14 @@ threshold produces none either. `max-mitigation-duration` is what bounds the
 drop rule in both cases: a worker in the plugin checks the age of the live rule
 once a second and removes a rule that has reached the cap, logging
 `max-mitigation-duration reached`. `show ddos local` then reports no mitigation.
-<!-- source: internal/plugins/ddos/local/responder.go -- enforceMaxDuration; internal/plugins/ddos/local/register.go -- startMaxDurationWorker -->
+
+A `commit` that changes any `ddos local` leaf while a drop rule is live keeps the
+rule and its cap. The plugin builds a new responder for the new config and hands
+it the live rule, the victim it covers and the instant it went in, so the cap
+keeps counting from the FIRST install and an `AttackCleared` still removes the
+rule. The new config governs from the commit, so a `commit` that shortens
+`max-mitigation-duration` applies the shorter cap to the rule already installed.
+<!-- source: internal/plugins/ddos/local/responder.go -- enforceMaxDuration, adoptMitigation; internal/plugins/ddos/local/register.go -- startMaxDurationWorker, replaceResponder -->
 
 ### FlowSpec mode sensor blindness
 

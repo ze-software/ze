@@ -103,6 +103,26 @@ func startMaxDurationWorker(ctx context.Context, every time.Duration) (exited <-
 	return done
 }
 
+// replaceResponder builds the responder for cfg, carries a live drop rule across
+// from the responder it replaces, and publishes it to the cap worker and to the
+// show handler.
+//
+// Carrying is what stops a config apply orphaning a rule. The firewall registry
+// is keyed by TABLE NAME rather than by responder, so the nftables table
+// applyMitigation registered outlives the responder that registered it. A fresh
+// idle responder believes no rule exists, and both removal paths return on
+// !active -- enforceMaxDuration and onCleared alike -- so the drop would be
+// bounded by neither the operator's cap nor a clear, for the life of the daemon,
+// while show ddos local reported no mitigation.
+//
+// prev MAY be nil, which is the first configure.
+func replaceResponder(cfg *Config, bus eventBus, prev *responder) *responder {
+	r := newResponder(cfg, bus)
+	r.adoptMitigation(prev)
+	activeResponder.Store(r)
+	return r
+}
+
 func runEngine(conn net.Conn) int {
 	log := logger()
 	log.Debug("ddos-local plugin starting")
@@ -164,8 +184,7 @@ func runEngine(conn net.Conn) int {
 		if err != nil {
 			return err
 		}
-		resp = newResponder(cfg, bus)
-		activeResponder.Store(resp)
+		resp = replaceResponder(cfg, bus, resp)
 		subscribe(bus, resp)
 
 		// One empty reconcile while the one-time removal of the tables an older
@@ -216,8 +235,7 @@ func runEngine(conn net.Conn) int {
 		if err != nil {
 			return err
 		}
-		resp = newResponder(cfg, bus)
-		activeResponder.Store(resp)
+		resp = replaceResponder(cfg, bus, resp)
 		subscribe(bus, resp)
 		// Mirrors the "configured" line OnConfigure emits. Without it a reload that
 		// reached the responder and one that never did looked identical in the log,
@@ -232,10 +250,19 @@ func runEngine(conn net.Conn) int {
 	p.OnConfigRollback(func(_ string) error { return nil })
 
 	ctx, cancel := sdk.SignalContext()
-	defer cancel()
+
 	// The cap worker outlives every config apply and stops when the signal
-	// context is canceled, which is the plugin's own shutdown.
-	startMaxDurationWorker(ctx, maxDurationCheckInterval)
+	// context is canceled, which is the plugin's own shutdown. The wait after the
+	// cancel is owed: a tick in flight sits inside enforceMaxDuration ->
+	// removeMitigation -> applyAll, a netlink round trip, so returning on the
+	// cancel alone would report the engine done while it was still writing the
+	// kernel (ai/rules/goroutine-lifecycle.md).
+	workerExited := startMaxDurationWorker(ctx, maxDurationCheckInterval)
+	defer func() {
+		cancel()
+		<-workerExited
+	}()
+
 	if err := p.Run(ctx, sdk.Registration{
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 2,

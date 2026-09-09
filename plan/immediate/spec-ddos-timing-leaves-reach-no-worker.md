@@ -5,9 +5,9 @@
 | Status | in-progress |
 | Scope | plugin |
 | Depends | - |
-| Phase | 6/8 |
+| Phase | 8/8 |
 | Handoff | - |
-| Updated | 2026-09-08 |
+| Updated | 2026-09-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -342,7 +342,7 @@ rather than assumed; this one was checked and failed.
 |---|-----------|--------------------|-----------------------|
 | 1 | sets `check-interval 10` and floods the box | config -> `newDetector` -> trafficstat feed -> `tick` fold -> `applyTick` -> `AttackDetected` -> `show ddos incidents` | `test/plugin/ddos-timing-leaves.ci` |
 | 2 | sets `stale-incident-timeout 1` and reads `show ddos incidents` during an attack that never clears | config -> `runEngine` apply -> `startStaleSweep` -> `sweepStale` -> the incident carries an end time | `test/plugin/ddos-timing-leaves.ci` |
-| 3 | sets `announce-rate-limit 1` and meets two attack generations in a minute | config -> `newResponder` -> `announce` -> `announceLimiter.allow` refuses the second | `TestAnnounceRateLimitBoundsTheWindow` (unit only; see Known Limitations) |
+| 3 | sets `announce-rate-limit 1` and meets two attack generations in a minute | config -> `newResponder` -> `announce` -> `announceLimiter.allow` refuses the second | `test/plugin/ddos-announce-rate-limit.ci`, green in the guest on 2026-09-09 and red under the limiter cut |
 | 4 | sets `max-mitigation-duration 1` under `ddos local` and floods a victim the box owns, with a flood that never stops | config -> `runEngine` worker -> `enforceMaxDuration` -> `removeMitigation` -> `show ddos local` reports no mitigation and `nft` holds no drop rule | `test/plugin/ddos-local-max-duration.ci` |
 
 ## 🧪 TDD Test Plan
@@ -392,8 +392,9 @@ than by arithmetic. So the boundary set for it is four values and not three:
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `ddos-timing-leaves` | `test/plugin/ddos-timing-leaves.ci` | An operator sets `check-interval 10` and `stale-incident-timeout 1`, floods the box, and reads `show ddos incidents` | green; red under each of the two cuts |
-| `ddos-announce-rate-limit` | `test/plugin/ddos-announce-rate-limit.ci` | An operator sets `announce-rate-limit 1` and meets two attack generations in a minute. The second announce is refused | written and registered, NOT YET GREEN; AC-2. `option=needs-linux:caps=net-admin,bpf`. Runs reached the announce and the withdraw; see Work Not Done |
+| `ddos-announce-rate-limit` | `test/plugin/ddos-announce-rate-limit.ci` | An operator sets `announce-rate-limit 1` and meets two attack generations in a minute. The second announce is refused | green in the QEMU guest (2026-09-09), red under the cut that stops `announce` consulting the limiter; AC-2. `option=needs-linux:caps=net-admin,bpf` |
 | `ddos-local-max-duration` | `test/plugin/ddos-local-max-duration.ci` | An operator sets `max-mitigation-duration` under `ddos local`, floods a victim the box owns, and the drop rule is gone from the kernel while the flood is still running | green in the QEMU guest, red under the worker cut; AC-6. `option=needs-linux:caps=net-admin,bpf` |
+| `ddos-local-cap-survives-reload` | `test/plugin/ddos-local-cap-survives-reload.ci` | An operator commits an unrelated `ddos local` change while a drop rule is live, and the cap still removes it | green in the QEMU guest (2026-09-09), red under the cut that deletes the carry; AC-6 across a config apply. `option=needs-linux:caps=net-admin,bpf` |
 
 Both new `.ci` tests take the topology and the gate of
 `test/plugin/ddos-transit-forward-drop.ci`, which already builds the veth
@@ -447,6 +448,7 @@ Added 2026-09-08 for AC-6 through AC-9:
 - `internal/plugins/ddos/local/max_duration_test.go`
 - `test/plugin/ddos-announce-rate-limit.ci`
 - `test/plugin/ddos-local-max-duration.ci`
+- `test/plugin/ddos-local-cap-survives-reload.ci`
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -609,14 +611,13 @@ Added 2026-09-08 for AC-6 through AC-9:
 
 ## Known Limitations
 
-**Updated 2026-09-08.** The item below records why the AC-2 `.ci` was not
-written on 2026-09-06. It is no longer a limitation this spec accepts: the test
-is now planned as `test/plugin/ddos-announce-rate-limit.ci` in the Functional
-Tests table, on the topology and the gate
-`test/plugin/ddos-transit-forward-drop.ci` already provides. The reason it costs
-what it costs is unchanged and is worth keeping, so the text stays.
+**Updated 2026-09-09. The item below is CLOSED.**
+`test/plugin/ddos-announce-rate-limit.ci` exists and RAN in the QEMU guest,
+green, and red under the cut that stops `announce` consulting the limiter. The
+reason it costs what it costs is unchanged and is worth keeping, so the text
+stays as the record of why no unprivileged `.ci` can reach the limiter.
 
-- **`announce-rate-limit` has no `.ci`.** The unit tests drive the responder through its
+- **(closed) `announce-rate-limit` had no `.ci`.** The unit tests drive the responder through its
   real event handlers and are discriminated, but no functional test proves an operator
   reaches the limit. Reaching the announce path in a daemon needs a victim that resolves
   to a REMOTE prefix: `flowspec` defers to on-host mitigation for a local victim, and an
@@ -626,9 +627,8 @@ what it costs is unchanged and is worth keeping, so the text stays.
   The test shape is known and was drafted: two attack generations inside one minute, with
   `max-mitigation-duration 1` withdrawing the first announce, the flood stopped to clear
   the attack and restarted for the second generation, and the second announce asserted
-  refused only AFTER a second incident proves the responder was asked. It is not written
-  here because it could not be run red-then-green in this session
-  (`ai/rules/interop-and-goal-validation.md` forbids claiming a test that never went red).
+  refused only AFTER a second incident proves the responder was asked. That is the test
+  that now exists, and its red-then-green walk in the guest is in the Review Gate.
 - The refusal is logged and not counted. A Prometheus counter for refused announcements
   is a new metric name, which is its own decision and its own spec.
 - The detector still emits a critical `AttackDetected` with no victim when no traffic
@@ -812,12 +812,279 @@ worker stops reaching the cap, and the kernel readback is what catches it.
 | A re-characterizing attack cannot outlive its cap | functional | `TestLocalMaxDurationClockStartsOnTheFirstInstall`, red under discrimination cut 1 with the exact message that names the failure |
 | The worker costs an unattacked box nothing and stops with its owner | resilience | `TestLocalMaxDurationIdleWorkerRemovesNothing` (zero firewall reconciles over many ticks) and `TestLocalMaxDurationWorkerStops` (the worker exits on context cancel) |
 | An operator reaches the cap end to end | functional `.ci` | `test/plugin/ddos-local-max-duration.ci`, RUN in the QEMU guest on ze's runtime kernel: PASS in 9.7s, and FAIL with the drop still installed under the rebuilt cut that stops the worker reaching the cap. Both pasted above |
+| The cap survives an operator's unrelated commit | functional `.ci` | `test/plugin/ddos-local-cap-survives-reload.ci`, RUN in the guest on 2026-09-09: PASS in 24.5s, and FAIL naming the orphaned rule under the rebuilt cut that deletes `adoptMitigation`. Both pasted in the Review Gate |
+| An operator reaches the announce limit end to end | functional `.ci` | `test/plugin/ddos-announce-rate-limit.ci`, RUN in the guest on 2026-09-09: PASS in 55.5s, and FAIL with a second announcement 18s into the window under the rebuilt limiter cut |
 
 ## Work Not Done
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| The AC-2 run of `test/plugin/ddos-announce-rate-limit.ci` | Its fixture and its `.ci` are written and three guest runs reached the announce and the wall-clock withdraw (`ddos-flowspec: announced ... reason="blackhole-fallback (critical)"`, then `max-mitigation-duration reached, withdrawing`). The last change to the probe, a fixed quiet period in place of a clear signal the probe cannot read, could not be compiled: another session's in-flight refactor of `internal/component/config/transaction` and `internal/component/iface` broke the tree-wide build (`undefined: ValidateOperationVerbs`, `undefined: tx.ResourceRelationInterfaceAddress`), and `ze-test` links both | This spec. AC-2 keeps its four discriminated unit tests as its proof until the run happens |
+| (closed 2026-09-09) The AC-2 run of `test/plugin/ddos-announce-rate-limit.ci` | The blocker was another session's in-flight refactor of `internal/component/config/transaction` and `internal/component/iface` breaking the tree-wide build, which `ze-test` links. It is gone: `GOOS=linux GOARCH=amd64 go vet ./internal/test/fixture/ ./internal/plugins/ddos/...` exits 0, and the guest binaries cross-compile against a `go -overlay` that presents HEAD for other sessions' files. The test RAN in the guest, green, and red under the cut that stops `announce` consulting the limiter. Both are pasted in the Review Gate | nothing. AC-2 has its `.ci` |
+| The ddos FLOWSPEC half of the config-apply orphan | `p.OnConfigApply` in `internal/plugins/ddos/flowspec/register.go` has the identical shape and orphans a live FlowSpec announcement the same way. It is a different spec's leaf and this spec's goal does not depend on it, so it took one row in `plan/journal/component-rebuilt-during-reload.md` (2026-09-08) and nothing else | `plan/immediate/spec-ddos-direction-allowlist-deferred-flowspec-withdraw.md` owns the flowspec cap; the journal row is what earns the fix |
+
+## Review Gate
+
+An independent review of commit `80ec03b03` (`feat(ddos): a local mitigation
+that never clears now expires`) returned 1 BLOCKER, 2 ISSUE and 3 NOTE. The
+reviewer could not write to this spec, so the findings are recorded here by the
+session that cleared them. Each one was re-verified at its producing function
+before any edit.
+
+| # | Severity | Finding | Verified at | Status |
+|---|----------|---------|-------------|--------|
+| 1 | BLOCKER | A config apply orphans a live drop rule and disarms the cap | `p.OnConfigApply` (`internal/plugins/ddos/local/register.go`), `newResponder` and `enforceMaxDuration` (`responder.go`) | reproduced, FIXED: `replaceResponder` -> `(*responder).adoptMitigation` carries `active`, `target`, `installedAt` and the clock that stamped it; `test/plugin/ddos-local-cap-survives-reload.ci` red under the cut, green with it |
+| 2 | ISSUE | `runEngine` discards the `exited` channel `startMaxDurationWorker` returns, so the plugin can return with a tick in flight | `runEngine` and `startMaxDurationWorker` (`internal/plugins/ddos/local/register.go`) | reproduced, FIXED: `runEngine` defers `cancel()` then `<-workerExited`, and the tests take the same stop through `runWorker` |
+| 3 | ISSUE | `fixture06DDOSAnnounceRateLimit` bounds its second generation by an iteration count, not by the window it asserts inside | `fixture06DDOSAnnounceRateLimit` (`internal/test/fixture/plugin_fixture_06_ddos_linux.go`) | reproduced, FIXED: the loop runs to a deadline taken when the announce is observed, and `ddos-announce-rate-limit.ci` RAN in the guest, green and red under the limiter cut |
+| 4 | NOTE | `(*responder).clock` carries an unreachable `r.now == nil` branch | `clock` and `newResponder` (`internal/plugins/ddos/local/responder.go`) | reproduced, FIXED: the branch is deleted and the field's comment states the invariant |
+| 5 | NOTE | The 2026-09-04 row in `plan/journal/unwired-feature.md` says the worker is in the working tree and not in HEAD | `plan/journal/unwired-feature.md` line 19, against `git show HEAD:internal/plugins/ddos/local/register.go` | reproduced, FIXED: the row now names commit `80ec03b03` and says the worker is in HEAD |
+| 6 | NOTE | `ddos-local-max-duration.ci` discriminates AC-6 only | the `.ci` config block against `enforceMaxDuration` and `setStatus` | reproduced, RECORDED below. AC-7 and AC-8 stay unit-only and each keeps its own recorded cut |
+
+**Found while clearing finding 1, and NOT fixed here.** `ddos flowspec` has the
+identical shape: `p.OnConfigApply` (`internal/plugins/ddos/flowspec/register.go`)
+builds a fresh responder and nothing carries `active`, `target` or `announcedAt`,
+so a config apply orphans a live FlowSpec announcement and neither
+`enforceMaxDuration` nor the clear path can withdraw it again. The flowspec cap
+is a different spec's leaf and this spec's goal does not depend on it, so it took
+one row in `plan/journal/component-rebuilt-during-reload.md` dated 2026-09-08 and
+nothing else (`ai/rules/rule-precedence.md`).
+
+### 1 (BLOCKER). A config apply orphaned a live drop rule and disarmed the cap
+
+**Reproduced.** `p.OnConfigApply` built a fresh responder through
+`newResponder`, which leaves `active` false, `target` zero and `installedAt`
+zero, and stored it in `activeResponder`. Nothing carried the outgoing
+responder's state and nothing withdrew its table. The firewall registry is keyed
+by TABLE NAME (`registerTables(tableName, ...)` in `applyMitigation`), so
+`ze_ddos-local` stayed registered and the drop stayed in the kernel. Both
+removal paths return on `!r.active`: `enforceMaxDuration` and `onCleared`. From
+the apply onward the rule was bounded by neither the cap nor a clear, and
+`show ddos local` reported no mitigation, because `status()` reads the new
+responder's idle snapshot.
+
+The `onCleared` arm pre-dates the commit. It is in scope because AC-6 is the
+criterion that says a drop rule is bounded, and one ordinary operator action
+reached the state where it is not (`ai/rules/completion.md`).
+
+**Fix.** `(*responder).adoptMitigation` carries `active`, `target`, `installedAt`
+and the clock that stamped it from the responder a config apply replaces into the
+one that replaces it, and republishes the snapshot `status()` reads. It is called
+from `replaceResponder`, the one function `OnConfigure` and `OnConfigApply` both
+use, so a test over that function covers the path the operator takes.
+
+The cap clock comes across unchanged. The operator committed an unrelated change,
+the kernel rule is the same rule, so its age is the same age; resetting it would
+let a box under attack renew its own cap on every commit. The clock comes with the
+instant because an instant is only meaningful against the source that produced it.
+The NEW `cfg` governs from there, so a reload that shortens
+`max-mitigation-duration` applies the shorter cap to the rule already installed.
+
+Both removal arms are closed by the one carry, and each has its own test:
+`enforceMaxDuration` by `TestLocalMitigationSurvivesAConfigApply` and by the
+`.ci`, `onCleared` by `TestLocalClearSurvivesAConfigApply`. That second test reads
+the WITHDRAW out of the firewall stub rather than `status()`: an orphaning
+responder publishes `active=false` having withdrawn nothing, so a `status()`
+assertion passes over a drop rule the box is still enforcing. It did exactly that
+on its first run, and the assertion was corrected before the fix landed.
+
+### 2 (ISSUE). The worker's exit was not waited on
+
+**Reproduced.** `startMaxDurationWorker` returns `exited` and its doc comment
+says a caller that must know the worker is gone waits on it after the cancel.
+`runEngine` discarded the return value and only `defer cancel()`d, which signals
+and does not wait. So `runEngine` could return with a tick in flight inside
+`enforceMaxDuration` -> `removeMitigation` -> `applyAll`, a netlink reconcile,
+after the process supervisor had been told the engine released what it installed.
+
+**Fix.** `runEngine` keeps the channel and waits on it: `cancel()` then
+`<-workerExited`, in one deferred pair so no early return can skip the wait. The
+deferred pair is registered after `defer activeResponder.Store(nil)`, so LIFO
+stops the worker before the responder it reads is detached.
+
+The unit tests carried the same defect and it is repaired with the same shape.
+`runWorker(t)` returns a stop that cancels AND waits, and it is deferred after the
+firewall stub's own restore so LIFO runs it first. Without that, a tick in flight
+read `registerTables` and `applyAll` while the next test swapped them back, which
+the race detector reported on the first run of the new tests.
+
+### 3 (ISSUE). The announce-rate-limit fixture raced its own window
+
+**Reproduced.** The second-generation loop was `for range 100` with a 250ms
+wait and a 4000-packet blast each turn. The assertion inside it is that NO
+announcement goes out, and that is true only inside the 60 seconds the limiter
+states its budget over. Nothing tied the loop to that window, so a slower guest
+crossed it, the limiter legitimately freed the budget, the second announcement
+was correct, and the fixture reported a red against correct code.
+
+**Fix.** The window is a named constant, `fixture06AnnounceWindow`, and the
+second-generation loop runs to a deadline taken from the instant the first
+announce is OBSERVED. The observation is at most one poll and one blast after the
+announce really went out, so the deadline it computes is late by that much;
+`fixture06AnnounceWindowMargin` absorbs the lag and leaves the asserted window
+shorter than the real one, which is the safe direction. A run that reaches the
+deadline with less than `fixture06SecondGenerationFlood` behind it fails naming
+the overrun, rather than printing the refusal marker over a window that was never
+really tested.
+
+### 4 (NOTE). A dead defensive branch in `clock`
+
+**Reproduced.** `newResponder` is the only constructor of `responder` in the
+package (`grep 'responder{'` finds one hit, inside it), and it always sets
+`now: time.Now`. The `r.now == nil` arm is unreachable, and it makes a
+zero-value responder look serviceable.
+
+**Fix.** The branch is gone. `clock` returns `r.now()`, and the `now` field's
+doc comment states the invariant `newResponder` establishes, so a reader learns
+where the guarantee comes from instead of meeting a branch that suggests it is
+absent.
+
+### 5 (NOTE). The journal row was made false by the commit it describes
+
+**Reproduced.** The 2026-09-04 row said the local cap's worker was "in the
+WORKING TREE and not yet in HEAD".
+`git show HEAD:internal/plugins/ddos/local/register.go` carries
+`startMaxDurationWorker`, and `git status` reports no modification under
+`internal/plugins/ddos/`. The row was written before `80ec03b03` landed, and the
+commit made it false.
+
+**Fix.** The row's Fix column now names commit `80ec03b03` and says the worker,
+the cap and the QEMU functional proof are in HEAD.
+
+### 6 (NOTE). What `ddos-local-max-duration.ci` discriminates
+
+**Reproduced by source, not by a guest run.** The `.ci` sets
+`characterize-enable false`, so no `AttackCharacterized` is emitted and
+`applyMitigation` runs once per generation. Cutting the AC-8 transition guard
+(writing `installedAt` on every install instead of on the false-to-true edge)
+therefore changes nothing the `.ci` can see. It sets
+`max-mitigation-duration 5`, so cutting the AC-7 `<= 0` no-cap guard changes
+nothing either: that guard is not on the path a non-zero cap takes.
+
+**Recorded, not repaired.** The `.ci` proves AC-6 and only AC-6. AC-7 and AC-8
+stay unit-only, proven by `TestLocalMaxDurationZeroMeansNoCap` and
+`TestLocalMaxDurationClockStartsOnTheFirstInstall`, each red under its own
+recorded cut above. Neither behavior needs a kernel to be wrong, so a guest run
+would buy discrimination the unit cuts already have.
+
+
+### TDD evidence
+
+**RED, finding 1, against the apply path as `80ec03b03` shipped it.**
+`replaceResponder` was extracted first with NO behavior change, so the red below
+is behavioral rather than a build failure. Note the second test: it passed, over
+a `status()` assertion an orphaning responder also satisfies, which is why it now
+reads the withdraw out of the firewall.
+
+```
+=== RUN   TestLocalMitigationSurvivesAConfigApply
+    max_duration_test.go:293: a config apply left the drop rule in the kernel and the new responder reporting no mitigation: active=false target=invalid Prefix
+--- FAIL: TestLocalMitigationSurvivesAConfigApply (0.00s)
+=== RUN   TestLocalClearSurvivesAConfigApply
+--- PASS: TestLocalClearSurvivesAConfigApply (0.00s)
+FAIL	github.com/ze-software/ze/internal/plugins/ddos/local	0.621s
+```
+
+**RED again, with the clear test corrected, under the cut that deletes the carry
+from `replaceResponder`.** That cut is byte-for-byte what `OnConfigApply` did
+before this work, so both arms are shown red against the shipped behavior:
+
+```
+=== RUN   TestLocalMitigationSurvivesAConfigApply
+    max_duration_test.go:331: a config apply left the drop rule in the kernel and the new responder reporting no mitigation: active=false target=invalid Prefix
+--- FAIL: TestLocalMitigationSurvivesAConfigApply (0.00s)
+=== RUN   TestLocalClearSurvivesAConfigApply
+    max_duration_test.go:374: an AttackCleared after a config apply left the drop rule installed in the kernel
+--- FAIL: TestLocalClearSurvivesAConfigApply (0.00s)
+FAIL	github.com/ze-software/ze/internal/plugins/ddos/local	0.650s
+```
+
+**GREEN, after `adoptMitigation`.**
+
+```
+=== RUN   TestLocalMitigationSurvivesAConfigApply
+INFO ddos-local: drop rule installed target=10.0.0.1/32 hook=ingress phase=detected
+INFO ddos-local: max-mitigation-duration reached, removing the drop rule target=10.0.0.1/32 seconds=60
+INFO ddos-local: drop rule removed target=10.0.0.1/32
+--- PASS: TestLocalMitigationSurvivesAConfigApply (0.00s)
+=== RUN   TestLocalClearSurvivesAConfigApply
+INFO ddos-local: drop rule installed target=10.0.0.1/32 hook=ingress phase=detected
+INFO ddos-local: drop rule removed target=10.0.0.1/32
+--- PASS: TestLocalClearSurvivesAConfigApply (0.00s)
+ok  	github.com/ze-software/ze/internal/plugins/ddos/local	1.560s
+```
+
+The whole subsystem is green at `-race -count=2`:
+`go test -race -count=2 ./internal/plugins/ddos/...` -> `ok` for detect, flowspec,
+flowtriq, local, observe.
+
+### The reload proof, run in the QEMU guest (2026-09-09)
+
+`test/plugin/ddos-local-cap-survives-reload.ci` was RUN on ze's runtime kernel,
+through `./le qemu run kernel tmp/kernel/build/vmlinuz packages "iproute2 libcap"`
+with the guest-side `ze-test bgp plugin ddos-local-cap-survives-reload`. The probe
+installs a drop under an unbroken flood, rewrites `ze-bgp.conf` with one unrelated
+`ddos local` leaf changed, SIGHUPs the daemon, and then watches the kernel and
+`show ddos local` together.
+
+**RED, under the cut that deletes the carry, with the guest binary REBUILT so the
+cut reached the daemon:**
+
+```
+3.2s     1/1  FAIL  221  ddos-local-cap-survives-reload
+INFO ddos-local: drop rule installed  target=127.0.0.10/32 hook=ingress phase=detected
+WARN RELOAD-CAP-INSTALLED 127.0.0.10 (sent 32000)
+INFO ddos-local: reconfigured  response-level=enforce forward-mitigation=false
+ERROR ZE-OBSERVER-FAIL: the config apply orphaned the drop for 127.0.0.10: the kernel
+  still holds the rule while show ddos local reports no mitigation, so neither
+  max-mitigation-duration nor an AttackCleared can remove it again (sent 40000 packets):
+table=ze_ddos-local chain=ingress rules=1
+QEMU VM: FAIL (exit code 1)
+```
+
+The `ddos-local: reconfigured` line between the install and the failure is what
+says the apply really ran, so the red is the orphan and not a reload that never
+landed.
+
+**GREEN, with the carry:**
+
+```
+24.5s    1/1  PASS  221  ddos-local-cap-survives-reload
+pass  1/1  100.0%  24.5s
+QEMU VM: PASS
+```
+
+### The AC-2 functional proof, run in the QEMU guest (2026-09-09)
+
+`test/plugin/ddos-announce-rate-limit.ci` RAN. The build blocker Work Not Done
+recorded is gone: `GOOS=linux GOARCH=amd64 go vet ./internal/test/fixture/
+./internal/plugins/ddos/...` exits 0 in this tree, and the guest binaries
+cross-compile against a `go -overlay` that presents HEAD for other sessions'
+in-flight files and the working tree for this work's own.
+
+**GREEN.**
+
+```
+55.5s    1/1  PASS  211  ddos-announce-rate-limit
+pass  1/1  100.0%  55.5s
+QEMU VM: PASS
+```
+
+**RED, under the cut that stops `announce` consulting the limiter, with the guest
+binary REBUILT so the cut reached the daemon:**
+
+```
+21.4s    1/1  FAIL  211  ddos-announce-rate-limit
+INFO ddos-flowspec: announced  target=203.0.113.9/32 action=discard reason="blackhole-fallback (critical)"
+WARN ANNOUNCED 203.0.113.9 (sent 36000)
+INFO ddos-flowspec: announced  target=203.0.113.9/32 action=discard reason="blackhole-fallback (critical)"
+ERROR ZE-OBSERVER-FAIL: a second announcement went out 18s into the announce-rate-limit
+  window (sent 60000 packets)
+QEMU VM: FAIL (exit code 1)
+```
+
+"18s into the window" is the deadline-bounded loop reporting its own position, so
+finding 3's repair is exercised by the same run. Both cuts were reverted, both
+binaries rebuilt, and `grep -rn MUTATION-APPLIED internal/plugins/ddos internal/test test/`
+returns nothing.
 
 ## RFC Documentation (Scope: protocol)
 
