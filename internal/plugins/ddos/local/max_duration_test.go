@@ -518,3 +518,361 @@ func TestLocalAdoptionTakesOwnershipFromTheOldResponder(t *testing.T) {
 		t.Error("the new responder must still report the mitigation it owns")
 	}
 }
+
+// countingTables replaces the firewall entry points and counts what a responder
+// asked of them. An INSTALL is a register carrying a table, a REMOVAL is a
+// register carrying none.
+//
+// A test that asserts nothing was installed reads this rather than r.status():
+// the defect it exists to catch is a rule in the kernel that no responder claims,
+// so the responder's own snapshot is the one witness that cannot see it. The
+// counts are atomic because the cap worker can be running beside the test.
+func countingTables() (installs, removals func() int, restore func()) {
+	origReg := registerTables
+	origApply := applyAll
+	var in, out atomic.Int64
+	registerTables = func(_ string, tables []firewall.Table) error {
+		if len(tables) == 0 {
+			out.Add(1)
+			return nil
+		}
+		in.Add(1)
+		return nil
+	}
+	applyAll = func() error { return nil }
+	return func() int { return int(in.Load()) },
+		func() int { return int(out.Load()) },
+		func() {
+			registerTables = origReg
+			applyAll = origApply
+		}
+}
+
+// enforcing is the config every lifecycle test below starts from: mitigation on,
+// and a cap far outside any window a test observes, so the cap can never account
+// for a removal one of them measures.
+func enforcing() *Config {
+	return &Config{ResponseLevel: responseEnforce, MaxMitigationDuration: 3600}
+}
+
+// TestLocalRetiredResponderInstallsNothing proves a responder a config apply has
+// replaced cannot put a drop rule back into the kernel.
+//
+// VALIDATES: AC-6's premise across a config apply -- a drop rule ddos local
+// installs is always reachable by something that can remove it.
+// PREVENTS: the withdrawal being undone by an event that was already in flight
+// when it ran. The plugin server snapshots its handler list under a read lock and
+// invokes outside it, and its contract says the unregistered handler "IS still
+// called once more" ((*engineEventSubscribers).dispatch,
+// internal/component/plugin/server/engine_event.go). So an AttackCharacterized
+// dispatched before OnConfigApply calls unsubscribe blocks on the outgoing
+// responder's mu, which replaceResponder holds across the withdrawal, and runs
+// after it. Without the retirement it reads its OWN config -- still `enforce` --
+// and re-registers the table. That rule then has no owner, no cap worker and no
+// show handler left to reach it, and the box blackholes the victim for the life
+// of the daemon: the outcome the withdrawal exists to prevent, reached through
+// the code that performs it.
+func TestLocalRetiredResponderInstallsNothing(t *testing.T) {
+	installs, removals, restore := countingTables()
+	defer restore()
+
+	first := newResponder(enforcing(), nil)
+	publishResponder(t, first)
+
+	first.onDetected(&ddosevent.AttackDetected{Target: floodVictim(), Family: ddosevent.FamilyUDPFlood})
+	if installs() != 1 {
+		t.Fatalf("setup: the drop rule must be installed before a retirement can lift it, got %d installs", installs())
+	}
+
+	// The operator commits `delete ddos local`.
+	second := replaceResponder(enforcing(), nil, first, false)
+	if removals() != 1 {
+		t.Fatalf("setup: the removal must withdraw the rule, got %d removals", removals())
+	}
+
+	// The event dispatched before the unsubscribe, delivered after it.
+	first.onCharacterized(&ddosevent.AttackCharacterized{Target: floodVictim(), Family: ddosevent.FamilyUDPFlood})
+
+	if installs() != 1 {
+		t.Errorf("an event still in flight re-installed the drop rule through the responder the config apply retired: the plugin is about to stop, so nothing is left that can remove it and the victim is blackholed for the life of the daemon (installs %d)", installs())
+	}
+	if active, _ := first.status(); active {
+		t.Error("the retired responder claims a live mitigation after the section was removed")
+	}
+	if active, _ := second.status(); active {
+		t.Error("the incoming responder claims a mitigation it never installed")
+	}
+}
+
+// TestLocalRetiredResponderDoesNotReclaimACarriedRule proves the same guard on
+// the ordinary commit, where the rule is CARRIED rather than withdrawn.
+//
+// VALIDATES: AC-6 across a config apply -- one rule has one owner.
+// PREVENTS: two responders claiming one rule. adoptMitigation stops the outgoing
+// responder REMOVING the rule the new one now owns; without the retirement it can
+// still INSTALL, and an event in flight makes it claim the rule back. The new
+// responder then holds the cap clock while the old one holds a live `active`, so a
+// clear delivered to either removes a rule the other still publishes.
+func TestLocalRetiredResponderDoesNotReclaimACarriedRule(t *testing.T) {
+	installs, removals, restore := countingTables()
+	defer restore()
+
+	first := newResponder(enforcing(), nil)
+	publishResponder(t, first)
+
+	first.onDetected(&ddosevent.AttackDetected{Target: floodVictim(), Family: ddosevent.FamilyUDPFlood})
+	if installs() != 1 {
+		t.Fatalf("setup: the drop rule must be installed before the handover, got %d installs", installs())
+	}
+
+	// An ordinary commit on an unrelated leaf: the rule is carried, not withdrawn.
+	second := replaceResponder(enforcing(), nil, first, true)
+	if removals() != 0 {
+		t.Fatalf("setup: an ordinary commit must carry the rule, got %d removals", removals())
+	}
+
+	first.onDetected(&ddosevent.AttackDetected{Target: floodVictim(), Family: ddosevent.FamilyUDPFlood})
+
+	if installs() != 1 {
+		t.Errorf("the replaced responder re-installed over the rule the new one owns, so both now claim it (installs %d)", installs())
+	}
+	if active, _ := first.status(); active {
+		t.Error("the replaced responder claims the mitigation the new responder owns")
+	}
+	if active, _ := second.status(); !active {
+		t.Error("the new responder must still report the mitigation it adopted")
+	}
+}
+
+// TestLocalEngineStopRemovesTheDrop proves a stop that delivers NO config still
+// takes the drop rule with it.
+//
+// VALIDATES: AC-6's premise on the exit path.
+// PREVENTS: the orphan that deleting the PARENT `ddos` block leaves. That commit
+// removes one key for the whole subtree (diffMapsRecursive,
+// internal/component/config/diff.go), which rootHasChanges does not match against
+// the root "ddos/local" (plugin/server/reload.go), so ddos-local receives no
+// verify and no apply -- while parentRemoved (plugin/server/startup_autoload.go)
+// matches it and stops the plugin anyway. The config-boundary withdrawal in
+// replaceResponder cannot fire when no config arrives, so before this the rule
+// stayed in the kernel with no responder and no cap worker left to remove it.
+//
+// The engine's own exit path is what this drives, through the function its defer
+// calls. test/plugin/ddos-parent-config-removed.ci drives the wiring, in the
+// guest, over the operator gesture itself.
+func TestLocalEngineStopRemovesTheDrop(t *testing.T) {
+	installs, removals, restore := countingTables()
+	defer restore()
+
+	r := newResponder(enforcing(), nil)
+	publishResponder(t, r)
+
+	r.onDetected(&ddosevent.AttackDetected{Target: floodVictim(), Family: ddosevent.FamilyUDPFlood})
+	if installs() != 1 || removals() != 0 {
+		t.Fatalf("setup: the drop rule must be installed and live, got %d installs and %d removals", installs(), removals())
+	}
+
+	retireResponder(r)
+
+	if removals() != 1 {
+		t.Errorf("the plugin stopped with its drop rule still in the kernel: no config is delivered for a parent-block removal, so the config boundary never runs and nothing that survives this engine can remove the rule (removals %d)", removals())
+	}
+	if active, _ := r.status(); active {
+		t.Error("the responder still reports a live mitigation after the engine stopped")
+	}
+}
+
+// TestLocalEngineStopAfterAWithdrawTouchesTheKernelOnce proves the two removal
+// paths a stop can take do not fight.
+//
+// VALIDATES: AC-6's premise on the stop that delivers a config AND exits.
+// PREVENTS: a second withdrawal on the way out. `delete ddos local` withdraws at
+// the config boundary and THEN stops the plugin, so both paths run over one
+// commit. The engine holds the fresh idle responder by then, and withdrawMitigation
+// returns on !active, so the kernel is written once. A double withdrawal would
+// register an empty table over an empty table and reconcile twice, delaying the
+// stop by a second netlink round trip for nothing.
+func TestLocalEngineStopAfterAWithdrawTouchesTheKernelOnce(t *testing.T) {
+	installs, removals, restore := countingTables()
+	defer restore()
+
+	first := newResponder(enforcing(), nil)
+	publishResponder(t, first)
+
+	first.onDetected(&ddosevent.AttackDetected{Target: floodVictim(), Family: ddosevent.FamilyUDPFlood})
+	if installs() != 1 {
+		t.Fatalf("setup: the drop rule must be installed, got %d installs", installs())
+	}
+
+	second := replaceResponder(enforcing(), nil, first, false)
+	if removals() != 1 {
+		t.Fatalf("setup: the removal must withdraw the rule, got %d removals", removals())
+	}
+
+	// The stop that follows the same commit, over the responder the engine holds.
+	retireResponder(second)
+
+	if removals() != 1 {
+		t.Errorf("the exit path withdrew a rule the config boundary had already removed, reconciling the kernel twice for one commit (removals %d)", removals())
+	}
+}
+
+// TestLocalDisablingForwardMitigationRemovesTheForwardDrop proves the third
+// commit that says the box must stop dropping is honored.
+//
+// VALIDATES: AC-6's premise across a config apply that turns forward mitigation
+// off.
+// PREVENTS: a FORWARD-hook drop outliving the instruction that ended it. The
+// leaf's whole subject is whether this box drops a transit victim's traffic
+// on-host: hookForDirection refuses a remote victim without it, so the one path
+// that could remove the rule afterwards is the path that now returns early.
+// Neither enforceMaxDuration nor onCleared reads the leaf, so a carried rule would
+// last up to max-mitigation-duration -- 3600 seconds by default -- while `show
+// ddos local` named a drop the operator has just asked to end.
+func TestLocalDisablingForwardMitigationRemovesTheForwardDrop(t *testing.T) {
+	installs, removals, restore := countingTables()
+	defer restore()
+
+	cfg := enforcing()
+	cfg.ForwardMitigation = true
+	first := newResponder(cfg, nil)
+	publishResponder(t, first)
+
+	first.onDetected(&ddosevent.AttackDetected{
+		Target:    floodVictim(),
+		Family:    ddosevent.FamilyUDPFlood,
+		Direction: ddosevent.DirectionRemote,
+	})
+	if installs() != 1 {
+		t.Fatalf("setup: the forward drop must be installed, got %d installs", installs())
+	}
+	if first.hook != firewall.HookForward {
+		t.Fatalf("setup: a remote victim under forward-mitigation must take the FORWARD hook, got %v", first.hook)
+	}
+
+	off := enforcing()
+	off.ForwardMitigation = false
+	second := replaceResponder(off, nil, first, true)
+
+	if removals() != 1 {
+		t.Errorf("a commit of forward-mitigation false left the FORWARD drop in the kernel: no later event removes it, because the one path that could is the path the leaf now makes return early (removals %d)", removals())
+	}
+	if active, _ := second.status(); active {
+		t.Error("the new responder claims a forward mitigation the commit asked to end")
+	}
+}
+
+// TestLocalDisablingForwardMitigationLeavesTheIngressDrop is the other arm, and
+// it is what keeps the withdrawal above from being a blanket one.
+//
+// VALIDATES: AC-6 -- an INPUT drop for a LOCAL victim survives a commit that says
+// nothing about it.
+// PREVENTS: `forward-mitigation false` un-protecting a box-owned victim mid-attack.
+// The leaf governs the forwarding plane only (hookForDirection, responder.go), so a
+// withdrawal keyed on the leaf rather than on the hook the live rule sits on would
+// lift a mitigation the operator never asked to end.
+func TestLocalDisablingForwardMitigationLeavesTheIngressDrop(t *testing.T) {
+	installs, removals, restore := countingTables()
+	defer restore()
+
+	cfg := enforcing()
+	cfg.ForwardMitigation = true
+	first := newResponder(cfg, nil)
+	publishResponder(t, first)
+
+	first.onDetected(&ddosevent.AttackDetected{
+		Target:    floodVictim(),
+		Family:    ddosevent.FamilyUDPFlood,
+		Direction: ddosevent.DirectionLocal,
+	})
+	if installs() != 1 || first.hook != firewall.HookInput {
+		t.Fatalf("setup: a local victim must take the INPUT hook, got %d installs and hook %v", installs(), first.hook)
+	}
+
+	off := enforcing()
+	off.ForwardMitigation = false
+	second := replaceResponder(off, nil, first, true)
+
+	if removals() != 0 {
+		t.Errorf("a commit of forward-mitigation false removed an INPUT drop protecting a box-owned victim, which the leaf says nothing about (removals %d)", removals())
+	}
+	if active, _ := second.status(); !active {
+		t.Error("the new responder must still own the ingress drop the commit left alone")
+	}
+}
+
+// TestLocalReturningToEnforceWaitsForTheNextDetection pins what an alert-then-
+// enforce round trip does, because the guide now states it.
+//
+// VALIDATES: AC-6's premise -- the responder never claims a rule the kernel does
+// not hold.
+// PREVENTS: the return to enforce being read as a re-arm. AttackDetected and
+// AttackCharacterized fire once per attack GENERATION (characterizeAndEmit,
+// internal/plugins/ddos/detect/characterize.go), so no further event arrives for a
+// flood that is already running: mitigation resumes at the next generation. The
+// alternative would be re-installing from the outgoing responder's target, which
+// is a rule the box would have no evidence is still needed -- an AttackCleared
+// that arrived during the alert window returns on !active and leaves that target
+// in place.
+func TestLocalReturningToEnforceWaitsForTheNextDetection(t *testing.T) {
+	installs, removals, restore := countingTables()
+	defer restore()
+
+	first := newResponder(enforcing(), nil)
+	publishResponder(t, first)
+
+	first.onDetected(&ddosevent.AttackDetected{Target: floodVictim(), Family: ddosevent.FamilyUDPFlood})
+	if installs() != 1 {
+		t.Fatalf("setup: the drop rule must be installed, got %d installs", installs())
+	}
+
+	alert := enforcing()
+	alert.ResponseLevel = "alert"
+	second := replaceResponder(alert, nil, first, true)
+	if removals() != 1 {
+		t.Fatalf("setup: response-level alert must remove the rule, got %d removals", removals())
+	}
+
+	third := replaceResponder(enforcing(), nil, second, true)
+	if installs() != 1 {
+		t.Errorf("returning to enforce re-installed a drop from a target no live event supports (installs %d)", installs())
+	}
+	if active, _ := third.status(); active {
+		t.Error("the enforcing responder claims a mitigation it has not installed")
+	}
+
+	// The next generation's detection is what re-arms the box.
+	third.onDetected(&ddosevent.AttackDetected{Target: floodVictim(), Family: ddosevent.FamilyUDPFlood})
+	if installs() != 2 {
+		t.Errorf("a detection after the return to enforce installed nothing, so the box stays unprotected for the rest of the attack (installs %d)", installs())
+	}
+}
+
+// TestPendingConfigRollbackUnstagesTheCandidate proves a rolled-back transaction
+// leaves nothing for a later apply to pick up.
+//
+// VALIDATES: AC-6's premise against a transaction that never applies here.
+// PREVENTS: the apply-without-verify guard being defeated by a stale candidate.
+// It drives pendingConfig.rollback, which IS the handler runEngine hands to
+// OnConfigRollback, so deleting the unstaging reddens this test.
+// That guard exists to fail closed, and it reads the staged config: a rollback
+// that left one behind makes the guard pass and applies a config the operator
+// abandoned. The pair a rolled-back REMOVAL leaves is (DefaultConfig, false), so
+// the next apply takes the not-configured arm and withdraws a live drop rule.
+func TestPendingConfigRollbackUnstagesTheCandidate(t *testing.T) {
+	var pending pendingConfig
+	pending.stage(DefaultConfig(), false)
+
+	// The handler the SDK is given, driven as the SDK drives it.
+	if err := pending.rollback("tx-1"); err != nil {
+		t.Fatalf("rollback: %v", err)
+	}
+
+	cfg, configured := pending.take()
+	if cfg != nil {
+		t.Error("a rolled-back transaction left its candidate staged, so the next apply that arrives without a verify applies a config the operator abandoned")
+	}
+	if configured {
+		t.Error("a rolled-back transaction left its configured answer staged")
+	}
+}

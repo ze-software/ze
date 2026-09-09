@@ -475,6 +475,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/core/ndp` | encodes IPv6 Neighbor Discovery messages (RFC 4861) and the Recursive DNS Server option (RFC 8106) |  |
 | `internal/core/network` | provides injectable abstractions for network operations |  |
 | `internal/core/observation` | provides an in-process, multi-subscriber feed for traffic observations |  |
+| `internal/core/pacer` | paces the retries of a goroutine whose read keeps failing |  |
 | `internal/core/parse` | provides shared value parsers for BGP attributes |  |
 | `internal/core/paths` | resolves the ze configuration directory from the running binary's location |  |
 | `internal/core/pcap` | writes and reads the classic libpcap file format with the standard library alone, so an appliance needs no tcpdump and no libpcap |  |

@@ -1,0 +1,125 @@
+# Test: deleting the PARENT `ddos` config block takes the live drop rule out of
+# the kernel. The removal is read back from nftables while the flood is still
+# running.
+#
+# VALIDATES: spec-ddos-timing-leaves-reach-no-worker AC-6's premise -- a drop
+#            rule ddos local installs is always reachable by something that can
+#            remove it. The plugin withdraws on its own exit path when it is
+#            stopped without being told anything (register.go runEngine's defer
+#            -> retireResponder -> responder.go withdrawMitigation).
+# PREVENTS:  the orphan that this operator gesture leaves and the sibling gesture
+#            does not. `delete ddos local` delivers an empty body for the removed
+#            root and the config boundary withdraws on it; `delete ddos` delivers
+#            NOTHING. diffMapsRecursive (internal/component/config/diff.go)
+#            records ONE removed key for a deleted subtree, so the diff holds
+#            "ddos" and nothing under it, and rootHasChanges
+#            (internal/component/plugin/server/reload.go) matches only the root
+#            itself or a key beneath it -- so ddos-local is not among the
+#            affected plugins and gets no verify and no apply. parentRemoved
+#            (internal/component/plugin/server/startup_autoload.go) DOES match an
+#            ancestor, so the plugin is stopped all the same. The drop then sits
+#            in the kernel with no responder to see it and no cap worker to
+#            remove it, for the life of the daemon, with no config left that
+#            mentions it. The delivery defect itself belongs to
+#            internal/component/** and is recorded in
+#            plan/journal/component-rebuilt-during-reload.md; this test pins the
+#            plugin-side guarantee that holds whatever the reload delivers.
+#
+# WHY THE KERNEL IS THE ONLY WITNESS. `show ddos local` belongs to the plugin the
+# removal stops, so after the commit the daemon has no answer left to give. That
+# is also the reading that matters: the orphan is a rule the daemon does not know
+# it is enforcing.
+#
+# WHY NOTHING ELSE COULD REMOVE IT. The flood never stops, so no AttackCleared
+# can arrive: the detector needs clear-consecutive-checks evaluations under the
+# threshold, which the config puts at 100. And `max-mitigation-duration` is 3600,
+# far outside the 40 seconds the assertion allows, so the cap cannot account for
+# a removal either. The exit-path withdrawal is the only path left.
+#
+# WHY COPP IS IN THIS CONFIG. It keeps the FIREWALL engine running after
+# ddos-local stops, and without it this test cannot fail. ddos-local declares
+# firewall as a dependency, so stopping ddos-local makes firewall a
+# dependency-only plugin with no remaining dependents, and the reload stops it
+# too (Server.collectOrphanedDependencies). The firewall engine flushes every
+# ze-owned table on its own clean shutdown (firewall.FlushAllTables), which
+# removes the orphaned drop by accident and hides the defect. Measured in the
+# guest for the sibling test on 2026-09-09: with no second dependent, the kernel
+# readback passed against code that withdraws nothing. copp declares firewall
+# too, so it holds the engine up and the orphan is left where an operator would
+# meet it.
+#
+# STATUS: a Linux/QEMU integration test; NOT executable on the darwin dev host.
+#   It needs a fully privileged host and two capability families.
+#     - net-admin: ddos-local writes the nftables table, and the probe reads it
+#       back through netlink.
+#     - bpf (CAP_BPF + CAP_SYS_RESOURCE): the traffic-usage block drives
+#       rlimit.RemoveMemlock() and link.AttachTCX()
+#       (internal/plugins/trafficusage/attach_linux.go). Without it the victim
+#       prefix never resolves, and applyMitigation refuses to install an
+#       unscoped rule -- so the test could only fail.
+option=needs-linux:caps=net-admin,bpf
+# Serialize against every other ddos test: they all flood the SAME loopback
+# interface and the detector picks the victim by top-destination-bytes over that
+# interface, so a sibling's concurrent flood is indistinguishable from this
+# test's own. Rationale in full: test/plugin/ddos-direction.ci.
+option=exclusive:group=ddos-flood
+option=env:var=ze.log.ddos.detect:value=info
+option=env:var=ze.log.ddos.local:value=info
+# 50s to install the drop under a flood, then 40s for the commit to land and the
+# withdrawal to reach the kernel, plus daemon startup.
+option=timeout:value=180s
+
+stdin=ze-bgp:terminator=EOF_CONF
+ddos {
+	detect {
+		enabled true
+		absolute-floor 1000
+		confirm-duration 1
+		clear-consecutive-checks 100
+		startup-grace 0
+		baseline-window 10
+		check-interval 1
+		characterize-enable false
+	}
+	observe {
+		incident-ring-size 100
+	}
+	local {
+		response-level enforce
+		max-mitigation-duration 3600
+	}
+}
+
+control-plane-protection {
+	bgp {
+		rate 100/second
+		burst 20
+	}
+}
+
+traffic {
+	usage {
+		enabled true
+		track-ip true
+		interfaces {
+			interface lo {
+				enabled true
+			}
+		}
+	}
+}
+
+plugin {
+	external ddos-parent-config-removed-probe {
+		run "ze-test fixture plugin/ddos-parent-config-removed-driver"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=175s
+expect=exit:code=0
+expect=stderr:contains=PARENT-REMOVED-INSTALLED 127.0.0.12
+expect=stderr:contains=PARENT-REMOVED-WITHDRAWN 127.0.0.12
+expect=stderr:contains=ddos-local: drop rule installed
+expect=stderr:contains=ddos-local: the plugin is stopping, removing the drop rule

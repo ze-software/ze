@@ -45,15 +45,16 @@ func DefaultConfig() *Config {
 // ParseConfig reads the ddos local section out of one delivered config section,
 // and reports whether the section carries one at all.
 //
-// found is what tells a removal from a default. A reload that DELETES the block
-// still reaches the plugin: the server sends an empty body for a root the new
-// tree no longer holds (internal/component/plugin/server/reload.go), which
-// parses to the same values as a block that names no leaf. The caller acts on
-// the difference, so it may not be folded into the returned Config
+// That second result is what tells a removal from a default. A reload that
+// DELETES the block still reaches the plugin: the server sends an empty body for
+// a root the new tree no longer holds
+// (internal/component/plugin/server/reload.go), which parses to the same values
+// as a block that names no leaf. The caller acts on the difference, so it may
+// not be folded into the returned Config
 // (ai/rules/principles.md -- a value that is silently wrong must not be
 // reachable).
-func ParseConfig(data string) (cfg *Config, found bool, err error) {
-	cfg = DefaultConfig()
+func ParseConfig(data string) (*Config, bool, error) {
+	cfg := DefaultConfig()
 	if strings.TrimSpace(data) == "" {
 		return cfg, false, nil
 	}

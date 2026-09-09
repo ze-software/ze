@@ -80,8 +80,9 @@ then narrows it in place to the attack's protocol, ports, and TCP flags.
 The drop rule is removed automatically when the attack stops (the detector
 observes RxPps falling below threshold, which works because nftables drops occur
 after the kernel NIC RX counter), when it reaches `max-mitigation-duration`, and
-when a `commit` turns mitigation off or deletes the `ddos local` block. The table
-under "When the clear never comes" gives each case.
+when a `commit` turns mitigation off, and when a `commit` deletes the `ddos
+local` block or the `ddos` block that holds it. The table under "When the clear
+never comes" gives each case.
 
 ### Attack characterization (Stage 2)
 
@@ -433,8 +434,24 @@ the new config, and what happens to the rule depends on what the commit says.
 |------------|--------------------|
 | Any `ddos local` leaf, `response-level` still `enforce` | KEPT, with its cap. The new responder is handed the rule, the victim it covers and the instant it went in, so the cap keeps counting from the FIRST install and an `AttackCleared` still removes it. The new config governs from the commit, so a `commit` that shortens `max-mitigation-duration` applies the shorter cap to the rule already installed |
 | `response-level alert` | REMOVED at once. `alert` is detect-and-report, and un-blackholing a victim is what an operator commits it for. The log line is `response-level left enforce, removing the drop rule` |
+| `forward-mitigation false`, with the live rule on the FORWARD hook | REMOVED at once. The leaf's whole subject is whether this box drops a transit victim's traffic on-host, so turning it off is the commit that says stop. The log line is `forward-mitigation was disabled, removing the drop rule`. A drop on the INPUT hook, for a victim the box owns, is KEPT: this leaf says nothing about it |
 | The `ddos local` block deleted | REMOVED at once. The plugin is stopped as soon as the reload lands, so a rule carried past this point would stay in the kernel with no responder and no cap worker left to remove it. The log line is `the ddos local section was removed, removing the drop rule` |
-<!-- source: internal/plugins/ddos/local/responder.go -- enforceMaxDuration, adoptMitigation, withdrawMitigation; internal/plugins/ddos/local/register.go -- startMaxDurationWorker, replaceResponder -->
+| The parent `ddos` block deleted | REMOVED, on the plugin's way out. This commit tells the plugin nothing: the reload records one removed key for the whole subtree, and the walk that picks the plugins to notify does not match an ancestor, so no config reaches `ddos local` at all. The plugin is stopped all the same, and it removes its own rule as it exits. The log line is `the plugin is stopping, removing the drop rule` |
+<!-- source: internal/plugins/ddos/local/responder.go -- enforceMaxDuration, adoptMitigation, withdrawMitigation; internal/plugins/ddos/local/register.go -- startMaxDurationWorker, replaceResponder, retireResponder -->
+
+**An orderly daemon stop removes the drop too, whatever `firewall
+flush-on-shutdown` says.** That leaf lets ze program firewall rules and exit,
+leaving them in place. A ddos drop is not a rule ze programmed and left: it is an
+attack response bounded by `max-mitigation-duration`, and the worker that
+enforces that bound exits with the daemon. So ddos local removes its own rule as
+it stops, and a stopped ze never leaves a victim blackholed. A crash still leaves
+the rule, because no exit path runs.
+
+**Going back to `enforce`.** A commit of `response-level alert` removes the rule,
+and a commit of `enforce` after it does NOT put the rule back for the attack that
+is already running. The detector signals an attack once for each generation, so
+no new signal arrives until the flood clears and a fresh one starts. Leave the
+box in `enforce` while an attack is live.
 
 ### FlowSpec mode sensor blindness
 

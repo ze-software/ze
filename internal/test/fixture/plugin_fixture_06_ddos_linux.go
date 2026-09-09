@@ -28,6 +28,7 @@ func init() {
 	Register("plugin/ddos-announce-rate-limit-driver", fixture06DDOSAnnounceRateLimit)
 	Register("plugin/ddos-local-cap-survives-reload-driver", fixture06DDOSLocalCapSurvivesReload)
 	Register("plugin/ddos-local-config-removed-driver", fixture06DDOSLocalConfigRemoved)
+	Register("plugin/ddos-parent-config-removed-driver", fixture06DDOSParentConfigRemoved)
 }
 
 func fixture06DDOSTransitSetup(context.Context, []string) error {
@@ -731,6 +732,135 @@ func fixture06DDOSLocalConfigRemoved(ctx context.Context, args []string) error {
 				"blackholes the victim for the life of the daemon (sent %d packets):\n%s", victim, sent, summary)
 		}
 		if _, err := fmt.Fprintf(os.Stderr, "CONFIG-REMOVED-WITHDRAWN %s (sent %d)\n", victim, sent); err != nil {
+			return fmt.Errorf("report the withdrawal: %w", err)
+		}
+		return nil
+	})
+}
+
+// fixture06ParentConfigRemovedVictim is the box-owned address the parent-removal
+// driver floods. Every ddos test floods loopback and the suite serializes them,
+// but each one takes an address of its own so a failure names one test.
+const fixture06ParentConfigRemovedVictim = "127.0.0.12"
+
+// fixture06ParentConfigRemovedConfig is what the operator commits: the same file
+// with the WHOLE `ddos` block deleted.
+//
+// That gesture is not the sibling test's, and the difference is the point.
+// diffMapsRecursive (internal/component/config/diff.go) records ONE removed key
+// for a deleted subtree, so this commit puts "ddos" in the diff and nothing
+// under it. rootHasChanges (plugin/server/reload.go) matches only the root
+// itself or a key beneath it, so "ddos" matches neither "ddos/local" nor
+// "ddos/local/": ddos-local is not among the affected plugins and receives NO
+// verify and NO apply. parentRemoved (plugin/server/startup_autoload.go) DOES
+// match an ancestor, so the plugin is stopped anyway. The config-boundary
+// withdrawal cannot fire when no config arrives, so the plugin's exit path is
+// the only thing left that can take the rule out.
+//
+// The control-plane-protection block stays, and it is load-bearing rather than
+// scenery: copp declares the firewall plugin as a dependency, so it keeps the
+// firewall engine running after ddos-local stops. Without a second dependent the
+// reload stops firewall too (Server.collectOrphanedDependencies), and the engine
+// flushes every ze-owned table on its way out (firewall.FlushAllTables), which
+// removes the orphaned drop by accident. The .ci header carries the measurement.
+const fixture06ParentConfigRemovedConfig = `control-plane-protection {
+	bgp {
+		rate 100/second
+		burst 20
+	}
+}
+
+traffic {
+	usage {
+		enabled true
+		track-ip true
+		interfaces {
+			interface lo {
+				enabled true
+			}
+		}
+	}
+}
+
+plugin {
+	external ddos-parent-config-removed-probe {
+		run "ze-test fixture plugin/ddos-parent-config-removed-driver"
+		encoder json
+	}
+}
+`
+
+// fixture06DDOSParentConfigRemoved proves an operator who deletes the whole
+// `ddos` block, rather than `ddos local` alone, gets the drop rule out of the
+// kernel.
+//
+// It installs a drop under an unbroken flood, commits a config with the parent
+// block deleted, and then reads the kernel back. This commit tells ddos-local
+// nothing: no verify and no apply reaches it, because the diff records one key
+// for the whole subtree and the affected-plugin walk does not match an ancestor.
+// The plugin is stopped all the same. So a rule still installed at that point has
+// no responder to see it, no cap worker to remove it and no config left that
+// mentions it, for the life of the daemon.
+//
+// The kernel is the only witness after the reload, and that is not a shortcut:
+// `show ddos local` belongs to the plugin the removal stops, so the daemon has
+// no answer left to give. It is also the reading that matters, because the
+// orphan is precisely a rule the daemon does not know it is enforcing.
+//
+// The flood never stops and the cap is 3600, so neither an AttackCleared nor
+// max-mitigation-duration can account for a removal this test observes.
+func fixture06DDOSParentConfigRemoved(ctx context.Context, args []string) error {
+	return p05Observe(ctx, args, "ddos-parent-config-removed-probe", func(ctx context.Context, plugin *sdk.Plugin) error {
+		victim := fixture06ParentConfigRemovedVictim
+		sockets, err := p05OpenFlood("", victim, 64)
+		if err != nil {
+			return err
+		}
+		defer sockets.Close()
+
+		sent := 0
+		summary := ""
+		installed := Poll(ctx, 200, 250*time.Millisecond, func() bool {
+			sent += sockets.blast(4000)
+			row, showErr := p05ShowMap(ctx, plugin, "show ddos local")
+			if showErr != nil || row["active"] != true {
+				return false
+			}
+			live, _, state, stateErr := fixture06DDOSDropState(victim)
+			summary = state
+			return stateErr == nil && live
+		})
+		if !installed {
+			return fmt.Errorf("ddos-local installed no drop for %s within 50s of an unbroken flood (sent %d packets):\n%s",
+				victim, sent, summary)
+		}
+		// The markers go to stderr, not stdout: this fixture runs as a plugin of
+		// the daemon, and a plugin's stdout is the JSON protocol channel the
+		// encoder owns.
+		if _, err := fmt.Fprintf(os.Stderr, "PARENT-REMOVED-INSTALLED %s (sent %d)\n", victim, sent); err != nil {
+			return fmt.Errorf("report the install: %w", err)
+		}
+
+		if err := fixture06ReloadDaemon(fixture06ParentConfigRemovedConfig); err != nil {
+			return err
+		}
+
+		withdrawn := Poll(ctx, 160, 250*time.Millisecond, func() bool {
+			sent += sockets.blast(4000)
+			live, _, state, stateErr := fixture06DDOSDropState(victim)
+			if stateErr != nil {
+				return false
+			}
+			summary = state
+			return !live
+		})
+		if !withdrawn {
+			return fmt.Errorf("deleting the parent ddos config block left the drop for %s in the kernel 40s later, under a flood that never stopped "+
+				"and a cap of 3600 seconds: the removal delivers no config to ddos-local, so its config-boundary withdrawal never runs, and the plugin "+
+				"is stopped anyway -- no responder and no cap worker is left to remove the rule and the box blackholes the victim for the life of the "+
+				"daemon (sent %d packets):\n%s", victim, sent, summary)
+		}
+		if _, err := fmt.Fprintf(os.Stderr, "PARENT-REMOVED-WITHDRAWN %s (sent %d)\n", victim, sent); err != nil {
 			return fmt.Errorf("report the withdrawal: %w", err)
 		}
 		return nil

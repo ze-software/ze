@@ -118,8 +118,8 @@ func startMaxDurationWorker(ctx context.Context, every time.Duration) (exited <-
 // clear, for the life of the daemon, while show ddos local reported no
 // mitigation.
 //
-// Two commits say the opposite, that the box must stop dropping, and each
-// withdraws instead. Both go through the OUTGOING responder, because the
+// Three commits say the opposite, that the box must stop dropping, and each
+// withdraws instead. All go through the OUTGOING responder, because the
 // incoming one has installed nothing and its own removal paths return on
 // !active:
 //
@@ -140,8 +140,22 @@ func startMaxDurationWorker(ctx context.Context, every time.Duration) (exited <-
 //     carried rule would outlive the instruction by up to
 //     max-mitigation-duration, 3600 seconds by default, with show ddos local
 //     naming a drop the operator has just asked to end.
+//   - forward-mitigation left true while the live rule sits on the FORWARD hook.
+//     The leaf's whole subject is whether this box drops a transit victim's
+//     traffic on-host, and turning it off is the commit that says stop
+//     (hookForDirection, responder.go, refuses a remote victim without it). The
+//     same argument as response-level applies: no later event removes the rule,
+//     and the one path that could is applyMitigation, which now returns before
+//     reaching a removal. The hook is read rather than the direction so an INPUT
+//     drop for a LOCAL victim, which this leaf says nothing about, is left alone.
 //
 // prev MAY be nil, which is the first configure.
+//
+// Whatever became of the rule, prev is RETIRED here, inside the same critical
+// section: it is unreachable from this point (not in activeResponder,
+// unsubscribed), so anything still holding a pointer to it must not be able to
+// install through it. An event dispatched before the unsubscribe is exactly such
+// a holder (responder.retire, responder.go).
 func replaceResponder(cfg *Config, bus eventBus, prev *responder, configured bool) *responder {
 	r := newResponder(cfg, bus)
 
@@ -160,12 +174,113 @@ func replaceResponder(cfg *Config, bus eventBus, prev *responder, configured boo
 			prev.withdrawMitigation(withdrawSectionRemoved)
 		case cfg.ResponseLevel != responseEnforce:
 			prev.withdrawMitigation(withdrawNotEnforcing)
+		case prev.hook == firewall.HookForward && !cfg.ForwardMitigation:
+			prev.withdrawMitigation(withdrawForwardDisabled)
 		}
+		prev.retire()
 	}
 
 	r.adoptMitigation(prev)
 	activeResponder.Store(r)
 	return r
+}
+
+// pendingConfig is what OnConfigVerify stages for OnConfigApply: the parsed
+// config, and whether the delivered section carried a `ddos local` body at all.
+//
+// The two are one type because the apply cannot recover the second from the
+// first. A removal delivers an empty body, which parses to the same values as a
+// block naming no leaf, so the answer has to travel; and a path that cleared one
+// while leaving the other would arm the next apply with a mismatched pair.
+//
+// NOT safe for concurrent use, and it does not need to be: the plugin SDK drives
+// verify, apply and rollback for one transaction on one goroutine.
+type pendingConfig struct {
+	cfg        *Config
+	configured bool
+}
+
+// stage records the candidate a config-verify accepted.
+func (p *pendingConfig) stage(cfg *Config, configured bool) {
+	p.cfg = cfg
+	p.configured = configured
+}
+
+// take returns the staged candidate and unstages it, so a second apply behind
+// one verify gets a nil config and the caller's fail-closed branch.
+func (p *pendingConfig) take() (cfg *Config, configured bool) {
+	cfg, configured = p.cfg, p.configured
+	p.clear()
+	return cfg, configured
+}
+
+// clear unstages the candidate without applying it. The rollback path calls it:
+// a transaction that verified here and then failed elsewhere never reaches this
+// plugin's apply, and a candidate left staged is applied by the NEXT
+// transaction that reaches an apply without a verify. That is the state the
+// apply's nil check exists to refuse, and a stale candidate defeats it -- the
+// pair a rolled-back removal leaves behind is (DefaultConfig, false), so the
+// next apply would withdraw a live drop rule nobody asked it to remove.
+func (p *pendingConfig) clear() {
+	p.cfg = nil
+	p.configured = false
+}
+
+// rollback is the plugin's config-rollback handler, and unstaging the candidate
+// is the whole of its job, so it IS this type's method rather than a closure in
+// runEngine that calls one. The handler the SDK is given is then the function a
+// test can drive.
+func (p *pendingConfig) rollback(string) error {
+	p.clear()
+	return nil
+}
+
+// retireResponder takes r out of service on the engine's exit path and removes
+// any drop rule it still owns. A nil r is the engine that never configured.
+//
+// The rule goes out with the engine because nothing survives the engine that
+// could remove it: the responder becomes unreachable, the cap worker exits, and
+// the firewall registry the rule lives in belongs to the daemon rather than to
+// this plugin, so it outlives both (firewall.RegisterTables, keyed by table
+// name). FlushAllTables runs only from the firewall engine's own clean shutdown,
+// which any other firewall dependent keeps from happening.
+//
+// This is the exit path, beside the config boundary in replaceResponder, and the
+// two cover different stops. replaceResponder covers a stop that DELIVERS a
+// config: `delete ddos local`, a response-level that leaves enforce,
+// forward-mitigation turned off. A stop that delivers NOTHING reaches only this
+// one, and deleting the PARENT `ddos` block is such a stop: diffMapsRecursive
+// (internal/component/config/diff.go) records the one key "ddos" for the whole
+// subtree, which rootHasChanges (plugin/server/reload.go) does not match against
+// the root "ddos/local", so no verify and no apply is delivered -- while
+// parentRemoved (plugin/server/startup_autoload.go) does match it and stops the
+// plugin anyway. That delivery defect is recorded in
+// plan/journal/component-rebuilt-during-reload.md; this path is what stops it
+// blackholing a victim in the meantime.
+//
+// The two cannot double-withdraw. withdrawMitigation returns on !active, and a
+// config-boundary withdrawal leaves the responder it acted on inactive while the
+// engine goes on holding the fresh idle one this call then finds.
+//
+// It runs at DAEMON shutdown too, and it is deliberate there rather than
+// incidental. The firewall engine's own comment already names ddos-local among
+// the per-plugin withdraw paths that share its in-process backend, and it flushes
+// sequentially before CloseBackend, so there is no race
+// (internal/component/firewall/engine.go). At the default
+// firewall flush-on-shutdown of true the engine's flush would have removed this
+// table anyway. At `flush-on-shutdown false`, which lets ze program rules and
+// exit, this call still removes the drop: that leaf is about rules an operator
+// PROVISIONED, and this rule is an attack response whose max-mitigation-duration
+// worker exits with the daemon, so leaving it is unbounded blackholing rather
+// than provisioning. docs/guide/ddos-mitigation.md states it for the operator.
+func retireResponder(r *responder) {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.withdrawMitigation(withdrawEngineStopped)
+	r.retire()
 }
 
 func runEngine(conn net.Conn) int {
@@ -176,7 +291,15 @@ func runEngine(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	var resp *responder
-	defer activeResponder.Store(nil)
+
+	// Registered BEFORE the cap worker's own defer, so LIFO runs it AFTER the
+	// worker has been canceled and waited for: the withdrawal is then the last
+	// thing this plugin does to the kernel. retireResponder says why the rule
+	// cannot be left behind.
+	defer func() {
+		activeResponder.Store(nil)
+		retireResponder(resp)
+	}()
 
 	// parseSections returns the ddos local config the delivered sections carry,
 	// and whether they carry one at all. The second answer is what a removal
@@ -201,11 +324,7 @@ func runEngine(conn net.Conn) int {
 	}
 
 	var (
-		pendingCfg *Config
-		// pendingConfigured travels with pendingCfg: the config a removal
-		// delivers parses to the same values as a block that names no leaf, so
-		// the apply cannot recover it from pendingCfg alone.
-		pendingConfigured  bool
+		pending            pendingConfig
 		unsubDetect        func()
 		unsubCharacterized func()
 		unsubCleared       func()
@@ -263,16 +382,12 @@ func runEngine(conn net.Conn) int {
 		if err != nil {
 			return err
 		}
-		pendingCfg = cfg
-		pendingConfigured = configured
+		pending.stage(cfg, configured)
 		return nil
 	})
 
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
-		cfg := pendingCfg
-		configured := pendingConfigured
-		pendingCfg = nil
-		pendingConfigured = false
+		cfg, configured := pending.take()
 		if cfg == nil {
 			// Fail closed. The reload transaction drives verify and apply over the
 			// SAME participant set -- runTxCoordinator builds both from `affected`
@@ -304,7 +419,10 @@ func runEngine(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnConfigRollback(func(_ string) error { return nil })
+	// A rollback is the end of the transaction, so the candidate this plugin
+	// verified is unstaged rather than left for an apply that will never ask for
+	// it (pendingConfig.clear).
+	p.OnConfigRollback(pending.rollback)
 
 	ctx, cancel := sdk.SignalContext()
 

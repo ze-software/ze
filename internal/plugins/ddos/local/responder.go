@@ -42,15 +42,37 @@ type responder struct {
 	mu  sync.Mutex
 	cfg *Config
 	bus eventBus
-	// active and target are guarded by mu. setStatus is their ONLY writer once
-	// this responder is live, in production and in tests: it is what keeps
+	// active, target and hook are guarded by mu. setStatus is their ONLY writer
+	// once this responder is live, in production and in tests: it is what keeps
 	// `published` in step with them. adoptMitigation is the exception at both
 	// ends of a config apply: it seeds them here, with installedAt and the clock
 	// beside them, from the responder the apply replaces, and it clears them on
 	// that responder, which is how ownership of one rule stays with one
 	// responder. It runs before this one is published.
+	//
+	// hook is the netfilter hook the live rule sits on, and it is read once the
+	// rule exists: replaceResponder (register.go) needs it to tell a FORWARD drop,
+	// which `forward-mitigation false` says to stop, from an INPUT drop, which
+	// that leaf says nothing about.
 	active bool
 	target ddosevent.VectorTuple
+	hook   firewall.ChainHook
+	// retired says this responder is out of service: a config apply replaced it,
+	// or the engine that owns it is stopping. Guarded by mu, and applyMitigation
+	// refuses to install once it is set.
+	//
+	// It exists because an event dispatched BEFORE the unsubscribe still reaches
+	// this responder AFTER it. The plugin server snapshots the handler list under
+	// a read lock and invokes outside it, and its own contract says so: "register
+	// and unregister take effect on the NEXT dispatch, not the current one"
+	// ((*engineEventSubscribers).dispatch,
+	// internal/component/plugin/server/engine_event.go). So a handler blocked on
+	// mu across a config apply runs when the apply releases it, on a responder
+	// nothing can reach any more. The two REMOVAL paths are already closed by
+	// !active; the INSTALL is not, and a rule installed here has no owner, no cap
+	// worker and no show handler left to reach it, which blackholes the victim
+	// for the life of the daemon.
+	retired bool
 	// installedAt is when the live drop rule went in, and now is the clock that
 	// stamped it. enforceMaxDuration compares the two against
 	// cfg.MaxMitigationDuration. setStatus writes installedAt on the transition
@@ -104,23 +126,34 @@ func newResponder(cfg *Config, bus eventBus) *responder {
 // place on every AttackCharacterized while the rule is already live, so a clock
 // written on each install would restart the cap on every characterization and
 // an attack that re-characterizes inside its own cap would never expire.
-func (r *responder) setStatus(active bool, target ddosevent.VectorTuple) {
+//
+// hook travels with target because the two describe one rule: the caller that
+// clears a mitigation passes r.hook back, so the pair keeps naming the rule that
+// was last installed.
+func (r *responder) setStatus(active bool, target ddosevent.VectorTuple, hook firewall.ChainHook) {
 	if active && !r.active {
 		r.installedAt = r.clock()
 	}
 	r.active = active
 	r.target = target
+	r.hook = hook
 	r.published.Store(&mitigationStatus{active: active, target: target})
 }
 
 // adoptMitigation carries a live drop rule from the responder a config apply
-// replaces into the one that replaces it, and leaves prev owning nothing, so the
-// rule has exactly one owner at every instant.
+// replaces into the one that replaces it, and leaves prev claiming nothing.
 //
-// Without it a config apply orphans the rule. The firewall registry is keyed by
-// table name rather than by responder, so the kernel keeps the drop while the
-// fresh responder believes there is none, and both removal paths return on
-// !active: enforceMaxDuration and onCleared alike.
+// Without the carry a config apply orphans the rule. The firewall registry is
+// keyed by table name rather than by responder, so the kernel keeps the drop
+// while the fresh responder believes there is none, and both removal paths
+// return on !active: enforceMaxDuration and onCleared alike.
+//
+// One rule then has one owner at every instant, and that holds in BOTH
+// directions only because replaceResponder retires prev in the same critical
+// section: this function stops prev REMOVING the rule, and prev.retired stops it
+// INSTALLING another one. Without the second half, a handler already in flight
+// when the apply started could re-install after the handover, on a responder
+// nothing can reach (the retired field, above).
 //
 // The cap clock comes across unchanged, and so does the time source that stamped
 // it: an instant is only meaningful against the clock that produced it, and the
@@ -152,6 +185,7 @@ func (r *responder) adoptMitigation(prev *responder) {
 	// for an install this responder performs and wrong for one it inherits.
 	r.active = true
 	r.target = prev.target
+	r.hook = prev.hook
 	r.installedAt = prev.installedAt
 	r.now = prev.now
 	r.published.Store(&mitigationStatus{active: true, target: prev.target})
@@ -171,24 +205,40 @@ func (r *responder) adoptMitigation(prev *responder) {
 type withdrawReason string
 
 const (
-	withdrawSectionRemoved withdrawReason = "ddos-local: the ddos local section was removed, removing the drop rule"
-	withdrawNotEnforcing   withdrawReason = "ddos-local: response-level left enforce, removing the drop rule"
+	withdrawSectionRemoved  withdrawReason = "ddos-local: the ddos local section was removed, removing the drop rule"
+	withdrawNotEnforcing    withdrawReason = "ddos-local: response-level left enforce, removing the drop rule"
+	withdrawForwardDisabled withdrawReason = "ddos-local: forward-mitigation was disabled, removing the drop rule"
+	withdrawEngineStopped   withdrawReason = "ddos-local: the plugin is stopping, removing the drop rule"
 )
 
 // withdrawMitigation removes the drop rule this responder installed because the
 // operator's new config says the box must stop dropping. A no-op when no rule is
 // installed. Caller holds r.mu, as applyMitigation and removeMitigation do.
 //
-// It is the removal path for a config apply, beside enforceMaxDuration for the
-// cap and onCleared for the attack ending. replaceResponder (register.go) is its
-// one caller, and it calls it on the OUTGOING responder: the incoming one has
-// installed nothing, and its own removal paths return on !active.
+// It is the removal path for a config apply and for the engine's own stop,
+// beside enforceMaxDuration for the cap and onCleared for the attack ending. Its
+// two callers are in register.go: replaceResponder, on the OUTGOING responder
+// because the incoming one has installed nothing, and retireResponder on the
+// engine's exit path.
 func (r *responder) withdrawMitigation(reason withdrawReason) {
 	if !r.active {
 		return
 	}
 	logger().Info(string(reason), "target", r.target.DstPrefix)
 	r.removeMitigation()
+}
+
+// retire takes this responder out of service, so it can neither install a rule
+// nor claim one, whatever reaches it afterwards. Caller holds r.mu.
+//
+// It is called once for each responder, at the moment the plugin stops being
+// able to reach it: from replaceResponder for a responder a config apply
+// replaces, and from retireResponder for the one the engine holds when it stops
+// (both register.go). Ordering against a handler already in flight is settled by
+// mu either way. A handler that wins the lock installs a rule this call then
+// removes; a handler that loses it finds retired and installs nothing.
+func (r *responder) retire() {
+	r.retired = true
 }
 
 // onDetected installs the fast coarse drop for the victim (all traffic to the
@@ -225,6 +275,18 @@ func (r *responder) onCharacterized(e *ddosevent.AttackCharacterized) {
 // table is re-registered identically; the only difference is how surgical the
 // term is.
 func (r *responder) applyMitigation(target ddosevent.VectorTuple, family ddosevent.AttackFamily, direction ddosevent.Direction, suppressMitigation bool, phase string) {
+	// A retired responder installs nothing. It reads its OWN cfg, which is the
+	// config the operator has just replaced, so the checks below would answer for
+	// a commit that no longer applies -- and the rule they installed would have no
+	// owner, no cap worker and no show handler left to reach it. Logged rather
+	// than silent, because a mitigation that does not happen is what an operator
+	// comes looking for (the retired field, above).
+	if r.retired {
+		logger().Info("ddos-local: this responder was retired by a config apply or a plugin stop, not mitigating",
+			"target", target.DstPrefix, "phase", phase)
+		return
+	}
+
 	if r.cfg.ResponseLevel != responseEnforce {
 		logger().Info("ddos-local: alert mode, would mitigate",
 			"target", target.DstPrefix, "family", family, "phase", phase)
@@ -285,7 +347,7 @@ func (r *responder) applyMitigation(target ddosevent.VectorTuple, family ddoseve
 		// The registry refused the table, so nothing was staged and there is
 		// nothing to roll back. Report no live mitigation, as the apply-failure
 		// path below does: r.active must never claim a rule the kernel lacks.
-		r.setStatus(false, r.target)
+		r.setStatus(false, r.target, r.hook)
 		logger().Error("ddos-local: failed to register the drop rule", "error", err, "phase", phase)
 		return
 	}
@@ -307,12 +369,12 @@ func (r *responder) applyMitigation(target ddosevent.VectorTuple, family ddoseve
 		} else if rbErr := applyAll(); rbErr != nil {
 			logger().Error("ddos-local: rollback after failed apply also failed", "error", rbErr, "phase", phase)
 		}
-		r.setStatus(false, r.target)
+		r.setStatus(false, r.target, r.hook)
 		logger().Error("ddos-local: failed to apply drop rule", "error", err, "phase", phase)
 		return
 	}
 
-	r.setStatus(true, target)
+	r.setStatus(true, target, hook)
 	logger().Info("ddos-local: drop rule installed",
 		"target", target.DstPrefix, "hook", hookChainName(hook), "phase", phase)
 }
@@ -398,7 +460,7 @@ func (r *responder) removeMitigation() {
 		logger().Error("ddos-local: failed to remove drop rule", "error", err)
 	}
 	logger().Info("ddos-local: drop rule removed", "target", r.target.DstPrefix)
-	r.setStatus(false, r.target)
+	r.setStatus(false, r.target, r.hook)
 }
 
 // status returns the published snapshot for the show handler: whether an on-host
