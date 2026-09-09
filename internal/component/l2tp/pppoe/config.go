@@ -20,6 +20,14 @@ const (
 	DefaultCookieTimeout = 5 * time.Second
 	DefaultMaxSessions   = 65535
 	DefaultPADIRateLimit = 100
+	// DefaultMaxSessionsPerMAC bounds how many sessions one subscriber MAC
+	// address may hold at once (spec-pppoe-padr-replay-allocates-unbounded-
+	// sessions). RFC 2516 places no per-peer session limit, and accel-ppp
+	// permits several concurrent sessions from one MAC, so the default sits
+	// well above one: high enough for a CPE that opens more than one session
+	// (dual-stack, multi-WAN, a set-top box beside the Internet session), and
+	// far below the descriptor exhaustion a replay flood is aiming for.
+	DefaultMaxSessionsPerMAC = 8
 	// DefaultAuthMethod matches the L2TP LNS default: a BNG asks a subscriber
 	// who it is. Both transports feed the same PPP driver and the same auth
 	// handlers, so an operator who configures a credential for one gets the
@@ -34,20 +42,22 @@ var ErrAuthMethodNoneRequiresAllow = errors.New("pppoe auth-method none requires
 
 // InterfaceConfig holds per-interface PPPoE settings.
 type InterfaceConfig struct {
-	Name         string
-	ServiceNames []string
-	MaxSessions  int
+	Name              string
+	ServiceNames      []string
+	MaxSessions       int
+	MaxSessionsPerMAC int
 }
 
 // Parameters holds the parsed PPPoE subsystem configuration.
 type Parameters struct {
-	Enabled       bool
-	ACName        string
-	ServiceNames  []string
-	Interfaces    []InterfaceConfig
-	CookieTimeout time.Duration
-	MaxSessions   int
-	PADIRateLimit int
+	Enabled           bool
+	ACName            string
+	ServiceNames      []string
+	Interfaces        []InterfaceConfig
+	CookieTimeout     time.Duration
+	MaxSessions       int
+	MaxSessionsPerMAC int
+	PADIRateLimit     int
 
 	// AuthMethod is the PPP Auth-Protocol the AC advertises in its LCP
 	// Configure-Request; AllowNoAuth admits a subscriber whose LCP ends with
@@ -73,11 +83,12 @@ type Parameters struct {
 // everybody. Today that is auth-method none without allow-no-auth.
 func ExtractParameters(tree map[string]any) (Parameters, error) {
 	p := Parameters{
-		ACName:        DefaultACName,
-		CookieTimeout: DefaultCookieTimeout,
-		MaxSessions:   DefaultMaxSessions,
-		PADIRateLimit: DefaultPADIRateLimit,
-		AuthMethod:    DefaultAuthMethod,
+		ACName:            DefaultACName,
+		CookieTimeout:     DefaultCookieTimeout,
+		MaxSessions:       DefaultMaxSessions,
+		MaxSessionsPerMAC: DefaultMaxSessionsPerMAC,
+		PADIRateLimit:     DefaultPADIRateLimit,
+		AuthMethod:        DefaultAuthMethod,
 	}
 
 	pppoe, ok := tree["pppoe"].(map[string]any)
@@ -97,6 +108,9 @@ func ExtractParameters(tree map[string]any) (Parameters, error) {
 	}
 	if maxSess, ok := cfgFloat(pppoe["max-sessions"]); ok && maxSess > 0 {
 		p.MaxSessions = int(maxSess)
+	}
+	if perMAC, ok := cfgFloat(pppoe["max-sessions-per-mac"]); ok && perMAC > 0 {
+		p.MaxSessionsPerMAC = int(perMAC)
 	}
 	if rateLimit, ok := cfgFloat(pppoe["padi-rate-limit"]); ok && rateLimit > 0 {
 		p.PADIRateLimit = int(rateLimit)
@@ -137,12 +151,16 @@ func ExtractParameters(tree map[string]any) (Parameters, error) {
 			continue
 		}
 		ic := InterfaceConfig{
-			Name:         name,
-			ServiceNames: configvalue.LeafList(body["service-name"]),
-			MaxSessions:  p.MaxSessions,
+			Name:              name,
+			ServiceNames:      configvalue.LeafList(body["service-name"]),
+			MaxSessions:       p.MaxSessions,
+			MaxSessionsPerMAC: p.MaxSessionsPerMAC,
 		}
 		if maxSess, ok := cfgFloat(body["max-sessions"]); ok && maxSess > 0 {
 			ic.MaxSessions = int(maxSess)
+		}
+		if perMAC, ok := cfgFloat(body["max-sessions-per-mac"]); ok && perMAC > 0 {
+			ic.MaxSessionsPerMAC = int(perMAC)
 		}
 		p.Interfaces = append(p.Interfaces, ic)
 	}

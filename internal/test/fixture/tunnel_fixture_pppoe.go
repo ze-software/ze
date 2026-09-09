@@ -15,6 +15,7 @@ const (
 	tunnelPPPoEHostUniq         = 0x0103
 	tunnelPPPoEACCookie         = 0x0104
 	tunnelPPPoEServiceNameError = 0x0201
+	tunnelPPPoEACSystemError    = 0x0202
 )
 
 func tunnelPPPoETag(attribute uint16, value []byte) []byte {

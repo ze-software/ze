@@ -40,6 +40,7 @@ const (
 	clientHost = 4
 
 	commandShow        = "show"
+	commandPkill       = "pkill"
 	modulesPath        = "/lib/modules"
 	privilegedArgument = "--privileged"
 	zeConfigPath       = "/etc/ze/ze.conf"
@@ -118,6 +119,7 @@ func checkers() map[string]interoplab.Checker {
 		"01-pppoe-chap-ipv4":       checkZeClient,
 		"02-ze-ac-pppd-client":     checkZeAccessConcentrator,
 		"pppoe-empty-service-name": checkZeAccessConcentratorEmptyServiceName,
+		"pppoe-padr-replay":        checkZeAccessConcentratorPADRReplay,
 	}
 }
 

@@ -37,12 +37,14 @@ pppoe {
     auth-method chap-md5
     cookie-timeout 5
     max-sessions 65535
+    max-sessions-per-mac 8
     padi-rate-limit 100
     interface eth0 {
     }
     interface eth0.100 {
         service-name "vlan100"
         max-sessions 1000
+        max-sessions-per-mac 2
     }
 }
 ```
@@ -132,6 +134,12 @@ Ze's runtime kernel. The stock Alpine kernel has no `CONFIG_PPPOE`.
   Cookies expire after `cookie-timeout` seconds (default 5).
 - **PADI rate limiting**: Per-source-MAC rate limit prevents discovery
   flooding. Configurable via `padi-rate-limit` (default 100/s).
+- **Per-MAC session cap**: A MAC address holding `max-sessions-per-mac`
+  sessions is refused a further PADR (PADS error, no allocation).
+  Configurable via `max-sessions-per-mac` (default 8), global and
+  per-interface. The AC-Cookie proves a MAC completed a PADI/PADO round trip,
+  not that a given PADR is fresh, so this cap is the actual bound on how many
+  sessions a replayed or forged PADR can make the AC allocate.
 - **Service-Name filtering**: Only PADIs matching configured service names
   are accepted. Empty list means accept any.
 - **MAC binding**: Sessions are bound to the subscriber MAC from PADR.
@@ -151,6 +159,7 @@ Ze's runtime kernel. The stock Alpine kernel has no `CONFIG_PPPOE`.
 | `service-name-missing` | A PADR carried no Service-Name tag (RFC 2516 Section 5.3) |
 | `cookie-invalid` | A PADR's AC-Cookie was missing, malformed, or expired |
 | `session-id-exhausted` | The interface's session ID space (1 to 65535) is full |
+| `per-mac-cap-reached` | The PADR's source MAC already holds `max-sessions-per-mac` sessions |
 
 ## Concurrent Operation
 

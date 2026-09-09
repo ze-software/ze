@@ -31,12 +31,14 @@ test/interop-pppoe/
     01-pppoe-chap-ipv4/         Ze client, accel-ppp concentrator
     02-ze-ac-pppd-client/       Ze concentrator, pppd client
     pppoe-empty-service-name/  Ze concentrator, pppd client, no service-name configured
+    pppoe-padr-replay/         Ze concentrator, pppd client, max-sessions-per-mac 1
 internal/le/interoplab/pppoe/
   pppoe.go             Native images, preflight, selection, and lifecycle
   scenarios.go         Role-selected container plans and mounts
   check_client.go      Ze client assertions
   check_ac.go          Ze access-concentrator assertions
   check_service_name.go  pppoe-empty-service-name: wire-level Service-Name proof
+  check_padr_replay.go   pppoe-padr-replay: wire-level replay and per-MAC cap proof
 ```
 
 The Dockerfiles keep their small amount of peer initialisation in the image
@@ -62,6 +64,7 @@ machine. The QEMU action remains available for a host where the probe refuses.
 ZE_PPPOE_INTEROP_SCENARIO=01-pppoe-chap-ipv4 ./le deployment docker-pppoe-accel-test
 ZE_PPPOE_INTEROP_SCENARIO=02-ze-ac-pppd-client ./le deployment docker-pppoe-accel-test
 ZE_PPPOE_INTEROP_SCENARIO=pppoe-empty-service-name ./le deployment docker-pppoe-accel-test
+ZE_PPPOE_INTEROP_SCENARIO=pppoe-padr-replay ./le deployment docker-pppoe-accel-test
 ```
 
 `01-pppoe-chap-ipv4` and `02-ze-ac-pppd-client` predate the naming rule and keep
@@ -113,6 +116,20 @@ LCP/CHAP/IPCP proof `02-ze-ac-pppd-client` performs. A session coming up is not
 enough evidence here: the unit tests already pin `BuildPADO`/`BuildPADS` always
 writing one tag, so this scenario's job is proving a real peer reads the same
 bytes off Ze's own wire, not proving the encoder again.
+
+### pppoe-padr-replay
+
+Ze's AC carries `max-sessions-per-mac 1`. The checker dials one session with the
+independent pppd client, waits until it is live in PPP, then replays the exact
+captured PADR frame from inside the client container's own network namespace
+(`interoplab.SendFrameInNamespace`, the same AF_PACKET/netns mechanism the BGP
+lab's IS-IS purge injector uses). It requires the PADS that replay provokes to
+carry the SAME session id, never a second one. It then dials a second,
+genuinely independent session from the same MAC and requires the PADS it
+provokes to carry session id `0x0000` and an AC-System-Error tag, read off the
+captured frame -- a session count that stayed at one is not enough evidence on
+its own for either claim (`ai/rules/interop-and-goal-validation.md`, "Prove a
+scenario discriminates"). `spec-pppoe-padr-replay-allocates-unbounded-sessions`.
 
 ## Relationship to other evidence
 

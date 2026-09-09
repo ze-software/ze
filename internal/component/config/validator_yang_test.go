@@ -19,6 +19,13 @@ import (
 	// `type string { length "1..255" }`), which TestValidateTree_LengthViolation
 	// uses to exercise the validator's length branch. The bgp schema has none.
 	_ "github.com/ze-software/ze/internal/plugins/isis/yang"
+
+	// pppoe provides max-sessions-per-mac, a uint16 leaf with a bounded range
+	// ("1..65535"), which TestValidateTree_PPPoEMaxSessionsPerMACRange uses to
+	// prove AC-8 (spec-pppoe-padr-replay-allocates-unbounded-sessions): the
+	// leaf's own range constraint is refused, not merely the generic
+	// validator mechanism the bgp-leaf cases above already cover.
+	_ "github.com/ze-software/ze/internal/component/l2tp/pppoe/yang"
 )
 
 // newTestLoader creates a resolved YANG loader with all registered modules.
@@ -238,6 +245,57 @@ func TestValidateTree_RangeViolation(t *testing.T) {
 			require.NotEmpty(t, errs, "range violation should produce error")
 			assert.Equal(t, yang.ErrTypeRange, errs[0].Type)
 			assert.Contains(t, errs[0].Path, tt.path)
+		})
+	}
+}
+
+// TestValidateTree_PPPoEMaxSessionsPerMACRange verifies max-sessions-per-mac
+// (spec-pppoe-padr-replay-allocates-unbounded-sessions) is refused outside
+// its declared range "1..65535", naming the leaf and the range.
+//
+// "pppoe" carries no entry in MapPrefixToModule (validator.go), so
+// ValidateTree("pppoe", ...) cannot resolve it -- ValidateTreeAllModules is
+// the entry point production validation actually uses for a section with no
+// hardcoded prefix mapping (validate_sections.go), and TestValidateTree_LengthViolation
+// above already established the same route for isis, filtering by error type
+// rather than indexing errs[0] directly for the same reason: several
+// registered conf modules can contribute to one section.
+//
+// No RFC requirement tag: this exercises the same generic range-check
+// producer (checkYangRange/validateUnsigned, validator.go) that
+// TestValidateTree_RangeViolation above already carries RFC7950-8.3.1-1 for.
+// The obligation is per-requirement, not per-leaf, so a second leaf driving
+// the same producer through the same branch does not owe a second tag.
+//
+// VALIDATES: AC-8 -- max-sessions-per-mac set outside its YANG range is
+// refused at validation with a message naming the leaf and the range.
+// PREVENTS: a cap of 0 read as "unlimited" (ai/rules/principles.md, "a zero
+// value is never an answer"), or a value the 16-bit session-ID space cannot
+// represent passing validation silently.
+func TestValidateTree_PPPoEMaxSessionsPerMACRange(t *testing.T) {
+	v := newTestValidator(t)
+
+	tests := []struct {
+		name  string
+		value any
+	}{
+		{"below_range", uint16(0)},
+		{"above_range", int(65536)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := map[string]any{"max-sessions-per-mac": tt.value}
+			var rangeErrs []yang.ValidationError
+			for _, e := range v.ValidateTreeAllModules("pppoe", data) {
+				if e.Type == yang.ErrTypeRange {
+					rangeErrs = append(rangeErrs, e)
+				}
+			}
+			require.NotEmpty(t, rangeErrs, "range violation should produce error")
+			assert.Equal(t, yang.ErrTypeRange, rangeErrs[0].Type)
+			assert.Contains(t, rangeErrs[0].Path, "max-sessions-per-mac", "message must name the leaf")
+			assert.Contains(t, rangeErrs[0].Expected, "1..65535", "message must name the range")
 		})
 	}
 }

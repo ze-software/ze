@@ -148,21 +148,22 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		}
 
 		srv := &InterfaceServer{
-			ifName:        ic.Name,
-			ifIndex:       ifindex,
-			hwAddr:        hwaddr,
-			mtu:           mtu,
-			sessions:      newSessionTable(ic.Name, ic.MaxSessions),
-			cookieKey:     cookieKey,
-			limiter:       NewPADILimiter(s.params.PADIRateLimit),
-			cookieTimeout: s.params.CookieTimeout,
-			acName:        s.params.ACName,
-			serviceNames:  svcNames,
-			authMethod:    s.params.AuthMethod,
-			authRequired:  !s.params.AllowNoAuth,
-			discFD:        s.discFD,
-			pppDriver:     s.pppDriver,
-			logger:        s.logger.With("interface", ic.Name),
+			ifName:            ic.Name,
+			ifIndex:           ifindex,
+			hwAddr:            hwaddr,
+			mtu:               mtu,
+			sessions:          newSessionTable(ic.Name, ic.MaxSessions),
+			maxSessionsPerMAC: ic.MaxSessionsPerMAC,
+			cookieKey:         cookieKey,
+			limiter:           NewPADILimiter(s.params.PADIRateLimit),
+			cookieTimeout:     s.params.CookieTimeout,
+			acName:            s.params.ACName,
+			serviceNames:      svcNames,
+			authMethod:        s.params.AuthMethod,
+			authRequired:      !s.params.AllowNoAuth,
+			discFD:            s.discFD,
+			pppDriver:         s.pppDriver,
+			logger:            s.logger.With("interface", ic.Name),
 		}
 		s.servers[ifindex] = srv
 		s.logger.Info("PPPoE interface configured", "interface", ic.Name, "ifindex", ifindex)

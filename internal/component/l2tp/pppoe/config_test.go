@@ -118,6 +118,46 @@ pppoe {
 	}
 }
 
+// TestExtractParametersCarriesPerMACCap -- AC-7: max-sessions-per-mac takes
+// its documented default when the leaf is absent, and a per-interface value
+// overrides the global one, exactly the way max-sessions already does.
+func TestExtractParametersCarriesPerMACCap(t *testing.T) {
+	def := extractFromConfigText(t, "pppoe {\n    enabled true\n    interface eth0 {\n    }\n}\n")
+	if def.MaxSessionsPerMAC != DefaultMaxSessionsPerMAC {
+		t.Errorf("default max-sessions-per-mac = %d, want %d", def.MaxSessionsPerMAC, DefaultMaxSessionsPerMAC)
+	}
+	if len(def.Interfaces) != 1 {
+		t.Fatalf("got %d interfaces, want 1", len(def.Interfaces))
+	}
+	if def.Interfaces[0].MaxSessionsPerMAC != DefaultMaxSessionsPerMAC {
+		t.Errorf("eth0 max-sessions-per-mac = %d, want the global default %d", def.Interfaces[0].MaxSessionsPerMAC, DefaultMaxSessionsPerMAC)
+	}
+
+	over := extractFromConfigText(t, `
+pppoe {
+    enabled true
+    max-sessions-per-mac 4
+    interface eth0 {
+        max-sessions-per-mac 2
+    }
+    interface eth1 {
+    }
+}
+`)
+	if over.MaxSessionsPerMAC != 4 {
+		t.Errorf("global max-sessions-per-mac = %d, want 4", over.MaxSessionsPerMAC)
+	}
+	if len(over.Interfaces) != 2 {
+		t.Fatalf("got %d interfaces, want 2", len(over.Interfaces))
+	}
+	if over.Interfaces[0].MaxSessionsPerMAC != 2 {
+		t.Errorf("eth0 max-sessions-per-mac = %d, want its own 2", over.Interfaces[0].MaxSessionsPerMAC)
+	}
+	if over.Interfaces[1].MaxSessionsPerMAC != 4 {
+		t.Errorf("eth1 max-sessions-per-mac = %d, want the global 4", over.Interfaces[1].MaxSessionsPerMAC)
+	}
+}
+
 // VALIDATES: a leaf-list reaches Parameters whether it has one member or
 // several, because ToMap collapses a single member to a bare string.
 // PREVENTS: Service-Name filtering being configured and never applied.

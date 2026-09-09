@@ -114,12 +114,23 @@ func TestTunnelIPsecIKEHeaderWireShape(t *testing.T) {
 
 func TestTunnelPPPoEDiscoveryPacketTags(t *testing.T) {
 	cookie := []byte{1, 2, 3, 4}
-	packet := tunnelPPPoEPacket(tunnelPPPoEPADR, cookie, []byte{0x42, 0x42})
+	packet := tunnelPPPoEPacket(tunnelPPPoEPADR, cookie, []byte{0x42, 0x42}, "")
 	if packet[0] != 0x11 || packet[1] != tunnelPPPoEPADR || int(binary.BigEndian.Uint16(packet[4:6])) != len(packet)-6 {
 		t.Fatalf("PPPoE discovery header = %x", packet[:6])
 	}
 	tags := tunnelPPPoEParseTags(packet[6:])
 	if !bytes.Equal(tags[tunnelPPPoEACCookie], cookie) || !bytes.Equal(tags[tunnelPPPoEHostUniq], []byte{0x42, 0x42}) {
 		t.Fatalf("PPPoE tags = %#v", tags)
+	}
+	if _, ok := tags[tunnelPPPoEService]; !ok || len(tags[tunnelPPPoEService]) != 0 {
+		t.Fatalf("PPPoE Service-Name tag = %#v, want a present zero-length tag", tags[tunnelPPPoEService])
+	}
+}
+
+func TestTunnelPPPoEDiscoveryPacketNamedService(t *testing.T) {
+	packet := tunnelPPPoEPacket(tunnelPPPoEPADI, nil, []byte{0x50, 0x50}, "internet")
+	tags := tunnelPPPoEParseTags(packet[6:])
+	if string(tags[tunnelPPPoEService]) != "internet" {
+		t.Fatalf("PPPoE Service-Name tag = %q, want %q", tags[tunnelPPPoEService], "internet")
 	}
 }

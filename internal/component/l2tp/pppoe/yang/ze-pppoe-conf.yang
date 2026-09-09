@@ -6,6 +6,13 @@ module ze-pppoe-conf {
 
     description "PPPoE access concentrator configuration for Ze (RFC 2516).";
 
+    revision 2026-09-09 {
+        description "Add max-sessions-per-mac, global and per interface: a
+                     replayed PADR must not let one MAC allocate sessions
+                     without bound (spec-pppoe-padr-replay-allocates-
+                     unbounded-sessions).";
+    }
+
     revision 2026-08-12 {
         description "Add auth-method and allow-no-auth: the AC had no way to
                      ask a subscriber to authenticate.";
@@ -97,6 +104,22 @@ module ze-pppoe-conf {
                      65535.";
         }
 
+        leaf max-sessions-per-mac {
+            type uint16 {
+                range "1..65535";
+            }
+            default 8;
+            description "Maximum concurrent sessions one subscriber MAC
+                         address may hold.";
+            ze:help "The default is 8 and the range is 1 to 65535. RFC 2516
+                     places no limit on concurrent sessions from one peer MAC,
+                     so this bounds replay rather than a legitimate
+                     multi-session client: a PADR from a MAC already at the
+                     cap gets a PADS carrying an error tag and session ID
+                     0x0000 instead of a new session. The per-interface
+                     max-sessions-per-mac overrides this value.";
+        }
+
         leaf padi-rate-limit {
             type uint16 {
                 range "1..10000";
@@ -143,6 +166,17 @@ module ze-pppoe-conf {
                          session identifiers come from a bitmap over the 16-bit space, and
                          identifier 0 is reserved. A PADR that arrives at the limit gets no
                          session, and Ze reports that the maximum is reached.";
+            }
+
+            leaf max-sessions-per-mac {
+                type uint16 {
+                    range "1..65535";
+                }
+                description "Per-interface override for max-sessions-per-mac.
+                             Defaults to the global value when unset.";
+                ze:help "Ze takes the global max-sessions-per-mac when this leaf is absent
+                         or 0. A PADR from a MAC already at the cap gets a PADS carrying an
+                         error tag and session ID 0x0000 instead of a new session.";
             }
         }
     }

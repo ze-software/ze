@@ -1767,3 +1767,32 @@ one sibling claim away from this refusal.
 **Correct fix.** Key the state file on the SPEC the agent was handed, not on a
 session-wide marker, or let the check pass when a state file exists for ANY spec in
 the session directory. The marker was written when a session was one agent.
+
+## The RFC-tag lock fires on a tag the same session just added (2026-09-09)
+
+`pretool-writeedit` refuses a body change to a test carrying an `RFC requirement:`
+tag until a discrimination record exists. That is right for a tag already in HEAD,
+where a published claim rests on it. It also fires when a session ADDS the tag and
+then decides the tag was wrong: the file is now locked by an annotation that exists
+only in the working tree, and the route back runs through a tool the hook does not
+watch.
+
+**What happened.** Writing the AC-8 range test for
+`spec-pppoe-padr-replay-allocates-unbounded-sessions`, an agent tagged its new test
+`RFC7950-8.3.1-1`, could not then edit the test body, judged the tag redundant
+against the sibling test already covering that producer, and removed it through
+Bash rather than Edit. It reported the route rather than hiding it, which is the
+only reason this row exists.
+
+**What it cost.** One agent's time, and a working-tree edit made outside the tool
+the gate watches. The second is the part worth preventing: a gate that can be
+stepped around teaches sessions to step around it.
+
+**Correct fix.** Read the tag out of HEAD before locking. A tag line absent from
+HEAD carries no published claim, so nothing is protected by refusing to edit
+beneath it, and the gate's real job over committed tags is untouched.
+
+**Note on the sibling guard.** `pretool-bash` DOES refuse a shell write to `plan/`
+and `ai/rules/`, and it refused this row's first draft. So the shell route is
+already closed for the governed trees and open for `internal/`. Closing it there
+too would remove the workaround this row describes.

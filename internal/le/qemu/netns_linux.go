@@ -46,7 +46,10 @@ var netnsSelections = map[string][]string{
 		"ospf-multiaf-v4-route", "ospf-nbma", "ospf-ptmp", "ospf-show",
 	},
 	netnsOSPFv3: {"ospfv3-vlink", "ospfv3-nbma", "ospfv3-ptmp"},
-	netnsPPPoE:  {"pppoe-basic", "pppoe-concurrent-l2tp", "pppoe-service-name", "pppoe-vlan"},
+	netnsPPPoE: {
+		"pppoe-basic", "pppoe-concurrent-l2tp", "pppoe-service-name", "pppoe-vlan",
+		"pppoe-per-mac-cap", "pppoe-padr-flood",
+	},
 }
 
 type netnsBinaries struct {

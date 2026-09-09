@@ -1,0 +1,63 @@
+# Test: a replay flood of one already-admitted PADR, from one MAC, leaves the
+# AC's own open-file-descriptor count flat, and the AC keeps answering PADI
+# afterward.
+#
+# VALIDATES: 10000 replays of a captured, valid PADR from one MAC allocate at
+#            most one session's worth of descriptors (process_open_fds on the
+#            AC's own Prometheus endpoint), because matchLiveCookie
+#            (session.go) answers a replayed cookie in every live session
+#            state, not only StateDiscovery (server.go, handlePADR)
+# VALIDATES: the AC answers a fresh PADI with a PADO after the flood, so the
+#            flood does not wedge or exhaust the discovery path
+# PREVENTS: the AC that this spec exists to fix -- one host on an access
+#           interface exhausting the AC's file descriptors by replaying a
+#           single valid PADR. Before the dedup branch covered every live
+#           session state, each replay past the first re-entered the
+#           allocation path (a fresh session ID, AF_PPPOX socket, /dev/ppp
+#           channel and unit), so this test's descriptor-growth assertion
+#           went red against the pre-fix code
+#           (spec-pppoe-padr-replay-allocates-unbounded-sessions, AC-6).
+#
+# max-sessions-per-mac is left at its default (8): AC-6 is the dedup branch
+# holding under a replay flood, not the cap. A flood of 10000 replays of the
+# SAME cookie is entirely absorbed by matchLiveCookie before admitPerMACCap
+# is ever consulted, so this test would pass even with the cap effectively
+# disabled -- pppoe-per-mac-cap.ci is what proves the cap itself refuses.
+#
+# No http=wait readiness barrier precedes the foreground command below: HTTP
+# checks in this format run only after every cmd= directive has finished
+# (ci-format.md, "HTTP Checks"), so a wait placed before cmd=foreground would
+# not run any earlier than one placed after it. The fixture itself polls
+# /metrics for its baseline read (tunnelPPPoEProcessOpenFDs).
+option=needs-linux:caps=net-admin,net-raw
+option=netns-link:name=veth-bng:peer=veth-sub
+
+
+stdin=config:terminator=EOF_CONF
+pppoe {
+    enabled true
+    ac-name ze-test
+    interface veth-bng {
+    }
+}
+
+telemetry {
+    prometheus {
+        enabled true
+        server main {
+            ip 127.0.0.1
+            port $PORT2
+        }
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.pppoe:value=debug
+option=env:var=TEST_IFACE:value=veth-sub
+
+cmd=background:seq=1:exec=ze -:stdin=config
+cmd=foreground:seq=2:exec=ze-test fixture pppoe/padr-flood $PORT2:timeout=90s
+expect=exit:code=0
+expect=stdout:contains=OK: initial session admitted, session-id=
+expect=stdout:contains=OK: process_open_fds grew by at most one session's worth after 10000 PADR replays
+expect=stdout:contains=OK: the AC answered a new PADI after the flood

@@ -1,0 +1,56 @@
+# Test: an operator-configured per-MAC session cap admits one session from a
+# MAC and refuses a second, distinct session from that same MAC, and the
+# refusal is visible on the operator's own metrics endpoint.
+#
+# VALIDATES: RFC 2516 places no per-peer session limit (rfc/short/rfc2516.md),
+#            so a MAC below the cap gets a normal PADS with a non-zero
+#            session id for its first session (server.go, handlePADR)
+# VALIDATES: a second, genuinely distinct session from the same MAC (its own
+#            PADI/PADO round trip, so its own AC-Cookie) gets a PADS carrying
+#            an AC-System-Error tag and session id 0x0000 once the MAC is at
+#            max-sessions-per-mac (server.go, admitPerMACCap, TagACSystemError)
+# VALIDATES: the refusal increments ze_pppoe_discovery_refusals_total{reason=
+#            "per-mac-cap-reached"}, readable on the operator's own Prometheus
+#            endpoint (metrics.go, countRefusal)
+# PREVENTS: an AC that keeps allocating a fresh session ID, AF_PPPOX socket,
+#           and /dev/ppp channel and unit every time one MAC's PADR admits --
+#           delete the admitPerMACCap call in handlePADR
+#           (internal/component/l2tp/pppoe/server.go) and the second session
+#           below gets admitted instead of refused
+#           (spec-pppoe-padr-replay-allocates-unbounded-sessions, AC-1).
+option=needs-linux:caps=net-admin,net-raw
+option=netns-link:name=veth-bng:peer=veth-sub
+
+
+stdin=config:terminator=EOF_CONF
+pppoe {
+    enabled true
+    ac-name ze-test
+    max-sessions-per-mac 1
+    interface veth-bng {
+    }
+}
+
+telemetry {
+    prometheus {
+        enabled true
+        server main {
+            ip 127.0.0.1
+            port $PORT2
+        }
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.pppoe:value=debug
+option=env:var=TEST_IFACE:value=veth-sub
+
+cmd=background:seq=1:exec=ze -:stdin=config
+cmd=foreground:seq=2:exec=ze-test fixture pppoe/per-mac-cap:timeout=45s
+expect=exit:code=0
+expect=stdout:contains=OK: first session admitted, session-id=
+expect=stdout:contains=OK: second session from the same MAC refused at the per-MAC cap
+
+# The operator's own read-back: the refusal above must be counted, by the
+# label an operator would filter on, not merely logged.
+http=wait:seq=1:url=http://127.0.0.1:$PORT2/metrics:status=200:contains=ze_pppoe_discovery_refusals_total{reason="per-mac-cap-reached"} 1:timeout=30s

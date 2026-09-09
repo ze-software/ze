@@ -29,6 +29,12 @@ type InterfaceServer struct {
 	cookieKey CookieKey
 	limiter   *PADILimiter
 
+	// maxSessionsPerMAC bounds how many sessions one subscriber MAC address
+	// may hold on this interface (config.go: InterfaceConfig.MaxSessionsPerMAC,
+	// resolved global-then-override the way MaxSessions already is).
+	// admitPerMACCap enforces it in handlePADR.
+	maxSessionsPerMAC int
+
 	cookieTimeout time.Duration
 	acName        string
 	serviceNames  []string
@@ -101,6 +107,24 @@ func requireServiceNameTag(pkt *Packet) bool {
 	return pkt.FindTag(TagServiceName) != nil
 }
 
+// admitPerMACCap reports whether pkt's source MAC may receive a new PPPoE
+// session under s.maxSessionsPerMAC. RFC 2516 places no per-peer session
+// limit (rfc/short/rfc2516.md): Section 9 only names the concept -- an AC
+// using the AC-Cookie "can then limit concurrent sessions for [a PADI
+// SOURCE_ADDR]" -- without setting a bound, so the cap itself is a Ze policy
+// decision, not an RFC obligation.
+//
+// The count includes every session the table still holds for the MAC,
+// including one mid-teardown (State == StateTeardown): its kernel resources
+// (AF_PPPOX socket, /dev/ppp channel and unit) are not released until Remove
+// runs, so excluding it here would let the MAC hold one more session's worth
+// of descriptors than the cap is meant to bound, for the length of that
+// window. A cap that resolves to zero refuses every PADR rather than
+// admitting without limit: len(...) < 0 is never true.
+func (s *InterfaceServer) admitPerMACCap(pkt *Packet) bool {
+	return len(s.sessions.sessionsByMAC(net.HardwareAddr(pkt.SrcMAC[:]))) < s.maxSessionsPerMAC
+}
+
 func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	if pkt.SID != 0 {
 		return
@@ -149,13 +173,45 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		return
 	}
 
-	// PADR dedup: if a session with this MAC already exists and has not
-	// yet started PPP (subscriber retransmitted PADR before getting our
-	// PADS), re-send PADS with the existing SID instead of allocating a
-	// new session. Matches accel-ppp's find_channel check.
-	if existing := s.sessions.lookupByMAC(net.HardwareAddr(pkt.SrcMAC[:])); existing != nil && existing.State == StateDiscovery {
+	// PADR dedup: a MAC that already holds a session admitted by the exact
+	// cookie this PADR carries is retransmitting a request the AC already
+	// answered, so the reply repeats that session's SID rather than
+	// allocating a new one. The correlator is the cookie, not the MAC and
+	// state alone: RFC 2516 places no per-peer session limit
+	// (rfc/short/rfc2516.md), so a MAC under the cap can be admitting a
+	// second, genuinely distinct session (its own fresh PADI/PADO cookie) at
+	// the same moment a replay of its first session's PADR arrives, and
+	// matching on MAC and state alone would answer that second PADR with the
+	// first session's SID instead of admitting it (spec-pppoe-padr-replay-
+	// allocates-unbounded-sessions, Key Design Decisions). matchLiveCookie
+	// also excludes a session the event-consumer goroutine has already begun
+	// tearing down, so a dying session is never handed back to a
+	// concurrently-processed PADR (R-2).
+	if sid, ok := s.sessions.matchLiveCookie(net.HardwareAddr(pkt.SrcMAC[:]), cookieTag.Value); ok {
 		var buf [EthMaxLen]byte
-		frame := BuildPADS(buf[:], s.hwAddr, pkt, s.acName, existing.SID)
+		frame := BuildPADS(buf[:], s.hwAddr, pkt, s.acName, sid)
+		if frame != nil {
+			s.sendFrame(frame)
+		}
+		return
+	}
+
+	if !s.admitPerMACCap(pkt) {
+		s.logger.Debug("pppoe: PADR refused: per-MAC session cap reached",
+			"src", net.HardwareAddr(pkt.SrcMAC[:]), "cap", s.maxSessionsPerMAC, "reason", reasonPerMACCapReached)
+		countRefusal(reasonPerMACCapReached)
+		// RFC 2516 Section 5.4: AC-System-Error "indicates that the Access
+		// Concentrator experienced some error in performing the Host request
+		// (For example insufficient resources ...) It MAY be included in
+		// PADS packets." A per-MAC cap is exactly that: Ze's own resource
+		// policy, not an objection to the requested Service-Name, so
+		// Service-Name-Error would misname the reason. This is the same tag
+		// AllocSID exhaustion answers with below, for the same class of
+		// refusal. The RFC does not spell out SESSION_ID 0x0000 for this tag
+		// the way it does for Service-Name-Error, but no session was
+		// allocated, so 0 is the only value that can be true.
+		var buf [EthMaxLen]byte
+		frame := BuildPADSError(buf[:], s.hwAddr, pkt, s.acName, TagACSystemError)
 		if frame != nil {
 			s.sendFrame(frame)
 		}
@@ -179,6 +235,7 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		MAC:         net.HardwareAddr(append([]byte(nil), pkt.SrcMAC[:]...)),
 		IfName:      s.ifName,
 		ServiceName: pkt.ServiceNameString(),
+		Cookie:      append([]byte(nil), cookieTag.Value...),
 		State:       StateDiscovery,
 		CreatedAt:   time.Now(),
 	}
@@ -226,7 +283,11 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	}
 	s.sendFrame(frame)
 
-	sess.State = StateSession
+	// Through the table's lock, not as a bare field write: handleSessionDown
+	// marks StateTeardown from the event-consumer goroutine and
+	// matchLiveCookie reads State from this one, both under that lock, so a
+	// third accessor outside it would leave the field unsynchronized.
+	s.sessions.markSession(sid)
 
 	// spec-followup-l2tp-call AC-3: if a relay binding matches this service,
 	// hand the subscriber to the L2TP subsystem (LAC incoming call) instead
@@ -293,8 +354,16 @@ func (s *InterfaceServer) handlePADT(pkt *Packet) {
 
 // handleSessionDown is called by the event consumer when PPP reports
 // a session has ended. Sends PADT to the subscriber and cleans up.
+//
+// It marks the session StateTeardown (rather than calling Lookup) before
+// doing anything else, because it runs on the PPP driver's event-consumer
+// goroutine while a PADR replay's dedup match runs on the discovery-reader
+// goroutine: markTeardown's write and matchLiveCookie's read of the same
+// field both go through the session table's lock, so the two goroutines
+// cannot race on it (spec-pppoe-padr-replay-allocates-unbounded-sessions
+// R-2).
 func (s *InterfaceServer) handleSessionDown(sid uint16) {
-	sess := s.sessions.Lookup(sid)
+	sess := s.sessions.markTeardown(sid)
 	if sess == nil {
 		return
 	}

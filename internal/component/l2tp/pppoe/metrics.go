@@ -22,6 +22,7 @@ const (
 	reasonServiceNameMissing  = "service-name-missing"
 	reasonCookieInvalid       = "cookie-invalid"
 	reasonSessionIDExhausted  = "session-id-exhausted"
+	reasonPerMACCapReached    = "per-mac-cap-reached"
 )
 
 // metricsHookName is the key registry.InjectPluginMetrics stores this
