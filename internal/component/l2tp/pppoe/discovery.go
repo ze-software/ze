@@ -336,13 +336,22 @@ func BuildPADO(buf []byte, acMAC [EthALen]byte, padi *Packet, acName string, ser
 	b := NewBuilder(buf, acMAC, padi.SrcMAC, CodePADO, 0)
 
 	b.AddTagString(TagACName, acName)
-	for _, sn := range serviceNames {
-		b.AddTagString(TagServiceName, sn)
-	}
 
-	svcTag := padi.FindTag(TagServiceName)
-	if svcTag != nil && len(svcTag.Value) > 0 && !slices.Contains(serviceNames, string(svcTag.Value)) {
-		b.AddTagCopy(svcTag)
+	// RFC 2516 Section 5.2: "The PADO packet MUST contain one AC-Name TAG
+	// containing the Access Concentrator's name, a Service-Name TAG
+	// identical to the one in the PADI, and any number of other
+	// Service-Name TAGs indicating other services that the Access
+	// Concentrator offers." ServiceNameString yields the empty string for
+	// a PADI that carried no tag or a zero-length one, so the identical
+	// tag is always written, never skipped. The offered names then follow,
+	// skipping the one already written so it is not duplicated.
+	padiSvcName := padi.ServiceNameString()
+	b.AddTagString(TagServiceName, padiSvcName)
+	for _, sn := range serviceNames {
+		if sn == padiSvcName {
+			continue
+		}
+		b.AddTagString(TagServiceName, sn)
 	}
 
 	b.addTag(TagACCookie, cookie)
@@ -362,7 +371,16 @@ func BuildPADS(buf []byte, acMAC [EthALen]byte, padr *Packet, acName string, sid
 	b := NewBuilder(buf, acMAC, padr.SrcMAC, CodePADS, sid)
 
 	b.AddTagString(TagACName, acName)
-	b.AddTagCopy(padr.FindTag(TagServiceName))
+
+	// RFC 2516 Section 5.4: "The PADS packet contains exactly one TAG of
+	// TAG_TYPE Service-Name, indicating the service under which the
+	// Access Concentrator has accepted the PPPoE session." AddTagCopy
+	// skips a nil tag, which is correct for the genuinely optional
+	// Host-Uniq and Relay-Session-Id below but wrong for this mandatory
+	// one, so it is written through AddTagString instead: an absent or
+	// zero-length Service-Name in the PADR both become a zero-length
+	// echo, never no tag at all.
+	b.AddTagString(TagServiceName, padr.ServiceNameString())
 	b.AddTagCopy(padr.FindTag(TagHostUniq))
 	b.AddTagCopy(padr.FindTag(TagRelaySessionID))
 

@@ -28,13 +28,15 @@ test/interop-pppoe/
   Dockerfile.accel     accel-ppp access-concentrator image
   Dockerfile.client    pppd and rp-pppoe client image
   scenarios/
-    01-pppoe-chap-ipv4/    Ze client, accel-ppp concentrator
-    02-ze-ac-pppd-client/   Ze concentrator, pppd client
+    01-pppoe-chap-ipv4/         Ze client, accel-ppp concentrator
+    02-ze-ac-pppd-client/       Ze concentrator, pppd client
+    pppoe-empty-service-name/  Ze concentrator, pppd client, no service-name configured
 internal/le/interoplab/pppoe/
   pppoe.go             Native images, preflight, selection, and lifecycle
   scenarios.go         Role-selected container plans and mounts
   check_client.go      Ze client assertions
   check_ac.go          Ze access-concentrator assertions
+  check_service_name.go  pppoe-empty-service-name: wire-level Service-Name proof
 ```
 
 The Dockerfiles keep their small amount of peer initialisation in the image
@@ -59,7 +61,14 @@ machine. The QEMU action remains available for a host where the probe refuses.
 ./le deployment docker-pppoe-accel-test
 ZE_PPPOE_INTEROP_SCENARIO=01-pppoe-chap-ipv4 ./le deployment docker-pppoe-accel-test
 ZE_PPPOE_INTEROP_SCENARIO=02-ze-ac-pppd-client ./le deployment docker-pppoe-accel-test
+ZE_PPPOE_INTEROP_SCENARIO=pppoe-empty-service-name ./le deployment docker-pppoe-accel-test
 ```
+
+`01-pppoe-chap-ipv4` and `02-ze-ac-pppd-client` predate the naming rule and keep
+their numeric prefixes. A scenario added since carries none:
+`interoplab.Discover` and `ZE_PPPOE_INTEROP_SCENARIO` both match a scenario by
+its directory name, and a number is a reservation a later scenario can take, or
+a hole nothing tells apart from one (`ai/rules/interop-and-goal-validation.md`).
 
 `NO_BUILD` skips image builds, `SESSION_TIMEOUT` changes the default 90-second
 scenario bound, and `ZE_PPPOE_INTEROP_SUFFIX` provides parallel-run isolation.
@@ -92,11 +101,25 @@ with Ze's REST session table. It then requires PADT and empty state before
 repeating the dial with `wrong-secret`; the second trace must reach CHAP and
 receive a refusal without creating a session.
 
+### pppoe-empty-service-name
+
+Ze's AC carries no `service-name` leaf. The independent pppd client dials with
+no requested service (RFC 2516 Section 5.1's "any service is acceptable"). The
+checker captures the discovery exchange on the wire (tcpdump inside the client
+container, decoded with `internal/core/pcap` and
+`internal/component/l2tp/pppoe.ParseDiscovery`) and requires exactly one
+Service-Name tag on the PADO and exactly one on the PADS, alongside the same
+LCP/CHAP/IPCP proof `02-ze-ac-pppd-client` performs. A session coming up is not
+enough evidence here: the unit tests already pin `BuildPADO`/`BuildPADS` always
+writing one tag, so this scenario's job is proving a real peer reads the same
+bytes off Ze's own wire, not proving the encoder again.
+
 ## Relationship to other evidence
 
 | Evidence | Ze role | Independent peer | Kernel PPPoE |
 |----------|---------|------------------|--------------|
 | `test/pppoe/pppoe-basic.ci` | Access concentrator | Functional fixture | No |
 | `test/pppoe/pppoe-vlan.ci` | Access concentrator on VLAN | Functional fixture | No |
+| `test/pppoe/pppoe-service-name.ci` | Access concentrator | Functional fixture | No (`option=netns-link`, `./le qemu pppoe-test`) |
 | `./le deployment docker-pppoe-accel-test` | Client and access concentrator | accel-ppp and pppd | Host kernel |
 | `./le qemu pppoe-accel-test` | Client | accel-ppp | Runtime kernel |

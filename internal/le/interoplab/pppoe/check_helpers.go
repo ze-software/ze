@@ -189,7 +189,19 @@ func pppdRunning(
 	ctx context.Context,
 	lab interoplab.CheckerLab,
 ) (bool, error) {
-	result, err := lab.Exec(ctx, clientImageName, []string{"pgrep", "-x", pppdExecutable}, nil)
+	return processRunning(ctx, lab, clientImageName, pppdExecutable)
+}
+
+// processRunning reports whether a named process is running in peer, by exit
+// code rather than by output: pgrep prints nothing either way, and exit 1 is
+// its documented "no match" rather than a failure to run the check at all.
+func processRunning(
+	ctx context.Context,
+	lab interoplab.CheckerLab,
+	peer string,
+	executable string,
+) (bool, error) {
+	result, err := lab.Exec(ctx, peer, []string{"pgrep", "-x", executable}, nil)
 	if err == nil {
 		return true, nil
 	}

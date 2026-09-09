@@ -14,7 +14,9 @@ FROM alpine:3.21
 
 # ppp + ppp-pppoe: pppd and the rp-pppoe plugin; iproute2: ip link/addr on the
 # negotiated pppN; iputils: ping for the dataplane assertion; kmod: modprobe
-# ppp_generic from the shared host /lib/modules.
-RUN apk add --no-cache ppp ppp-pppoe iproute2 iputils kmod
+# ppp_generic from the shared host /lib/modules; tcpdump: the
+# pppoe-empty-service-name checker captures the discovery exchange to read the
+# Service-Name tags Ze actually put on the wire, rather than trust pppd's log.
+RUN apk add --no-cache ppp ppp-pppoe iproute2 iputils kmod tcpdump
 
 ENTRYPOINT ["sh", "-c", "modprobe ppp_generic 2>/dev/null || true; modprobe pppoe 2>/dev/null || true; mkdir -p /etc/ppp /var/log/ppp; exec tail -f /dev/null"]

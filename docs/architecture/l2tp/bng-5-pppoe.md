@@ -58,6 +58,59 @@ RADIUS server answered.
 
 <!-- source: internal/component/l2tp/pppoe/subsystem.go -- onSessionUp, the LoadSessionMetadata read -->
 
+**Ze refuses a PADR with no Service-Name tag and serves a PADI with none.**
+accel-ppp does exactly this: `pppoe_recv_PADR` discards a tagless PADR, and
+`pppoe_recv_PADI` starts its match true when nothing is configured. FreeBSD's
+`ng_pppoe` tolerates both packets instead, substituting an empty tag on the
+PADI and keying the PADR admission on the cookie alone. RFC 2516 Sections 5.1
+and 5.3 bind the sending host, not the AC, so this choice is about robustness
+against a malformed peer, not about conformance.
+
+<!-- source: internal/component/l2tp/pppoe/server.go -- requireServiceNameTag, handlePADR -->
+
+**Ze always emits exactly one Service-Name tag in the PADO and the PADS,
+including the zero-length case.** RFC 2516 Section 5.2 requires a Service-Name
+tag identical to the PADI's in every PADO, and Section 5.4 requires exactly
+one in every PADS. `AddTagCopy` skips a nil tag, which is correct for the
+genuinely optional Host-Uniq and Relay-Session-Id tags, so `BuildPADO` and
+`BuildPADS` write the Service-Name tag through `AddTagString` instead: an
+absent or zero-length source tag becomes a zero-length echo, never no tag at
+all. Both reference implementations are less conformant here. FreeBSD's
+`ng_pppoe` PADO can carry zero tags or two, and its PADS carries none when the
+PADR carried none. accel-ppp's PADO carries none when nothing is configured
+and the PADI carried none; its PADS already matches Ze.
+
+<!-- source: internal/component/l2tp/pppoe/discovery.go -- BuildPADO, BuildPADS -->
+
+**Every discovery refusal increments `ze_pppoe_discovery_refusals_total`,
+labelled by `reason`.** A PADI refused for an unoffered service name gives no
+reply on the wire, because RFC 2516 Section 5.2 requires that, so the counter
+is the only visibility that refusal has. The reason set is closed:
+`rate-limited`, `service-name-mismatch`, `service-name-missing`,
+`cookie-invalid`, `session-id-exhausted`. Where a refusal already logs at
+Debug, the log line carries the same reason string, so the log and the
+counter are one vocabulary, not two. The rate-limiter refusal counts with no
+paired log line: a PADI flood would otherwise turn Debug logging itself into
+the resource problem the limiter exists to prevent. One counter set serves
+every interface server, so a refusal on any access interface accumulates on
+one series per reason.
+
+**`Subsystem.Start` registers the counters with the plugin registry rather
+than reading one out of it.** On a PPPoE-only daemon the metrics registry does
+not exist yet at that moment: `runYANGConfig` runs `engine.Start`, which runs
+`Subsystem.Start`, and only afterwards runs `startStandaloneTelemetry`, which
+creates the registry. A daemon that also carries a `bgp` block gets its
+registry earlier, from the reactor's config loader during plugin start, so
+which event happens first is a property of the operator's configuration.
+Reading `registry.GetMetricsRegistry` at `Start` therefore binds nothing on
+the PPPoE-only deployment and leaves `ze_pppoe_discovery_refusals_total`
+absent for the process lifetime, with no log line saying so.
+`registry.InjectPluginMetrics` holds the hook until a registry arrives, so
+whichever event happens second does the binding.
+
+<!-- source: internal/component/l2tp/pppoe/metrics.go -- registerDiscoveryMetrics, bindPPPoEMetrics, countRefusal -->
+<!-- source: internal/component/l2tp/pppoe/server.go -- the six call sites that count a refusal -->
+
 ## Traps this code exists to avoid
 
 **`Lookup` returns a live pointer and the caller mutates it.** `handlePADR`

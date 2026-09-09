@@ -174,6 +174,7 @@ func TestBuildPADO(t *testing.T) {
 
 // RFC requirement: RFC2516-5.2-1 positive -- BuildPADS echoes the Host-Uniq from the PADR unchanged in the PADS.
 // RFC requirement: RFC2516-5.4-1 positive -- the PADS carries exactly one Service-Name tag echoed from the PADR.
+// RFC requirement: RFC2516-5.4-2 negative -- a PADR whose Service-Name the AC does serve is answered with a PADS carrying the allocated SESSION_ID, 42, rather than the 0x0000 the refusal reply owes. The test body asserts the SESSION_ID only; the absence of the Service-Name-Error tag on this reply is not checked here.
 func TestBuildPADS(t *testing.T) {
 	padr := buildDiscFrame(discACMAC, discClientMAC, pppoe.CodePADR, []pppoe.Tag{
 		{Type: pppoe.TagServiceName, Value: []byte("internet")},
@@ -693,5 +694,158 @@ func TestUnknownTagIgnored(t *testing.T) {
 	}
 	if pkt.FindTag(unknownTag) == nil {
 		t.Error("unknown tag should be retained, not dropped")
+	}
+}
+
+// TestDuplicateServiceNameTagTakesTheFirst -- AC-4. A discovery packet
+// carrying two Service-Name tags is not refused, and the FIRST tag is the
+// one matched and echoed, matching FreeBSD's ng_pppoe get_tag, which
+// returns at the first match. FindTag already walks the tag slice in
+// order, so this pins the behavior rather than changing it.
+func TestDuplicateServiceNameTagTakesTheFirst(t *testing.T) {
+	frame := buildDiscFrame(discBcastMAC, discClientMAC, pppoe.CodePADI, []pppoe.Tag{
+		{Type: pppoe.TagServiceName, Value: []byte("voip")},
+		{Type: pppoe.TagServiceName, Value: []byte("internet")},
+	})
+	pkt, err := pppoe.ParseDiscovery(frame)
+	if err != nil {
+		t.Fatalf("ParseDiscovery: %v", err)
+	}
+
+	first := pkt.FindTag(pppoe.TagServiceName)
+	if first == nil || string(first.Value) != "voip" {
+		t.Fatalf("FindTag(TagServiceName) = %v, want the first tag (\"voip\")", first)
+	}
+
+	if !pppoe.MatchServiceName(&pkt, []string{"voip"}) {
+		t.Error("MatchServiceName must accept the first tag's name")
+	}
+	if pppoe.MatchServiceName(&pkt, []string{"internet"}) {
+		t.Error("MatchServiceName must not fall through to the second tag's name")
+	}
+}
+
+// RFC requirement: RFC2516-5.2-2 positive -- with names configured and the PADI naming one, BuildPADO's Service-Name tags are the PADI's value followed by the other offered names (AC-7).
+// RFC requirement: RFC2516-5.2-2 negative -- with no names configured and no Service-Name value in the PADI, BuildPADO still writes exactly one Service-Name tag, a zero-length value, rather than none (AC-5).
+func TestPADOAlwaysCarriesServiceName(t *testing.T) {
+	tests := []struct {
+		name         string
+		padiSvcName  []byte
+		serviceNames []string
+		wantSvcTags  []string // exact Service-Name tag values, in wire order
+	}{
+		{
+			name:         "no configured names, no PADI value (AC-5)",
+			padiSvcName:  nil,
+			serviceNames: nil,
+			wantSvcTags:  []string{""},
+		},
+		{
+			name:         "configured names, PADI names one (AC-7)",
+			padiSvcName:  []byte("internet"),
+			serviceNames: []string{"internet", "voip"},
+			wantSvcTags:  []string{"internet", "voip"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			padiFrame := buildDiscFrame(discBcastMAC, discClientMAC, pppoe.CodePADI, []pppoe.Tag{
+				{Type: pppoe.TagServiceName, Value: tc.padiSvcName},
+			})
+			padiPkt, err := pppoe.ParseDiscovery(padiFrame)
+			if err != nil {
+				t.Fatalf("ParseDiscovery: %v", err)
+			}
+
+			var buf [pppoe.EthMaxLen]byte
+			frame := pppoe.BuildPADO(buf[:], discACMAC, &padiPkt, "ze-ac", tc.serviceNames, []byte("cookie"))
+			if frame == nil {
+				t.Fatal("BuildPADO returned nil")
+			}
+
+			pado, err := pppoe.ParseDiscovery(frame)
+			if err != nil {
+				t.Fatalf("parse PADO: %v", err)
+			}
+
+			svcTags := pado.FindAllTags(pppoe.TagServiceName)
+			if len(svcTags) != len(tc.wantSvcTags) {
+				t.Fatalf("PADO Service-Name tag count = %d, want exactly %d", len(svcTags), len(tc.wantSvcTags))
+			}
+			for i, want := range tc.wantSvcTags {
+				if got := string(svcTags[i].Value); got != want {
+					t.Errorf("PADO Service-Name tag[%d] = %q, want %q", i, got, want)
+				}
+			}
+		})
+	}
+}
+
+// RFC requirement: RFC2516-5.4-1 negative -- a PADR carrying no Service-Name tag still gets a PADS carrying exactly one Service-Name tag, not zero (AC-6).
+func TestPADSAlwaysCarriesServiceName(t *testing.T) {
+	padrFrame := buildDiscFrame(discACMAC, discClientMAC, pppoe.CodePADR, nil)
+	padrPkt, err := pppoe.ParseDiscovery(padrFrame)
+	if err != nil {
+		t.Fatalf("ParseDiscovery: %v", err)
+	}
+
+	var buf [pppoe.EthMaxLen]byte
+	frame := pppoe.BuildPADS(buf[:], discACMAC, &padrPkt, "ze-ac", 42)
+	if frame == nil {
+		t.Fatal("BuildPADS returned nil")
+	}
+
+	pads, err := pppoe.ParseDiscovery(frame)
+	if err != nil {
+		t.Fatalf("parse PADS: %v", err)
+	}
+
+	svcTags := pads.FindAllTags(pppoe.TagServiceName)
+	if len(svcTags) != 1 {
+		t.Fatalf("PADS Service-Name tag count = %d, want exactly 1", len(svcTags))
+	}
+}
+
+// TestClientPADICarriesEmptyServiceName -- AC-9. Ze's client builders
+// (BuildPADI, BuildPADR) already call AddTagString unconditionally, so an
+// empty configured service name still produces a zero-length tag rather
+// than none. This pins that the client path needed no change for this
+// spec: the defect was in the two AC reply builders only.
+func TestClientPADICarriesEmptyServiceName(t *testing.T) {
+	var padiBuf [pppoe.EthMaxLen]byte
+	padiFrame := pppoe.BuildPADI(padiBuf[:], discClientMAC, "", nil)
+	if padiFrame == nil {
+		t.Fatal("BuildPADI returned nil")
+	}
+	padi, err := pppoe.ParseDiscovery(padiFrame)
+	if err != nil {
+		t.Fatalf("parse PADI: %v", err)
+	}
+	if svcTags := padi.FindAllTags(pppoe.TagServiceName); len(svcTags) != 1 || len(svcTags[0].Value) != 0 {
+		t.Errorf("PADI Service-Name tags = %v, want exactly one zero-length tag", svcTags)
+	}
+
+	// PADO is sent BY the AC: source = AC MAC, destination = Host MAC.
+	pado := buildDiscFrame(discClientMAC, discACMAC, pppoe.CodePADO, []pppoe.Tag{
+		{Type: pppoe.TagACName, Value: []byte("ze-ac")},
+		{Type: pppoe.TagServiceName, Value: nil},
+	})
+	padoPkt, err := pppoe.ParseDiscovery(pado)
+	if err != nil {
+		t.Fatalf("parse PADO: %v", err)
+	}
+
+	var padrBuf [pppoe.EthMaxLen]byte
+	padrFrame := pppoe.BuildPADR(padrBuf[:], discClientMAC, &padoPkt, "", nil)
+	if padrFrame == nil {
+		t.Fatal("BuildPADR returned nil")
+	}
+	padr, err := pppoe.ParseDiscovery(padrFrame)
+	if err != nil {
+		t.Fatalf("parse PADR: %v", err)
+	}
+	if svcTags := padr.FindAllTags(pppoe.TagServiceName); len(svcTags) != 1 || len(svcTags[0].Value) != 0 {
+		t.Errorf("PADR Service-Name tags = %v, want exactly one zero-length tag", svcTags)
 	}
 }

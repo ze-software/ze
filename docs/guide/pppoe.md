@@ -137,6 +137,21 @@ Ze's runtime kernel. The stock Alpine kernel has no `CONFIG_PPPOE`.
 - **MAC binding**: Sessions are bound to the subscriber MAC from PADR.
   PADTs from other MACs are rejected.
 
+## Metrics
+
+- `ze_pppoe_discovery_refusals_total` -- discovery packets Ze refuses,
+  labelled by `reason`. A PADI refused for an unoffered service name gives
+  no reply on the wire (RFC 2516 Section 5.2), so this counter is the only
+  way to see that refusal without a packet capture.
+
+| Reason | Meaning |
+|--------|---------|
+| `rate-limited` | The PADI rate limiter dropped a packet from this source MAC |
+| `service-name-mismatch` | The requested service does not match any configured `service-name` |
+| `service-name-missing` | A PADR carried no Service-Name tag (RFC 2516 Section 5.3) |
+| `cookie-invalid` | A PADR's AC-Cookie was missing, malformed, or expired |
+| `session-id-exhausted` | The interface's session ID space (1 to 65535) is full |
+
 ## Concurrent Operation
 
 PPPoE and L2TP run concurrently on the same daemon. Both share the same
@@ -147,3 +162,4 @@ ID for L2TP) and SessionID.
 <!-- source: internal/component/l2tp/pppoe/subsystem.go -->
 <!-- source: internal/component/l2tp/pppoe/server.go -->
 <!-- source: internal/component/l2tp/pppoe/discovery.go -->
+<!-- source: internal/component/l2tp/pppoe/metrics.go -->

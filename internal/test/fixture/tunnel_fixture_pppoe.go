@@ -5,15 +5,16 @@ import (
 )
 
 const (
-	tunnelPPPoEEtherType = 0x8863
-	tunnelPPPoEPADI      = 0x09
-	tunnelPPPoEPADO      = 0x07
-	tunnelPPPoEPADR      = 0x19
-	tunnelPPPoEPADS      = 0x65
-	tunnelPPPoEService   = 0x0101
-	tunnelPPPoEACName    = 0x0102
-	tunnelPPPoEHostUniq  = 0x0103
-	tunnelPPPoEACCookie  = 0x0104
+	tunnelPPPoEEtherType        = 0x8863
+	tunnelPPPoEPADI             = 0x09
+	tunnelPPPoEPADO             = 0x07
+	tunnelPPPoEPADR             = 0x19
+	tunnelPPPoEPADS             = 0x65
+	tunnelPPPoEService          = 0x0101
+	tunnelPPPoEACName           = 0x0102
+	tunnelPPPoEHostUniq         = 0x0103
+	tunnelPPPoEACCookie         = 0x0104
+	tunnelPPPoEServiceNameError = 0x0201
 )
 
 func tunnelPPPoETag(attribute uint16, value []byte) []byte {
@@ -24,8 +25,8 @@ func tunnelPPPoETag(attribute uint16, value []byte) []byte {
 	return result
 }
 
-func tunnelPPPoEPacket(code byte, cookie, hostUniq []byte) []byte {
-	tags := tunnelPPPoETag(tunnelPPPoEService, nil)
+func tunnelPPPoEPacket(code byte, cookie, hostUniq []byte, service string) []byte {
+	tags := tunnelPPPoETag(tunnelPPPoEService, []byte(service))
 	tags = append(tags, tunnelPPPoETag(tunnelPPPoEHostUniq, hostUniq)...)
 	if cookie != nil {
 		tags = append(tags, tunnelPPPoETag(tunnelPPPoEACCookie, cookie)...)

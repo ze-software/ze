@@ -115,8 +115,9 @@ func setupFailure(err error) interoplab.SuiteReport {
 
 func checkers() map[string]interoplab.Checker {
 	return map[string]interoplab.Checker{
-		"01-pppoe-chap-ipv4":   checkZeClient,
-		"02-ze-ac-pppd-client": checkZeAccessConcentrator,
+		"01-pppoe-chap-ipv4":       checkZeClient,
+		"02-ze-ac-pppd-client":     checkZeAccessConcentrator,
+		"pppoe-empty-service-name": checkZeAccessConcentratorEmptyServiceName,
 	}
 }
 

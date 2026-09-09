@@ -124,6 +124,11 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		}
 	}
 
+	// Asks for the discovery-refusal counters (metrics.go). The metrics
+	// registry can arrive after this method returns, so the call registers a
+	// hook rather than reading a registry.
+	registerDiscoveryMetrics()
+
 	s.servers = make(map[int]*InterfaceServer)
 	for _, ic := range s.params.Interfaces {
 		ifindex, hwaddr, mtu, resolveErr := resolveInterface(ic.Name)

@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func init() {
@@ -20,6 +22,10 @@ func init() {
 	Register("pppoe/concurrent-l2tp", tunnelPPPoEConcurrent)
 	Register("pppoe/vlan", tunnelPPPoEVLAN)
 }
+
+// tunnelPPPoEDefaultInterface is the veth end every PPPoE fixture personality
+// reads from when TEST_IFACE is unset, matching test/pppoe's own veth-sub name.
+const tunnelPPPoEDefaultInterface = "veth-sub"
 
 type tunnelPPPoEWire struct {
 	fd      int
@@ -110,15 +116,28 @@ func (wire *tunnelPPPoEWire) exchange(ctx context.Context, destination net.Hardw
 }
 
 func tunnelPPPoEDiscover(ctx context.Context, wire *tunnelPPPoEWire, hostUniq []byte) (net.HardwareAddr, map[uint16][]byte, error) {
+	return tunnelPPPoEDiscoverService(ctx, wire, hostUniq, "")
+}
+
+// tunnelPPPoEDiscoverService sends a PADI carrying the given Service-Name (RFC
+// 2516 Section 5.1: an empty string is the "any service" tag) and waits for the
+// matching PADO.
+func tunnelPPPoEDiscoverService(
+	ctx context.Context,
+	wire *tunnelPPPoEWire,
+	hostUniq []byte,
+	service string,
+) (net.HardwareAddr, map[uint16][]byte, error) {
 	broadcast := net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
-	server, _, tags, err := wire.exchange(ctx, broadcast, tunnelPPPoEPacket(tunnelPPPoEPADI, nil, hostUniq), tunnelPPPoEPADO, 15)
+	packet := tunnelPPPoEPacket(tunnelPPPoEPADI, nil, hostUniq, service)
+	server, _, tags, err := wire.exchange(ctx, broadcast, packet, tunnelPPPoEPADO, 15)
 	return server, tags, err
 }
 
 func tunnelPPPoEBasic(ctx context.Context, _ []string) error {
 	interfaceName := os.Getenv("TEST_IFACE")
 	if interfaceName == "" {
-		interfaceName = "veth-sub"
+		interfaceName = tunnelPPPoEDefaultInterface
 	}
 	wire, err := tunnelPPPoEOpen(interfaceName)
 	if err != nil {
@@ -138,7 +157,7 @@ func tunnelPPPoEBasic(ctx context.Context, _ []string) error {
 	fmt.Printf("OK: PADO received, AC-Name=%s\n", tags[tunnelPPPoEACName])
 	var sid uint16
 	for range 6 {
-		_, sid, _, err = wire.exchange(ctx, server, tunnelPPPoEPacket(tunnelPPPoEPADR, tags[tunnelPPPoEACCookie], []byte{0x42, 0x42}), tunnelPPPoEPADS, 2)
+		_, sid, _, err = wire.exchange(ctx, server, tunnelPPPoEPacket(tunnelPPPoEPADR, tags[tunnelPPPoEACCookie], []byte{0x42, 0x42}, ""), tunnelPPPoEPADS, 2)
 		if err == nil {
 			break
 		}
@@ -154,7 +173,7 @@ func tunnelPPPoEBasic(ctx context.Context, _ []string) error {
 		return errors.New("PADS session ID is 0")
 	}
 	fmt.Printf("OK: PADS received, session-id=%d\n", sid)
-	forged := tunnelPPPoEPacket(tunnelPPPoEPADR, make([]byte, 32), []byte{0x43, 0x43})
+	forged := tunnelPPPoEPacket(tunnelPPPoEPADR, make([]byte, 32), []byte{0x43, 0x43}, "")
 	if err := wire.send(server, forged); err != nil {
 		return err
 	}
@@ -189,7 +208,7 @@ func tunnelPPPoEVLAN(ctx context.Context, _ []string) error {
 	fmt.Println("OK: PADO received on VLAN interface")
 	var sid uint16
 	for range 6 {
-		_, sid, _, err = wire.exchange(ctx, server, tunnelPPPoEPacket(tunnelPPPoEPADR, tags[tunnelPPPoEACCookie], []byte{0x44, 0x44}), tunnelPPPoEPADS, 2)
+		_, sid, _, err = wire.exchange(ctx, server, tunnelPPPoEPacket(tunnelPPPoEPADR, tags[tunnelPPPoEACCookie], []byte{0x44, 0x44}, ""), tunnelPPPoEPADS, 2)
 		if err == nil {
 			break
 		}
@@ -206,6 +225,71 @@ func tunnelPPPoEVLAN(ctx context.Context, _ []string) error {
 	}
 	fmt.Printf("OK: PADS received on VLAN, session-id=%d\n", sid)
 	return nil
+}
+
+// tunnelPPPoEServiceName dials Ze's AC twice over one PADI/PADO exchange: once
+// with the service the AC is configured to accept, and once with a different,
+// unconfigured one. RFC 2516 Section 5.3/5.4 requires the AC to accept the
+// first and refuse the second with a Service-Name-Error tag and session id
+// 0x0000 (server.go, handlePADR, reasonServiceNameMismatch).
+func tunnelPPPoEServiceName(ctx context.Context, _ []string) error {
+	interfaceName := os.Getenv("TEST_IFACE")
+	if interfaceName == "" {
+		interfaceName = tunnelPPPoEDefaultInterface
+	}
+	wire, err := tunnelPPPoEOpen(interfaceName)
+	if err != nil {
+		return err
+	}
+	defer wire.close()
+
+	const matchService = "internet"
+	server, tags, err := tunnelPPPoEDiscoverService(ctx, wire, []byte{0x50, 0x50}, matchService)
+	if err != nil {
+		return fmt.Errorf("no PADO received for service %q: %w", matchService, err)
+	}
+	cookie := tags[tunnelPPPoEACCookie]
+	if cookie == nil {
+		return errors.New("PADO missing AC-Cookie")
+	}
+
+	_, sid, padsTags, err := wire.exchange(
+		ctx, server,
+		tunnelPPPoEPacket(tunnelPPPoEPADR, cookie, []byte{0x50, 0x50}, matchService),
+		tunnelPPPoEPADS, 6,
+	)
+	if err != nil {
+		return fmt.Errorf("no PADS received for matching service %q: %w", matchService, err)
+	}
+	if sid == 0 {
+		return fmt.Errorf("matching service %q was refused (PADS session id 0)", matchService)
+	}
+	if string(padsTags[tunnelPPPoEService]) != matchService {
+		return fmt.Errorf("PADS Service-Name = %q, want %q", padsTags[tunnelPPPoEService], matchService)
+	}
+	var tb textbuf.Buffer
+	tb.Str("OK: matching service ").Quoted(matchService).Str(" accepted, session-id=").Uint(uint64(sid)).Byte('\n')
+	if err := tb.StdOut(); err != nil {
+		return err
+	}
+
+	const mismatchService = "voice"
+	_, badSID, badTags, err := wire.exchange(
+		ctx, server,
+		tunnelPPPoEPacket(tunnelPPPoEPADR, cookie, []byte{0x51, 0x51}, mismatchService),
+		tunnelPPPoEPADS, 6,
+	)
+	if err != nil {
+		return fmt.Errorf("no PADS received for mismatched service %q: %w", mismatchService, err)
+	}
+	if badSID != 0 {
+		return fmt.Errorf("mismatched service %q was accepted with session id %d", mismatchService, badSID)
+	}
+	if _, ok := badTags[tunnelPPPoEServiceNameError]; !ok {
+		return fmt.Errorf("PADS for mismatched service %q carries no Service-Name-Error tag: %#v", mismatchService, badTags)
+	}
+	tb.Reset().Str("OK: mismatched service ").Quoted(mismatchService).Str(" refused with Service-Name-Error\n")
+	return tb.StdOut()
 }
 
 func tunnelPPPoEConcurrent(ctx context.Context, args []string) error {
@@ -229,7 +313,7 @@ func tunnelPPPoEConcurrent(ctx context.Context, args []string) error {
 	fmt.Println("OK: L2TP SCCRP received")
 	interfaceName := os.Getenv("TEST_IFACE")
 	if interfaceName == "" {
-		interfaceName = "veth-sub"
+		interfaceName = tunnelPPPoEDefaultInterface
 	}
 	wire, err := tunnelPPPoEOpen(interfaceName)
 	if err != nil {

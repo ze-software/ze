@@ -1,4 +1,5 @@
 // Design: docs/architecture/l2tp/bng-5-pppoe.md -- per-interface PPPoE server
+// RFC: rfc/short/rfc2516.md -- Sections 5.1 through 5.4, discovery admission
 // Related: discovery.go -- ParseDiscovery, Build* frame constructors
 // Related: cookie.go -- GenerateCookie, VerifyCookie
 // Related: session.go -- SessionTable, Session
@@ -37,6 +38,14 @@ type InterfaceServer struct {
 	discFD    int
 	pppDriver *ppp.Driver
 	logger    *slog.Logger
+
+	// sendFrameFn, when set, replaces the real discovery-socket write.
+	// sendFrame calls it instead of sendDiscoveryFrame. Production code
+	// never sets it, so the zero value (nil) keeps the real send path.
+	// A test sets it to capture the frame a handler attempted to send,
+	// because the non-Linux stub in socket_other.go always returns an
+	// error and so cannot tell a test whether a send was attempted.
+	sendFrameFn func(frame []byte)
 }
 
 // HandleDiscovery dispatches a parsed discovery packet to the
@@ -58,11 +67,16 @@ func (s *InterfaceServer) handlePADI(pkt *Packet) {
 	}
 
 	if s.limiter != nil && !s.limiter.Check(pkt.SrcMAC) {
+		// No log line here on purpose: the limiter's whole job is to survive
+		// a PADI flood, and a Debug line per dropped packet would turn that
+		// flood into a logging problem. The counter carries the visibility.
+		countRefusal(reasonRateLimited)
 		return
 	}
 
 	if !MatchServiceName(pkt, s.serviceNames) {
-		s.logger.Debug("pppoe: PADI service-name mismatch", "src", net.HardwareAddr(pkt.SrcMAC[:]))
+		s.logger.Debug("pppoe: PADI service-name mismatch", "src", net.HardwareAddr(pkt.SrcMAC[:]), "reason", reasonServiceNameMismatch)
+		countRefusal(reasonServiceNameMismatch)
 		return
 	}
 
@@ -78,6 +92,15 @@ func (s *InterfaceServer) handlePADI(pkt *Packet) {
 	s.sendFrame(frame)
 }
 
+// requireServiceNameTag reports whether pkt carries a Service-Name tag,
+// any value included. MatchServiceName cannot answer this question on
+// its own: an empty allow-list accepts every packet regardless of tag
+// presence, which is correct for a PADI (AC-1) but not for a PADR,
+// where RFC 2516 Section 5.3 makes the tag mandatory (AC-3).
+func requireServiceNameTag(pkt *Packet) bool {
+	return pkt.FindTag(TagServiceName) != nil
+}
+
 func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	if pkt.SID != 0 {
 		return
@@ -85,16 +108,39 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 
 	cookieTag := pkt.FindTag(TagACCookie)
 	if cookieTag == nil {
-		s.logger.Debug("pppoe: PADR without AC-Cookie", "src", net.HardwareAddr(pkt.SrcMAC[:]))
+		s.logger.Debug("pppoe: PADR without AC-Cookie", "src", net.HardwareAddr(pkt.SrcMAC[:]), "reason", reasonCookieInvalid)
+		countRefusal(reasonCookieInvalid)
 		return
 	}
 
 	if !VerifyCookie(s.cookieKey, cookieTag.Value, s.hwAddr[:], pkt.SrcMAC[:], relayIDFromPacket(pkt), s.cookieTimeout) {
-		s.logger.Debug("pppoe: PADR invalid cookie", "src", net.HardwareAddr(pkt.SrcMAC[:]))
+		s.logger.Debug("pppoe: PADR invalid cookie", "src", net.HardwareAddr(pkt.SrcMAC[:]), "reason", reasonCookieInvalid)
+		countRefusal(reasonCookieInvalid)
+		return
+	}
+
+	// RFC 2516 Section 5.3: "The PADR packet MUST contain exactly one TAG
+	// of TAG_TYPE Service-Name". MatchServiceName alone cannot enforce
+	// this: an empty allow-list matches any packet, tag present or not.
+	// Ze refuses a tagless PADR under any configuration and replies the
+	// way RFC 2516 Section 5.4 requires: "If the Access Concentrator does
+	// not like the Service-Name in the PADR, then it MUST reply with a
+	// PADS containing a TAG of TAG_TYPE Service-Name-Error ... In this
+	// case the SESSION_ID MUST be set to 0x0000."
+	if !requireServiceNameTag(pkt) {
+		s.logger.Debug("pppoe: PADR refused: missing Service-Name tag (RFC 2516 5.3/5.4)", "src", net.HardwareAddr(pkt.SrcMAC[:]), "reason", reasonServiceNameMissing)
+		countRefusal(reasonServiceNameMissing)
+		var buf [EthMaxLen]byte
+		frame := BuildPADSError(buf[:], s.hwAddr, pkt, s.acName, TagSvcNameError)
+		if frame != nil {
+			s.sendFrame(frame)
+		}
 		return
 	}
 
 	if !MatchServiceName(pkt, s.serviceNames) {
+		s.logger.Debug("pppoe: PADR service-name mismatch", "src", net.HardwareAddr(pkt.SrcMAC[:]), "reason", reasonServiceNameMismatch)
+		countRefusal(reasonServiceNameMismatch)
 		var buf [EthMaxLen]byte
 		frame := BuildPADSError(buf[:], s.hwAddr, pkt, s.acName, TagSvcNameError)
 		if frame != nil {
@@ -118,7 +164,8 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 
 	sid, err := s.sessions.AllocSID()
 	if err != nil {
-		s.logger.Warn("pppoe: session ID exhausted", "error", err)
+		s.logger.Warn("pppoe: session ID exhausted", "error", err, "reason", reasonSessionIDExhausted)
+		countRefusal(reasonSessionIDExhausted)
 		var buf [EthMaxLen]byte
 		frame := BuildPADSError(buf[:], s.hwAddr, pkt, s.acName, TagACSystemError)
 		if frame != nil {
@@ -265,6 +312,10 @@ func (s *InterfaceServer) handleSessionDown(sid uint16) {
 }
 
 func (s *InterfaceServer) sendFrame(frame []byte) {
+	if s.sendFrameFn != nil {
+		s.sendFrameFn(frame)
+		return
+	}
 	if err := sendDiscoveryFrame(s.discFD, s.ifIndex, frame); err != nil {
 		s.logger.Debug("pppoe: send failed", "error", err)
 	}

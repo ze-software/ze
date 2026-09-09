@@ -1,0 +1,52 @@
+# Test: an operator-configured service-name accepts a matching client and
+# refuses a mismatched one, and the refusal is visible on the operator's own
+# metrics endpoint.
+#
+# VALIDATES: RFC 2516 Section 5.3/5.4 -- a PADR naming the configured service
+#            gets a PADS with a non-zero session id and that Service-Name echoed
+# VALIDATES: a PADR naming a different, unconfigured service gets a PADS with
+#            a Service-Name-Error tag and session id 0x0000 (server.go,
+#            handlePADR, reasonServiceNameMismatch)
+# VALIDATES: the refusal increments ze_pppoe_discovery_refusals_total{reason=
+#            "service-name-mismatch"}, readable on the operator's own Prometheus
+#            endpoint (metrics.go, countRefusal)
+# PREVENTS: an AC that accepts every PADR regardless of Service-Name, which
+#           defeats the point of configuring one -- delete the MatchServiceName
+#           check in handlePADR (internal/component/l2tp/pppoe/server.go) and
+#           the mismatched dial below gets a session instead of a refusal.
+option=needs-linux:caps=net-admin,net-raw
+option=netns-link:name=veth-bng:peer=veth-sub
+
+
+stdin=config:terminator=EOF_CONF
+pppoe {
+    enabled true
+    ac-name ze-test
+    service-name internet
+    interface veth-bng {
+    }
+}
+
+telemetry {
+    prometheus {
+        enabled true
+        server main {
+            ip 127.0.0.1
+            port $PORT2
+        }
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.pppoe:value=debug
+option=env:var=TEST_IFACE:value=veth-sub
+
+cmd=background:seq=1:exec=ze -:stdin=config
+cmd=foreground:seq=2:exec=ze-test fixture pppoe/service-name:timeout=45s
+expect=exit:code=0
+expect=stdout:contains=OK: matching service "internet" accepted
+expect=stdout:contains=OK: mismatched service "voice" refused with Service-Name-Error
+
+# The operator's own read-back: the mismatch above must be counted, by the
+# label an operator would filter on, not merely logged.
+http=wait:seq=1:url=http://127.0.0.1:$PORT2/metrics:status=200:contains=ze_pppoe_discovery_refusals_total{reason="service-name-mismatch"} 1:timeout=30s
