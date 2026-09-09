@@ -1,17 +1,20 @@
 // RFC: rfc/short/rfc6793.md — AS4_PATH / AS4_AGGREGATOR egress construction
 //
-// Requirement-bound tests for RFC 6793 over the two wireu egress paths
-// (TranscodeASPath, RewriteASPath) and the shared rule in aspath_as4.go.
+// Requirement-bound tests for RFC 6793 over the two wireu egress rails
+// (ASPathEdit.Record for an EBGP prepend, TranscodeASPath for a narrowing
+// re-encode) and the shared rule in aspath_as4.go.
 
 package wireu
 
 import (
+	"encoding/binary"
 	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -65,7 +68,7 @@ func TestRFC6793TranscodeEmitsAS4PathForNonMappable(t *testing.T) {
 	require.NoError(t, err)
 	result := dst[:n]
 
-	asPath := parseASPathFromPayload(t, result, false)
+	asPath := parseASPathFromPayload(t, result)
 	require.Len(t, asPath.Segments, 1)
 	assert.Equal(t, []uint32{65001, rfc6793ASTrans}, asPath.Segments[0].ASNs,
 		"two-octet AS_PATH substitutes AS_TRANS for the non-mappable AS")
@@ -97,7 +100,7 @@ func TestRFC6793TranscodeOmitsAS4PathWhenAllMappable(t *testing.T) {
 	require.NoError(t, err)
 	result := dst[:n]
 
-	asPath := parseASPathFromPayload(t, result, false)
+	asPath := parseASPathFromPayload(t, result)
 	require.Len(t, asPath.Segments, 1)
 	assert.Equal(t, []uint32{65001, 65535}, asPath.Segments[0].ASNs)
 
@@ -105,8 +108,88 @@ func TestRFC6793TranscodeOmitsAS4PathWhenAllMappable(t *testing.T) {
 		"AS4_PATH MUST NOT be sent when every AS is mappable")
 }
 
-// TestRFC6793NoAS4PathBetweenNewSpeakers drives RewriteASPath toward a peer that
-// negotiated the four-octet capability with a non-mappable local AS to prepend.
+// rfc6793AdvertisedNLRI is the reachable prefix every prepend fixture below
+// carries, and it is a PRECONDITION rather than decoration. RFC 4271 Section
+// 5.1.2 b obliges the prepend only for a route being advertised, so
+// ASPathEdit.Record resolves a payload with no NLRI as transcode-only and
+// records no prepend at all. A fixture without it would assert about the
+// withdraw-only rail while claiming to test the prepend.
+var rfc6793AdvertisedNLRI = []byte{24, 192, 0, 2}
+
+// rfc6793Egress answers the value of one attribute as the DESTINATION receives
+// it after ASPathEdit has recorded its intent over payload.
+//
+// It models what the rebuild does, which is the only way an edit-set assertion
+// can mean the same thing the whole-payload rewrite's output meant. An attribute
+// the edit SUPPRESSED is absent; one it named with a generator or a value takes
+// that; one the edit never named travels verbatim out of the payload. Reading
+// only the recorded operations would call an untouched attribute absent, and
+// reading only the payload would miss every edit.
+func rfc6793Egress(t *testing.T, mods *filterapi.ModAccumulator, payload []byte, code attribute.AttributeCode) ([]byte, bool) {
+	t.Helper()
+	if op, ok := recordedOp(t, mods, code); ok {
+		if op.Action == filterapi.AttrModSuppress {
+			return nil, false
+		}
+		if op.GenIdx != 0 {
+			return materialize(t, recordedGen(t, mods, op)), true
+		}
+		return op.Buf, true
+	}
+	value := findProbeAttr(t, payload, code)
+	if value == nil {
+		return nil, false
+	}
+	// findProbeAttr answers the whole attribute; every fixture here uses the
+	// three-octet header, and an extended-length one would change the offset.
+	require.Zero(t, value[0]&byte(attribute.FlagExtLength),
+		"a fixture attribute with an extended-length header needs its own offset")
+	return value[3:], true
+}
+
+// rfc6793EgressASPath decodes the AS_PATH the destination receives.
+func rfc6793EgressASPath(t *testing.T, mods *filterapi.ModAccumulator, payload []byte, asn4 bool) *attribute.ASPath {
+	t.Helper()
+	value, ok := rfc6793Egress(t, mods, payload, attribute.AttrASPath)
+	require.True(t, ok, "the destination must receive an AS_PATH")
+	path, err := attribute.ParseASPath(value, asn4)
+	require.NoError(t, err)
+	return path
+}
+
+// rfc6793EgressAS4Path decodes the AS4_PATH the destination receives, or nil
+// when it receives none.
+func rfc6793EgressAS4Path(t *testing.T, mods *filterapi.ModAccumulator, payload []byte) *attribute.AS4Path {
+	t.Helper()
+	value, ok := rfc6793Egress(t, mods, payload, attribute.AttrAS4Path)
+	if !ok {
+		return nil
+	}
+	path, err := attribute.ParseAS4Path(value)
+	require.NoError(t, err)
+	return path
+}
+
+// rfc6793Prepend records one EBGP prepend of localAS through the live rail.
+//
+// This is the rail a route really takes toward an EBGP peer: ASPathEdit.Record
+// resolves the AS-path family as attribute operations that the exactly-sized
+// one-pass writer emits into the destination buffer. It replaced the
+// whole-payload rewrite these tests used to drive, and the rewrite was deleted
+// on 2026-09-09 (test/rfc-changed/49b0956f.md).
+func rfc6793Prepend(t *testing.T, payload []byte, srcASN4, dstASN4 bool) *filterapi.ModAccumulator {
+	t.Helper()
+	mods := &filterapi.ModAccumulator{}
+	var edit ASPathEdit
+	_, err := edit.Record(mods, payload, ASPathIntent{
+		Prepend: []uint32{rfc6793NonMappable}, SrcASN4: srcASN4, DstASN4: dstASN4,
+	})
+	require.NoError(t, err, "UPDATE processing continues")
+	return mods
+}
+
+// TestRFC6793NoAS4PathBetweenNewSpeakers drives the EBGP prepend rail toward a
+// peer that negotiated the four-octet capability, with a non-mappable local AS.
 //
 // With the four-octet capability negotiated on both sides the outgoing UPDATE carries
 // neither AS4_PATH nor AS4_AGGREGATOR; the real four-octet AS numbers ride in AS_PATH
@@ -125,26 +208,23 @@ func TestRFC6793NoAS4PathBetweenNewSpeakers(t *testing.T) {
 		}, true),
 		buildAggregatorAttr(rfc6793NonMappable, aggAddr, true),
 	)
-	payload := buildPayload(nil, attrs, nil)
+	payload := buildPayload(nil, attrs, rfc6793AdvertisedNLRI)
 
-	dst := make([]byte, len(payload)+256)
-	n, err := RewriteASPath(dst, payload, rfc6793NonMappable, true, true)
-	require.NoError(t, err)
-	result := dst[:n]
+	mods := rfc6793Prepend(t, payload, true, true)
 
-	asPath := parseASPathFromPayload(t, result, true)
+	asPath := rfc6793EgressASPath(t, mods, payload, true)
 	require.Len(t, asPath.Segments, 1)
 	assert.Equal(t, []uint32{rfc6793NonMappable, rfc6793NonMappableB}, asPath.Segments[0].ASNs)
 
-	assert.Nil(t, parseAS4PathFromPayload(t, result),
+	assert.Nil(t, rfc6793EgressAS4Path(t, mods, payload),
 		"AS4_PATH MUST NOT be carried between NEW BGP speakers")
-	_, _, found := parseAS4AggregatorFromPayload(t, result)
-	assert.False(t, found, "AS4_AGGREGATOR MUST NOT be carried between NEW BGP speakers")
+	_, foundAS4Agg := rfc6793Egress(t, mods, payload, attribute.AttrAS4Aggregator)
+	assert.False(t, foundAS4Agg, "AS4_AGGREGATOR MUST NOT be carried between NEW BGP speakers")
 
-	aggASN, aggLen, ok := parseAggregatorFromPayload(t, result)
+	agg, ok := rfc6793Egress(t, mods, payload, attribute.AttrAggregator)
 	require.True(t, ok)
-	assert.Equal(t, 8, aggLen)
-	assert.Equal(t, rfc6793NonMappable, aggASN)
+	assert.Len(t, agg, 8)
+	assert.Equal(t, rfc6793NonMappable, binary.BigEndian.Uint32(agg[0:4]))
 }
 
 // TestRFC6793AS4AggregatorForNonMappableAggregator drives the AGGREGATOR
@@ -249,15 +329,16 @@ func TestRFC6793ConstructedAS4PathExcludesConfed(t *testing.T) {
 	assert.Equal(t, attribute.ASSequence, as4.Segments[0].Type)
 	assert.Equal(t, []uint32{rfc6793NonMappable, 65001}, as4.Segments[0].ASNs)
 
-	asPath := parseASPathFromPayload(t, result, false)
+	asPath := parseASPathFromPayload(t, result)
 	require.Len(t, asPath.Segments, 2)
 	assert.Equal(t, attribute.ASConfedSequence, asPath.Segments[0].Type,
 		"the confederation segment stays in AS_PATH, only AS4_PATH excludes it")
 }
 
-// TestRFC6793MalformedAS4PathDiscarded feeds RewriteASPath an UPDATE from an OLD
-// speaker whose AS4_PATH is malformed (odd length). rewritePrependASPathFull
-// (aspath_rewrite.go) parses it, drops it on error, and keeps going.
+// TestRFC6793MalformedAS4PathDiscarded feeds the EBGP prepend rail an UPDATE
+// from an OLD speaker whose AS4_PATH is malformed (odd length). AS4PathForRewrite
+// (aspath_as4.go) is handed a nil parse and derives the outgoing AS4_PATH from
+// the AS_PATH instead, and the UPDATE keeps going.
 //
 // RFC requirement: RFC6793-6-4 positive -- a malformed AS4_PATH received from an OLD speaker
 // is discarded and the UPDATE continues to be processed: the rewrite succeeds, the AS_PATH is
@@ -272,19 +353,17 @@ func TestRFC6793MalformedAS4PathDiscarded(t *testing.T) {
 		}, false),
 		malformed,
 	)
-	payload := buildPayload(nil, attrs, nil)
+	payload := buildPayload(nil, attrs, rfc6793AdvertisedNLRI)
 
-	dst := make([]byte, len(payload)+256)
-	// Non-mappable local AS forces the slow path that parses the received AS4_PATH.
-	n, err := RewriteASPath(dst, payload, rfc6793NonMappable, false, false)
-	require.NoError(t, err, "UPDATE processing continues despite the malformed AS4_PATH")
-	result := dst[:n]
+	// A non-mappable local AS forces the full prepend, which reads the received
+	// AS4_PATH; the byte-shifting fast path never looks at it.
+	mods := rfc6793Prepend(t, payload, false, false)
 
-	asPath := parseASPathFromPayload(t, result, false)
+	asPath := rfc6793EgressASPath(t, mods, payload, false)
 	require.Len(t, asPath.Segments, 1)
 	assert.Equal(t, []uint32{rfc6793ASTrans, 65001}, asPath.Segments[0].ASNs)
 
-	as4 := parseAS4PathFromPayload(t, result)
+	as4 := rfc6793EgressAS4Path(t, mods, payload)
 	require.NotNil(t, as4, "the locally constructed AS4_PATH replaces the discarded one")
 	require.Len(t, as4.Segments, 1)
 	assert.Equal(t, []uint32{rfc6793NonMappable, 65001}, as4.Segments[0].ASNs,
@@ -292,7 +371,8 @@ func TestRFC6793MalformedAS4PathDiscarded(t *testing.T) {
 }
 
 // TestRFC6793WellFormedAS4PathNotDiscarded is the counterpart: a well-formed
-// AS4_PATH from an OLD speaker is kept and the local AS is prepended to it.
+// AS4_PATH from an OLD speaker is kept, and the AS4_PATH sent onward is built
+// from it with the local AS on the front.
 //
 // RFC requirement: RFC6793-6-4 negative -- the discard is scoped to malformed attributes: a
 // well-formed AS4_PATH received from an OLD speaker is NOT discarded, its four-octet AS
@@ -308,22 +388,20 @@ func TestRFC6793WellFormedAS4PathNotDiscarded(t *testing.T) {
 		}, false),
 		received,
 	)
-	payload := buildPayload(nil, attrs, nil)
+	payload := buildPayload(nil, attrs, rfc6793AdvertisedNLRI)
 
-	dst := make([]byte, len(payload)+256)
-	n, err := RewriteASPath(dst, payload, rfc6793NonMappable, false, false)
-	require.NoError(t, err)
-	result := dst[:n]
+	mods := rfc6793Prepend(t, payload, false, false)
 
-	as4 := parseAS4PathFromPayload(t, result)
+	as4 := rfc6793EgressAS4Path(t, mods, payload)
 	require.NotNil(t, as4)
 	require.Len(t, as4.Segments, 1)
 	assert.Equal(t, []uint32{rfc6793NonMappable, rfc6793NonMappableB, 65001},
 		as4.Segments[0].ASNs)
 }
 
-// TestRFC6793ReceivedConfedInAS4PathDiscarded feeds RewriteASPath an AS4_PATH
-// from an OLD speaker that illegally carries an AS_CONFED_SEQUENCE segment.
+// TestRFC6793ReceivedConfedInAS4PathDiscarded feeds the EBGP prepend rail an
+// AS4_PATH from an OLD speaker that illegally carries an AS_CONFED_SEQUENCE
+// segment.
 //
 // RFC requirement: RFC6793-6-3 positive -- AS_CONFED_SEQUENCE / AS_CONFED_SET path segments
 // received in an AS4_PATH are discarded, the attribute length is adjusted to match the
@@ -347,14 +425,11 @@ func TestRFC6793ReceivedConfedInAS4PathDiscarded(t *testing.T) {
 		}, false),
 		received,
 	)
-	payload := buildPayload(nil, attrs, nil)
+	payload := buildPayload(nil, attrs, rfc6793AdvertisedNLRI)
 
-	dst := make([]byte, len(payload)+256)
-	n, err := RewriteASPath(dst, payload, rfc6793NonMappable, false, false)
-	require.NoError(t, err, "UPDATE processing continues")
-	result := dst[:n]
+	mods := rfc6793Prepend(t, payload, false, false)
 
-	as4 := parseAS4PathFromPayload(t, result)
+	as4 := rfc6793EgressAS4Path(t, mods, payload)
 	require.NotNil(t, as4)
 	for _, seg := range as4.Segments {
 		assert.NotEqual(t, attribute.ASConfedSequence, seg.Type)

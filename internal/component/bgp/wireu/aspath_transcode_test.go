@@ -124,7 +124,7 @@ func TestTranscodeASPath_4to2_MappableOnly(t *testing.T) {
 	result := dst[:n]
 
 	// AS_PATH should be re-encoded with 2-byte ASNs.
-	path := parseASPathFromPayload(t, result, false)
+	path := parseASPathFromPayload(t, result)
 	require.Len(t, path.Segments, 1)
 	assert.Equal(t, []uint32{64512, 64513}, path.Segments[0].ASNs)
 
@@ -153,7 +153,7 @@ func TestTranscodeASPath_4to2_NonMappable(t *testing.T) {
 	result := dst[:n]
 
 	// AS_PATH: non-mappable ASNs replaced with AS_TRANS (23456).
-	path := parseASPathFromPayload(t, result, false)
+	path := parseASPathFromPayload(t, result)
 	require.Len(t, path.Segments, 1)
 	assert.Equal(t, []uint32{64512, attribute.ASTrans, attribute.ASTrans}, path.Segments[0].ASNs)
 
@@ -183,7 +183,7 @@ func TestTranscodeASPath_4to2_MixedSegments(t *testing.T) {
 	result := dst[:n]
 
 	// AS_PATH with AS_TRANS substitutions.
-	path := parseASPathFromPayload(t, result, false)
+	path := parseASPathFromPayload(t, result)
 	require.Len(t, path.Segments, 2)
 	assert.Equal(t, attribute.ASSequence, path.Segments[0].Type)
 	assert.Equal(t, []uint32{64512, attribute.ASTrans}, path.Segments[0].ASNs)
@@ -315,7 +315,7 @@ func TestTranscodeASPath_BoundaryASN(t *testing.T) {
 			require.NoError(t, err)
 			result := dst[:n]
 
-			path := parseASPathFromPayload(t, result, false)
+			path := parseASPathFromPayload(t, result)
 			require.Len(t, path.Segments, 1)
 			assert.Equal(t, []uint32{tt.wantASN2}, path.Segments[0].ASNs)
 
@@ -359,7 +359,7 @@ func TestTranscodeASPath_4to2_AS4PathBeforeASPath(t *testing.T) {
 	assert.Equal(t, []uint32{64512, 200000}, as4.Segments[0].ASNs)
 
 	// Verify AS_PATH is transcoded.
-	path := parseASPathFromPayload(t, result, false)
+	path := parseASPathFromPayload(t, result)
 	require.Len(t, path.Segments, 1)
 	assert.Equal(t, []uint32{64512, attribute.ASTrans}, path.Segments[0].ASNs)
 }

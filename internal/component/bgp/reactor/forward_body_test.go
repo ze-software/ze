@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -89,11 +90,20 @@ func TestForwardDoesNotRetranscodeASN2RewrittenWire(t *testing.T) {
 
 	attrs := forwardBodyBaseAttrs(t, 65001)
 	rawBody := buildRawUpdateBody(nil, attrs, [][]byte{forwardBodyNLRIs(1, false)})
-	rewritten := make([]byte, message.MaxMsgLen) // the wire an EBGP prepend toward a 2-octet peer produces
-	n, err := wireu.RewriteASPath(rewritten, rawBody, 65000, true, false)
+	// The wire an EBGP prepend toward a two-octet peer produces, built through the
+	// rail that produces it: ASPathEdit records the prepend and the narrowing as
+	// attribute operations, and the rebuild writes them into one payload.
+	var mods filterapi.ModAccumulator
+	var edit wireu.ASPathEdit
+	_, err := edit.Record(&mods, rawBody, wireu.ASPathIntent{
+		Prepend: []uint32{65000}, SrcASN4: true, DstASN4: false,
+	})
 	require.NoError(t, err)
+	rewritten, _, modFail := buildModifiedPayload(rawBody, &mods, attrModHandlersWithDefaults(), nil, nil)
+	require.False(t, modFail.failed(), "the fixture rebuild must succeed")
+	require.NotNil(t, rewritten)
 
-	result, ok := buildFwdBody(wireu.NewWireUpdate(rewritten[:n], fwdContextIDWithASN4(srcCtxID, false)), message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.5"), &fwdParseCache{})
+	result, ok := buildFwdBody(wireu.NewWireUpdate(rewritten, fwdContextIDWithASN4(srcCtxID, false)), message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.5"), &fwdParseCache{})
 	require.True(t, ok, "already rewritten ASN2 wire must not be transcoded again")
 
 	var forwarded *message.Update

@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -77,20 +78,19 @@ func findProbeAttr(t *testing.T, payload []byte, code attribute.AttributeCode) [
 
 // VALIDATES: RFC 4271 Section 5.1.7 -- AGGREGATOR is optional TRANSITIVE, so a
 // speaker that propagates a route carries it through unchanged when nothing
-// about it needs to change.
-// PREVENTS: the slow-path AGGREGATOR destruction described below silently
-// returning.
+// about it needs to change. Both prepend paths agree.
+// PREVENTS: the defect this file was written for, in the shape the live rail
+// could still take it: a same-width prepend deciding the AGGREGATOR needs
+// re-encoding, and destroying a valid one on whichever path it reached.
 //
-// rewritePrependASPathFull computes newAggValueLen only when the source and
-// destination ASN widths DIFFER. It then treated a zero newAggValueLen as "this
-// AGGREGATOR is malformed" and overwrote it with an ATTR_TOMBSTONE marker
-// carrying TombstoneInvalidLength -- so every same-encoding prepend that reached
-// the slow path destroyed a perfectly valid AGGREGATOR. A dual-AS local-as
-// prepend is the ordinary trigger, and whether the attribute survived depended
-// only on whether the prepend took the byte-shifting fast path.
-//
-// The zero now means what it says: no re-encoding is required, so the attribute
-// travels on untouched. Only a length that is neither 6 nor 8 is malformed.
+// The whole-payload rewrite this now drives through ASPathEdit computed a new
+// AGGREGATOR length only when the widths DIFFERED, then read a zero length as
+// "malformed" and overwrote the attribute with an ATTR_TOMBSTONE. So every
+// same-encoding prepend that reached its slow path destroyed a valid AGGREGATOR,
+// and survival depended only on which prepend path the route took. ASPathEdit
+// answers the width question FIRST, in recordAggregator, and returns before any
+// of that when the widths match -- so the attribute is not named in the edit set
+// at all and the writer copies it verbatim.
 func TestPrependKeepsValidAggregatorOnEveryPath(t *testing.T) {
 	ip := [4]byte{192, 0, 2, 1}
 	attrs := probeAttr(0x40, attribute.AttrOrigin, []byte{0})
@@ -101,117 +101,30 @@ func TestPrependKeepsValidAggregatorOnEveryPath(t *testing.T) {
 	// Sanity: the AGGREGATOR is present and well formed on the way in.
 	require.NotNil(t, findProbeAttr(t, payload, attribute.AttrAggregator))
 
-	// Separate buffers: the extracted attribute is a WINDOW into dst, so reusing
-	// one buffer would leave the first result aliasing the second run's bytes.
-	dstFast := make([]byte, 4096)
-	dstSlow := make([]byte, 4096)
-
-	// Fast path: single mappable ASN, same encoding, leading AS_SEQUENCE.
-	nFast, err := RewriteASPath(dstFast, payload, 64510, false, false)
-	require.NoError(t, err)
-	fast := findProbeAttr(t, dstFast[:nFast], attribute.AttrAggregator)
-	require.NotNil(t, fast, "fast path must carry the AGGREGATOR through")
-	require.Equal(t, byte(0xC0), fast[0], "fast path must not change the AGGREGATOR flags")
-
-	// Slow path, SAME encoding: a dual-AS prepend is two ASNs, which
-	// tryDirectPrepend refuses, so rewritePrependASPathFull runs.
-	nSlow, err := RewriteASPathDual(dstSlow, payload, 64510, 64500, false, false)
-	require.NoError(t, err)
-	dst := dstSlow
-
-	slow := findProbeAttr(t, dst[:nSlow], attribute.AttrAggregator)
-	require.NotNil(t, slow,
-		"the slow path must carry a valid AGGREGATOR through: it is optional "+
-			"transitive and nothing about it needed re-encoding")
-	require.Equal(t, byte(0xC0), slow[0], "the AGGREGATOR flags are unchanged")
-	require.Equal(t, fast, slow,
-		"the same route must emit the same AGGREGATOR whichever prepend path it took")
-
-	require.Nil(t, findProbeAttr(t, dst[:nSlow], attribute.AttrTombstone),
-		"a well-formed AGGREGATOR must never be replaced by an ATTR_TOMBSTONE")
-}
-
-// VALIDATES: an AGGREGATOR whose length is genuinely unreadable is still
-// tombstoned, so the fix above narrowed the branch rather than removing it.
-// PREVENTS: the correction being read as "never tombstone an AGGREGATOR", which
-// would forward a malformed attribute to a peer.
-func TestPrependTombstonesMalformedAggregator(t *testing.T) {
-	// Five octets: neither the two-octet-ASN (6) nor four-octet-ASN (8) form.
-	attrs := probeAttr(0x40, attribute.AttrASPath, probeASPath2(64500, 64501))
-	attrs = append(attrs, probeAttr(0xC0, attribute.AttrAggregator, []byte{1, 2, 3, 4, 5})...)
-	payload := buildProbePayload(attrs, nil)
-
-	dst := make([]byte, 4096)
-	n, err := RewriteASPathDual(dst, payload, 64510, 64500, false, false)
-	require.NoError(t, err)
-
-	require.Nil(t, findProbeAttr(t, dst[:n], attribute.AttrAggregator),
-		"a malformed AGGREGATOR does not travel on")
-	tomb := findProbeAttr(t, dst[:n], attribute.AttrTombstone)
-	require.NotNil(t, tomb, "it is replaced by a marker")
-	require.Equal(t, byte(attribute.AttrAggregator), tomb[3])
-	require.Equal(t, TombstoneInvalidLength, tomb[4])
-}
-
-// VALIDATES: draft-mangin-idr-attr-tombstone-00 Section 5.3 -- a recognizing
-// EBGP speaker MUST clear the Transitive bit before forwarding the marker.
-// PREVENTS: the clear riding on one prepend path only. It used to fire inside
-// rewritePrependASPathFull alone, so a plain single-ASN prepend (the common EBGP
-// case, which takes the byte-shifting fast path) forwarded the marker with its
-// Transitive bit intact and let the peer propagate it further.
-func TestTombstoneTransitiveClearedOnEveryPrependPath(t *testing.T) {
-	// Value is (original code, reason, padding): at least two octets.
-	marker := probeAttr(0xC0, attribute.AttrTombstone, []byte{byte(attribute.AttrMED), 1, 0, 0})
-
 	cases := []struct {
-		name string
-		run  func(dst, payload []byte) (int, error)
-		with []byte
+		name    string
+		prepend []uint32
 	}{
-		{
-			name: "fast path: one mappable ASN, matching widths",
-			run: func(dst, payload []byte) (int, error) {
-				return RewriteASPath(dst, payload, 64510, false, false)
-			},
-			with: probeAttr(0x40, attribute.AttrASPath, probeASPath2(64500)),
-		},
-		{
-			name: "slow path: dual-AS prepend",
-			run: func(dst, payload []byte) (int, error) {
-				return RewriteASPathDual(dst, payload, 64510, 64500, false, false)
-			},
-			with: probeAttr(0x40, attribute.AttrASPath, probeASPath2(64500)),
-		},
-		{
-			name: "insert path: no AS_PATH present",
-			run: func(dst, payload []byte) (int, error) {
-				return RewriteASPath(dst, payload, 64510, false, false)
-			},
-			with: nil,
-		},
+		// One mappable ASN onto a leading AS_SEQUENCE with matching widths: the
+		// byte-shifting fast path (tryShift).
+		{name: "fast path: one mappable ASN, matching widths", prepend: []uint32{64510}},
+		// Two ASNs, which tryShift refuses, so the full prepend runs.
+		{name: "slow path: dual-AS prepend", prepend: []uint32{64500, 64510}},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			attrs := probeAttr(0x40, attribute.AttrOrigin, []byte{0})
-			attrs = append(attrs, tc.with...)
-			attrs = append(attrs, marker...)
-			payload := buildProbePayload(attrs, nil)
-
-			// The marker arrives WITH the Transitive bit set.
-			in := findProbeAttr(t, payload, attribute.AttrTombstone)
-			require.NotNil(t, in)
-			require.NotZero(t, in[0]&byte(attribute.FlagTransitive),
-				"guard: the fixture must carry a transitive marker, or this proves nothing")
-
-			dst := make([]byte, 4096)
-			n, err := tc.run(dst, payload)
+			var mods filterapi.ModAccumulator
+			var edit ASPathEdit
+			_, err := edit.Record(&mods, payload, ASPathIntent{Prepend: tc.prepend})
 			require.NoError(t, err)
 
-			out := findProbeAttr(t, dst[:n], attribute.AttrTombstone)
-			require.NotNil(t, out, "the marker itself still travels to the peer")
-			require.Zero(t, out[0]&byte(attribute.FlagTransitive),
-				"the Transitive bit MUST be cleared at the EBGP boundary")
+			for _, op := range mods.Ops() {
+				require.NotEqual(t, byte(attribute.AttrAggregator), op.Code,
+					"a valid AGGREGATOR at matching widths needs no operation: it travels verbatim")
+				require.NotEqual(t, byte(attribute.AttrTombstone), op.Code,
+					"a well-formed AGGREGATOR must never be replaced by an ATTR_TOMBSTONE")
+			}
 		})
 	}
 }

@@ -2,17 +2,19 @@
 // RFC: rfc/short/rfc4271.md — AS_PATH prepend when ADVERTISING to an EBGP peer (Section 5.1.2 b), ascending attribute order (Section 5)
 // RFC: rfc/short/rfc6793.md — AS4_PATH obligation and AGGREGATOR/AS_TRANS (Section 4.2.2), malformed AS4_PATH discard (Section 6)
 // RFC: rfc/short/rfc7947.md — a route server MUST NOT modify AS_PATH for an RS client (Section 2.2.2)
-// Overview: aspath_rewrite.go — RewriteASPath, the whole-payload rewrite this replaces
-// Related: aspath_transcode.go — TranscodeASPath, the transcode-only rail this replaces
+// Related: aspath_transcode.go — TranscodeASPath, the narrowing rail this left with one caller
 // Related: aspath_as4.go — the shared AS4_PATH derivation rule both rails already used
 //
 // Why this file exists.
 //
-// RewriteASPath and TranscodeASPath each produce a WHOLE new UPDATE payload as a
-// pass BEFORE the per-destination edit set runs, so an EBGP destination carrying
+// The rail this replaced, RewriteASPath, produced a WHOLE new UPDATE payload as a
+// pass BEFORE the per-destination edit set ran, so an EBGP destination carrying
 // any policy paid two full payload copies back to back: one to prepend, one to
 // apply the policy. The second cannot be amortized across destinations, because
-// the edit set differs per destination.
+// the edit set differs per destination. TranscodeASPath still works that way and
+// still has one caller, the re-encode for a two-octet destination that never
+// reaches this file (forward_body.go). RewriteASPath was deleted on 2026-09-09,
+// once its last test fixtures had moved here.
 //
 // Here the same decisions are recorded as INTENT on the accumulator instead. The
 // AS-path family becomes ordinary attribute operations, and the exactly-sized

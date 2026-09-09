@@ -94,7 +94,7 @@ All path attributes share a common header:
 | 29 | 0x1D | BGP_LS | 0x80 (O-NT) | RFC 7752 | not implemented |
 | 32 | 0x20 | LARGE_COMMUNITY | 0xC0 (O-T) | RFC 8092 | implemented |
 | 40 | 0x28 | BGP_PREFIX_SID | 0xC0 (O-T) | RFC 8669 | not implemented |
-| 252 | 0xFC | ATTR_TOMBSTONE | 0x80/0xC0 (O, T mirrors discarded attr) | draft-mangin-idr-attr-tombstone-00 | implemented (provisional code point) |
+| 252 | 0xFC | ATTR_TOMBSTONE | 0x80/0xC0 (O, T mirrors discarded attr) | draft-mangin-idr-attr-tombstone-00 | marker implemented, Section 5.3 egress clear not implemented (provisional code point) |
 
 Legend: WK=Well-known, O=Optional, M=Mandatory, D=Discretionary, T=Transitive, NT=Non-transitive.
 Unimplemented attributes are parsed as opaque (raw bytes preserved for forwarding).
@@ -698,24 +698,29 @@ forwarding. The length field is never modified.
 | Value[1] | reason code (0 unspecified, 1 EBGP-invalid, 2 invalid-length, 3 malformed-value, 4 local-policy) | Section 4.4 |
 | Value[2..] | zeroed | Section 5.1 |
 
-**Egress flag handling (EBGP boundary).** The generation flags are stamped at
-receive time, where the destination is not yet known, so a transitive discarded
-attribute yields a transitive marker (`0xC0`). Under the default "inherit"
-forwarding policy, a recognizing EBGP speaker MUST clear the Transitive bit before
-forwarding the marker to an EBGP peer (Section 5.3), preventing the peer from
-propagating it further. Ze applies this clear per destination on the EBGP
-re-encode path (`wireu.rewriteASPathPrepend`), touching only the Transitive bit so
-the Optional and Extended Length bits stay consistent with the header. IBGP peers
-share the received wire zero-copy and keep the transitive marker, exactly as
-Section 5.3 requires. A marker already non-transitive (`0x80`) is forwarded
-unchanged.
+**Egress flag handling: the Section 5.3 clear is NOT implemented.** The
+generation flags are stamped at receive time, where the destination is not yet
+known, so a transitive discarded attribute yields a transitive marker (`0xC0`)
+and keeps it on every rail. Section 5.3 asks a recognizing EBGP speaker to clear
+the Transitive bit before forwarding the marker to an EBGP peer, so an EBGP peer
+of ze can propagate the marker further.
+
+Ze once did this, inside the whole-payload AS_PATH rewrite. That rewrite was
+replaced by the per-destination edit set (`wireu.ASPathEdit`), which resolves the
+AS-path family and nothing else, so the clear had no successor and stopped
+running. Thomas retired the support on 2026-09-09 rather than rebuild it, and the
+two helpers that performed it were deleted with the rewrite
+(`plan/journal/unwired-feature.md`, 2026-09-09).
+
+What ze still does is the marker itself: it is written at receive time and
+forwarded with the layout and the flags it was written with.
 
 Source: `internal/component/bgp/message/attr_discard.go` (receive-time stamp),
-`internal/component/bgp/wireu/tombstone.go` (`WriteTombstone`,
-`clearTombstoneTransitive`), `internal/component/bgp/wireu/aspath_rewrite.go` (EBGP
-egress clear).
+`internal/component/bgp/wireu/tombstone.go` (`WriteTombstone`),
+`internal/component/bgp/wireu/aspath_transcode.go` (the marker written over an
+AGGREGATOR ze cannot re-encode).
 <!-- source: internal/core/bgp/attribute/attribute.go -- AttrTombstone = 252 -->
-<!-- source: internal/component/bgp/wireu/tombstone.go -- clearTombstoneTransitive, Section 5.3 -->
+<!-- source: internal/component/bgp/wireu/tombstone.go -- WriteTombstone -->
 
 ---
 

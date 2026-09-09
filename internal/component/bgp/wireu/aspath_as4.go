@@ -5,8 +5,7 @@
 //
 // Single owner of the "does this UPDATE need an AS4_PATH, and what goes in it"
 // question. Every egress path routes through here so the rule cannot drift
-// between them. aspath_rewrite.go calls it too and is not one of them: it has
-// no non-test caller (plan/journal/unwired-feature.md, 2026-09-05).
+// between them.
 
 package wireu
 

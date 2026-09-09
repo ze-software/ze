@@ -945,10 +945,18 @@ func TestExportRemovePrivateASBeforeEBGPPrepend(t *testing.T) {
 	modified, _, _ := buildModifiedPayload(payload, &mods, attrModHandlersWithDefaults(), nil, nil)
 	require.NotNil(t, modified)
 
-	dst := make([]byte, len(modified)+64)
-	n, err := wireu.RewriteASPath(dst, modified, 65000, true, true)
+	// The EBGP prepend that follows the export rewrite, driven through the rail
+	// that performs it rather than through the whole-payload rewrite it replaced.
+	var prependMods filterapi.ModAccumulator
+	var edit wireu.ASPathEdit
+	_, err := edit.Record(&prependMods, modified, wireu.ASPathIntent{
+		Prepend: []uint32{65000}, SrcASN4: true, DstASN4: true,
+	})
 	require.NoError(t, err)
-	finalPath, err := attribute.ParseASPath(payloadASPathValue(t, dst[:n]), true)
+	prepended, _, prependFail := buildModifiedPayload(modified, &prependMods, attrModHandlersWithDefaults(), nil, nil)
+	require.False(t, prependFail.failed(), "the prepend rebuild must succeed")
+	require.NotNil(t, prepended)
+	finalPath, err := attribute.ParseASPath(payloadASPathValue(t, prepended), true)
 	require.NoError(t, err)
 	require.Len(t, finalPath.Segments, 1)
 	assert.Equal(t, []uint32{65000, 64496, 64497}, finalPath.Segments[0].ASNs)

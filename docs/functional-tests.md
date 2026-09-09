@@ -283,6 +283,22 @@ ze-test bgp plugin -a                       # 4. now it is real
 ```
 
 `--draft` swaps the discovery root; without it you always get the real tests.
+
+**Type the runner's own verb, and read the log rather than the exit code.** Not
+every suite sits under `bgp`: `plugin`, `encode`, `decode`, `parse` and `reload`
+do, and `ui`, `editor`, `web` and the protocol suites are typed bare, as
+`ze-test ui -a`. `internal/le/functional/suites.go` carries the argv for each
+one, and it is the only place that answers this. A runner given a verb it does
+not know prints its usage and **exits 0**, so `ze-test bgp ui --draft` reads as a
+pass and runs nothing (`ai/rules/commands.md`; the defect is recorded in
+`plan/journal/silent-fall-through.md`). The check is a `--- PASS` or
+`VERIFY STEP` line naming your test.
+
+**A `.ci` whose fixture is compiled into `ze-test` needs `ze-test` rebuilt, not
+just `ze`.** `ze-test fixture <name>` resolves the name in the binary's own
+registry (`internal/test/fixture`, `Register`), so a fixture you added this
+session is absent from a stale binary while the daemon under test is current.
+`./le functional <suite>` rebuilds both.
 Suite discovery is a non-recursive glob, so the incubator is invisible to it for
 free; the six gates that walk `test/` recursively each skip it explicitly, and
 `TestDraftDirIsInvisibleToRepoGates` fails if one of them stops. Adding a new
@@ -542,10 +558,16 @@ benchmarks with `-benchmem` at a bounded benchtime and enforces each
 benchmark opts in through `perf.AllocCeilings`; the gate fails when a registered
 benchmark is absent from the output.
 
+Opting in takes two entries, not one. The ceiling names the benchmark, and
+`allocPackages` names the packages the gate runs benchmarks in. A ceiling whose
+benchmark lives outside those packages is reported MISSING, so the gate goes red
+until the package is added beside it.
+
 Timing regressions run separately through `bin/ze-perf track --check`, while
 the Docker DUT matrix uses the native Go runner:
 `go run ./cmd/ze-perf-run --build --test`.
 <!-- source: internal/perf/allocgate.go -- AllocCeilings, checkAllocCeilings -->
+<!-- source: internal/le/verify/deps/verifydeps.go -- allocPackages -->
 <!-- source: internal/le/verify/deps/actions.go -- Actions -->
 <!-- source: cmd/ze-perf-run/main.go -- main -->
 
@@ -2667,7 +2689,7 @@ in the traditional sense). Run them periodically or before releases.
 | BGP messages | 6 | `FuzzParseHeader`, `FuzzUnpackOpen`, `FuzzUnpackUpdate`, `FuzzUnpackNotification` |
 | BGP attributes | 7 | `FuzzParseOrigin`, `FuzzParseMED`, `FuzzParseASPath`, `FuzzParseCommunity` |
 | NLRI codecs | 16 | `FuzzParseVPN`, `FuzzParseEVPN`, `FuzzParseFlowSpec`, `FuzzParseBGPLS`, `FuzzParseMUP` |
-| Wire encoding | 5 | `FuzzParseIPv4Prefixes`, `FuzzParseIPv6Prefixes`, `FuzzParsePrefixes`, `FuzzRewriteASPath`, `FuzzParseNLRIs` |
+| Wire encoding | 5 | `FuzzParseIPv4Prefixes`, `FuzzParseIPv6Prefixes`, `FuzzParsePrefixes`, `FuzzASPathEditRecord`, `FuzzParseNLRIs` |
 | IS-IS | 3 | `FuzzISISDecodePDU`, `FuzzISISTLVIterator`, `FuzzISISRoundTrip` |
 | OSPF | 7 | `FuzzOSPFDecodePacket`, `FuzzOSPFLSAIterator`, `FuzzOSPFTEBody`, `FuzzOSPFExtLinkBody` |
 | Config parser | 2 | `FuzzConfigParser`, `FuzzTokenizer` |
