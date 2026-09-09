@@ -163,15 +163,13 @@ const homeTemplate = `            <section class="hero" aria-labelledby="hero-ti
                     </a>
                     <a class="proof" href="quality/rfc-compliance/">
                         <strong
-                            >{rfc_proven} of {rfc_gated_implemented}
-                            <span class="label"
-                                >gated MUSTs proven by test ({rfc_proven_percent}%)</span
-                            ></strong
+                            >{rfc_proven}
+                            <span class="label">of {rfc_gated_implemented} RFC MUSTs</span></strong
                         >
                         <ul>
-                            <li>{rfc_implemented} RFCs Ze implements, {rfc_inspected} inspected</li>
-                            <li>{rfc_gated_must} gated MUSTs across everything inspected</li>
-                            <li>Gaps disclosed before claims</li>
+                            <li>{rfc_proven_percent}% tested</li>
+                            <li>{rfc_implemented} RFCs Ze claims support for</li>
+                            <li>{rfc_inspected} RFCs with requirements extracted</li>
                         </ul>
                         <span class="proof-check">RFC requirement ledger.</span>
                     </a>
@@ -201,15 +199,15 @@ const homeTemplate = `            <section class="hero" aria-labelledby="hero-ti
                             >{interop_targets} <span class="label">interop targets</span></strong
                         >
                         <ul>
-                            <li>Real third-party daemons</li>
-                            <li>BGP sessions in Docker</li>
-                            <li>Routes checked by peer CLIs</li>
+                            <li>BGP, OSPF, IS-IS, BFD, BMP, RPKI, VRRP</li>
+                            <li>IPsec, L2TP, PPPoE, RADIUS</li>
+                            <li>Real daemons in Docker, checked by peer CLIs</li>
                         </ul>
                         <span class="proof-check">Docker interop peer list.</span>
                     </a>
                 </div>
-                <div class="interop-strip" aria-label="Tested BGP peer implementations">
-                    <span class="interop-strip-label">Tested against routing stacks</span>
+                <div class="interop-strip" aria-label="Implementations Ze is tested against">
+                    <span class="interop-strip-label">Tested against</span>
                     <a href="quality/qemu-interop-release/#docker-interop">FRR</a>
                     <a href="quality/qemu-interop-release/#docker-interop">BIRD</a>
                     <a href="quality/qemu-interop-release/#docker-interop">GoBGP</a>
@@ -217,7 +215,14 @@ const homeTemplate = `            <section class="hero" aria-labelledby="hero-ti
                     <a href="quality/qemu-interop-release/#docker-interop">FreeRtr</a>
                     <a href="quality/qemu-interop-release/#docker-interop">RustyBGP</a>
                     <a href="quality/qemu-interop-release/#docker-interop">rustbgpd</a>
-                    <a href="features/exabgp-compatibility/">ExaBGP migration path</a>
+                    <a href="quality/qemu-interop-release/#docker-interop">strongSwan</a>
+                    <a href="quality/qemu-interop-release/#docker-interop">accel-ppp</a>
+                    <a href="quality/qemu-interop-release/#docker-interop">xl2tpd</a>
+                    <a href="quality/qemu-interop-release/#docker-interop">FreeRADIUS</a>
+                    <a href="quality/qemu-interop-release/#docker-interop">keepalived</a>
+                    <a href="quality/qemu-interop-release/#docker-interop">StayRTR</a>
+                    <a href="quality/qemu-interop-release/#docker-interop">pmacct</a>
+                    <a href="features/exabgp-compatibility/">ExaBGP</a>
                 </div>
             </section>
 

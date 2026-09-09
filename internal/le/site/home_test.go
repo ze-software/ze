@@ -242,7 +242,6 @@ func TestTheHomepageProofStripCarriesItsStatSpans(t *testing.T) {
 		`<span data-ze-stat="rfc.proven_percent">54.2</span>`,
 		`<span data-ze-stat="rfc.implemented_display">140</span>`,
 		`<span data-ze-stat="rfc.inspected_display">171</span>`,
-		`<span data-ze-stat="rfc.gated_must_display">2,972</span>`,
 	}
 	for _, span := range spans {
 		if !strings.Contains(page, span) {
