@@ -48,7 +48,15 @@ func interfaceCost(ic interfaceConfig, referenceBandwidthMbps uint32) uint16 {
 	if ic.HasCost {
 		return ic.Cost
 	}
-	metric, err := types.DefaultMetric(uint64(referenceBandwidthMbps), interfaceLinkSpeedMbps(ic.Name))
+	return interfaceCostAtSpeed(referenceBandwidthMbps, interfaceLinkSpeedMbps(ic.Name))
+}
+
+// interfaceCostAtSpeed is the auto-cost quotient over a link speed the caller has already
+// read. A caller that prices one link twice reads the speed once and calls this, so the two
+// costs it compares describe one sample: two reads can straddle a renegotiation and report a
+// cost change no config change produced.
+func interfaceCostAtSpeed(referenceBandwidthMbps uint32, speedMbps uint64) uint16 {
+	metric, err := types.DefaultMetric(uint64(referenceBandwidthMbps), speedMbps)
 	if err != nil {
 		return costLinkSpeedUnknown
 	}

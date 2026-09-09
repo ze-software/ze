@@ -7,6 +7,7 @@
 package ospf
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -157,6 +158,26 @@ func TestInterfaceGlobalParamsChangedReferenceBandwidth(t *testing.T) {
 	if interfaceGlobalParamsChanged(oldCfg, newCfg, unpriced) {
 		t.Error("a reference-bandwidth change restarted an interface whose link speed the kernel does not report")
 	}
+
+	// The predicate samples the link speed ONCE. The reader below renegotiates 1 Gbit/s to
+	// 10 Gbit/s between calls, so a predicate that reads per side compares 100 against 10 and
+	// bounces an interface at a reference bandwidth that did not change.
+	previous := interfaceLinkSpeedMbps
+	reads := 0
+	interfaceLinkSpeedMbps = func(string) uint64 {
+		reads++
+		if reads == 1 {
+			return 1000
+		}
+		return 10000
+	}
+	t.Cleanup(func() { interfaceLinkSpeedMbps = previous })
+	if interfaceGlobalParamsChanged(oldCfg, oldCfg, interfaceConfig{Name: "eth3"}) {
+		t.Error("a link that renegotiated between two speed reads restarted an interface at an unchanged reference bandwidth")
+	}
+	if reads != 1 {
+		t.Errorf("interfaceGlobalParamsChanged read the link speed %d times, want 1", reads)
+	}
 }
 
 // VALIDATES: one `reference-bandwidth` leaf prices a link the same way in the OSPFv2 family
@@ -209,14 +230,65 @@ func TestReferenceBandwidthReachesEveryAddressFamily(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-8b and AC-11 on a reload -- an OSPFv3 address family re-prices a link the
+// way the OSPFv2 family does. The numerator reaches the address-family engine through
+// v6Families, which is what v6EngineSet.apply hands to (*engine).reconcile, so the interface
+// restarts and the OSPFv3 origination topology carries the new cost.
+// PREVENTS: an OSPFv3 family that keeps the cost it started with after a reload. The two
+// families would then advertise two costs for one link until the daemon restarts, which is
+// the round 1 BLOCKER re-appearing on the reload path rather than on the initial config.
+func TestReferenceBandwidthReloadRepricesEveryAddressFamily(t *testing.T) {
+	stubLinkSpeed(t, map[string]uint64{"eth0": 10000})
+	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","reference-bandwidth":"470000","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}},"address-family":{"ipv6":{"areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}}}}}}`), nil)
+	if err != nil {
+		t.Fatalf("parseOSPFConfig: %v", err)
+	}
+	if cfg.V6 == nil {
+		t.Fatal("address-family ipv6 was not parsed into cfg.V6")
+	}
+	eng6 := newEngineWithCodecAF(ospfv3transport.New(&fakeV6Backend{}), v6Codec{}, afIPv6Unicast)
+	eng6.setConfig(*cfg.V6)
+	if err := eng6.openInterfaces(); err != nil {
+		t.Fatalf("openInterfaces(v6): %v", err)
+	}
+	defer eng6.shutdown()
+	if got := topologyCost(t, eng6, "eth0"); got != 47 {
+		t.Fatalf("OSPFv3 cost before the reload = %d, want 47 from reference-bandwidth 470000 over a 10G link", got)
+	}
+
+	lowered, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","reference-bandwidth":"235000","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}},"address-family":{"ipv6":{"areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}}}}}}`), nil)
+	if err != nil {
+		t.Fatalf("parseOSPFConfig(lowered): %v", err)
+	}
+	loweredV6, found := ospfConfig{}, false
+	for _, fam := range lowered.v6Families() {
+		if fam.af == afIPv6Unicast {
+			loweredV6, found = fam.cfg, true
+		}
+	}
+	if !found {
+		t.Fatal("v6Families carries no ipv6-unicast entry to reconcile with")
+	}
+	res := eng6.reconcile(loweredV6)
+	if !res.changed["eth0"] {
+		t.Fatalf("OSPFv3 reconcile journal = %+v, want eth0 restarted: 235000 over a 10G link prices it 23, not 47", res)
+	}
+	// 23 is 235000 over 10000. No default produces it: the seeded 100000 gives 10, so a
+	// family that failed to inherit the reload's numerator cannot read 23 by accident.
+	if got := topologyCost(t, eng6, "eth0"); got != 23 {
+		t.Errorf("OSPFv3 cost after the reload = %d, want the re-priced 23", got)
+	}
+}
+
 // VALIDATES: AC-8b -- a reload that re-prices an interface drops the adjacency that
 // interface held, and the runtime that replaces it advertises the new cost. The path is the
 // production one: parseOSPFConfig, reconcile, interfaceGlobalParamsChanged and
 // startInterfaceLocked, over an interface that holds a neighbor.
 // PREVENTS: a re-price that leaves the old runtime and its neighbor records in place, and a
 // restart that drops the adjacency without changing the cost it re-forms at.
-// The neighbor reaches 2-Way rather than Full: Full needs a database exchange with a peer,
-// and ospf-auto-cost-frr is where a peer exists.
+// The neighbor reaches 2-Way rather than Full: the Hello names this router, which is what
+// receiveHello reads for TwoWay, while Full needs a database exchange with a peer and
+// ospf-auto-cost-frr is where a peer exists.
 func TestReferenceBandwidthReloadDropsAdjacencyAndReprices(t *testing.T) {
 	stubLinkSpeed(t, map[string]uint64{"eth0": 1000})
 	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","reference-bandwidth":"100000","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}}}}`), nil)
@@ -234,18 +306,30 @@ func TestReferenceBandwidthReloadDropsAdjacencyAndReprices(t *testing.T) {
 	if before == nil {
 		t.Fatal("eth0 has no interface runtime after openInterfaces")
 	}
+	peer := types.RouterID{10, 0, 0, 2}
 	detail := before.Snapshot()
+	// The Hello lists this router, so helloHasNeighbor answers true and the neighbor reaches
+	// 2-Way. A Hello that lists nobody leaves it one-way in Init, and NeighborCount counts a
+	// one-way neighbor the same, so the neighbor state is read out of the neighbor table.
 	hello := types.Hello{
 		HelloInterval: detail.HelloInterval,
 		DeadInterval:  uint32(detail.DeadInterval),
 		Options:       types.OptionE,
 		Priority:      1,
+		Neighbors:     []types.RouterID{cfg.RouterID},
 	}
-	if reason := before.ReceiveHello(types.RouterID{10, 0, 0, 2}, hello, time.Now()); reason != "" {
+	if reason := before.ReceiveHello(peer, hello, time.Now()); reason != "" {
 		t.Fatalf("ReceiveHello: %s", reason)
 	}
 	if got := before.Snapshot().NeighborCount; got != 1 {
-		t.Fatalf("neighbors before the reload = %d, want 1: the reload needs an adjacency to drop", got)
+		t.Fatalf("neighbors before the reload = %d, want 1: the reload needs a neighbor to drop", got)
+	}
+	snap, ok := eng.neighbors.Lookup("eth0", peer)
+	if !ok {
+		t.Fatal("the neighbor table holds no eth0 neighbor before the reload")
+	}
+	if snap.State != "2-way" {
+		t.Fatalf("neighbor state before the reload = %q, want 2-way: the Hello names this router", snap.State)
 	}
 	if got := topologyCost(t, eng, "eth0"); got != 100 {
 		t.Fatalf("eth0 advertised cost = %d, want 100 before the reload", got)
@@ -263,6 +347,11 @@ func TestReferenceBandwidthReloadDropsAdjacencyAndReprices(t *testing.T) {
 	if got := before.Snapshot().NeighborCount; got != 0 {
 		t.Errorf("the replaced runtime kept %d neighbors, want 0: the re-price drops the adjacency", got)
 	}
+	// InterfaceDown keeps the table entry and drops it to Down (RFC 2328 sec 10.2 KillNbr),
+	// so the 2-Way the Hello reached is gone rather than the row.
+	if held, ok := eng.neighbors.Lookup("eth0", peer); !ok || held.State != "down" {
+		t.Errorf("eth0 neighbor after the re-pricing restart = %q (present %v), want down", held.State, ok)
+	}
 	after := eng.interfaces["eth0"]
 	if after == before {
 		t.Fatal("reconcile kept the interface runtime it re-priced, so no adjacency was dropped")
@@ -276,6 +365,30 @@ func TestReferenceBandwidthReloadDropsAdjacencyAndReprices(t *testing.T) {
 	if got := topologyCost(t, eng, "eth0"); got != 10 {
 		t.Errorf("eth0 advertised cost = %d after the reload, want 10", got)
 	}
+}
+
+// teMetricForLocalAddress returns the TE metric of the originated TE Link LSA whose local
+// interface address is addr (RFC 3630 section 2.5.3 Local Interface IP Address sub-TLV).
+// The LSA is selected by interface identity rather than by taking the last match: both
+// interfaces below enable traffic-engineering, so a loop that overwrites its result would
+// let the emission order decide which interface an assertion reads. A withdrawal carries no
+// body, because a MaxAge flush has nothing to decode.
+func teMetricForLocalAddress(t *testing.T, originations []opaqueOrigination, addr [4]byte) (int, bool) {
+	t.Helper()
+	for _, o := range originations {
+		if o.Withdraw {
+			continue
+		}
+		lsa := decodeOrigTELSA(t, o)
+		if !lsa.IsLink || !lsa.Link.HasTEMetric {
+			continue
+		}
+		if !slices.Contains(lsa.Link.LocalIPs, addr) {
+			continue
+		}
+		return int(lsa.Link.TEMetric), true
+	}
+	return 0, false
 }
 
 // topologyCost returns the cost the LSA-origination topology carries for one interface.
@@ -333,14 +446,7 @@ func TestDerivedCostReachesLDPSyncAndTEMetric(t *testing.T) {
 	eng.teOrig.setTopology(func() []ospflsdb.InterfaceInfo {
 		return []ospflsdb.InterfaceInfo{p2pTopo("eth1", [4]byte{10, 0, 1, 1}, types.RouterID{2, 2, 2, 2}, "10.0.1.2")}
 	})
-	teMetric, found := 0, false
-	for _, o := range eng.teOriginateType1(cfg.RouterID) {
-		lsa := decodeOrigTELSA(t, o)
-		if !lsa.IsLink || !lsa.Link.HasTEMetric {
-			continue
-		}
-		teMetric, found = int(lsa.Link.TEMetric), true
-	}
+	teMetric, found := teMetricForLocalAddress(t, eng.teOriginateType1(cfg.RouterID), [4]byte{10, 0, 1, 1})
 	if !found {
 		t.Fatal("no TE Link LSA carrying a TE metric was originated for eth1")
 	}
@@ -366,19 +472,7 @@ func TestDerivedCostReachesLDPSyncAndTEMetric(t *testing.T) {
 			RouterID: types.RouterID{1, 1, 1, 1}, DR: types.RouterID{1, 1, 1, 1},
 		}}
 	})
-	teMetric, found = 0, false
-	for _, o := range eng.teOriginateType1(cfg.RouterID) {
-		// eth1 left the topology on this pass, so its LSA is withdrawn: a MaxAge flush
-		// carries no body to decode.
-		if o.Withdraw {
-			continue
-		}
-		lsa := decodeOrigTELSA(t, o)
-		if !lsa.IsLink || !lsa.Link.HasTEMetric {
-			continue
-		}
-		teMetric, found = int(lsa.Link.TEMetric), true
-	}
+	teMetric, found = teMetricForLocalAddress(t, eng.teOriginateType1(cfg.RouterID), [4]byte{10, 0, 0, 1})
 	if !found {
 		t.Fatal("no TE Link LSA carrying a TE metric was originated for eth0")
 	}

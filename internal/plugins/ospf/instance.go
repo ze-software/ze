@@ -1213,7 +1213,15 @@ func interfaceGlobalParamsChanged(oldCfg, newCfg ospfConfig, ic interfaceConfig)
 	if areaTypeFor(oldCfg, ic.AreaID) != areaTypeFor(newCfg, ic.AreaID) {
 		return true
 	}
-	return interfaceCost(ic, oldCfg.ReferenceBandwidth) != interfaceCost(ic, newCfg.ReferenceBandwidth)
+	if ic.HasCost {
+		// The `cost` leaf is the cost, so no numerator changes it.
+		return false
+	}
+	// One speed sample decides both sides. Reading it for each side compares two independent
+	// samples, and a link that renegotiates between them reports a cost change the config did
+	// not make, which is the needless bounce this predicate exists to avoid.
+	speedMbps := interfaceLinkSpeedMbps(ic.Name)
+	return interfaceCostAtSpeed(oldCfg.ReferenceBandwidth, speedMbps) != interfaceCostAtSpeed(newCfg.ReferenceBandwidth, speedMbps)
 }
 
 func areaTypeFor(cfg ospfConfig, areaID types.AreaID) areaType {

@@ -81,14 +81,20 @@ lifecycle callbacks, transport enrolment and config validation.
   side, never the numerator: a restart drops the adjacencies of the interface,
   and 100000 to 105000 over a 10 Gbit/s link advertises the same 10 either way.
   Comparing the numerator bounces every adjacency on a VPP dataplane and on a
-  non-Linux host, where no interface is priced at any reference bandwidth.
+  non-Linux host, where no interface is priced at any reference bandwidth. It
+  samples the link speed ONCE and prices both sides from that one sample. Two
+  samples straddle a renegotiation, and the interface then restarts for a cost
+  change the operator did not make.
   <!-- source: internal/plugins/ospf/instance.go -- interfaceGlobalParamsChanged -->
 - Which synthetic device reports a link speed is the kernel's decision, and it
   is not "none of them". A veth reports 10000 because its driver declares 10
   Gbit/s, which is what lets a Docker container observe auto-cost at all and is
-  why the `ospf-auto-cost-frr` interop scenario exists; a loopback and a dummy
-  report nothing and a bridge reports -1, which `parseLinkSpeedDuplex` maps to
-  0. A unit test that wants a speed therefore replaces `interfaceLinkSpeedMbps`,
+  why the `ospf-auto-cost-frr` interop scenario exists. That scenario is what
+  proves the veth. The other synthetic devices are kernel behavior no test in
+  this tree reads: a loopback and a dummy report nothing, and a bridge reports
+  -1. What the tree does prove is the mapping, because `parseLinkSpeedDuplex`
+  turns an absent, unparseable or negative value into 0, and all three then take
+  cost 1. A unit test that wants a speed therefore replaces `interfaceLinkSpeedMbps`,
   because a test that forgets to depends on the host and usually exercises the
   unknown-speed branch instead.
   <!-- source: internal/plugins/ospf/interface_cost_test.go -- stubLinkSpeed -->
