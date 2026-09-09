@@ -1,0 +1,82 @@
+# Test: an operator withholds BGP from the FIB and keeps OSPF, and the kernel
+#       carries the OSPF prefix and not the BGP one.
+# VALIDATES: spec-per-protocol-fib-import AC-2 -- `rib { fib-withhold [ bgp ] }`
+#            leaves no kernel route for a prefix only BGP offers, and the same
+#            prefix is still in the system RIB, won by BGP. AC-3 rides with it:
+#            the two protocols keep their own distances and each wins its own
+#            prefix, so withholding one changed programming and not selection.
+# PREVENTS: the two failures that make the feature worse than not having it --
+#           a withheld protocol losing its routes rather than its FIB write, and
+#           a leaf that validates, completes and decides nothing.
+#
+# The owner's own example is BGP withheld and OSPF kept. Both routes arrive over
+# the protocol-agnostic route-install RPC, so the daemon needs no OSPF adjacency
+# and no BGP announcement: what the gate reads is the protocol NAME on the route,
+# and that is what this delivers. The fixture creates a dummy device so the
+# next-hop is on-link, because the kernel refuses a route it cannot reach and the
+# absence this test checks would then mean nothing.
+#
+# Requires Linux and CAP_NET_ADMIN: the check reads the kernel routing table for
+# the routes fib-kernel owns (proto 250).
+option=needs-linux:caps=net-admin
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external fib-withhold-test {
+		run "ze-test fixture plugin/fib-withhold-one-protocol-keeps-the-other"
+		encoder json
+	}
+	internal rib {
+		use rib
+	}
+	internal fib-kernel {
+		use fib-kernel
+	}
+}
+
+rib {
+	distance {
+		ebgp 20
+		ospf 110
+	}
+	fib-withhold [ bgp ]
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.rib:value=info
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=OK: 10.98.0.0/24 is won by bgp and is not programmed
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

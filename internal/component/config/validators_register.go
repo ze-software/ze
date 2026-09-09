@@ -22,6 +22,7 @@ func RegisterValidators(reg *yang.ValidatorRegistry) {
 	reg.Register("ospf-router-id", ospfRouterIDValidator())
 	reg.Register("ospf-area-id", ospfAreaIDValidator())
 	reg.Register("redistribute-source", RedistributeSourceValidator())
+	reg.Register("registered-protocol", RegisteredProtocolValidator())
 	reg.Register("ipv4-address", IPv4AddressValidator())
 	reg.Register("ipv6-address", IPv6AddressValidator())
 	reg.Register("ipv4-prefix", IPv4PrefixValidator())

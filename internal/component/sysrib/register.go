@@ -88,6 +88,9 @@ func verifySysRIBConfig(sections []sdk.ConfigSection) error {
 		if _, err := parseAdminDistanceConfig(section.Data); err != nil {
 			return err
 		}
+		if _, err := parseFIBImportConfig(section.Data); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -131,8 +134,23 @@ func runSysRIBPlugin(conn net.Conn) int {
 	s.adminDist = declared
 	publishDistances(declared)
 
-	// pendingDist holds the validated distance map between verify and apply.
+	// SEED THE PERMISSION SET FOR THE SAME REASON, and read it from the same
+	// empty config: parseFIBImportConfig("{}") names every registered protocol
+	// and withholds none. Without it every protocol is undeclared until a
+	// config with a `rib {` block arrives, which is all but one config in this
+	// tree, so fibPermitted would take its fail-open branch and warn once per
+	// protocol on an ordinary router.
+	permit, permitErr := parseFIBImportConfig("{}")
+	if permitErr != nil {
+		logger().Error("sysrib: cannot resolve the FIB import declaration, refusing to start", "error", permitErr)
+		return 1
+	}
+	publishFIBImport(s, permit)
+
+	// pendingDist and pendingPermit hold the validated tables between verify
+	// and apply.
 	var pendingDist map[string]int
+	var pendingPermit map[string]bool
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
@@ -143,7 +161,12 @@ func runSysRIBPlugin(conn net.Conn) int {
 			if err != nil {
 				return err
 			}
+			withhold, err := parseFIBImportConfig(section.Data)
+			if err != nil {
+				return err
+			}
 			pendingDist = dist
+			pendingPermit = withhold
 		}
 		return nil
 	})
@@ -158,6 +181,11 @@ func runSysRIBPlugin(conn net.Conn) int {
 	// That is the empty-map fallback this work exists to remove, re-entered
 	// through the rollback path.
 	previousDist := declared
+	// previousPermit tracks the last applied permission set for rollback, and is
+	// seeded with the DECLARATION for previousDist's reason: an empty map here
+	// would leave every protocol undeclared, and a rollback would then take the
+	// fail-open branch for each of them.
+	previousPermit := permit
 	var activeJournal *sdk.Journal
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
@@ -170,24 +198,35 @@ func runSysRIBPlugin(conn net.Conn) int {
 				logger().Error("distance config parse failed", "error", err)
 				return err
 			}
+			withhold, err := parseFIBImportConfig(section.Data)
+			if err != nil {
+				logger().Error("fib import config parse failed", "error", err)
+				return err
+			}
 			s.mu.Lock()
 			s.adminDist = dist
 			s.mu.Unlock()
 			publishDistances(dist)
 			previousDist = dist
+			publishFIBImport(s, withhold)
+			previousPermit = withhold
 			logger().Info("distance config loaded", "distances", dist)
+			logger().Info("fib import config loaded", "permitted", withhold)
 		}
 		return nil
 	})
 
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
 		dist := pendingDist
+		newPermit := pendingPermit
 		pendingDist = nil
+		pendingPermit = nil
 		if dist == nil {
 			return nil
 		}
 
 		oldDist := previousDist
+		oldPermit := previousPermit
 		j := sdk.NewJournal()
 		err := j.Record(
 			func() error {
@@ -202,6 +241,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 						publishChanges(ch, famName)
 					}
 				}
+				publishFIBImport(s, newPermit)
 				return nil
 			},
 			func() error {
@@ -225,6 +265,16 @@ func runSysRIBPlugin(conn net.Conn) int {
 						publishChanges(ch, famName)
 					}
 				}
+
+				// The permission set rolls back with it, and for the same
+				// reason: an empty map here would leave every protocol
+				// undeclared, so the routes this rollback re-programs would be
+				// judged by the fail-open branch rather than by a declaration.
+				rollbackPermit := oldPermit
+				if len(rollbackPermit) == 0 {
+					rollbackPermit = permit
+				}
+				publishFIBImport(s, rollbackPermit)
 				return nil
 			},
 		)
@@ -234,8 +284,10 @@ func runSysRIBPlugin(conn net.Conn) int {
 		}
 
 		previousDist = dist
+		previousPermit = newPermit
 		activeJournal = j
 		logger().Info("distance config reloaded via transaction", "distances", dist)
+		logger().Info("fib import config reloaded via transaction", "permitted", newPermit)
 		return nil
 	})
 
@@ -312,7 +364,7 @@ func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{
 			Name:        "show rib",
-			Description: "Show each route the system RIB holds, with its family, next hop and protocol.",
+			Description: "Show each route the system RIB holds, with its family, next hop, protocol and equal-cost paths.",
 		},
 		{
 			Name:        "show nexthop-table",
@@ -320,7 +372,7 @@ func commandDecls() []sdk.CommandDecl {
 		},
 		{
 			Name:        "show ecmp-groups",
-			Description: "Show each multipath prefix with the paths that share its load.",
+			Description: "Show each prefix the system RIB holds equal-cost paths for, whether or not Ze programs them.",
 		},
 	}
 }

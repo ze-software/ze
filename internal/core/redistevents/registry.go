@@ -160,6 +160,30 @@ func ProtocolName(id ProtocolID) string {
 	return entries[id].name
 }
 
+// ProtocolNames returns a fresh slice of every registered protocol name,
+// sorted alphabetically. The returned slice is independent of the registry, so
+// callers may sort or modify it without affecting subsequent calls.
+//
+// It is the protocol VOCABULARY: the complete list of names an operator can
+// write where a config keys on a protocol, and the list a completion offers. A
+// hand-written list beside it is a second declaration, and it goes stale on the
+// day a protocol registers (ai/rules/principles.md).
+//
+// The answer is the set registered AT THE MOMENT OF THE CALL. Registration runs
+// in init(), so a caller reached later sees every protocol this binary linked,
+// and a caller that caches the answer never sees one registered after it.
+// Diagnostic / startup path -- not on the per-event hot path.
+func ProtocolNames() []string {
+	mu.RLock()
+	defer mu.RUnlock()
+	out := make([]string, 0, len(entries))
+	for i := 1; i < len(entries); i++ {
+		out = append(out, entries[i].name)
+	}
+	slices.Sort(out)
+	return out
+}
+
 // ProtocolIDOf returns the ProtocolID for name, or (ProtocolUnspecified,
 // false) if name is unknown. Used by consumers at startup to learn the
 // canonical IDs of protocols they care about (e.g. to filter out their own

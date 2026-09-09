@@ -92,9 +92,16 @@ Equal-cost siblings now travel on the Loc-RIB change, and sysrib expands them
 into the best-change entry's ECMP paths. The change is additive: a single-path
 source leaves the ECMP list empty, so static, connected and BGP are unaffected.
 
+The group sysrib WRITES is filtered once more. `ecmpCollect` drops a member
+whose protocol `rib { fib-withhold }` names, and answers with no group at all
+when the winner's own protocol is named, so `fib-withhold [ isis ]` keeps an
+IS-IS multipath out of the FIB. Selection is untouched: `show rib` and `show
+ecmp-groups` read `ecmpRIBGroup`, which filters nothing, so an operator still
+reads the equal-cost paths that competed for the prefix.
+
 <!-- source: internal/core/rib/locrib/change.go -- Change.ECMP -->
 <!-- source: internal/core/rib/locrib/manager.go -- siblingNextHops -->
-<!-- source: internal/component/sysrib/ecmp.go -- ecmpCollect -->
+<!-- source: internal/component/sysrib/ecmp.go -- ecmpCollect, ecmpRIBGroup -->
 <!-- source: internal/component/sysrib/sysrib.go -- BestChangeEntry.ECMPPaths -->
 
 ## Decision: leaking is a one-pass fixpoint

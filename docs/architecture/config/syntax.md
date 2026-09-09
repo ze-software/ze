@@ -1384,6 +1384,16 @@ is the same parse over an empty tree, so the schema stays the one declaration:
 rollback path needs the same seed, because a callback that never fired leaves no
 previous value to restore and an empty map would strip what the seed installed.
 
+`runSysRIBPlugin` now seeds two tables this way. `parseFIBImportConfig("{}")`
+fills the FIB permission set beside the distance table, and a `rib {
+fib-withhold }` list overrides it. Both tables take one route through the
+callbacks: `OnConfigVerify` parses them, `OnConfigure` and `OnConfigApply`
+install them, and the rollback restores the seed when the previous value is
+empty.
+
+<!-- source: internal/component/sysrib/register.go -- runSysRIBPlugin -->
+<!-- source: internal/component/sysrib/fibimport.go -- parseFIBImportConfig, publishFIBImport -->
+
 ## Custom YANG Extensions
 
 Ze defines custom extensions in `ze-extensions.yang` that control config parsing, validation, and UI behavior:

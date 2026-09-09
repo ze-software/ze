@@ -91,7 +91,7 @@ func TestECMPPathCarriesTheInterface(t *testing.T) {
 		ecmpNextHops:     []nexthop.NextHop{{Interface: "tun100", Weight: 4}, {Interface: "tun101", Weight: 1}},
 		nextHopInterface: "",
 	}
-	paths := ecmpCollect(map[string]*protocolRoute{"static": winner}, winner)
+	paths := newSysRIB().ecmpCollect(map[string]*protocolRoute{"static": winner}, winner)
 
 	if len(paths) != 2 {
 		t.Fatalf("group has %d members, want the two device-only siblings: %+v", len(paths), paths)
@@ -116,7 +116,7 @@ func TestEqualCostGroupKeepsWeightOneForProducersThatStateNone(t *testing.T) {
 			priority:     20,
 			ecmpNextHops: []nexthop.NextHop{{Addr: netip.MustParseAddr("192.0.2.2")}},
 		}
-		paths := ecmpCollect(map[string]*protocolRoute{protocol: winner}, winner)
+		paths := newSysRIB().ecmpCollect(map[string]*protocolRoute{protocol: winner}, winner)
 		if len(paths) != 1 {
 			t.Fatalf("%s: group has %d members, want 1", protocol, len(paths))
 		}

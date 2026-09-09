@@ -56,6 +56,18 @@ var ErrCustomValidation = errors.New("config validation failed")
 // hand, reading no registry and depending on no startup order, so none of the
 // three defects below reaches it.
 //
+// `rib` was added on 2026-09-08 with the fib-withhold leaf-list, and its blast
+// radius is that one leaf-list. It is the ONLY `ze:validate` the resolved model
+// lands under `rib`: ze-rib-conf.yang is the one module contributing to the
+// section, it uses no grouping, and its six distance leaves are `uint8` with a
+// `range`, which the YANG check covers and no validator name touches. So `rib`
+// was absent from ValidatorSectionCoverage().Declaring until this leaf-list
+// existed. The name it carries, `registered-protocol`, reads the protocol
+// registry, which init() fills, so it is complete before LoadConfig runs and
+// none of the three defects below reaches it. The measurement `service` had:
+// six shipped configs carry a `rib {` block, and every distance written in them
+// is inside its declared range, so the widening newly refuses none of them.
+//
 // `static` is the same shape and is NOT added here, because nothing has walked
 // its configs to measure what its two prefix validators would newly refuse.
 //
@@ -78,7 +90,7 @@ var ErrCustomValidation = errors.New("config validation failed")
 var validatedSections = []string{
 	sectionInterface, "sysctl", "fib", sectionPlugin, sectionWeb, "ssh", "dns",
 	sectionTelemetry, sectionLookingGlass, "mcp", "managed", "vpp",
-	"vpn", "pki", "l2tp", "isis", "ospf", "service", "system",
+	"vpn", "pki", "l2tp", "isis", "ospf", "service", "system", "rib",
 }
 
 // SectionValidationError is one failure the walk found, paired with the

@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | config |
 | Depends | spec-connected-static-reach-the-locrib (the Loc-RIB producers and the single FIB writer) |
-| Phase | - |
+| Phase | 4/4 |
 | Handoff | - |
-| Updated | 2026-09-07 |
+| Updated | 2026-09-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -42,7 +42,10 @@ from the protocol registry rather than from a hand-written list.
 - [ ] `docs/architecture/rib/unified-locrib.md` - `Path.Source` is a
       `redistevents.ProtocolID` and half of `Path.key`, so the system RIB
       already knows which protocol produced every path it selects
-- [ ] `docs/architecture/redistribution.md` - the `redistribute { import }`
+- [ ] `docs/architecture/config/yang-config-design.md` - the YANG config
+      surface this spec adds a leaf-list to, and where `ze:validate` and
+      `ze:help` are declared
+- [ ] `docs/guide/redistribution.md` - the `redistribute { import }`
       vocabulary, which is the OTHER place in Ze that keys a decision on a
       protocol name
 - [ ] `plan/immediate/spec-connected-static-reach-the-locrib.md` - the writer
@@ -120,18 +123,22 @@ from the protocol registry rather than from a hand-written list.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- A config leaf, per protocol, whose container this spec must choose.
+- `rib { fib-withhold [ bgp isis ] }`, a leaf-list beside `rib { distance }`.
 
 ### Transformation Path
-1. The config resolves to a per-protocol permission set.
-2. The system RIB reads the winner's `Path.Source` when it publishes.
-3. A winner whose protocol is excluded produces no FIB write.
+1. `parseFIBImportConfig` resolves the config to a permission set COMPLETE over
+   `redistevents.ProtocolNames()`.
+2. `recomputeBest` and `cascadeRecompute` consult `fibPermitted` on the winner's
+   protocol, beside the existing `osInstalled` branch.
+3. A withheld winner goes to `recordWithheldWinner`: it enters `s.best` as any
+   other winner, and the change is either nothing or a Withdraw of what Ze had
+   programmed.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| config to sysrib | the same configure callback that publishes the distance table | No |
-| sysrib to FIB plugins | `(system-rib, best-change)`, suppressed for an excluded protocol | No |
+| config to sysrib | `publishFIBImport`, in the same verify / configure / apply / rollback callbacks that publish the distance table | Yes -- `internal/component/sysrib/register.go` |
+| sysrib to FIB plugins | `(system-rib, best-change)`. A Withdraw is owed only where Ze has an install outstanding, which `programmedByZe` answers | Yes -- FOUR producers, and the count is load-bearing: `recomputeBest`, `cascadeRecompute`, `replayBest` and the permission sweep through `publishFIBImport`. All four take what to program from `fibEntry` |
 
 ### Integration Points
 - `internal/component/sysrib` configure callback, which already resolves a
@@ -141,18 +148,18 @@ from the protocol registry rather than from a hand-written list.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | Unknown | design not taken |
-| No unintended coupling (components stay isolated) | Unknown | design not taken |
-| No duplicated functionality (extends existing, does not recreate) | Unknown | this is the central open question: a third protocol-keyed vocabulary, or an extension of one of the two that exist |
-| Zero-copy preserved where applicable (refs, not copies) | Unknown | design not taken |
-| Registration over hardcoding | Unknown | the vocabulary MUST derive from `redistevents`, and how a static YANG file does that is an open question |
+| No bypassed layers (data flows through the intended path) | Yes | The config reaches sysrib through the configure callbacks that already carry the distance table, and reaches the writers through the one `BestChange` emission they already subscribe to. No writer changed |
+| No unintended coupling (components stay isolated) | Yes | `internal/component/config` gains one import of `internal/core/redistevents`, a component-to-core direction `./le tier check` passes clean on. No FIB plugin learned a protocol name |
+| No duplicated functionality (extends existing, does not recreate) | Yes | It IS a third protocol-keyed surface, and D-1's rationale says why: the three are stages of one pipeline, not copies of one decision. It reuses the stage machinery rather than recreating it -- the same configure callbacks, the same emission, and `recordWithheldWinner` mirroring `recordOSInstalledWinner` |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | No wire encoding and no buffer path. The permission set is a map read once per selected prefix |
+| Registration over hardcoding | Yes | The vocabulary is `redistevents.ProtocolNames()`, reached through the `registered-protocol` validator and its `CompleteFn`. No protocol name is written in the YANG, in the validator, or in sysrib. A protocol that registers is refused nowhere and completes everywhere, with no list to edit |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The winner's protocol is available at the point the FIB write is decided | `Path.Source` is a `redistevents.ProtocolID` and part of `Path.key` | the filter needs a new field on the change | reading `recomputeBest` and `outgoingChange` | unvalidated |
+| A-1 | The winner's protocol is available at the point the FIB write is decided | `Path.Source` is a `redistevents.ProtocolID` and part of `Path.key` | the filter needs a new field on the change | reading `recomputeBest` and `outgoingChange` | confirmed for the SUPPRESSING side, broken for the SUBSCRIBING side (2026-09-08). `changeToBatch` converts the ID to a name, `recomputeBest` holds `winner.protocol`, and both stamp `outgoingChange.Protocol` on Add and Update. All five Withdraw branches in `sysrib.go` build `&outgoingChange{Action, Prefix}` and stamp NO protocol, so a WRITER cannot tell which protocol a withdraw belonged to |
 | A-2 | An excluded protocol's routes still belong in the system RIB, and only the FIB write is suppressed | owner, 2026-09-06: the withheld routes stay on the plugin API, in the Loc-RIB, redistributable and selectable | `show rib` loses the routes, or a plugin stops seeing them | a test that reads the Loc-RIB, the bus and `show rib` with the protocol withheld | confirmed |
 
 ### Risks
@@ -160,7 +167,7 @@ from the protocol registry rather than from a hand-written list.
 |----|------|--------------|----------------------|
 | R-1 | Three places keying on a protocol name drift apart | a protocol named in one and absent from the others | the design question below is settled BEFORE code |
 | R-2 | A hand-written leaf list repeats the gap the distance leaves already have | a protocol with no leaf silently defaults | derive from `redistevents` or generate the YANG from it |
-| R-3 | The gate is placed where it DISCARDS the path rather than declining to program it | a withheld protocol's routes vanish from `show rib`, from redistribution, or from the plugin bus | the gate sits at the write, not at insertion and not in selection. A test asserts the route is still present on every other surface |
+| R-3 | The gate is placed where it DISCARDS the path rather than declining to program it | a withheld protocol's routes vanish from `show rib`, from redistribution, or from the plugin bus | RETIRED. `recordWithheldWinner` writes the winner into `s.best` and `s.lastECMP` exactly as `recordOSInstalledWinner` does, so selection is untouched, and `TestFIBWithholdLeavesNoKernelRoute` reads winner `bgp` back out of `show rib` for the withheld prefix while the kernel holds nothing for it |
 
 ## Blast Radius
 
@@ -181,18 +188,63 @@ operator's surface, and the two candidates come from the two peers.
 |---|----------|-------------|
 | D-1 | Whether the filter belongs TO THE FIB WRITER or to a central per-protocol table | (a) BIRD's model: a property of the writer, so a leaf on the `fib { kernel { } }` block, and "which routes this writer accepts" is the writer's own question; (b) FRR's model: a central table keyed by protocol, so a container beside `rib { distance { } }` that every writer reads |
 
+**D-1 ANSWERED (owner, 2026-09-08): (b), the central table.** The setting sits
+beside `rib { distance { } }` and sysrib declines the write BEFORE
+`BestChange.Emit`, so the suppression exists once and every writer sees the same
+filtered stream. The accepted cost is that the setting is global to every FIB:
+"BGP into VPP but not into the kernel" is NOT expressible, and a spec that wants
+it must reopen D-1 rather than add a per-writer override beside this table.
+
+Two consequences bind the implementation:
+- No writer needs to change. `fibkernel.go`, `fibvpp.go` and `fibp4.go` keep
+  the code they have, and the anonymous withdraw (A-1) stops being a problem
+  because the only component that must know the protocol is the one that
+  already does.
+- The vocabulary is still owed. Copying the `rib { distance { } }` shape means
+  copying its hand-written leaf list, which is the failure R-2 names.
+
 (a) fits Ze's structure, because the FIB writer is already a plugin that owns
 its own config container and its own YANG. (b) puts the answer in one place for
 an operator running two writers. Ze can run two writers at once
 (`test/plugin/fib-vpp-coexist-with-fib-kernel.ci`), which is the fact that makes
 this a real choice rather than a spelling.
 
+What the code makes cheap, measured 2026-09-08:
+
+- THREE writers subscribe to ONE emission. `publishChanges` calls
+  `sysribevents.BestChange.Emit`, and `fibkernel.go`, `fibvpp.go` and `fibp4.go`
+  each `BestChange.Subscribe(eb, f.processEvent)` on the same batch pointer. So
+  (b) is necessarily global to every FIB, and (a) cannot suppress at publish:
+  each writer holds the gate itself.
+- Under (a) each writer needs a prefix-to-protocol map of its own, because the
+  withdraw it must emit when a protocol becomes suppressed carries no protocol
+  (A-1). Under (b) sysrib never needs one: it already holds `winner.protocol`
+  and already produces that exact withdraw in `recordOSInstalledWinner`.
+- (b) inherits a working per-protocol config reader.
+  `parseAdminDistanceConfig` discovers the protocol SET from
+  `config.YANGSchema().Lookup("rib/distance")` and `config.ApplyDefaults`, never
+  from a Go list, and publishes through `publishDistances` into
+  `distance.Set`, on every configure AND every rollback. (a) has no equivalent:
+  a FIB plugin's YANG is hand-written per plugin, one module each.
+- Both peers put the filter on the writer, and neither peer has two writers.
+  FRR scopes it per-VRF because zebra is the only writer there; BIRD hangs it
+  off `protocol kernel` for the same reason. So the peer evidence is silent on
+  the question that makes this a choice in Ze, and (a) MUST NOT be justified by
+  citing it.
+- R-2 is unsolved under BOTH options. Nothing turns
+  `redistevents.RegisterProtocol` into a config vocabulary. The nearest thing,
+  `redistribute { source }`, validates against a SECOND registry filled by
+  hand-written `redistribute.RegisterSource` calls that are independent of the
+  first, so the two lists can silently disagree; its sibling `destination` leaf
+  validates against nothing and defers to `ze doctor`. Whichever way D-1 goes,
+  the vocabulary derivation is new work, not a thing to inherit.
+
 ### Peer evidence
 
 | Peer | Shape | Verified |
 |------|-------|----------|
 | BIRD 2.14 | an export filter on the `kernel` protocol, matching the read-only enumerated `source` attribute: `protocol kernel { ipv4 { export filter F; }; }` with `if source = RTS_BGP then reject;` | MEASURED, 2026-09-07, `bird -p -c` on this host: the config parses with exit 0, and the same config with `RTS_BGP` replaced by an undefined symbol is refused with a syntax error, so the parse is not permissive |
-| FRR 10.3.1 | reported as `ip protocol <proto> route-map <map>` applied in zebra | UNVERIFIED. `quay.io/frrouting/frr:10.3.1` is present on this host and zebra refuses to start without `cap_net_admin`, `cap_net_raw` and `cap_sys_admin`, which the sandbox does not grant. The spelling above is second-hand and MUST be measured before it is cited |
+| FRR 10.3.1 | `ip protocol <proto> route-map <map>` and `ipv6 protocol <proto> route-map <map>`, applied in zebra. The protocol enum is closed at the parser and differs per AFI (`rip`/`ospf`/`eigrp` on v4, `ripng`/`ospf6` on v6), and `route-map` is `mandatory true` in `frr-zebra.yang`, so there is no boolean form. The setting is per-VRF, not global: `filter-protocol` augments `/frr-vrf:lib/frr-vrf:vrf` | MEASURED, 2026-09-08, `quay.io/frrouting/frr:10.3.1` on this host with `--cap-add NET_ADMIN,NET_RAW,SYS_ADMIN`. `vtysh -c "conf t" -c "ip protocol bgp route-map FILTER-BGP"` exits 0 and the line appears in `show running-config` and `show ip protocol`. Negative control, run before mgmtd started: `ip protocol frobnicate route-map X` is refused with `% Unknown command`, exit 1. The command is mgmtd-backed and is NOT in zebra's compiled command table, so `zebra -f <conf> -C` refuses it (`EC 100663304 No such command`); a later reader who re-tests through `-C` will wrongly conclude the spelling is wrong |
 
 Neither peer's SEMANTICS transfer. In both, a route the kernel filter rejects is
 simply not in the kernel and there is nothing else consuming it. In Ze it is
@@ -203,8 +255,8 @@ meaning.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| the config leaf D-1 chooses | → | the sysrib publish decision | named once D-1 is taken |
-| an operator excluding one protocol on a booted appliance | → | the whole chain, ending at netlink | a QEMU test reading `ip route` |
+| `rib { fib-withhold [ bgp ] }` | → | `fibPermitted`, gating `publishChanges` and `replayBest` | `test/plugin/fib-withhold-one-protocol-keeps-the-other.ci` |
+| an operator withholding one protocol on a booted appliance | → | the whole chain, ending at netlink | `TestFIBWithholdLeavesNoKernelRoute` in `internal/plugins/fib/kernel/`, reading `ip route` |
 
 ## Acceptance Criteria
 
@@ -221,17 +273,33 @@ meaning.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Excludes BGP from the kernel while keeping OSPF | config -> sysrib -> publish decision -> fib-kernel | a `.ci` and a QEMU test, named once D-1 and D-2 are taken |
+| 1 | Excludes BGP from the kernel while keeping OSPF | config -> sysrib -> publish decision -> fib-kernel | `test/plugin/fib-withhold-one-protocol-keeps-the-other.ci` and `TestFIBWithholdLeavesNoKernelRoute` |
+
+## Goal Validation
+
+One row per goal in the Task section. The evidence is what proves the goal is
+ACHIEVED, not that the code runs.
+
+| Goal | Evidence |
+|------|----------|
+| An operator names, per protocol, whether that protocol's routes are written to the FIB | `ze config validate` accepts `rib { fib-withhold [ bgp isis ] }` on the shipped daemon flavor, measured 2026-09-08. The user workflow over the whole path is `test/plugin/fib-withhold-one-protocol-keeps-the-other.ci` |
+| The default is that they are | `TestFIBImportDefaultPermitsEveryRegisteredProtocol`. The default is the map SAYING permitted for every registered protocol, not a missing key: `parseFIBImportConfig` is complete over `redistevents.ProtocolNames()` |
+| The vocabulary derives from the protocol registry, not a hand-written list | No protocol name appears in the YANG, the validator or sysrib. `TestRegisteredProtocolValidatorRefusesAnUnknownName` proves refusal names the registered set; `TestFibWithholdCompletionOffersRegisteredProtocols` proves a registered protocol is offered. The build-dependence measured under Known Limitations is the same property seen from the other side |
+| The kernel actually stops forwarding on a withheld route | `TestFIBWithholdLeavesNoKernelRoute` (`internal/plugins/fib/kernel/`, QEMU, `integration && linux`) reads the namespace's real route table through netlink. It asserts the KEPT protocol's prefix is programmed first, so the withheld protocol's absence cannot be a dead chain. RED observed with the `recomputeBest` gate removed: "the withheld protocol programmed 10.98.0.0/24"; GREEN with it restored. `test/plugin/fib-withhold-controller-programs-no-route.ci` puts the same question to a TABLE: 200 withheld prefixes and one permitted prefix arrive in one route-install batch, the permitted one is read out of `ip route show proto 250` first as the proof the chain programs anything at all, and not one withheld prefix is in that output. It carries `option=needs-linux:caps=net-admin`, so the runner SKIPS it on darwin and it has not been observed to pass on this host; it runs under `./le qemu all-tests` |
+| A withheld route is not a dropped route | The same QEMU test puts `show rib` to the running plugin and reads winner `bgp` for the withheld prefix. That surface is sysrib's own answer rather than the Loc-RIB the paths were inserted into, so it proves selection survived the gate. At TABLE scale that is `TestWithholdingBGPProgramsNoneOfAWholeTable` (AC-6): 512 withheld prefixes produce not one change on `(system-rib, best-change)`, every one of them is won by `bgp` in `s.best`, and `show rib` answers for all 528 prefixes the two protocols carry. The 16 permitted prefixes in the same run publish their adds, so a sysrib that published nothing could not pass it. RED observed twice, 2026-09-09: with `fibPermits` forced to permit, 512 of 512 withheld prefixes reached the FIB stream; with `publishChanges` cut, the permitted control published 0 of 16 |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| the default is permitted | `internal/component/sysrib` | AC-1 | |
-| an excluded winner produces the D-2 outcome | `internal/component/sysrib` | AC-2, AC-3 | |
-| an unnamed registered protocol is permitted | `internal/component/sysrib` | AC-4 | |
-| an unregistered protocol name is refused | the config layer | AC-5 | |
+| `TestFIBImportDefaultPermitsEveryRegisteredProtocol` | `internal/component/sysrib/fibimport_test.go` | AC-1 | |
+| `TestWithheldWinnerPublishesNoAdd` | `internal/component/sysrib/fibimport_test.go` | AC-2 | |
+| `TestWithheldProtocolStillWinsSelection` | `internal/component/sysrib/fibimport_test.go` | AC-3 | |
+| `TestWithholdingBGPProgramsNoneOfAWholeTable` | `internal/component/sysrib/fibimport_test.go` | AC-6 | |
+| `TestFIBImportPermitsAProtocolRegisteredAfterConfigure` | `internal/component/sysrib/fibimport_test.go` | AC-4 (runtime) | |
+| `TestFibWithholdCompletionOffersRegisteredProtocols` | `internal/component/cli` | AC-4 (vocabulary) | |
+| `TestRegisteredProtocolValidatorRefusesAnUnknownName` | `internal/component/config` | AC-5 | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -241,24 +309,105 @@ meaning.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| one protocol excluded, another kept | `test/static/` or `test/plugin/` | the owner's own example | |
+| `fib-withhold-one-protocol-keeps-the-other.ci` | `test/plugin/` | the owner's own example: BGP withheld, OSPF kept | |
+| `fib-withhold-controller-programs-no-route.ci` | `test/plugin/` | the deployment the feature exists for: a whole BGP table in the RIB, and not one prefix of it in the kernel | |
+| `TestFIBWithholdLeavesNoKernelRoute` | `internal/plugins/fib/kernel/` (`integration && linux`) | the kernel agrees: `ip route` on a booted appliance | |
 
 ### Interop Tests (Scope: config)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | N-A | - | - | No wire-visible behavior changes. The external system is the Linux FIB, and the QEMU test is the equivalent proof | |
 
+## The spelling (D-2, settled by the code)
+
+D-1 says the table is central. What the operator types follows from three
+measured facts, so it is recorded here rather than put to the owner.
+
+```
+rib {
+    distance {
+        ebgp 20
+    }
+    fib-withhold [ bgp isis ]
+}
+```
+
+A `leaf-list fib-withhold` of `type string`, carrying
+`ze:validate "registered-protocol"`, sibling of `container distance` in
+`internal/component/sysrib/yang/ze-rib-conf.yang`. It names what is WITHHELD,
+so the polarity is in the name: a list called `fib-import` would not say whether
+the names in it are the permitted set or the excluded one.
+
+| Rejected | Reason |
+|----------|--------|
+| A container of per-protocol boolean leaves, copying the `distance` shape | It is a hand-written protocol list, which is R-2 |
+| A YANG list keyed by protocol, the `redistribute { destination }` shape | AC-4 fails on the VOCABULARY half. `enumKeyVocabulary` returns nil unless the key leaf's type is a YANG enum, so a `string` key with a validator completes only the keys the operator already typed. Refusal would still work: `ze:validate` runs on a list key and on each leaf-list item alike |
+| Generating the YANG from the registry | Nothing in the tree generates a `.yang`; `glue.Write` emits only `embed.go` and `register.go`. A generator plus its gate, for what one validator answers |
+| A new `internal/core/rib/fibimport` seam mirroring `distance` | No producer stamps this and sysrib is its only reader |
+
+No `default` statement is written, and none is possible: `applyChildDefault`
+fills a default only for a `*LeafNode`, so a leaf-list absent from the config is
+an empty list. Absent, empty and "permit everything" are therefore the same
+state, which is what AC-1 wants.
+
+**The default is a named branch, not a map miss.** `parseFIBImportConfig`
+returns a map COMPLETE over `redistevents.ProtocolNames()`, holding `true` for
+every protocol the operator did not withhold. The read site returns on an
+explicit `!known` branch, logged once per protocol, before any boolean is read,
+so an unregistered name can never be mistaken for a withhold. This is the
+`(value, known)` shape `redistevents.OSInstalled` already documents for the
+same hazard, and it fails OPEN for the reason that function gives: reading
+unknown as "do not program" blackholes every route from a protocol that forgot
+to register. It satisfies the Security Review row.
+
+**Where it gates.** In the three PRODUCERS of an Add or an Update --
+`recomputeBest`, `cascadeRecompute` and `replayBest` -- and NOT in
+`publishChanges`, which this section named until the implementation showed why
+it cannot work there. `publishChanges` receives a list of changes and cannot
+tell "Ze had programmed this prefix" from "this prefix is new", so it cannot
+emit the Withdraw that is owed when a withheld protocol takes a prefix off a
+programmed one. That would leave the kernel forwarding on a path the RIB no
+longer selects. `recomputeBest` can tell, because it holds `prev` and the
+install state, so the gate lives beside the `osInstalled` branch that already
+makes the same kind of decision.
+
+A Withdraw carries no protocol (A-1), so it cannot be filtered ON the protocol.
+This section said until round 2 that passing one is therefore "always safe",
+and that was wrong: a Withdraw for a prefix Ze never installed makes the kernel
+writer call `RouteDel` on a route that is not there, which answers ESRCH and
+raises a FIB-sync failure per prefix. With the whole BGP table withheld, that is
+one error for every route a peer withdraws, in the deployment this feature was
+built for. The real rule is the one the protocol was never needed for: a
+Withdraw is owed exactly where Ze has an install OUTSTANDING, which
+`programmedByZe` answers.
+
+On reconfigure the sweep compares the OLD permission set against the NEW one and
+acts only on the prefixes whose permission CHANGED.
+
 ## Files to Modify
 
-Named once D-1 is taken. The candidates are
-`internal/component/sysrib/yang/ze-rib-conf.yang`,
-`internal/component/sysrib/sysrib.go`, `internal/component/sysrib/register.go`,
-`internal/core/redistevents/registry.go` and
-`internal/component/config/redistribute/route.go`.
+- `internal/component/sysrib/yang/ze-rib-conf.yang` - the leaf-list, its
+  revision, its `description` and its `ze:help`
+- `internal/component/sysrib/sysrib.go` - `fibPermitted`, the two emit sites,
+  the reconfigure sweep
+- `internal/component/sysrib/register.go` - parse on verify, configure and
+  rollback, beside `publishDistances`
+- `internal/core/redistevents/registry.go` - `ProtocolNames`
+- `internal/component/config/validators.go` and
+  `internal/component/config/validators_register.go` - the
+  `registered-protocol` validator, whose error names the registered set (AC-5)
+- `internal/component/config/validate_sections.go` - add `rib` to
+  `validatedSections`, or the annotation is inert. The rib module declares no
+  other `ze:validate`, so the blast radius is this one leaf-list
+- `docs/guide/configuration.md`, `docs/features.md`,
+  `docs/architecture/core-design.md`
 
 ## Files to Create
 
-Named once D-1 is taken.
+- `internal/component/sysrib/fibimport_test.go`
+- `test/plugin/fib-withhold-one-protocol-keeps-the-other.ci`
+- an `integration && linux` test in `internal/plugins/fib/kernel/`, a package
+  `internal/le/qemu/alltests.go` already lists, so the runner needs no edit
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -340,6 +489,19 @@ Named once D-1 is taken.
 - `rib { distance { } }` names six protocols where ten register, and splits
   `bgp` into `ebgp`/`ibgp` where the registry does not. This spec must not
   repeat that, and repairing it is not in scope here.
+- The vocabulary is a property of the BUILD, because the registry is populated
+  by package init and every protocol sits behind a feature tag. Measured
+  2026-09-08 with `ze config validate` over the documented example: a
+  `ze_core ze_distro` build holds `connected`, `kernel` and `static` only and
+  REFUSES `fib-withhold [ bgp isis ]`; the shipped daemon flavor, which adds
+  every feature tag in `.golangci.yml`, accepts it. That is coherent -- a build
+  with `ze_bgp` compiled out carries no BGP routes to withhold, and refusing
+  tells the operator rather than accepting a line that would do nothing -- but
+  it means one config file is not portable across two builds of Ze. Deriving
+  the vocabulary from the registry is what makes this true, and a hand-written
+  list would have hidden it rather than fixed it.
+- The setting is global to every FIB writer, which D-1 accepted. See the D-1
+  paragraph for what reopening it would cost.
 
 ## RFC Documentation (Scope: config)
 
@@ -397,3 +559,145 @@ forwarding table.
 ### Round 1
 | Scope | Lenses | BLOCKER | ISSUE | NOTE |
 |-------|--------|---------|-------|------|
+| The whole change, independent reviewer, 2026-09-08 | gate coverage, withdraw safety, state coherence, the guard, locking, test discrimination, prose | 2 | 4 | 4 |
+
+Every finding traced to ONE root cause the feature inherited rather than
+introduced: `resolvedNH[key].IsValid()` was read as "Ze programmed this
+prefix", and it is not. `resolveNextHop` returns an invalid address unchanged,
+so an interface-only next-hop is programmed with an invalid entry that
+`IsValid` cannot tell from an absent one. The struct comment asserted the
+opposite, and the new code trusted it.
+
+| # | Level | Finding | Consequence |
+|---|-------|---------|-------------|
+| B-1 | BLOCKER | `resolvedNH` presence test | `fib-withhold [ static ]` leaves every interface-only static route in the kernel, and a permitted device-only route emits a spurious Add on every apply, which the kernel writer answers with EEXIST and a FIB-sync error |
+| B-2 | BLOCKER | `recordWithheldWinner` drops next-hop tracking a later permitted winner assumes | A prefix promoted back to a permitted protocol on the SAME next-hop is programmed with no tracking entry, so it is never re-evaluated when that next-hop dies |
+| I-1 | ISSUE | the sweep infers "newly permitted" from `resolvedNH` | Any `rib` apply resurrects a route withdrawn for an unresolvable next-hop |
+| I-2 | ISSUE | the sweep's withdraw branch never `Untrack`s what its add branch `Track`s | withheld to permitted to withheld leaks a resolver entry `showNHTable` prints |
+| I-3 | ISSUE | `ecmpCollect` applies no permission test | A withheld protocol's gateway rides into a permitted winner's multipath group and forwards traffic. The feature fails for the operator who most needs it |
+| I-4 | ISSUE | docs name `publishChanges` as the filter | It filters nothing; a maintainer adding a fourth emit site would believe the choke point is covered |
+
+The lens that found none: the guard itself. `fibPermitted` fails open
+correctly, the permission map is complete over `ProtocolNames()` on the seed,
+configure, apply and rollback paths, and no branch can read a withhold out of
+"not configured yet". Lock ordering is `mu` then `fibMu` on every path.
+
+### Round 2
+| Scope | Lenses | BLOCKER | ISSUE | NOTE |
+|-------|--------|---------|-------|------|
+| The round 1 fixes, independent reviewer, 2026-09-08 | the fixes themselves, plus what they could have broken | 1 | 4 | 4 |
+
+Round 1's six findings were each fixed where round 1 POINTED, and round 2 found
+the same class alive on sibling paths. That is the finding worth keeping: a
+review that names a site gets that site fixed, and the defect class survives
+wherever the reviewer did not look.
+
+| # | Level | Finding | Consequence |
+|---|-------|---------|-------------|
+| B2-1 | BLOCKER | The `len(protocols) == 0` branch of `recomputeBest` still reads `prev != nil` as "Ze programmed it" | With BGP withheld, EVERY BGP withdraw emits a Withdraw for a route Ze never installed. The kernel writer answers ESRCH and raises a FIB-sync failure per prefix, so the route-collector deployment this feature exists for produces one error per withdrawn route |
+| B2-2 | ISSUE | `cascadeRecompute` kept the `IsValid` test where the stored address really can be invalid, after an ECMP promotion picks a device-only member | A group whose next-hops have all gone emits no Withdraw, and the kernel forwards on it forever |
+| B2-3 | ISSUE | The regroup branch compares the unfiltered collector against a `lastECMP` the cascade may have written with the filtered one | An unrelated apply puts an unreachable member back into the kernel multipath |
+| B2-4 | ISSUE | Both sides of the sweep still mishandle a prefix withdrawn for an unreachable next-hop | I-1 and I-2 surviving on the one path their fixes did not cover |
+| B2-5 | ISSUE | The guide named `bgp-rib/best-change` as the stream that still carries a withheld route | True for BGP, false for IS-IS, OSPF, static and connected, which never use that topic. My sentence, and the section's own example withholds `isis` |
+
+The one that matters beyond this spec is B2-1, because the false statement was
+in the DESIGN prose before it was in the code: "a withdraw carries no protocol,
+so passing one is always safe" reads like a proof and is not one. The protocol
+was never the question. Whether Ze has an install outstanding is.
+
+### Round 3
+| Scope | Lenses | BLOCKER | ISSUE | NOTE |
+|-------|--------|---------|-------|------|
+| The round 2 fixes, independent reviewer, 2026-09-08 | the class sweep, the new consolidation, replay, shared state, the display, discrimination, docs | 0 | 4 | 5 |
+
+**The pattern broke.** Rounds 1 and 2 fixed the site the reviewer named. Round 3
+replaced the QUESTION -- `programmedByZe` -- and then walked its callers. The
+reviewer enumerated every Withdraw, Add and Update construction and every
+`resolvedNH` read in the package and confirmed the list: seven Withdraws, all
+behind an install test, and exactly two value reads, both guarded. All five of
+round 2's findings are fixed and none moved.
+
+| # | Level | Finding | Consequence |
+|---|-------|---------|-------------|
+| I3-1 | ISSUE | `replayBest`'s membership test is right and its PAYLOAD still reads a proxy | After an ECMP promotion the replay carries the WINNER's next-hop, which the resolver declared unreachable, and the group with the promoted member removed. A FIB plugin restart broadcasts a replay request, so a restart re-programs the prefix over the dead gateway |
+| I3-2 | ISSUE | `show ecmp-groups` still describes itself as showing "the paths that share its load" | It now answers the RIB, so it lists members that share no load and prefixes with no install |
+| I3-3 | ISSUE | `core-design.md` says a protocol "the resolved table" does not name is permitted | The fail-open branch reads the permission set. Two different structures, one sentence |
+| I3-4 | ISSUE | `core-design.md` says replay hands over no prefix whose next-hop stopped resolving | False on the promotion branch, which is I3-1 |
+
+Two structural observations the reviewer left as NOTEs, both worth more than
+their level. `TestReplaySkipsAPrefixZeDoesNotProgram` is the only test that
+names `replayBest` and it is a NEGATIVE, so deleting the body of `replayBest`
+leaves the package green: the fix for I3-1 owes a positive assertion. And
+`lastECMP` now has no reader outside replay, because both display commands
+answer the RIB, so nothing in Ze reports the group the FIB was actually told.
+
+### Round 4
+| Scope | Lenses | BLOCKER | ISSUE | NOTE |
+|-------|--------|---------|-------|------|
+| The round 3 fixes, independent reviewer, 2026-09-08 | the new consolidation, the SRv6 move, the Add/Update change, the class sweep, discrimination, docs | 0 | 4 | 7 |
+
+All four of round 3's ISSUEs fixed, none moved. The new findings were all one
+shape: `fibEntry` became the single answer for the cascade and the replay, and
+`recomputeBest` was left computing its own.
+
+| # | Level | Finding | Consequence |
+|---|-------|---------|-------------|
+| I4-1 | ISSUE | The consolidation left out the third producer | Live and replay described the same prefix differently: raw versus resolved member addresses, and a live change re-emitting a member the cascade had dropped. Replay also began REFUSING a prefix sysrib records as programmed |
+| I4-2 | ISSUE | The RFC 9252 comment quoted a MUST the code does not enforce, while the ledger records it as a `{gap}` | Two declarations of one fact disagreeing, with the comment the wrong one. Routed to `plan/immediate/spec-srv6-bestpath-resolvability.md` by owner decision |
+| I4-3 | ISSUE | The Add-vs-Update comment's premise was false | It asked what Update maps to and never what ADD maps to. `RouteAdd` carries `NLM_F_EXCL` and fails EEXIST, which `mplsentry.go` documents deliberately, so the verb IS visible |
+| I4-4 | ISSUE | `TestReplayCarriesTheProgrammedEntry` did not discriminate | Every path in it was connected, so resolved and raw were equal and the expectation was byte-identical to the code it replaced |
+
+The fix for I4-1 was NOT the one the review prescribed, and the deviation is the
+useful record. Making the live path obey `fibEntry`'s "not owed" verdict
+reddened five tests, two of which `test/ospf/ospf-route-install.ci` runs by
+name and one mirroring a functional test whose stated purpose is preventing a
+silent black hole: those scenarios load no `connected` plugin, so no covering
+route exists and every OSPF, IS-IS and forked next-hop is unresolvable in the
+Loc-RIB. Refusing there IS the black hole. The answer was to replace the bool
+with a named verdict, `fibPathReachable` / `fibPathUnreachable` /
+`fibPathForbidden`, where an unreachable verdict still carries the producer's
+target on the live path and reads as a path LOST on a cascade.
+
+### Round 5
+| Scope | Lenses | BLOCKER | ISSUE | NOTE |
+|-------|--------|---------|-------|------|
+| The round 4 fixes, independent reviewer, 2026-09-08 | the verdict type, the unreachable-but-program rule, payload convergence, the SRv6 tests, the class sweep, the RFC comment, docs and YANG | 1 | 2 | 5 |
+
+| # | Level | Finding | Consequence |
+|---|-------|---------|-------------|
+| B5-1 | BLOCKER | The permission sweep could not put back what it took away | `fibStateChange` delegated to `cascadeRecompute`, which reads an unreachable verdict as a path LOST. Withhold-then-permit on a prefix whose gateway the Loc-RIB does not cover published NOTHING, permanently: `recomputeBest`'s no-op test ignores `programmed`, so a re-announcement returns nil, and a cascade only fires when a covering route changes. Worse, withholding a protocol that was merely an equal-cost MEMBER of another winner's group WITHDREW that prefix instead of regrouping it |
+| I5-1 | ISSUE | The same disagreement lives on `cascadeRecompute`'s resolver-driven path | Pre-existing at HEAD, and about reachability news rather than about which protocols reach the FIB. Journaled, not fixed |
+| I5-2 | ISSUE | This Review Gate stopped at round 3 | Rounds 4 and 5 existed nowhere a closure agent could read. Fixed by these two sections |
+
+### Round 6
+| Scope | Lenses | BLOCKER | ISSUE | NOTE |
+|-------|--------|---------|-------|------|
+| The round 5 fix, independent reviewer, 2026-09-09 | the rewritten sweep, what it writes, the class sweep, the hand-written doc paragraph, discrimination, coverage | 0 | 2 | 4 |
+
+Verdict: ready to close once I6-1 has a test and I6-2 is journaled. Both done.
+B5-1 is fixed at the root rather than moved: `fibStateChange` is self-contained
+and no longer calls `cascadeRecompute` at all.
+
+| # | Level | Finding | Outcome |
+|---|-------|---------|---------|
+| I6-1 | ISSUE | Two of the sweep's five outcomes had ZERO coverage, measured with `-covermode=count` rather than inferred. Deleting the no-op guard left the package green | FIXED. `TestWithholdingAnUnreachableMemberPublishesNothing` takes the guard's count from 0 to 1, and without the guard the sweep republishes, byte for byte, the entry the cascade already emitted |
+| I6-2 | ISSUE | A promoted ECMP member is programmed with the WINNER's label stack and SRv6 SID. `fibChange` stamps both from the winner and the promotion overrides only `Interface` and `Weight`, so a cross-protocol member becomes the primary next-hop under a stack belonging to another route: an MPLS misforward | JOURNALED, not fixed. Identical at HEAD. This change did not cause it and did widen it, from one emitter to four, by consolidating the payload -- which is the same consolidation working in the fixer's favour |
+
+The two scope calls in this spec went opposite ways and both were right the
+second time. B5-1 was journaled and should not have been. I6-2 is journaled and
+should be, and the difference is the test: ask which OPERATION breaks, never
+whether the defect sits in a file the feature's name covers. Withholding a
+protocol is broken by B5-1 and is untouched by I6-2, whose victim is MPLS
+forwarding.
+
+**B5-1 is the round I got wrong, and the record matters more than the fix.** I
+had already met that divergence, in the previous round's report, and journaled
+it as "outside the problem in hand, which is which protocols reach the FIB".
+The reviewer rejected that scope call: the operation that fails IS "let this
+protocol reach the FIB again", on code this spec introduced, and
+`ai/rules/completion.md` returns a recorded defect on the path in hand to
+scope. The scope test had been applied to the FEATURE's NAME rather than to the
+OPERATION that broke, and the two came apart because the broken operation was
+the feature's own inverse. The sweep now takes the LIVE rule, which is the one
+with tests and a `.ci` scenario behind it; matching the cascade was the
+tidier-looking direction that drops routes.

@@ -24,6 +24,7 @@ import (
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -671,6 +672,33 @@ func RedistributeSourceValidator() yang.CustomValidator {
 			return nil
 		},
 		CompleteFn: redistribute.SourceNames,
+	}
+}
+
+// RegisteredProtocolValidator returns a validator for a leaf that names a route
+// protocol, such as `rib { fib-withhold [ bgp isis ] }`.
+//
+// The vocabulary is the protocol registry (internal/core/redistevents), which is
+// the one complete list of the protocols this binary carries. A leaf keyed on a
+// protocol name therefore accepts exactly what registered, and a protocol added
+// later is accepted with no edit here and no edit to the YANG.
+//
+// The refusal NAMES the registered protocols, because an operator who typed a
+// name Ze does not know needs the list rather than a verdict.
+func RegisteredProtocolValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(path string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			if _, found := redistevents.ProtocolIDOf(str); !found {
+				return fmt.Errorf("%q is not a registered protocol (registered: %s)",
+					str, textbuf.Join(redistevents.ProtocolNames(), ", "))
+			}
+			return nil
+		},
+		CompleteFn: redistevents.ProtocolNames,
 	}
 }
 

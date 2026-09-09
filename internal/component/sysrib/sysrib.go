@@ -94,14 +94,24 @@ var locRIBPtr atomic.Pointer[locrib.RIB]
 // nhResolverPtr stores the NH resolver, created when a Loc-RIB is wired.
 var nhResolverPtr atomic.Pointer[nhResolver]
 
-// SetLocRIB wires the shared Loc-RIB and creates the NH resolver.
+// SetLocRIB wires the shared Loc-RIB and creates the NH resolver over it.
+//
+// A nil RIB removes both. Leaving the resolver in place would keep answering
+// reachability from a Loc-RIB nothing writes to any more: every next-hop would
+// resolve to unreachable, sysrib would withdraw the routes that depend on them,
+// and getNHResolver would report a resolver to code that asks whether one is
+// wired at all.
 func SetLocRIB(r *locrib.RIB) {
 	locRIBPtr.Store(r)
-	if r != nil {
-		resolver := newNHResolver(r)
-		nhResolverPtr.Store(resolver)
-		igpcost.Set(resolver.IGPMetric)
+	if r == nil {
+		nhResolverPtr.Store(nil)
+		igpcost.Set(nil)
+		return
 	}
+
+	resolver := newNHResolver(r)
+	nhResolverPtr.Store(resolver)
+	igpcost.Set(resolver.IGPMetric)
 }
 
 func getLocRIB() *locrib.RIB { return locRIBPtr.Load() }
@@ -203,9 +213,13 @@ type sysRIB struct {
 	// suppressing duplicate emissions when only ECMP membership changes.
 	lastECMP map[prefixKey][]sysribevents.ECMPPath
 	// resolvedNH tracks the last emitted resolved next-hop per prefix.
-	// Used by the cascade worker to detect resolution changes. A valid
-	// address means the route is FIB-installed; absence means the NH was
-	// unreachable and the route is FIB-withdrawn (but still RIB-present).
+	// Used by the cascade worker to detect resolution changes. PRESENCE of the
+	// key is what says Ze has an install outstanding for the prefix, and
+	// programmedByZe is the one test: the ADDRESS is invalid for a route
+	// reached over a device alone, which no validity test can tell from a
+	// prefix Ze never programmed. A prefix is absent when the OS owns it, when
+	// its next-hop stopped resolving, or when the operator withholds the
+	// protocol that holds it; the route stays in the system RIB in each case.
 	resolvedNH map[prefixKey]netip.Addr
 	// adminDist maps protocol type (e.g., "ebgp", "ibgp", "static") to its
 	// administrative distance. parseAdminDistanceConfig returns every protocol
@@ -220,16 +234,48 @@ type sysRIB struct {
 	// (ai/rules/principles.md).
 	distanceSpoken map[string]bool
 	mu             sync.RWMutex
+
+	// fibMu guards the two fields below. It is a leaf lock: a holder MUST NOT
+	// acquire mu, and every caller acquires it last. It is separate from mu
+	// because fibPermitted WRITES the log-once set on every read of the
+	// permission, so a caller holding mu in either mode can ask the question
+	// without the answer needing mu's write side.
+	fibMu sync.Mutex
+	// fibPermit maps a protocol name to whether its routes are written to the
+	// FIB. parseFIBImportConfig returns every protocol the registry holds, so
+	// this is complete once configure has run, and is nil only before it.
+	fibPermit map[string]bool
+	// fibSpoken names the protocols this process has already reported as absent
+	// from the permission set, for distanceSpoken's reason: one line for each,
+	// rather than one per route or none at all.
+	fibSpoken map[string]bool
 }
 
 func newSysRIB() *sysRIB {
 	return &sysRIB{
 		distanceSpoken: make(map[string]bool),
+		fibSpoken:      make(map[string]bool),
 		routes:         make(map[prefixKey]map[string]*protocolRoute),
 		best:           make(map[prefixKey]*protocolRoute),
 		lastECMP:       make(map[prefixKey][]sysribevents.ECMPPath),
 		resolvedNH:     make(map[prefixKey]netip.Addr),
 	}
+}
+
+// programmedByZe reports whether Ze has an install outstanding for a prefix:
+// it emitted an Add or an Update for it and has emitted no Withdraw since.
+//
+// The test is the PRESENCE of the key, never the validity of the address it
+// holds. A route reached over a device alone resolves to an invalid address,
+// and Ze programs it: `static { route { forward { interface X } } }` is a
+// forwarding entry like any other. Reading the address would file every such
+// route under "Ze programmed nothing", which leaves it in the kernel when
+// something later takes the prefix away from it.
+//
+// REQUIRES: the caller holds s.mu.
+func (s *sysRIB) programmedByZe(key prefixKey) bool {
+	_, programmed := s.resolvedNH[key]
+	return programmed
 }
 
 // adminDistanceSchemaPath is where the one declaration of every protocol's
@@ -538,24 +584,30 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 	prev := s.best[key]
 
 	if len(protocols) == 0 {
-		if prev != nil {
-			delete(s.best, key)
-			delete(s.lastECMP, key)
-			delete(s.resolvedNH, key)
-			if r := getNHResolver(); r != nil {
-				if prev.nextHop.IsValid() {
-					r.Untrack(prev.nextHop, key.prefix)
-				}
-				if prev.srv6SID.IsValid() {
-					r.Untrack(prev.srv6SID, key.prefix)
-				}
-			}
-			return &outgoingChange{
-				Action: routeaction.Withdraw,
-				Prefix: key.prefix,
-			}
+		if prev == nil {
+			return nil
 		}
-		return nil
+		// The producer took its last route for the prefix away. A Withdraw is
+		// owed only where Ze has an install outstanding: a best route and a
+		// programmed route are different things, and three states hold the
+		// first without the second -- a protocol the operator withholds, a
+		// prefix whose entry the OS owns, and a next-hop that stopped
+		// resolving. Withdrawing one of those tells a FIB writer to remove an
+		// entry it never made, which the kernel writer reports as a FIB sync
+		// failure for every prefix (internal/plugins/fib/kernel/fibkernel.go,
+		// processEvent).
+		programmed := s.programmedByZe(key)
+		delete(s.best, key)
+		delete(s.lastECMP, key)
+		delete(s.resolvedNH, key)
+		untrackNextHops(key.prefix, prev)
+		if !programmed {
+			return nil
+		}
+		return &outgoingChange{
+			Action: routeaction.Withdraw,
+			Prefix: key.prefix,
+		}
 	}
 
 	// Select lowest priority (admin distance). Deterministic tiebreak by protocol name.
@@ -571,36 +623,85 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 		return s.recordOSInstalledWinner(key, prev, winner, protocols)
 	}
 
+	if !s.fibPermitted(winner.protocol) {
+		return s.recordWithheldWinner(key, prev, winner, protocols)
+	}
+
 	if prev == nil {
+		// resolvedNH is a SUBSET of best: every path that writes one writes the
+		// other, and every path that removes a prefix from best removes it from
+		// both. So no previous winner means no install outstanding, and the
+		// entry below is an Add rather than an Update. The Add is unconditional
+		// on that invariant, which TestResolvedNextHopIsASubsetOfBest asserts.
 		s.best[key] = winner
-		ecmpPaths := ecmpCollect(protocols, winner)
-		s.lastECMP[key] = ecmpPaths
-		resolved := resolveNextHop(winner.nextHop)
-		if r := getNHResolver(); r != nil {
-			if winner.nextHop.IsValid() {
-				r.Track(winner.nextHop, key.prefix)
-			}
-			if winner.srv6SID.IsValid() {
-				r.Track(winner.srv6SID, key.prefix)
-				if !srv6SIDResolvable(winner.srv6SID) {
-					return nil
-				}
-			}
+		trackNextHops(key.prefix, winner)
+		entry, path := s.fibEntry(key, winner)
+		// RFC 9252 Section 5: a route whose SRv6 SID does not resolve is not
+		// programmed. The tracking above stands, so the prefix is re-evaluated
+		// when the SID becomes reachable.
+		if path == fibPathForbidden {
+			return nil
 		}
-		s.resolvedNH[key] = resolved
+		s.lastECMP[key] = entry.ECMPPaths
+		s.resolvedNH[key] = entry.NextHop
+		return &entry
+	}
+
+	// The resolver tracks the next-hop of every route Ze MEANS to program, and
+	// only those: a cascade re-evaluates what the kernel holds, and a prefix
+	// whose entry the OS owns must not be re-evaluated into a second install.
+	// So the two paths that decline to program (recordWithheldWinner and
+	// recordOSInstalledWinner) release the tracking rather than take it, and
+	// the winner that takes the prefix back re-establishes it here, whether or
+	// not the next-hop changed. Tracking the withheld winner instead would put
+	// the entry back under a route Ze does not program, and would need a second
+	// guard in cascadeRecompute to keep the OS-installed prefix out.
+	//
+	// A route Ze means to program is not always programmed: fibEntry forbids a
+	// prefix whose SRv6 SID does not resolve, and the cascade withdraws one
+	// whose next-hop stopped resolving. The tracking stands through both, so
+	// the prefix is re-evaluated when the resolution comes back. The tracking
+	// says the prefix is Ze's to program. resolvedNH says whether it is
+	// programmed now.
+	programmed := s.programmedByZe(key)
+	if r := getNHResolver(); r != nil {
+		if prev.nextHop.IsValid() && prev.nextHop != winner.nextHop {
+			r.Untrack(prev.nextHop, key.prefix)
+		}
+		if winner.nextHop.IsValid() && (!programmed || winner.nextHop != prev.nextHop) {
+			r.Track(winner.nextHop, key.prefix)
+		}
+		if prev.srv6SID.IsValid() && prev.srv6SID != winner.srv6SID {
+			r.Untrack(prev.srv6SID, key.prefix)
+		}
+		if winner.srv6SID.IsValid() && (!programmed || winner.srv6SID != prev.srv6SID) {
+			r.Track(winner.srv6SID, key.prefix)
+		}
+	}
+	s.best[key] = winner
+
+	// What the FIB owes is fibEntry's answer, the one the cascade and the
+	// replay act on, and this path chooses only the ACTION -- the one thing
+	// fibEntry cannot see. Computing the payload here answered a SECOND way:
+	// the winner's raw gateway where the resolved address is programmed, and a
+	// group with no reachability filter, so a member a cascade had dropped came
+	// back into the kernel multipath on the next change for the prefix, and a
+	// replay reported an address the live path never sent.
+	entry, path := s.fibEntry(key, winner)
+	if path == fibPathForbidden {
+		delete(s.lastECMP, key)
+		delete(s.resolvedNH, key)
+		// Nothing is programmed for the prefix now, so no group is
+		// outstanding either. The Withdraw is owed only where Ze had an
+		// install to remove: the previous winner's SID may have been
+		// unresolvable too, and a Withdraw for a prefix Ze never programmed
+		// is a FIB sync failure at the writer.
+		if !programmed {
+			return nil
+		}
 		return &outgoingChange{
-			Action:    routeaction.Add,
-			Prefix:    key.prefix,
-			NextHop:   resolved,
-			Interface: winner.nextHopInterface,
-			Weight:    winner.nextHopWeight,
-			Protocol:  winner.protocol,
-			Labels:    winner.labels,
-			SRv6SID:   winner.srv6SID,
-			RouteType: winner.routeType,
-			Metric:    winner.metric,
-			ECMPPaths: ecmpPaths,
-			Backup:    backupPaths(winner),
+			Action: routeaction.Withdraw,
+			Prefix: key.prefix,
 		}
 	}
 
@@ -609,60 +710,45 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 	// next-hop, metric and labels unchanged is a change the kernel must see.
 	// Leaving routeType out suppresses the case RFC 7999 exists for, and leaving
 	// the outgoing device or the weight out suppresses a route that moved to
-	// another interface or changed its share of a weighted group.
-	ecmpPaths := ecmpCollect(protocols, winner)
+	// another interface or changed its share of a weighted group. What the
+	// RESOLVER decided is not compared here and MUST NOT be: this path runs on
+	// a producer's route change, and a resolution that moved under an unchanged
+	// route is the cascade's to publish. Comparing it here re-programs a prefix
+	// a promotion moved onto a member, over the gateway the resolver declared
+	// unreachable, one step before the cascade withdraws it.
 	if prev.protocol == winner.protocol && prev.nextHop == winner.nextHop &&
 		prev.nextHopInterface == winner.nextHopInterface &&
 		prev.nextHopWeight == winner.nextHopWeight &&
 		prev.priority == winner.priority && prev.metric == winner.metric &&
 		prev.srv6SID == winner.srv6SID && prev.routeType == winner.routeType &&
-		labelsEqual(prev.labels, winner.labels) && !ecmpChanged(s.lastECMP[key], ecmpPaths) {
-		s.best[key] = winner
+		labelsEqual(prev.labels, winner.labels) && !ecmpChanged(s.lastECMP[key], entry.ECMPPaths) {
 		return nil
 	}
 
-	if r := getNHResolver(); r != nil {
-		if prev.nextHop.IsValid() && prev.nextHop != winner.nextHop {
-			r.Untrack(prev.nextHop, key.prefix)
-		}
-		if winner.nextHop.IsValid() && winner.nextHop != prev.nextHop {
-			r.Track(winner.nextHop, key.prefix)
-		}
-		if prev.srv6SID.IsValid() && prev.srv6SID != winner.srv6SID {
-			r.Untrack(prev.srv6SID, key.prefix)
-		}
-		if winner.srv6SID.IsValid() && winner.srv6SID != prev.srv6SID {
-			r.Track(winner.srv6SID, key.prefix)
-		}
-		if winner.srv6SID.IsValid() && !srv6SIDResolvable(winner.srv6SID) {
-			s.best[key] = winner
-			s.lastECMP[key] = ecmpPaths
-			delete(s.resolvedNH, key)
-			return &outgoingChange{
-				Action: routeaction.Withdraw,
-				Prefix: key.prefix,
-			}
-		}
+	s.lastECMP[key] = entry.ECMPPaths
+	s.resolvedNH[key] = entry.NextHop
+	// An Update names an entry to replace, and a prefix Ze holds no install for
+	// has none: the previous winner's protocol was withheld, the OS owned the
+	// entry, or its next-hop stopped resolving. The two verbs reach the kernel
+	// as different netlink requests, so the choice is visible. An Add becomes
+	// RouteAdd, which carries NLM_F_EXCL and fails EEXIST on a prefix the table
+	// already holds; an Update becomes RouteReplace, which overwrites whatever
+	// holds it (internal/plugins/fib/kernel/backend_linux.go, addRoute and
+	// replaceRoute). The refusal is the wanted behavior HERE, where an Add says
+	// Ze holds no install: the table still holding the prefix means a delete
+	// that failed and raised a fib-sync-failure, or an entry another writer
+	// owns, so the Add reports the conflict and leaves that entry intact where
+	// a Replace would clobber a route Ze never installed. mplsentry.go chooses
+	// Add over Replace for this path's reason.
+	//
+	// It is NOT a rule about the verb. replayBest emits an Add for every prefix
+	// it replays, so a fib-kernel restart over a kernel table Ze's own entries
+	// survived answers EEXIST once per prefix, and raises one fib-sync-failure
+	// for each.
+	if programmed {
+		entry.Action = routeaction.Update
 	}
-
-	resolved := resolveNextHop(winner.nextHop)
-	s.best[key] = winner
-	s.lastECMP[key] = ecmpPaths
-	s.resolvedNH[key] = resolved
-	return &outgoingChange{
-		Action:    routeaction.Update,
-		Prefix:    key.prefix,
-		NextHop:   resolved,
-		Interface: winner.nextHopInterface,
-		Weight:    winner.nextHopWeight,
-		Protocol:  winner.protocol,
-		Labels:    winner.labels,
-		SRv6SID:   winner.srv6SID,
-		RouteType: winner.routeType,
-		Metric:    winner.metric,
-		ECMPPaths: ecmpPaths,
-		Backup:    backupPaths(winner),
-	}
+	return &entry
 }
 
 // protocolInstalledByOS answers whether the OS creates this protocol's forwarding
@@ -698,17 +784,14 @@ func protocolInstalledByOS(protocol string) bool {
 //
 // REQUIRES: the caller holds s.mu for writing.
 func (s *sysRIB) recordOSInstalledWinner(key prefixKey, prev, winner *protocolRoute, protocols map[string]*protocolRoute) *outgoingChange {
-	hadZeRoute := s.resolvedNH[key].IsValid()
+	hadZeRoute := s.programmedByZe(key)
 	s.best[key] = winner
-	s.lastECMP[key] = ecmpCollect(protocols, winner)
+	s.lastECMP[key] = s.ecmpCollect(protocols, winner)
 
-	if r := getNHResolver(); r != nil && prev != nil {
-		if prev.nextHop.IsValid() {
-			r.Untrack(prev.nextHop, key.prefix)
-		}
-		if prev.srv6SID.IsValid() {
-			r.Untrack(prev.srv6SID, key.prefix)
-		}
+	// Ze programs nothing here, so the previous winner's tracking is released
+	// and this winner's is never taken (fibimport.go, trackNextHops).
+	if prev != nil {
+		untrackNextHops(key.prefix, prev)
 	}
 
 	if !hadZeRoute {
@@ -723,26 +806,9 @@ func (s *sysRIB) recordOSInstalledWinner(key prefixKey, prev, winner *protocolRo
 	}
 }
 
-// resolveNextHop attempts recursive resolution of nh via the NH resolver.
-// Returns the directly-connected next-hop if resolution succeeds, or nh unchanged.
-// Lock ordering: callers hold sysRIB.mu; the resolver acquires Loc-RIB
-// shard read locks internally. The Loc-RIB OnChange handler queues to a
-// channel (run's worker goroutine) to avoid acquiring sysRIB.mu under the
-// shard write lock, which would deadlock with this LPM call.
-func resolveNextHop(nh netip.Addr) netip.Addr {
-	r := getNHResolver()
-	if r == nil || !nh.IsValid() {
-		return nh
-	}
-	res := r.Resolve(nh)
-	if res.Resolved {
-		return res.DirectNH
-	}
-	return nh
-}
-
-// srv6SIDResolvable checks whether an SRv6 SID has a covering route in the
-// Loc-RIB per RFC 9252 Section 5 resolvability requirement.
+// srv6SIDResolvable answers whether an SRv6 SID has a covering route in the
+// Loc-RIB. That is the reachability question RFC 9252 Section 5 asks, and
+// fibEntry says why asking it there does not meet the section's requirement.
 func srv6SIDResolvable(sid netip.Addr) bool {
 	r := getNHResolver()
 	if r == nil {
@@ -763,112 +829,197 @@ func labelsEqual(a, b []uint32) bool {
 	return true
 }
 
+// fibPath is what the resolver decided about a prefix's forwarding path. Every
+// caller of fibEntry branches on it, so the three outcomes carry names rather
+// than a bool that would read the same for two of them.
+type fibPath uint8
+
+// The count starts at one, so the Go zero value names no verdict. No fibPath
+// can hold it, and the guarantee is at the PRODUCER: fibEntry is the only one,
+// and every return it makes names a constant. It MUST stay there, because no
+// reader supplies it. recomputeBest, replayBest and fibStateChange test for
+// fibPathForbidden, so a zero reaching them is PROGRAMMED; cascadeRecompute
+// tests for fibPathReachable, so a zero reaching it WITHDRAWS the prefix. A
+// second producer owes the same named returns.
+const (
+	// fibPathReachable says the entry's target is reachable: the resolver
+	// proved it, or the target is direct and there was nothing to resolve.
+	fibPathReachable fibPath = iota + 1
+	// fibPathUnreachable says the resolver proves no path for the prefix. The
+	// entry still carries the target its producer named, because the Loc-RIB
+	// is not the router's whole picture of reachability: an OSPF or IS-IS
+	// next-hop on a link whose connected route no plugin inserted resolves to
+	// nothing and is on-link all the same (test/ospf/ospf-route-install.ci).
+	// What the verdict MEANS depends on the question the caller asked. A
+	// cascade asks about reachability, so for a prefix Ze has already
+	// programmed this verdict says the path was LOST and cascadeRecompute
+	// withdraws it. The permission sweep asks which protocols reach the FIB,
+	// which is no news about a path, so fibStateChange programs the entry as
+	// recomputeBest does.
+	fibPathUnreachable
+	// fibPathForbidden says nothing may be programmed for the prefix at all.
+	// RFC 9252 Section 5 is the one rule that says so today.
+	fibPathForbidden
+)
+
+// fibEntry answers what the FIB owes for a prefix RIGHT NOW: the entry to
+// program, and the resolver's verdict on its forwarding path. It READS the RIB
+// and the resolver and writes nothing, so the four callers take one answer
+// rather than computing it four times. recomputeBest emits it for a live
+// change, the cascade compares it against what Ze last emitted and publishes
+// the difference, the permission sweep does the same for a prefix whose
+// permission moved (fibimport.go, fibStateChange), and a replay reports it as
+// it stands.
+//
+// The Action is Add. A caller that knows Ze already holds the prefix overwrites
+// it with Update, because that is the one thing this function cannot see.
+//
+// The entry is empty ONLY for fibPathForbidden. Every other verdict carries the
+// entry to program, and the verdict says how much the resolver proved about it.
+//
+// REQUIRES: the caller holds s.mu, and best is the prefix's winner. Lock
+// ordering: the resolver acquires Loc-RIB shard read locks under that mutex.
+// The Loc-RIB OnChange handler therefore queues to a channel and the worker in
+// run() processes it, rather than taking s.mu under the shard write lock, which
+// would deadlock against the LPM lookup below.
+func (s *sysRIB) fibEntry(key prefixKey, best *protocolRoute) (outgoingChange, fibPath) {
+	// A resolvability check, and NOT the one RFC 9252 Section 5 requires. That
+	// section binds the ingress PE to check the SRv6 Service SID BEFORE the
+	// received prefix is considered for the BGP best path computation. Both
+	// selections have already run when this function is reached, so a route
+	// whose SID reaches nothing has already WON the prefix, and the refusal
+	// below declines the FIB WRITE for it. The next-best route does not get the
+	// prefix, so traffic for it is dropped where a conformant implementation
+	// forwards it.
+	//
+	// The ledger carries that as the gap RFC9252-5-2 (rfc/short/rfc9252.md),
+	// and plan/immediate/spec-srv6-bestpath-resolvability.md is where the check
+	// moves in front of selection. This refusal MUST NOT be read as the MUST
+	// met.
+	//
+	// It does cover the promotion below: a prefix whose SID is unreachable is
+	// not programmed over an equal-cost member either.
+	if best.srv6SID.IsValid() && !srv6SIDResolvable(best.srv6SID) {
+		return outgoingChange{}, fibPathForbidden
+	}
+
+	protocols := s.routes[key]
+	r := getNHResolver()
+	if r == nil || !best.nextHop.IsValid() {
+		// Nothing to resolve. No resolver is wired, or the winner names a
+		// device alone and is already direct, so the entry is the winner's own
+		// target with the group SELECTION collected.
+		return fibChange(key, best, best.nextHop, s.ecmpCollect(protocols, best)), fibPathReachable
+	}
+
+	res := r.Resolve(best.nextHop)
+	if res.Resolved {
+		return fibChange(key, best, res.DirectNH, s.ecmpCollectResolved(protocols, best, r)), fibPathReachable
+	}
+
+	// The winner's gateway is unreachable, so an equal-cost member that still
+	// resolves carries the prefix.
+	paths := s.ecmpCollectResolved(protocols, best, r)
+	if len(paths) == 0 {
+		// The resolver covers nothing for this prefix. The entry is the group
+		// SELECTION over the producers' own targets, which is what Ze programs
+		// for a prefix it has never resolved, and what a replay must hand back
+		// for one it programmed that way.
+		return fibChange(key, best, best.nextHop, s.ecmpCollect(protocols, best)), fibPathUnreachable
+	}
+	entry := fibChange(key, best, paths[0].NextHop, paths[1:])
+	// The promoted member brings its own device and share: it is the primary
+	// next-hop now, and the winner's are the ones the resolver just declared
+	// unreachable.
+	entry.Interface = paths[0].Interface
+	entry.Weight = paths[0].Weight
+	return entry, fibPathReachable
+}
+
 // cascadeRecompute re-resolves the NH for a prefix whose covering route
-// changed. Returns an outgoing change if the resolved NH differs from
-// the last emitted state, nil otherwise. Caller MUST hold s.mu.
+// changed. Returns an outgoing change if the state Ze holds for the prefix
+// differs from what fibEntry now says the FIB owes, nil otherwise.
+//
+// A cascade is reachability NEWS, and that is what makes this different from
+// the permission sweep, which asks fibEntry the same question and reads the
+// answer another way (fibimport.go, fibStateChange). processCascade is the one
+// caller.
+//
+// Caller MUST hold s.mu.
 func (s *sysRIB) cascadeRecompute(key prefixKey) *outgoingChange {
 	best := s.best[key]
 	if best == nil || !best.nextHop.IsValid() {
 		return nil
 	}
 
-	r := getNHResolver()
-	if r == nil {
+	// A prefix whose forwarding entry the OS creates is not Ze's to install, so
+	// there is nothing to re-resolve and an Add here would be the second entry
+	// this arbitration exists to prevent. The resolver never reaches one --
+	// recordOSInstalledWinner released its tracking -- but the permission sweep
+	// calls in directly.
+	if best.osInstalled {
 		return nil
 	}
 
-	prevResolved := s.resolvedNH[key]
-	res := r.Resolve(best.nextHop)
-	protocols := s.routes[key]
+	// A withheld protocol's prefix is not programmed, so a next-hop that became
+	// reachable has nothing to install and nothing to update. recomputeBest
+	// already declined it and cleared the resolved next-hop, and re-resolving
+	// here would put the install back through the other door.
+	if !s.fibPermitted(best.protocol) {
+		return nil
+	}
 
-	if !res.Resolved {
-		// Winner's NH is unreachable. Check for reachable ECMP members.
-		ecmpPaths := ecmpCollectResolved(protocols, best, r)
-		if len(ecmpPaths) > 0 {
-			promoted := ecmpPaths[0].NextHop
-			remaining := ecmpPaths[1:]
-			if promoted == prevResolved && !ecmpChanged(s.lastECMP[key], remaining) {
-				return nil
-			}
-			s.resolvedNH[key] = promoted
-			s.lastECMP[key] = remaining
-			action := routeaction.Update
-			if !prevResolved.IsValid() {
-				action = routeaction.Add
-			}
-			return &outgoingChange{
-				Action:  action,
-				Prefix:  key.prefix,
-				NextHop: promoted,
-				// The promoted member brings its own device and share: it is
-				// now the primary next-hop, and the winner's are the ones the
-				// resolver just declared unreachable.
-				Interface: ecmpPaths[0].Interface,
-				Weight:    ecmpPaths[0].Weight,
-				Protocol:  best.protocol,
-				Labels:    best.labels,
-				SRv6SID:   best.srv6SID,
-				RouteType: best.routeType,
-				Metric:    best.metric,
-				ECMPPaths: remaining,
-				Backup:    backupPaths(best),
-			}
+	// A cascade is the resolver telling Ze that a covering route moved, so with
+	// no resolver wired there is nothing to re-resolve. fibEntry answers for
+	// that state too, and the permission sweep is the caller that wants the
+	// answer (fibimport.go, fibStateChange).
+	if getNHResolver() == nil {
+		return nil
+	}
+
+	// Whether Ze has an install outstanding is the PRESENCE of the key, never
+	// the validity of the address it holds. A member named by a device alone
+	// resolves to an invalid address, and a promotion writes that address here,
+	// so a later cascade reading validity would file a programmed prefix under
+	// "Ze programmed nothing" and leave the kernel forwarding on a group whose
+	// members are all gone.
+	programmed := s.programmedByZe(key)
+
+	// A cascade is reachability NEWS: the resolver says the path to a next-hop
+	// this prefix depends on changed. So a verdict of anything but reachable
+	// says the prefix has LOST the path it was programmed over, and the entry
+	// goes. A prefix Ze never programmed keeps nothing, so it owes nothing.
+	entry, path := s.fibEntry(key, best)
+	if path != fibPathReachable {
+		if !programmed {
+			return nil
 		}
-		if prevResolved.IsValid() {
-			delete(s.resolvedNH, key)
-			delete(s.lastECMP, key)
-			return &outgoingChange{
-				Action: routeaction.Withdraw,
-				Prefix: key.prefix,
-			}
+		delete(s.resolvedNH, key)
+		delete(s.lastECMP, key)
+		return &outgoingChange{
+			Action: routeaction.Withdraw,
+			Prefix: key.prefix,
 		}
+	}
+
+	if programmed && entry.NextHop == s.resolvedNH[key] && !ecmpChanged(s.lastECMP[key], entry.ECMPPaths) {
 		return nil
 	}
 
-	// RFC 9252 Section 5: SRv6 SID must be resolvable.
-	if best.srv6SID.IsValid() && !srv6SIDResolvable(best.srv6SID) {
-		if prevResolved.IsValid() {
-			delete(s.resolvedNH, key)
-			delete(s.lastECMP, key)
-			return &outgoingChange{
-				Action: routeaction.Withdraw,
-				Prefix: key.prefix,
-			}
-		}
-		return nil
+	s.resolvedNH[key] = entry.NextHop
+	s.lastECMP[key] = entry.ECMPPaths
+	if programmed {
+		entry.Action = routeaction.Update
 	}
-
-	newResolved := res.DirectNH
-	ecmpPaths := ecmpCollectResolved(protocols, best, r)
-	if newResolved == prevResolved && !ecmpChanged(s.lastECMP[key], ecmpPaths) {
-		return nil
-	}
-
-	s.resolvedNH[key] = newResolved
-	s.lastECMP[key] = ecmpPaths
-	action := routeaction.Update
-	if !prevResolved.IsValid() {
-		action = routeaction.Add
-	}
-	return &outgoingChange{
-		Action:    action,
-		Prefix:    key.prefix,
-		NextHop:   newResolved,
-		Interface: best.nextHopInterface,
-		Weight:    best.nextHopWeight,
-		Protocol:  best.protocol,
-		Labels:    best.labels,
-		SRv6SID:   best.srv6SID,
-		RouteType: best.routeType,
-		Metric:    best.metric,
-		ECMPPaths: ecmpPaths,
-		Backup:    backupPaths(best),
-	}
+	return &entry
 }
 
 // ecmpCollectResolved collects ECMP paths with resolved NHs, filtering
-// out members whose NHs are unreachable.
-func ecmpCollectResolved(protocols map[string]*protocolRoute, winner *protocolRoute, r *nhResolver) []sysribevents.ECMPPath {
+// out members whose NHs are unreachable, and out members from a protocol
+// `rib { fib-withhold }` names, for ecmpCollect's reason.
+//
+// REQUIRES: the caller holds s.mu.
+func (s *sysRIB) ecmpCollectResolved(protocols map[string]*protocolRoute, winner *protocolRoute, r *nhResolver) []sysribevents.ECMPPath {
 	var paths []sysribevents.ECMPPath
 	for _, route := range protocols {
 		if route == winner {
@@ -878,6 +1029,9 @@ func ecmpCollectResolved(protocols map[string]*protocolRoute, winner *protocolRo
 			continue
 		}
 		if !namesATarget(route.nextHop, route.nextHopInterface) {
+			continue
+		}
+		if !s.fibPermitted(route.protocol) {
 			continue
 		}
 		directNH, reachable := resolveMember(route.nextHop, route.nextHopInterface, r)
@@ -1008,30 +1162,28 @@ func (s *sysRIB) replayBest(req *replay.Request) {
 	s.mu.RLock()
 	changesByFamily := make(map[family.Family][]outgoingChange)
 	for key, route := range s.best {
-		// RFC 9252 Section 5: skip routes with unresolvable SRv6 SIDs.
-		if route.srv6SID.IsValid() && !srv6SIDResolvable(route.srv6SID) {
+		// A replay is the one path that reads the TABLE rather than a change,
+		// and the table holds a best route for prefixes Ze programs nothing
+		// for. The install Ze has outstanding is the one test that names them
+		// all: the OS owns the entry, the operator withholds the protocol, or
+		// the next-hop stopped resolving. Replaying any of them as an Add hands
+		// a reconnecting FIB plugin a route Ze declined to install.
+		if !s.programmedByZe(key) {
 			continue
 		}
-		// A winner whose forwarding entry the OS creates was never programmed by
-		// Ze, so replaying it as an Add would tell a FIB plugin to install the
-		// route this arbitration exists to keep it from installing.
-		if route.osInstalled {
+		// What to program is fibEntry's answer, the one the live path emitted
+		// and the cascade acts on. Reading the winner's own next-hop, device
+		// and share instead reports a third state: after a promotion the
+		// winner's gateway is the address the resolver declared unreachable,
+		// and the member carrying the prefix is the one this loop would leave
+		// out. An unproven path is replayed as it was programmed, because the
+		// prefix reached the loop by being programmed; only the RFC 9252
+		// refusal leaves the FIB nothing to be handed back.
+		entry, path := s.fibEntry(key, route)
+		if path == fibPathForbidden {
 			continue
 		}
-		changesByFamily[key.family] = append(changesByFamily[key.family], outgoingChange{
-			Action:    routeaction.Add,
-			Prefix:    key.prefix,
-			NextHop:   resolveNextHop(route.nextHop),
-			Interface: route.nextHopInterface,
-			Weight:    route.nextHopWeight,
-			Protocol:  route.protocol,
-			Labels:    route.labels,
-			SRv6SID:   route.srv6SID,
-			RouteType: route.routeType,
-			Metric:    route.metric,
-			ECMPPaths: s.lastECMP[key],
-			Backup:    backupPaths(route),
-		})
+		changesByFamily[key.family] = append(changesByFamily[key.family], entry)
 	}
 	s.mu.RUnlock()
 
@@ -1193,7 +1345,13 @@ func (s *sysRIB) showNHTable() (any, error) {
 	return entries, nil
 }
 
-// showECMPGroups returns the current ECMP groups as JSON.
+// showECMPGroups returns the equal-cost groups the system RIB holds as JSON.
+//
+// The group is computed from the RIB rather than read from lastECMP, which
+// holds what was last EMITTED to the FIB. A prefix held by a protocol
+// `rib { fib-withhold }` names emits nothing, and reading the emitted state
+// would report no group for it -- a FIB filter answering a RIB question, when a
+// withheld route is not a dropped route.
 func (s *sysRIB) showECMPGroups() (any, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -1205,7 +1363,8 @@ func (s *sysRIB) showECMPGroups() (any, error) {
 	}
 
 	var entries []ecmpEntry
-	for key, paths := range s.lastECMP {
+	for key, route := range s.best {
+		paths := s.ecmpRIBGroup(s.routes[key], route)
 		if len(paths) == 0 {
 			continue
 		}
@@ -1242,12 +1401,15 @@ func (s *sysRIB) showRIB() (any, error) {
 	entries := make([]entry, 0, len(s.best))
 	for key, route := range s.best {
 		e := entry{
-			Prefix:    key.prefix,
-			Family:    key.family,
-			NextHop:   route.nextHop,
-			Protocol:  route.protocol,
-			Priority:  route.priority,
-			ECMPPaths: s.lastECMP[key],
+			Prefix:   key.prefix,
+			Family:   key.family,
+			NextHop:  route.nextHop,
+			Protocol: route.protocol,
+			Priority: route.priority,
+			// The RIB view, for showECMPGroups's reason: this command reports
+			// what the system RIB holds, and a withheld protocol's prefix keeps
+			// its equal-cost paths there.
+			ECMPPaths: s.ecmpRIBGroup(s.routes[key], route),
 		}
 		if route.routeType != 0 {
 			e.RouteType = route.routeType.String()

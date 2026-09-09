@@ -12,7 +12,7 @@ func TestECMPCollect_SingleRoute(t *testing.T) {
 		protocol: "bgp", nextHop: netip.MustParseAddr("10.0.0.1"), priority: 20, metric: 0,
 	}
 	protocols := map[string]*protocolRoute{"bgp": winner}
-	paths := ecmpCollect(protocols, winner)
+	paths := newSysRIB().ecmpCollect(protocols, winner)
 	if paths != nil {
 		t.Errorf("expected nil for single route, got %v", paths)
 	}
@@ -26,7 +26,7 @@ func TestECMPCollect_TwoEqualCost(t *testing.T) {
 		protocol: "bgp-peer2", nextHop: netip.MustParseAddr("10.0.0.2"), priority: 20, metric: 100,
 	}
 	protocols := map[string]*protocolRoute{"bgp-peer1": winner, "bgp-peer2": peer2}
-	paths := ecmpCollect(protocols, winner)
+	paths := newSysRIB().ecmpCollect(protocols, winner)
 	if len(paths) != 1 {
 		t.Fatalf("expected 1 ECMP path, got %d", len(paths))
 	}
@@ -43,7 +43,7 @@ func TestECMPCollect_DifferentPriority(t *testing.T) {
 		protocol: "static", nextHop: netip.MustParseAddr("10.0.0.2"), priority: 1, metric: 0,
 	}
 	protocols := map[string]*protocolRoute{"bgp": winner, "static": other}
-	paths := ecmpCollect(protocols, winner)
+	paths := newSysRIB().ecmpCollect(protocols, winner)
 	if paths != nil {
 		t.Errorf("expected nil for different priority, got %v", paths)
 	}
@@ -57,7 +57,7 @@ func TestECMPCollect_DifferentMetric(t *testing.T) {
 		protocol: "bgp-peer2", nextHop: netip.MustParseAddr("10.0.0.2"), priority: 20, metric: 100,
 	}
 	protocols := map[string]*protocolRoute{"bgp-peer1": winner, "bgp-peer2": other}
-	paths := ecmpCollect(protocols, winner)
+	paths := newSysRIB().ecmpCollect(protocols, winner)
 	if paths != nil {
 		t.Errorf("expected nil for different metric, got %v", paths)
 	}
@@ -74,7 +74,7 @@ func TestECMPCollect_ThreeEqualCost(t *testing.T) {
 		protocol: "peer3", nextHop: netip.MustParseAddr("10.0.0.3"), priority: 20, metric: 0,
 	}
 	protocols := map[string]*protocolRoute{"peer1": winner, "peer2": peer2, "peer3": peer3}
-	paths := ecmpCollect(protocols, winner)
+	paths := newSysRIB().ecmpCollect(protocols, winner)
 	if len(paths) != 2 {
 		t.Fatalf("expected 2 ECMP paths, got %d", len(paths))
 	}
@@ -88,7 +88,7 @@ func TestECMPCollect_WithLabels(t *testing.T) {
 		protocol: "peer2", nextHop: netip.MustParseAddr("10.0.0.2"), priority: 20, metric: 0, labels: []uint32{200},
 	}
 	protocols := map[string]*protocolRoute{"peer1": winner, "peer2": peer2}
-	paths := ecmpCollect(protocols, winner)
+	paths := newSysRIB().ecmpCollect(protocols, winner)
 	if len(paths) != 1 {
 		t.Fatalf("expected 1 ECMP path, got %d", len(paths))
 	}

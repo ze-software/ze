@@ -1,0 +1,83 @@
+# Test: a controller withholds BGP from the FIB, holds a whole table in the RIB,
+#       and the kernel carries not one prefix of it.
+# VALIDATES: spec-per-protocol-fib-import AC-6 -- the deployment the feature
+#            exists for. `rib { fib-withhold [ bgp ] }` leaves no kernel route
+#            for any of 200 BGP prefixes, and `show rib` reports every one of
+#            them, won by bgp. The plugin driving the scenario reads them back
+#            over the plugin API while the forwarding table holds none.
+# PREVENTS: a gate that works for a route and not for a table. Every other
+#           scenario for this feature carries one or two prefixes, so a gate
+#           that programs one prefix in a hundred passes all of them.
+#
+# The routes arrive over the protocol-agnostic route-install RPC, so the daemon
+# needs no BGP announcement and no OSPF adjacency: what the gate reads is the
+# protocol NAME on the route. The OSPF prefix rides in the same batch as the
+# control, because a test that checked only absence would pass against a daemon
+# that programmed nothing at all. The fixture creates a dummy device so the
+# next-hop is on-link, because the kernel refuses a route it cannot reach and the
+# absence this test checks would then mean nothing.
+#
+# Requires Linux and CAP_NET_ADMIN: the check reads the kernel routing table for
+# the routes fib-kernel owns (proto 250).
+option=needs-linux:caps=net-admin
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external fib-withhold-controller {
+		run "ze-test fixture plugin/fib-withhold-controller-programs-no-route"
+		encoder json
+	}
+	internal rib {
+		use rib
+	}
+	internal fib-kernel {
+		use fib-kernel
+	}
+}
+
+rib {
+	distance {
+		ebgp 20
+		ospf 110
+	}
+	fib-withhold [ bgp ]
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.rib:value=info
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: 200 bgp prefixes are in the rib and none is programmed
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

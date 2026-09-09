@@ -8,7 +8,16 @@ module ze-rib-conf {
         "System RIB configuration for Ze.
          The distance container controls cross-protocol route selection.
          Lower distance wins. It is the one declaration of every protocol's
-         administrative distance.";
+         administrative distance.
+         The fib-withhold leaf-list names the protocols whose selected routes
+         are not programmed into the FIB.";
+
+    revision 2026-09-08 {
+        description
+            "Add fib-withhold: the operator names the protocols whose routes
+             stay out of the FIB. Selection and programming become separate
+             stages.";
+    }
 
     revision 2026-09-04 {
         description
@@ -30,9 +39,9 @@ module ze-rib-conf {
              switch. The kernel FIB carries no administrative distance field, so
              the ranking happens here and only the winner reaches netlink. The
              distance container below is the one declaration of every protocol's
-             administrative distance, and it is the only setting under rib.
-             Routes reach the system RIB from the protocols, never from this
-             block.";
+             administrative distance. The fib-withhold leaf-list beside it names
+             the protocols whose winners are not programmed. Routes reach the
+             system RIB from the protocols, never from this block.";
 
         container distance {
             description "Administrative distance per protocol.";
@@ -139,6 +148,35 @@ module ze-rib-conf {
                      declaration. The eBGP distance is a separate leaf, so the
                      two BGP classes rank apart.";
             }
+        }
+
+        leaf-list fib-withhold {
+            type string {
+                length "1..64";
+            }
+            ze:validate "registered-protocol";
+            description
+                "Protocols whose selected routes are not programmed into the
+                 FIB. An empty list programs all.";
+            ze:help
+                "This list names the protocols Ze does not program. Selection is
+                 unchanged: the system RIB ranks the candidates for each prefix
+                 on administrative distance and picks one winner. A winner from
+                 a protocol named here stays in the RIB, `show rib` reports it,
+                 redistribution can offer it to another protocol, and the
+                 protocol's own event stream still carries it. Ze declines the
+                 write to the kernel, to VPP or to a P4 switch. It holds the
+                 prefix off `system-rib/best-change`, the stream every FIB
+                 writer reads, so the list applies to every FIB. Ze also
+                 releases the next-hop tracking for the prefix, so
+                 `show nexthop-table` stops listing it under its next-hop.
+                 An empty list withholds nothing, which is the behavior of a
+                 router that says nothing here. Withholding is one of the
+                 reasons a selected route is not programmed: a route the
+                 operating system installs, and a route whose SRv6 SID reaches
+                 nothing, are not written either. The values are the protocol
+                 names this build registered: the editor completes them, and a
+                 name nothing registered is refused at commit.";
         }
     }
 }

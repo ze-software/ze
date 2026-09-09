@@ -25,7 +25,52 @@ import (
 // Loc-RIB path-group expansion for protocols like IS-IS that insert one Path per
 // next-hop; isis-9, umbrella A-2). Returns nil when no sibling next-hop exists.
 // The winner's own next-hop is NOT included (it stays in BestChangeEntry.NextHop).
-func ecmpCollect(protocols map[string]*protocolRoute, winner *protocolRoute) []sysribevents.ECMPPath {
+//
+// A member from a protocol `rib { fib-withhold }` names is left out. A member is
+// programmed exactly as the winner is, so keeping it would forward traffic over
+// the gateway of a protocol the operator declined, which is the one thing the
+// setting exists to prevent. The winner's own siblings carry the winner's
+// protocol, so one test covers both loops.
+//
+// REQUIRES: the caller holds s.mu. The permission read takes fibMu, which is
+// the lock order every caller of this package uses (mu, then fibMu).
+func (s *sysRIB) ecmpCollect(protocols map[string]*protocolRoute, winner *protocolRoute) []sysribevents.ECMPPath {
+	if !s.fibPermitted(winner.protocol) {
+		// The winner is not programmed either, so the group has no member to
+		// carry. recordWithheldWinner stores what this returns and emits
+		// nothing, and the sweep recomputes the group when the winner is
+		// permitted again.
+		return nil
+	}
+	return s.ecmpGroup(protocols, winner, s.fibPermitted)
+}
+
+// ecmpRIBGroup gathers the equal-cost group as SELECTION holds it, with no FIB
+// permission filter. It is the view `show rib` and `show ecmp-groups` report:
+// both name the RIB, and a withheld route is not a dropped route, so an
+// operator reading them sees the paths that competed for the prefix whether or
+// not any of them is programmed. What the FIB holds is the emitted state, and
+// ecmpCollect is what produces that.
+//
+// REQUIRES: the caller holds s.mu.
+func (s *sysRIB) ecmpRIBGroup(protocols map[string]*protocolRoute, winner *protocolRoute) []sysribevents.ECMPPath {
+	return s.ecmpGroup(protocols, winner, everyProtocol)
+}
+
+// everyProtocol is the membership test that filters nothing. It names the RIB
+// view at the call site, so a reader of ecmpRIBGroup does not have to decide
+// what a bare `true` there would have meant.
+func everyProtocol(string) bool { return true }
+
+// ecmpGroup walks the equal-cost members of a prefix and keeps the ones permits
+// accepts. It holds the membership rules -- same priority, same metric, a named
+// target, the winner excluded -- once, so the FIB view and the RIB view cannot
+// disagree about what a group MEMBER is.
+//
+// REQUIRES: the caller holds s.mu. A permits that reads the permission set
+// takes fibMu, which is the lock order every caller of this package uses.
+func (s *sysRIB) ecmpGroup(protocols map[string]*protocolRoute, winner *protocolRoute,
+	permits func(protocol string) bool) []sysribevents.ECMPPath {
 	var paths []sysribevents.ECMPPath
 	for _, route := range protocols {
 		if route == winner {
@@ -38,6 +83,9 @@ func ecmpCollect(protocols map[string]*protocolRoute, winner *protocolRoute) []s
 			continue
 		}
 		if !namesATarget(route.nextHop, route.nextHopInterface) {
+			continue
+		}
+		if !permits(route.protocol) {
 			continue
 		}
 		paths = append(paths, sysribevents.ECMPPath{

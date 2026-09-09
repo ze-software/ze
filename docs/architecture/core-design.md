@@ -778,6 +778,19 @@ then string keys are produced off the forward critical path.
 
 Per-peer inbound filtering runs in the reactor on every received UPDATE,
 **before** the bytes are cached and **before** the StructuredEvent is dispatched.
+
+The payload it runs over is already reconciled. `Session.collapseASPathFamily`
+(`session_read.go`) rewrites the AS-path family of every received UPDATE into
+four-octet truth (RFC 6793 Sections 4.1 and 4.2.3) upstream of this pass, of the
+recent-updates cache, of the RIB and of both forward rails, and relabels the
+payload with a four-octet context. So every ingress filter reads real AS numbers
+where an OLD speaker sent AS_TRANS, and `PeerFilterInfo.ASN4` is read from the
+WireUpdate's own context rather than from the negotiated capability: the field
+describes the BYTES the filter parses, and after the reconciliation the bytes and
+the session disagree on width. `LoopIngress` (`filter/loop.go`) is that field's
+one reader, and it is why the disagreement matters: it iterates AS_PATH at that
+width to find ze's own AS.
+
 All ingress filtering runs in **one stage-ordered pass** over
 `r.orderedIngressSteps` (built once at `startAPIServer`). The pass merges two
 kinds of executor, ordered by declared Stage, then Priority, then name -- never by
@@ -821,6 +834,7 @@ depending on path); the original wire buffer is released when the
 filtering as well as egress.
 
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver unified ordered ingress pass -->
+<!-- source: internal/component/bgp/reactor/session_read.go -- collapseASPathFamily -->
 <!-- source: internal/component/bgp/reactor/filter_ordered.go -- orderedIngressStep, buildOrderedIngressSteps, runIngressPolicyChain -->
 <!-- source: internal/component/bgp/filterapi/filterapi.go -- FilterStagePeerChain, IngressFilterFunc contract -->
 
@@ -1324,6 +1338,7 @@ BGP RIB (bgp-rib plugin)
 bgp-rib/best-change/bgp  ──>  System RIB (rib plugin)
                              |  selects system-wide best per prefix
                              |  by administrative distance (lower wins)
+                             |  withholds a protocol named in rib { fib-withhold }
                              |  publishes batch to Bus
                              v
                            system-rib/best-change  ──>  FIB Kernel (fib-kernel plugin)
@@ -1355,7 +1370,8 @@ populated from the winning peer's label pool handle at emission time.
 The `rib` plugin subscribes to the `bgp-rib/best-change/` Bus topic prefix (matching
 all protocols). It maintains a per-prefix table of each protocol's best route and
 selects the system-wide best by administrative distance (lower wins). When the
-system best changes, it publishes a batch to `system-rib/best-change`.
+system best changes, it publishes a batch to `system-rib/best-change`, minus the
+protocols `rib { fib-withhold }` names.
 
 Every protocol's administrative distance is declared once, in `rib { distance
 { } }` (`internal/component/sysrib/yang/ze-rib-conf.yang`). The table is complete
@@ -1419,6 +1435,90 @@ to register.
 <!-- source: internal/core/redistevents/registry.go -- RegisterOSInstalled, OSInstalled -->
 <!-- source: internal/plugins/connected/locrib.go -- the connected path and its distance -->
 
+**Where the FIB gate sits.** `rib { fib-withhold }` names the protocols sysrib
+declines to program. The gate sits at the RIB-to-FIB boundary: AFTER selection,
+and before the one `BestChange` emission that every FIB writer subscribes to.
+The suppression therefore exists once, and each writer reads the same filtered
+stream with no code of its own.
+
+`publishChanges` does not hold the gate: it emits what it is handed. The
+producers do. `recomputeBest` sends a withheld winner to
+`recordWithheldWinner`, which programs nothing and withdraws what the previous
+winner had. `cascadeRecompute` declines to re-resolve a withheld prefix.
+`replayBest` replays only the prefixes ze has an install outstanding for. The
+permission sweep is the fourth producer of a batch: `applyFIBImport` withdraws
+each prefix the new set withholds, `fibStateChange` answers for the rest, and
+`publishFIBImport` emits what they decide. All four take WHAT to program from
+`fibEntry` and choose only the ACTION, so what the FIB is told about one prefix
+cannot depend on which of them spoke. A FIB
+plugin that reconnects and asks for the table is handed no withheld prefix, and
+a prefix a promotion moved onto an equal-cost member arrives over that member's
+address, device and share in the live change and in the replay alike. Reading
+the winner's own next-hop there answered a THIRD way, and re-programmed the
+prefix over the gateway the resolver had declared unreachable.
+
+`fibEntry` returns a VERDICT beside the entry, and the callers read it
+differently because they ask at different moments. `fibPathReachable` says the
+resolver proved the path. `fibPathUnreachable` says it proves none: a live
+change still programs the target its producer named, because the Loc-RIB is not
+the router's whole picture of reachability and an OSPF or IS-IS next-hop sits on
+a link whose connected route no plugin inserted; a cascade reads the same
+verdict as reachability LOST, because it runs only when the resolver reports a
+path change, and withdraws the entry. `fibPathForbidden` is RFC 9252 Section 5,
+an SRv6 SID that does not resolve, and it programs nothing anywhere.
+`ecmpCollect` and `ecmpCollectResolved` drop a withheld protocol from the
+multipath group, because a group member is programmed exactly as the winner is.
+A Withdraw carries one test, and every producer makes it: ze owes a Withdraw
+only where it has an INSTALL OUTSTANDING for the prefix. `programmedByZe` is
+that test, and it reads the presence of the prefix in the resolved-next-hop
+table rather than any property of the route. A best route is not an install.
+A withheld protocol's winner, an entry the OS owns and a next-hop that stopped
+resolving each leave a best route with nothing programmed, so a Withdraw
+published for one asks a FIB writer to delete an entry it never made. The kernel
+writer answers that with an error and a `fib-sync-failure` report for each
+prefix, which on a route collector with `fib-withhold [ bgp ]` is every route
+its peers withdraw.
+
+On reconfigure `applyFIBImport` sweeps the best table and acts on the prefixes
+whose PERMISSION changed: a Withdraw for each newly withheld prefix ze programs,
+an Add for each newly permitted prefix that has a path to program, and an Update
+where a MEMBER of an unchanged winner's group gained or lost its own permission.
+Whether a member's permission moved is answered by collecting the group twice,
+once under each permission set, so the answer holds no other difference.
+
+What the prefix then owes is `fibEntry`'s answer, the SAME answer a route
+arriving live takes, and `fibStateChange` chooses only the verb: an Update where
+ze holds an install, an Add where it does not. Permitting a protocol is a fresh
+install decision, so it follows the live rule rather than the cascade's. The
+distinction is load-bearing and it is not a spelling. A cascade is reachability
+NEWS, so it reads any verdict but reachable as a path LOST and withdraws. A
+sweep is not news about the network, so reading it that way meant a prefix whose
+gateway the Loc-RIB does not cover could be withheld and never restored, and a
+prefix programmed under that verdict could be WITHDRAWN because an unrelated
+protocol's member left its group. Both are outages the setting caused, and the
+Loc-RIB not covering a gateway is an ordinary state: an OSPF or IS-IS next-hop
+on a link whose connected route no plugin inserted is on-link all the same, and
+the kernel resolves it against its own connected routes.
+
+One verdict still declines the write: `fibPathForbidden`, which RFC 9252
+Section 5 is the only rule to produce today. A prefix ze programs is withdrawn
+there, and one it does not is left alone.
+
+Selection and programming stay independent. A withheld protocol still wins the
+prefix when its distance is the lower one. The path stays in the Loc-RIB, in
+`show rib` and `show ecmp-groups` with the equal-cost paths that competed for
+the prefix, and available to the redistribution producers.
+
+A protocol the PERMISSION set does not name is PERMITTED. `fibPermitted` takes
+an explicit branch that logs the miss, which is the fail-open shape
+`OSInstalled` already uses. The set is the one `parseFIBImportConfig` builds
+over every registered protocol, and it is a different table from the
+resolved-next-hop one above.
+<!-- source: internal/component/sysrib/yang/ze-rib-conf.yang -- fib-withhold leaf-list -->
+<!-- source: internal/component/sysrib/fibimport.go -- recordWithheldWinner, applyFIBImport, fibPermitted -->
+<!-- source: internal/component/sysrib/sysrib.go -- recomputeBest, cascadeRecompute, fibEntry, replayBest -->
+<!-- source: internal/component/sysrib/ecmp.go -- ecmpCollect, ecmpRIBGroup -->
+
 After distance selection, the system RIB performs two additional phases:
 
 1. **Recursive NH resolution** (`nhresolver.go`): resolves next-hops that are not
@@ -1432,7 +1532,12 @@ After distance selection, the system RIB performs two additional phases:
    with `ECMPPaths[]`. FIB backends receive one event per prefix, not N separate
    single-path events.
 
-CLI: `show nexthop-table` (resolver tracking table), `show ecmp-groups` (active groups).
+CLI: `show nexthop-table` (resolver tracking table), `show ecmp-groups` (the
+equal-cost groups the RIB holds). Both `show rib` and `show ecmp-groups` report
+the RIB, so they compute the group from the selected routes rather than reading
+the last group emitted to the FIB: a prefix `rib { fib-withhold }` keeps out of
+the forwarding table still has its equal-cost paths, and an operator reading
+either command sees them.
 <!-- source: internal/component/sysrib/sysrib.go -- protocolRoute, admin distance, outgoingBatch -->
 <!-- source: internal/component/sysrib/nhresolver.go -- recursive NH resolution, IGP metric, cascade -->
 <!-- source: internal/component/sysrib/ecmp.go -- ECMP path collection -->

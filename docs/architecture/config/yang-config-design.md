@@ -257,9 +257,15 @@ ASNs with their network names while accepting every other uint32
 
 ### Registered Validators
 
+Twenty-five validators are registered. The table below is a SAMPLE that shows
+the two kinds, and it is not the list: `reg.Register` in
+`validators_register.go` is the only place that holds all of them, and a reader
+who needs the set reads that file rather than this page.
+
 | Name | Validates | Provides Completion |
 |------|-----------|-------------------|
 | `registered-address-family` | Value is a plugin-registered AFI/SAFI | Yes -- queries `registry.FamilyMap()` |
+| `registered-protocol` | Value is a protocol some component registered | Yes -- queries `redistevents.ProtocolNames()` |
 | `receive-event-type` | Value is a valid BGP event type | Yes -- queries registered event types |
 | `send-message-type` | Value is a valid send type (update, refresh, etc.) | Yes -- base types + plugin-registered |
 | `nonzero-ipv4` | Valid IPv4, not 0.0.0.0 | No |
