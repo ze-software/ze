@@ -656,6 +656,37 @@ func ReconcileASPathFamily(recv ReceivedASPathFamily) (CanonicalASPathFamily, er
 // leaves nothing to choose between: the received AGGREGATOR is the aggregating
 // node and the AS4_PATH is used.
 //
+// AN AS4_AGGREGATOR WITH NO AGGREGATOR BESIDE IT IS DROPPED, AND NO RFC SAYS SO.
+// Both rulings above open "When both of the attributes are received", so neither
+// reaches this shape, and RFC 6793 Section 6 calls an AS4_AGGREGATOR malformed
+// only on its LENGTH: "The AS4_AGGREGATOR attribute in an UPDATE message SHALL
+// be considered malformed if the attribute length is not 8." A well-formed lone
+// one is therefore undefined rather than malformed, and Ze's answer is a
+// DECISION rather than conformance (owner ruling, 2026-09-09).
+//
+// The shape is invalid at its source. RFC 6793 Section 4.2.2 obliges a sender to
+// emit the pair: "if the NEW BGP speaker has to send the AGGREGATOR attribute,
+// and if the aggregating Autonomous System's AS number is a non-mappable
+// four-octet AS number, then the speaker MUST use the AS4_AGGREGATOR attribute
+// and set the AS number field in the existing AGGREGATOR attribute to the
+// reserved AS number, AS_TRANS." No conformant speaker produces a lone one, so
+// the attribute carries an aggregating node that no companion corroborates.
+//
+// So it is dropped rather than read, and the UPDATE continues: the route is not
+// withdrawn and the session is not reset, because nothing about the AS path
+// information is in doubt. The drop is reported as an ASPathDiscard so an
+// operator sees the attribute go rather than wondering where it went.
+//
+// The two implementations Ze interoperates with disagree, read from their source
+// on 2026-09-09, which is why this is written down rather than assumed. BIRD
+// drops it, unconditionally, before its own pairing test (`bgp_unset_attr(attrs,
+// pool, BA_AS4_AGGREGATOR)` in `bgp_process_as4_attrs`). FRR keeps it and
+// fabricates an AGGREGATOR around it (`bgp_attr_munge_as4_attrs`, under its own
+// comment "That is bogus"), copying the AS but not the identifier, and then
+// advertises that invented aggregating node downstream. Ze takes BIRD's answer:
+// inventing a node from an uncorroborated attribute puts a claim on the wire
+// that no speaker made.
+//
 // It is reached only for an UPDATE from an OLD BGP speaker, because the
 // AS4_AGGREGATOR of a NEW one is discarded before the choice arises, so the
 // AGGREGATOR under judgement is always the two-octet form.

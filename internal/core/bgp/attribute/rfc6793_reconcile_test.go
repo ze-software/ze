@@ -27,7 +27,6 @@ var (
 	wireOriginIGP = []byte{0x40, 0x01, 0x01, 0x00}
 
 	// NEXT_HOP 10.0.0.1.
-	wireNextHop = []byte{0x40, 0x03, 0x04, 0x0A, 0x00, 0x00, 0x01}
 
 	// AS_PATH from an OLD speaker: AS_SEQUENCE [65001, AS_TRANS] in two octets.
 	// Flags 0x40, type 2, length 6.

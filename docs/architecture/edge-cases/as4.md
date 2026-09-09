@@ -100,6 +100,39 @@ used.
 construction below as an absent one.
 <!-- source: internal/core/bgp/attribute/as4.go -- ReconcileASPathFamily, selectAggregator, canonicalizeASPath -->
 
+### An AS4_AGGREGATOR with no AGGREGATOR is dropped
+
+Ze drops it, keeps the UPDATE, and reports the drop. **No RFC says to do this,
+and the choice is ze's** (owner ruling, 2026-09-09).
+
+The shape cannot come from a conformant speaker. RFC 6793 Section 4.2.2 obliges
+a sender to emit the pair: "if the NEW BGP speaker has to send the AGGREGATOR
+attribute, and if the aggregating Autonomous System's AS number is a
+non-mappable four-octet AS number, then the speaker MUST use the AS4_AGGREGATOR
+attribute and set the AS number field in the existing AGGREGATOR attribute to
+the reserved AS number, AS_TRANS." So the attribute arrives naming an
+aggregating node that nothing corroborates.
+
+No rule covers what to do with it. Both rulings in the gate above open "When
+both of the attributes are received", and Section 6 calls an AS4_AGGREGATOR
+malformed on its LENGTH alone: "SHALL be considered malformed if the attribute
+length is not 8." A well-formed lone one is undefined rather than malformed.
+
+The route is NOT withdrawn and the session is NOT reset. Nothing about the AS
+path information is in doubt, so the attribute goes and the UPDATE continues.
+The drop appears as an `ASPathDiscard`, so an operator sees it rather than
+finding an attribute missing with no reason.
+
+The two implementations ze interoperates with disagree, which is why this is
+written down rather than assumed:
+
+| Implementation | What it does with a lone AS4_AGGREGATOR |
+|---|---|
+| BIRD | Drops it, unconditionally, before its own pairing test (`bgp_unset_attr(attrs, pool, BA_AS4_AGGREGATOR)` in `bgp_process_as4_attrs`) |
+| FRR | Keeps it and fabricates an AGGREGATOR around it (`bgp_attr_munge_as4_attrs`, under its own comment "That is bogus"), copying the AS but not the identifier, then advertises that invented node downstream |
+| Ze | BIRD's answer. Inventing a node from an uncorroborated attribute puts a claim on the wire that no speaker made |
+<!-- source: internal/core/bgp/attribute/as4.go -- selectAggregator -->
+
 ### The AS path construction
 
 The AS number count decides, and it is the RFC 4271 Section 9.1.2.2 count: an
