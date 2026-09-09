@@ -2,7 +2,9 @@
 kind: directive
 level: MUST
 stage:
+rationale: plan/learned/012-fix-the-question-not-the-site.md
 excepted-by: completion/directives/spec-a-found-problem-close-then-ask
 ---
 **One question sorts every defect you meet: does the goal this work exists to achieve still hold if I leave this? When it does not, you MUST fix the defect now**, and you MUST NOT park it, move it to `tmp/`, write it up as a spec of its own, or offer to drop the deliverable. When you are unsure which side you are on, you are on the fix-it side.
+**Answer it against the OPERATION that broke, never against the feature's name.**
 **You MUST NOT offer the user a reduction in coverage as a way out of a red.** Dropping an interop or functional test, weakening an assertion, and marking a goal-validation row "N/A" are the failure, never a choice to put on the table.

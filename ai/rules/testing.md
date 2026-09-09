@@ -37,6 +37,7 @@ Measured on 2026-08-22: `clear_debt` (`internal/le/commit`) changed the argument
 - **A mutation to PACKAGE SOURCE owes nothing further; a mutation to an exec-reached producer MUST defeat the cache with `-count=1`, or drive the producer through a runner that keeps no Go cache, and say which was done.** A `.ci`, `.et`, `.wb` or Docker run has no Go result cache at all, so the caveat MUST NOT be applied where it cannot apply.
 - **Applying `-count=1` everywhere MUST NOT be treated as the answer.** It spends the cache of a gate that already costs tens of minutes; the obligation is to know which category the proof is in.
 
+- **New branches owe a MEASURED coverage figure, not an inferred one.** Run the package under `-covermode=count` and read the count for each new outcome. A test list read by name says which behaviors somebody meant to cover.
 - **Between the patch and the run, you MUST verify the MUTATION APPLIED, with a diff that comes back non-empty or a grep for the mutated text.** A patch that fails to apply leaves the test running against unmodified source, so it passes, and the artifact of that attempt is byte-identical to a successful proof. It is the worse half of the trap: a stale cached verdict at least ran once against real code.
 - **Restore by copying back a pristine copy saved first; `git checkout --`, `git restore` and `git stash` are banned outright** and would discard another session's uncommitted work in the same file.
 

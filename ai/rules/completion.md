@@ -13,6 +13,7 @@
 **`./le doc wiring` is a STRUCTURAL stage of `./le verify worktree`, so its red says the tree is broken and MUST be fixed rather than recorded.** `docs/contributing/spec-workflow.md` says where new code has to be called from, which test each feature type owes, and where its `.ci` test lives.
 
 **One question sorts every defect you meet: does the goal this work exists to achieve still hold if I leave this? When it does not, you MUST fix the defect now**, and you MUST NOT park it, move it to `tmp/`, write it up as a spec of its own, or offer to drop the deliverable. When you are unsure which side you are on, you are on the fix-it side.
+**Answer it against the OPERATION that broke, never against the feature's name.**
 **You MUST NOT offer the user a reduction in coverage as a way out of a red.** Dropping an interop or functional test, weakening an assertion, and marking a goal-validation row "N/A" are the failure, never a choice to put on the table.
 
 **A problem you FIND while working on something else gets a JOURNAL ROW, not a spec (owner directive, 2026-08-10).** You MUST append one row to `plan/journal/<class>.md`, close the work in hand, and stop. No spec, no row anywhere else, no question to Thomas, no report paragraph. A class that collects rows earns its fix in a deliberate pass over the journal.
