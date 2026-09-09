@@ -44,9 +44,6 @@ const (
 	//
 	// If you move types to above, document it in
 	// gopls/doc/features/passive.md#semantic-tokens.
-	//
-	// Sync any changes below with the vscode-go custom token type list.
-	// See: extension/src/language/goSemanticTokens.ts
 	// TokClass      Type = "class"
 	// TokDecorator  Type = "decorator"
 	// TokEnum       Type = "enum"
@@ -106,9 +103,6 @@ const (
 	// Since the type of a symbol is orthogonal to its kind,
 	// (e.g. a variable can have function type),
 	// we use modifiers for the top-level type constructor.
-	//
-	// Sync any changes below with the vscode-go custom token modifier list.
-	// See: extension/src/language/goSemanticTokens.ts
 	ModArray     Modifier = "array"
 	ModBool      Modifier = "bool"
 	ModChan      Modifier = "chan"
@@ -149,8 +143,8 @@ var Modifiers = []Modifier{
 
 // Encode returns the LSP encoding of a sequence of tokens.
 // encodeType and encodeModifier maps control which types and modifiers are
-// included in the response. A type or modifier must exist in the map and map
-// to true to be included in the output.
+// excluded in the response. If a type or modifier maps to false, it will be
+// omitted from the output.
 func Encode(
 	tokens []Token,
 	encodeType map[Type]bool,
@@ -166,16 +160,18 @@ func Encode(
 
 	typeMap := make(map[Type]uint32)
 	for i, t := range Types {
-		if enable, ok := encodeType[t]; ok && enable {
-			typeMap[Type(t)] = uint32(i)
+		if enable, ok := encodeType[t]; ok && !enable {
+			continue
 		}
+		typeMap[Type(t)] = uint32(i)
 	}
 
 	modMap := make(map[Modifier]uint32)
 	for i, m := range Modifiers {
-		if enable, ok := encodeModifier[m]; ok && enable {
-			modMap[Modifier(m)] = 1 << i
+		if enable, ok := encodeModifier[m]; ok && !enable {
+			continue
 		}
+		modMap[Modifier(m)] = 1 << i
 	}
 
 	// Each semantic token needs five values but some tokens might be skipped.

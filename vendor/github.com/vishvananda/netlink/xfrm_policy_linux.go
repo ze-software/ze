@@ -170,14 +170,7 @@ func (h *Handle) xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
 		userTmpl := nl.DeserializeXfrmUserTmpl(tmplData[start : start+nl.SizeofXfrmUserTmpl])
 		userTmpl.XfrmId.Daddr.FromIP(tmpl.Dst)
 		userTmpl.Saddr.FromIP(tmpl.Src)
-		// A template with no destination takes the policy selector's family. The
-		// test is on LENGTH, not on nil: GetIPFamily answers FAMILY_V4 for any
-		// address of four bytes or fewer, so a non-nil zero-length net.IP would
-		// put AF_INET on an IPv6 policy, which is the case this fixes.
-		userTmpl.Family = msg.Sel.Family
-		if len(tmpl.Dst) > 0 {
-			userTmpl.Family = uint16(nl.GetIPFamily(tmpl.Dst))
-		}
+		userTmpl.Family = uint16(nl.GetIPFamily(tmpl.Dst))
 		userTmpl.XfrmId.Proto = uint8(tmpl.Proto)
 		userTmpl.XfrmId.Spi = nl.Swap32(uint32(tmpl.Spi))
 		userTmpl.Mode = uint8(tmpl.Mode)

@@ -7,6 +7,7 @@ package cache
 // This file defines gopls' driver for modular static analysis (go/analysis).
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/gob"
@@ -41,13 +42,13 @@ import (
 	"golang.org/x/tools/gopls/internal/settings"
 	"golang.org/x/tools/gopls/internal/util/bug"
 	"golang.org/x/tools/gopls/internal/util/frob"
+	"golang.org/x/tools/gopls/internal/util/moremaps"
 	"golang.org/x/tools/gopls/internal/util/persistent"
 	"golang.org/x/tools/gopls/internal/util/safetoken"
 	"golang.org/x/tools/internal/analysis/driverutil"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/facts"
-	"golang.org/x/tools/internal/moremaps"
 )
 
 /*
@@ -495,16 +496,53 @@ func (an *analysisNode) summaryHash() file.Hash {
 	return an._summaryHash
 }
 
-// analyzeSummary is a frob-serializable summary of successfully
+// analyzeSummary is a gob-serializable summary of successfully
 // applying a list of analyzers to a package.
 type analyzeSummary struct {
 	Compiles bool      // transitively free of list/parse/type errors
 	Actions  actionMap // maps analyzer stablename to analysis results (*actionSummary)
 }
 
+// actionMap defines a stable Gob encoding for a map.
+// TODO(adonovan): generalize and move to a library when we can use generics.
 type actionMap map[string]*actionSummary
 
-// actionSummary is a frob-serializable summary of one possibly failed analysis action.
+var (
+	_ gob.GobEncoder = (actionMap)(nil)
+	_ gob.GobDecoder = (*actionMap)(nil)
+)
+
+type actionsMapEntry struct {
+	K string
+	V *actionSummary
+}
+
+func (m actionMap) GobEncode() ([]byte, error) {
+	entries := make([]actionsMapEntry, 0, len(m))
+	for k, v := range m {
+		entries = append(entries, actionsMapEntry{k, v})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].K < entries[j].K
+	})
+	var buf bytes.Buffer
+	err := gob.NewEncoder(&buf).Encode(entries)
+	return buf.Bytes(), err
+}
+
+func (m *actionMap) GobDecode(data []byte) error {
+	var entries []actionsMapEntry
+	if err := gob.NewDecoder(bytes.NewReader(data)).Decode(&entries); err != nil {
+		return err
+	}
+	*m = make(actionMap, len(entries))
+	for _, e := range entries {
+		(*m)[e.K] = e.V
+	}
+	return nil
+}
+
+// actionSummary is a gob-serializable summary of one possibly failed analysis action.
 // If Err is non-empty, the other fields are undefined.
 type actionSummary struct {
 	Facts       []byte    // the encoded facts.Set

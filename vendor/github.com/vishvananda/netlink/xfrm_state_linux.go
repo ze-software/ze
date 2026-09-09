@@ -205,10 +205,6 @@ func writeMark(m *XfrmMark) []byte {
 	return mark.Serialize()
 }
 
-// xfrm_usersa_info carries a 32-bit legacy replay bitmap. Larger windows use
-// XFRMA_REPLAY_ESN_VAL; without XFRM_STATE_ESN, Linux selects bitmap mode.
-const xfrmLegacyReplayWindow = 32
-
 func writeReplayEsn(replayWindow int) []byte {
 	replayEsn := &nl.XfrmReplayStateEsn{
 		OSeq:         0,
@@ -274,14 +270,11 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 
 	msg := xfrmUsersaInfoFromXfrmState(state)
 
-	useReplayESN := state.ESN || state.ReplayWindow > xfrmLegacyReplayWindow
 	if state.ESN {
 		if state.ReplayWindow == 0 {
 			return fmt.Errorf("ESN flag set without ReplayWindow")
 		}
 		msg.Flags |= nl.XFRM_STATE_ESN
-	}
-	if useReplayESN {
 		msg.ReplayWindow = 0
 	}
 
@@ -314,7 +307,7 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 		out := nl.NewRtAttr(nl.XFRMA_MARK, writeMark(state.Mark))
 		req.AddData(out)
 	}
-	if useReplayESN {
+	if state.ESN {
 		out := nl.NewRtAttr(nl.XFRMA_REPLAY_ESN_VAL, writeReplayEsn(state.ReplayWindow))
 		req.AddData(out)
 	}
@@ -516,7 +509,6 @@ func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
 	state.Spi = int(nl.Swap32(msg.Id.Spi))
 	state.Reqid = int(msg.Reqid)
 	state.ReplayWindow = int(msg.ReplayWindow)
-	state.ESN = msg.Flags&nl.XFRM_STATE_ESN != 0
 	lftToLimits(&msg.Lft, &state.Limits)
 	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
 	state.Selector = &XfrmPolicy{
@@ -613,16 +605,6 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 		case nl.XFRMA_SA_PCPU:
 			pcpuNum := native.Uint32(attr.Value)
 			state.Pcpunum = &pcpuNum
-		case nl.XFRMA_REPLAY_ESN_VAL:
-			// xfrm_replay_state_esn is {bmp_len, oseq, seq, oseq_hi, seq_hi,
-			// replay_window} u32s then bmp[]. Read the window at its offset
-			// rather than casting the buffer to the Go struct: that struct
-			// carries a slice header for bmp, so a pointer conversion over a
-			// SizeofXfrmReplayStateEsn buffer would build a slice out of
-			// whatever follows the attribute.
-			if len(attr.Value) >= nl.SizeofXfrmReplayStateEsn {
-				state.ReplayWindow = int(native.Uint32(attr.Value[20:24]))
-			}
 		case nl.XFRMA_REPLAY_VAL:
 			if state.Replay == nil {
 				state.Replay = new(XfrmReplayState)
