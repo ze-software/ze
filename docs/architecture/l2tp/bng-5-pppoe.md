@@ -172,7 +172,26 @@ absent for the process lifetime, with no log line saying so.
 `registry.InjectPluginMetrics` holds the hook until a registry arrives, so
 whichever event happens second does the binding.
 
-<!-- source: internal/component/l2tp/pppoe/metrics.go -- registerDiscoveryMetrics, bindPPPoEMetrics, countRefusal -->
+**A discovery socket read error increments `ze_pppoe_discovery_read_errors_total`,
+a separate counter from the refusal series.** A refusal is a protocol or
+configuration decision about a well-formed read; this counter is the socket
+itself failing to read at all, so it is not a fourth value on the closed
+`reason` label above. `discoveryReader` paces the retry through
+`internal/core/pacer` before it reads again, growing the delay from zero up
+to a 250ms ceiling across a run of consecutive failures and resetting on
+the next success, so a discovery socket that never recovers costs a
+bounded slice of a core rather than all of it. Because this one goroutine
+reads the single AF_PACKET socket that dispatches by ifindex for every
+access interface ("One AF_PACKET raw socket per namespace" above), a
+delay here delays discovery on all of them, which is why the ceiling
+stays at 250ms rather than growing further: an operator has no
+information with which to pick a longer value correctly. The pacer's
+wait observes a `chan struct{}` that `Stop` closes
+alongside the socket, a second exit signal added beside `errSocketClosed`
+because closing the socket alone only unblocks a read already in flight,
+not a goroutine asleep in the pacer's wait.
+
+<!-- source: internal/component/l2tp/pppoe/metrics.go -- registerDiscoveryMetrics, bindPPPoEMetrics, countRefusal, countDiscoveryReadError -->
 <!-- source: internal/component/l2tp/pppoe/server.go -- the eight call sites that count a refusal -->
 
 ## Traps this code exists to avoid

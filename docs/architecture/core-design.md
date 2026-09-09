@@ -1298,6 +1298,7 @@ The bus sits alongside the other cross-cutting core registries:
 | `internal/core/report/` | Operator-visible warnings and errors |
 | `internal/core/slogutil/` | Structured logging helpers |
 | `internal/core/pcap/` | The pcap file format, synthetic IP and TCP framing, and TCP stream reassembly |
+| `internal/core/pacer/` | Paces a receiver goroutine's retries after a failing read: zero on the first failure after a success, doubling on each further consecutive failure, capped at a fixed ceiling |
 
 Subsystem authors add new producers by calling the push API:
 

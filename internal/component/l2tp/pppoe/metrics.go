@@ -36,7 +36,8 @@ const metricsHookName = "l2tp-pppoe"
 // any access interface accumulates on one series per reason rather than
 // splitting the count by interface.
 type pppoeMetrics struct {
-	discoveryRefusalsTotal metrics.CounterVec // labels: reason
+	discoveryRefusalsTotal   metrics.CounterVec // labels: reason
+	discoveryReadErrorsTotal metrics.Counter    // discoveryReader's swallowed socket read errors
 }
 
 // pppoeMetricsPtr holds the active metric set. It is nil until a registry
@@ -50,6 +51,8 @@ func initPPPoEMetrics(reg metrics.Registry) *pppoeMetrics {
 	return &pppoeMetrics{
 		discoveryRefusalsTotal: reg.CounterVec("ze_pppoe_discovery_refusals_total",
 			"PPPoE discovery packets (PADI or PADR) refused, by reason.", []string{"reason"}),
+		discoveryReadErrorsTotal: reg.Counter("ze_pppoe_discovery_read_errors_total",
+			"Discovery socket read errors discoveryReader swallowed and retried, after the socket-closed case is ruled out."),
 	}
 }
 
@@ -88,4 +91,20 @@ func countRefusal(reason string) {
 		return
 	}
 	m.discoveryRefusalsTotal.With(reason).Inc()
+}
+
+// countDiscoveryReadError increments discoveryReader's swallowed-read-error
+// counter. It is a separate series from discoveryRefusalsTotal rather than a
+// new reason value on it: a refusal is a protocol or configuration decision
+// made about a well-formed read, while this counter is the socket itself
+// failing to read at all. Mixing the two under one "reason" label would put
+// an operator's rate-limit tuning and a failing NIC on the same closed
+// vocabulary. It is a no-op while no registry is bound, the same as
+// countRefusal.
+func countDiscoveryReadError() {
+	m := pppoeMetricsPtr.Load()
+	if m == nil {
+		return
+	}
+	m.discoveryReadErrorsTotal.Inc()
 }

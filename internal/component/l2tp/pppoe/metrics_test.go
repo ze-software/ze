@@ -11,6 +11,26 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 )
 
+// scrapeDiscoveryReadErrors renders reg through the same promhttp handler an
+// operator's exporter serves, and returns the
+// ze_pppoe_discovery_read_errors_total line, or the empty string when the
+// series does not exist yet.
+func scrapeDiscoveryReadErrors(t *testing.T, reg *metrics.PrometheusRegistry) string {
+	t.Helper()
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", http.NoBody)
+	reg.Handler().ServeHTTP(recorder, request)
+
+	const prefix = "ze_pppoe_discovery_read_errors_total "
+	for line := range strings.SplitSeq(recorder.Body.String(), "\n") {
+		if strings.HasPrefix(line, prefix) {
+			return line
+		}
+	}
+	return ""
+}
+
 // scrapeRefusals renders reg through the same promhttp handler an operator's
 // exporter serves, and returns the ze_pppoe_discovery_refusals_total line for
 // reason, or the empty string when the series does not exist. Reading the

@@ -43,6 +43,17 @@ stops all of them.
 
 <!-- source: internal/component/iface/pppoe_client.go -- pppoeClientConfigChanged, ReconnectDelay -->
 
+**The discovery wait blocks rather than polls.** `Dial` sets `SO_RCVTIMEO` to
+~100ms on the discovery socket before `waitForPADO` or `waitForPADS` ever runs,
+so their `select`'s `default` arm blocks on that timeout when no frame arrives
+rather than returning at once. That is what paces both loops: neither adds a
+wait of its own, and neither calls `runtime.Gosched()` to yield between
+attempts, because a call that already blocks has nothing to yield from.
+`readDiscoveryFrame` (`dialer.go`) is a package variable over
+`pppoe.ReadDiscoveryFrame` precisely so a test can swap in a fake without a
+real AF_PACKET socket and prove the loop returns promptly on stop and does not
+retry far more often than the blocking read allows.
+
 ## Traps this code exists to avoid
 
 **An empty `default:` in a select is refused by a repository hook.** The

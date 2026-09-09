@@ -19,6 +19,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/ndp"
+	"github.com/ze-software/ze/internal/core/pacer"
 )
 
 // startRASender opens a raw ICMPv6 socket on ifname, joins the all-routers
@@ -105,7 +106,7 @@ func startRASender(ifname string, logger *slog.Logger) (func(), error) {
 
 	rsCh := make(chan struct{}, 1)
 	senderDone := make(chan struct{})
-	go rsReaderLoop(ctx, pc, rsCh)
+	go rsReaderLoop(ctx, pc, rsCh, ifname, logger)
 	go raSenderLoop(ctx, sender, sched, rsCh, senderDone)
 
 	return func() {
@@ -113,8 +114,17 @@ func startRASender(ifname string, logger *slog.Logger) (func(), error) {
 	}, nil
 }
 
-func rsReaderLoop(ctx context.Context, pc *ipv6.PacketConn, rsCh chan<- struct{}) {
+// rsReaderLoop reads Router Solicitations off the ICMPv6 socket and signals
+// raSenderLoop to answer one. A read error that is neither ctx being done
+// nor recovered by the next attempt is logged, counted on
+// ze_ppp_reader_errors_total{loop="ra"} (metrics.go), and paced by p, so a
+// socket that fails forever costs a bounded slice of a core rather than all
+// of it. The wait observes ctx.Done() directly: a context satisfies
+// <-chan struct{} through that method, so it needs no adapter to the
+// pacer's Wait.
+func rsReaderLoop(ctx context.Context, pc *ipv6.PacketConn, rsCh chan<- struct{}, ifname string, logger *slog.Logger) {
 	var buf [256]byte
+	var p pacer.Pacer
 	for {
 		if ctx.Err() != nil {
 			return
@@ -123,8 +133,19 @@ func rsReaderLoop(ctx context.Context, pc *ipv6.PacketConn, rsCh chan<- struct{}
 			if ctx.Err() != nil {
 				return
 			}
+			// Not context-done, so this is an error the loop cannot
+			// classify: it may clear on the next read or it may
+			// persist. Log it and count it before pacing the retry, so
+			// a socket that never recovers is visible in the log and
+			// on the counter rather than only in CPU use.
+			logger.Debug("ppp: RA reader read error", "interface", ifname, "error", err.Error())
+			countReaderError(loopRA)
+			if p.Wait(ctx.Done()) {
+				return
+			}
 			continue
 		}
+		p.Succeed()
 		// capacity-1 channel coalesces RS bursts into one RA send
 		select {
 		case rsCh <- struct{}{}:

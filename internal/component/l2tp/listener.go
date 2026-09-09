@@ -15,6 +15,8 @@ import (
 	"syscall"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/core/pacer"
 )
 
 // rxPoolSize is the number of in-flight receive slots. 64 was chosen over
@@ -61,6 +63,7 @@ type UDPListener struct {
 	wg      sync.WaitGroup
 	closed  bool
 	tunnels map[uint16]*net.UDPConn // adopted per-tunnel sockets, keyed by local tunnel id
+	pacer   pacer.Pacer             // paces readLoop's retries after a failing read; owned solely by readLoop's goroutine
 }
 
 // rxPacket carries one received datagram. The bytes slice aliases a slot
@@ -146,6 +149,11 @@ func (u *UDPListener) Start(ctx context.Context) error {
 	u.conn = conn
 	u.rx = make(chan rxPacket, rxPoolSize)
 	u.stop = make(chan struct{})
+
+	// The metrics registry can arrive after Start returns, so this asks
+	// for readLoop's swallowed-read-error counter (reader_metrics.go)
+	// rather than reading a registry that may not exist yet.
+	registerListenerMetrics()
 
 	u.wg.Add(1)
 	go u.readLoop()
@@ -434,6 +442,16 @@ func (u *UDPListener) tunnelReadLoop(tid uint16, conn *net.UDPConn) {
 // slot pool and pushes rxPacket values onto the rx channel. The consumer
 // (reactor) MUST call release() on each packet when done.
 //
+// A read error that is neither "socket closed" nor recovered by the next
+// attempt is not returned from: it is logged, counted on
+// ze_l2tp_listener_read_errors_total (reader_metrics.go), and paced by
+// u.pacer, which grows the delay before the next read across a run of
+// consecutive failures and resets to an immediate retry on the next
+// success, so a socket that fails forever costs a bounded slice of a core
+// rather than all of it, and stays visible to an operator without a
+// profiler. The pacer's wait observes u.stop, the same signal Stop()
+// already closes, so a stopping listener never sits out the delay.
+//
 // Allocation discipline: the backing array, free-slot channel, and
 // per-slot release closures are created ONCE at goroutine start. No
 // per-packet heap allocation.
@@ -471,8 +489,21 @@ func (u *UDPListener) readLoop() {
 				return
 			}
 			freeCh <- idx
+			// Not closed, so this is an error the loop cannot classify: it
+			// may clear on the next read or it may persist. Log it and
+			// count it before pacing the retry, so a socket that never
+			// recovers is visible in the log and on the counter rather
+			// than only in CPU use.
+			u.logger.Debug("l2tp: listener read error", "bind", u.bind.String(), "error", err.Error())
+			countReadError()
+			// Pace the retry rather than spinning at once; the wait
+			// returns early if Stop() fires while it is waiting.
+			if u.pacer.Wait(u.stop) {
+				return
+			}
 			continue
 		}
+		u.pacer.Succeed()
 
 		pkt := rxPacket{
 			from:    raddr,

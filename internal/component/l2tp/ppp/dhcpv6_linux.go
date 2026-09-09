@@ -14,6 +14,8 @@ import (
 	"syscall"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/core/pacer"
 )
 
 // startDHCPv6Server opens a UDP socket on port 547 bound to ifname,
@@ -65,7 +67,7 @@ func startDHCPv6Server(ifname string, svc *IPv6Service, serverID DHCPv6DUID, all
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go dhcpv6ServerLoop(ctx, pc, svc, serverID, allocPrefix, logger)
+	go dhcpv6ServerLoop(ctx, pc, svc, serverID, allocPrefix, ifname, logger)
 
 	return func() {
 		cancel()
@@ -75,8 +77,15 @@ func startDHCPv6Server(ifname string, svc *IPv6Service, serverID DHCPv6DUID, all
 	}, nil
 }
 
-func dhcpv6ServerLoop(ctx context.Context, conn net.PacketConn, svc *IPv6Service, serverID DHCPv6DUID, allocPrefix func() (netip.Prefix, bool), logger *slog.Logger) {
+// dhcpv6ServerLoop reads DHCPv6 messages off conn and delegates to
+// svc.handleDHCPv6. A read error that is neither ctx being done nor
+// recovered by the next attempt is logged, counted on
+// ze_ppp_reader_errors_total{loop="dhcpv6"} (metrics.go), and paced by p, so
+// a socket that fails forever costs a bounded slice of a core rather than
+// all of it. The wait observes ctx.Done() directly.
+func dhcpv6ServerLoop(ctx context.Context, conn net.PacketConn, svc *IPv6Service, serverID DHCPv6DUID, allocPrefix func() (netip.Prefix, bool), ifname string, logger *slog.Logger) {
 	var buf [1500]byte
+	var p pacer.Pacer
 	for {
 		if ctx.Err() != nil {
 			return
@@ -87,9 +96,19 @@ func dhcpv6ServerLoop(ctx context.Context, conn net.PacketConn, svc *IPv6Service
 			if ctx.Err() != nil {
 				return
 			}
-			logger.Debug("ppp: DHCPv6 read error", "error", err)
+			// Not context-done, so this is an error the loop cannot
+			// classify: it may clear on the next read or it may
+			// persist. Log it and count it before pacing the retry, so
+			// a socket that never recovers is visible in the log and
+			// on the counter rather than only in CPU use.
+			logger.Debug("ppp: DHCPv6 read error", "interface", ifname, "error", err.Error())
+			countReaderError(loopDHCPv6)
+			if p.Wait(ctx.Done()) {
+				return
+			}
 			continue
 		}
+		p.Succeed()
 
 		if n < 4 {
 			continue

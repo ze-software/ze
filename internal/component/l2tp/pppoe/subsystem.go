@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
 	"github.com/ze-software/ze/internal/component/traffic"
+	"github.com/ze-software/ze/internal/core/pacer"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/ze"
@@ -54,6 +55,13 @@ type Subsystem struct {
 	eventDone  chan struct{}
 	drainDones []<-chan struct{}
 	bus        ze.EventBus
+
+	// stop is discoveryReader's exit signal for a pacer wait: closing
+	// discFD (Stop) only unblocks a read already in flight, and would
+	// leave a paced retry sitting out its delay before it next calls
+	// readDiscoveryFrame and finally sees errSocketClosed.
+	stop  chan struct{}
+	pacer pacer.Pacer // paces discoveryReader's retries after a failing read; owned solely by its own goroutine
 
 	pendingAuth sync.Map // pendingAuthKey -> pendingAuthInfo
 }
@@ -182,6 +190,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 	}
 
 	s.readDone = make(chan struct{})
+	s.stop = make(chan struct{})
 	go s.discoveryReader()
 
 	if s.pppDriver != nil {
@@ -223,6 +232,13 @@ func (s *Subsystem) Stop(_ context.Context) error {
 		closeDiscoverySocket(s.discFD)
 		s.discFD = -1
 	}
+	// Unblocks discoveryReader out of a pacer wait: closing discFD above
+	// only unblocks a read already in flight, and a paced retry would
+	// otherwise sit out its delay before it next calls readDiscoveryFrame
+	// and finally sees errSocketClosed.
+	if s.stop != nil {
+		close(s.stop)
+	}
 	if s.readDone != nil {
 		<-s.readDone
 	}
@@ -250,6 +266,18 @@ func (s *Subsystem) Reload(_ context.Context, _ ze.ConfigProvider) error {
 	return nil
 }
 
+// discoveryReader is the one goroutine that reads the shared AF_PACKET
+// discovery socket for every configured access interface (opened once in
+// Start; readDiscoveryFrame dispatches by ifindex from recvfrom, see
+// bng-5-pppoe.md). A read error that is neither "socket closed" nor
+// recovered by the next attempt is logged, counted on
+// ze_pppoe_discovery_read_errors_total (metrics.go), and paced by s.pacer,
+// so a discovery socket that fails forever costs a bounded slice of a core
+// rather than all of it -- and because this one goroutine dispatches for
+// every interface, a delay here is a delay on discovery for all of them,
+// which is why the pacer's ceiling is short. The pacer's wait observes
+// s.stop, closed by Stop alongside the socket, so a stopping subsystem
+// never sits out the delay.
 func (s *Subsystem) discoveryReader() {
 	defer close(s.readDone)
 
@@ -260,9 +288,19 @@ func (s *Subsystem) discoveryReader() {
 			if errors.Is(err, errSocketClosed) {
 				return
 			}
+			// Not closed, so this is an error the loop cannot classify:
+			// it may clear on the next read or it may persist. Log it
+			// and count it before pacing the retry, so a socket that
+			// never recovers is visible in the log and on the counter
+			// rather than only in CPU use.
 			s.logger.Debug("pppoe: discovery read error", "error", err)
+			countDiscoveryReadError()
+			if s.pacer.Wait(s.stop) {
+				return
+			}
 			continue
 		}
+		s.pacer.Succeed()
 		if n < MinDiscFrame {
 			continue
 		}

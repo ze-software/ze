@@ -733,6 +733,26 @@ deliberately not a label: a subscriber daemon carries thousands of sessions.
 
 This counter is shared with PPPoE subscribers, which run the same PPP driver.
 
+### Reader-loop error counters
+
+A receiver goroutine that cannot classify a socket read error retries it
+with a growing delay, capped at 250ms, instead of spinning. Each swallowed
+error is counted, so a failing socket is visible on these counters without
+a profiler.
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `ze_l2tp_listener_read_errors_total` | counter | UDP read errors the L2TP listener's receiver goroutine swallowed and retried |
+| `ze_ppp_reader_errors_total` | counter | Socket read errors a PPP reader goroutine swallowed and retried, labelled `loop` |
+
+`ze_ppp_reader_errors_total` carries one series per reader: `loop="ra"` for
+the IPv6 Router Advertisement listener, `loop="dhcpv6"` for the DHCPv6-PD
+listener. Both run once per PPP session with a negotiated IPv6 interface
+identifier, for L2TP and PPPoE subscribers alike.
+
+The PPPoE discovery reader's own counter is listed in `pppoe.md`, because
+it is PPPoE-specific.
+
 ### RADIUS metrics (labels: server)
 
 | Metric | Type | Description |

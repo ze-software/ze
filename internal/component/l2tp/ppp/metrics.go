@@ -46,6 +46,7 @@ const metricsHookName = "l2tp-ppp"
 // count by session or by tunnel.
 type pppMetrics struct {
 	ipv6cpIdentifierRefusalsTotal metrics.CounterVec // labels: reason
+	readerErrorsTotal             metrics.CounterVec // labels: loop (ra, dhcpv6): swallowed socket read errors
 }
 
 // pppMetricsPtr holds the active metric set. It is nil until a registry
@@ -61,6 +62,9 @@ func initPPPMetrics(reg metrics.Registry) *pppMetrics {
 		ipv6cpIdentifierRefusalsTotal: reg.CounterVec("ze_ppp_ipv6cp_identifier_refusals_total",
 			"IPv6CP negotiations refused for want of a usable interface identifier, by reason.",
 			[]string{"reason"}),
+		readerErrorsTotal: reg.CounterVec("ze_ppp_reader_errors_total",
+			"Socket read errors a PPP reader loop swallowed and retried, by loop.",
+			[]string{"loop"}),
 	}
 }
 

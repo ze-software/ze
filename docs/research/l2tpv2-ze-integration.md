@@ -991,6 +991,56 @@ without creating a goroutine per session.
 Events are emitted via `eventBus.Emit()` from the reactor goroutine.
 The event bus handles fan-out to subscribers asynchronously.
 
+### 11.5 Receiver goroutines and a failing socket
+
+Four receiver goroutines read from a socket and dispatch what arrives: the
+UDP listener's `readLoop` (`listener.go`), the PPPoE discovery reader
+(`pppoe/subsystem.go`), and the RA and DHCPv6-PD readers
+(`ppp/ra_linux.go`, `ppp/dhcpv6_linux.go`). Each goroutine tests its own
+exit signal on every read error: `readLoop` checks a `closed` flag under a
+mutex, the discovery reader checks for `errSocketClosed` from its own
+`readDiscoveryFrame`, and the RA and DHCPv6-PD readers check a canceled
+context. It returns when that signal fires.
+
+Every other read error cannot be classified. It can clear on the next
+read, or the socket can stay broken for as long as the daemon runs. A
+goroutine that retries an unclassified error at once, forever, spins a
+core, and two of the four did so silently, with no log line to find it by.
+Each of the four goroutines now logs the error, counts it, and paces the
+retry:
+
+- The log line names the socket the error came from (the bound address for
+  `readLoop`, the interface for the RA and DHCPv6-PD readers; the discovery
+  reader's socket is shared across every configured access interface, so it
+  names none).
+- A counter rises once per swallowed error: `ze_l2tp_listener_read_errors_total`
+  for `readLoop`, `ze_pppoe_discovery_read_errors_total` for the discovery
+  reader, and `ze_ppp_reader_errors_total{loop="ra"|"dhcpv6"}` for the RA
+  and DHCPv6-PD readers, which share one metric because they live in the
+  same package and count the same kind of event.
+- The retry is paced through `internal/core/pacer` (`Pacer.Wait`): the
+  delay stays at zero for the first failure after a success, doubles on
+  each further consecutive failure, and stops growing at a fixed 250ms
+  ceiling. A successful read resets the pacer, so the first retry after
+  recovery is immediate again.
+
+`Wait` takes the caller's own exit signal: `readLoop` and the discovery
+reader each pass a plain `chan struct{}` closed by their own `Stop`, and
+the RA and DHCPv6-PD readers pass a context's `Done()` directly, since a
+context satisfies `<-chan struct{}` without an adapter. A goroutine pacing
+a retry still returns at once when it is told to stop rather than sitting
+out the delay.
+
+The discovery reader's `chan struct{}` is a second exit signal alongside
+`errSocketClosed`, added for the pacer: closing the discovery socket only
+unblocks a read already in flight, so a goroutine asleep in a paced wait
+would otherwise sit out the delay before it next read the socket and saw
+it was closed.
+
+The ceiling is a fixed constant in the pacer package, not a YANG leaf. An
+operator has no information with which to pick a value, and a wrong choice
+reintroduces the spin this design removes.
+
 ---
 
 ## 12. Package Layout

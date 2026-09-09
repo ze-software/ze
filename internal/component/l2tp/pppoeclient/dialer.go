@@ -8,7 +8,6 @@ import (
 	"errors"
 	"log/slog"
 	"net"
-	"runtime"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
@@ -19,6 +18,14 @@ import (
 const discoveryTimeout = 10 * time.Second
 
 var errDiscoveryTimeout = errors.New("pppoeclient: discovery timeout")
+
+// readDiscoveryFrame reads one discovery frame. A package variable so a
+// test can substitute a fake without opening a real AF_PACKET socket.
+// SetRecvTimeout (called by Dial before either wait loop below ever runs)
+// puts SO_RCVTIMEO on the real socket, so the production implementation
+// blocks for that timeout when no frame is waiting: that is what paces
+// waitForPADO and waitForPADS. Neither loop adds a wait of its own.
+var readDiscoveryFrame = pppoe.ReadDiscoveryFrame
 
 // Dialer implements iface.PPPoEDialer using the pppoe discovery wire
 // format and ppp /dev/ppp setup.
@@ -164,19 +171,20 @@ func waitForPADO(discFD, ifindex int, hostUniq [4]byte, wantACName string, stopC
 		case <-deadline.C:
 			return pppoe.Packet{}, errDiscoveryTimeout
 		default:
-			// SO_RCVTIMEO makes this return after ~100ms if no frame arrives.
+			// SO_RCVTIMEO paces this call at ~100ms per attempt when no
+			// frame arrives, so this arm blocks on the socket rather than
+			// spinning: no separate yield is needed, and none is added.
 			pkt, ok := tryReadPADO(discFD, ifindex, hostUniq, wantACName)
 			if ok {
 				return pkt, nil
 			}
-			runtime.Gosched()
 		}
 	}
 }
 
 func tryReadPADO(discFD, ifindex int, hostUniq [4]byte, wantACName string) (pppoe.Packet, bool) {
 	var rxBuf [pppoe.EthMaxLen]byte
-	n, rxIfindex, rxErr := pppoe.ReadDiscoveryFrame(discFD, rxBuf[:])
+	n, rxIfindex, rxErr := readDiscoveryFrame(discFD, rxBuf[:])
 	if rxErr != nil || rxIfindex != ifindex {
 		return pppoe.Packet{}, false
 	}
@@ -218,7 +226,9 @@ func waitForPADS(discFD, ifindex int, acMAC [pppoe.EthALen]byte, stopCh <-chan s
 		case <-deadline.C:
 			return 0, errDiscoveryTimeout
 		default:
-			// SO_RCVTIMEO makes this return after ~100ms if no frame arrives.
+			// SO_RCVTIMEO paces this call at ~100ms per attempt when no
+			// frame arrives, so this arm blocks on the socket rather than
+			// spinning: no separate yield is needed, and none is added.
 			sid, err := tryReadPADS(discFD, ifindex, acMAC)
 			if err != nil {
 				return 0, err
@@ -226,14 +236,13 @@ func waitForPADS(discFD, ifindex int, acMAC [pppoe.EthALen]byte, stopCh <-chan s
 			if sid != 0 {
 				return sid, nil
 			}
-			runtime.Gosched()
 		}
 	}
 }
 
 func tryReadPADS(discFD, ifindex int, acMAC [pppoe.EthALen]byte) (uint16, error) {
 	var rxBuf [pppoe.EthMaxLen]byte
-	n, rxIfindex, rxErr := pppoe.ReadDiscoveryFrame(discFD, rxBuf[:])
+	n, rxIfindex, rxErr := readDiscoveryFrame(discFD, rxBuf[:])
 	if rxErr != nil {
 		return 0, nil //nolint:nilerr // read timeout or transient error; caller retries
 	}

@@ -166,6 +166,18 @@ Ze's runtime kernel. The stock Alpine kernel has no `CONFIG_PPPOE`.
   shared PPP driver, so it counts L2TP and PPPoE subscribers alike; the three
   reasons are listed under "PPP negotiation counters" in `l2tp.md`.
 
+- `ze_pppoe_discovery_read_errors_total` -- discovery socket read errors the
+  discovery reader swallowed and retried, after ruling out the socket being
+  closed. A separate counter from the refusal series above: a refusal is a
+  decision about a well-formed read, this one is the socket itself failing
+  to read at all. One AF_PACKET socket serves every configured access
+  interface, so this counter is not split by interface.
+
+- `ze_ppp_reader_errors_total` -- socket read errors a PPP reader goroutine
+  swallowed and retried, labelled `loop` (`ra`, `dhcpv6`). Emitted by the
+  shared PPP driver, so it counts L2TP and PPPoE subscribers alike; listed
+  under "Reader-loop error counters" in `l2tp.md`.
+
 ## Concurrent Operation
 
 PPPoE and L2TP run concurrently on the same daemon. Both share the same
