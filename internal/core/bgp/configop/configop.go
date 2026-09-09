@@ -17,11 +17,12 @@ package configop
 
 import "github.com/ze-software/ze/pkg/plugin/rpc"
 
-// Operation labels of the `bgp` config root.
+// Operation labels of the `bgp` config root. Every one of them is emitted by
+// decomposeBGPOperations and dispatched by the reactor: a label nothing emits
+// is not part of the vocabulary, it is a plan, and the two listener labels
+// that were here went with the constraint rules that were their only readers.
 const (
-	AddPeer        rpc.ConfigOperationType = "add-peer"
-	RemovePeer     rpc.ConfigOperationType = "remove-peer"
-	ModifyPeer     rpc.ConfigOperationType = "modify-peer"
-	AddListener    rpc.ConfigOperationType = "add-listener"
-	RemoveListener rpc.ConfigOperationType = "remove-listener"
+	AddPeer    rpc.ConfigOperationType = "add-peer"
+	RemovePeer rpc.ConfigOperationType = "remove-peer"
+	ModifyPeer rpc.ConfigOperationType = "modify-peer"
 )

@@ -553,3 +553,358 @@ colima was resized from 2 CPUs / 1.9 GiB to 8 / 24 on 2026-09-08. That is what
 lets the interop lab reach a verdict at all; at the old size the fleet is killed
 before any assertion runs, and `docker info` reports the VM's allocation rather
 than the host's.
+
+# asdot/asdot+, update-delay, BFD strict mode (session `bgp-notation`, 2026-09-08/09)
+
+Three specs were run concurrently in one working tree. That bought parallelism
+and presented the bill at commit time: the three features interleave in the same
+files, so they must land in a fixed order. Stopped on request before that order
+completed.
+
+## State
+
+| Spec | Committed | Status |
+|------|-----------|--------|
+| `plan/spec-bgp-as-notation.md` | `c3b6433ba8`, 140 files | `in-progress`. Commit A only, commit B not run |
+| `plan/spec-bgp-bfd-strict.md` | nothing | `in-progress`. Three round-6 issues open |
+| `plan/immediate/spec-bgp-update-delay.md` | nothing | `in-progress`. Reviewed clean, closure done, commit blocked |
+
+`c3b6433ba8` is the only commit of this session at the time this block was
+written. See the update at the end for what landed after it.
+
+**Why as-notation stayed in `plan/`.** Commit A landed and commit B, the spec
+removal, was deliberately not run. Three product files the feature needs could
+not be committed, because each also carried BFD-strict or update-delay hunks
+naming symbols HEAD did not hold:
+`internal/component/bgp/config/loader_create.go` (the `applyASNotation` call on
+first load), `internal/component/bgp/reactor/reactor_api.go` (`recordASNotation`
+at `SetConfigTree`), and `internal/component/bgp/plugins/cmd/peer/peer.go`
+(`asn.Of` on both peer row builders). `plugin.ReactorIntrospector` had also
+gained `UpdateDelayStatus()`, so carrying them meant landing both sibling
+features whole, under a review artifact covering neither. The spec is the only
+record that those three files are owed, which is why it was not deleted.
+(A machine-local ack was written to `tmp/session/`, which is gitignored and will
+not survive; its content is the paragraph above.)
+
+## TO DO, in order. The order is forced, do not reshuffle it
+
+1. **BFD strict, three fixes.** All three are verified at the producer and listed
+   under "Open findings" below. They are not optional: two are in the
+   always-in-scope RFC class and one is a regression this spec caused.
+2. **BFD strict, round 7.** Thomas must authorise it. Round 6 was the sixth and
+   he authorised each round past five separately. `./le spec session review record`
+   refuses a seventh without `--owner-authorised`, which MUST NOT be set unasked.
+3. **BFD strict, closure and commit.** Carry
+   `internal/component/bgp/reactor/reactor_api.go` and
+   `internal/component/bgp/plugins/cmd/peer/peer.go` with it. `asn.Of` and
+   `applyASNotation` are in HEAD now, so the as-notation hunks in those files are
+   safe to land (`ai/rules/git-safety.md`: the presumption is LANDING, and the
+   unsafe case is a hunk naming a symbol HEAD does not hold).
+4. **update-delay, commit.** Nothing is left to build or review. Carry
+   `internal/component/bgp/config/loader_create.go`. Its review artifact lived
+   under `tmp/review/`, which is gitignored: see the update at the end, because
+   losing it changes what this step costs.
+5. **as-notation, commit B.** Once the three files above are in HEAD, the four red
+   tests go green and removing `plan/spec-bgp-as-notation.md` closes the spec.
+
+The four tests knowingly RED until step 5, each named in `c3b6433ba8`:
+`TestPeerRowsFollowTheConfiguredNotation`, `TestHandlerPeerDetailAllPeers`,
+`TestTheRunningConfigRecordsTheNotation`, `test/plugin/bgp-as-notation.ci`.
+
+## Open findings on BFD strict, from round 6. Verified, unfixed
+
+- **A regression this spec introduced.** `pluginService.EnsureSession`
+  (`internal/component/bfd/bfd.go`) now takes the `SO_BINDTODEVICE` device from
+  `normalized.Interface` rather than `req.Interface`. `runtimeState.loopFor`
+  returns an existing loop and drops the device argument, so the FIRST caller
+  locks in the device and every later single-hop session in that VRF transmits
+  from it. A BGP peer with only `connection local ip` can now do what only an
+  operator-written `bfd interface` leaf could do before. Minimal fix: key on
+  `normalized`, pass `req.Interface` to device selection.
+- **RFC 5882 Section 4.4 is met for single-hop only, and the ledger over-claims
+  it.** `SessionRequest.Canonical`
+  (`internal/component/bfd/api/session_identity.go`) returns every multi-hop
+  request unchanged. `parseMultiHopSession` requires `local`, while
+  `bfdRequestFor` leaves `Local` invalid when the peer sets no
+  `connection local ip`. Two clients for one remote system then build two keys.
+  `rfc/short/rfc5882.md` records the requirement met, and all five tests in
+  `rfc/requirements/rfc5882.md` are single-hop. `ai/rules/rfc-compliance.md`
+  forbids repairing this by downgrading the row: implement the multi-hop half and
+  prove it.
+- **The link table is VRF-blind.** `api.Link` carries no VRF, `connectedLinks`
+  (`internal/component/bfd/session_identity.go`) returns every interface, and
+  `deriveLink` never reads `r.VRF`. A request in one VRF can be given another
+  VRF's link name and address. Bounded today because only pinned sessions carry a
+  VRF, and `iface.InterfaceInfo` has no VRF field to filter on, so the repair
+  reaches into the interface component.
+
+## Decisions Thomas took. Do not re-litigate
+
+- BFD strict mode implements `draft-ietf-idr-bgp-bfd-strict-mode-19` in full,
+  capability 74 and the FSM changes, rather than a local-only policy (2026-09-08).
+- The RFC 5882 Section 4.4 gap is fixed by making the two request builders agree
+  on the key. Not by refusing the overlapping configuration, and not by deferring
+  it to another spec (2026-09-09).
+- update-delay AC-2 is AMENDED, not implemented: the feature defers the initial
+  routing update, not best-path selection. Best-path still runs during the hold,
+  so the CPU saving the original wording implied is not delivered (2026-09-09).
+- as-notation review rounds 6, 7 and 8 were each authorised individually, and the
+  spec closes with no ninth round (2026-09-09). Round 7 was the exhaustive
+  parser-driven sweep, round 8 added the permanent gate.
+
+## Recorded, not fixed
+
+- `plan/journal/absent-value-is-a-distinct-identity.md`: a pinned `bfd session`
+  and a strict peer to one neighbor build different keys when only one of them
+  names a local address. Distinct from the Section 4.4 finding above.
+- `plan/journal/silent-fall-through.md`: `zeTestParseRunCLI`
+  (`internal/test/cli/cmd_bgp.go`) prints usage on an unknown verb and returns
+  nil, so a suite run with a wrong verb exits 0 having run nothing. The one-line
+  repair moves an exit code every runner caller reads.
+- `plan/journal/lint-contract-not-applied.md`, `plan/journal/unwired-feature.md`
+  (the BGP notification block has no emitter), and
+  `plan/journal/comment-describes-superseded-behaviour.md`.
+- Two verification-debt rows against `c3b6433ba8` in
+  `plan/verification-debt/fcd89c36.md`.
+
+## What this session would tell the next one
+
+Every defect worth finding was found by breaking the code on purpose and watching
+what did NOT go red. Reading a test never found one. In the order they were met:
+a handler tested by calling the handler; an FSM error tested by driving the FSM;
+a timer whose arming and whose firing were each tested while their connection was
+not; a `show` command registered in an `-api` module so no CLI path reached it,
+with its registration test written in a package that could not see the module; a
+golden file pinning `neighbor_as: 0` as correct; an interop scenario whose two
+sides built different session keys, so it passed with the feature removed; and a
+discrimination run that broke the wrong one of two textually identical guard
+lines and reported the wrong conclusion.
+
+The new gate is `checkNumberParseSites` (`internal/le/repository/numberparse.go`).
+It refuses a new 32-bit text-to-integer parse in product Go that
+`numberparse-allowlist.txt` does not record. It states four blind spots at the
+producer, and the one that matters is `validateUint`
+(`internal/component/command/argvalidate.go`): it is the YANG-typed pre-handler
+validator, so a command input leaf typed `zt:asn` would refuse a dotted AS number
+before any handler reached `asn.Parse`. Every AS command input leaf is
+`zt:asn-notated` today, and that is the only thing keeping it dormant.
+
+## Update, 2026-09-09, after two commits landed
+
+The section above was written when only as-notation had committed. Two things
+changed since, so read this before acting on the TO DO list above.
+
+### What is now in HEAD
+
+| SHA | What |
+|-----|------|
+| `c3b6433ba8` | as-notation, 140 files. `asn.Of` and `applyASNotation` are in HEAD |
+| `a8f7323f64` | BFD strict mode, 51 files, the self-contained half only |
+
+`a8f7323f64` is NOT a closure commit. `plan/spec-bgp-bfd-strict.md` stays
+`in-progress` and its three round-6 issues stay open. They are listed in the
+commit body verbatim, so `git show a8f7323f64` is the authority rather than this
+file.
+
+### What BFD held back, and why it is the crux
+
+BFD landed its own component, the capability, the FSM, the doctor check, the
+OSPF and static subscribers, the lab and the scenarios. It held back the whole
+REACTOR half, eight files, because each one reaches into another spec:
+
+- `session.go` carries paths-limit fields whose types live in an UNTRACKED
+  `session_paths_limit.go`, which needs `nlrisplit` symbols HEAD does not hold.
+  That belongs to a fourth session, not to any of these three specs.
+- `peer_run.go` calls `updateDelayPeerDown`.
+- `internal/component/plugin/types_bgp.go` widens `ReactorIntrospector` with
+  `UpdateDelayStatus`, which would break five `mock_reactor_test.go` files
+  without `reactor/update_delay.go`.
+- `reactor_api.go`, `peer_bfd.go`, `session_bfd_strict.go`, `session_handlers.go`,
+  `session_connection.go`, `peer_settings.go`, `config.go` and `cmd/peer/*` sit
+  behind the same three facts.
+
+Carrying them would have landed three specs under a review artifact covering
+one. That was the right refusal and it should not be reversed by a later session
+in a hurry.
+
+### TO DO, replacing the list above
+
+1. **update-delay commit. NOT DONE.** It was started and stopped on request
+   before it committed; it left nothing staged and nothing half-written, and HEAD
+   was unchanged. All of its work is still only in the working tree, and it is
+   the most exposed thing in this checkout: finished, reviewed, and undefended
+   against another session's overwrite.
+   It owns `types_bgp.go` and `updateDelayPeerDown`, so its commit is what puts
+   `UpdateDelayStatus` into HEAD and unblocks everything below. Two commits from
+   one script: code plus spec plus journal row, then the spec removal.
+
+   **Its review artifact will not survive.** It was written under `tmp/review/`,
+   which `.gitignore` line 12 excludes as `tmp/*`. `internal/le/commit` refuses a
+   closure commit without a clean, hash-pinned artifact covering every reviewable
+   file, so a session that cannot find it MUST run a fresh review pass rather
+   than reach for `review-override`, which records verification debt and is an
+   explicit owner decision.
+
+   What the lost artifact recorded, so the fresh pass knows what was already
+   done: verdict CLEAN over 37 files, four review rounds, the last two returning
+   0 BLOCKER and 0 ISSUE. Round 1 found the numerator and denominator counting
+   different peer sets; round 2 found the `show bgp update-delay` command
+   unreachable because it was declared in an `-api` YANG module; round 3 was
+   clean; round 4 confirmed the fixes. Closure then found one more blocker four
+   rounds had missed: the command declared no answer shape, so it published every
+   pipe operator over an answer holding no rows. All are fixed in the working
+   tree.
+2. **The paths-limit dependency.** `session_paths_limit.go` is untracked and its
+   `nlrisplit` symbols are not in HEAD. Until that session lands them,
+   `session.go` cannot be committed by anybody, and the BFD reactor half is stuck
+   behind it. This is the single biggest blocker in the tree and it belongs to
+   neither of the two specs still open here.
+3. **BFD reactor half.** Once 1 and 2 are in HEAD, commit the eight held files.
+   Then fix the three round-6 issues, then round 7, which needs Thomas's
+   authorisation, then closure.
+4. **as-notation commit B.** Needs `reactor_api.go` and `cmd/peer/peer.go` in
+   HEAD, which is step 3. Then the four red tests go green and the spec is
+   removed. Why it stayed open is written out under "State" above, not in the
+   gitignored ack file.
+
+   Its own review artifact is gitignored too and will be gone. It recorded a
+   clean verdict over 124 code files across EIGHT rounds, six of which Thomas
+   authorised individually past the five-round cap. `owner-authorised` was
+   passed because the tool refuses more than five rounds without it, and the
+   text quoted only his real authorisations: rounds 6, 7 and 8 on 2026-09-09,
+   and his decision to close with no ninth. A fresh pass covering commit B's
+   files is what a later session owes if the artifact is missing.
+
+### Two things not to disturb
+
+- `plan/journal/green-that-could-not-have-been-red.md` and
+  `plan/learned/011-a-forced-red-proves-only-what-ran.md` are STAGED in the
+  shared index and belong to another session. Leave them staged. Do not carry
+  them into a commit and do not unstage them.
+- BFD's commit repaired a read-modify-write race in
+  `internal/le/interoplab/bgp/checkers.go`: its working copy had lost the
+  paths-limit session's `bgp-paths-limit-frr` scenario entry, restored from HEAD
+  before committing. If that file looks wrong again, suspect the same race rather
+  than a deliberate deletion.
+
+# spec-config-apply-ordering-covers-every-root (2026-09-08/09)
+
+## State
+
+Four commits are in HEAD. The spec is `in-progress` in `plan/immediate/` and is
+claimed by session `cbc36cee`. Every assumption A-1 to A-7 is closed, and the
+Integration and Documentation checklists are answered with evidence.
+
+| Commit | What it made true |
+|--------|-------------------|
+| `a6ea1ad0b` | Every participant with a diff is a node in the operation graph. The section-apply fallback and its `Info` line are deleted |
+| `6ffcdaf25` | The plugin ABI holds no operation label. Ordering reads a verb (`create`, `destroy`, `modify`) and the target's `ResourceKind`. A verbless operation aborts |
+| `e3ab3dd1d` | Edges derive from declared `produces` and `consumes`. The nine hand-written produce/consume rules are deleted |
+| `bbe42da682` | A rolled-back peer returns as the reactor had it. AC-7 is proven. The address-swap and mixed-root tests land written and UNPROVEN |
+
+## What the change found, and it is the reason the spec existed
+
+Three separate pieces of this subsystem were not running, and each was invisible
+because the thing that would have reported it was the thing that was off.
+
+1. **The ordered path had never run.** `TxCoordinator.Execute` took it only when
+   operations existed AND no participant was uncovered. Twenty-two BGP plugins
+   declare `WantsConfig: bgp` and not one registers a decomposer, so every bgp
+   reload was uncovered and fell to the unordered section apply, reporting
+   success.
+2. **`modify-peer` on that path was a remove followed by an add.** Turning
+   coverage on would have bounced every BGP session on every reload. It now asks
+   `peerSettingsSwapPlan`, the decision the section apply already took.
+3. **Two of the nine rules did not do what their names said.**
+   `iface-remove-address-before-interface` never fired once: its relation
+   compared `opIfaceName` of the address operation against `opAddrIface` of the
+   interface operation, and an interface operation carries its name in
+   `Target.Name`, which `opAddrIface` does not read, so the right side was empty
+   for every pair it ever saw. `bgp-add-address-before-peer` selected the
+   `add-peer` label, so a `modify-peer` rebinding the same address got no edge.
+   The derivation produces both edges and loses none of the others.
+
+## TO DO, in order. The first item is the only real work
+
+1. **The QEMU discrimination walk for two tests.**
+   `test/reload/config-apply-ordering-address-swap.ci` (AC-4, and it is what
+   closes D4) and `test/reload/config-apply-ordering-mixed-root.ci` (AC-1) are
+   written, committed, and prove nothing yet. Both carry
+   `option=needs-linux:caps=net-admin` and skip on darwin.
+   `./le qemu netns-test` does NOT cover the reload suite: its selector is
+   `firewall,policy,ospf,ospfv3,pppoe` (`internal/le/qemu/actions.go`). The route
+   is `./le qemu run` with the reload suite as its command, per
+   `docs/architecture/testing/qemu-integration.md`. The reverts are named in the
+   spec: for `address-swap`, make `tryRelaxCycle` return the unreduced edge set;
+   for `mixed-root`, reinstate the uncovered-participant condition that
+   `a6ea1ad0b` deleted. Both halves of a pair MUST come from one tree.
+2. **`./le verify worktree` green on a committed tree.** A Goal Gate. Three
+   verification-debt rows are open under `plan/verification-debt/4c26aef3.md`.
+3. **The Review Gate**, `/ze-review` looped to zero BLOCKER and zero ISSUE,
+   recorded through `./le spec session review record`. It must be independent of
+   the agents that wrote the code.
+4. **Learned summary, then the two-commit closure.** Commit A carries code, spec
+   and the learned file; commit B is `git rm` of the spec alone.
+
+## Open findings, recorded not fixed. Thomas's to schedule
+
+- **`Params.OldConfig` (`pkg/plugin/rpc/types.go`) has no first-party reader.**
+  The remove path reads the running peer instead, so the BGP decomposer still
+  fills the field and nothing consumes it. Deleting it also deletes two
+  assertions in `internal/component/bgp/plugin/operation_test.go`. Left in place
+  for the owner to route.
+- **`spec-peer-deactivate-and-bulk-route-purge` states that `OperationRemovePeer`
+  lives in `pkg/plugin/rpc/types.go`.** Commit `6ffcdaf25` made that false. It is
+  another spec's row to correct, not this one's.
+- **A plugin startup race**, journalled in
+  `plan/journal/plugin-startup-barrier-deadlock.md`. A peer dials while the
+  plugins are still in stage 4, so the engine issues `validate-open` on a
+  connection whose coordinator waits for `share-registry`, and every internal BGP
+  plugin dies. It reproduced in 3 of 5 `./le functional reload` runs on
+  2026-09-08, two of them on an idle machine. The row's earlier claim that
+  concurrent load opened the window is corrected in place. It is NOT this
+  change: the failure is at daemon startup, before any config transaction runs.
+- **`config-apply-ordering-rotation` timed out once in five runs** on the phase-1
+  tree, at 30.0s against a 2.2s average, reporting "all expected messages
+  received but test still timed out". Not reproduced in three later runs. Its
+  note lives in the spec's phase 4 step.
+- **No `./le test-unit` area covers `internal/component/iface`.** Its tests were
+  run through `./le job run label iface-unit command go test ./internal/component/iface/`.
+
+## Decisions already taken, do not re-litigate
+
+- **The coarse node is applied through the existing `config-apply` RPC**, not
+  through `config-operation-apply`. The five `config-operation-*` callbacks have
+  no SDK default (`initCallbackDefaults`, `pkg/plugin/sdk/sdk_callbacks.go`), so a
+  plugin that registered none answers "unknown method" and the transaction aborts.
+- **The coarse node owes no per-operation verify.** Phase 1 verify already covered
+  its participant's whole candidate config.
+- **A payload with no verb is refused, never defaulted to `modify`.** Ze is
+  pre-release with no shipped external plugin, so no compatibility shim exists.
+- **The BGP labels live in `internal/core/bgp/configop`, not in
+  `internal/component/bgp/plugin` as the spec's letter said.** The reactor applies
+  those operations and cannot import the plugin without pulling a plugin's
+  registration into the engine, and the plugin cannot import the reactor because
+  `events_import_test.go` is `package reactor` and blank-imports it.
+  `internal/core/bgp/events` is the precedent. The reason is written into the
+  spec's Files to Modify as a `→ Decision:`.
+- **A rolled-back peer's settings come from the RUNNING peer**
+  (`runningPeerSettings`, `internal/component/bgp/reactor/operation.go`), not from
+  a parse of the operation's config subtree. The subtree parse dropped eleven
+  kinds of state, not only `StaticRoutes`: the peer's own `Name` and `GroupName`,
+  `PluginRoutes`, both filter chains with their canonicalization and prepended
+  defaults, the loop-detection policy, the cluster id, redistribute process
+  bindings, the test port override, group and bgp inheritance, YANG defaults with
+  no Go constant, and inactive-node pruning.
+- **Thomas declined a worktree for the walk** (2026-09-08) and chose to wait for
+  this checkout. Do not create one without asking again.
+
+## Environment note
+
+This checkout was rebuilt under three agents on the night of 2026-09-08:
+`internal/component/bgp/reactor`, `internal/component/plugin/coordinator.go` and
+`internal/component/sysrib/sysrib.go` each refused to compile in turn, from other
+sessions' in-flight work. It healed later that night and the whole reload suite
+went 44 of 44. A red and a green taken across two different trees are not a pair,
+so nothing was recorded from the runs that straddled a rebuild. Expect to check
+that the tree builds before starting item 1.
