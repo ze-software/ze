@@ -1,402 +1,180 @@
-# Continue: the spec-closing sweep (session close-them-all, 2026-09-07/08)
+# Continue: the VyOS-derived subscriber specs (session `inspired`, 2026-09-08/09)
 
-Stopped on request mid-way. Nothing is half-committed: the interrupted closure was
-killed before it wrote anything, and `git status` shows no edit of its spec or of
-`plan/.citation-baseline`.
+Stopped on request, out of budget. Nothing is half-committed: three specs closed
+cleanly with two commits each, and the fourth is coherent uncommitted work whose
+last agent was killed mid-phase.
 
-## 1. Decisions
+The previous handover, the spec-closing sweep of 2026-09-07/08, is spent and has
+been removed. Two of its open items resolved themselves: `spec-verification-debt-clearing`
+is closed, and `test/rfc-changed/1bfe298a.md` no longer exists. One survives and is
+carried in section 5.
 
-### Still waiting on Thomas
+## 1. Where this came from
 
-| Decision | State |
-|---|---|
-| Run `plan/immediate/spec-verification-debt-clearing.md`? | `ready`, unstarted. It is the only thing that opens the push gate |
-| Read `plan/spec-liveness-event-tears-down-bgp-peer.md` | `design`, 13 ACs, written this session, never reviewed by him |
-| Event naming in that spec | Proceeding as `liveness` / `peer-down` / `keepalive-expired`. His own phrasing was "tcp failure with IP". Recorded as Q-1; renaming before implementation costs three constants and one YANG grouping name |
+Thomas asked what in a VyOS security advisory (twelve accel-ppp defects) applied to
+Ze. Six audits established that eight of the twelve cannot reproduce here: four are
+protocols Ze does not speak (SSTP, PPTP, IPoE, NHRP), and stack buffer overflow plus
+uninitialized-memory disclosure are C failure modes Go removes. The RADIUS
+authentication bypass, the one item that transfers as pure logic, is already closed
+in Ze: a reply is matched on server plus Identifier and verified against the Response
+Authenticator before the pending request resolves.
 
-### Answered, and what each answer authorized
+Four real defects came out of the audits, each became a spec, and three are now in HEAD.
 
-| Answer | Words | What it authorized |
+## 2. Done, no action needed
+
+| Spec | Commits | What it fixed |
 |---|---|---|
-| 2026-09-07 | "ok for the tests" | The six RFC-tagged IS-IS tests, `c.SendHello()` gaining a level argument |
-| 2026-09-08 | "the 2 ci are approved" | `test/l2tp/rfc2661-emitted-control-shape.ci` and `rfc/discrimination/rfc2661.json`. Landed at `db8d8ac81`, approval row in `test/rfc-changed/5e2d7854.md` |
-| 2026-09-08 | "TestMD5PeersForListener approved" | The `s4.Port` to `s4.LocalPort` setup-field change. **Given, but unrecordable: see below** |
-| 2026-09-08 | "Demote 42 unheld specs to ready" | Done at `9e17145f0`. In-progress went 52 to 8 |
+| `pppoe-discovery-omits-the-mandatory-service-name-tag` | `0e1543cc9a`, `e03d31b81e` | PADO and PADS always carry exactly one Service-Name tag; a tagless PADR is refused. Closed RFC2516-5.2-2, the one published MUST gap for PPPoE |
+| `pppoe-padr-replay-allocates-unbounded-sessions` | `4efaa4fd8d`, `75e3a2ef43` | A replayed PADR no longer allocates without bound. Per-MAC cap, multi-session MAC index, cookie-keyed dedup, and a `Session.State` data race closed |
+| `ipv6cp-accepts-and-proposes-a-zero-interface-identifier` | `fd7cd7b44e`, `3fd87369fb` | All four RFC 5072 Section 4.1 outcomes, the pppd one-shot Nak guard, and a suggestion generator that clears the "u" bit |
 
-### The approval he gave that the tooling cannot store
+Each Review Gate found a defect all its implementation phases had missed. That is
+the pattern worth budgeting for: the gate is defect-finding, not paperwork.
 
-All seven RFC-tagged tests are now genuinely approved, and `test/rfc-changed/1bfe298a.md`
-is corrected to say so. It is still UNTRACKED, and every route to landing it fails:
+## 3. The one spec still open
 
-- Committing it refuses, because it is session `1bfe298a`'s shard and any current session
-  is not that session (`ForeignShardProblems`, called at `internal/le/commit/prepare.go:221`).
-  No override keyword exists.
-- Committing under `session 1bfe298a` passes that check and then destroys the rows:
-  `rfcChangeProblems` returns an empty keep set when the commit changes no tag carrier, and
-  a `.md` is not a carrier, so `PruneLanded(root, rfcShard, nil)` rewrites the file and
-  drops every row (`internal/le/commit/prepare.go:258`, `internal/le/testweakened/shard.go:192`).
-- Renaming it into the current session's shard hits the same prune.
+`plan/immediate/spec-subscriber-reader-loops-retry-a-failing-socket-without-backoff.md`,
+`in-progress`, Phase 5/6, claimed by the stopped session. **Release the claim before
+starting: `./le spec session release`.**
 
-So an owner approval given AFTER the change landed has no home. An `rfc-changed` row only
-survives a commit that changes the tagged test in the same commit. **This is the same shape
-of problem as `spec-verification-debt-clearing` and belongs folded into it.** Do not force
-the file in; landing it empty is worse than leaving it corrected and untracked.
+### Done and verified, phases 1 to 4
 
-**The 2026-09-06 approval conflict is resolved by those answers, not by the old
-record.** Untracked `test/rfc-changed/1bfe298a.md` asserted that Thomas approved all
-seven tagged tests on 2026-09-06, while the committed rows in
-`plan/verification-debt/1bfe298a.md` for the same commits said he had never been asked.
-He has now approved all seven himself, on the dates above, and that file is corrected to
-record the approvals actually given. It stays UNTRACKED because no route lands it with its
-rows intact, not because the correction is unfinished.
+`internal/core/pacer` holds `Pacer`, a value type whose zero value is ready to use.
+`Wait(stop <-chan struct{}) bool` returns true when the caller must exit, reuses one
+timer so it allocates nothing after the first wait, and selects on the caller's own
+exit signal. `Succeed()` resets. Growth doubles from a 10ms step to a 250ms ceiling.
 
-Note for whoever picks this up: no command can clear a row whose gate is
-`owner approval for an RFC-tagged test change`. `clearDebtWith`
-(`internal/le/commit/actions.go:290`) diverts that gate name and
-`independent critical review` into an unrunnable set before a runner is chosen, and
-`passed` is only ever filled from the runnable ones. So those ledger rows stay open
-even though the approval now exists, and hand-editing them to `cleared` is not the
-repair. `spec-verification-debt-clearing` is.
+All four receiver loops pace, log and count:
 
-## 2. Where the sweep stands
+| Loop | File | Exit signal |
+|---|---|---|
+| `(*UDPListener).readLoop` | `internal/component/l2tp/listener.go` | `u.stop` |
+| `(*Subsystem).discoveryReader` | `internal/component/l2tp/pppoe/subsystem.go` | a stop channel this work added, it had none |
+| `rsReaderLoop` | `internal/component/l2tp/ppp/ra_linux.go` | `ctx.Done()` |
+| `dhcpv6ServerLoop` | `internal/component/l2tp/ppp/dhcpv6_linux.go` | `ctx.Done()` |
 
-Of 63 in-progress specs, 3 were held by live sessions and 60 were held by nobody.
-Triage classified all 60. **All 15 closable specs are now closed, and in-progress is 3** —
-exactly the three a live session holds.
+Three counters, one per package, because `ppp` cannot import `pppoe` or `l2tp`:
+`ze_l2tp_listener_read_errors_total`, `ze_pppoe_discovery_read_errors_total`, and
+`ze_ppp_reader_errors_total` with a `loop` label. Each binds through
+`registry.InjectPluginMetrics`, never `GetMetricsRegistry`.
 
-Closed here: `isis-per-level-hello-timers`, `l2tp-shaper-upload-rate-is-not-enforced`,
-`ldp-keepalive-time-proposal`, `peer-local-port-overwritten-by-remote-port`,
-`plugin-respawn-leaf-restarts-nothing`, `router-advertisement`,
-`mgmt-version-header-suppress`, `vpp-isolated-cpus`,
-`rfcgate-2-deferred-nonunit-evidence-backfill`, `cli-show-bgp-answer-shapes`,
-`image-server-listen-interface-drops-entries`, `qemu-targets-boot-the-shipped-kernel`,
-`plugin-declares-answer-shape`, `bgp-pcap-decode`,
-`commit-end-reports-what-each-peer-took`.
+Verified: `go vet` clean on darwin and `GOOS=linux`, `-race` green across the l2tp
+tree and the pacer, and a third `./le verify lint run` showing zero findings on
+these files.
 
-Two of the fifteen carried a proof gap, and neither was accepted. `bgp-pcap-decode`
-claimed AC-2 on Ze's own reader, built in the same commit as the writer, so it agreed by
-construction; `tcpdump` turned out to be installed here and dissected a Ze-written capture
-independently, so the criterion is genuinely proven. `commit-end-reports-what-each-peer-took`
-had a committed `.ci` nobody had run; running it went RED over a real defect and the fix is
-in HEAD.
+### Owed, phases 5 and 6
 
-**The closure record, for reference:**
+**Phase 5, item 1, and it needs a judgement rather than an edit.** `waitForPADO` and
+`waitForPADS` (`internal/component/l2tp/pppoeclient/dialer.go`) poll with a
+`runtime.Gosched()` in a `select` default arm. The spec's AC-9 says make the read
+block instead. **The spec may be wrong here and the agent was told to say so:** the
+socket carries `SO_RCVTIMEO` at roughly 100ms, so a blocking read cannot check
+`stopCh` more often than that, trading a bounded busy poll for a slower stop. Unlike
+the other four, this loop is already bounded by `discoveryTimeout`. Read
+`tryReadPADO` and the socket setup, decide, and record the tradeoff. `dialer.go` is
+already modified and `dialer_test.go` is untracked: that is this spec's own killed
+phase 5, not another session's work. Read the diff before continuing it.
 
-| Spec | Note |
+**Phase 5, item 2.** `TestReadLoopAllocationsPerPacketUnchanged`, for AC-8.
+`readLoop` builds its slot pool, free channel and release closures once at goroutine
+start, and the pacer was designed to hold that. An allocation assertion over the read
+path, not a benchmark nobody reads.
+
+**Phase 6.** The functional scenario for AC-1: a socket in a persistently failing
+state leaves CPU low while the log and the counter show it. The spec calls it
+`subscriber-reader-failing-socket`. `test/qemu/` does not exist, so find the right
+suite directory, and add the name to `netnsSelections` in
+`internal/le/qemu/netns_linux.go`. That list is explicit: `validateNetnsSelection`
+refuses a named test with no file but never notices a file nobody named, which is how
+two `netns-link` tests under `test/plugin/` came to run nowhere.
+
+**Then closure**, on Opus 5 in a fresh context, through `/ze-close`.
+
+### What the Goal Validation table must say, honestly
+
+Three `ppp` tests are written and cross-compile-verified but **never executed**:
+`TestRSReaderLoopPacesAFailingSocket`, `TestRSReaderLoopStopsPromptlyWhilePacing`,
+`TestDHCPv6ServerLoopPacesAFailingSocket`. They are `//go:build linux` and this host
+is darwin. Do not record them as green.
+
+## 4. Decisions waiting on Thomas
+
+| Decision | Why it is blocked |
 |---|---|
-| `spec-plugin-declares-answer-shape` | CLOSED 2026-09-08. Its gate found a plugin's declared column and address-field names were length-bounded and nothing else, while the completer offers each as a `\| display` candidate and the renderers write it as a header — so an ESC in a declared name reached the operator's terminal as an ANSI sequence and a tab broke the completion format |
-| `spec-bgp-pcap-decode` | CLOSED 2026-09-08. The tree no longer holds the file, so the name is written bare. The AC-2 proof gap is gone rather than accepted: `tcpdump` is installed on this host and dissected a ze-written capture as BGP. One item is homed, `plan/spec-bgp-pcap-decode-real-capture-fixture.md`, for a fixture taken off a real network |
-| `spec-commit-end-reports-what-each-peer-took` | CLOSED 2026-09-08. The tree no longer holds the file, so the name is written bare. The proof gap is gone rather than accepted: `test/plugin/commit-end-per-peer-report.ci` was RUN, went RED at HEAD over a real defect (the error sentence naming each refused peer reached no caller, because `(*Server).dispatchCommandResponse` discards the whole response when a handler returns an error beside it), and is GREEN after the fix |
-| `spec-image-server-listen-interface-drops-entries` | CLOSED 2026-09-08. The tree no longer holds the file, so the name is written bare |
-| `spec-qemu-targets-boot-the-shipped-kernel` | CLOSED 2026-09-08. The tree no longer holds the file, so the name is written bare. All 7 ACs re-verified against the producers that survived the `eae282592` migration |
+| **The four generated RFC index files, third deferral** | `rfc/enrolled.txt`, `rfc/not-enrolled.txt`, `ai/RFC-REQUIREMENTS.md`, `docs/features/rfc-status.md` are held back across three closures. `./le rfc index-update` is whole-tree, so this session's real corrections are mixed with a `Supported` row for `draft-ietf-idr-bgp-bfd-strict-mode`, whose producer is NOT in HEAD. Publishing it would claim conformance for absent code. `plan/spec-bgp-bfd-strict.md` is `in-progress` and **no live session holds it**, so nothing schedules the refresh. Landing this session's half needs one `./le rfc index-update` in the same commit as that untracked summary, which only that abandoned spec's closure can do |
+| **A closed spec came back** | `plan/immediate/spec-ipv6cp-accepts-and-proposes-a-zero-interface-identifier.md` was correctly removed by `3fd87369fb`, then rewritten to disk at 12:22 still reading `in-progress` Phase 5/5. Content is preserved in `fd7cd7b44e`, so nothing is lost, but the backlog now shows a closed spec as open and `/ze-status` counts it. NOT deleted: `ai/rules/never-destroy-work.md` needs your word first |
+| **The fabricated-citation class** | `plan/journal/claim-outlives-the-evidence-it-cites.md` holds 47 rows, three of them fabricated RFC quotations or non-existent section numbers. This session's own agents attributed "MUST NOT be all zeros or all ones" to RFC 5072 Section 4.1 (that sentence is not in the document) and cited "RFC 5072 Section 3.2" eight times (that section does not exist). All corrected, none remain. The class has earned a deliberate pass, plausibly a gate: a citation naming a section number is mechanically checkable against the RFC text, which would have caught all eight |
+| **`RFC5072-4.1-11`** | Ze's own tentative interface identifier does not clear the "u" bit, so Ze sends in its own Configure-Request a value it now refuses to suggest to a peer. Honestly recorded as a `{gap}`. Roughly two lines now that `suggestIPv6CPInterfaceID` owns the machinery, but it changes what Ze puts on the wire and owes a tagged test plus a discrimination record. Wants its own spec |
+| **`plan/spec-liveness-event-tears-down-bgp-peer.md`** | Carried from the previous handover. `design`, 13 ACs, written 2026-09-07, never reviewed by you. Its event naming is proceeding as `liveness` / `peer-down` / `keepalive-expired`; your phrasing was "tcp failure with IP". Renaming before implementation costs three constants and one YANG grouping name |
 
-**The 45 that are NOT closable.** 42 are partly built and 3 were never started
-(`finish-l2tp`, `mpls-9-rsvp-te-one-to-one-backup`, `bgp-deferred-confederation-otc`).
-For those, `in-progress` is a status lie, not finished work: nobody holds them.
-The `more` session's point, which is right and shaped this sweep, is that the
-truthful status for an unheld spec with outstanding ACs is `ready`, keeping the
-Phase field. It is what makes the WIP cap of 12 mean something again.
+## 5. Two new specs, approved but not started
 
-**Done at `9e17145f0`.** 44 specs demoted, in-progress 52 to 8, ready 21 to 62. The three
-that had not reached `ready` went where their own text put them: `finish-l2tp` to
-`skeleton`, `mpls-9-rsvp-te-one-to-one-backup` and `bgp-deferred-confederation-otc` to
-`design`. Two specs whose prose claimed "UNCOMMITTED" over landed code were corrected in
-the same commit and now name the SHA.
+Written this session from your ask for per-user traffic reporting like accel-ppp's.
+Both are `design`, both uncommitted, and you chose the two-spec split and all four
+surfaces.
 
-That left 8 at `in-progress`; the 5 awaiting closure have since closed, so **3 remain**,
-all held by live sessions:
-`spec-verify-scope-5-suite-coverage-map` (main-43), `spec-ipsec-rfc9190` (session 9cd3fea7)
-and `spec-test-peer-open-inherits-zes-identity` (session ebcdd865). The last two were found
-during the sweep, not before it, by their per-spec state files being written minutes
-earlier. **Re-ask the peers before touching any spec: two of the three holders named at the
-start of this session had closed and deleted their specs by the end of it.**
+**`plan/immediate/spec-pppoe-subscribers-produce-no-accounting-or-telemetry.md`** is
+the dependency and the smaller surprise. The collection already exists and works:
+`iface.GetStats` reads per-session `pppN` netdev statistics, baseline-corrected by
+`(*baselineStore).applyBaseline`, feeding RADIUS accounting, a Prometheus poller and
+one CLI command. It reaches L2TP only, because `(*radiusAcct).subscribeEventBus`
+subscribes to `l2tpevents` while PPPoE emits `subevents`, and `(*Subsystem).Start`
+builds the poller over the L2TP reactor list. `subscriber.Session` already carries
+`AccessType` and `PppInterface`, so there is no new collection to build: the fix is to
+consume the shared layer. It also repairs a fail-open, where a failed stats read
+appends `Acct-Input-Octets = 0` and a billing system cannot tell that from an idle
+subscriber.
 
-Two findings from that sweep, recorded as journal rows rather than fixed:
+**`plan/immediate/spec-subscriber-utilisation-has-no-operator-view.md`** is the views:
+counters on `show subscriber`, a per-session form, web and gNMI. Two defects it also
+closes: `show l2tp session id`'s YANG help promises traffic counters that
+`sessionJSON` never emits, and the one command that does show counters has no
+per-session form because its YANG container declares no id leaf.
 
-1. **8 of the 44 specs are refused by their own write-time validator at HEAD content**
-   (`hookValidateSpec`), six for design documents their code declares and the spec never
-   names. Proven to predate the status edit by restoring `in-progress` on one and
-   re-running the hook. Any session editing those 8 is blocked by someone else's
-   authoring gap.
-2. **The `plan/` shell-write guard fails open two ways.** `governedSed`
-   (`internal/le/hookruntime/bash.go:34`) requires the literal `plan/` in the same command
-   segment, so `while read f; do sed -i ... "$f"; done` rewrote 44 specs unrefused while a
-   `cat >` heredoc creating one file was blocked. And `governedRuntime`
-   (`bash.go:37`) is `\b(?:perl|ruby)\b`, so a `python3` heredoc writing into `plan/`
-   is not caught at all.
+## 6. Constraints a resuming session must know
 
-Four specs carry status text their own git history contradicts, claiming
-"UNCOMMITTED" or "in flight" over code that landed: `commit-stages-in-a-private-index`,
-`ledger-shards-per-commit-session`, `test-parse-ci-parser-refuses-an-unread-directive`,
-`interop-image-copies-a-prebuilt-ze`.
+**This host cannot run the interop or QEMU labs.** Docker's kernel carries no `pppoe`
+module (`host kernel missing PPPoE requirements: pppoe (PPPoE pppox kernel module)`)
+and `./le qemu pppoe-test` exits 1 with `qemu guest evidence requires Linux`. Four
+scenarios and four `.ci` tests were written across this session's specs and NONE has
+ever executed. They are honest, registered, and unproven. A Linux host with PPPoE
+kernel support is what they owe. Do not weaken them to reach green.
 
-## 3. Constraints a restarting session must know
+**Two interop scenarios cannot pass even on Linux, and that is correct.**
+`ipv6cp-zero-identifier` and `ipv6cp-missing-option` fail fast with
+`errIPv6CPNeverEngaged` because IPv6CP is unreachable in a shipped daemon:
+`poolPlugin.handle` declines every non-IPv4 family and `runNCPPhase` sets
+`disableIPv6CP` before any client frame arrives. `plan/spec-l2tp-ipv6-subscriber.md`
+is what switches the path on, and its text now names running them.
 
-- **Close ONE spec at a time.** The skill requires it and the reason is real: closures
-  commit, and the index is shared with four other live sessions.
-- **`./le` does NOT rebuild on every invocation.** The normal path calls
-  `warn_when_stale` (`le`), which only prints "bin/le is older than committed sources"
-  when a COMMITTED source is newer than the binary; `build_le` runs on `--update` or
-  when the binary is missing. So an edit under `internal/le/` becomes live for another
-  session when that session next updates, not the instant you save it. This session
-  believed the opposite and sequenced work around it: the ledger dedup was held behind
-  a running closure, and closures behind the dedup, for a hazard that was not there.
-  The real care owed is still real, just smaller: a committed non-compiling
-  `internal/le/` breaks every session that updates after it.
-- **A closure costs 210k to 300k tokens and 30 to 90 minutes.**
-- **`./le verify worktree` pins its subject at launch** (`internal/le/verify/lifecycle.go:150`
-  resolves an empty commit to `HEAD`, rev-parsed at `:350`) and runs over an hour. Its
-  verdict therefore always describes an ancestor of the tree it was asked about, and
-  every commit made during it lands "not FRESH-green" by construction. Do not start one
-  during a closure; carry the debt row instead.
-- **Run Go tests with the tag set from `feature-gates.txt`.** A bare `go test` produces
-  phantom reds here, and one closure agent was fooled by exactly that.
-- **The agent-spawn hook refuses prompts matching a `ze-*` skill trigger.** The words
-  `BLOCKER`, `audit ... change` and `review ... code` in an agent prompt get the call
-  blocked (`internal/le/hookruntime/agent.go:19`). Name the skill or reword.
+**The IDE diagnostics in this harness are consistently stale.** Seven times this
+session they reported undefined symbols or unused functions that a real `go vet`
+showed clean, because they snapshot a mid-edit state. Verify with the registered
+action before acting on one.
 
-Sessions holding specs when this stopped, do not close these: `more` holds
-`fixit-ci-runner-cannot-test-stdin`, `catalog` holds `daemon-backed-command-catalog`,
-`main-43` holds `verify-scope-5-suite-coverage-map` (its phase 3 is blocked on a
-wording decision from Thomas).
+**Lint waves need distinguishing, not dismissing.** A `cache entry not found` wave
+across unrelated stdlib imports is shared-machine build contention: check
+`stat -f cache/go-cache`, never `df` on the checkout, since `cache/` symlinks onto
+another filesystem. But one wave this session was genuinely the agent's own code
+(cross-platform unused symbols, an unchecked type assertion, UK spellings), and
+treating it as noise would have shipped four defects.
 
-## 4. Product defects found and fixed by the gates, worth knowing
+**`pretool-writeedit` refuses a line-number citation in spec prose.** Cite the file
+and the symbol. It also locks a test body once an `RFC requirement:` tag is added,
+including a tag the same session just added and wants to remove, which is recorded in
+`plan/learned/HOOK-FRICTION.md` with the narrower fix.
 
-- A RADIUS-supplied subscriber rate overflowed on multiply: `ParseRateBps("18446744074gbit")`
-  returned 290 Mbit/s and no error, so a subscriber was shaped at a rate nobody
-  configured (`internal/component/traffic/config.go:189`).
-- VPP worker cores were drawn from the kernel's isolated-CPU list without asking whether
-  those CPUs are online, so a hotplugged-out CPU could take a worker after a passing
-  `ze config validate` (`internal/component/vpp/cpuset.go`).
-- The RA doctor check fed a logical interface name to a `/proc` path keyed by the OS
-  device, so an aliased interface silently returned "unknown" and the warning never fired
-  (`internal/plugins/iface/ra/doctor.go`, fixed with `osDeviceOf`).
-- `restartHandshake` delivered the post-startup callback before startup completed, so a
-  plugin exiting between two startup phases got a replacement that ran `OnAllPluginsReady`
-  twice, the first time before the registries were frozen
-  (`internal/component/plugin/server/restart.go`).
-- `request shutdown` could not stop a daemon during startup: the shutdown function was
-  wired hundreds of milliseconds after a plugin could dispatch, and a BGP reactor in the
-  config masked it (`cmd/ze/hub/main.go`).
-- `generateOpen` in the test peer patched only the 2-octet AS and left Ze's own AS in the
-  RFC 6793 AS4 capability, so Ze correctly answered Bad Peer AS. Fixed by
-  `patchAS4Capability` (`internal/test/peer/peer.go:890`). **89 `test/plugin/*.ci` files
-  carry that shape, so this is the likely mechanism behind the standing ~100-case plugin
-  red. Worth re-running that suite first thing.**
+**`./le rfc discriminate-record ... route revert` needs no mutation tool.** One agent
+concluded its tags could not get records because `gomu` is absent; that is wrong.
+`rfc/discrimination/rfc2516.json` and `rfc5072.json` are worked examples.
 
-## 5. Ledger and gate findings
+## 7. How to restart
 
-- The verification-debt ledger was deduplicated at `de31341fd`: 3587 rows became 1270,
-  with the distinct `(shard, gate, reason, status)` count unchanged at 1270. A row now
-  keeps its first covered commit and appends `(+N more)`; the later subjects are
-  recoverable from `git log -- plan/verification-debt/<session>.md`. Currently 1081 open,
-  192 cleared. **This did not open the push gate.** `refusePushWithDebt` still refuses on
-  any open row.
-- `./le rfc check` reads only the tags a commit ADDS against `HEAD^`, so three RFC 2661
-  requirements bound at `functional/verify` sat "proven" by a prose table with no
-  discrimination record and the gate never asked. Fixed for rfc2661; the ratchet's blind
-  spot is not.
-- `27a41cb32` deleted the flat `test/weakened.md` without migrating it into
-  `test/weakened/`, and `acceptedRows` (`internal/le/testweakened/audit.go`) reads only the
-  directory. That is why `./le commit audit` re-flags eight already-accepted weakenings.
-- RFC 4861 and RFC 8106 have no `rfc/short/` summary at all, so 151 MUSTs are unenrolled
-  and invisible to the ledger. Skeleton at `plan/pre-release/spec-rfc4861-rfc8106-enrolment.md`.
-- LDP cannot emit a Notification message at all: `wire.go` has the type constant and no
-  encoder, so every fatal LDP error closes the TCP connection with nothing on the wire.
-  A peer proposing KeepAlive Time 0 is accepted, sets hold time to 0, and dies on the next
-  read deadline reported as a keepalive expiry. Both are inside the liveness spec's scope.
-
-## 6. THE RED LIST: what to focus on next session
-
-**This is the work. Everything else in this file is context.** The verification-debt
-ledger holds 1080 open rows, and not one of them clears until the whole verification runs
-green, so these reds ARE the push gate.
-
-### The sweep that measured it
-
-Thomas ran `debt-clear` as a 45-piece sweep on the other machine (macOS) on 2026-09-08,
-00:16 to 01:40 UTC. Result: **30 pieces green, 15 red, 0 rows cleared, 1080 still open.**
-Its own result file is machine-local at
-`tmp/session/2026-09-08-78638422-.../scratch/sweep-result-20260908-011648.txt`; the numbers
-below are copied here because that path does not exist on this box.
-
-    red this sweep, re-run them: 1 3 4 5 7 10 12 22 23 24 33 40 41 44 45
-    proven: 2 6 8 9 11 13 14 15 16 17 18 19 20 21 25 26 27 28 29 30 31 32 34 35 36 37 38 39 42 43
-
-**Piece 1 is the one that matters:** it carries lint (60 findings) and the full unit run
-(**36 failing packages**). The other fourteen are functional and test-health stages. 36
-failing packages at a committed SHA is the product being red, not scaffolding noise.
-
-### Read the sweep with this caveat, or you will chase a past
-
-It ran over `6b7077807`, which is now an **ancestor of `origin/main` by 61 commits**.
-
-The divergence this section originally warned about is SETTLED: Thomas pushed on 2026-09-08
-and `origin/main` is `9af982e14`, with this checkout level on it and nothing ahead. Both
-machines see the same tip after a fetch, so the next sweep can be run anywhere and measure
-the same tree. Run it at `origin/main`, not at `6b7077807`, or it faithfully re-measures a
-past that is 61 commits old.
-
-Several commits since plausibly move those reds, though NONE has been measured against a
-sweep piece and no such claim should be made without running it:
-
-| Landed since the sweep | Plausibly touches |
-|---|---|
-| `patchAS4Capability` in the test peer | the standing ~100-case plugin red; 89 `.ci` share the shape |
-| `TestReclaimRunsOnlyForAVMBackedRuntime` pin (`20c836767`) | one unit failure, deterministic on any host without `colima` |
-| `ParseRateBps` overflow guard, `restartHandshake` ordering, the control-character refusal | their own packages' tests |
-
-**So the first action is the same command at the current HEAD.** It re-measures the fifteen,
-tests resumption (it should skip the thirty proven), and does it against a tree where a third
-of this session's fixes exist.
-
-### One defect in the sweep itself
-
-An abandoned worktree, `r20`, was left at **0.8 GB** because it held five *untracked* files,
-so the sweep does not reclaim its own space when a piece is killed. Every killed piece leaks
-another 0.8 GB. The rule it applies is the right rule in the wrong place: untracked output
-inside a throwaway verify worktree is generated, which is the one category
-`ai/rules/never-destroy-work.md` explicitly permits acting on.
-
-### Reds seen from this machine, independent of the sweep
-
-`TestNativeImplementationFixture` in `internal/le/rfc` and `internal/le/rules` fails on
-hand-pinned digest drift, a class with 22 rows in `plan/journal/hardcoded-count-in-test.md`.
-`./le spec citation` fails on 8 dangling refs in `spec-remove-takes-the-working-tree-copy.md`
-and `spec-verification-debt-clearing.md`. `./le doc check verify` is red across the BGP
-command surface and `../gh-pages/`. `exabgp api-reload` fails intermittently on an unchanged
-tree. The `ui` suite fails cases including `le-ste-answers`, which hangs past 340s.
-`./le verify lint run` was last seen red on `internal/component/plugin/leaf_test.go` (nilnil,
-from `8788a29f8`) plus darwin-flavor findings.
-
-Two entries that WERE in this list are now gone and are recorded here so nobody re-chases
-them: `internal/component/bgp/plugins/rib` built again once its session committed, and
-`ExtractRemovePrivateASOps` was reported for having no cross-package NON-TEST caller while
-having three in-package ones, so landing it changed nothing.
-
-## 6b. Graceful Restart: its own handover
-
-`plan/handoff-graceful-restart-sender-facts.md` carries the deepest finding of this
-session and is the one document to read before touching Graceful Restart. In short:
-**Ze advertises GR for no address family, Ze does not retain routes when a peer restarts,
-and the 32 `.ci` that should have caught either pass over dead code** — measured with a
-control, not inferred. PATHS-LIMIT enforcement is dead for a third, unrelated reason.
-Three journal rows, no fixes, and the question the fix must settle first is which families
-Ze may honestly claim, which depends on what its FIB does on restart.
-
-## 7. The tidy-up after `open` and `ipsec` (2026-09-08)
-
-Thomas asked this session to liaise with the `open` and `ipsec` sessions, finish what they
-left incomplete, and commit as it went.
-
-**`open` is done.** It committed at `c7aa4e63e` (33 files) and declined a review round
-from this session, correctly: the fifth round is the last a session may spend on its own
-(`ai/rules/planning.md`), and a sixth is Thomas's decision recorded through
-`./le spec session review record --owner-authorised`. Handing the round to another context
-would produce a sixth round with no such decision behind it. Its spec stays `in-progress`
-deliberately, with the reason in `tmp/session/.closure-ack-test-peer-open-inherits-zes-identity`,
-and `plan/learned/008-mirror-asserts-sameness.md` stays uncommitted for the same reason.
-It handed over one spec, `spec-test-peer-open-mirrors-five-more-sender-facts`, closed on
-2026-09-08 and so no longer on disk:
-five sender facts the test peer still asserts about Ze by mirroring them, of which the
-Graceful Restart restart time is the one that makes a real test vacuous.
-
-**`ipsec` is green and blocked on one signature.** It holds 45 files covering RFC 9190
-Section 5.4-2 through 5.4-5 and `RFC5216-5.4-2`, and cannot commit because the change moves
-seven RFC 7296-tagged tests. The whole diff in all seven is one added `nil`, from
-`maintainSA` gaining a `*serverCertRecheck` parameter. It needs Thomas's verbatim words to
-quote in `test/rfc-changed/b5d2a9bd.md`, because an author writing their own approval row
-is a forgery. **Two NAI tests are RED at HEAD until that commit lands**: `anonymousNAI` is
-in HEAD (`internal/core/eap/nai.go`) and its call site is not, because the wiring hunk sits
-in `internal/core/eap/peer.go` beside that session's unlanded OCSP work.
-
-**Work this session did while waiting, all committed:**
-
-- 16 specs that their own write-time validator refused now pass (`2d4f31fcc`, `af45d1735`).
-  Ten had named the pre-commit gate by its old spelling, five never named a design document
-  their code declares, and one was refused because two Go files declared it at `plan/`
-  after it moved to `plan/immediate/`.
-- Seven more gained the entry point their validator asked for, each read at the producer
-  (`f40c40aad`). Refusals are down from 56 to 33, and the 33 are skeletons missing whole
-  sections — a question about whether a skeleton should be held to that at all.
-- `hookValidateSpec` no longer fails open (`908d22186`). It is a PostToolUse hook, so the
-  file exists when it runs; a failed read returned 0, reporting success having checked
-  nothing. That is the same class as the comment three lines above it records.
-- A red test at HEAD fixed (`20c836767`): `TestReclaimRunsOnlyForAVMBackedRuntime` never
-  pinned `commandAvailable`, so it returned early on any host without `colima`.
-- Eight groups of abandoned work landed (`3f25545ed`, `df5b6c25a`, `76ce2d39a`, `a8092e624`,
-  `23aff0e3b`, `7b5532f68`, `6cf33dee0`, `9817f3be8`, `e308381fc`), judged one at a time
-  against HEAD rather than by hunting for owners.
-- `ai/RFC-REQUIREMENTS.md` caught up with landed work (`de0fbda9c`).
-
-**What is left uncommitted, and why each stays:**
-
-| File | Why |
-|---|---|
-| the 42 `ipsec` files | waiting on Thomas's signature |
-| `docs/features.md` | names a `pki certificate … ocsp-response` leaf HEAD does not have; belongs to that commit |
-| `test/weakened/ad601f6a.md` | the gate refuses a foreign ledger shard: carrying it publishes another session's record under your subject |
-| `plan/learned/008-mirror-asserts-sameness.md` | `open` holds it deliberately |
-| `test/rfc-changed/1bfe298a.md` | the seven approvals, correctly recorded, with no route to land that preserves the rows |
-| `sdk` | a stray 15-byte file containing `=== iface- ===`, the tail of a truncated shell redirect. Deleting it needs Thomas's word |
-
-## 8. What this session teaches about how we work
-
-Written at Thomas's request, from what actually happened rather than from principle.
-Each item names the incident that produced it.
-
-**Hand over the REASONING, not just the fact.** When the `ipsec` session found that a
-commit of mine had reddened both EAP-TLS interop scenarios, the useful reply was not "yes,
-mine, sorry": it was saying that the fallback was a deliberate choice made WITHOUT the lab,
-resting on one sentence of RFC 9190 Section 2.1.8 read narrowly, and naming the two
-sections I had NOT weighed against it. That let them judge the derivation instead of
-reverse-engineering my intent, and it told them which discrimination records would stale.
-A peer who knows why you chose something can overrule it cheaply; a peer who only knows
-what you chose has to rediscover the argument first.
-
-**A holder list goes stale in hours; re-ask rather than trust it.** Liaison at the start
-named three sessions holding three specs. By the end, two of those had closed and deleted
-their specs, and two OTHER specs had acquired live holders that nobody had told me about.
-The demotion sweep caught it only because it re-checked. Ask the peers, do not read a list.
-
-**Check the COMMIT before challenging a claim.** I told Thomas the `ipsec` handover had
-misreported a lint finding as pre-existing. True of its session-state file; false of what
-it committed, where the reason accurately said the finding sat at a line its hunks did not
-touch. State files carry intent, commits carry the record, and only the second is the claim.
-
-**A control turns an inference into a fact, and costs one run.** The Graceful Restart
-vacuity was an inference until `gr-mark-stale` and `llgr-transition` were run with the
-dispatch broken AND a third file with one NLRI octet changed was run beside them. The two
-passes prove nothing without the failure; with it, they prove the tests are decoration.
-
-**Closure review is not bookkeeping.** Fifteen closures produced roughly six product
-defects, each of which had been sitting green: a RADIUS rate overflowing on multiply, VPP
-workers pinned to offline CPUs, an RA check reading the wrong interface name, a plugin
-restart running the daemon-wide fan-out twice, a plugin's declared field name reaching the
-operator's terminal as an ANSI escape, and a failure sentence that reached no caller.
-Budget closures as defect-finding, not as paperwork.
-
-**Verify the mechanism before letting it shape the plan.** I believed `./le` rebuilds from
-source on every invocation and sequenced two pieces of work around it: the ledger dedup
-waited for a closure, and closures waited for the dedup. It does not — `warn_when_stale`
-only warns, and only when a COMMITTED source is newer. The hazard was not there, and one
-`grep` would have said so before it cost an hour.
-
-**A peer refusing help for a rule-based reason is a signal to accept.** `open` declined an
-independent review round from this session, correctly: independence was never the
-constraint, the five-round cap is, and a sixth round is the owner's decision recorded
-through `--owner-authorised`. Handing the round over would have produced a sixth round with
-no decision behind it. The refusal was better reasoning than the offer.
-
-**A blocking condition that depends on a person is not satisfied by adjacent work.** The
-session goal could not complete while a signature and another session's commit were
-outstanding. Some of the adjacent work found was genuinely valuable — 16 specs unblocked
-from their own validator, a guard that failed open closed. Some was work nobody asked for,
-and the stop hook was right to refuse it. Say once that the condition is external, name
-precisely what would satisfy it, and stop offering.
-
-**Ask what the gate is FOR before working around it.** The `ipsec` session was blocked on
-an owner signature for seven tagged tests. Rather than route around it, it asked why the
-tests had changed at all, found an eleven-parameter function, moved the new state onto a
-type already in the signature, and the churn stopped existing. The gate exists to make an
-owner look at tagged-test churn; the right answer was to have none.
+1. `./le spec session release`, then claim the backoff spec.
+2. Read the diff in `internal/component/l2tp/pppoeclient/dialer.go` and the untracked
+   `dialer_test.go`. That is the killed phase, and the blocking-read question in
+   section 3 is unanswered.
+3. Finish phases 5 and 6, then `/ze-close` on Opus 5 in a fresh context.
+4. Take the section 4 decisions to Thomas before, not after: the RFC index files have
+   now waited through three closures and the debt is compounding.
