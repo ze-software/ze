@@ -702,6 +702,109 @@ func TestNegotiatePathsLimitPartialAddPath(t *testing.T) {
 	assert.Equal(t, uint16(0), neg.Encoding.PathsLimitRecv[ipv6])
 }
 
+// TestNegotiatePathsLimitDirections verifies limits apply only to the negotiated
+// ADD-PATH direction, including one-sided ADD-PATH and incompatible directions.
+func TestNegotiatePathsLimitDirections(t *testing.T) {
+	t.Parallel()
+	ipv4 := Family{AFI: AFIIPv4, SAFI: SAFIUnicast}
+	for _, localMode := range []AddPathMode{AddPathNone, AddPathReceive, AddPathSend, AddPathBoth} {
+		for _, remoteMode := range []AddPathMode{AddPathNone, AddPathReceive, AddPathSend, AddPathBoth} {
+			local := []Capability{
+				&PathsLimit{Entries: []PathsLimitEntry{{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 5}}},
+			}
+			remote := []Capability{
+				&PathsLimit{Entries: []PathsLimitEntry{{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 10}}},
+			}
+			if localMode != AddPathNone {
+				local = append(local, &AddPath{Families: []AddPathFamily{
+					{AFI: AFIIPv4, SAFI: SAFIUnicast, Mode: localMode},
+				}})
+			}
+			if remoteMode != AddPathNone {
+				remote = append(remote, &AddPath{Families: []AddPathFamily{
+					{AFI: AFIIPv4, SAFI: SAFIUnicast, Mode: remoteMode},
+				}})
+			}
+			neg := Negotiate(local, remote, 65001, 65002)
+			var send, recv uint16
+			if localMode&AddPathSend != 0 && remoteMode&AddPathReceive != 0 {
+				send = 10
+			}
+			if localMode&AddPathReceive != 0 && remoteMode&AddPathSend != 0 {
+				recv = 5
+			}
+			assert.Equal(t, send, neg.Encoding.PathsLimitSend[ipv4], "local %d remote %d send", localMode, remoteMode)
+			assert.Equal(t, recv, neg.Encoding.PathsLimitRecv[ipv4], "local %d remote %d receive", localMode, remoteMode)
+		}
+	}
+}
+
+// TestNegotiatePathsLimitDuplicateEntries verifies direct API callers and wire
+// callers honor the same first-tuple rule, including a zero first limit.
+//
+// RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5 positive -- direct and wire-parsed capabilities preserve the nonzero IPv6 limit alongside a zero IPv4 tuple.
+// RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5 negative -- neither direct nor wire-parsed zero-first tuples impose an IPv4 limit in either negotiated direction.
+func TestNegotiatePathsLimitDuplicateEntries(t *testing.T) {
+	t.Parallel()
+	ipv4 := Family{AFI: AFIIPv4, SAFI: SAFIUnicast}
+	ipv6 := Family{AFI: AFIIPv6, SAFI: SAFIUnicast}
+	base := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&Multiprotocol{AFI: AFIIPv6, SAFI: SAFIUnicast},
+		&AddPath{Families: []AddPathFamily{
+			{AFI: AFIIPv4, SAFI: SAFIUnicast, Mode: AddPathBoth},
+			{AFI: AFIIPv6, SAFI: SAFIUnicast, Mode: AddPathBoth},
+		}},
+	}
+	pl := &PathsLimit{Entries: []PathsLimitEntry{
+		{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 0},
+		{AFI: AFIIPv6, SAFI: SAFIUnicast, Limit: 7},
+		{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 10},
+		{AFI: AFIIPv6, SAFI: SAFIUnicast, Limit: 2},
+	}}
+	buf := make([]byte, pl.Len())
+	pl.WriteTo(buf, 0)
+	parsed, err := Parse(buf)
+	require.NoError(t, err)
+	for _, c := range []Capability{pl, parsed[0]} {
+		caps := append(append([]Capability(nil), base...), c)
+		neg := Negotiate(caps, caps, 65001, 65002)
+		want := map[Family]uint16{ipv6: 7}
+		assert.Equal(t, want, neg.Encoding.PathsLimitSend)
+		assert.Equal(t, want, neg.Encoding.PathsLimitRecv)
+		assert.NotContains(t, neg.Encoding.PathsLimitSend, ipv4)
+	}
+}
+
+// TestNegotiatePathsLimitMultipleInstances verifies malformed repeated instances
+// cannot override the first instance, even across OPEN optional parameters.
+func TestNegotiatePathsLimitMultipleInstances(t *testing.T) {
+	t.Parallel()
+	ipv4 := Family{AFI: AFIIPv4, SAFI: SAFIUnicast}
+	for _, tc := range []struct {
+		name  string
+		first []byte
+		want  uint16
+	}{
+		{"limit", []byte{76, 5, 0, 1, 1, 0, 4}, 4},
+		{"empty", []byte{76, 0}, 0},
+		{"zero", []byte{76, 5, 0, 1, 1, 0, 0}, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			// ADD-PATH follows PATHS-LIMIT: their order does not change support.
+			params := append([]byte{2, byte(len(tc.first))}, tc.first...)
+			params = append(params, 2, 13, 76, 5, 0, 1, 1, 0, 9, 69, 4, 0, 1, 1, 3)
+			caps, err := ParseFromOptionalParams(params, false)
+			require.NoError(t, err)
+			neg := Negotiate(caps, caps, 65001, 65002)
+			assert.Equal(t, tc.want, neg.Encoding.PathsLimitSend[ipv4])
+			assert.Equal(t, tc.want, neg.Encoding.PathsLimitRecv[ipv4])
+			assert.True(t, neg.PeerAdvertised(CodePathsLimit))
+		})
+	}
+}
+
 // TestNegotiateImplicitIPv4UnicastWhenNoMultiprotocol pins the whole truth table of
 // the implicit IPv4-unicast family: a side that advertises NO Multiprotocol
 // capability is treated as advertising ipv4/unicast, on both sides, before the

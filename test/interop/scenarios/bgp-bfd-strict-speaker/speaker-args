@@ -1,0 +1,1 @@
+--asn 65003 --router-id 172.30.0.10 --test bfd-strict-hold --bfd-strict --bfd-delay 15 --connect-delay 8 --duration 60
