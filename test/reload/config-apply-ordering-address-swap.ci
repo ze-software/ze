@@ -1,0 +1,198 @@
+# Test: two interfaces trade addresses in one commit, and both addresses stay
+#       present while they do.
+#
+# zdual0 holds 10.90.0.1/24 and zdual1 holds 10.91.0.1/24. The reloaded config
+# gives each address to the other interface. The iface decomposer emits a create
+# and a destroy for each one, and two rules close a cycle over the four: an
+# address must leave one interface before the same address joins another
+# (uniqueness), and a new address must arrive before the old one leaves the same
+# interface (make-before-break). TopologicalSort therefore reaches
+# tryRelaxCycle, which removes the two cross-interface edges and leaves both
+# creates before both destroys. That is the dual-presence window.
+#
+# VALIDATES: AC-4 -- both addresses are present at the same time for the
+#            duration of the swap, neither interface is left without an address
+#            at any observable point, a BGP peer bound to 10.90.0.1 stays up
+#            across the swap, and the transaction commits.
+# CLOSES: D4. Until this test the window ran only in TestTopologicalSortCycleResolution
+#         and TestTopologicalSortThreeWayRotation, over the solver alone. The
+#         rotation, swap and reip tests named for it emit peer operations, never
+#         address ones, so decompose to graph to solver to executor to bridge to
+#         netlink had never carried a relaxed cycle.
+# PREVENTS: a swap applied break-before-make, which leaves an interface bare and
+#           drops anything bound to the address, and a swap refused outright as
+#           an unrelaxable cycle.
+#
+# The observable points are the kernel's own netlink notifications, so the
+# driver reads them through `ip monitor` and replays them over the known initial
+# state (configApplyOrderingSwapDriver,
+# internal/test/fixture/register_config_apply_ordering.go). A poll of `ip addr`
+# cannot see the window: it is bounded by two netlink calls a few hundred
+# microseconds apart.
+#
+# DISCRIMINATION: make tryRelaxCycle return graph.edges unreduced
+# (internal/component/config/transaction/solver.go). The second kahnSort then
+# leaves the same four nodes behind, TopologicalSort answers
+# ErrOperationCycle, the transaction aborts, and neither the swap nor the
+# window happens. The rejected reading is "the swap landed, so the window
+# happened": that is an inference from the only mechanism that can land it,
+# which is why the driver asserts the window from the event stream instead.
+
+# needs-linux: dummy interfaces, address assignment and `ip monitor` are kernel
+# surfaces, and creating a device plus moving an address needs CAP_NET_ADMIN.
+option=needs-linux:caps=net-admin
+
+# ze-peer expectations. One connection for the whole run is the assertion that
+# the session bound to 10.90.0.1 never bounced: that address changes interface
+# in this commit, and a break-before-make swap takes it off the host.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Initial config: each interface holds the address the other one takes.
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 10.90.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+
+interface {
+	dummy zdual0 {
+		unit 0 {
+			ipv4 {
+				address [ 10.90.0.1/24 ]
+			}
+		}
+	}
+	dummy zdual1 {
+		unit 0 {
+			ipv4 {
+				address [ 10.91.0.1/24 ]
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Reloaded config: the two addresses change places. The bgp section is
+# byte-identical, so the bgp root does not diff and the transaction carries the
+# four interface operations alone.
+tmpfs=config2.conf:terminator=EOF_CONF2
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 10.90.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+
+interface {
+	dummy zdual0 {
+		unit 0 {
+			ipv4 {
+				address [ 10.91.0.1/24 ]
+			}
+		}
+	}
+	dummy zdual1 {
+		unit 0 {
+			ipv4 {
+				address [ 10.90.0.1/24 ]
+			}
+		}
+	}
+}
+EOF_CONF2
+
+option=env:var=ze.log.interface:value=info
+
+# The driver runs in the FOREGROUND so the runner waits for it, which is what
+# keeps the readback and the event stream out of the teardown's way. The same
+# reasoning is written out in tx-iface-address-swap.ci, where a background
+# driver raced its own teardown.
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=3:exec=ze-test fixture reload/config-apply-ordering-address-swap-driver:timeout=40s
+
+expect=exit:code=0
+expect=stderr:contains=sighup reload complete
+expect=stderr:contains=OK: dual-presence window observed
+expect=file:path=swap-final.txt:contains=zdual0=10.91.0.1/24
+expect=file:path=swap-final.txt:contains=zdual1=10.90.0.1/24
+expect=file:path=swap-final.txt:not-contains=zdual0=10.90.0.1/24
+expect=file:path=swap-final.txt:not-contains=zdual1=10.91.0.1/24
+expect=file:path=swap-events.txt:exists=true
+reject=stderr:contains=operation dependency cycle
+reject=stderr:contains=config apply partial failure
+reject=stderr:contains=config verify failed

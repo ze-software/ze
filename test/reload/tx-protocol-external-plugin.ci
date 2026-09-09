@@ -28,6 +28,25 @@
 #    the bridge emits verify-ok / apply-ok acks so the orchestrator
 #    commits cleanly.
 # 5. The daemon exits cleanly after the reload.
+#
+# EXTENDED for spec-config-apply-ordering-covers-every-root: the transaction
+# this reload runs now carries BOTH node kinds, and the assertions below are
+# positive rather than a set of rejected timeouts.
+#
+# The bgp root is decomposed, so the router-id change produces a peer operation
+# that the bgp plugin applies, verifies and commits through the five
+# config-operation-* callbacks. "bgp config operation journal committed" is what
+# that plugin logs on config-operation-commit, and it exists only on the
+# operation path.
+#
+# tx-protocol-external-plugin-observer is a second process, launched by the
+# hub, declaring the same bgp root and decomposing nothing. It is therefore a
+# coarse node, and a coarse node is applied through config-apply because
+# config-operation-apply has no SDK default handler and would answer "unknown
+# method". The line it prints from its own OnConfigApply is what proves the ABI
+# change crossed the process boundary
+# (runExternalPluginTransactionObserver,
+# internal/test/fixture/register_tx_protocol_external_plugin.go).
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -45,6 +64,10 @@ stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	internal bgp-watchdog {
 		use bgp-watchdog
+	}
+	external tx-protocol-external-plugin-observer {
+		run "ze-test fixture reload/tx-protocol-external-plugin-observer"
+		encoder json
 	}
 }
 
@@ -101,6 +124,10 @@ plugin {
 	internal bgp-watchdog {
 		use bgp-watchdog
 	}
+	external tx-protocol-external-plugin-observer {
+		run "ze-test fixture reload/tx-protocol-external-plugin-observer"
+		encoder json
+	}
 }
 
 bgp {
@@ -152,10 +179,17 @@ EOF_UPDATED
 # Trigger: wait for peer + daemon readiness, rewrite config, SIGHUP, then
 # TERM so the daemon exits cleanly.
 
+# The commit line below is written at Info by the bgp plugin, and a test daemon
+# logs at WARN unless the subsystem is named.
+option=env:var=ze.log.bgp.plugin:value=info
+
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze-test fixture reload/tx-protocol-external-plugin-trigger
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=30s
 expect=exit:code=0
+expect=stderr:contains=OK: external plugin applied through config-apply root=bgp
+expect=stderr:contains=bgp config operation journal committed
+reject=stderr:contains=unknown method
 reject=stderr:pattern=verify timeout
 reject=stderr:pattern=apply timeout
 reject=stderr:pattern=config verify failed

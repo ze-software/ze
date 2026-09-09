@@ -36,10 +36,10 @@ func (a *reactorAPIAdapter) verifyConfigOperation(op *rpc.ConfigOperation) error
 		_, err := a.candidatePeerSettingsFromOperationConfig(op)
 		return err
 	case configop.RemovePeer:
-		_, err := a.peerSettingsFromOperationConfig(op, op.Params.OldConfig)
+		_, err := a.runningPeerSettings(op)
 		return err
 	case configop.ModifyPeer:
-		if _, err := a.peerSettingsFromOperationConfig(op, op.Params.OldConfig); err != nil {
+		if _, err := a.runningPeerSettings(op); err != nil {
 			return err
 		}
 		_, err := a.candidatePeerSettingsFromOperationConfig(op)
@@ -71,7 +71,7 @@ func (a *reactorAPIAdapter) applyConfigOperation(op *rpc.ConfigOperation, j conf
 		a.emitOperationListenerReady(settings)
 		return bgpOperationApplyOutput(settings), nil
 	case configop.RemovePeer:
-		settings, err := a.peerSettingsFromOperationConfig(op, op.Params.OldConfig)
+		settings, err := a.runningPeerSettings(op)
 		if err != nil {
 			return nil, err
 		}
@@ -83,7 +83,7 @@ func (a *reactorAPIAdapter) applyConfigOperation(op *rpc.ConfigOperation, j conf
 		}
 		return &rpc.ConfigOperationApplyOutput{Status: rpc.StatusOK}, nil
 	case configop.ModifyPeer:
-		oldSettings, err := a.peerSettingsFromOperationConfig(op, op.Params.OldConfig)
+		oldSettings, err := a.runningPeerSettings(op)
 		if err != nil {
 			return nil, err
 		}
@@ -131,6 +131,54 @@ func (a *reactorAPIAdapter) emitOperationListenerReady(settings *PeerSettings) {
 	}
 }
 
+// runningPeerSettings answers the settings the reactor is RUNNING for the peer
+// this operation names. That state is what a remove-peer destroys, so it is
+// also what the inverse recorded beside it restores.
+//
+// The reactor's own peer is the only complete source for it. The operation
+// carries the peer's active config subtree in Params.OldConfig, but that
+// subtree is the config FILE's, and this package's parser reads config leaves
+// alone: the routes a peer originates, its filter chains, its loop-detection
+// policy and its redistribution bindings are added afterwards by the full
+// loader (peersAndDynamicGroups, ../config/peers.go), which lives in a package
+// this one cannot import. Rebuilding the peer from the subtree here restored a
+// session that announced nothing, and every field the loader adds was lost the
+// same way (plan/journal/announced-state-never-replayed.md, 2026-09-08).
+//
+// A peer the reactor is not running has no state to destroy or to restore, and
+// RemovePeer refuses an address it does not hold, so the operation is refused
+// here rather than allowed to fail half way through the apply.
+func (a *reactorAPIAdapter) runningPeerSettings(op *rpc.ConfigOperation) (*PeerSettings, error) {
+	peerName := firstOperationString(op.Params.Peer, op.Target.Peer, op.Params.Name, op.Target.Name)
+	if peerName == "" {
+		return nil, fmt.Errorf("bgp operation %s requires peer name", op.Type)
+	}
+
+	a.r.mu.RLock()
+	var found *Peer
+	for _, peer := range a.r.peers {
+		settings := peer.Settings()
+		if settings.Name != peerName {
+			continue
+		}
+		// A dynamic member is named after the address it connected from
+		// (buildDynamicPeerSettings, reactor_dynamic.go), never after a config
+		// entry, so it is never what a config operation names -- not even when
+		// an operator gives a configured peer that same name.
+		if settings.IsDynamic {
+			continue
+		}
+		found = peer
+		break
+	}
+	a.r.mu.RUnlock()
+
+	if found == nil {
+		return nil, fmt.Errorf("bgp operation %s peer %q is not running", op.Type, peerName)
+	}
+	return found.settingsSnapshot(), nil
+}
+
 func (a *reactorAPIAdapter) candidatePeerSettingsFromOperationConfig(op *rpc.ConfigOperation) (*PeerSettings, error) {
 	settings, err := a.peerSettingsFromReloadConfig(op)
 	if err == nil {
@@ -139,7 +187,7 @@ func (a *reactorAPIAdapter) candidatePeerSettingsFromOperationConfig(op *rpc.Con
 	if !errors.Is(err, errPeerNotInReloadConfig) {
 		return nil, err
 	}
-	return a.peerSettingsFromOperationConfig(op, op.Params.Config)
+	return a.peerSettingsFromOperationConfig(op)
 }
 
 func (a *reactorAPIAdapter) peerSettingsFromReloadConfig(op *rpc.ConfigOperation) (*PeerSettings, error) {
@@ -169,7 +217,14 @@ func (a *reactorAPIAdapter) peerSettingsFromReloadConfig(op *rpc.ConfigOperation
 	return nil, errPeerNotInReloadConfig
 }
 
-func (a *reactorAPIAdapter) peerSettingsFromOperationConfig(op *rpc.ConfigOperation, raw json.RawMessage) (*PeerSettings, error) {
+// peerSettingsFromOperationConfig builds a peer from the candidate config the
+// operation embeds. It is the second half of candidatePeerSettingsFromOperationConfig
+// and has one caller, because it reads the config LEAVES alone: a peer this
+// parser builds carries no route, no filter chain and no redistribution
+// binding, which the full loader adds and the reload route above therefore
+// answers with. It stands for the peer that the loaded candidate does not name.
+func (a *reactorAPIAdapter) peerSettingsFromOperationConfig(op *rpc.ConfigOperation) (*PeerSettings, error) {
+	raw := op.Params.Config
 	if len(raw) == 0 {
 		return nil, fmt.Errorf("bgp operation %s requires peer config", op.Type)
 	}

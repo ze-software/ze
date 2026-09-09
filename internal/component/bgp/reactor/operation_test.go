@@ -2,12 +2,16 @@ package reactor
 
 import (
 	"encoding/json"
-	"github.com/ze-software/ze/internal/core/bgp/configop"
+	"net/netip"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/bgp/configop"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -91,7 +95,7 @@ func TestPeerSettingsFromOperationConfigUsesReactorPort(t *testing.T) {
 		},
 	}
 
-	settings, err := adapter.peerSettingsFromOperationConfig(&op, op.Params.Config)
+	settings, err := adapter.peerSettingsFromOperationConfig(&op)
 	require.NoError(t, err)
 	assert.Equal(t, uint16(1802), settings.Port)
 }
@@ -296,4 +300,73 @@ func TestApplyConfigOperationModifyPeerJournal(t *testing.T) {
 	require.Empty(t, j.Rollback())
 	require.Len(t, r.Peers(), 1)
 	assert.Equal(t, mustParseAddr("192.0.2.1"), r.Peers()[0].Settings().LocalAddress)
+}
+
+// TestApplyConfigOperationRemovePeerRollbackRestoresAnnouncedState verifies that
+// the inverse of a remove-peer restores the peer the reactor was RUNNING, with
+// the routes it originates and the policy it applies, and not a peer rebuilt
+// from the operation's config leaves.
+//
+// The goal is the transaction's inverse: a rolled-back remove-peer must leave
+// the daemon as it was. The operation payload below is the one the decomposer
+// builds (bgpPeerOperation, ../plugin/operation.go), and it states no route,
+// no filter chain and no loop-detection policy, because the full config loader
+// adds all three after this package's parser has run (peersAndDynamicGroups,
+// ../config/peers.go). Rebuilding the peer from that payload restored a session
+// that announced nothing.
+//
+// VALIDATES: rollback of a remove-peer restores StaticRoutes, the filter chains
+// and the loop-detection settings the peer was running with.
+// PREVENTS: a rolled-back reload leaving a re-established session that
+// originates no route and enforces no policy.
+func TestApplyConfigOperationRemovePeerRollbackRestoresAnnouncedState(t *testing.T) {
+	r := New(&Config{})
+	settings := NewPeerSettings(mustParseAddr("203.0.113.1"), 65000, 65001, 0)
+	settings.Name = "edge"
+	settings.LocalAddress = mustParseAddr("192.0.2.1")
+	settings.StaticRoutes = []StaticRoute{{
+		Prefix:  netip.MustParsePrefix("192.168.1.0/24"),
+		NextHop: bgptypes.NewNextHopExplicit(mustParseAddr("10.0.0.1")),
+	}}
+	settings.PluginRoutes = []PluginRoute{{Family: "ipv4/flow"}}
+	settings.ImportFilters = []filterapi.FilterRef{{Name: "bgp-filter-prefix:CUSTOMERS"}}
+	settings.ExportFilters = []filterapi.FilterRef{{Name: "bgp-filter-community:UPSTREAM"}}
+	settings.LoopAllowOwnAS = 2
+	require.NoError(t, r.AddPeer(settings))
+	require.Len(t, r.Peers(), 1)
+
+	j := &testJournal{}
+	op := rpc.ConfigOperation{
+		ID:    "bgp-remove-peer-edge",
+		Root:  "bgp",
+		Owner: "bgp",
+		Type:  configop.RemovePeer,
+		Target: rpc.ResourceRef{
+			Kind: rpc.ResourcePeer,
+			Peer: "edge",
+		},
+		Params: rpc.ConfigOperationParams{
+			Peer:      "edge",
+			Address:   "192.0.2.1",
+			OldConfig: json.RawMessage(`{"connection":{"remote":{"ip":"203.0.113.1"},"local":{"ip":"192.0.2.1"}},"session":{"asn":{"local":"65000","remote":"65001"}}}`),
+		},
+	}
+
+	out, err := r.ApplyConfigOperation(&op, j)
+	require.NoError(t, err)
+	require.NotNil(t, out)
+	assert.Equal(t, rpc.StatusOK, out.Status)
+	require.Empty(t, r.Peers())
+
+	require.Empty(t, j.Rollback())
+	require.Len(t, r.Peers(), 1)
+	restored := r.Peers()[0].Settings()
+	assert.Equal(t, mustParseAddr("203.0.113.1"), restored.Address)
+	require.Len(t, restored.StaticRoutes, 1, "the restored peer originates the route it originated before")
+	assert.Equal(t, netip.MustParsePrefix("192.168.1.0/24"), restored.StaticRoutes[0].Prefix)
+	require.Len(t, restored.PluginRoutes, 1)
+	assert.Equal(t, "ipv4/flow", restored.PluginRoutes[0].Family)
+	assert.Equal(t, settings.ImportFilters, restored.ImportFilters)
+	assert.Equal(t, settings.ExportFilters, restored.ExportFilters)
+	assert.Equal(t, uint8(2), restored.LoopAllowOwnAS)
 }

@@ -1,0 +1,107 @@
+# Test: one commit changes an interface address and a static route, and the
+#       address ordering survives the second root joining the transaction.
+#
+# zmix0 is renumbered from 10.92.0.1/24 to 10.93.0.1/24 and the static section
+# is rewritten in the same reload. The iface component decomposes its root; the
+# static plugin registers no decomposer, so the orchestrator represents it with
+# one coarse node. The graph orders the create before the destroy
+# (make-before-break) and the coarse node carries no edge, so the sequence is
+# create-address, static section, destroy-address.
+#
+# The static route is what makes that sequence load-bearing rather than
+# cosmetic: its gateway 10.93.0.2 lies in the NEW prefix, so the kernel answers
+# ENETUNREACH to a route installed before the address exists.
+#
+# VALIDATES: AC-1 -- the new address is present before the route that binds it
+#            is installed, the old address is removed after, and no log line
+#            says the transaction used the section apply.
+# PREVENTS: D1. TxCoordinator.Execute took the operation path only while no
+#           participant was uncovered, so one root with a diff and no
+#           decomposer dropped the WHOLE transaction to runApply, which emits
+#           every participant's section apply at once and waits. The address
+#           operations that were ordered correctly lost their order with it,
+#           and the transaction still reported success.
+#
+# The order is read from the kernel's own netlink notifications
+# (configApplyOrderingMixedRootDriver,
+# internal/test/fixture/register_config_apply_ordering.go), because nothing on
+# the apply path logs one line per operation and the final state carries no
+# order at all.
+#
+# DISCRIMINATION: restore the uncovered-participant condition in
+# TxCoordinator.Execute (internal/component/config/transaction/orchestrator.go)
+# so a transaction with a coarse participant falls back to runApply. The
+# fallback's Info line reappears, which the reject below refuses, and runApply
+# publishes both section applies before waiting for either ack, so the route
+# install no longer waits for the address. The rejected pattern is a test that
+# asserts only the end state: the renumber and the route are both present
+# whichever order they landed in, so the end state cannot tell the two paths
+# apart.
+
+# needs-linux: a dummy interface, an address, a kernel FIB route and
+# `ip monitor` are kernel surfaces, and all of them need CAP_NET_ADMIN.
+option=needs-linux:caps=net-admin
+
+# Initial config: the old address, and a static route that binds it.
+stdin=ze-bgp:terminator=EOF_CONF
+interface {
+	dummy zmix0 {
+		unit 0 {
+			ipv4 {
+				address [ 10.92.0.1/24 ]
+			}
+		}
+	}
+}
+
+static {
+	table default {
+		route 172.31.0.0/24 {
+			next {
+				hop 10.92.0.2 { }
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Reloaded config: both roots diff. The address moves prefix and the static
+# section replaces its route with one whose gateway only resolves against the
+# new address.
+tmpfs=config2.conf:terminator=EOF_CONF2
+interface {
+	dummy zmix0 {
+		unit 0 {
+			ipv4 {
+				address [ 10.93.0.1/24 ]
+			}
+		}
+	}
+}
+
+static {
+	table default {
+		route 172.30.0.0/24 {
+			next {
+				hop 10.93.0.2 { }
+			}
+		}
+	}
+}
+EOF_CONF2
+
+option=env:var=ze.log.interface:value=info
+option=env:var=ze.log.static:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test fixture reload/config-apply-ordering-mixed-root-driver:timeout=40s
+
+expect=exit:code=0
+expect=stderr:contains=sighup reload complete
+expect=stderr:contains=OK: address ordering held across two roots
+expect=stderr:contains=static routes loaded
+expect=file:path=mixed-events.txt:exists=true
+reject=stderr:contains=using section apply
+reject=stderr:contains=operation dependency cycle
+reject=stderr:contains=config apply partial failure
+reject=stderr:contains=config verify failed

@@ -1,14 +1,20 @@
 # Test: Config apply ordering -- re-IP peer local-address
 # Initial config: one peer with local-address 127.0.0.1, router-id 1.2.3.4
 # After SIGHUP: change router-id to 5.6.7.8 (simulates local-address change effect)
-# The operation graph solver must order address operations before peer restart.
-# Expected: peer reconnects on new config and sends route again.
 #
-# On loopback all connections use 127.0.0.1. The config change that exercises
-# the ordering solver is the router-id change, which triggers peer restart.
-# In production a local-address change would produce:
-#   REMOVE_ADDRESS(old) -> ADD_ADDRESS(new) -> MODIFY_PEER
-# Here the peer restart (router-id diff) validates the end-to-end reload path.
+# On loopback all connections use 127.0.0.1, so the local address never
+# changes: what this file emits is one modify-peer operation. The header used
+# to say a local-address change "would produce REMOVE_ADDRESS(old) ->
+# ADD_ADDRESS(new) -> MODIFY_PEER", describing operations this test does not
+# emit and an ordering it therefore never checks.
+#
+# VALIDATES: one peer restarts inside an ordered transaction and reconnects on
+#            the new configuration.
+# The address-before-consumer ordering this file is named after is proven by
+# test/reload/config-apply-ordering-mixed-root.ci (a new address before the
+# route that binds it) and test/reload/config-apply-ordering-address-swap.ci
+# (two addresses trading interfaces).
+# Expected: peer reconnects on new config and sends route again.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER

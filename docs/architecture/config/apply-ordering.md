@@ -75,6 +75,15 @@ replays the inverse operations in reverse order and excludes the operation that
 failed. A coarse node's inverse is the transaction-wide section rollback the
 orchestrator broadcasts, so the executor emits no per-operation rollback for it.
 
+**A remove-peer's inverse restores the peer the reactor was running.** The
+settings come from that peer, not from the config subtree the operation carries.
+The routes a peer originates, its filter chains, its loop-detection policy and
+its redistribution bindings are added by the full config loader after the
+reactor's own config parser has run, so a peer rebuilt from the subtree comes
+back with a session and no routes.
+<!-- source: internal/component/bgp/reactor/operation.go -- runningPeerSettings -->
+<!-- source: internal/component/bgp/config/peers.go -- peersAndDynamicGroups -->
+
 **A modify-peer swaps the running session's settings in place where the change
 allows it.** The decision is `peerSettingsSwapPlan`, the same one the section
 apply's reconcile takes, so which path a reload travels does not decide whether
@@ -132,14 +141,34 @@ emits it.
 
 ## What the tests do not reach
 
-The functional rotation, swap and reip tests rotate BGP router-ids. They emit
-`REMOVE_PEER` and `ADD_PEER` only, never `ADD_ADDRESS` or `REMOVE_ADDRESS`, so
-they exercise the whole decompose to graph to executor to bridge to RPC to
-reactor path and none of the `AllowDual` machinery. That machinery is covered by
-`TestTopologicalSortCycleResolution` (2-way swap) and
-`TestTopologicalSortThreeWayRotation` (three `AllowDual`) in `solver_test.go`.
-The create and delete tests emit real iface interface operations and are
-Linux-only.
+The dual-presence window has a test on the real path, and that test has not yet
+been observed running. `test/reload/config-apply-ordering-address-swap.ci` gives two interfaces each
+other's address in one commit, which is the four-node cycle `tryRelaxCycle`
+relaxes, and reads the kernel's own notifications back through `ip monitor`. It
+asserts what the window means: both creates land before either destroy, so both
+addresses are present at the same time, and neither interface is left without an
+address at any notification.
+`test/reload/config-apply-ordering-mixed-root.ci` proves the same ordering with a
+second root in the transaction, using a static route whose gateway resolves only
+against the new address. Both carry `option=needs-linux:caps=net-admin`, so they
+run in the QEMU VM and skip on a host without CAP_NET_ADMIN. Neither has been
+through the discrimination walk `ai/rules/interop-and-goal-validation.md`
+requires, so neither is evidence yet: until each is observed RED under the
+revert it fences and GREEN after the restore, the window is asserted here and
+not demonstrated.
+
+The rotation, swap and reip tests reach none of that. They rotate BGP
+router-ids, so they emit peer operations only, two peers changing router-id
+share no resource, and the graph gives them no edge to make a cycle from. Each
+of their headers now says so and points at the address test that carries the
+claim its own file name suggests. The create and delete tests emit real iface
+interface operations and are Linux-only.
+
+What stays unreached is `Params.AllowDual`. `markDualPresence` writes it and
+nothing outside `solver.go` reads it, so the window comes from the removed edges
+alone and the flag labels the result rather than instructing the applier. No
+test can tell a build that sets it from one that does not, and the address-swap
+test asserts the window without reading it.
 
 The operation-count warning at 10000 and the cycle-depth rejection at 100 are
 named in the design and not enforced in the graph builder. Config is operator

@@ -3,9 +3,17 @@
 # After SIGHUP: peer1 gets router-id 5.6.7.8, peer2 gets router-id 1.2.3.4
 # This exercises the cross-peer ordering path: both peers must restart.
 #
-# On loopback all connections use 127.0.0.1. The swap of router-ids simulates
-# the IP swap scenario where the operation graph must order:
-#   MODIFY_PEER(peer1) and MODIFY_PEER(peer2) without deadlock.
+# On loopback all connections use 127.0.0.1, so what this swap emits is two
+# modify-peer operations and no address operation at all. The header used to
+# say it simulated "the IP swap scenario", which the name still suggests and
+# the file has never done: two peers changing router-id share no resource, so
+# the graph gives them no edge and there is no cycle to relax.
+#
+# VALIDATES: two peers restart inside one ordered transaction and both
+#            reconnect.
+# The address swap this file is named after is
+# test/reload/config-apply-ordering-address-swap.ci, which moves two addresses
+# between two interfaces and proves the dual-presence window.
 # Expected: both peers reconnect and resend their routes.
 
 # ze-peer expectations (router-id ordering works on both macOS and Linux)
