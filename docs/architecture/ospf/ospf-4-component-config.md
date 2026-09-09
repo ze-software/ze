@@ -89,11 +89,13 @@ lifecycle callbacks, transport enrolment and config validation.
   <!-- source: internal/plugins/ospf/instance.go -- interfaceGlobalParamsChanged, repriceInterfaceLocked, lsdbTopology -->
 - `reconcile` originates the self-LSAs before it returns, so the commit
   publishes the reloaded config. A re-priced interface is not restarted, so no
-  neighbor transition drives an origination for it, and the Router-LSA would
-  otherwise carry the old metric until an unrelated event. The LSDB floods on a
+  neighbor transition drives an origination for it. On a router with one active
+  interface the one-second neighbor retransmit loop would publish the new metric
+  within a second; on a router whose interfaces are all passive or loopback that
+  loop never starts, and this call is the only publisher. The LSDB floods on a
   diff, so a reload that changed nothing emits nothing, and RFC 2328 Appendix B
   MinLSInterval still defers a second origination of one LSA.
-  <!-- source: internal/plugins/ospf/instance.go -- reconcile, originateSelfLSAs -->
+  <!-- source: internal/plugins/ospf/instance.go -- reconcile, originateSelfLSAs, startNeighborRetransmitLoop, activeInterfaces -->
 - Which synthetic device reports a link speed is the kernel's decision, and it
   is not "none of them". A veth reports 10000 because its driver declares 10
   Gbit/s, which is what lets a Docker container observe auto-cost at all and is

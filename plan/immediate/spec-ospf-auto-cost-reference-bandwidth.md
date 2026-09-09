@@ -298,7 +298,7 @@ the sections below, and none of them changes the design.
 | AC-7 | The default config, no `reference-bandwidth` stated | 100000 applies, so a 1 Gbit/s link costs 100 |
 | AC-8 | A reload lowering `reference-bandwidth` | An interface whose derived cost changes is re-priced in place and keeps its adjacency; one with an explicit `cost` is left alone. `reconcile` originates the self-LSAs before it returns, so the new metric is published at the commit |
 | AC-8b | The same reload, on an interface that already holds a 2-Way neighbor and sets no `cost` | The neighbor stays 2-Way, the interface runtime is the same object, and both the Router-LSA link metric and the cost `show ospf interface` reports carry the new number. This is the owner's decision of 2026-09-09: a `reference-bandwidth` commit tears down no adjacency. The neighbor the unit test drives really reaches 2-Way, because its Hello lists this router and that is what `receiveHello` reads for `TwoWay`; the test asserts the state out of the neighbor table on both sides of the reload |
-| AC-8c | A reload that changes the Router ID, or the type of the area an interface sits in | That interface IS recreated and its neighbor drops to Down. Both are stamped into the packets the runtime sends, so a stale runtime would advertise a stale identity or a stale E-bit. These two are the whole set: `Cost` is the only `ospfiface.Config` field no running behavior reads |
+| AC-8c | A reload that changes the Router ID, or the type of the area an interface sits in | That interface IS recreated and its neighbor drops to Down. Both are stamped into the packets the runtime sends, so a stale runtime would advertise a stale identity or a stale E-bit. These two are the whole set OUTSIDE the interface's own block, which is what `interfaceGlobalParamsChanged` decides; `reconcile` ORs that predicate with `interfaceParamsEqual`, so a change to a field of the interface's own block, `cost` among them, still restarts that interface |
 | AC-9 | The same interface read four ways | The Router-LSA metric, `show ospf interface`, the LDP-sync restore value and the TE metric fallback all carry the same number |
 | AC-10 | An OSPF peer reads Ze's Router-LSA | The peer sees the derived cost, not 1 |
 | AC-11 | The same link configured under `ospf` and under `address-family { ipv6 }`, with a non-default `reference-bandwidth` | Both families advertise the same derived cost. Every RFC 5838 address family carries the router-wide numerator |
@@ -515,7 +515,7 @@ the sections below, and none of them changes the design.
 | Clamp at `MetricMax` rather than erroring | Keep the old `ErrOutOfRange` above 65535 | The old contract made a slow link under a large reference bandwidth an ERROR, and the caller then had to invent a cost. 65535 is the honest answer: the most expensive link the wire field can describe |
 | Re-price the running interface in place | Restart the interface, which is what Ze did until 2026-09-09 | Owner decision, 2026-09-09. The restart never published the cost: `lsdbTopology` derives it from `e.cfg.ReferenceBandwidth` on every origination pass and `reconcile` replaces `e.cfg` first, so a carrier flap already re-prices a link with no restart at all. What the restart refreshed was the `Interface.cfg.Cost` copy `show ospf interface` reads, and `SetCost` refreshes that without stopping the state machine. The machinery is one setter and one engine helper, and it buys back every adjacency on the router |
 | `SetCost` writes one field rather than taking a whole new `Config` | A general `UpdateConfig` on `Interface` | `Cost` is the ONLY `Config` field no running behavior reads, so a general setter would silently accept a `HelloInterval` or a `NetworkType` that the running timers and the ISM would ignore. Naming the one field makes the guarantee checkable: `ai/rules/simplicity.md` puts the burden of proof on the wider surface |
-| `reconcile` originates before it returns | Leave origination to the next event | A re-priced interface is not restarted, so no neighbor transition drives an origination pass for it. Without the call the operator's commit reaches the wire at an unrelated later event. The LSDB floods on a diff, so a reload that changed nothing emits nothing |
+| `reconcile` originates before it returns | Leave origination to the next event | A re-priced interface is not restarted, so no neighbor transition drives an origination pass for it. On a router with one active interface the one-second neighbor retransmit loop would publish within a second; on a passive-only or loopback-only router `activeInterfaces` is empty, that loop never starts, and this call is the only publisher. The LSDB floods on a diff, so a reload that changed nothing emits nothing |
 
 ## Known Limitations
 <!-- Deliberate scope boundaries. Anything here that is actually outstanding work
@@ -564,7 +564,11 @@ the sections below, and none of them changes the design.
   `interfaceParamsEqual` compares `Cost` and `HasCost`, so the per-interface leaf
   keeps the behavior the router-wide leaf just lost. It is the same question
   Thomas answered on 2026-09-09 asked of the other leaf, and this session did not
-  extend his answer to it.
+  extend his answer to it. Extending it is not a one-line change:
+  `lsdbTopology` prices from `e.running`, and `reconcile`'s `default` arm never
+  writes `e.running[name] = want`, so a cost-only re-price must also update that
+  map and split the restart branch into a cost-only arm and the rest (round 3
+  ISSUE 1).
 - A carrier flap re-prices on the next origination pass rather than immediately.
   Nothing schedules an origination for a speed change alone.
 
@@ -1370,3 +1374,170 @@ Every finding was re-read at the producer the review named before it was acted o
 | 5 NOTE | acted on | `docs/architecture/ospf/ospf-4-component-config.md` now separates what the tree proves (the veth's 10000, through `ospf-auto-cost-frr`, and the absent-to-0 mapping, through `parseLinkSpeedDuplex`) from the kernel behavior it does not read (a loopback, a dummy and a bridge). The same bullet gains the single-sample rule from NOTE 3 |
 | 6 NOTE | acted on | Both TE arms select the Link LSA by its RFC 3630 section 2.5.3 Local Interface IP Address, through the new `teMetricForLocalAddress` helper, so neither depends on the order `teOriginateType1` emits. RED re-observed with `interfaceCost` cut to the pre-auto-cost behavior: all five assertions still fail, so the selector cost the test no discrimination |
 | 7 NOTE | acted on | The Goal Validation row now says five arms and names each one |
+
+### Round 3, 2026-09-09, Opus 5
+
+Independent review of `db3f18b0b` only, the re-price the owner ordered on 2026-09-09,
+and of what it newly touched. Every claim below was read at its producer.
+
+**Counts: 0 BLOCKER, 1 ISSUE, 4 NOTE.**
+
+#### BLOCKER
+
+None. The three product edits do what they say, and the ruling is implemented rather
+than recorded.
+
+`reconcile`'s new `default` arm is reached exactly when the interface already exists,
+`interfaceParamsEqual(have, want)` holds and `interfaceGlobalParamsChanged` is false, so
+the set of restarts shrank by exactly the numerator-driven ones and by nothing else.
+`interfaceParamsEqual` compares `Cost` and `HasCost`, so pricing `want` in the default arm
+gives the same number as pricing the `have` the engine keeps in `e.running`, which is what
+`lsdbTopology` iterates: the runtime copy and the advertised metric cannot disagree.
+
+`SetCost`'s safety claim holds at the readers, not by assumption. The only reads of
+`i.cfg.Cost` in `internal/plugins/ospf/iface/` are `snapshotLocked` and `DetailSnapshot`,
+both under `i.mu`, and `SetCost` writes under the same mutex. `neighborInterfaceConfig`
+(`internal/plugins/ospf/instance.go`) carries no cost field, so the neighbor table holds no
+copy to go stale. The sinks in `iface.go` are all invoked after `i.mu` is released, so the
+new `e.mu` to `i.mu` order that `repriceInterfaceLocked` takes is the order
+`interfaceSnapshot` already took and no reverse order exists.
+
+Nothing else needed the restart. The three engine consumers of the cost are live-derived or
+refreshed in place: `lsdbTopology` calls `interfaceCost` on every origination pass,
+`applyTELinkAttributes` does the same for the RFC 3630 fallback, and
+`updateLDPSyncMachines` recomputes `Cost` from `e.cfg.ReferenceBandwidth` and
+`ldpSyncManager.reconcileTo` overwrites `mc.cost` on a machine that already exists, so the
+LDP-sync restore value is not the stale duplicate it would have to be for the restart to
+have been load-bearing.
+
+The origination is correct for OSPF and not merely sufficient for the test.
+`OriginateRouter` (`internal/plugins/ospf/lsdb/origination.go`) compares the encoded body
+against the installed instance through `existingSelfBodyUnchanged` before it asks for a
+sequence, so a reload that changes nothing bumps no sequence and floods nothing; a changed
+body takes `rec.sequence.Next()` and installs, and a neighbor treats that as an ordinary
+newer instance (RFC 2328 section 13), which changes no adjacency state. RFC 2328 section
+12.4: "two instances of the same LSA may not be originated within the time period
+MinLSInterval. This may require that the generation of the next instance be delayed by up
+to MinLSInterval." `nextOwnSequenceForce` enforces that window and DROPS the attempt rather
+than scheduling it, but the one-second loop in `startNeighborRetransmitLoop` calls
+`originateSelfLSAs` on every tick, so a rate-limited re-price is delayed rather than lost.
+`originateSelfLSAs` also returns early under `e.gr.suppressOrigination()`, so the new call
+cannot originate during a graceful restart (RFC 3623 section 2).
+
+#### ISSUE
+
+1. **Two pages now tell the reader that a Router ID and an area type are the whole restart
+   set, and `reconcile` restarts on thirteen more fields, `cost` among them.**
+   `reconcile` (`internal/plugins/ospf/instance.go`) takes its restart branch on
+   `!interfaceParamsEqual(have, want) || interfaceGlobalParamsChanged(oldCfg, newCfg, want)`.
+   The diff narrowed the second half and says so accurately everywhere it names that
+   function, but three sentences state the claim about the RELOAD rather than about the
+   predicate:
+
+   - `docs/guide/ospf.md`: "Two reloads do restart an interface, because both change what it
+     stamps into the Hellos it sends: a new router id, and an area type."
+   - `docs/architecture/ospf/ospf-5-interface-ism.md`: "A config reload that changes the
+     router id or an area type recreates the runtimes, and those two are the whole set."
+   - This spec's AC-8c row: "These two are the whole set."
+
+   `interfaceParamsEqual` compares `Enabled`, `Passive`, `AreaID`, `NetworkType`, `Cost`,
+   `HasCost`, `HelloInterval`, `DeadInterval`, `Priority`, `MTUIgnore`,
+   `RetransmitInterval`, `TransmitDelay`, `Authentication`, `IPsec`, `LDPSyncEnabled` and
+   `LDPSyncHoldDown`, and a change to any of them recreates the runtime and drops the
+   neighbors of that interface.
+
+   Failure scenario. An operator reads the guide paragraph this diff added, learns that
+   re-pricing costs no adjacency, and sets `cost 5` on one interface to pin a path. That
+   commit drops the adjacency on that interface, re-forms it over a dead interval and a
+   database exchange, and nothing the operator read said it would. The asymmetry itself is
+   defensible: Thomas answered for the router-wide leaf, the per-interface leaf bounces one
+   interface rather than forty, and the spec's Known Limitations records it. Publishing
+   "those two are the whole set" is what is not defensible, because it is the sentence a
+   future implementer would rely on when deciding whether some other field needs a restart.
+
+   The fix is prose, in this work: name `interfaceParamsEqual` as the other half in the ISM
+   page, and give the guide one sentence saying a change to an interface's own `cost` still
+   restarts that interface.
+
+   For whoever extends the ruling to the sibling leaf: it is not a one-line change.
+   `lsdbTopology` prices from `e.running`, and the default arm never writes
+   `e.running[name] = want`, so a cost-only re-price would also have to update that map and
+   split the restart branch into a cost-only arm and the rest.
+
+#### NOTE
+
+2. **The stated reason for the new `originateSelfLSAs` call is wider than the producer
+   supports.** The `reconcile` comment ("would otherwise wait for an unrelated pass"),
+   `docs/architecture/ospf/ospf-4-component-config.md` ("would otherwise carry the old
+   metric until an unrelated event") and this spec's Key Design Decisions row ("reaches the
+   wire at an unrelated later event") all read as an unbounded wait. On any router with one
+   active interface it is at most one second: `startNeighborRetransmitLoop` starts when
+   `activeInterfaces()` is non-empty and calls `e.originateSelfLSAs()` on every tick. The
+   call is still right, and on a passive-only or loopback-only router it is the ONLY
+   publisher, because `activeInterfaces()` skips both and the loop never starts. Reword to
+   that, rather than dropping the call.
+
+3. **No recorded red isolates the `originateSelfLSAs` call.** The four recorded reds break
+   `interfaceGlobalParamsChanged`, `repriceInterfaceLocked` and `e.cfg`; proof 2's red is
+   forced by withholding the reloaded config, which breaks the derivation everywhere and
+   says nothing about the origination. The assertion does discriminate the line, since the
+   LSDB otherwise holds the metric 100 the test originated before the reload, so this is a
+   recording gap rather than a coverage gap. Two things make it worth a line anyway: the
+   test's engine has that one-second loop running (`openInterfaces` started it), and the
+   test sets `min-ls-interval-ms 1`, so on a host slow enough to put a second between the
+   pre-reload origination and the post-reload assertions the loop publishes 10 by itself and
+   the forced red would not reproduce.
+
+4. **What the restart also refreshed, and nothing now does.**
+   `interfaceRuntimeConfigLocked` re-reads `interfaceIPv4Address`, `interfaceNetworkMask`,
+   `interfaceMTU` and `interfaceIndex` from the OS whenever it builds a runtime, so until
+   this change a `reference-bandwidth` commit refreshed those four by accident. It does not
+   reach the wire: `lsdbTopology` re-reads the address and the mask live on every
+   origination pass, so only the runtime's own Hello fields are affected, and an address
+   change with no link flap already left them stale before this diff. The accidental
+   refresh is gone rather than a regression, and the underlying gap is pre-existing.
+
+5. **`repriceInterfaceLocked` reads the link speed under `e.mu`.** `interfaceCost` calls
+   `ifcomp.LinkSpeedDuplex`, which resolves the device and then asks the backend, a VPP
+   binary-API round trip on a VPP dataplane. `interfaceGlobalParamsChanged` did that read
+   with `e.mu` released. It is the same class as `interfaceRuntimeConfigLocked`, which
+   already performs four OS reads under `e.mu`, and reconcile is a config-commit path, so
+   this is an observation and not a defect.
+
+#### The four weakened rows
+
+All four are true, including both counts, which were checked mechanically rather than
+taken. `TestReferenceBandwidthReloadRepricesEveryAddressFamily`: the row's "7 to 6" is the
+detector's `fatalPattern` count (`t.Fatal*` 7 to 6, the one downgrade the row describes),
+while its assertion count went 8 to 10. `TestOSPFTopologyCostFollowsReferenceBandwidth`:
+assertion count 10 to 9 as stated. Nothing left the suite: no `Test` function was deleted,
+both renamed tests kept their setup and their preconditions, `./le commit audit base
+db3f18b0b~1` reports no finding under `internal/plugins/ospf/`, and no file in the tree
+still references either old test name or `interfaceCostAtSpeed`. The read-count arm that
+went with row 1 pinned a single speed sample inside a predicate that now reads no speed at
+all, so it had nothing left to assert.
+
+#### The four proofs
+
+Three observe what they claim. `selfRouterLSAMetric` looks the installed Type-1 LSA up in
+the LSDB and decodes it, so the metric it reads is the one `routerLinks` encoded;
+`addressedTopology` substitutes only an address and a mask, which is what makes a stub link
+exist at all, and leaves the derived cost untouched. The `show ospf interface` read is
+`eng.interfaceSnapshot()`, which is the exact expression the `show ospf interface` case in
+`register.go` returns, and it reaches `i.cfg.Cost` through `Interface.Snapshot`, the field
+`SetCost` writes. The neighbor proof reads the state out of `eng.neighbors.Lookup` on both
+sides of the reload.
+
+The fourth is narrower than the commit message says. "The Router-LSA carries the new cost in
+both families" is proven for OSPFv2 only:
+`TestReferenceBandwidthReloadRepricesEveryAddressFamily` asserts the origination topology
+and the interface snapshot at 23, never a decoded OSPFv3 Router-LSA. The spec's Known
+Limitations states this correctly, so the over-claim is in the commit body alone.
+
+#### Verdict
+
+**Close it, after the prose fix in ISSUE 1.** The product change is correct at every
+producer read: the arm fires where intended, the one field it writes has no live reader, the
+consumers that were refreshed by the restart are refreshed without it, and the origination is
+conformant. What remains is a sentence on an operator page and one in an architecture page
+that promise more than `reconcile` delivers, plus four observations that change no behavior.

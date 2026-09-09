@@ -22,17 +22,24 @@ BDR election, passive and loopback records, interface snapshots and OSPF events.
 
 ## Constraints on callers
 
-- A config reload that changes the router id or an area type recreates the
-  runtimes, and those two are the whole set. Otherwise Hellos advertise a stale
-  E-bit, N-bit or identity. Recreating a runtime empties its neighbor map,
-  clears its DR and its BDR, and reports the interface down, so the set is kept
-  to what the runtime stamps into a packet.
-  <!-- source: internal/plugins/ospf/instance.go -- interfaceGlobalParamsChanged -->
-- A `reference-bandwidth` change is NOT in that set. The cost reaches the wire
+- A config reload recreates an interface runtime when either half of
+  `reconcile`'s restart test fires, and the two halves ask different questions.
+  `interfaceGlobalParamsChanged` reads the config OUTSIDE the interface's own
+  block, and there the router id and the area type are the whole set, because
+  they are what the runtime stamps into a packet: otherwise Hellos advertise a
+  stale E-bit, N-bit or identity. `interfaceParamsEqual` reads the interface's
+  own block, and a change to any field it compares recreates the runtime, the
+  `cost` leaf included. Recreating a runtime empties its neighbor map, clears
+  its DR and its BDR, and reports the interface down.
+  <!-- source: internal/plugins/ospf/instance.go -- reconcile, interfaceParamsEqual, interfaceGlobalParamsChanged -->
+- A `reference-bandwidth` change is NOT in either set. The cost reaches the wire
   through the engine's origination topology rather than through the runtime, so
   a re-priced interface takes its new cost through `SetCost` and keeps its
   neighbors. `Cost` is the one `Config` field no running behavior reads: the two
-  snapshots are its only readers in this package.
+  snapshots are its only readers in this package. The interface's OWN `cost`
+  leaf still recreates the runtime, because `interfaceParamsEqual` compares
+  `Cost` and `HasCost`. The owner ruled on the router-wide leaf on 2026-09-09
+  and the per-interface leaf was left as it was.
   <!-- source: internal/plugins/ospf/iface/iface.go -- Interface.SetCost, snapshotLocked, DetailSnapshot -->
   <!-- source: internal/plugins/ospf/instance.go -- repriceInterfaceLocked -->
 - BackupSeen requires a 2-Way Hello before it shortens the Wait timer. A one-way
