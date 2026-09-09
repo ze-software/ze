@@ -606,10 +606,14 @@ func dischargeCommits(root string, row Debt, record dischargeRecord, commits *co
 // graph filtered to the path, and reading one commit's diff of one file reads
 // two blobs.
 //
-// The scan reads ADDED lines alone. A commit that only DELETED a row wrote no
-// row, and a commit that rewrote the shard wholesale, the 2026-09-07 dedup
-// among them, both deletes and adds: it binds for each row it added and for no
-// row it merely dropped.
+// The scan reads ADDED lines alone, and among those the OPEN ones alone.
+// A commit that only DELETED a row wrote no row, and a commit that rewrote the
+// shard wholesale, the 2026-09-07 dedup among them, both deletes and adds: it
+// binds for each row it added and for no row it merely dropped. clearDebtRows
+// rewrites a row in place, so its diff ADDS the row it cleared, spelled
+// cleared; recordDebt is the only producer that opens an obligation, and it
+// writes open. A commit that only flipped a sibling row of this row's gate and
+// reason opened nothing, so it binds nothing.
 func commitAddedRow(root, shard string, row Debt, sha string) (bool, error) {
 	patch, err := gitOutput(root, "show", "--no-renames", "--format=", "--patch", sha, "--", shard)
 	if err != nil {
@@ -622,6 +626,9 @@ func commitAddedRow(root, shard string, row Debt, sha string) (bool, error) {
 		}
 		added, ok := parseDebtRow(row.Shard, row.Line, strings.TrimPrefix(line, "+"))
 		if !ok {
+			continue
+		}
+		if added.Status != statusOpen {
 			continue
 		}
 		if added.Gate == row.Gate && added.Reason == row.Reason {
