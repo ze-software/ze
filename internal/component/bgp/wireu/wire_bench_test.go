@@ -3,6 +3,7 @@ package wireu
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
@@ -97,66 +98,84 @@ func BenchmarkWireUpdatePayload(b *testing.B) {
 	}
 }
 
-// BenchmarkRewriteASPath measures the EBGP AS-PATH prepend cost.
-// Called once per UPDATE per EBGP destination peer.
-func BenchmarkRewriteASPath(b *testing.B) {
+// BenchmarkASPathEditRecord measures the EBGP AS-PATH prepend cost on the rail
+// that runs it. Paid once per UPDATE per EBGP destination peer.
+//
+// It replaces BenchmarkRewriteASPath, which measured the whole-payload rewrite
+// ASPathEdit succeeded. The two are not comparable and are not meant to be: the
+// old one built a complete new payload, and this one records intent and encodes
+// only the AS_PATH value, because the exactly-sized one-pass writer emits it into
+// the destination buffer alongside every other edit.
+//
+// The generator is materialized inside the loop rather than left recorded, so the
+// encode this package owns is counted. The ASN2 to ASN4 direction is gone with
+// the widening the ingest collapse made impossible.
+func BenchmarkASPathEditRecord(b *testing.B) {
 	benchmarks := []struct {
 		name    string
-		srcASN4 bool
 		dstASN4 bool
 	}{
-		{"ASN4_to_ASN4", true, true},
-		{"ASN4_to_ASN2", true, false},
-		{"ASN2_to_ASN4", false, true},
+		{"ASN4_to_ASN4", true},
+		{"ASN4_to_ASN2", false},
 	}
 
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
-			// Build payload with matching source ASN encoding
 			origin := buildOriginAttr()
 			aspath := buildASPathAttr([]attribute.ASPathSegment{
 				{Type: attribute.ASSequence, ASNs: []uint32{64512, 64513, 64514, 64515}},
-			}, bm.srcASN4)
+			}, true)
 			nextHop := []byte{0x40, 0x03, 0x04, 192, 168, 1, 1}
 			localPref := []byte{0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64}
 			attrs := concatAttrs(origin, aspath, nextHop, localPref)
 			nlriData := []byte{24, 10, 0, 1, 24, 10, 0, 2, 24, 10, 0, 3}
 			payload := buildPayload(nil, attrs, nlriData)
 
-			dst := make([]byte, len(payload)+64)
+			intent := ASPathIntent{Prepend: []uint32{65000}, SrcASN4: true, DstASN4: bm.dstASN4}
+			var mods filterapi.ModAccumulator
+			var edit ASPathEdit
+			value := make([]byte, 512)
 
 			b.ReportAllocs()
 			b.ResetTimer()
 
 			for range b.N {
-				n, err := RewriteASPath(dst, payload, 65000, bm.srcASN4, bm.dstASN4)
-				if err != nil {
+				mods.Reset()
+				if _, err := edit.Record(&mods, payload, intent); err != nil {
 					b.Fatal(err)
 				}
-				_ = n
+				for _, gen := range mods.Gens() {
+					gen.GenWrite(value, 0)
+				}
 			}
 		})
 	}
 }
 
-// BenchmarkRewriteASPath_NoExisting measures AS-PATH insertion when none exists.
-func BenchmarkRewriteASPath_NoExisting(b *testing.B) {
+// BenchmarkASPathEditRecord_NoExisting measures the insert when the source
+// carries no AS_PATH at all.
+func BenchmarkASPathEditRecord_NoExisting(b *testing.B) {
 	origin := buildOriginAttr()
 	nextHop := []byte{0x40, 0x03, 0x04, 192, 168, 1, 1}
 	attrs := concatAttrs(origin, nextHop)
 	payload := buildPayload(nil, attrs, []byte{24, 10, 0, 1})
 
-	dst := make([]byte, len(payload)+64)
+	intent := ASPathIntent{Prepend: []uint32{65000}, SrcASN4: true, DstASN4: true}
+	var mods filterapi.ModAccumulator
+	var edit ASPathEdit
+	value := make([]byte, 64)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for range b.N {
-		n, err := RewriteASPath(dst, payload, 65000, true, true)
-		if err != nil {
+		mods.Reset()
+		if _, err := edit.Record(&mods, payload, intent); err != nil {
 			b.Fatal(err)
 		}
-		_ = n
+		for _, gen := range mods.Gens() {
+			gen.GenWrite(value, 0)
+		}
 	}
 }
 

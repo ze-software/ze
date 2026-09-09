@@ -3,13 +3,13 @@
 // Shared payload builders and one AS_PATH reader, used by aspath_transcode_test.go,
 // rfc6793_as4_test.go and tombstone_test.go.
 //
-// This file held the tests for RewriteASPath and RewriteASPathDual until
-// 2026-09-09, when Thomas retired the whole-payload rewrite and its
-// draft-mangin-idr-attr-tombstone-00 Section 5.3 support. Every behavioral test
-// moved to aspath_slot_test.go, against ASPathEdit.Record, which is the rail an
-// EBGP prepend really takes; test/weakened/49b0956f.md maps each one. The
-// builders stayed because three other files read them, and a test file is not
-// deleted without the owner.
+// These builders lived in aspath_rewrite_test.go until 2026-09-09, beside the
+// tests for RewriteASPath and RewriteASPathDual. Thomas retired the
+// whole-payload rewrite that day, along with its
+// draft-mangin-idr-attr-tombstone-00 Section 5.3 support, and every behavioral
+// test moved to aspath_slot_test.go against ASPathEdit.Record, the rail an EBGP
+// prepend really takes; test/weakened/49b0956f.md maps each one. The file was
+// renamed for what it holds now, at his instruction.
 
 package wireu
 
