@@ -521,16 +521,22 @@ func TestLocalAdoptionTakesOwnershipFromTheOldResponder(t *testing.T) {
 
 // countingTables replaces the firewall entry points and counts what a responder
 // asked of them. An INSTALL is a register carrying a table, a REMOVAL is a
-// register carrying none.
+// register carrying none, and a RECONCILE is one call of applyAll.
 //
 // A test that asserts nothing was installed reads this rather than r.status():
 // the defect it exists to catch is a rule in the kernel that no responder claims,
 // so the responder's own snapshot is the one witness that cannot see it. The
 // counts are atomic because the cap worker can be running beside the test.
-func countingTables() (installs, removals func() int, restore func()) {
+//
+// The reconcile count is separate from the other two because it is the netlink
+// round trip, which is the cost a test about doing something ONCE is really
+// about. Every path pairs a register with a reconcile today, so counting
+// registers alone would answer the same for now and stop answering the day one
+// path reconciles twice for one registration.
+func countingTables() (installs, removals, reconciles func() int, restore func()) {
 	origReg := registerTables
 	origApply := applyAll
-	var in, out atomic.Int64
+	var in, out, applied atomic.Int64
 	registerTables = func(_ string, tables []firewall.Table) error {
 		if len(tables) == 0 {
 			out.Add(1)
@@ -539,9 +545,13 @@ func countingTables() (installs, removals func() int, restore func()) {
 		in.Add(1)
 		return nil
 	}
-	applyAll = func() error { return nil }
+	applyAll = func() error {
+		applied.Add(1)
+		return nil
+	}
 	return func() int { return int(in.Load()) },
 		func() int { return int(out.Load()) },
+		func() int { return int(applied.Load()) },
 		func() {
 			registerTables = origReg
 			applyAll = origApply
@@ -573,7 +583,7 @@ func enforcing() *Config {
 // of the daemon: the outcome the withdrawal exists to prevent, reached through
 // the code that performs it.
 func TestLocalRetiredResponderInstallsNothing(t *testing.T) {
-	installs, removals, restore := countingTables()
+	installs, removals, _, restore := countingTables()
 	defer restore()
 
 	first := newResponder(enforcing(), nil)
@@ -614,7 +624,7 @@ func TestLocalRetiredResponderInstallsNothing(t *testing.T) {
 // responder then holds the cap clock while the old one holds a live `active`, so a
 // clear delivered to either removes a rule the other still publishes.
 func TestLocalRetiredResponderDoesNotReclaimACarriedRule(t *testing.T) {
-	installs, removals, restore := countingTables()
+	installs, removals, _, restore := countingTables()
 	defer restore()
 
 	first := newResponder(enforcing(), nil)
@@ -661,7 +671,7 @@ func TestLocalRetiredResponderDoesNotReclaimACarriedRule(t *testing.T) {
 // calls. test/plugin/ddos-parent-config-removed.ci drives the wiring, in the
 // guest, over the operator gesture itself.
 func TestLocalEngineStopRemovesTheDrop(t *testing.T) {
-	installs, removals, restore := countingTables()
+	installs, removals, _, restore := countingTables()
 	defer restore()
 
 	r := newResponder(enforcing(), nil)
@@ -672,7 +682,7 @@ func TestLocalEngineStopRemovesTheDrop(t *testing.T) {
 		t.Fatalf("setup: the drop rule must be installed and live, got %d installs and %d removals", installs(), removals())
 	}
 
-	retireResponder(r)
+	stopResponder(r)
 
 	if removals() != 1 {
 		t.Errorf("the plugin stopped with its drop rule still in the kernel: no config is delivered for a parent-block removal, so the config boundary never runs and nothing that survives this engine can remove the rule (removals %d)", removals())
@@ -693,7 +703,7 @@ func TestLocalEngineStopRemovesTheDrop(t *testing.T) {
 // register an empty table over an empty table and reconcile twice, delaying the
 // stop by a second netlink round trip for nothing.
 func TestLocalEngineStopAfterAWithdrawTouchesTheKernelOnce(t *testing.T) {
-	installs, removals, restore := countingTables()
+	installs, removals, reconciles, restore := countingTables()
 	defer restore()
 
 	first := newResponder(enforcing(), nil)
@@ -708,10 +718,18 @@ func TestLocalEngineStopAfterAWithdrawTouchesTheKernelOnce(t *testing.T) {
 	if removals() != 1 {
 		t.Fatalf("setup: the removal must withdraw the rule, got %d removals", removals())
 	}
+	reconciledByTheCommit := reconciles()
 
 	// The stop that follows the same commit, over the responder the engine holds.
-	retireResponder(second)
+	stopResponder(second)
 
+	// The netlink round trip is what the second withdrawal would cost, so it is
+	// what this test measures. A path that reconciled again while registering
+	// nothing new would leave the removal count alone and still delay the stop.
+	if reconciles() != reconciledByTheCommit {
+		t.Errorf("the exit path reconciled the kernel again after the config boundary had already removed the rule, delaying the stop by a netlink round trip (reconciles %d, was %d)",
+			reconciles(), reconciledByTheCommit)
+	}
 	if removals() != 1 {
 		t.Errorf("the exit path withdrew a rule the config boundary had already removed, reconciling the kernel twice for one commit (removals %d)", removals())
 	}
@@ -730,7 +748,7 @@ func TestLocalEngineStopAfterAWithdrawTouchesTheKernelOnce(t *testing.T) {
 // last up to max-mitigation-duration -- 3600 seconds by default -- while `show
 // ddos local` named a drop the operator has just asked to end.
 func TestLocalDisablingForwardMitigationRemovesTheForwardDrop(t *testing.T) {
-	installs, removals, restore := countingTables()
+	installs, removals, _, restore := countingTables()
 	defer restore()
 
 	cfg := enforcing()
@@ -772,7 +790,7 @@ func TestLocalDisablingForwardMitigationRemovesTheForwardDrop(t *testing.T) {
 // withdrawal keyed on the leaf rather than on the hook the live rule sits on would
 // lift a mitigation the operator never asked to end.
 func TestLocalDisablingForwardMitigationLeavesTheIngressDrop(t *testing.T) {
-	installs, removals, restore := countingTables()
+	installs, removals, _, restore := countingTables()
 	defer restore()
 
 	cfg := enforcing()
@@ -815,7 +833,7 @@ func TestLocalDisablingForwardMitigationLeavesTheIngressDrop(t *testing.T) {
 // that arrived during the alert window returns on !active and leaves that target
 // in place.
 func TestLocalReturningToEnforceWaitsForTheNextDetection(t *testing.T) {
-	installs, removals, restore := countingTables()
+	installs, removals, _, restore := countingTables()
 	defer restore()
 
 	first := newResponder(enforcing(), nil)

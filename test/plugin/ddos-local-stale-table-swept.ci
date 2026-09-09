@@ -1,0 +1,83 @@
+# Test: a ddos local drop rule does not survive a restart. A ze_ddos-local table
+# is planted in the kernel BEFORE ze starts, owned by nobody, and the daemon
+# clears it as the ddos-local plugin comes up.
+#
+# VALIDATES: spec-ddos-timing-leaves-reach-no-worker, the round 4 answer -- a
+#            ddos-local drop rule is an attack response and never persistent
+#            state. It is not saved across a restart, because a reboot can be
+#            exactly how an operator clears state, and protection afterwards
+#            comes from the attack being detected again. clearStaleDropRule
+#            (internal/plugins/ddos/local/register.go) is what holds it.
+# PREVENTS:  a blackhole that outlives the process that installed it. The exit
+#            path cannot be relied on for this: ProcessManager.Stop cancels every
+#            plugin at once with no dependency order, so the firewall engine can
+#            reach CloseBackend while ddos-local is still joining its cap worker,
+#            after which ApplyAll writes nothing. `firewall flush-on-shutdown
+#            false` leaves the table in place by design, and a crash or a power
+#            loss runs no exit path at all. Whatever the previous process did,
+#            the next one starts clean.
+#
+# WHY NOTHING ELSE COULD REMOVE IT. The planted table is owned by nobody in the
+# running daemon: no responder claims it, so neither an AttackCleared nor
+# max-mitigation-duration can reach it, and this test runs no flood so no
+# responder ever installs anything. The firewall engine cannot reach it either.
+# shouldDeleteTable (internal/plugins/firewall/nft/backend_linux.go) deletes a
+# ze_ table only when the name is in the desired set or in THIS backend
+# instance's applied map, and a table a previous process wrote is in neither --
+# which is also why FlushAllTables would not clear it. The one-time removal of
+# what an older ze build left behind cannot account for it either: that removal
+# matches the BARE names those builds wrote (internal/component/firewall/
+# legacy_tables.go), and this table carries the ze_ ownership prefix.
+#
+# WHY COPP IS IN THIS CONFIG. It keeps the firewall engine's lifetime independent
+# of ddos-local's, so no firewall-engine shutdown can run while the probe reads
+# the kernel back. copp declares firewall as a dependency, as ddos-local does.
+#
+# WHY THE TABLE AND NOT ONLY THE RULE. The sweep owes both. It claims the table
+# name for one reconcile, which is what makes the backend delete what it finds
+# under that name, and then withdraws the name so the empty table that reconcile
+# created goes as well. An implementation that reconciled once would leave an
+# empty ze_ddos-local table behind and this assertion reddens on it.
+#
+# STATUS: a Linux/QEMU integration test; NOT executable on the darwin dev host.
+#   It needs net-admin: the planter writes the nftables table through netlink and
+#   the probe reads it back. No bpf family is needed, because no victim prefix has
+#   to resolve: this test plants the rule rather than provoking one.
+option=needs-linux:caps=net-admin
+# Serialize against every other ddos test. They share one network namespace and
+# one ze_ddos-local table name, so a sibling's live mitigation is
+# indistinguishable from this test's planted one. Rationale in full:
+# test/plugin/ddos-direction.ci.
+option=exclusive:group=ddos-flood
+option=env:var=ze.log.ddos.local:value=info
+# 10s for the planter, then daemon startup and the readback.
+option=timeout:value=90s
+
+stdin=ze-bgp:terminator=EOF_CONF
+ddos {
+	local {
+		response-level enforce
+		max-mitigation-duration 3600
+	}
+}
+
+control-plane-protection {
+	bgp {
+		rate 100/second
+		burst 20
+	}
+}
+
+plugin {
+	external ddos-stale-table-swept-probe {
+		run "ze-test fixture plugin/ddos-stale-table-swept-driver"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze-test fixture plugin/ddos-stale-table-plant:timeout=15s
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=STALE-TABLE-PLANTED 127.0.0.13
+expect=stderr:contains=STALE-TABLE-SWEPT 127.0.0.13

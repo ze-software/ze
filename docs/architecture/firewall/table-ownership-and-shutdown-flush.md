@@ -84,19 +84,22 @@ the kernel when ze started.
 One case needs its own trigger. The removal runs inside `Backend.Apply`, and
 `ApplyAll` returns before it reaches a backend when the merged desired set is
 empty and none is loaded. A box with no `firewall {}` section, whose FlowSpec
-source has stopped announcing, therefore gets no reconcile that could reach the
-stale table. An owner whose own registration is event-driven -- the FlowSpec
-bridge, the anomaly-shape responder, ddos-local -- runs one empty reconcile at
-startup while the removal is pending, and `ApplyAll` loads a backend for that
-one reconcile. copp needs no such trigger: it registers its table whenever it is
-configured, so it always drives a reconcile of its own.
+source has stopped announcing, therefore gets no reconcile at all. An owner whose
+own registration is event-driven runs one empty reconcile at startup while the
+removal is pending. `ApplyAll` loads a backend for that one reconcile. Two owners
+do it: the FlowSpec bridge and the anomaly-shape responder.
+
+The other two need no trigger. copp registers its table whenever it is
+configured, so it always drives a reconcile of its own. ddos-local always
+presents a non-empty desired set in its start-of-process sweep (Rule 4), so it
+reaches a backend on every start.
 
 Remove an entry from `legacy_tables.go` when no supported upgrade path starts
 from a build that wrote it. The file is written to be deleted.
 
 <!-- source: internal/component/firewall/legacy_tables.go -- legacyTables, IsLegacyTable, legacySweepPending -->
 <!-- source: internal/plugins/firewall/nft/backend_linux.go -- Apply, isLegacyTable -->
-<!-- source: internal/plugins/ddos/local/register.go -- the startup empty reconcile -->
+<!-- source: internal/plugins/ddos/local/register.go -- clearStaleDropRule, the start-of-process reconcile -->
 
 ## Rule 3: teardown belongs to the firewall engine, gated by config
 
@@ -119,9 +122,50 @@ unrelated to BGP graceful restart, which never restarts the daemon.
 **Keep-on-crash is automatic.** The teardown runs on the orderly-stop path only.
 SIGKILL, a panic and a power loss all bypass it, so the tables persist.
 
+ddos-local carries a per-plugin post-`Run` withdraw again, and it is NOT an
+exception to this rule. It exists for the stop where the daemon lives on. The
+parent `ddos` block deleted stops the plugin while the firewall engine keeps
+running. The withdraw is then the only thing left that can take the drop out.
+At a DAEMON stop it is best-effort and promises nothing: this rule's race is real
+there, and nothing orders it. What holds instead is Rule 4.
+
 The firewall engine parses `flush-on-shutdown` only when a `firewall` section is
 present. A copp-only config keeps the package default of true. `atomic.Bool`
 zeroes to false, so the fail-safe default needs a `Store(true)` at init.
+
+## Rule 4: an attack-response table is cleared at the next start
+
+A ddos-local drop rule is not persistent state. It is an attack response, and a
+reboot is one of the ways an operator clears state. So it MUST NOT survive the
+process that installed it.
+
+The exit path cannot deliver that, for the reason Rule 3 gives. The guarantee
+moves to the START of the next process, where one actor runs alone and no
+ordering is needed. `clearStaleDropRule` runs before the plugin can be
+configured, and before any event can reach a responder. It does two reconciles:
+
+1. Register a table carrying the name and no chains, then reconcile. The backend
+   deletes whatever it finds under that name, and creates the empty table.
+2. Withdraw the name, then reconcile again. That removes the empty table the
+   first reconcile created.
+
+Both are needed, and the reason is `shouldDeleteTable`. It deletes a `ze_` table
+only when the name is in the desired set or in this backend instance's applied
+map. A fresh process's applied map is empty. So a reconcile that does not CLAIM
+the name leaves the stale table where it was. A claim that is never withdrawn
+leaves an empty table of ze's own.
+
+`desiredNames` is keyed by name alone, so one claim reaches the ip table and the
+ip6 table together. That is what a responder which picks its family from the
+victim prefix can leave behind.
+
+The same shape fits any owner whose table is an automatic RESPONSE rather than
+provisioned config. The FlowSpec bridge and the anomaly-shape responder are the
+other two, and neither carries the sweep today.
+
+<!-- source: internal/plugins/ddos/local/register.go -- clearStaleDropRule -->
+<!-- source: internal/plugins/firewall/nft/backend_linux.go -- shouldDeleteTable -->
+<!-- source: test/plugin/ddos-local-stale-table-swept.ci -- the kernel readback -->
 
 ## The injector plugin, and why it exists
 

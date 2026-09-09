@@ -8,7 +8,7 @@
 | Phase | 8/8 |
 | Handoff | - |
 | Updated | 2026-09-09 |
-| Review rounds | 3 cleared |
+| Review rounds | 4 cleared |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -328,6 +328,7 @@ rather than assumed; this one was checked and failed.
 | `ddos local forward-mitigation false` committed while a FORWARD drop is live | -> | `replaceResponder` -> `(*responder).withdrawMitigation` -> the kernel | `TestLocalDisablingForwardMitigationRemovesTheForwardDrop`, `TestLocalDisablingForwardMitigationLeavesTheIngressDrop` |
 | An `AttackCharacterized` already dispatched when a config apply retires its responder | -> | `(*responder).applyMitigation` returning on `retired` | `TestLocalRetiredResponderInstallsNothing`, `TestLocalRetiredResponderDoesNotReclaimACarriedRule` |
 | A reload transaction that verifies here and rolls back | -> | `pendingConfig.rollback` -> `clear` -> the next apply failing closed | `TestPendingConfigRollbackUnstagesTheCandidate` |
+| A `ze_ddos-local` drop rule a previous process left in the kernel | -> | `runEngine` -> `clearStaleDropRule` -> claim the name, reconcile, withdraw it, reconcile again | `test/plugin/ddos-local-stale-table-swept.ci` (STALE-TABLE-SWEPT), `TestStaleDropRuleSweepClaimsTheNameThenWithdrawsIt` |
 
 ## Acceptance Criteria
 
@@ -342,6 +343,7 @@ rather than assumed; this one was checked and failed.
 | AC-7 | `max-mitigation-duration 0` under `ddos local`, with a drop rule installed and an attack that never clears | The rule stays installed. Zero means no cap, which is what the leaf's own `description` says, and it MUST NOT be read as an expiry of zero seconds |
 | AC-8 | An `AttackCharacterized` that re-installs the rule in place, arriving while the rule is already active | The cap keeps counting from the FIRST install. A refresh MUST NOT restart the clock, or an attack that re-characterizes every minute never expires |
 | AC-9 | `ddos local` configured, no attack, for longer than `max-mitigation-duration` | Nothing is removed and nothing is logged. The worker is a no-op while no rule is installed |
+| AC-10 | A `ze_ddos-local` drop rule in the kernel when ze starts, put there by a previous process and claimed by no owner in this one | The plugin removes it, and the whole table with it, before it can be configured and before any event can reach a responder. It removes it whatever `firewall flush-on-shutdown` says, because a ddos drop is an attack response rather than persistent state, and protection after the restart comes from the attack being detected again (owner directive, 2026-09-09) |
 
 ## End-to-End User Stories
 
@@ -478,6 +480,16 @@ Added 2026-09-09, clearing the round 3 review gate:
 - `plan/journal/late-write-lands-on-the-successor.md` - the dispatch contract behind finding 14
 - `plan/journal/committed-spec-fails-its-own-write-gate.md` - this spec's own round 2 code block
 
+Added 2026-09-09, clearing the round 4 review gate:
+
+- `internal/plugins/ddos/local/register.go` - `clearStaleDropRule` and its call from `runEngine`; the legacy-sweep block it replaces is deleted; `retireResponder` renamed `stopResponder`, and its shutdown claim replaced by what the code holds
+- `internal/plugins/ddos/local/responder.go` - `removeMitigation` reports one outcome, never a refusal followed by a success
+- `internal/plugins/ddos/local/max_duration_test.go` - `countingTables` counts reconciles, and the once-only test asserts that count
+- `internal/test/fixture/plugin_fixture_06_ddos_linux.go` - the stale-table planter and the sweep probe
+- `docs/guide/ddos-mitigation.md` - the daemon-stop claim, the sweep, and the operator's exposure window after a restart
+- `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` - Rule 4, the Rule 3 note on ddos-local's exit withdraw, and the Rule 2a trigger list
+- `plan/journal/gate-excludes-part-of-its-population.md` - the residual: nothing sweeps a ze table whose owner the current config does not start
+
 ## Files to Create
 - `internal/plugins/ddos/detect/interval_test.go`
 - `internal/plugins/ddos/flowspec/announce_limit_test.go`
@@ -489,6 +501,8 @@ Added 2026-09-09, clearing the round 3 review gate:
 - `test/plugin/ddos-local-cap-survives-reload.ci`
 - `test/plugin/ddos-local-config-removed.ci`
 - `test/plugin/ddos-parent-config-removed.ci`
+- `test/plugin/ddos-local-stale-table-swept.ci`
+- `internal/plugins/ddos/local/stale_table_test.go`
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -522,7 +536,7 @@ Added 2026-09-09, clearing the round 3 review gate:
 | 9 | RFC behavior implemented, changed, or newly proven? | No | RFC 8955 encoding is unchanged; the guard stops an origination that never encoded |
 | 10 | Test infrastructure changed? | No | One fixture added to an existing file, one `.ci` to an existing suite |
 | 11 | Affects daemon comparison? | No | - |
-| 12 | Internal architecture changed? | No | `docs/architecture/ddos/cp-survival-5-detect-0-umbrella.md` describes the detector's stages, not its cadence |
+| 12 | Internal architecture changed? | Yes (2026-09-09) | `docs/architecture/firewall/table-ownership-and-shutdown-flush.md`. Rule 4 states that an attack-response table is cleared at the next start and why one reconcile cannot do it; Rule 3 gains what ddos-local's per-plugin withdraw is for and what it does not promise; Rule 2a's trigger list drops ddos-local. `docs/architecture/ddos/cp-survival-5-detect-0-umbrella.md` still describes the detector's stages, not its cadence, and is unaffected |
 | 13 | Route metadata keys added/changed? | No | - |
 | 14 | Prometheus counters added/changed? | No | - |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | - |
@@ -674,6 +688,15 @@ stays as the record of why no unprivileged `.ci` can reach the limiter.
 - The detector still emits a critical `AttackDetected` with no victim when no traffic
   source can name one. AC-5 stops the responder acting on it; whether the DETECTOR should
   emit it at all is the open question the journal row records.
+- **The start sweep needs the plugin to start.** `clearStaleDropRule` runs from
+  `runEngine`, and the plugin engine is started from the `ddos local` config root, so an
+  operator who stops ze with a drop installed under `firewall { flush-on-shutdown false; }`,
+  deletes `ddos local` from the config file, and restarts, leaves `ze_ddos-local` enforcing
+  with nothing on the box that mentions it. Nothing in `internal/plugins/ddos/**` can close
+  that: the repair belongs to the firewall engine, which is the one actor that knows every
+  name a ze build can own and runs whatever the config says. Recorded as a row in
+  `plan/journal/gate-excludes-part-of-its-population.md`, with `ze_flowspec`,
+  `ze_anomaly-shape` and `ze_copp` in the same position.
 
 ## TDD Evidence (AC-6 through AC-9, 2026-09-08)
 
@@ -1888,6 +1911,249 @@ QEMU VM: PASS
 The cut was reverted, the guest binaries rebuilt, and
 `grep -rn MUTATION-APPLIED internal/plugins/ddos internal/test test/` returns
 nothing.
+
+### Round 4 (independent, over commit `d7104cb7b`)
+
+Scope: the fixes round 3 made and what they newly touched. 1 BLOCKER, 2 ISSUE,
+2 NOTE. Every finding below was read at its producing function.
+
+**Round 3 re-check, at the producers.** Finding 14 is fixed, and the flag cannot
+be set on a responder that can still install: `replaceResponder` (register.go)
+sets `prev.retired` under `prev.mu`, inside the handover critical section, and
+the only readers of `activeResponder` in the window before the publish are
+`handleShowDdosLocal` and the cap worker, neither of which installs. The install
+paths are `onDetected` and `onCharacterized`, each bound to one responder by
+closure, and both reach the kernel only through `applyMitigation`, which now
+returns first on `retired`; `registerTables` with a non-nil table has no other
+caller in the package. Finding 15's ordering holds: the exit defer is registered
+before the cap worker's, so LIFO joins the worker first. The two withdrawals
+cannot double-withdraw, because `withdrawMitigation` returns on `!active` and
+`adoptMitigation` returns on `!prev.active`, so the engine holds an idle
+responder after a config-boundary withdrawal. Finding 18's key is sound in both
+directions: `chainHookUnknown` is the zero `ChainHook` (firewall/model.go), so an
+unset hook matches neither arm, and `setStatus` and `adoptMitigation` are the
+only writers of `hook`. Findings 16, 17, 19 and 20 are resolved as recorded, and
+`pending.rollback` is the method value the SDK is handed, so the test drives the
+wiring rather than a helper beside it.
+
+#### 21 (BLOCKER). The exit-path withdraw is the copp shape this repository already measured as racy and deleted, and the guide publishes it as unconditional
+
+`retireResponder` runs from a plugin engine goroutine after `p.Run` returns.
+`ProcessManager.Stop` (internal/component/plugin/process/manager.go) cancels the
+context, calls the non-blocking `Process.Stop` over `pm.processes` in map order,
+and only then waits on every engine concurrently, bounded by `pluginStopGrace`,
+3 seconds. There is no dependency order, so ddos-local's withdrawal is not
+ordered against the firewall engine's own post-Run path, which at
+`flush-on-shutdown false` skips `FlushAllTables` and goes straight to
+`CloseBackend` (internal/component/firewall/engine.go). `CloseBackend` sets
+`activeBackend` to nil (firewall/backend.go), after which `ApplyAll` returns
+`errFirewallBackendNotLoaded`, or silently nil when no other owner holds a
+table, and writes nothing to the kernel (firewall/registry.go).
+
+`docs/architecture/firewall/table-ownership-and-shutdown-flush.md` Rule 3 states
+this defect as already measured, for copp, and names the repair: ProcessManager
+.Stop cancels every plugin at once with no dependency order, so copp's own
+post-Run withdraw raced the firewall engine's CloseBackend, and copp's own
+withdraw was removed. This commit re-introduces that shape for ddos-local.
+
+The rule then survives the daemon. `shouldDeleteTable`
+(internal/plugins/firewall/nft/backend_linux.go) deletes a ze_ table only when it
+is in the desired set or in this backend instance's `applied` map, so a restarted
+ze does not sweep a `ze_ddos-local` table a previous process left behind.
+
+Failure scenario, concrete. `firewall { flush-on-shutdown false; }`, an attack on
+a box-owned victim, a drop live on the INPUT hook, then an orderly stop that
+carries no signal to the plugin engines, which is the request-shutdown path
+(`Server.signalShutdownRequested`, plugin/server/server.go). Both engines are
+released by the same `Process.Stop` loop; ddos-local first cancels and joins the
+cap worker, while the firewall engine has only `CloseBackend` left to run, and a
+ddos-local reconcile that lands after it writes nothing. The daemon exits with
+the victim blackholed and nothing in this process or the next removes the table.
+The same loss happens under SIGTERM whenever the worker join or the reconcile
+costs more than the 3 second grace, which the manager already logs as a plugin
+that may have left resources behind.
+
+What makes this a BLOCKER rather than the improvement it also is: the diff
+publishes the guarantee. `docs/guide/ddos-mitigation.md` states that an orderly
+daemon stop removes the drop too, whatever `firewall flush-on-shutdown` says,
+and `retireResponder`'s doc comment states that at `flush-on-shutdown false`
+this call still removes the drop. Neither is held by the code, and no test covers
+the daemon stop: the new .ci covers the reload gesture, where the daemon and the
+backend live on and the path IS correct. A claim wider than the code is what
+stops the next reader asking (`ai/rules/evidence.md`).
+
+Two fix shapes, neither picked here. Order the stop by the declared dependency,
+so a plugin naming `firewall` stops before it, which is the general repair Rule 3
+says does not exist. Or keep teardown with the one ordered actor Rule 3 names:
+the firewall engine sweeps an attack-response table on shutdown whatever the leaf
+says, because the leaf is about rules an operator provisioned, which is the
+argument this commit already makes.
+
+#### 22 (ISSUE). The page that contradicts this change was knowingly left unedited
+
+`docs/architecture/firewall/table-ownership-and-shutdown-flush.md` Rule 3 says
+the per-plugin post-Run withdraw was removed and that teardown belongs to the
+firewall engine, gated by config. After this commit ddos-local has one again. The
+round 3 resolution records the page as outside this work's file scope and tells
+the main thread instead. `ai/rules/documentation.md` is always-on and carries no
+file-scope exemption: the page edit lands in the same work as the code, and a page
+that disagrees with the code is repaired here rather than reported. The sentence
+that page owes is the one finding 21 says is not true yet, so the two resolve
+together.
+
+#### 23 (ISSUE). A failed exit-path removal is logged as a successful one
+
+`removeMitigation` (responder.go) logs `failed to remove drop rule` on an
+`applyAll` error and then logs `drop rule removed` unconditionally on the next
+line, before `setStatus(false, ...)`. The line predates this commit; what is new
+is that `retireResponder` makes it terminal. Every other caller has a later
+reconcile to repair a failure; on the exit path the daemon is gone, so this line
+is the operator's only witness and it says the opposite of what happened. The
+.ci asserts the withdraw-reason line, not this one, so no test holds it.
+
+#### 24 (NOTE). `retire` and `retireResponder` name two different jobs
+
+`(*responder).retire` sets one flag. `retireResponder` withdraws the rule AND
+retires. A reader who greps one finds the other and must read both to learn they
+are not the same act (`docs/contributing/ze-go-style.md`, do not overload a name).
+
+#### 25 (NOTE). The once-only test counts registrations, not reconciles
+
+`TestLocalEngineStopAfterAWithdrawTouchesTheKernelOnce` measures `registerTables`
+calls through `countingTables`, and its stub `applyAll` counts nothing. Its stated
+subject is a second netlink round trip, so a regression that reconciled twice
+while registering once would not redden it. Every removal path today pairs the
+two, so the proxy is faithful as written.
+
+#### Round 4 disposition
+
+| # | Severity | Status |
+|---|----------|--------|
+| 21 | BLOCKER | ANSWERED BY THOMAS on 2026-09-09, and his answer is the specification: "We should make no claim on shutdown, the rule should not be saved (as the reboot may be to clear all state) and should be re-detected and instanciated on the next restart." A ddos drop is therefore not persistent state. Three changes follow. The claim is GONE: `stopResponder`'s doc comment and the guide both say the exit withdraw is best-effort at a daemon stop, and name the race the finding measured. The guarantee MOVED to the next process's start: `clearStaleDropRule` sweeps a `ze_ddos-local` table whatever put it there, which is the one place where one actor runs alone and no ordering is needed. And the guide now states plainly that protection after a restart comes from re-detection, with the exposure window the detector's own leaves set. Proved in the guest by `test/plugin/ddos-local-stale-table-swept.ci`, red under the cut sweep and green with it, both pasted below |
+| 22 | ISSUE | FIXED. `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` gains Rule 4, which states that an attack-response table is cleared at the next start and why one reconcile cannot do it, and Rule 3 gains the paragraph that ddos-local's per-plugin withdraw is for the stop where the daemon lives on and is best-effort otherwise. Rule 2a's trigger list drops ddos-local, because the sweep always presents a non-empty desired set and so always reaches a backend: the `LegacySweepPending` block in `OnConfigure` is deleted rather than kept beside it (`ai/rules/no-layering.md`) |
+| 23 | ISSUE | FIXED. `removeMitigation` computes the reconcile once, clears the status either way, and then writes ONE line: the error names that the rule is still in the kernel, or the info line reports the removal. `TestRemoveMitigationDoesNotReportARemovalTheKernelRefused` is red against the pre-fix shape, pasted below |
+| 24 | NOTE | FIXED. `retireResponder` is now `stopResponder`, named for the whole act rather than for the flag it ends with, and its comment says so. `(*responder).retire` keeps its name and its one job |
+| 25 | NOTE | FIXED. `countingTables` returns a third counter, the reconciles, and `TestLocalEngineStopAfterAWithdrawTouchesTheKernelOnce` asserts on it. A reconcile added to the exit path that registers nothing new reddens it, pasted below; the register counts alone do not move |
+
+### Round 4 TDD evidence
+
+Every command ran through `./le job run label ddos-local-unit`.
+
+**Finding 21, RED with the claim step cut from `clearStaleDropRule`, which is
+what the start path did before this work:**
+
+```
+[ddos-local-unit] previous run took 0m7s (7s)
+=== RUN   TestStaleDropRuleSweepClaimsTheNameThenWithdrawsIt
+    stale_table_test.go:79: the sweep must claim the table name, reconcile, withdraw it and reconcile again; got [{register 0} {reconcile 0}]
+--- FAIL: TestStaleDropRuleSweepClaimsTheNameThenWithdrawsIt (0.00s)
+=== RUN   TestStaleDropRuleSweepClaimsTheTableUnderTheResponderName
+    stale_table_test.go:121: the sweep claimed owner "", want "ze_ddos-local": any other key leaves the responder's own table unclaimed
+    stale_table_test.go:124: the sweep must claim exactly one table, got 0
+--- FAIL: TestStaleDropRuleSweepClaimsTheTableUnderTheResponderName (0.00s)
+=== RUN   TestStaleDropRuleSweepLeavesNoClaimBehindOnAFailedReconcile
+    stale_table_test.go:162: the sweep left {reconcile 0} as its last act, want a withdraw carrying no table (whole sequence [{register 0} {reconcile 0}])
+--- FAIL: TestStaleDropRuleSweepLeavesNoClaimBehindOnAFailedReconcile (0.00s)
+FAIL
+FAIL	github.com/ze-software/ze/internal/plugins/ddos/local	0.568s
+FAIL
+```
+
+**GREEN with the two reconciles:**
+
+```
+[ddos-local-unit] previous run took 0m2s (2s)
+=== RUN   TestStaleDropRuleSweepClaimsTheNameThenWithdrawsIt
+--- PASS: TestStaleDropRuleSweepClaimsTheNameThenWithdrawsIt (0.00s)
+=== RUN   TestStaleDropRuleSweepClaimsTheTableUnderTheResponderName
+--- PASS: TestStaleDropRuleSweepClaimsTheTableUnderTheResponderName (0.00s)
+=== RUN   TestStaleDropRuleSweepLeavesNoClaimBehindOnAFailedReconcile
+--- PASS: TestStaleDropRuleSweepLeavesNoClaimBehindOnAFailedReconcile (0.00s)
+PASS
+ok  	github.com/ze-software/ze/internal/plugins/ddos/local	0.496s
+```
+
+**Finding 23, RED against the pre-fix `removeMitigation`, restored byte for
+byte:**
+
+```
+[ddos-local-unit] previous run took 0m2s (2s)
+=== RUN   TestRemoveMitigationDoesNotReportARemovalTheKernelRefused
+    stale_table_test.go:213: a refused withdrawal must not also report a removal: the rule is still in the kernel and this line is what an operator acts on. Log was:
+        time=2026-09-09T13:47:31.268+01:00 level=ERROR msg="ddos-local: failed to remove drop rule" error="the kernel is wedged"
+        time=2026-09-09T13:47:31.269+01:00 level=INFO msg="ddos-local: drop rule removed" target=10.0.0.1/32
+--- FAIL: TestRemoveMitigationDoesNotReportARemovalTheKernelRefused (0.00s)
+FAIL
+FAIL	github.com/ze-software/ze/internal/plugins/ddos/local	0.503s
+FAIL
+```
+
+**Finding 25, RED with one extra reconcile on the exit path that registers
+nothing:**
+
+```
+[ddos-local-unit] previous run took 0m1s (1s)
+=== RUN   TestLocalEngineStopAfterAWithdrawTouchesTheKernelOnce
+2026/09/09 13:47:43 INFO ddos-local: drop rule installed target=10.0.0.1/32 hook=ingress phase=detected
+2026/09/09 13:47:43 INFO ddos-local: the ddos local section was removed, removing the drop rule target=10.0.0.1/32
+2026/09/09 13:47:43 INFO ddos-local: drop rule removed target=10.0.0.1/32
+    max_duration_test.go:730: the exit path reconciled the kernel again after the config boundary had already removed the rule, delaying the stop by a netlink round trip (reconciles 3, was 2)
+--- FAIL: TestLocalEngineStopAfterAWithdrawTouchesTheKernelOnce (0.00s)
+FAIL
+FAIL	github.com/ze-software/ze/internal/plugins/ddos/local	0.457s
+FAIL
+```
+
+### The stale-table proof, run in the QEMU guest (2026-09-09)
+
+`test/plugin/ddos-local-stale-table-swept.ci` RAN on ze's runtime kernel,
+through `./le qemu run kernel tmp/kernel/build/vmlinuz packages "iproute2 libcap"`
+with the guest-side `ze-test bgp plugin ddos-local-stale-table-swept`. A fixture
+plants a `ze_ddos-local` table with an ingress drop for 127.0.0.13 BEFORE ze
+starts, reads it back to prove it reached the kernel, and then the daemon comes
+up with `ddos local` configured and a probe that polls for the table's absence.
+No flood runs, so no responder installs anything and neither an `AttackCleared`
+nor `max-mitigation-duration` can account for a removal.
+
+**RED, with the `clearStaleDropRule` call cut from `runEngine` and the guest
+binary REBUILT so the cut reached the daemon:**
+
+```
+STALE-TABLE-PLANTED 127.0.0.13
+table=ze_ddos-local chain=ingress rules=1
+...
+INFO msg="ddos-local: configured" subsystem=ddos.local response-level=enforce
+ERROR msg="ZE-OBSERVER-FAIL: the ze_ddos-local table a previous process left in the kernel was still
+  there 10s after the daemon came up: no responder claims that rule, so no clear and no
+  max-mitigation-duration can reach it, and the firewall engine's own flush cannot either -- it
+  deletes a ze_ table only when the table is in the desired set or in this backend instance's applied
+  map. The victim 127.0.0.13 stays blackholed for the life of the daemon:
+table=ze_ddos-local family=2"
+QEMU VM: FAIL (exit code 1)
+```
+
+The red also settles the finding's own question about the shutdown flush. The
+daemon in that run stopped cleanly at the default `flush-on-shutdown` of true,
+and the table was still there: `FlushAllTables` reconciles an empty desired set,
+and `shouldDeleteTable` will not delete a `ze_` name that is in neither the
+desired set nor this backend instance's applied map.
+
+**GREEN with the sweep, and the four sibling ddos-local `.ci` tests re-run
+against the same binaries because the rename and the `removeMitigation` change
+are on their path:**
+
+```
+8.7s     3/5  PASS  224  ddos-local-max-duration
+1.3s     4/5  PASS  225  ddos-local-stale-table-swept
+3.1s     5/5  PASS  226  ddos-parent-config-removed
+25.5s    1/5  PASS  222  ddos-local-cap-survives-reload
+3.5s     2/5  PASS  223  ddos-local-config-removed
+pass  5/5  100.0%  42.1s
+QEMU VM: PASS
+```
+
+The mutations were reverted and
+`grep -rn MUTATION-APPLIED internal/ test/` returns nothing.
 
 ## RFC Documentation (Scope: protocol)
 

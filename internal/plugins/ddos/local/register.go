@@ -235,8 +235,75 @@ func (p *pendingConfig) rollback(string) error {
 	return nil
 }
 
-// retireResponder takes r out of service on the engine's exit path and removes
-// any drop rule it still owns. A nil r is the engine that never configured.
+// clearStaleDropRule removes a ze_ddos-local drop rule a PREVIOUS ze process left
+// in the kernel, so no restart ever inherits a blackhole.
+//
+// A ddos drop is an attack response and not provisioned state. It is never saved
+// across a restart, because a reboot can be exactly how an operator clears state,
+// and protection afterwards comes from the attack being DETECTED again
+// (docs/guide/ddos-mitigation.md carries the operator's exposure window).
+//
+// Nothing else clears it. The exit-path withdrawal is best-effort at a daemon
+// stop (stopResponder). A crash runs no exit path at all, and `firewall
+// flush-on-shutdown false` leaves every ze table in place on purpose.
+//
+// The nft backend refuses to delete a ze_ table it did not apply itself.
+// shouldDeleteTable (internal/plugins/firewall/nft/backend_linux.go) sweeps a ze_
+// name only when it is in the desired set or in THIS backend instance's applied
+// map, and a fresh process's map is empty.
+//
+// The desired set is the one lever this package holds, so the sweep uses it. Two
+// reconciles, in this order:
+//
+//  1. Register a table carrying the name and no chains, then reconcile. The
+//     backend deletes every kernel table of that name and creates the empty one
+//     in its place. desiredNames is keyed by NAME alone, so an ip table and an ip6
+//     table both go. That is what a responder which picks its family from the
+//     victim prefix can leave behind (familyFromPrefix, responder.go).
+//  2. Withdraw the name and reconcile again. The empty table is in the backend's
+//     applied map now, so this reconcile deletes it and the kernel holds no
+//     ze_ddos-local table at all.
+//
+// One reconcile cannot do it. A name in neither the desired set nor the applied
+// map is a name the backend leaves alone, which is what makes the stale table
+// survive in the first place. No other owner's table is touched, for that same
+// reason.
+//
+// It also carries the one-time removal of the tables an older ze build wrote
+// under a name with no ownership prefix. That removal runs inside Backend.Apply,
+// and ApplyAll returns early when the merged desired set is empty and no backend
+// is loaded. Step 1 always presents a non-empty set, so ddos-local needs no
+// separate trigger for it (internal/component/firewall/legacy_tables.go).
+//
+// Called once, from runEngine, before the plugin can be configured and before any
+// event can reach a responder, so there is no rule of this process's own to lose.
+func clearStaleDropRule() error {
+	// No chains: the table exists for one reconcile, only so the backend counts
+	// the name as one it owns.
+	claim := firewall.Table{Name: tableName, Family: firewall.FamilyIP}
+	if err := registerTables(tableName, []firewall.Table{claim}); err != nil {
+		return fmt.Errorf("claiming the ddos-local table name: %w", err)
+	}
+	if err := applyAll(); err != nil {
+		// Leave no claim behind: a registration kept here would put an empty
+		// ddos-local table into the kernel on the next owner's reconcile.
+		_ = registerTables(tableName, nil) // a withdraw registers no name, so it cannot be refused
+		return fmt.Errorf("sweeping a drop rule left by a previous process: %w", err)
+	}
+
+	_ = registerTables(tableName, nil) // a withdraw registers no name, so it cannot be refused
+	if err := applyAll(); err != nil {
+		return fmt.Errorf("removing the empty ddos-local table: %w", err)
+	}
+	return nil
+}
+
+// stopResponder takes r out of service on the engine's exit path and removes any
+// drop rule it still owns. A nil r is the engine that never configured.
+//
+// It is named for the whole act rather than for the flag it ends with, because
+// it does two things: (*responder).retire only sets that flag
+// (docs/contributing/ze-go-style.md -- do not overload a name).
 //
 // The rule goes out with the engine because nothing survives the engine that
 // could remove it: the responder becomes unreachable, the cap worker exits, and
@@ -262,18 +329,25 @@ func (p *pendingConfig) rollback(string) error {
 // config-boundary withdrawal leaves the responder it acted on inactive while the
 // engine goes on holding the fresh idle one this call then finds.
 //
-// It runs at DAEMON shutdown too, and it is deliberate there rather than
-// incidental. The firewall engine's own comment already names ddos-local among
-// the per-plugin withdraw paths that share its in-process backend, and it flushes
-// sequentially before CloseBackend, so there is no race
-// (internal/component/firewall/engine.go). At the default
-// firewall flush-on-shutdown of true the engine's flush would have removed this
-// table anyway. At `flush-on-shutdown false`, which lets ze program rules and
-// exit, this call still removes the drop: that leaf is about rules an operator
-// PROVISIONED, and this rule is an attack response whose max-mitigation-duration
-// worker exits with the daemon, so leaving it is unbounded blackholing rather
-// than provisioning. docs/guide/ddos-mitigation.md states it for the operator.
-func retireResponder(r *responder) {
+// At a DAEMON stop this call is BEST-EFFORT and promises nothing. No caller and
+// no page may state that a daemon stop removes the drop.
+//
+// ProcessManager.Stop cancels every plugin at once, calls Process.Stop over its
+// process map in map order, then waits on every engine concurrently
+// (internal/component/plugin/process/manager.go). Nothing orders this withdrawal
+// against the firewall engine's own exit. That engine goes to CloseBackend as
+// soon as its p.Run returns, and at `flush-on-shutdown false` it does not flush
+// first (internal/component/firewall/engine.go). Once activeBackend is nil,
+// ApplyAll writes nothing to the kernel
+// (internal/component/firewall/registry.go). The same loss happens whenever this
+// path costs more than the manager's stop grace.
+//
+// What guarantees the rule does not survive the daemon is clearStaleDropRule, at
+// the START of the next process. That is the right place for it as well as the
+// only reliable one: an operator who reboots to clear state gets it cleared, and
+// protection comes back from the attack being detected again rather than from a
+// rule that outlived the daemon (docs/guide/ddos-mitigation.md).
+func stopResponder(r *responder) {
 	if r == nil {
 		return
 	}
@@ -287,6 +361,15 @@ func runEngine(conn net.Conn) int {
 	log := logger()
 	log.Debug("ddos-local plugin starting")
 
+	// A drop rule is an attack response and never persistent state, so one left by
+	// a previous process goes before this one can be configured. Reported and not
+	// returned: a daemon whose firewall backend is unusable must still detect and
+	// report.
+	if err := clearStaleDropRule(); err != nil {
+		log.Warn("ddos-local: could not clear a drop rule left by a previous process",
+			"error", err, "effect", "a victim that process was mitigating stays blackholed until an operator removes the table")
+	}
+
 	p := sdk.NewWithConn(Name, conn)
 	defer func() { _ = p.Close() }()
 
@@ -294,11 +377,11 @@ func runEngine(conn net.Conn) int {
 
 	// Registered BEFORE the cap worker's own defer, so LIFO runs it AFTER the
 	// worker has been canceled and waited for: the withdrawal is then the last
-	// thing this plugin does to the kernel. retireResponder says why the rule
+	// thing this plugin does to the kernel. stopResponder says why the rule
 	// cannot be left behind.
 	defer func() {
 		activeResponder.Store(nil)
-		retireResponder(resp)
+		stopResponder(resp)
 	}()
 
 	// parseSections returns the ddos local config the delivered sections carry,
@@ -360,19 +443,6 @@ func runEngine(conn net.Conn) int {
 		resp = replaceResponder(cfg, bus, resp, configured)
 		subscribe(bus, resp)
 
-		// One empty reconcile while the one-time removal of the tables an older
-		// ze build wrote is still pending. This responder's own table is one of
-		// them, and it registers nothing until an attack arrives, so a box that
-		// is never attacked gets no other reconcile that could reach it
-		// (internal/component/firewall/legacy_tables.go).
-		//
-		// Reported and not returned: a daemon whose firewall backend is unusable
-		// must still detect and report.
-		if firewall.LegacySweepPending() {
-			if err := applyAll(); err != nil {
-				log.Warn("ddos-local: the one-time removal of an older ze build's tables did not run", "error", err)
-			}
-		}
 		log.Info("ddos-local: configured", "response-level", cfg.ResponseLevel)
 		return nil
 	})

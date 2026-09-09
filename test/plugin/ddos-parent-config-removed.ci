@@ -6,7 +6,7 @@
 #            rule ddos local installs is always reachable by something that can
 #            remove it. The plugin withdraws on its own exit path when it is
 #            stopped without being told anything (register.go runEngine's defer
-#            -> retireResponder -> responder.go withdrawMitigation).
+#            -> stopResponder -> responder.go withdrawMitigation).
 # PREVENTS:  the orphan that this operator gesture leaves and the sibling gesture
 #            does not. `delete ddos local` delivers an empty body for the removed
 #            root and the config boundary withdraws on it; `delete ddos` delivers

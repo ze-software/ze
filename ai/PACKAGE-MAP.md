@@ -612,7 +612,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/portdefaults` | pins the hand-maintained Go listener-default table (internal/component/config/listener_defaults.go, RegisterBuiltinListenerDefaults) |  |
 | `internal/le/protocolskeleton` | classifies each protocol's subpackages against the standard skeleton: a canonical module, per-peer state named by the protocol's own RFC term, a wire-version directory, a domain module, or a... |  |
 | `internal/le/qemu` | proofs that boot a real appliance image in a virtual machine and ask it what it did |  |
-| `internal/le/repository` | is the post-verify validation gate: five checks, each derived from a documented defect pattern in plan/learned/RECURRING-PATTERNS.md |  |
+| `internal/le/repository` | is the post-verify validation gate: six checks, each derived from a documented defect pattern in plan/learned/RECURRING-PATTERNS.md |  |
 | `internal/le/repository/trackedbuild` | COMPILES the repository as git holds it, which is the one population no other check in this repository compiles |  |
 | `internal/le/rfc` | binds every MUST-level requirement of an enrolled RFC to the tests that enforce it, and carries the ratchets in ai/rules/rfc-compliance.md |  |
 | `internal/le/rules` | owns the checks and reports for `ai/rules/` |  |

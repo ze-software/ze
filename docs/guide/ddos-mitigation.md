@@ -437,15 +437,42 @@ the new config, and what happens to the rule depends on what the commit says.
 | `forward-mitigation false`, with the live rule on the FORWARD hook | REMOVED at once. The leaf's whole subject is whether this box drops a transit victim's traffic on-host, so turning it off is the commit that says stop. The log line is `forward-mitigation was disabled, removing the drop rule`. A drop on the INPUT hook, for a victim the box owns, is KEPT: this leaf says nothing about it |
 | The `ddos local` block deleted | REMOVED at once. The plugin is stopped as soon as the reload lands, so a rule carried past this point would stay in the kernel with no responder and no cap worker left to remove it. The log line is `the ddos local section was removed, removing the drop rule` |
 | The parent `ddos` block deleted | REMOVED, on the plugin's way out. This commit tells the plugin nothing: the reload records one removed key for the whole subtree, and the walk that picks the plugins to notify does not match an ancestor, so no config reaches `ddos local` at all. The plugin is stopped all the same, and it removes its own rule as it exits. The log line is `the plugin is stopping, removing the drop rule` |
-<!-- source: internal/plugins/ddos/local/responder.go -- enforceMaxDuration, adoptMitigation, withdrawMitigation; internal/plugins/ddos/local/register.go -- startMaxDurationWorker, replaceResponder, retireResponder -->
+<!-- source: internal/plugins/ddos/local/responder.go -- enforceMaxDuration, adoptMitigation, withdrawMitigation; internal/plugins/ddos/local/register.go -- startMaxDurationWorker, replaceResponder, stopResponder -->
 
-**An orderly daemon stop removes the drop too, whatever `firewall
-flush-on-shutdown` says.** That leaf lets ze program firewall rules and exit,
-leaving them in place. A ddos drop is not a rule ze programmed and left: it is an
-attack response bounded by `max-mitigation-duration`, and the worker that
-enforces that bound exits with the daemon. So ddos local removes its own rule as
-it stops, and a stopped ze never leaves a victim blackholed. A crash still leaves
-the rule, because no exit path runs.
+**A daemon stop makes no promise about the drop.** ddos local does try to
+withdraw the rule as it exits. That withdrawal is what the parent-block row above
+depends on: there the daemon and the firewall engine both live on.
+
+At a DAEMON stop nothing orders it. `ProcessManager.Stop` cancels every plugin at
+once and waits on them together. So the firewall engine CAN close its backend
+while ddos local is still joining its cap worker. A withdrawal that lands after
+that close writes nothing to the kernel. A crash, a power loss and
+`firewall { flush-on-shutdown false; }` each leave the rule as well.
+
+**The rule does not survive the restart, because ddos local clears it at its own
+start.** A ddos drop is not persistent state. It is an attack response, and a
+reboot is one of the ways an operator clears state. So the plugin removes any
+`ze_ddos-local` table it finds in the kernel before it can be configured. It
+removes it whatever put it there, and whatever `flush-on-shutdown` says.
+
+Nothing else can. The nft backend deletes a `ze_` table only when the table is in
+the desired set, or in that backend instance's own applied set. A table a
+previous process wrote is in neither. A sweep that does not reach the kernel logs
+`could not clear a drop rule left by a previous process`.
+
+**Protection after a restart comes from the attack being detected again**, not
+from a rule that outlived the daemon. The exposure window is therefore the
+detector's and not the responder's. Three things set it:
+
+| What | Default | What it costs after a restart |
+|------|---------|-------------------------------|
+| `startup-grace` | 90 | The opening 90 seconds of the rate feed are discarded, so a cold baseline cannot fire on its own warm-up. Either of two facts escapes the grace at once. One is a packet rate over five times `absolute-floor`. The other is a bandwidth trigger that is enabled, has a ready baseline, and is over its threshold. A flood under both waits the grace out |
+| `confirm-duration` | 3 | Three consecutive above-threshold evaluations before `AttackDetected`, which is about 3 seconds at the default `check-interval` of 1 |
+| `baseline-window` | 300 | Only when there is no saved baseline. ze persists both baselines and restores them at startup, so a restart usually resumes warm. A box that has never run, or whose state store is empty, re-warms over this window first |
+
+<!-- source: internal/plugins/ddos/detect/detector.go -- applyTick, the startup-grace escape -->
+<!-- source: internal/plugins/ddos/detect/persist.go -- saveBaselines, loadBaselines -->
+<!-- source: internal/plugins/ddos/local/register.go -- clearStaleDropRule -->
 
 **Going back to `enforce`.** A commit of `response-level alert` removes the rule,
 and a commit of `enforce` after it does NOT put the rule back for the attack that

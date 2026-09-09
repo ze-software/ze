@@ -218,7 +218,7 @@ const (
 // It is the removal path for a config apply and for the engine's own stop,
 // beside enforceMaxDuration for the cap and onCleared for the attack ending. Its
 // two callers are in register.go: replaceResponder, on the OUTGOING responder
-// because the incoming one has installed nothing, and retireResponder on the
+// because the incoming one has installed nothing, and stopResponder on the
 // engine's exit path.
 func (r *responder) withdrawMitigation(reason withdrawReason) {
 	if !r.active {
@@ -233,7 +233,7 @@ func (r *responder) withdrawMitigation(reason withdrawReason) {
 //
 // It is called once for each responder, at the moment the plugin stops being
 // able to reach it: from replaceResponder for a responder a config apply
-// replaces, and from retireResponder for the one the engine holds when it stops
+// replaces, and from stopResponder for the one the engine holds when it stops
 // (both register.go). Ordering against a handler already in flight is settled by
 // mu either way. A handler that wins the lock installs a rule this call then
 // removes; a handler that loses it finds retired and installs nothing.
@@ -454,13 +454,29 @@ func (r *responder) enforceMaxDuration() {
 	r.removeMitigation()
 }
 
+// removeMitigation withdraws the drop rule and reports what the kernel did.
+// Caller holds r.mu.
+//
+// The two outcomes are two log lines and never both. A failed reconcile used to
+// be followed by "drop rule removed" on the next line, which reads as a success
+// an operator can act on. Most callers have a later reconcile that repairs a
+// failure -- the detector re-fires about once a second -- but the engine's exit
+// path has none, so there the line is the only witness the operator ever gets
+// (ai/rules/evidence.md).
+//
+// r.active is cleared either way, and the registry is empty either way, so the
+// responder never claims a rule the desired state no longer holds. What survives
+// a failure is the KERNEL's copy, which is what the error line names.
 func (r *responder) removeMitigation() {
 	_ = registerTables(tableName, nil) // a withdraw registers no name, so it cannot be refused
-	if err := applyAll(); err != nil {
-		logger().Error("ddos-local: failed to remove drop rule", "error", err)
+	err := applyAll()
+	r.setStatus(false, r.target, r.hook)
+	if err != nil {
+		logger().Error("ddos-local: failed to remove drop rule, it is still in the kernel",
+			"error", err, "target", r.target.DstPrefix)
+		return
 	}
 	logger().Info("ddos-local: drop rule removed", "target", r.target.DstPrefix)
-	r.setStatus(false, r.target, r.hook)
 }
 
 // status returns the published snapshot for the show handler: whether an on-host

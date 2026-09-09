@@ -29,6 +29,8 @@ func init() {
 	Register("plugin/ddos-local-cap-survives-reload-driver", fixture06DDOSLocalCapSurvivesReload)
 	Register("plugin/ddos-local-config-removed-driver", fixture06DDOSLocalConfigRemoved)
 	Register("plugin/ddos-parent-config-removed-driver", fixture06DDOSParentConfigRemoved)
+	Register("plugin/ddos-stale-table-plant", fixture06PlantStaleDropRule)
+	Register("plugin/ddos-stale-table-swept-driver", fixture06DDOSStaleTableSwept)
 }
 
 func fixture06DDOSTransitSetup(context.Context, []string) error {
@@ -862,6 +864,149 @@ func fixture06DDOSParentConfigRemoved(ctx context.Context, args []string) error 
 		}
 		if _, err := fmt.Fprintf(os.Stderr, "PARENT-REMOVED-WITHDRAWN %s (sent %d)\n", victim, sent); err != nil {
 			return fmt.Errorf("report the withdrawal: %w", err)
+		}
+		return nil
+	})
+}
+
+// fixture06StaleTableVictim is the victim address the planted drop rule names.
+// It is this test's alone, so a table a sibling ddos test left behind can never
+// be read as this one's.
+const fixture06StaleTableVictim = "127.0.0.13"
+
+// fixture06StaleTableName is the kernel table both halves of this test look for.
+// It repeats the responder's own constant rather than importing it. The plugin is
+// what this test judges, so a rename there must redden the test rather than
+// travel into it (internal/plugins/ddos/local/responder.go -- tableName).
+const fixture06StaleTableName = "ze_ddos-local"
+
+// fixture06StaleTableFamilies reports which address families hold a
+// ze_ddos-local table right now, as a summary line for a failure message. An
+// empty result is the state this test requires once the daemon is up.
+func fixture06StaleTableFamilies() (count int, summary string, err error) {
+	conn := new(nftables.Conn)
+	tables, err := conn.ListTables()
+	if err != nil {
+		return 0, "", err
+	}
+	var found []string
+	for _, table := range tables {
+		if table.Name != fixture06StaleTableName {
+			continue
+		}
+		count++
+		found = append(found, fmt.Sprintf("table=%s family=%d", table.Name, table.Family))
+	}
+	if count == 0 {
+		return 0, "no " + fixture06StaleTableName + " table in the kernel", nil
+	}
+	return count, strings.Join(found, "\n"), nil
+}
+
+// fixture06PlantStaleDropRule writes the ze_ddos-local drop a PREVIOUS ze process
+// left behind, then reads it back to prove it reached the kernel. It runs as its
+// own command, BEFORE the daemon starts.
+//
+// The table is what applyMitigation produces for a box-owned victim. One ip
+// table, one base chain on the INPUT hook at priority -200 with an accept policy,
+// and one rule that matches the victim's destination address and drops.
+//
+// The address is what fixture06DDOSDropState reads back, so a planted rule and a
+// responder's rule are indistinguishable to the assertion. That is the point. The
+// daemon has to clear it, and it cannot tell which process wrote it.
+//
+// It is deliberately NOT written through the firewall registry. A table THIS
+// process registered lands in the backend's applied set, which is the one case
+// shouldDeleteTable already sweeps
+// (internal/plugins/firewall/nft/backend_linux.go). The defect is a table no
+// owner in the running process claims, so the planter writes the kernel
+// directly.
+func fixture06PlantStaleDropRule(context.Context, []string) error {
+	victim := net.ParseIP(fixture06StaleTableVictim).To4()
+	if victim == nil {
+		return fmt.Errorf("plant the stale drop: %q is not an IPv4 address", fixture06StaleTableVictim)
+	}
+
+	accept := nftables.ChainPolicyAccept
+	conn := new(nftables.Conn)
+	table := conn.AddTable(&nftables.Table{Name: fixture06StaleTableName, Family: nftables.TableFamilyIPv4})
+	chain := conn.AddChain(&nftables.Chain{
+		Name:     "ingress",
+		Table:    table,
+		Type:     nftables.ChainTypeFilter,
+		Hooknum:  nftables.ChainHookInput,
+		Priority: nftables.ChainPriorityRef(-200),
+		Policy:   &accept,
+	})
+	conn.AddRule(&nftables.Rule{
+		Table: table,
+		Chain: chain,
+		Exprs: []expr.Any{
+			// ip daddr <victim>: offset 16 is the destination address of an IPv4
+			// header, and 4 is its length.
+			&expr.Payload{DestRegister: 1, Base: expr.PayloadBaseNetworkHeader, Offset: 16, Len: 4},
+			&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: victim},
+			&expr.Counter{},
+			&expr.Verdict{Kind: expr.VerdictDrop},
+		},
+	})
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("plant the stale drop for %s: %w", fixture06StaleTableVictim, err)
+	}
+
+	installed, _, summary, err := fixture06DDOSDropState(fixture06StaleTableVictim)
+	if err != nil {
+		return fmt.Errorf("read the planted drop back: %w", err)
+	}
+	if !installed {
+		return fmt.Errorf("the planted drop for %s is not in the kernel, so the sweep this test measures would have nothing to remove:\n%s",
+			fixture06StaleTableVictim, summary)
+	}
+	if _, err := fmt.Fprintf(os.Stdout, "STALE-TABLE-PLANTED %s\n%s\n", fixture06StaleTableVictim, summary); err != nil {
+		return fmt.Errorf("report the planted drop: %w", err)
+	}
+	return nil
+}
+
+// fixture06DDOSStaleTableSwept proves a ddos-local drop rule does not survive a
+// restart. The plugin clears a ze_ddos-local table left by a previous process
+// before it can be configured, whatever `firewall flush-on-shutdown` says.
+//
+// The rule this test finds in the kernel is owned by NOBODY in the running
+// daemon. No responder claims it, so no clear and no cap can reach it. The
+// firewall engine cannot reach it either. Its shutdown flush deletes a ze_ table
+// only when the table is in the desired set or in THIS backend instance's applied
+// map (shouldDeleteTable, internal/plugins/firewall/nft/backend_linux.go), and a
+// table a previous process wrote is in neither. clearStaleDropRule (register.go)
+// is the only thing that removes it.
+//
+// The assertion is the absence of the TABLE and not only of the rule, because the
+// sweep owes both. A first reconcile claims the name, which makes the backend
+// delete what it finds. A second withdraws the name, so the empty table the first
+// created goes as well.
+func fixture06DDOSStaleTableSwept(ctx context.Context, args []string) error {
+	return p05Observe(ctx, args, "ddos-stale-table-swept-probe", func(ctx context.Context, plugin *sdk.Plugin) error {
+		summary := ""
+		swept := Poll(ctx, 40, 250*time.Millisecond, func() bool {
+			count, state, err := fixture06StaleTableFamilies()
+			if err != nil {
+				return false
+			}
+			summary = state
+			return count == 0
+		})
+		if !swept {
+			return fmt.Errorf("the %s table a previous process left in the kernel was still there 10s after the daemon came up: "+
+				"no responder claims that rule, so no clear and no max-mitigation-duration can reach it, and the firewall engine's own "+
+				"flush cannot either -- it deletes a ze_ table only when the table is in the desired set or in this backend instance's "+
+				"applied map. The victim %s stays blackholed for the life of the daemon:\n%s",
+				fixture06StaleTableName, fixture06StaleTableVictim, summary)
+		}
+		// The markers go to stderr, not stdout: this fixture runs as a plugin of
+		// the daemon, and a plugin's stdout is the JSON protocol channel the
+		// encoder owns.
+		if _, err := fmt.Fprintf(os.Stderr, "STALE-TABLE-SWEPT %s\n", fixture06StaleTableVictim); err != nil {
+			return fmt.Errorf("report the sweep: %w", err)
 		}
 		return nil
 	})
