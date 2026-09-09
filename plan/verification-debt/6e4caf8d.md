@@ -7,5 +7,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
-| 2026-09-09 | 6e4caf8d | pppoe: every PADO and PADS carries the mandatory Service-Name tag (+3 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-09-05T00:11:54Z) | open |
+| 2026-09-09 | 6e4caf8d | pppoe: every PADO and PADS carries the mandatory Service-Name tag (+4 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-09-05T00:11:54Z) | open |
 | 2026-09-09 | 6e4caf8d | pppoe: every PADO and PADS carries the mandatory Service-Name tag (+1 more) | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
