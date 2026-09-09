@@ -118,6 +118,11 @@ func (a *allocator) translatePolicy(policy PolicyRoute, basePriority *int) ([]fi
 // Each term gets its own matches and actions slice. The mark and the ip rule
 // are allocated once for the rule, before this call, so the group shares one
 // mark and one ip rule rather than one per interface.
+//
+// The clone is on the per-interface branch alone. Several terms sharing one
+// actions slice would alias, and no reader can see from a term that its
+// neighbor holds the same backing array; the single term of the no-interface
+// branch has nobody to alias with, so it takes the caller's slice as it is.
 func ruleTerms(policy PolicyRoute, ruleName string, ruleMatches []firewall.Match, actions []firewall.Action) []firewall.Term {
 	base := policy.Name + "-" + ruleName
 

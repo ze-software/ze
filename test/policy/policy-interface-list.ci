@@ -1,8 +1,10 @@
 # Test: an interface leaf-list is an OR, one nftables rule per named interface.
-# VALIDATES: spec-policyroute-interface-list-matches-no-packet AC-1, AC-4, AC-6 --
-#            a policy naming eth0 and l2tp* installs TWO rules, one comparing the
-#            full 16-byte name eth0 and one comparing the 4-byte prefix l2tp,
-#            each setting the one fwmark the single `table 100` rule allocated.
+# VALIDATES: spec-policyroute-interface-list-matches-no-packet AC-1, AC-4, AC-5,
+#            AC-6 -- a policy naming eth0 and l2tp* installs TWO rules for each of
+#            its rules, one comparing the full 16-byte name eth0 and one comparing
+#            the 4-byte prefix l2tp, each setting the one fwmark the `table 100`
+#            action allocated. Two policy rules therefore install four kernel
+#            rules, and the `order` leaf decides which pair comes first.
 # PREVENTS: the two interface matches returning to one rule. nftables ANDs the
 #           matches inside a rule, so one rule asking for both names matches no
 #           packet: the policy never fires and the traffic follows the main table,
@@ -14,6 +16,18 @@
 # line per programmed rule for exactly that reason (policyRuleDump,
 # internal/test/fixture/netfilter_fixture_policy.go), and a rejection on a single
 # line carrying both names is what separates the two shapes.
+#
+# TWO policy rules, not one, and that is what lets the rejections fire. The
+# fixture waits for at least two rules in ze_pr before it prints anything, so a
+# one-rule config under the pre-fix code programs ONE rule, the wait times out,
+# and the run dies at "policy rules were not programmed" without ever reaching
+# the rejections. With two policy rules the pre-fix code still programs two
+# kernel rules, each carrying BOTH iifname matches, which is the shape the
+# rejections exist to catch.
+#
+# The rules are written order 10 first and order 0 second, so the assertion that
+# the udp pair precedes the tcp pair is a claim about the sort rather than about
+# the file. parsePolicyRoute sorts by Order then by name.
 #
 # Neither interface has to exist. An iifname match compares packet metadata
 # rather than looking an index up, so no option=netns-link is declared and this
@@ -36,9 +50,20 @@ policy {
 		interface eth0;
 		interface "l2tp*";
 		rule webmark {
+			order 10;
 			from {
 				destination-port 80,443;
 				protocol tcp;
+			}
+			then {
+				table 100;
+			}
+		}
+		rule dnsmark {
+			order 0;
+			from {
+				destination-port 53;
+				protocol udp;
 			}
 			then {
 				table 100;
@@ -63,3 +88,4 @@ expect=stdout:pattern=RULE .*iifname "eth0".*meta mark set
 expect=stdout:pattern=RULE .*iifname "l2tp\*".*meta mark set
 reject=stdout:pattern=RULE .*eth0.*l2tp
 reject=stdout:pattern=RULE .*l2tp.*eth0
+expect=stdout:pattern=RULE .*iifname "eth0".*udp dport 53.*\nRULE .*iifname "l2tp\*".*udp dport 53.*\nRULE .*iifname "eth0".*tcp dport.*\nRULE .*iifname "l2tp\*".*tcp dport

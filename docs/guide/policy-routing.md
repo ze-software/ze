@@ -126,13 +126,20 @@ one rule, so separate rules are the only way to write the alternative.
 row. The row is named `<policy>-<rule>` when the policy names one
 interface. It is named `<policy>-<rule>-<N>` when the policy names
 several, where N is the interface's position in the list, counted from
-1. A multi-interface policy therefore reports its traffic per interface
-rather than as one total.
+1. A multi-interface policy therefore gets one row for each interface,
+and each row names the rule the traffic can take, rather than one merged
+row for the whole policy.
+
+The packet and byte counts in those rows are not per interface. The nft
+backend puts the counter at the front of the rule, ahead of the interface
+match, so the counter increments for every packet the `ze_pr` chain sees.
+Two interfaces on one policy report the same count. Read the rows to see
+which rules exist, not to see how much traffic each interface carried.
 
 A policy that names no interface matches every ingress interface.
 
 <!-- source: internal/plugins/policyroute/translate.go -- ruleTerms, termName -->
-<!-- source: internal/plugins/firewall/nft/backend_linux.go -- mergeRuleCounters -->
+<!-- source: internal/plugins/firewall/nft/backend_linux.go -- applyChain, mergeRuleCounters -->
 
 The `order` leaf still decides which rule runs first. The nftables rules
 of one policy rule stay together, in the order the interfaces are

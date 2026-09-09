@@ -779,7 +779,22 @@ func isQuickExitZeCommand(args []string) bool {
 	return !zeDaemonVerbs[firstZeSubcommand(args)]
 }
 
-// zeCLIRunsOneCommand reports whether a `ze cli` invocation carries -c, which
+// zeCLIStreamingCommand is the first word of every CLI command that streams
+// until the connection drops. `monitor` is the whole streaming namespace: every
+// prefix handed to pluginserver.RegisterStreamingHandler
+// (internal/component/plugin/server/handler.go) starts with it, and runBGP
+// (internal/component/cli/client/main.go) routes a -c value that registry
+// accepts to cliClient.StreamMonitor.
+//
+// The word rather than the registry, because the runner classifies an
+// invocation of ANOTHER binary. ze-test links a subset of the streaming
+// handlers the daemon links -- `monitor interface rate` and
+// `monitor traffic stat` are in it, `monitor event` and `monitor vpn ipsec` are
+// not -- so pluginserver.StreamingPrefixes() read here would answer about the
+// wrong process and would accept `ze cli -c "monitor event"` as quick-exit.
+const zeCLIStreamingCommand = "monitor"
+
+// zeCLIRunsOneCommand reports whether a `ze cli` invocation carries a -c that
 // sends one command over SSH, prints the answer and exits. Only the
 // interactive form blocks on stdin, so the verb alone does not say which shape
 // this is.
@@ -789,11 +804,46 @@ func isQuickExitZeCommand(args []string) bool {
 // the answer is still in flight, and the assertion then reads an empty buffer.
 // That is what `test/policy/policy-interface-list-counters.ci` met, roughly
 // 200ms after the client started.
+//
+// A streaming -c value is refused, because the opposite mistake is the worse
+// one: awaitQuickZe does a bare proc.Wait() on the process, so a streaming
+// client is only stopped by the test deadline and the step burns the whole
+// budget. A -c whose value cannot be read is refused for the same reason.
 func zeCLIRunsOneCommand(args []string) bool {
 	if firstZeSubcommand(args) != "cli" {
 		return false
 	}
-	return slices.Contains(args, "-c")
+	command, found := zeCLICommandValue(args)
+	if !found {
+		return false
+	}
+	fields := strings.Fields(command)
+	if len(fields) == 0 {
+		return false
+	}
+	return fields[0] != zeCLIStreamingCommand
+}
+
+// zeCLICommandValue returns the value of the -c flag in a ze argument list.
+// Both spellings the standard flag package accepts are read: a separate token
+// (`-c "show bgp"`) and an inline one (`-c=show bgp`), each with one dash or
+// two. A -c that ends the list carries no value and reports false, and so does
+// a list carrying no -c at all.
+func zeCLICommandValue(args []string) (string, bool) {
+	for i, arg := range args {
+		name, value, inline := strings.Cut(arg, "=")
+		if name != "-c" && name != "--c" {
+			continue
+		}
+		if inline {
+			return value, true
+		}
+		if i+1 < len(args) {
+			return args[i+1], true
+		}
+		return "", false
+	}
+	return "", false
 }
 
 // startWithETXTBSYRetry starts proc, retrying on ETXTBSY -- which occurs when a

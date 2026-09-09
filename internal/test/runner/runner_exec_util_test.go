@@ -141,6 +141,7 @@ func TestIsQuickExitZeCommand(t *testing.T) {
 		// daemon it is talking to before the answer lands.
 		{"cli", "-c", "show firewall ruleset pr | json"},
 		{"cli", "-c", "show config dump - | json"},
+		{"cli", "-c=show bgp peer list"}, // inline flag spelling, still one command
 	}
 	for _, a := range quick {
 		if !isQuickExitZeCommand(a) {
@@ -161,6 +162,12 @@ func TestIsQuickExitZeCommand(t *testing.T) {
 		{"start"},                              // explicit daemon verb
 		{"cli"},                                // interactive, blocks on stdin
 		{"monitor", "bgp"},                     // continuous streaming
+		// `ze cli -c "monitor ..."` streams until the connection drops, so it is
+		// a daemon carrying -c. Awaited, it would run to the test deadline.
+		{"cli", "-c", "monitor event"},
+		{"cli", "-c", "monitor traffic stat | json"},
+		{"cli", "-c=monitor interface rate"},
+		{"cli", "-c"}, // -c with no value: the shape is unknown, so not awaited
 	}
 	for _, a := range daemon {
 		if isQuickExitZeCommand(a) {

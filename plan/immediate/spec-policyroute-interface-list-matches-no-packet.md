@@ -234,7 +234,7 @@ N/A. Scope is `plugin`. No RFC governs a YANG leaf-list or an nftables lowering.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | `show firewall ruleset` gains one counter row per interface for a multi-interface rule, so an operator reading per-rule totals now reads per-interface totals | A firewall show test asserting a row count goes red | This is the correct answer, not a regression: the kernel counts each rule separately and `mergeRuleCounters` can only sum rows that share a name. Named in Known Limitations rather than hidden by giving the group one name |
+| R-1 | `show firewall ruleset` gains one counter row for each interface of a multi-interface rule, where an operator read one row before | A firewall show test asserting a row count goes red | This is the correct answer, not a regression: the kernel programs each interface as its own rule, and `mergeRuleCounters` can only sum rows that share a name. The extra rows carry NO new information about traffic, because `applyChain` prepends the counter ahead of the interface match and every row of the chain therefore reports the same chain-wide count (`plan/journal/counter-counts-the-wrong-packets.md`). Named in Known Limitations rather than hidden by giving the group one name |
 | R-2 | The term name `<policy>-<rule>-<N>` has no length bound, and nothing on the registry path validates it (A-3) | None today. A 255-byte overflow would surface only if a future change routes registry tables through `ValidateTables` | Pre-existing for `<policy>-<rule>` and not made materially worse by the suffix. Recorded in Known Limitations, not fixed here |
 | R-3 | The new `.ci` shares `inet ze_pr` and the global ip-rule table with the five existing policy tests | A flaky red under a parallel run | The suite is already serial with a per-test namespace (`alltests.go`). The new test adds no `option=netns-link` and raises no parallelism |
 | R-4 | The `.ci` passes against the broken code and proves nothing | The vacuity check finds it green after the revert | `policyRuleDump` waits for at least two rules in `ze_pr`. The pre-fix code emits ONE term for the one-rule config, so the fixture times out and the test goes red. The revert walk is recorded in the Goal Validation evidence |
@@ -266,13 +266,13 @@ N/A. Scope is `plugin`. No RFC governs a YANG leaf-list or an nftables lowering.
      observable behavior, never as the mechanism used to reach it. -->
 | AC ID | Input / Condition | Expected Behavior | Evidence |
 |-------|-------------------|-------------------|----------|
-| AC-1 | A policy names two interfaces and carries one rule | Two nftables rules are installed. One names the first interface, one names the second, and neither names both. Traffic arriving on either interface takes the policy route | `test/policy/policy-interface-list.ci`, steps 6-9 of the verbose QEMU run: `RULE .*iifname "eth0".*meta mark set` and `RULE .*iifname "l2tp\*".*meta mark set` both matched, and both `reject=stdout:pattern` lines found no rule naming both. Plus `TestPolicyInterfaceListOneTermPerInterface` |
+| AC-1 | A policy names two interfaces and carries one rule | Two nftables rules are installed. One names the first interface, one names the second, and neither names both. Traffic arriving on either interface takes the policy route | `test/policy/policy-interface-list.ci`, steps 6-10 of the verbose QEMU run: `RULE .*iifname "eth0".*meta mark set` and `RULE .*iifname "l2tp\*".*meta mark set` both matched, and both `reject=stdout:pattern` lines found no rule naming both. Plus `TestPolicyInterfaceListOneTermPerInterface` |
 | AC-2 | A policy names ONE interface and carries one rule | Exactly one nftables rule is installed, and its term keeps the name `<policy>-<rule>` with no position suffix | `TestMultiplePoliciesMergedIntoOneTable`, which reads back the unsuffixed `alpha-r1` and `beta-r1`, and `termName` returning `base` when `count == 1` |
 | AC-3 | A policy names NO interface | Exactly one nftables rule is installed for each of its rules, carrying no interface match, so it matches every ingress interface | `TestPolicyWithoutInterfaceMatchesEveryIngress`: one term named `any-drop-udp` and zero interface matches |
 | AC-4 | A policy names `eth0` and `l2tp*` in one leaf-list | The `eth0` rule compares the full 16-byte interface name, and the `l2tp*` rule compares the 4-byte prefix. Each entry keeps its own wildcard state, and mixing the two forms in one list is accepted | `TestPolicyInterfaceListOneTermPerInterface` asserts `{Name: "eth0"}` and `{Name: "l2tp", Wildcard: true}` on their own terms. The `.ci` proves it at the kernel: nft prints `iifname "eth0"` for the 16-byte compare and `iifname "l2tp*"` for the prefix compare, on two separate rules |
-| AC-5 | A policy names two interfaces and carries two rules, `order 0` and `order 10` | Four nftables rules are installed. Both rules of the `order 0` group precede both rules of the `order 10` group, so the `order` leaf keeps deciding evaluation sequence | `TestPolicyInterfaceListKeepsRuleOrder`: `parsePolicyConfig` is given the `order 10` rule first, and the four terms read back `steer-early-1`, `steer-early-2`, `steer-late-1`, `steer-late-2` |
+| AC-5 | A policy names two interfaces and carries two rules, `order 0` and `order 10` | Four nftables rules are installed. Both rules of the `order 0` group precede both rules of the `order 10` group, so the `order` leaf keeps deciding evaluation sequence | `test/policy/policy-interface-list.ci` proves it at the kernel: the config writes `order 10` first, and the four `RULE` lines read back `eth0 udp dport 53`, `l2tp* udp dport 53`, `eth0 tcp dport`, `l2tp* tcp dport`, in that sequence, under one `expect=stdout:pattern`. The Vacuity Walk records its RED. Plus `TestPolicyInterfaceListKeepsRuleOrder`, which reads `steer-early-1`, `steer-early-2`, `steer-late-1`, `steer-late-2` |
 | AC-6 | A policy names two interfaces and one rule selects `table 100` | One fwmark is allocated and one ip rule maps it to table 100. Both nftables rules set that same mark | `TestPolicyInterfaceListOneTermPerInterface` asserts both terms carry the same `SetMark` value and that it equals `result.IPRules[0].Mark`, with `len(result.IPRules) == 1`. The `.ci` asserts `meta mark set` on both `RULE` lines |
-| AC-7 | A multi-interface policy is applied and `show firewall ruleset` is read | Each interface's rule is reported as its own counter row. No two rules of the group are summed into one row | `test/policy/policy-interface-list-counters.ci`, PASS in 6.0s in the QEMU guest. It drives `show firewall ruleset pr` with the json pipe over the real `ze cli` SSH path, and asserts `"steer-webmark-1"` and `"steer-webmark-2"` with `reject=stdout:contains="steer-webmark"`, the unsuffixed name a merged group prints. The Vacuity Walk below records its RED: with `termName` returning `base` for every interface, the one row the client printed was `"name": "steer-webmark"` carrying `"packets": 136` |
+| AC-7 | A multi-interface policy is applied and `show firewall ruleset` is read | Each interface's rule is reported as its own counter row, named for that interface's position. No two rules of the group are summed into one row. The AC is about row IDENTITY only: the packets and bytes those rows carry are chain-wide, because `applyChain` prepends the counter ahead of the interface match, and that defect is `plan/journal/counter-counts-the-wrong-packets.md` | `test/policy/policy-interface-list-counters.ci`, PASS in 6.0s in the QEMU guest. It drives `show firewall ruleset pr` with the json pipe over the real `ze cli` SSH path, and asserts `"steer-webmark-1"` and `"steer-webmark-2"` with `reject=stdout:contains="steer-webmark"`, the unsuffixed name a merged group prints. The Vacuity Walk below records its RED: with `termName` returning `base` for every interface, the one row the client printed was `"name": "steer-webmark"` carrying `"packets": 136` |
 | AC-8 | An interface name carrying a character a term name may not carry, for example `l2tp*` | The apply succeeds. The term name carries the interface's position, never the interface string, so no interface name can reach a name check | `termName` builds the suffix from `strconv.Itoa(index+1)`, so no operator string enters a term name. The `.ci` commits `interface "l2tp*"` and the apply succeeds (`policy routes applied count=1` in the guest log) |
 
 ## End-to-End User Stories
@@ -286,7 +286,7 @@ N/A. Scope is `plugin`. No RFC governs a YANG leaf-list or an nftables lowering.
 | 1 | Writes `interface eth0;` and `interface "l2tp*";` under one policy and commits | config file → `parsePolicyConfig` → `parseIfaceSpec` per entry → `translate` → `ruleTerms` → `RegisterTables` → `ApplyAll` → `programChain` → two kernel rules | `test/policy/policy-interface-list.ci` |
 | 2 | Sends traffic that matches the policy on the SECOND named interface | ingress packet → `ze_pr` prerouting chain → the second rule's `iifname` compare → `meta mark set` → ip rule → the policy's routing table | `test/policy/policy-interface-list.ci` asserting `meta mark set` on both `RULE` lines |
 | 3 | Reads `show policy routes` after committing a two-interface policy | plugin command → `formatPolicies` over the parsed config | `test/plugin/policy-routes-show.ci` (existing, must stay green) |
-| 4 | Reads `show firewall ruleset` to see which interface is carrying the traffic | nft backend → `mergeRuleCounters` → one row per term name | AC-7, covered by the counter assertion in `test/policy/policy-interface-list.ci` |
+| 4 | Reads `show firewall ruleset` to see which rules a multi-interface policy installed | nft backend → `mergeRuleCounters` → one row for each term name, and `termName` gives each interface its own name | `test/policy/policy-interface-list-counters.ci`, which asserts the row NAMES. The counts in those rows are chain-wide, not per interface: `applyChain` prepends the counter ahead of the interface match, so every rule of the chain counts every packet the chain sees (`plan/journal/counter-counts-the-wrong-packets.md`). The story is "which rules exist", never "which interface carried the traffic" |
 
 ## 🧪 TDD Test Plan
 
@@ -310,7 +310,7 @@ N/A. Scope is `plugin`. No RFC governs a YANG leaf-list or an nftables lowering.
      Structure: ai/patterns/functional-test.md -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `policy-interface-list` | `test/policy/policy-interface-list.ci` | An operator names two ingress interfaces on one policy, commits, and both interfaces steer traffic. The test asserts two `RULE` lines, one naming `eth0` and one naming `l2tp*`, and REJECTS any single `RULE` line naming both | written, passing, and proven to discriminate (Vacuity Walk below) |
+| `policy-interface-list` | `test/policy/policy-interface-list.ci` | An operator names two ingress interfaces on one policy with two rules, commits, and both interfaces steer traffic for both rules. The test asserts four `RULE` lines in `order` sequence, each naming exactly one interface, and REJECTS any single `RULE` line naming both | written, passing (10 of 10 steps), and every claim-carrying assertion proven to discriminate by an observed RED (Vacuity Walk below) |
 
 ### Interop Tests (Scope: protocol)
 <!-- REQUIRED when wire-visible behavior changes. See
@@ -425,6 +425,7 @@ N/A. Scope is `plugin`. No RFC governs a YANG leaf-list or an nftables lowering.
      verification method. -->
 | Deliverable | Verification method |
 |-------------|---------------------|
+| The .ci's rejections and its order assertion each have an observed RED | The three breaks in the Vacuity Walk, with their `stdout-regex` and `stdout-reject-regex` failure lines pasted |
 | `test/policy/policy-interface-list.ci` exists and runs | `ls test/policy/policy-interface-list.ci` and `./le job run label functional command ze-test policy` |
 | The fixture registration is no longer inert | `grep -n "policy-interface-list" test/policy/policy-interface-list.ci internal/test/fixture/netfilter_fixture.go` returning both |
 | The order unit test exists and passes | `go test -run TestPolicyInterfaceListKeepsRuleOrder ./internal/plugins/policyroute/` through the registered `./le job run` action |
@@ -458,31 +459,119 @@ N/A. Scope is `plugin`. No RFC governs a YANG leaf-list or an nftables lowering.
 
 `test/policy/policy-interface-list.ci` was written against code that already
 worked, which is the first vacuity trap. The walk below forced the red it never
-had. Every run boots one QEMU Alpine guest, which compiles `ze` and `ze-test`
-from the working tree it is given, so a source revert reaches the daemon under
-test.
+had, once for each assertion that carries a claim. Every run cross-builds `ze`
+and `ze-test` for the guest from the working tree, so a source break reaches the
+daemon under test.
+
+The FIRST walk of this test, recorded before the review, broke the right
+producer against the wrong config. The `.ci` carried ONE policy rule and
+`policyRuleDump` waits for at least two rules in `ze_pr`, so the pre-fix shape
+programmed one rule, the fixture died at "policy rules were not programmed", and
+the two `reject=stdout:pattern` lines never ran. The test therefore proved one
+term per interface and nothing about the rejections, which are the assertions
+that tell an AND from an OR. The `.ci` now carries TWO policy rules, `order 10`
+and `order 0`. The pre-fix shape then programs two kernel rules, each naming
+both interfaces, which is the shape the rejections exist to catch, and the same
+config makes AC-5 observable in the kernel.
 
 | Step | Tree | Result |
 |------|------|--------|
-| 1 | `ruleTerms` as it stands | PASS |
-| 2 | `ruleTerms` reverted to the pre-fix `buildMatches` shape (`git show df5b6c25af^:internal/plugins/policyroute/translate.go`) | FAIL |
-| 3 | fix restored, `git status` clean on `translate.go` | PASS |
+| 1 | `ruleTerms` as it stands | PASS, 1.4s. That run carried 11 steps: a third rejection, on a tcp `RULE` line preceding a udp one, which step 4 showed no break could turn red and which the positive sequence assertion already covers. It was REMOVED rather than kept unproven, so the final test carries 10 |
+| 2 | Break A: `ruleTerms` returns ONE term carrying every interface match, the pre-fix shape | FAIL on the four-rule sequence |
+| 3 | Break A, with the sequence assertion commented out so the rejections are reached | FAIL on `RULE .*eth0.*l2tp` |
+| 4 | Break B: the same merged term with the interfaces appended in reverse | FAIL on `RULE .*l2tp.*eth0` |
+| 5 | `ruleTerms` restored, `git status` clean on `translate.go` | PASS, 1.1s, 10 of 10 steps |
 
-### Step 1, GREEN before the revert
+Three breaks, because one break cannot exhibit three reds. The runner evaluates
+every `expect=stdout:pattern` before the first `reject=stdout:pattern`, so it
+stops at the sequence assertion and never reaches the rejections. And the two
+rejections are mirrors of each other: for one leaf-list order exactly one of
+them can match, so the second needs a break that emits the names the other way
+round.
+
+### Step 1, GREEN before the breaks
 
 ```
 ═══ policy ════════════════════════════════════════════════════════════════════
-502ms     0/1      1/1  running  2(500ms)
-979ms    1/1  PASS  2  policy-interface-list
-pass  1/1  100.0%  982ms
+508ms     0/1      1/1  running  3(504ms)
+1.4s     1/1  PASS  3  policy-interface-list
+pass  1/1  100.0%  1.4s
+```
+
+### Step 2, RED under Break A: the four-rule sequence
+
+Two kernel rules where four are owed, and each one names both interfaces:
+
+```
+RULE counter packets 0 bytes 0 iifname "eth0" iifname "l2tp*" udp dport 53 meta mark set 0x00050000
+RULE counter packets 0 bytes 0 iifname "eth0" iifname "l2tp*" tcp dport { 80, 443 } meta mark set 0x00050000
+```
+
+```
+    8 ✗ expect stdout-regex -> stdout does not match regex "RULE .*iifname \"eth0\".*udp dport 53.*\\nRULE .*iifname \"l2tp\\*\".*udp dport 53.*\\nRULE .*iifname \"eth0\".*tcp dport.*\\nRULE .*iifname \"l2tp\\*\".*tcp dport"
+```
+
+That one assertion carries AC-5 at the kernel: it reads the `order 0` pair
+before the `order 10` pair, with the config writing `order 10` first, so it is
+a claim about the sort in `parsePolicyRoute` rather than about the file.
+
+### Step 3, RED under Break A: the first rejection
+
+With the sequence assertion commented out, the same two rules reach the
+rejections:
+
+```
+    8 ✗ expect stdout-reject-regex -> stdout matches forbidden regex "RULE .*eth0.*l2tp"
+```
+
+### Step 4, RED under Break B: the mirror rejection
+
+Break B appends the interfaces in reverse, so the merged rule names `l2tp*`
+first:
+
+```
+RULE counter packets 0 bytes 0 iifname "l2tp*" iifname "eth0" udp dport 53 meta mark set 0x00050000
+RULE counter packets 0 bytes 0 iifname "l2tp*" iifname "eth0" tcp dport { 80, 443 } meta mark set 0x00050000
+```
+
+```
+    9 ✗ expect stdout-reject-regex -> stdout matches forbidden regex "RULE .*l2tp.*eth0"
+```
+
+### Step 5, GREEN after restoring, with every step named
+
+```
+1.1s     1/1  PASS  3  policy-interface-list
+pass  1/1  100.0%  1.1s
+STEP TRACE: 3 policy-interface-list
+    1 ✓ exec /workspace/bin/ze-plr start ...
+    2 ✓ exec /workspace/bin/ze-test-plr fixture policy/policy-interface-list
+    3 ✓ expect exit-code
+    4 ✓ expect stderr-contains
+    5 ✓ expect stdout-contains
+    6 ✓ expect stdout-regex
+    7 ✓ expect stdout-regex
+    8 ✓ expect stdout-regex
+    9 ✓ expect stdout-reject-regex
+   10 ✓ expect stdout-reject-regex
 QEMU VM: PASS
 ```
 
-### Step 2, RED under the reverted code
+The four kernel rules the restored tree programs, read back with
+`nft list table inet ze_pr` in the same guest:
 
-The daemon applied the policy and installed ONE rule, so the fixture's
-"at least two rules in `ze_pr`" predicate never held and it failed on the
-observer error rather than on an assertion mismatch. That is what R-4 predicted.
+```
+counter packets 2 bytes 80 iifname "eth0" udp dport 53 meta mark set 0x00050000
+counter packets 2 bytes 80 iifname "l2tp*" udp dport 53 meta mark set 0x00050000
+counter packets 2 bytes 80 iifname "eth0" tcp dport { 80, 443 } meta mark set 0x00050000
+counter packets 2 bytes 80 iifname "l2tp*" tcp dport { 80, 443 } meta mark set 0x00050000
+```
+
+All four counters read the same 2 packets, which is the counter defect in
+`plan/journal/counter-counts-the-wrong-packets.md` visible in one dump: the
+counter sits ahead of the `iifname` compare, so it counts the chain rather than
+the term.
+
 
 ## Vacuity Walk, AC-7 (`test/policy/policy-interface-list-counters.ci`)
 
@@ -519,79 +608,30 @@ term row for the two interfaces, which is the merged shape AC-7 forbids:
 fail  0/1  0.0%  5.9s  failed 1 [2]
 ```
 
-`test/policy/policy-interface-list.ci` stayed GREEN through that same step, which
-is the second half of the discrimination: the rule COUNT is unchanged by the
-break, so only the counter-row assertion can see it.
+`test/policy/policy-interface-list.ci` stayed GREEN through that same step,
+which is the second half of the discrimination: the rule COUNT and the interface
+matches are unchanged by a break to `termName`, so only the counter-row
+assertion can see it. The `termName` break and the `ruleTerms` break therefore
+separate the two tests, and neither test can stand in for the other.
 
-```
-6.5s     1/1  FAIL  2  policy-interface-list
-fail  0/1  0.0%  6.5s  failed 1 [2]
-TEST FAILURE: 2 policy-interface-list
-TYPE:    logging_mismatch
-
-ERROR:
-observer reported runtime failure: time=runtime level=ERROR msg="ZE-OBSERVER-FAIL: policy rules were not programmed" subsystem=test.observer
-
-CLIENT OUTPUT:
-time=2026-09-08T13:35:11.877Z level=INFO msg="firewall backend loaded" subsystem=firewall backend=nft
-time=2026-09-08T13:35:11.880Z level=INFO msg="firewall config applied" subsystem=firewall tables=0
-time=2026-09-08T13:35:11.889Z level=INFO msg="policy routes applied" subsystem=policy.routes count=1
-time=runtime level=ERROR msg="ZE-OBSERVER-FAIL: policy rules were not programmed" subsystem=test.observer
-```
-
-The unit tests went red on the same tree, and they name the count directly:
-
-```
---- FAIL: TestPolicyInterfaceListOneTermPerInterface (0.00s)
-    translate_test.go:288: expected 2 terms (one per interface), got 1
---- FAIL: TestPolicyInterfaceListKeepsRuleOrder (0.00s)
-    translate_test.go:414: expected 4 terms (2 rules x 2 interfaces), got 2
-FAIL	github.com/ze-software/ze/internal/plugins/policyroute	0.541s
-```
-
-### Step 3, GREEN after restoring, with every step named
-
-```
-1.9s     1/1  PASS  2  policy-interface-list
-pass  1/1  100.0%  1.9s
-STEP TRACE: 2 policy-interface-list
-    1 ✓ exec /workspace/bin/ze start ...
-    2 ✓ exec /workspace/bin/ze-test fixture policy/policy-interface-list
-    3 ✓ expect exit-code
-    4 ✓ expect stderr-contains
-    5 ✓ expect stdout-contains
-    6 ✓ expect stdout-regex
-    7 ✓ expect stdout-regex
-    8 ✓ expect stdout-reject-regex
-    9 ✓ expect stdout-reject-regex
-QEMU VM: PASS
-```
-
-The walk was re-run after the YANG and documentation edits landed, with the same
-9-of-9 result, because the daemon parses the changed schema at startup.
-
-Steps 8 and 9 are the discriminating pair. A whole-table dump prints the same
-substrings whether the two interface matches share one rule or sit on two, so
-the assertion that separates the shapes is the rejection of a single `RULE` line
-carrying both names.
 
 ## Goal Validation (BLOCKING)
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| An `interface` leaf-list of two entries matches traffic on either interface, rather than no packet at all | functional test over config, daemon and kernel | `test/policy/policy-interface-list.ci`. Two `RULE` lines, one comparing `iifname "eth0"` and one comparing `iifname "l2tp*"`, each carrying `meta mark set`, and no single rule carrying both names. Nine of nine steps pass, and the Vacuity Walk above records the RED under the reverted producer |
-| The failure stops being silent: the behavior the schema declares is now the behavior the kernel gets | functional test, discriminating assertion | The two `reject=stdout:pattern` assertions. They are what the old code fails, and they are what a whole-table `contains` assertion would have passed against |
-| The `order` leaf keeps deciding evaluation sequence once one rule installs several kernel rules | unit test over the whole config path | `TestPolicyInterfaceListKeepsRuleOrder`. `parsePolicyConfig` is given the `order 10` rule first and the terms come out `steer-early-1`, `steer-early-2`, `steer-late-1`, `steer-late-2` |
+| An `interface` leaf-list of two entries matches traffic on either interface, rather than no packet at all | functional test over config, daemon and kernel | `test/policy/policy-interface-list.ci`. Four `RULE` lines for a two-interface, two-rule policy, each comparing exactly one of `iifname "eth0"` and `iifname "l2tp*"`, each carrying `meta mark set`, and no single rule carrying both names. Ten of ten steps pass, and the Vacuity Walk above records a RED for every claim-carrying assertion |
+| The failure stops being silent: the behavior the schema declares is now the behavior the kernel gets | functional test, discriminating assertion | The two `reject=stdout:pattern` assertions, each observed RED under a break that merges the interface matches into one rule (Vacuity Walk steps 3 and 4). They are what the pre-fix code fails, and they are what a whole-table `contains` assertion would have passed against |
+| The `order` leaf keeps deciding evaluation sequence once one rule installs several kernel rules | functional test at the kernel, plus a unit test over the whole config path | `test/policy/policy-interface-list.ci`: the config writes `order 10` first, and the four kernel `RULE` lines come back with the `order 0` pair first, under one `expect=stdout:pattern` whose RED is recorded. Plus `TestPolicyInterfaceListKeepsRuleOrder`, whose terms come out `steer-early-1`, `steer-early-2`, `steer-late-1`, `steer-late-2` |
 | One `table N` rule still allocates one fwmark and one ip rule, whatever the interface count | unit test | `TestPolicyInterfaceListOneTermPerInterface`: `len(result.IPRules) == 1`, both terms carry an equal `SetMark`, and it equals `result.IPRules[0].Mark` |
 | No surface still tells the operator the old, wrong thing | grep over the tree | `grep -rn "one policy per interface" internal/ docs/` returns nothing, `grep -rn "becomes one nftables term" internal/ docs/` returns nothing, and `grep -rn "prepended to every rule" internal/ docs/` returns nothing. The only remaining hits are in this spec, where they record the defect |
 
 ## Implementation Summary
 
 ### What Was Implemented
-- `test/policy/policy-interface-list.ci`, the functional test the already-registered `policy/policy-interface-list` fixture existed to drive. It is the first `.ci` to name that fixture, so the registration at `internal/test/fixture/netfilter_fixture.go:58` is no longer inert.
+- `test/policy/policy-interface-list.ci`, the functional test the already-registered `policy/policy-interface-list` fixture existed to drive. It is the first `.ci` to name that fixture, so the registration at `internal/test/fixture/netfilter_fixture.go:58` is no longer inert. It carries TWO policy rules, at `order 10` and `order 0`, which is what lets the pre-fix shape program two rules and the rejections discriminate, and what gives AC-5 its kernel proof.
 - `TestPolicyInterfaceListKeepsRuleOrder` (`internal/plugins/policyroute/translate_test.go`), driven through `parsePolicyConfig` rather than through `translate` alone, because the sort by `order` lives in `parsePolicyRoute`.
 - The `termName` doc comment in `internal/plugins/policyroute/translate.go`, corrected. No behavior change.
-- Four prose surfaces: the `interface` leaf-list `description` and its `ze:help`, the `list rule` `ze:help` and the route `leaf name` `ze:help` (`internal/plugins/policyroute/yang/ze-policyroute-conf.yang`); `docs/architecture/policyroute/policy-routing.md`; `docs/guide/policy-routing.md`; `docs/features.md`.
+- Four prose surfaces: the `interface` leaf-list `description` and its `ze:help`, the `list rule` `ze:help` and the route `leaf name` `ze:help` (`internal/plugins/policyroute/yang/ze-policyroute-conf.yang`); `docs/architecture/policyroute/policy-routing.md`; `docs/guide/policy-routing.md`. The `docs/features.md` sentence is NOT this work's: it landed in `fed8cb4956` ("docs(vrrp): the features page stops promising a pingable VIP"), it is correct, and it is in HEAD.
 
 No product Go changed. `df5b6c25af` had already landed it.
 
@@ -613,8 +653,13 @@ No product Go changed. `df5b6c25af` had already landed it.
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| `policy-interface-list` added to `netnsSelections[netnsPolicy]` (`internal/le/qemu/netns_linux.go`), so `./le qemu netns-test suites policy` reaches it | That file was out of the editing scope this phase was given: another session holds uncommitted work under `internal/le/`. `./le qemu all-tests` finds the test with no registration, so only the focused developer loop misses it | Unhomed. Named here for the main thread to route: it is a one-line edit, not a spec |
-| `policy-interface-list-counters` added to `netnsSelections[netnsPolicy]` (`internal/le/qemu/netns_linux.go`) | Same scope boundary as the row above it: another session holds uncommitted work under `internal/le/`. `./le qemu all-tests` finds the test with no registration | Unhomed. A one-line edit, not a spec |
+| Nothing. | | |
+
+The two rows this table carried until the review were false. Both claimed
+`internal/le/qemu/netns_linux.go` was left unedited, and both edits are in HEAD:
+`a2b98a342` added `policy-interface-list` to `netnsSelections[netnsPolicy]` and
+`75281fbae` added `policy-interface-list-counters`. Read back on 2026-09-08, the
+`netnsPolicy` selection carries both names.
 
 ## Design Insights
 <!-- LIVE: write immediately when you learn something. At closure these route to
@@ -630,7 +675,7 @@ No product Go changed. `df5b6c25af` had already landed it.
 | One term per named interface, so the nftables rules OR by being separate rules | One term carrying every interface match | nftables ANDs the matches inside a rule and offers no branch inside one, so several interface matches on one term ask for a packet whose input interface is several names at once. Separate rules are the only OR nftables has |
 | Build the OR the schema declares | A validator refusing a second leaf-list entry, the way `unimplementedVRFValidator` refuses `vrf` | REJECTED. The schema declares a `leaf-list`, its description writes "interface(s)", and the `list route` help promises the rules apply to "the listed interfaces". A validator refusing the second entry makes the daemon contradict its own published schema, and turns a promise into a rejection instead of keeping it |
 | The group's terms are ordered by leaf-list position and sit contiguously where the single term sat | Interleaving the groups, or sorting the terms by interface name | At most one term of a group can match a packet, so their relative order decides nothing. Keeping the group contiguous is what leaves the `order` leaf meaning exactly what its `ze:help` says |
-| The suffix is the interface's 1-based position | The interface name; a shared name for the whole group | `mergeRuleCounters` sums every kernel rule sharing a term name into ONE row, so a shared name would report the group's total once per interface. The position rather than the name because an interface name is operator input, it can carry `*` and other characters `ValidateName` refuses, and the name buys the reader nothing the position does not |
+| The suffix is the interface's 1-based position | The interface name; a shared name for the whole group | `mergeRuleCounters` sums every kernel rule sharing a term name into ONE row, so a shared name would merge the group into one row. The position rather than the name because an interface name is operator input, it can carry `*` and other characters `ValidateName` refuses, and the name buys the reader nothing the position does not. The names are distinct WITHIN one rule's group. They are not unique across policies: a second policy can own the same name, and Known Limitations states the condition |
 | One interface keeps the unsuffixed `<policy>-<rule>` | Always suffixing, including for one interface | Every existing test, doc and `show firewall ruleset` reading names that form. Suffixing unconditionally would rename every single-interface term for no gain |
 | The wildcard stays a per-entry property | A per-policy wildcard flag | `parseIfaceSpec` already decides per entry, and `ruleTerms` copies each entry's flag into its own term. A list can mix `eth0` and `l2tp*`, and each keeps its own compare |
 
@@ -638,7 +683,8 @@ No product Go changed. `df5b6c25af` had already landed it.
 <!-- Deliberate scope boundaries. Anything here that is actually outstanding work
      is not a limitation: write it as its own spec, in the bucket that item
      belongs to, and name that spec here (ai/rules/planning.md). -->
-- `show firewall ruleset` reports one counter row per interface for a multi-interface rule, rather than one row for the rule. Summing them would need the group to share a term name, which is exactly what `mergeRuleCounters` makes impossible without losing the per-interface figure. The per-interface figure is the more useful one, so this is a deliberate boundary and not outstanding work.
+- `show firewall ruleset` reports one counter row for each interface of a multi-interface rule, rather than one row for the rule. Distinct names are what keeps the rows distinct, and a shared name would merge them in `mergeRuleCounters`. The rows say which rules exist. They do not say which interface carried the traffic: `applyChain` prepends the counter ahead of the interface match, so every row reports the packets the whole `ze_pr` chain saw. That is `plan/journal/counter-counts-the-wrong-packets.md` and it is out of scope here, because fixing it changes counter semantics for every firewall owner.
+- The position suffix can collide with an operator-chosen rule name, and the colliding rows then merge. The condition: policy P names two or more interfaces and carries rule R, so it emits `P-R-<N>`; a second policy named `P-R` carries a rule named `<N>` and names exactly one interface, so `termName` returns its unsuffixed base `P-R-<N>`. Concretely, policy `steer` with `rule web` and two interfaces emits `steer-web-1` and `steer-web-2`, and policy `steer-web` with `rule 1` and one interface emits `steer-web-1`. Both `leaf name` nodes are `type string` with no `pattern`, and `naming.ValidateNodeName` (`internal/core/naming/validate.go`) accepts a leading digit, so nothing refuses either name. Both terms land in the one `ze_pr` prerouting chain, `mergeRuleCounters` keys on the name, and the second policy's row disappears into the first policy's totals. Forwarding is unaffected: each kernel rule keeps its own matches and actions, and only the reported counter row merges. The base-name collision (`a-b` plus rule `c` against `a` plus rule `b-c`) predates this work, and the suffix is a NEW member of that class, because a synthesized name now competes with an operator-chosen rule name. Recorded rather than fixed: a separator no name can carry would have to be a character `ValidateNodeName` rejects, and every term name would change with it.
 - The term name `<policy>-<rule>-<N>` has no length bound. `<policy>-<rule>` could already exceed the 255 bytes `ValidateName` allows, because each name is independently allowed 255. Nothing on the registry path checks it (A-3), so no failure is reachable today. Recorded here rather than fixed, and it belongs with the `ValidateTables` gap in the third Design Insight.
 - The leaf-list has no `max-elements`. Each entry now costs a kernel rule for each rule of the policy, so a large list multiplies the rule count. No bound is added here because none was measured.
 
@@ -647,6 +693,165 @@ No product Go changed. `df5b6c25af` had already landed it.
 Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 MUST document: validation rules, error conditions, state transitions, timer
 constraints, message ordering, and every MUST/MUST NOT.
+
+## Review Gate
+
+Independent review, round 1, 2026-09-08. The reviewer did not write this code.
+Scope: `df5b6c25af`, `a2b98a342`, `75281fbae`. Counts: 1 BLOCKER, 3 ISSUE,
+5 NOTE.
+
+Verified at the producer rather than from this spec's prose:
+`lowerTermForNFProto` (`internal/plugins/firewall/nft/lower_linux.go`)
+concatenates every match's expressions into one list, and `(*backend).applyChain`
+(`internal/plugins/firewall/nft/backend_linux.go`) emits one kernel rule for each
+term in `chain.Terms`, in slice order. Separate terms are separate rules, and
+separate rules are the OR. A-1 and A-5 hold. The order chain holds end to end:
+`parsePolicyConfig` sorts policies by name, `parsePolicyRoute` sorts rules by
+`Order` then name, `translatePolicy` appends each rule's group contiguously, and
+`applyChain` programs by index. The wildcard stays a per-entry property:
+`parseIfaceSpec` sets it per entry, `ruleTerms` copies it into that entry's own
+term, and `lowerIfaceMatch` sends the unpadded prefix for a wildcard and the
+16-byte padded name for an exact match.
+
+`go test ./internal/plugins/policyroute/` is green. `./internal/test/runner/` has
+two reds and neither is this work: `TestCIAcceptOnlyLint` fails on 29
+`test/exabgp-compat/api/*.ci` files this diff does not touch, and
+`TestCIMustFailFixturesAllFail/exit-code-is-judged.ci` fails because `/bin/false`
+does not exist on darwin.
+
+### BLOCKER
+
+1. **`docs/guide/policy-routing.md`, "Interface binding": the counter sentence is
+   false, and this work published it.** The page now says "A multi-interface
+   policy therefore reports its traffic per interface rather than as one total."
+   `(*backend).applyChain` (`internal/plugins/firewall/nft/backend_linux.go`)
+   prepends `&expr.Counter{}` AHEAD of the expressions `lowerTerm` produced, and
+   `readRuleCounter` reads that first counter. nftables evaluates a rule's
+   expressions in order, so the counter increments for every packet the CHAIN
+   sees rather than for the packets the term matched. policyroute declares no
+   `counter` action, so `hasCounterExpr` is never true on this path and the
+   prepend always happens. The failure: an operator names `eth0` and `l2tp*` on
+   one policy, sends traffic on `eth0` only, reads `show firewall ruleset`, and
+   sees the SAME packet count on `steer-webmark-1` and `steer-webmark-2`. The
+   page tells him to read that as per-interface traffic. The same session
+   measured this in a QEMU guest and wrote it up in
+   `plan/journal/counter-counts-the-wrong-packets.md` (a `dummy0` rule reporting
+   the 3 packets only the `lo` rule matched), and
+   `test/policy/policy-interface-list-counters.ci` states it in its own header,
+   after the page had already gone out saying the opposite. Fix: correct that
+   sentence to say what the rows are (one row for each interface, naming which
+   rule the traffic could have taken, with the count chain-wide until the journal
+   row is fixed), and correct the two places in this spec carrying the same
+   claim: End-to-End User Story 4 ("Reads `show firewall ruleset` to see which
+   interface is carrying the traffic") and the AC-7 Expected Behavior wording.
+   The counter defect itself is correctly journaled and stays out of scope.
+
+### ISSUE
+
+1. **`termName` (`internal/plugins/policyroute/translate.go`) can produce a name
+   an operator's own rule already owns, and `mergeRuleCounters` then sums two
+   policies into one row.** `firewall.ValidateName` accepts digits, so `rule 1`
+   is a legal rule name. Policy `steer` naming two interfaces with `rule web`
+   emits `steer-web-1` and `steer-web-2`; policy `steer-web` naming one interface
+   with `rule 1` emits `steer-web-1`. Both land in the one `ze_pr` prerouting
+   chain, `mergeRuleCounters` (`internal/plugins/firewall/nft/backend_linux.go`)
+   keys on the name, and the second policy's row disappears into the first
+   policy's totals. Forwarding is unaffected and the reported number is silently
+   wrong. The base-name collision (`a-b` plus `c` against `a` plus `b-c`) is
+   older than this change, but the suffix is a NEW member of that class: a
+   synthesized name now competes with operator-chosen rule names. The Key Design
+   Decisions row states the distinct-name property with no condition on it, and
+   Known Limitations does not record it. Fix: record the condition in Known
+   Limitations, or find a suffix separator no `ValidateName` name can carry.
+
+2. **The recorded RED for `test/policy/policy-interface-list.ci` never reaches
+   the assertions the spec calls discriminating, and AC-5 has no kernel proof.**
+   The `.ci` configures ONE rule, and `policyRuleDump`
+   (`internal/test/fixture/netfilter_fixture_policy.go`) waits for at least two
+   rules in `ze_pr`. Under the reverted `ruleTerms` the pre-fix code emits one
+   term, so the fixture fails at "policy rules were not programmed" and steps 8
+   and 9, the two `reject=stdout:pattern` lines, never run. Those two patterns
+   have therefore never been observed to fail, so a typo in either leaves the
+   test permanently green. The producer broken was the right one; the CONFIG is
+   what limits the walk. Fix: give the policy a second rule, `order 0` and
+   `order 10`. The pre-fix shape then emits two rules, each carrying both
+   `iifname` matches, which is what the reject lines exist to catch, and the same
+   config makes AC-5 observable in the kernel rather than only in
+   `TestPolicyInterfaceListKeepsRuleOrder`. AC-5 is proven by a unit test alone
+   today, which this spec's own Critical Review Checklist forbids ("No AC is
+   proven by a unit test only").
+
+3. **`zeCLIRunsOneCommand` (`internal/test/runner/runner_exec_util.go`) classes a
+   streaming `ze cli -c` as quick-exit.** The daemon guards still come first and
+   no config-file or `--web` invocation reaches the new branch, so the shape the
+   commit set out to fix is safe. But `runBGP`
+   (`internal/component/cli/client/main.go`) routes `-c` to
+   `client.StreamMonitor` when `isMonitorCommand` accepts the command, and that
+   call streams until the connection drops. `ze cli -c "monitor event"` is a
+   daemon carrying `-c`, and `awaitQuickZe` does a bare `proc.Wait()` on it. The
+   process is started with `exec.CommandContext(testCtx, ...)`, so the bound is
+   the test deadline rather than the forever the function's own comment warns
+   about: the step burns the whole budget and the test fails on timeout. No `.ci`
+   does this today (14 files use `ze cli -c`, every one a `show` or a
+   `validate`), so the finding is prospective. Fix: refuse a `-c` value beginning
+   with a registered streaming prefix, and add the case to the daemon list in
+   `TestIsQuickExitZeCommand`.
+
+### NOTE
+
+1. **Work Not Done is false on both rows.** Both claim
+   `internal/le/qemu/netns_linux.go` was outside the editing scope and left
+   unhomed. `a2b98a342` added `policy-interface-list` to
+   `netnsSelections[netnsPolicy]` and `75281fbae` added
+   `policy-interface-list-counters`. Both are in HEAD, so the table should be
+   emptied. A false record does not re-open a round.
+2. **`test/policy/policy-interface-list-counters.ci` fences on `sleep 5`.** The
+   header explains why a fence is needed (the SSH listener accepts after
+   `ze.ready.file` is written) and that the runner has no primitive for it. A
+   fixed sleep in an oversubscribed QEMU guest is a flake source, and it spends
+   5s of a 40s budget on every run. A retry loop around the client, or a runner
+   primitive that waits on a listening port, is the durable answer.
+3. **`ruleTerms` clones the actions slice on one branch and not on the other.**
+   The per-interface branch writes `slices.Clone(actions)` for each term; the
+   no-interface branch passes `actions` through unchanged, which is safe because
+   it is the only term. Nothing in the tree appends to `firewall.Term.Actions`,
+   so the clone guards a mutation that does not exist today. It is cheap
+   config-plane work and it follows the style guide's "do not take an alias", so
+   it stays. The asymmetry is worth one clause in the doc comment.
+4. **`docs/features.md` is named as this work's fourth prose surface, and its
+   Policy Routing sentence landed in `fed8cb4956` ("docs(vrrp): the features page
+   stops promising a pingable VIP"), in none of the three commits under review.**
+   The text is correct and it is in HEAD. The Implementation Summary should name
+   the commit that carries it.
+5. **A bare `interface "*";` still takes the whole firewall apply down.**
+   `parseIfaceSpec` strips the trailing `*` and leaves `Name` empty,
+   `lowerIfaceMatch` returns `errInterfaceNameMustNotBeEmpty`, and that fails
+   `applyChain` and therefore `ApplyAll` for every registered owner rather than
+   for policy routes alone. Pre-existing and unchanged by this work; AC-8 covers
+   `l2tp*` and does not reach it. It is worth a journal row rather than a fix
+   here.
+
+### Verdict
+
+Not clean. The BLOCKER is one sentence in an operator-facing page plus two
+sentences in this spec, and the session already holds the measurement that
+settles it. ISSUE 2 is a config change to one `.ci`. ISSUE 1 and ISSUE 3 are a
+recorded limitation and a two-line guard. None of the four touches product Go.
+
+### Round 1 resolution, 2026-09-08
+
+No product Go changed. Every finding was cleared where the review named it.
+
+| Finding | Cleared by | Where |
+|---------|-----------|-------|
+| BLOCKER 1 | The false counter sentence is replaced. The guide now says a multi-interface policy gets one row for each interface, each naming the rule the traffic can take, and then states plainly that the counts in those rows are NOT per interface: the nft backend puts the counter at the front of the rule, ahead of the interface match, so it counts every packet the `ze_pr` chain sees, and two interfaces on one policy report the same count. Verified at both producers before the sentence was written: `applyChain` prepends `&expr.Counter{}` when `hasCounterExpr` is false, `readRuleCounter` takes the FIRST `expr.Counter`, and `buildActions` emits no counter action, so the prepend always happens on this path. The four kernel rules in the Vacuity Walk show it, all four reading `packets 2 bytes 80`. `applyChain` is untouched | `docs/guide/policy-routing.md`, "Interface binding", plus the `applyChain` source anchor. In this spec: End-to-End User Story 4, AC-7 Expected Behavior, R-1 and the first Known Limitation, all of which carried the same claim |
+| ISSUE 1 | The collision condition is recorded, precisely and with its producers named, and the naming scheme is unchanged. The Key Design Decisions row no longer states distinctness without a condition: it says the names are distinct within one rule's group and points at the limitation | `## Known Limitations`, first bullet; `## Key Design Decisions`, the position-suffix row |
+| ISSUE 2 | The `.ci` carries two policy rules, `order 10` written first and `order 0` second. The pre-fix shape then programs two kernel rules rather than one, so `policyRuleDump`'s two-rule wait is satisfied and the rejections are reached. AC-5 gained its kernel proof: one `expect=stdout:pattern` reads the four `RULE` lines in `order` sequence. The walk was redone with three breaks, and every claim-carrying assertion now has an observed RED. A third rejection written during this work was REMOVED rather than kept, because no break exhibited its red and the positive sequence assertion already carries the claim | `test/policy/policy-interface-list.ci`; `## Vacuity Walk`, steps 1 to 5 |
+| ISSUE 3 | `zeCLIRunsOneCommand` reads the `-c` VALUE and refuses one whose first word is `monitor`, the CLI's whole streaming namespace. A `-c` with no readable value is refused too, which keeps the file's stated property: misclassifying a daemon as quick-exit is the worse failure. The registry is NOT consulted, and the comment says why: ze-test links a subset of the streaming handlers the daemon links, so `pluginserver.StreamingPrefixes()` read there would answer about the wrong process and would accept `ze cli -c "monitor event"`. Four daemon cases and one quick case added; the guard was observed RED against the previous implementation | `internal/test/runner/runner_exec_util.go`, `zeCLIRunsOneCommand` and `zeCLICommandValue`; `TestIsQuickExitZeCommand` |
+| NOTE 1 | The Work Not Done table is emptied and says why: both `netnsSelections[netnsPolicy]` registrations are in HEAD (`a2b98a342`, `75281fbae`), read back on 2026-09-08 | `## Work Not Done` |
+| NOTE 4 | The Implementation Summary no longer claims `docs/features.md` as this work's surface. It names `fed8cb4956` | `## Implementation Summary`, "What Was Implemented" |
+| NOTE 2, NOTE 3, NOTE 5 | Not addressed. NOTE 2 (the `sleep 5` fence) and NOTE 5 (`interface "*"` failing the whole apply) are separable from this spec's goal and NOTE 5 is pre-existing; NOTE 3 asks for one clause in a doc comment on `internal/plugins/policyroute/translate.go`, which this round was not allowed to edit | Reported to the main thread, unhomed |
+
 
 ## Checklist
 
