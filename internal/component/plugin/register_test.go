@@ -25,7 +25,7 @@ import (
 // reads an answer whose content it knows. Which real plugins a test binary
 // carries depends on its build tags, and an assertion over an empty set proves
 // nothing.
-const probePluginName = "show-plugins-probe"
+const probePluginName = "show-plugin-list-probe"
 
 // commandShowPluginList is the path an operator types, as register.go publishes it.
 const commandShowPluginList = "show plugin list"
@@ -203,11 +203,11 @@ func TestShowPluginListDeclaresItsShapeAndColumns(t *testing.T) {
 
 // recordingPluginName is the plugin the setup-outcome tests record against. A
 // name no real plugin uses keeps the assertion readable when it fails.
-const recordingPluginName = "show-plugins-setup-probe"
+const recordingPluginName = "show-plugin-list-setup-probe"
 
 // silentPluginName is a plugin that registers and records nothing, which is the
 // case AC-4 exists for.
-const silentPluginName = "show-plugins-setup-silent"
+const silentPluginName = "show-plugin-list-setup-silent"
 
 // isolateRegistry empties the plugin registry and the setup record for one
 // test, and puts both back. Every test in this package shares one binary and

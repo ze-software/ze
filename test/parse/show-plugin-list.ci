@@ -3,7 +3,7 @@
 # VALIDATES: AC-4 and AC-7. Every registered plugin is listed, a plugin that
 #   recorded nothing is listed as unknown rather than dropped, and `| json`,
 #   `| yaml` and `| table` each render the same rows. AC-1 and AC-2 need the
-#   plugin that RECORDS, so they are proven in show-plugins-memlock.ci.
+#   plugin that RECORDS, so they are proven in show-plugin-list-memlock.ci.
 # PREVENTS: a feature that is absent for an environment reason with nowhere to
 #   say so. Before the outcome joined these rows, a plugin whose setup failed
 #   was invisible: it left no row anywhere, and absence reads as "not built
@@ -16,7 +16,7 @@
 # Every row asserted here is one that each platform has. memlock is the plugin
 # that RECORDS an outcome, and it is linux-only (`//go:build linux` on
 # register.go), so on darwin it never registers and has no row at all. Its
-# assertions are in show-plugins-memlock.ci, which carries the skip.
+# assertions are in show-plugin-list-memlock.ci, which carries the skip.
 #
 # The suite is `parse` rather than `ui` or `plugin` because only this suite's
 # parser splits an exec line on quotes (splitCommand, internal/test/runner/
