@@ -200,8 +200,11 @@ Two consequences bind the implementation:
   the code they have, and the anonymous withdraw (A-1) stops being a problem
   because the only component that must know the protocol is the one that
   already does.
-- The vocabulary is still owed. Copying the `rib { distance { } }` shape means
-  copying its hand-written leaf list, which is the failure R-2 names.
+- The vocabulary was still owed when D-1 was taken, because copying the
+  `rib { distance { } }` shape means copying its hand-written leaf list, which
+  is the failure R-2 names. It is delivered: `registered-protocol` reads
+  `redistevents.ProtocolNames()`, so no protocol name is written by hand in the
+  YANG, the validator or sysrib.
 
 (a) fits Ze's structure, because the FIB writer is already a plugin that owns
 its own config container and its own YANG. (b) puts the answer in one place for
@@ -285,7 +288,7 @@ ACHIEVED, not that the code runs.
 | An operator names, per protocol, whether that protocol's routes are written to the FIB | `ze config validate` accepts `rib { fib-withhold [ bgp isis ] }` on the shipped daemon flavor, measured 2026-09-08. The user workflow over the whole path is `test/plugin/fib-withhold-one-protocol-keeps-the-other.ci` |
 | The default is that they are | `TestFIBImportDefaultPermitsEveryRegisteredProtocol`. The default is the map SAYING permitted for every registered protocol, not a missing key: `parseFIBImportConfig` is complete over `redistevents.ProtocolNames()` |
 | The vocabulary derives from the protocol registry, not a hand-written list | No protocol name appears in the YANG, the validator or sysrib. `TestRegisteredProtocolValidatorRefusesAnUnknownName` proves refusal names the registered set; `TestFibWithholdCompletionOffersRegisteredProtocols` proves a registered protocol is offered. The build-dependence measured under Known Limitations is the same property seen from the other side |
-| The kernel actually stops forwarding on a withheld route | `TestFIBWithholdLeavesNoKernelRoute` (`internal/plugins/fib/kernel/`, QEMU, `integration && linux`) reads the namespace's real route table through netlink. It asserts the KEPT protocol's prefix is programmed first, so the withheld protocol's absence cannot be a dead chain. RED observed with the `recomputeBest` gate removed: "the withheld protocol programmed 10.98.0.0/24"; GREEN with it restored. `test/plugin/fib-withhold-controller-programs-no-route.ci` puts the same question to a TABLE: 200 withheld prefixes and one permitted prefix arrive in one route-install batch, the permitted one is read out of `ip route show proto 250` first as the proof the chain programs anything at all, and not one withheld prefix is in that output. It carries `option=needs-linux:caps=net-admin`, so the runner SKIPS it on darwin and it has not been observed to pass on this host; it runs under `./le qemu all-tests` |
+| The kernel actually stops forwarding on a withheld route | `TestFIBWithholdLeavesNoKernelRoute` (`internal/plugins/fib/kernel/`, QEMU, `integration && linux`) reads the namespace's real route table through netlink. It asserts the KEPT protocol's prefix is programmed first, so the withheld protocol's absence cannot be a dead chain. RED observed with the `recomputeBest` gate removed: "the withheld protocol programmed 10.98.0.0/24"; GREEN with it restored. `test/plugin/fib-withhold-controller-programs-no-route.ci` puts the same question to a TABLE: 200 withheld prefixes and one permitted prefix arrive in one route-install batch, the permitted one is read out of `ip route show proto 250` first as the proof the chain programs anything at all, and not one withheld prefix is in that output. It carries `option=needs-linux:caps=net-admin`, so the darwin runner skips it and it runs in the Linux guest. OBSERVED PASS 2026-09-09, in QEMU on this host (`uname -r` 7.2.0, aarch64, `id -u` 0): `1/1 PASS 283 fib-withhold-controller-programs-no-route`, 2.2s, log `tmp/session/2026-09-08-aadf4270-6df0-4868-a389-fd00fc12d262/scratch/qemu-fibwithhold.log` |
 | A withheld route is not a dropped route | The same QEMU test puts `show rib` to the running plugin and reads winner `bgp` for the withheld prefix. That surface is sysrib's own answer rather than the Loc-RIB the paths were inserted into, so it proves selection survived the gate. At TABLE scale that is `TestWithholdingBGPProgramsNoneOfAWholeTable` (AC-6): 512 withheld prefixes produce not one change on `(system-rib, best-change)`, every one of them is won by `bgp` in `s.best`, and `show rib` answers for all 528 prefixes the two protocols carry. The 16 permitted prefixes in the same run publish their adds, so a sysrib that published nothing could not pass it. RED observed twice, 2026-09-09: with `fibPermits` forced to permit, 512 of 512 withheld prefixes reached the FIB stream; with `publishChanges` cut, the permitted control published 0 of 16 |
 
 ## 🧪 TDD Test Plan
@@ -293,13 +296,13 @@ ACHIEVED, not that the code runs.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestFIBImportDefaultPermitsEveryRegisteredProtocol` | `internal/component/sysrib/fibimport_test.go` | AC-1 | |
-| `TestWithheldWinnerPublishesNoAdd` | `internal/component/sysrib/fibimport_test.go` | AC-2 | |
-| `TestWithheldProtocolStillWinsSelection` | `internal/component/sysrib/fibimport_test.go` | AC-3 | |
-| `TestWithholdingBGPProgramsNoneOfAWholeTable` | `internal/component/sysrib/fibimport_test.go` | AC-6 | |
-| `TestFIBImportPermitsAProtocolRegisteredAfterConfigure` | `internal/component/sysrib/fibimport_test.go` | AC-4 (runtime) | |
-| `TestFibWithholdCompletionOffersRegisteredProtocols` | `internal/component/cli` | AC-4 (vocabulary) | |
-| `TestRegisteredProtocolValidatorRefusesAnUnknownName` | `internal/component/config` | AC-5 | |
+| `TestFIBImportDefaultPermitsEveryRegisteredProtocol` | `internal/component/sysrib/fibimport_test.go` | AC-1 | PASS 2026-09-09 |
+| `TestWithheldWinnerPublishesNoAdd` | `internal/component/sysrib/fibimport_test.go` | AC-2 | PASS 2026-09-09 |
+| `TestWithheldProtocolStillWinsSelection` | `internal/component/sysrib/fibimport_test.go` | AC-3 | PASS 2026-09-09 |
+| `TestWithholdingBGPProgramsNoneOfAWholeTable` | `internal/component/sysrib/fibimport_test.go` | AC-6 | PASS 2026-09-09, RED forced in both directions |
+| `TestFIBImportPermitsAProtocolRegisteredAfterConfigure` | `internal/component/sysrib/fibimport_test.go` | AC-4 (runtime) | PASS 2026-09-09 |
+| `TestFibWithholdCompletionOffersRegisteredProtocols` | `internal/component/cli` | AC-4 (vocabulary) | PASS 2026-09-09 |
+| `TestRegisteredProtocolValidatorRefusesAnUnknownName` | `internal/component/config` | AC-5 | PASS 2026-09-09 |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -309,14 +312,14 @@ ACHIEVED, not that the code runs.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `fib-withhold-one-protocol-keeps-the-other.ci` | `test/plugin/` | the owner's own example: BGP withheld, OSPF kept | |
-| `fib-withhold-controller-programs-no-route.ci` | `test/plugin/` | the deployment the feature exists for: a whole BGP table in the RIB, and not one prefix of it in the kernel | |
-| `TestFIBWithholdLeavesNoKernelRoute` | `internal/plugins/fib/kernel/` (`integration && linux`) | the kernel agrees: `ip route` on a booted appliance | |
+| `fib-withhold-one-protocol-keeps-the-other.ci` | `test/plugin/` | the owner's own example: BGP withheld, OSPF kept | PASS 2026-09-09, in the QEMU Linux guest (kernel 7.2.0, uid 0): `1/1 PASS 284`, 1.5s |
+| `fib-withhold-controller-programs-no-route.ci` | `test/plugin/` | the deployment the feature exists for: a whole BGP table in the RIB, and not one prefix of it in the kernel | PASS 2026-09-09, same guest run: `1/1 PASS 283`, 2.2s |
+| `TestFIBWithholdLeavesNoKernelRoute` | `internal/plugins/fib/kernel/` (`integration && linux`) | the kernel agrees: `ip route` on a booted appliance | PASS in the guest, with the RED forced and observed first |
 
 ### Interop Tests (Scope: config)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| N-A | - | - | No wire-visible behavior changes. The external system is the Linux FIB, and the QEMU test is the equivalent proof | |
+| N-A | - | - | No wire-visible behavior changes. The external system is the Linux FIB, and the QEMU test is the equivalent proof | N-A |
 
 ## The spelling (D-2, settled by the code)
 
@@ -551,6 +554,188 @@ forwarding table.
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
 
+## Implementation Summary
+
+### What Was Implemented
+- `rib { fib-withhold [ bgp isis ] }`, a `leaf-list` of `type string` beside
+  `container distance` in `internal/component/sysrib/yang/ze-rib-conf.yang`,
+  carrying `ze:validate "registered-protocol"`.
+- `registered-protocol`, a config validator (`internal/component/config/validators.go`,
+  registered in `validators_register.go`) whose vocabulary and whose refusal
+  message both come from `redistevents.ProtocolNames()`. `rib` was added to
+  `validatedSections` (`internal/component/config/validate_sections.go`), without
+  which the annotation is inert.
+- `redistevents.ProtocolNames` (`internal/core/redistevents/registry.go`), the
+  registry's own answer for the complete protocol set.
+- `internal/component/sysrib/fibimport.go`: `parseFIBImportConfig` (a permission
+  map COMPLETE over `ProtocolNames()`), `fibPermits` and `(*sysRIB).fibPermitted`
+  (the fail-open read), `recordWithheldWinner`, `fibChange`, `applyFIBImport`,
+  `groupPermissionChanged`, `fibStateChange` (the reconfigure sweep) and
+  `publishFIBImport`, wired from `internal/component/sysrib/register.go` on
+  verify, configure, apply and rollback.
+- `fibEntry` in `internal/component/sysrib/sysrib.go`: the one answer to what the
+  FIB owes for a prefix, returning a named verdict (`fibPathReachable`,
+  `fibPathUnreachable`, `fibPathForbidden`) rather than a bool, taken by all four
+  producers of a best-change batch: `recomputeBest`, `cascadeRecompute`,
+  `replayBest` and the permission sweep.
+- `programmedByZe`, the question that replaced `resolvedNH[key].IsValid()` as the
+  test for "Ze has an install outstanding for this prefix".
+- Tests: `fibimport_test.go`, `sysrib_fibentry_test.go`, `sysrib_programmed_test.go`,
+  `sysrib_replay_test.go`, `sysrib_srv6_test.go` (the package's first SRv6 tests),
+  `internal/component/cli/fib_withhold_completion_test.go`,
+  `internal/component/config/registered_protocol_validate_test.go`,
+  `internal/plugins/fib/kernel/fibwithhold_integration_linux_test.go`,
+  two `.ci` scenarios and their three fixture files.
+
+### Bugs Found/Fixed
+Every one is a Review Gate finding; the round tables below carry the consequence
+of each, and `plan/learned/012-fix-the-question-not-the-site.md` carries the class.
+
+- `resolvedNH[key].IsValid()` read as "Ze programmed this prefix" (B-1, B2-1).
+  `resolveNextHop` returns an invalid address unchanged, so an interface-only
+  next-hop is programmed with an invalid entry. Fixed by `programmedByZe`, and
+  covered by `sysrib_programmed_test.go`.
+- `recordWithheldWinner` dropped next-hop tracking a later permitted winner
+  assumes (B-2). Fixed; `trackNextHops` and `untrackNextHops` are now paired.
+- The reconfigure sweep inferred "newly permitted" from `resolvedNH` and never
+  `Untrack`ed what it `Track`ed (I-1, I-2, B2-4). Fixed in `fibStateChange`.
+- `ecmpCollect` applied no permission test, so a withheld protocol's gateway rode
+  into a permitted winner's multipath group and forwarded traffic (I-3). Fixed in
+  `internal/component/sysrib/ecmp.go`.
+- The regroup branch compared an unfiltered collector against a filtered
+  `lastECMP` (B2-3). Fixed.
+- `replayBest` carried the winner's next-hop after an ECMP promotion, so a FIB
+  plugin restart re-programmed the prefix over a dead gateway (I3-1, I4-1). Fixed
+  by routing replay through `fibEntry`; `TestReplayCarriesTheProgrammedEntry` is
+  the positive assertion the negative-only test lacked.
+- The permission sweep could not put back what it took away (B5-1): withhold then
+  permit published nothing, permanently, and withholding a protocol that was
+  merely an equal-cost MEMBER withdrew the prefix instead of regrouping it. Fixed
+  by making `fibStateChange` self-contained on the LIVE rule.
+- Two of the sweep's five outcomes had zero coverage, measured with
+  `-covermode=count` (I6-1). Fixed by `TestWithholdingAnUnreachableMemberPublishesNothing`.
+
+### Documentation Updates
+All landed in commit `000e70eec`, before this closure.
+- `docs/guide/configuration.md` (+194) - the operator section: the default, what
+  changing it does, and what withholding leaves intact.
+- `docs/architecture/core-design.md` (+109) - where the gate sits and what the
+  four producers take from `fibEntry`.
+- `docs/architecture/config/syntax.md`, `docs/architecture/config/yang-config-design.md` -
+  the leaf-list spelling and the `ze:validate` annotation.
+- `docs/features.md` - the user-facing feature row.
+- `docs/architecture/isis/isis-9-spf-rib.md` - the publish path it describes.
+- `./le doc check verify` FAILS on this tree, and not on this work. Read from
+  `tmp/session/2026-09-08-aadf4270-6df0-4868-a389-fd00fc12d262/scratch/doc-check-verify.log`:
+  8 summary-rule breaks and 4 unresolved source anchors, naming
+  `ze-rib-api:command-complete`, `ze-rib-api:command-help`,
+  `ze-policyroute-conf:policy/route/interface`, `docs/architecture/api/commands.md`,
+  `docs/architecture/exabgp-bridge.md` and `docs/architecture/firewall/firewall-irr.md`.
+  Not one names a `fib-withhold`, `sysrib` or `ze-rib-conf` surface.
+
+### Deviations from Plan
+| What the spec said | What was built | Why |
+|---|---|---|
+| The gate sits in `publishChanges` | It sits in the four PRODUCERS of an Add or an Update | `publishChanges` receives a change list and cannot tell "Ze had programmed this" from "this is new", so it cannot emit the Withdraw a withheld winner owes. The spec text was corrected in place under "Where it gates" |
+| "A Withdraw carries no protocol, so passing one is always safe" | A Withdraw is owed exactly where `programmedByZe` says an install is outstanding | A Withdraw for a prefix Ze never installed makes the kernel writer answer ESRCH, one FIB-sync failure per withdrawn route, in the deployment this feature exists for |
+| `fibEntry` returns a bool | It returns a named verdict | Making the live path obey a bare "not owed" reddened five tests, two of them named by `test/ospf/ospf-route-install.ci`: those scenarios load no `connected` plugin, so refusing there IS the black hole the test exists to prevent |
+| One `.ci` in the Wiring Test table | Two | The controller deployment (AC-6) needed a TABLE-scale scenario, not a single prefix |
+| A container of per-protocol boolean leaves was one candidate spelling | A leaf-list naming what is WITHHELD | A container copies the hand-written protocol list `rib { distance }` already has, which is R-2 |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1 assumed the winner's protocol is available wherever the FIB write is decided | True on the SUPPRESSING side (`recomputeBest` holds `winner.protocol`), false on the SUBSCRIBING side: all five Withdraw branches build `&outgoingChange{Action, Prefix}` and stamp no protocol | Reading `outgoingChange` construction while designing the writer-side option (a) of D-1 | D-1 (b) makes it moot: the only component that must know the protocol is the one that already does. Recorded on the A-1 row |
+| approach | The design named `publishChanges` as the choke point, in four sections | It cannot emit the Withdraw a withheld winner owes, because it holds no install state | Implementation, when the withdraw case was written | Route abandoned; the gate moved to the three live producers plus the sweep, and the spec prose was corrected rather than left standing |
+| escalation | A defect found mid-work was journaled as "outside the problem in hand", judged against the FEATURE'S NAME | The scope test is the OPERATION that broke. The broken operation was "let this protocol reach the FIB again", which is the feature's own inverse, so it was in scope | Review round 6 rejected the round-5 scope call | Fixed as B5-1. `plan/learned/012-fix-the-question-not-the-site.md` records it and proposes a one-sentence addition to `ai/rules/completion.md`, which is Thomas's to accept |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| An operator names, per protocol, whether that protocol's routes are written to the FIB | Done | `internal/component/sysrib/yang/ze-rib-conf.yang` (`fib-withhold`), `internal/component/sysrib/fibimport.go` | Reached end to end by `test/plugin/fib-withhold-one-protocol-keeps-the-other.ci` |
+| The default is that they are | Done | `parseFIBImportConfig`, `fibPermits`, `(*sysRIB).fibPermitted` (`internal/component/sysrib/fibimport.go`) | Complete over `ProtocolNames()`; the unknown branch fails OPEN and logs once per protocol |
+| The vocabulary derives from the protocol registry | Done | `redistevents.ProtocolNames` (`internal/core/redistevents/registry.go`), `registered-protocol` (`internal/component/config/validators.go`) | No protocol name in the YANG, the validator or sysrib |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestFIBImportDefaultPermitsEveryRegisteredProtocol` | Absent, empty and "permit everything" are one state, which is what the leaf-list gives |
+| AC-2 | Done | `TestWithheldWinnerPublishesNoAdd`; `test/plugin/fib-withhold-one-protocol-keeps-the-other.ci`; `TestFIBWithholdLeavesNoKernelRoute` | The `.ci` asserts `OK: 10.98.0.0/24 is won by bgp and is not programmed` |
+| AC-3 | Done | `TestWithheldProtocolStillWinsSelection` | `recordWithheldWinner` writes `s.best` and `s.lastECMP` as any other winner |
+| AC-4 | Done | `TestFIBImportPermitsAProtocolRegisteredAfterConfigure` (runtime), `TestFibWithholdCompletionOffersRegisteredProtocols` (vocabulary) | |
+| AC-5 | Done | `TestRegisteredProtocolValidatorRefusesAnUnknownName` | The refusal message names the registered set |
+| AC-6 | Done | `TestWithholdingBGPProgramsNoneOfAWholeTable` (512 withheld, 16 permitted); `test/plugin/fib-withhold-controller-programs-no-route.ci` (`OK: 200 bgp prefixes are in the rib and none is programmed`) | RED forced in both directions, 2026-09-09 |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The seven planned unit tests | Done | `internal/component/sysrib/fibimport_test.go`, `internal/component/cli/`, `internal/component/config/` | All seven PASS, 2026-09-09 |
+| `fib-withhold-one-protocol-keeps-the-other.ci` | Done | `test/plugin/` | PASS in the QEMU Linux guest, 1.5s |
+| `fib-withhold-controller-programs-no-route.ci` | Done | `test/plugin/` | PASS in the same guest run, 2.2s |
+| `TestFIBWithholdLeavesNoKernelRoute` | Done | `internal/plugins/fib/kernel/fibwithhold_integration_linux_test.go` | PASS in the guest; RED forced first with the `recomputeBest` gate removed |
+| Boundary tests | N-A | - | The leaf-list is a name list, not numeric |
+| Interop scenario | N-A | - | No wire-visible change; the external system is the Linux FIB and the QEMU test is that proof |
+| Tests added beyond the plan | Changed | `sysrib_fibentry_test.go`, `sysrib_programmed_test.go`, `sysrib_replay_test.go`, `sysrib_srv6_test.go` | Six SRv6 tests, the package's first, and the positive replay assertion round 3 said was owed |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/sysrib/yang/ze-rib-conf.yang` | Done | +46 |
+| `internal/component/sysrib/sysrib.go` | Done | `fibEntry`, `programmedByZe`, the four producers |
+| `internal/component/sysrib/register.go` | Done | Parse on verify, configure, apply and rollback |
+| `internal/core/redistevents/registry.go` | Done | `ProtocolNames` |
+| `internal/component/config/validators.go`, `validators_register.go` | Done | The `registered-protocol` validator |
+| `internal/component/config/validate_sections.go` | Done | `rib` added to `validatedSections` |
+| `internal/component/sysrib/fibimport.go` | Changed | Not in the Files to Create list; the new surface earned its own file rather than growing `sysrib.go` |
+| `internal/component/sysrib/ecmp.go` | Changed | Not in the plan; I-3 required the permission test in `ecmpCollect` |
+| `internal/component/sysrib/fibimport_test.go` | Done | 986 lines |
+| Both `.ci` files and their fixtures | Done | `internal/test/fixture/fib_withhold_fixture.go`, `fib_withhold_controller_fixture.go`, `register_fib_withhold.go` |
+| The `integration && linux` kernel test | Done | `internal/plugins/fib/kernel/fibwithhold_integration_linux_test.go` |
+| `docs/guide/configuration.md`, `docs/features.md`, `docs/architecture/core-design.md` | Done | Plus three pages the plan did not name |
+
+### Audit Summary
+- **Total items:** 30 (3 requirements, 6 acceptance criteria, 7 planned tests, 14 planned files)
+- **Done:** 27
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (`fibimport.go` as a new file, `ecmp.go` added to the diff, four test files beyond the plan). All three ADD to the plan and none removes anything from it, so none needs user approval.
+
+## Goal Validation (BLOCKING)
+
+The `## Goal Validation` section above records the same goals with the design-time
+reasoning. This table is the closure re-check: one row per Task goal, with the
+evidence observed on 2026-09-09.
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An operator names, per protocol, whether that protocol's routes are written to the FIB | functional (user workflow over the whole path) | `test/plugin/fib-withhold-one-protocol-keeps-the-other.ci`, PASS in the QEMU Linux guest (`uname -r` 7.2.0, aarch64, `id -u` 0): `1.5s 1/1 PASS 284`. It drives `rib { fib-withhold [ bgp ] }` on a real `ze -` daemon with fib-kernel loaded, and asserts `OK: 10.98.0.0/24 is won by bgp and is not programmed`. Log: `tmp/session/2026-09-08-aadf4270-6df0-4868-a389-fd00fc12d262/scratch/qemu-fibwithhold.log` |
+| The default is that they are | functional (data correctness) | `TestFIBImportDefaultPermitsEveryRegisteredProtocol` PASS. The producer is `parseFIBImportConfig` (`internal/component/sysrib/fibimport.go`), whose map is complete over `redistevents.ProtocolNames()`, and `fibPermitted` returns permitted on an explicit `!declared` branch, logged once per protocol |
+| The vocabulary derives from the protocol registry, not a hand-written list | functional (both polarities) | `TestRegisteredProtocolValidatorRefusesAnUnknownName` PASS: the refusal names the registered set. `TestFibWithholdCompletionOffersRegisteredProtocols` PASS: a registered protocol is offered by the editor. Both run 2026-09-09 |
+| The kernel actually stops forwarding on a withheld route | functional (kernel state read through netlink) | `TestFIBWithholdLeavesNoKernelRoute` PASS in the guest, with RED observed first: `qemu-withhold-red.log` holds `--- FAIL: TestFIBWithholdLeavesNoKernelRoute` with the `recomputeBest` gate removed, `qemu-withhold-green.log` holds `--- PASS` with it restored. The whole `internal/plugins/fib/kernel` package runs green in the guest: 68 top-level tests, 88 including subtests, 0 failures |
+| A withheld route is not a dropped route (the controller deployment) | functional (table scale, both polarities) | `TestWithholdingBGPProgramsNoneOfAWholeTable` PASS: 512 withheld BGP prefixes produce no change on `(system-rib, best-change)` while 16 permitted OSPF prefixes publish their adds, and `show rib` answers for all 528. RED forced twice on 2026-09-09, in both directions. `test/plugin/fib-withhold-controller-programs-no-route.ci` PASS in the guest, `2.2s 1/1 PASS 283`, asserting `OK: 200 bgp prefixes are in the rib and none is programmed` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| A promoted ECMP member is programmed with the WINNER's label stack and SRv6 SID | An MPLS misforward, identical at HEAD (`git show HEAD:internal/component/sysrib/sysrib.go` carries the same `Labels: best.labels` beside `Interface: ecmpPaths[0].Interface`). Withholding a protocol is not broken by it, so the owner-directed route for a defect walked into is a journal row (`ai/rules/completion.md`) | `plan/journal/helper-bypassed-by-an-open-coded-copy.md`, row of 2026-09-09 |
+| `cascadeRecompute`'s RESOLVER-driven path still disagrees with the live rule about an unreachable gateway | Pre-existing at HEAD, and about reachability NEWS rather than about which protocols reach the FIB. The SWEEP half of the same disagreement WAS in scope and is fixed (B5-1) | `plan/journal/guard-added-to-one-half-of-a-pair.md`, rows of 2026-09-08 |
+| RFC 9252 Section 5, SRv6 SID resolvability before best-path (`RFC9252-5-2`) | Found as review finding I4-2: a code comment quoted a MUST the code does not enforce while the ledger records it as a `{gap}`. The comment was corrected here; making the behavior exist is a protocol change of its own, routed by owner decision | `plan/immediate/spec-srv6-bestpath-resolvability.md` (Status `design`) |
+| `applyRouteInstall`'s doc comment describes a register-on-demand its callee deliberately refuses | Met on the way through the dispatch path; outside the sysrib publish decision | `plan/journal/comment-describes-superseded-behaviour.md`, row of 2026-09-08 |
+| `rib { distance { } }` names six protocols where ten register, and splits `bgp` into `ebgp`/`ibgp` where the registry does not | Named out of scope in Known Limitations before implementation started. This spec did not repeat the gap. Repairing the distance leaves is separable | No spec owns it. It is an item for Thomas, not a decision this closure may take |
+
+### The two rule changes `plan/learned/012` proposes
+
+Not part of this closure, and NOT edited here. They are Thomas's to accept or reject.
+
+| Rule | Proposed addition |
+|------|-------------------|
+| `ai/rules/completion.md`, beside the scope question | Answer it against the OPERATION that broke, never against the feature's name. A feature's name covers its inverse, its undo and its disable path |
+| `ai/rules/testing.md`, beside the positive-and-negative directive | New branches owe a MEASURED coverage figure, not an inferred one. Run the package under `-covermode=count` |
+
 ## Review Gate
 
 <!-- Filled at implementation time by /ze-review (BLOCKING before closure).
@@ -701,3 +886,154 @@ OPERATION that broke, and the two came apart because the broken operation was
 the feature's own inverse. The sweep now takes the LIVE rule, which is the one
 with tests and a `.ci` scenario behind it; matching the cascade was the
 tidier-looking direction that drops routes.
+
+### Closure record
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/per-protocol-fib-import-aadf4270-6df0-4868-a389-fd00fc12d262.md` |
+| `./le spec session review check` | clean -- `review_gate: OK (0 code files, clean, hashes match ...)`. It reads 0 code files because the code is already committed as `000e70eec`; the artifact pins the eight source hashes the reviewers read |
+| Rounds | 6. Round 6 was authorised by Thomas on 2026-09-09 after he read the per-round finding counts. The product defect that earned it: the ECMP promotion programs the promoted member with the WINNER's label stack and SRv6 SID, an MPLS misforward, and `-covermode=count` showed two of the permission sweep's five outcomes at zero |
+| Reviewer lenses used | gate coverage, withdraw safety, state coherence, the guard itself, lock ordering, test discrimination, the class sweep over sibling paths, payload convergence, the SRv6 branches, the RFC comment, YANG, docs and prose |
+| Final verdict | 0 BLOCKER. Round 6's two ISSUEs are closed: I6-1 has a test, I6-2 is journaled |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| B-1 | BLOCKER | `resolvedNH` presence read as "Ze programmed this prefix" | `internal/component/sysrib/sysrib.go` | `programmedByZe`, the question asked once |
+| B-2 | BLOCKER | `recordWithheldWinner` dropped next-hop tracking a later permitted winner assumes | `internal/component/sysrib/fibimport.go` | Paired `trackNextHops` / `untrackNextHops` |
+| I-1 | ISSUE | The sweep inferred "newly permitted" from `resolvedNH` | `fibimport.go` | The sweep reads the permission sets it is comparing |
+| I-2 | ISSUE | The sweep's withdraw branch never `Untrack`ed what its add branch `Track`ed | `fibimport.go` | Both branches paired |
+| I-3 | ISSUE | `ecmpCollect` applied no permission test, so a withheld gateway forwarded traffic inside a permitted winner's group | `internal/component/sysrib/ecmp.go` | The permission test moved into the collector |
+| I-4 | ISSUE | Docs named `publishChanges` as the filter | `docs/architecture/core-design.md` | Corrected to the four producers |
+| B2-1 | BLOCKER | The `len(protocols) == 0` branch still read `prev != nil` as "Ze programmed it", so every withheld withdraw raised an ESRCH FIB-sync failure | `sysrib.go` | `programmedByZe` on that branch too |
+| B2-2 | ISSUE | `cascadeRecompute` kept the `IsValid` test where the stored address really can be invalid | `sysrib.go` | Same question, same answer |
+| B2-3 | ISSUE | The regroup branch compared an unfiltered collector against a filtered `lastECMP` | `ecmp.go` | Both sides filtered |
+| B2-4 | ISSUE | I-1 and I-2 surviving on the path their fixes did not cover | `fibimport.go` | The class swept, not the site |
+| B2-5 | ISSUE | The guide named `bgp-rib/best-change` as the stream that still carries a withheld route: false for IS-IS, OSPF, static and connected | `docs/guide/configuration.md` | Sentence corrected |
+| I3-1 | ISSUE | `replayBest`'s payload read a proxy, so a FIB plugin restart re-programmed the prefix over a dead gateway | `sysrib.go` | Replay takes `fibEntry`; `TestReplayCarriesTheProgrammedEntry` is the positive assertion |
+| I3-2 | ISSUE | `show ecmp-groups` described itself as showing "the paths that share its load" while it answers the RIB | `internal/component/sysrib` | Text corrected |
+| I3-3 | ISSUE | `core-design.md` said a protocol "the resolved table" does not name is permitted: two structures, one sentence | `docs/architecture/core-design.md` | Corrected to the permission set |
+| I3-4 | ISSUE | `core-design.md` claimed replay hands over no prefix whose next-hop stopped resolving | `docs/architecture/core-design.md` | Corrected with I3-1 |
+| I4-1 | ISSUE | The consolidation left `recomputeBest` computing its own entry, so live and replay described one prefix differently | `sysrib.go` | All four producers take `fibEntry`, which returns a named verdict |
+| I4-2 | ISSUE | An RFC 9252 comment quoted a MUST the code does not enforce while the ledger records it as a `{gap}` | `internal/component/sysrib` | Comment corrected; the behavior is owned by `plan/immediate/spec-srv6-bestpath-resolvability.md` |
+| I4-3 | ISSUE | The Add-versus-Update comment's premise was false: `RouteAdd` carries `NLM_F_EXCL`, so the verb IS visible | `sysrib.go` | Comment corrected |
+| I4-4 | ISSUE | `TestReplayCarriesTheProgrammedEntry` did not discriminate: every path in it was connected | `sysrib_replay_test.go` | Rewritten over a path where resolved and raw differ |
+| B5-1 | BLOCKER | The permission sweep could not put back what it took away, permanently, and withholding a group MEMBER withdrew the prefix instead of regrouping it | `fibimport.go` | `fibStateChange` is self-contained on the LIVE rule and no longer calls `cascadeRecompute` |
+| I5-1 | ISSUE | The same disagreement lives on `cascadeRecompute`'s resolver-driven path | `sysrib.go` | Journaled: `plan/journal/guard-added-to-one-half-of-a-pair.md`. Pre-existing at HEAD and about reachability news |
+| I5-2 | ISSUE | This Review Gate stopped at round 3, so rounds 4 and 5 existed nowhere a closure agent could read | this spec | The round 4 and 5 sections |
+| I6-1 | ISSUE | Two of the sweep's five outcomes had zero coverage, measured with `-covermode=count`; deleting the no-op guard left the package green | `fibimport.go` | `TestWithholdingAnUnreachableMemberPublishesNothing` takes the guard's count from 0 to 1 |
+| I6-2 | ISSUE | A promoted ECMP member is programmed with the winner's label stack and SRv6 SID: an MPLS misforward | `sysrib.go` | Journaled: `plan/journal/helper-bypassed-by-an-open-coded-copy.md`. Identical at HEAD, and no part of withholding a protocol is broken by it |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+`ls -la`, run 2026-09-09 in this closure. Sizes in bytes as reported.
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/sysrib/fibimport.go` | Yes | 17K |
+| `internal/component/sysrib/fibimport_test.go` | Yes | 38K |
+| `internal/component/sysrib/sysrib_fibentry_test.go` | Yes | 6.8K |
+| `internal/component/sysrib/sysrib_programmed_test.go` | Yes | 5.2K |
+| `internal/component/sysrib/sysrib_replay_test.go` | Yes | 5.9K |
+| `internal/component/sysrib/sysrib_srv6_test.go` | Yes | 14K; six `func Test` declarations, the package's first SRv6 tests |
+| `internal/component/cli/fib_withhold_completion_test.go` | Yes | 1.5K |
+| `internal/component/config/registered_protocol_validate_test.go` | Yes | 3.3K |
+| `internal/plugins/fib/kernel/fibwithhold_integration_linux_test.go` | Yes | 14K |
+| `internal/test/fixture/fib_withhold_fixture.go` | Yes | 5.5K |
+| `internal/test/fixture/fib_withhold_controller_fixture.go` | Yes | 7.6K |
+| `internal/test/fixture/register_fib_withhold.go` | Yes | 536 |
+| `test/plugin/fib-withhold-one-protocol-keeps-the-other.ci` | Yes | 2.3K |
+| `test/plugin/fib-withhold-controller-programs-no-route.ci` | Yes | 2.4K |
+
+### AC Verified (grep/test)
+Every row re-run in this closure on 2026-09-09, not carried from the audit.
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | A config naming no protocol permits every protocol | `--- PASS: TestFIBImportDefaultPermitsEveryRegisteredProtocol (0.00s)` |
+| AC-2 | A withheld protocol's only prefix is not programmed and is still in the RIB | `--- PASS: TestWithheldWinnerPublishesNoAdd (0.00s)`; `.ci` `1/1 PASS 284 fib-withhold-one-protocol-keeps-the-other`, 1.5s, in the guest |
+| AC-3 | The withheld protocol still WINS selection | `--- PASS: TestWithheldProtocolStillWinsSelection (0.00s)` |
+| AC-4 | A protocol no leaf names defaults to permitted, and the vocabulary shows it | `--- PASS: TestFIBImportPermitsAProtocolRegisteredAfterConfigure (0.00s)`; `--- PASS: TestFibWithholdCompletionOffersRegisteredProtocols (0.03s)` |
+| AC-5 | A name nothing registered is refused, naming the registered set | `--- PASS: TestRegisteredProtocolValidatorRefusesAnUnknownName (0.07s)` |
+| AC-6 | A whole withheld table reaches the RIB and no kernel route | `--- PASS: TestWithholdingBGPProgramsNoneOfAWholeTable (0.00s)`; `.ci` `1/1 PASS 283 fib-withhold-controller-programs-no-route`, 2.2s, in the guest |
+
+### Wiring Verified (end-to-end)
+Both `.ci` files read in this closure, not inferred from their names.
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `rib { fib-withhold [ bgp ] }` beside `rib { distance }` | `test/plugin/fib-withhold-one-protocol-keeps-the-other.ci` | Yes. The config block carries `fib-withhold [ bgp ]`, loads `internal rib` and `internal fib-kernel`, and runs a real `ze -` daemon (`cmd=foreground:seq=1:exec=ze -`). It asserts `expect=stderr:contains=OK: 10.98.0.0/24 is won by bgp and is not programmed` and rejects `panic` and `fatal error`. `option=needs-linux:caps=net-admin`, so the check reads the kernel table for proto 250 |
+| the whole chain to netlink, on a booted appliance | `TestFIBWithholdLeavesNoKernelRoute` (`internal/plugins/fib/kernel/fibwithhold_integration_linux_test.go`) | Yes. Reads the namespace's real route table. It asserts the KEPT protocol's prefix is programmed FIRST, so the withheld protocol's absence cannot be a dead chain |
+| the controller deployment: a whole table withheld | `test/plugin/fib-withhold-controller-programs-no-route.ci` | Yes. Same daemon path, `fib-withhold [ bgp ]`, 200 withheld prefixes and one permitted control, asserting `OK: 200 bgp prefixes are in the rib and none is programmed` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken (partially) | Confirmed on the SUPPRESSING side, broken on the SUBSCRIBING side: all five Withdraw branches in `sysrib.go` build `&outgoingChange{Action, Prefix}` and stamp no protocol. D-1 (b) makes it moot. Mistake Log row written |
+| A-2 | confirmed | `TestWithheldProtocolStillWinsSelection` and `TestWithholdingBGPProgramsNoneOfAWholeTable` read the withheld winner back out of `s.best` and `show rib`; `TestFIBWithholdLeavesNoKernelRoute` reads `show rib` from the running plugin and finds winner `bgp` for a prefix the kernel does not hold |
+| R-3 | retired | `recordWithheldWinner` writes `s.best` and `s.lastECMP` exactly as `recordOSInstalledWinner` does |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| 1. New user-facing feature (`docs/features.md`) | Landed in `000e70eec` (+6/-) | Yes |
+| 2. Config syntax (`docs/guide/configuration.md`, `docs/architecture/config/syntax.md`) | Landed in `000e70eec` (+194, +10). The documented spelling is the `leaf-list fib-withhold` in `internal/component/sysrib/yang/ze-rib-conf.yang`, and `ze config validate` accepts it on the shipped daemon flavor | Yes |
+| 6. User guide section | `docs/guide/configuration.md`: the default, what changing it does, and what withholding leaves intact. B2-5 corrected its claim about which bus topic still carries a withheld route | Yes |
+| 12. Internal architecture (`docs/architecture/core-design.md`) | +109. I-4, I3-3 and I3-4 each corrected a statement in it against the producing function | Yes |
+| CLI commands/flags | No new command. `show rib` and `show ecmp-groups` already print the source; I3-2 corrected the `show ecmp-groups` self-description | Yes |
+| Doctor check for a runtime dependency | No. The feature adds no file path, socket, kernel module, listen port, external binary or certificate. It reads config already parsed and declines a write Ze would otherwise make | No, with reason |
+| RFC status row | No. `./le rfc index-update` was not run, because this change proves no new RFC behavior. Review finding I4-2 corrected a comment that OVER-claimed RFC 9252 Section 5, moving the claim back into line with the `{gap}` the ledger already records; the behavior itself is owned by `plan/immediate/spec-srv6-bestpath-resolvability.md` | No, with reason |
+| `./le doc check verify` | FAILED on this tree, on surfaces this work does not touch: 8 summary-rule breaks (`ze-rib-api:command-complete`, `ze-rib-api:command-help`, `ze-policyroute-conf:policy/route/interface` among them) and 4 unresolved source anchors (`docs/architecture/api/commands.md`, `docs/architecture/exabgp-bridge.md`, `docs/architecture/firewall/firewall-irr.md` twice). Grepped: not one failure names a `fib-withhold`, `sysrib` or `ze-rib-conf` surface | Verified as NOT this work |
+
+### The gate that is NOT met: `./le verify worktree`
+
+**Status: RED, and it stays red. It is recorded unmet rather than claimed.**
+
+Run in this closure on 2026-09-09. Its lint stage fails with 50 issues, all
+`typecheck`, and every one of them is in a single package this spec never
+touched: `internal/component/bgp/plugins/rib`. The message is
+`too many arguments in call to peer1RIB.Insert -- have (family.Family, []byte,
+[]byte, bool), want (family.Family, []byte, []byte)`. `git status --porcelain`
+shows 17 modified and 2 untracked files in that package, so another session is
+mid-edit on `Insert`'s signature and its test files have not caught up.
+`./le verify status check` reports `STALE: last verify failed (exit=1, at
+2026-09-05T00:11:54Z)`, four days before this work, so the red is not this
+work's.
+
+`ai/rules/principles.md` says to judge your own change by the evidence your own
+change produced and to leave another session's work alone. The per-scope
+evidence that stands in the whole-tree gate's place, all observed 2026-09-09:
+
+| Scope | Result |
+|-------|--------|
+| `./le verify lint run scope ./internal/component/sysrib/...` | 0 issues, both flavors (darwin and `GOOS=linux` with the integration tag) |
+| `go test ./internal/component/sysrib/...` (via `./le job run`) | `ok github.com/ze-software/ze/internal/component/sysrib 1.518s`, `ok .../sysrib/events 0.351s` |
+| The seven planned unit tests plus the replay pair | 8 of 8 PASS |
+| `internal/component/cli`, `internal/component/config` | `ok`, both named tests PASS |
+| `internal/plugins/fib/kernel` in the QEMU guest | 68 top-level tests, 88 including subtests, 0 failures |
+| Both `.ci` scenarios in the QEMU guest | PASS, 1.5s and 2.2s |
+| `go vet` over `./internal/... ./cmd/...` with `ze_core ze_bgp ze_test` | One finding, `internal/core/textbuf/textbuf.go:186: possible misuse of unsafe.Pointer`, pre-existing and unrelated |
+
+One caveat is recorded rather than hidden: the QEMU guest built its DUT from the
+WORKING TREE, which carries other sessions' uncommitted edits, and not from
+`000e70eec` alone. The `.ci` results therefore prove the feature works in a tree
+that CONTAINS the feature; they do not isolate it from every other uncommitted
+hunk in the checkout.
+
+## Core Insight
+
+`resolvedNH` was a next-hop CACHE, and this is the first code in the package to
+ask it a different question: has Ze programmed this prefix? A cache answers
+"what did I last resolve", and reading that as "what did I last install" is
+right almost everywhere, which is why the struct comment asserted it and why
+nine of the twenty-four review findings trace to it. `resolveNextHop` returns
+an invalid address unchanged, so an interface-only next-hop is programmed while
+its entry is invalid, and no validity test can separate that from absent.
+
+The lesson generalises past this package: when a new caller asks an old
+structure a question it was not built to answer, the structure keeps answering.
+`programmedByZe` is that question given a name and a single implementation, and
+naming it is what let round 3 walk the callers instead of fixing the site the
+reviewer happened to point at.

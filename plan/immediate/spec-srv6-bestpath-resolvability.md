@@ -195,7 +195,7 @@ MUST NOT edit those tests.
 | R-4 | Oscillation: a SID whose covering route is itself a BGP prefix makes the re-evaluation feed itself | Rising re-evaluation counters with no configuration change | `nhResolver` already bounds the walk at `maxRecursionDepth` and refuses a self-referencing route; the worker drains a prefix once per pass, and best-path emits only on an actual change |
 | R-5 | Unbounded growth of the SID-to-prefix dependency index under a full VPN table | Memory growth proportional to SRv6 prefixes | The index is keyed by SID address, entries are removed when the last candidate carrying that SID leaves, and a test asserts the index empties on withdraw |
 | R-6 | The seam is unset in a deployment where it should be set, and every path is silently admitted | No log line and no counter | `Lookup` returns a second value distinguishing "no producer" from "not resolvable"; the plugin logs once at start when the check is inactive |
-| R-7 | Concurrent edits to `internal/component/sysrib/sysrib.go` collide with the per-protocol FIB withholding work in `plan/immediate/spec-per-protocol-fib-import.md` | A conflicting hunk at commit time | The sysrib edit is ONE line beside `igpcost.Set` in `SetLocRIB`; implement it last and rebase onto the withholding work rather than around it |
+| R-7 | Concurrent edits to `internal/component/sysrib/sysrib.go` collide with the per-protocol FIB withholding work (`spec-per-protocol-fib-import`, landed 2026-09-09 as `000e70eec` and closed) | A conflicting hunk at commit time | The sysrib edit is ONE line beside `igpcost.Set` in `SetLocRIB`; implement it last and rebase onto the withholding work rather than around it |
 | R-8 | Excluding a path from candidacy changes what Ze advertises, so a peer sees a withdraw where it saw a route | An interop scenario showing an unexpected withdraw | That is the required behavior; the interop scenario asserts it explicitly against FRR so the change is proven rather than discovered |
 
 ## Blast Radius
@@ -204,7 +204,7 @@ MUST NOT edit those tests.
 |----------|--------|
 | What breaks if this is wrong? | Best-path selection for every family carrying an SRv6 Service SID. A false "not resolvable" withdraws working VPN routes from the FIB and from peers; a deadlock in the notification path stalls every best-path computation in the daemon |
 | How is it reverted? | Single commit revert. No config migration, no state format change. Peers see the routes return |
-| Who else touches this path? | `plan/immediate/spec-per-protocol-fib-import.md` is editing `internal/component/sysrib/sysrib.go` now; `plan/immediate/spec-fib-depth.md` owns `nhresolver.go`; `plan/immediate/spec-srv6-evpn-label-width.md` and `plan/spec-srv6-labeled-unicast.md` touch the same SRv6 extraction code |
+| Who else touches this path? | `spec-per-protocol-fib-import` rewrote `internal/component/sysrib/sysrib.go` and closed on 2026-09-09 (`000e70eec`), so rebase onto it rather than around it; `plan/immediate/spec-fib-depth.md` owns `nhresolver.go`; `plan/immediate/spec-srv6-evpn-label-width.md` and `plan/spec-srv6-labeled-unicast.md` touch the same SRv6 extraction code |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -421,7 +421,10 @@ MUST NOT edit those tests.
 
 - "If the SRv6 SID is reachable via more than one forwarding table, local policy is used to determine which table to use" has no trigger in Ze: there is one Loc-RIB and no VRF plumbing to install VPN routes into, which `mirrorToLocRIB` states as the reason it skips non-CIDR families (`internal/component/bgp/plugins/rib/rib_bestchange.go`). The sentence becomes reachable when Ze gains VRF forwarding tables, and it is conditional on that absent feature rather than outstanding work here.
 - The `RFC9252-5-1` section annotation defect in `rfc/short/rfc9252.md` is reported, not repaired here.
-- The four unproven SRv6 branches in `internal/component/sysrib` belong to `plan/immediate/spec-per-protocol-fib-import.md` by Thomas's direction of 2026-09-08.
+- The four unproven SRv6 branches in `internal/component/sysrib` were given to
+  `spec-per-protocol-fib-import` by Thomas's direction of 2026-09-08. That spec
+  closed on 2026-09-09 and added `internal/component/sysrib/sysrib_srv6_test.go`,
+  the package's first SRv6 tests, six of them.
 
 ## Open Question For Thomas (BLOCKING before implementation)
 
