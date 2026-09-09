@@ -333,3 +333,28 @@ About 18 GB was freed: 33 pre-today session scratch directories and 103 stale
 3. Claim the ipsec spec and RUN its three artifacts before touching anything else in
    it. Nothing about that spec is proven until they do.
 4. Put the `cost` leaf question to Thomas when the OSPF spec closes, not later.
+
+## 8. Update, 2026-09-09: the OSPF closure was started and stopped
+
+`/ze-close` ran on `spec-ospf-auto-cost-reference-bandwidth` and was stopped
+mid-phase, out of budget. It had passed the audit steps and was inside its own
+Review Gate, fixing what that gate found: its last words were "the
+deferred-origination method and the shutdown ordering".
+
+**Uncommitted and INCOMPLETE, left in the working tree deliberately:**
+`internal/plugins/ospf/instance.go`, `instance_test.go`, `virtual_link.go`. Do
+not assume they compile and do not commit them as they stand. Read the diff
+first and decide whether to finish the fix or drop it; `SetCost` and everything
+`db3f18b0b` landed are intact in HEAD, so dropping it costs nothing already
+proven.
+
+Other sessions' files in that package, to leave alone: `bfd_client.go`,
+`asn_notation_test.go`, `rfc5882_shared_key_test.go`.
+
+**So the OSPF spec is NOT closed.** Its rounds 1 to 3 are clean and recorded, and
+a fourth round was in progress and had found something. Restarting means
+re-running `/ze-close` from step 5, not from the top: the deliverables,
+documentation and security steps were done, and the round-4 finding is the only
+open thread. The session claim is still on this spec.
+
+Everything in sections 1 to 7 above is unchanged and still accurate.
