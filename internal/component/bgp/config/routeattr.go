@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
+
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/parse"
 )
@@ -145,8 +147,10 @@ func ParseRouteDistinguisher(s string) (RouteDistinguisher, error) {
 		return rd, nil
 	}
 
-	// Parse as ASN:NN
-	asn, err := strconv.ParseUint(parts[0], 10, 32)
+	// Parse as ASN:NN. asn.Parse reads all three RFC 5396 spellings, so
+	// `rd 1.10:5` names the same route distinguisher as `rd 65546:5`. The
+	// IPv4 probe above runs first, so no address reaches this branch.
+	number, err := asn.Parse(parts[0])
 	if err != nil {
 		return RouteDistinguisher{}, fmt.Errorf("invalid rd ASN %q", parts[0])
 	}
@@ -155,10 +159,10 @@ func ParseRouteDistinguisher(s string) (RouteDistinguisher, error) {
 		return RouteDistinguisher{}, fmt.Errorf("invalid rd number %q", parts[1])
 	}
 
-	if asn <= 0xFFFF {
+	if number <= 0xFFFF {
 		// Type 0: 2-byte ASN, 4-byte number
 		rd.Bytes[0], rd.Bytes[1] = 0, rdType0
-		rd.Bytes[2], rd.Bytes[3] = byte(asn>>8), byte(asn)
+		rd.Bytes[2], rd.Bytes[3] = byte(number>>8), byte(number)
 		rd.Bytes[4] = byte(num >> 24)
 		rd.Bytes[5] = byte(num >> 16)
 		rd.Bytes[6] = byte(num >> 8)
@@ -166,10 +170,10 @@ func ParseRouteDistinguisher(s string) (RouteDistinguisher, error) {
 	} else {
 		// Type 2: 4-byte ASN, 2-byte number
 		rd.Bytes[0], rd.Bytes[1] = 0, rdType2
-		rd.Bytes[2] = byte(asn >> 24)
-		rd.Bytes[3] = byte(asn >> 16)
-		rd.Bytes[4] = byte(asn >> 8)
-		rd.Bytes[5] = byte(asn)
+		rd.Bytes[2] = byte(number >> 24)
+		rd.Bytes[3] = byte(number >> 16)
+		rd.Bytes[4] = byte(number >> 8)
+		rd.Bytes[5] = byte(number)
 		rd.Bytes[6], rd.Bytes[7] = byte(num>>8), byte(num)
 	}
 
@@ -213,11 +217,13 @@ func ParseASPath(s string) (ASPath, error) {
 	asp.Values = make([]uint32, 0, len(parts))
 
 	for _, p := range parts {
-		n, err := strconv.ParseUint(p, 10, 32)
+		// asn.Parse reads the asdot spellings beside the decimal one, so an
+		// AS path written in the notation the operator reads is accepted.
+		n, err := asn.Parse(p)
 		if err != nil {
 			return asp, fmt.Errorf("invalid AS number %q: %w", p, err)
 		}
-		asp.Values = append(asp.Values, uint32(n))
+		asp.Values = append(asp.Values, n)
 	}
 
 	return asp, nil
@@ -260,12 +266,13 @@ func ParseAggregator(s string) (Aggregator, error) {
 		return agg, fmt.Errorf("invalid aggregator format %q: expected ASN:IP", s)
 	}
 
-	// Parse ASN
-	asn, err := strconv.ParseUint(strings.TrimSpace(parts[0]), 10, 32)
+	// Parse the AS half. It goes through the same reader as every other AS
+	// number, so `1.10:192.0.2.1` is accepted. The address half is untouched.
+	number, err := asn.Parse(strings.TrimSpace(parts[0]))
 	if err != nil {
 		return agg, fmt.Errorf("invalid aggregator ASN %q: %w", parts[0], err)
 	}
-	agg.ASN = uint32(asn)
+	agg.ASN = number
 
 	// Parse IP
 	ip, err := netip.ParseAddr(strings.TrimSpace(parts[1]))

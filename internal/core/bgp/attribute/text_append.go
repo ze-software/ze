@@ -21,6 +21,8 @@ import (
 	"encoding/hex"
 	"net/netip"
 	"strconv"
+
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 )
 
 // -----------------------------------------------------------------------------
@@ -36,7 +38,7 @@ func (a *Aggregator) AppendText(buf []byte) []byte {
 	if !a.Address.IsValid() {
 		return buf
 	}
-	buf = strconv.AppendUint(buf, uint64(a.ASN), 10)
+	buf = asn.Append(buf, a.ASN, asn.NotationPlain)
 	buf = append(buf, ':')
 	buf = a.Address.AppendTo(buf)
 	return buf
@@ -113,6 +115,13 @@ func (o Origin) AppendText(buf []byte) []byte {
 // filter plugins that need segment types must consume the raw wire bytes via
 // `FilterUpdateInput.Raw` (raw=true). Preserving this flattening matches the
 // legacy FormatASPath output byte-for-byte.
+//
+// Every AS number here is asplain, and the bgp/as-notation leaf does NOT reach
+// this method. Filter text is a contract between Ze and a filter plugin. A
+// replayed `update text` command is a contract between Ze and itself. Both
+// break the moment one AS path renders two ways. The notation an operator
+// reads is applied where a row is built for them instead
+// (asPathList, internal/component/bgp/plugins/rib/rib_attr_format.go).
 func (p *ASPath) AppendText(buf []byte) []byte {
 	var total int
 	for _, seg := range p.Segments {
@@ -125,7 +134,7 @@ func (p *ASPath) AppendText(buf []byte) []byte {
 	if total == 1 {
 		for _, seg := range p.Segments {
 			if len(seg.ASNs) > 0 {
-				return strconv.AppendUint(buf, uint64(seg.ASNs[0]), 10)
+				return asn.Append(buf, seg.ASNs[0], asn.NotationPlain)
 			}
 		}
 		return buf
@@ -133,11 +142,11 @@ func (p *ASPath) AppendText(buf []byte) []byte {
 	buf = append(buf, '[')
 	first := true
 	for _, seg := range p.Segments {
-		for _, asn := range seg.ASNs {
+		for _, number := range seg.ASNs {
 			if !first {
 				buf = append(buf, ' ')
 			}
-			buf = strconv.AppendUint(buf, uint64(asn), 10)
+			buf = asn.Append(buf, number, asn.NotationPlain)
 			first = false
 		}
 	}

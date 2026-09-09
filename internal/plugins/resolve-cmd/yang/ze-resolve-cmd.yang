@@ -2,6 +2,7 @@ module ze-resolve-cmd {
     namespace "urn:ze:resolve:cmd";
     prefix resolvecmd;
     import ze-extensions { prefix ze; }
+    import ze-types { prefix zt; }
     description "Look up DNS, ASN, PeeringDB, and IRR data from the router, inspect the DNS cache, and clear the DNS resolver cache. Owned by the resolve component because every handler reads or resets the resolver (resolvers.DNS). Container-merges onto the resolve, show, and clear verb roots. See ai/rules/plugin-self-containment.md.";
     revision 2026-04-04 { description "Initial revision"; }
     revision 2026-08-29 { description "Declare the value each lookup takes: the hostname of the A, AAAA and TXT lookups, the address of the reverse lookup, and the AS number of the Cymru and PeeringDB lookups. The descriptions spelled them in prose and the model stated nothing."; }
@@ -66,7 +67,7 @@ without one. An AS number Team Cymru does not name answers (unknown) instead of 
                 ze:command "ze-resolve:cymru-asn-name";
                 description "Find out who owns an AS number.";
                 ze:help "Queries Team Cymru DNS to return the organization name for the ASN.";
-                leaf asn { type uint32; mandatory true; description "AS number"; }
+                leaf asn { type zt:asn-notated; mandatory true; description "AS number"; }
             }
         }
 
@@ -81,14 +82,14 @@ fail without one. Each one takes an AS number.";
                 ze:command "ze-resolve:peeringdb-max-prefix";
                 description "Get max-prefix limits for an ASN from PeeringDB.";
                 ze:help "Returns IPv4 and IPv6 prefix limits. Apply via the config editor.";
-                leaf asn { type uint32; mandatory true; description "AS number"; }
+                leaf asn { type zt:asn-notated; mandatory true; description "AS number"; }
             }
             container as-set {
                 config false;
                 ze:command "ze-resolve:peeringdb-as-set";
                 description "Find the IRR AS-SET registered for an ASN in PeeringDB.";
                 ze:help "Feed the result into 'resolve irr expand' to get the full member list.";
-                leaf asn { type uint32; mandatory true; description "AS number"; }
+                leaf asn { type zt:asn-notated; mandatory true; description "AS number"; }
             }
         }
 
@@ -204,7 +205,7 @@ copy an earlier 'update resolve rir' stored. Reaches no network. Reports the
 registry, its whois server, and the delegated range that holds the AS number.
 An AS number in no delegated range and a table that cannot be read are two
 different answers.";
-                leaf asn { type uint32; mandatory true; description "AS number to look up"; }
+                leaf asn { type zt:asn-notated; mandatory true; description "AS number to look up"; }
             }
         }
     }

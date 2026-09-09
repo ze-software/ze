@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -214,7 +215,7 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		if err := ValidateLeafValue(leaf, value); err != nil {
 			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
 		}
-		tree.Set(name, normalizeSetValue(leaf.Type, value))
+		tree.Set(name, NormalizeLeafValue(leaf.Type, value))
 		return nil
 	}
 
@@ -801,11 +802,37 @@ func parseBracketValue(tokens []string) string {
 	return textbuf.Join(tokens, " ")
 }
 
-func normalizeSetValue(typ ValueType, value string) string {
-	if typ == TypeBool {
+// NormalizeLeafValue rewrites an accepted leaf value into the one spelling the
+// tree stores. Every reader downstream then sees one form, whichever spelling
+// the operator typed.
+//
+// It runs AFTER validation on every path that writes a leaf:
+//
+//   - the config file, parser.go
+//   - `set`, setparser.go
+//   - the inline attribute form, setparser_inline.go
+//   - the meta form, setparser_meta.go
+//   - the editor behind the CLI and the web form, cli.Editor.SetValue
+//
+// A value that does not parse is returned unchanged. Validation refused it on
+// every caller's path already, and a value invented here would hide which
+// spelling was rejected.
+func NormalizeLeafValue(typ ValueType, value string) string {
+	switch typ {
+	case TypeBool:
 		return NormalizeBool(value)
+	case TypeASN:
+		// An AS number is stored as its decimal value, whichever notation the
+		// operator typed. The readers of local-as, peer-as and every other AS
+		// number leaf therefore parse one form.
+		number, err := asn.Parse(value)
+		if err != nil {
+			return value
+		}
+		return asn.Text(number, asn.NotationPlain)
+	default:
+		return value
 	}
-	return value
 }
 
 func bracketItems(tokens []string) []string {

@@ -11,6 +11,8 @@ import (
 	"slices"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
+
 	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -61,20 +63,22 @@ func (plug *irrPlugin) showIRR() (string, any, error) {
 		b.Str(`,"next-refresh":"`).Str(plug.nextRefresh.Format(time.RFC3339)).Byte('"')
 	}
 	sortedASNs := make([]uint32, 0, len(plug.byASN))
-	for asn := range plug.byASN {
-		sortedASNs = append(sortedASNs, asn)
+	for number := range plug.byASN {
+		sortedASNs = append(sortedASNs, number)
 	}
 	slices.Sort(sortedASNs)
 
 	b.Str(`,"entries":[`)
 	first := true
-	for _, asn := range sortedASNs {
-		st := plug.byASN[asn]
+	for _, number := range sortedASNs {
+		st := plug.byASN[number]
 		if !first {
 			b.Byte(',')
 		}
 		first = false
-		b.Str(`{"asn":`).Uint32(st.asn)
+		// The AS number is a row an operator reads, so it carries the notation
+		// bgp/as-notation selected (asn.AppendJSON states the rule).
+		b.Str(`{"asn":`).Str(asn.JSONValue(st.asn))
 		b.Str(`,"as-set":`).Quoted(st.asSet)
 		switch {
 		case st.lastErr != "":
@@ -123,7 +127,7 @@ func (plug *irrPlugin) showIRRPrefix(args []string) (string, any, error) {
 func (plug *irrPlugin) renderPrefixes(st *asnState) (string, any, error) {
 	b := textbuf.Get()
 	defer b.Release()
-	b.Str(`{"asn":`).Uint32(st.asn)
+	b.Str(`{"asn":`).Str(asn.JSONValue(st.asn))
 	b.Str(`,"as-set":`).Quoted(st.asSet)
 	b.Str(`,"prefixes":[`)
 	if st.list != nil {
@@ -175,7 +179,7 @@ func (plug *irrPlugin) showIRRCheck(args []string) (string, any, error) {
 	b := textbuf.Get()
 	defer b.Release()
 	b.Str(`{"prefix":"`).Str(prefixStr).Byte('"')
-	b.Str(`,"asn":`).Uint32(matchSt.asn)
+	b.Str(`,"asn":`).Str(asn.JSONValue(matchSt.asn))
 	b.Str(`,"accepted":`).Bool(accepted)
 	if matchedEntry != "" {
 		b.Str(`,"matched-entry":"`).Str(matchedEntry).Byte('"')
@@ -188,22 +192,22 @@ func (plug *irrPlugin) anyRefreshError() error {
 	plug.mu.RLock()
 	defer plug.mu.RUnlock()
 	asns := make([]uint32, 0, len(plug.byASN))
-	for asn := range plug.byASN {
-		asns = append(asns, asn)
+	for number := range plug.byASN {
+		asns = append(asns, number)
 	}
 	slices.Sort(asns)
-	for _, asn := range asns {
-		if st := plug.byASN[asn]; st != nil && st.lastErr != "" {
-			return fmt.Errorf("ASN %d: %s", asn, st.lastErr)
+	for _, number := range asns {
+		if st := plug.byASN[number]; st != nil && st.lastErr != "" {
+			return fmt.Errorf("ASN %s: %s", asn.Text(number, asn.Configured()), st.lastErr)
 		}
 	}
 	return nil
 }
 
-func (plug *irrPlugin) asnRefreshError(asn uint32) string {
+func (plug *irrPlugin) asnRefreshError(number uint32) string {
 	plug.mu.RLock()
 	defer plug.mu.RUnlock()
-	if st := plug.byASN[asn]; st != nil {
+	if st := plug.byASN[number]; st != nil {
 		return st.lastErr
 	}
 	return ""

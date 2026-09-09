@@ -173,20 +173,40 @@ func TestParseCommonAttributeBuilder(t *testing.T) {
 	}
 }
 
-// TestParseASPathEmptyString verifies empty AS_PATH behavior.
+// TestParseASPathMissingValue verifies the `as-path` word with no value.
 //
-// VALIDATES: Empty string doesn't modify Builder state.
+// VALIDATES: a missing value is an error and leaves the AS_PATH alone.
 // PREVENTS: Regression from old PathAttributes behavior.
-func TestParseASPathEmptyString(t *testing.T) {
+func TestParseASPathMissingValue(t *testing.T) {
 	b := attribute.NewBuilder()
 	b.SetASPath([]uint32{65001}) // Set initial value
 
-	err := b.ParseASPath("")
-	require.NoError(t, err)
+	_, err := parseCommonAttributeBuilder("as-path", []string{"as-path"}, 0, b)
+	require.Error(t, err)
 
-	// Empty string should not modify existing AS_PATH
-	asPath := b.ASPathSlice()
-	assert.Equal(t, []uint32{65001}, asPath)
+	// A refused as-path must not modify the existing AS_PATH
+	assert.Equal(t, []uint32{65001}, b.ASPathSlice())
+}
+
+// TestParseASPathAsdotThroughCommand verifies a dotted AS number typed at the
+// `as-path` command word. The method parses the same path in each RFC 5396
+// spelling and compares the AS numbers the Builder holds.
+//
+// VALIDATES: the as-path command word reads asplain, asdot and asdot+.
+// PREVENTS: "invalid ASN in as-path: 1.10" for a path pasted from a router
+// that displays asdot.
+func TestParseASPathAsdotThroughCommand(t *testing.T) {
+	for _, args := range [][]string{
+		{"as-path", "[65546", "65001]"},
+		{"as-path", "[1.10", "65001]"},
+		{"as-path", "[1.10", "0.65001]"},
+	} {
+		b := attribute.NewBuilder()
+		consumed, err := parseCommonAttributeBuilder(args[0], args, 0, b)
+		require.NoError(t, err, args)
+		assert.Equal(t, 2, consumed, args)
+		assert.Equal(t, []uint32{65546, 65001}, b.ASPathSlice(), args)
+	}
 }
 
 // TestParseCommunityAppendBehavior verifies community append semantics.
@@ -210,4 +230,39 @@ func TestParseCommunityAppendBehavior(t *testing.T) {
 		}
 	}
 	t.Fatal("COMMUNITY not found")
+}
+
+// TestExtendedCommunityAsdotThroughCommand proves the `extended-community`
+// command word reads a dotted administrator, at the entry point an operator
+// reaches. The method parses the same route target in each spelling and
+// compares the eight encoded bytes.
+//
+// VALIDATES: parseRouteTargetExtCommunity calls
+// attribute.ParseExtCommunityAdmin (AC-1).
+// PREVENTS: "invalid ASN in target: 1.10" for an AS number an operator read on
+// a show output.
+func TestExtendedCommunityAsdotThroughCommand(t *testing.T) {
+	extCommunityOf := func(t *testing.T, value string) attribute.ExtendedCommunity {
+		t.Helper()
+		b := attribute.NewBuilder()
+		args := []string{"extended-community", value}
+		if _, err := parseCommonAttributeBuilder(args[0], args, 0, b); err != nil {
+			t.Fatalf("extended-community %s: %v", value, err)
+		}
+		for _, a := range b.ToAttributes() {
+			if ec, ok := a.(attribute.ExtendedCommunities); ok {
+				require.Len(t, ec, 1)
+				return ec[0]
+			}
+		}
+		t.Fatalf("extended-community %s produced no EXTENDED_COMMUNITY", value)
+		return attribute.ExtendedCommunity{}
+	}
+
+	want := extCommunityOf(t, "target:65546:5")
+	assert.Equal(t, byte(0x02), want[0], "a four-byte AS number takes RFC 5668 type 0x02")
+	assert.Equal(t, want, extCommunityOf(t, "target:1.10:5"))
+
+	// The L suffix forces the four-octet form in either spelling.
+	assert.Equal(t, extCommunityOf(t, "target:100L:5"), extCommunityOf(t, "target:0.100L:5"))
 }

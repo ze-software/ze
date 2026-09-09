@@ -62,8 +62,11 @@ func TestTransformProtocolsRealSummaryShape(t *testing.T) {
 	if got, _ := peer["neighbor_address"].(string); got != "192.0.2.1" {
 		t.Errorf("neighbor_address = %q, want %q", got, "192.0.2.1")
 	}
-	if got, _ := peer["neighbor_as"].(float64); got != 65001 {
-		t.Errorf("neighbor_as = %v, want 65001", got)
+	// neighbor_as is a uint32, not the float64 every other numeric field of
+	// this handler carries. An AS number is an integer identifier, and
+	// setNeighborAS reads it as one (asn.FromJSON).
+	if got, _ := peer["neighbor_as"].(uint32); got != 65001 {
+		t.Errorf("neighbor_as = %v, want 65001", peer["neighbor_as"])
 	}
 	// "6m10s" -> 370 seconds. Alice-LG expects a number, not the raw string.
 	if got, _ := peer["uptime"].(float64); got != 370 {
@@ -329,8 +332,13 @@ func TestTransformProtocolsFields(t *testing.T) {
 		}
 	}
 
+	// neighbor_as is checked below rather than here: it is a uint32, for the
+	// reason TestTransformProtocolsRealSummaryShape states.
+	if got, _ := peer["neighbor_as"].(uint32); got != 65001 {
+		t.Errorf("peer[\"neighbor_as\"] = %v, want 65001", peer["neighbor_as"])
+	}
+
 	numChecks := map[string]float64{
-		"neighbor_as":     65001,
 		"routes_received": 100,
 		"routes_imported": 95,
 		"routes_exported": 50,
@@ -577,7 +585,10 @@ func TestTransformBMPProtocolsFields(t *testing.T) {
 	if p1["state"] != "up" {
 		t.Errorf("state = %v, want up", p1["state"])
 	}
-	if p1["neighbor_as"] != float64(64501) {
+	// neighbor_as is a uint32, not the float64 every other numeric field of
+	// this handler carries. setNeighborAS reads the row's AS number with
+	// asn.FromJSON, whichever notation the row was written in.
+	if got, _ := p1["neighbor_as"].(uint32); got != 64501 {
 		t.Errorf("neighbor_as = %v, want 64501", p1["neighbor_as"])
 	}
 	if p1["table"] != "bmp" {

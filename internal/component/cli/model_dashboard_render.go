@@ -9,6 +9,8 @@ import (
 	"image/color"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
+
 	"charm.land/lipgloss/v2"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -64,7 +66,7 @@ func renderDashboardHeader(snap *dashboardSnapshot, width int) string {
 		return dashHeaderStyle.Render("BGP Dashboard  waiting for data...")
 	}
 
-	line1 := tb.Str("AS ").Uint32(snap.LocalAS).Str("  rid ").Str(snap.RouterID).Str("  up ").Str(snap.Uptime).Str("  peers ").Int(int64(snap.PeersEstablished)).Byte('/').Int(int64(snap.PeersConfigured)).String()
+	line1 := tb.Str("AS ").Str(snap.LocalAS.String()).Str("  rid ").Str(snap.RouterID).Str("  up ").Str(snap.Uptime).Str("  peers ").Int(int64(snap.PeersEstablished)).Byte('/').Int(int64(snap.PeersConfigured)).String()
 	if width > 0 && len(line1) > width {
 		line1 = line1[:width]
 	}
@@ -219,7 +221,7 @@ func peerColumnValue(p dashboardPeer, col dashboardSortColumn, ds *dashboardStat
 	case sortColumnAddress:
 		return p.Address
 	case sortColumnASN:
-		return strconv.Itoa(int(p.RemoteAS))
+		return p.RemoteAS.String()
 	case sortColumnState:
 		return p.State
 	case sortColumnUptime:
@@ -297,7 +299,7 @@ func renderDashboardDetail(ds *dashboardState) string {
 	sb.Str("\n\n")
 
 	rows := []struct{ label, value string }{
-		{"Remote ASN", strconv.Itoa(int(peer.RemoteAS))},
+		{"Remote ASN", peer.RemoteAS.String()},
 		{"State", stateStyled(peer.State)},
 		{"Uptime", peer.Uptime},
 		{"Updates Rx", formatCounter(peer.UpdatesReceived)},
@@ -314,8 +316,13 @@ func renderDashboardDetail(ds *dashboardState) string {
 		if rid, ok := d["router-id"].(string); ok {
 			rows = append(rows, struct{ label, value string }{"Router ID", rid})
 		}
-		if las, ok := d["local-as"].(float64); ok {
-			rows = append(rows, struct{ label, value string }{"Local ASN", strconv.Itoa(int(las))})
+		// The detail RPC writes local-as in the notation the DAEMON was
+		// configured with. It is a JSON number under asplain and a string
+		// under a dotted notation. asn.TextFromJSON reads both and answers the
+		// spelling the daemon wrote, which is what every other row here shows.
+		// It reports absence rather than AS 0.
+		if las, ok := asn.TextFromJSON(d["local-as"]); ok {
+			rows = append(rows, struct{ label, value string }{"Local ASN", las})
 		}
 		if timer, ok := d["timer"].(map[string]any); ok {
 			if rht, ok := timer["receive-hold-time"].(float64); ok {

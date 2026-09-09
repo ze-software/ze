@@ -3,6 +3,7 @@ module ze-resolve-api {
     prefix resolveapi;
 
     import ze-extensions { prefix ze; }
+    import ze-types { prefix zt; }
 
     description "Resolution service RPC definitions with typed parameters";
     revision 2026-04-04 { description "Initial revision"; }
@@ -41,21 +42,21 @@ with 'reverse addr <value>'.";
 organization name from it. A DNS failure, an empty answer and a record it
 cannot parse all answer '(unknown)' rather than an error. Ze caches the name
 it found.";
-        input { leaf asn { type uint32; mandatory true; description "Autonomous System Number"; } }
+        input { leaf asn { type zt:asn-notated; mandatory true; description "Autonomous System Number"; } }
     }
     rpc peeringdb-max-prefix {
         description "Look up maximum prefix counts for an ASN from PeeringDB.";
         ze:help "Ze reads the info_prefixes4 and info_prefixes6 fields of the
 PeeringDB net record. The answer carries asn, ipv4 and ipv6. Ze caches the
 counts, so a repeated lookup reaches no server.";
-        input { leaf asn { type uint32; mandatory true; description "Autonomous System Number"; } }
+        input { leaf asn { type zt:asn-notated; mandatory true; description "Autonomous System Number"; } }
     }
     rpc peeringdb-as-set {
         description "Look up AS-SET names for an ASN from PeeringDB.";
         ze:help "Ze reads the irr_as_set field of the PeeringDB net record.
 That field can name more than one AS-SET, so Ze splits it on spaces, commas
 and newlines. A network that declares none answers with an empty sets list.";
-        input { leaf asn { type uint32; mandatory true; description "Autonomous System Number"; } }
+        input { leaf asn { type zt:asn-notated; mandatory true; description "Autonomous System Number"; } }
     }
     rpc irr-expand {
         description "Recursively expand AS-SET to member ASNs.";

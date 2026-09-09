@@ -11,9 +11,45 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+// asPathList wraps an AS path for lazy JSON marshaling in the notation the
+// bgp/as-notation leaf selected.
+//
+// asplain writes the numbers themselves. That is the array every release
+// before the leaf existed answered with, and the array a `| json` consumer
+// parses. A dotted notation cannot be a JSON number, so asdot and asdot+ write
+// quoted strings instead. An operator who asks to READ 1.10 is asking for the
+// text, and it reaches every renderer of the row at once.
+type asPathList []uint32
+
+func (ap asPathList) MarshalJSON() ([]byte, error) {
+	if len(ap) == 0 {
+		return []byte("[]"), nil
+	}
+	notation := asn.Configured()
+	// 11 bytes holds the longest AS number either notation writes, plus a
+	// separator and the two quotes a dotted rendering adds.
+	buf := make([]byte, 0, len(ap)*14)
+	buf = append(buf, '[')
+	for i, number := range ap {
+		if i > 0 {
+			buf = append(buf, ',')
+		}
+		if notation == asn.NotationPlain {
+			buf = asn.Append(buf, number, notation)
+			continue
+		}
+		buf = append(buf, '"')
+		buf = asn.Append(buf, number, notation)
+		buf = append(buf, '"')
+	}
+	buf = append(buf, ']')
+	return buf, nil
+}
 
 // communityList wraps a typed community slice for lazy JSON marshaling.
 // MarshalJSON produces a JSON array of quoted strings identical to
@@ -140,7 +176,7 @@ func enrichRouteMapFromEntry(routeMap map[string]any, entry storage.RouteEntry) 
 	if entry.HasASPath() {
 		if data, err := pool.ASPath.Get(entry.ASPath); err == nil {
 			if asPath := formatASPath(data); asPath != nil {
-				routeMap["as-path"] = attrWithFlags(asPath, attribute.FlagTransitive)
+				routeMap["as-path"] = attrWithFlags(asPathList(asPath), attribute.FlagTransitive)
 			}
 		}
 	}
@@ -178,7 +214,7 @@ func enrichRouteMapFromRoute(routeMap map[string]any, rt *Route) {
 		}
 	}
 	if len(rt.ASPath) > 0 {
-		routeMap["as-path"] = attrWithFlags(rt.ASPath, attribute.FlagTransitive)
+		routeMap["as-path"] = attrWithFlags(asPathList(rt.ASPath), attribute.FlagTransitive)
 	}
 	if rt.MED != nil {
 		routeMap["med"] = attrWithFlags(*rt.MED, attribute.FlagOptional)

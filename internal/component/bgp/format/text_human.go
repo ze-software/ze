@@ -110,6 +110,11 @@ func appendAttributesText(buf []byte, result bgpfilter.FilterResult) []byte {
 }
 
 // appendAttributeText appends a single attribute for text output.
+//
+// Every AS number here is asplain, and the bgp/as-notation leaf does NOT reach
+// this function. This is the text form of the plugin process protocol
+// (docs/architecture/api/process-protocol.md), which a plugin parses. Its
+// spelling of an AS number is a contract rather than a preference.
 // Known attribute types are formatted with named keys (short aliases for API output);
 // unknown types use "attr-N" with hex value.
 // Short forms: next (next-hop), path (as-path), pref (local-preference),

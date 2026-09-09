@@ -61,7 +61,10 @@ func TestYANGSchemaLeafTypes(t *testing.T) {
 	require.NotNil(t, localAS)
 	leaf, ok := localAS.(*LeafNode)
 	require.True(t, ok)
-	assert.Equal(t, TypeUint32, leaf.Type, "session.asn.local type: got %v", leaf.Type)
+	// The leaf carries the ze-types `asn` typedef. That types it TypeASN rather
+	// than TypeUint32, because an AS number leaf takes the asdot spellings and
+	// a bare uint32 leaf does not.
+	assert.Equal(t, TypeASN, leaf.Type, "session.asn.local type: got %v", leaf.Type)
 
 	// router-id should be IPv4 - check actual type for debugging
 	routerID := bgp.Get("router-id")

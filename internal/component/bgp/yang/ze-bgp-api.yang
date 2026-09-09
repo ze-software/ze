@@ -173,7 +173,7 @@ second.";
         }
         output {
             leaf address { type zt:ip-address; description "Peer address"; }
-            leaf peer-as { type zt:asn; description "Peer ASN"; }
+            leaf remote-as { type zt:asn-notated; description "Peer ASN, in the notation bgp/as-notation selects"; }
             leaf state { type string; description "FSM state"; }
             leaf uptime { type string; description "Session uptime"; }
             leaf updates-received { type uint32; description "UPDATE messages received"; }
@@ -221,8 +221,8 @@ what peer-remove mirrors on the way out. 'create bgp peer <address> asn <asn>'
 is the CLI path.";
         input {
             leaf address { type zt:ip-address; mandatory true; description "Peer address"; }
-            leaf asn { type zt:asn; mandatory true; description "Peer ASN"; }
-            leaf local-as { type zt:asn; description "Local ASN override"; }
+            leaf asn { type zt:asn-notated; mandatory true; description "Peer ASN, in any notation RFC 5396 names"; }
+            leaf local-as { type zt:asn-notated; description "Local ASN override, in any notation RFC 5396 names"; }
             leaf local-address { type zt:ip-address; description "Local bind address"; }
             leaf router-id { type zt:ipv4-address; description "Router ID override"; }
             leaf receive-hold-time { type uint16; description "Receive hold time (RFC 4271)"; }
@@ -237,7 +237,7 @@ is the CLI path.";
         }
         output {
             leaf peer { type zt:ip-address; description "Address of the peer created"; }
-            leaf remote-as { type zt:asn; description "Remote AS of the peer created"; }
+            leaf remote-as { type zt:asn-notated; description "Remote AS of the peer created, in the notation bgp/as-notation selects"; }
             leaf message { type string; description "Always 'peer created'"; }
         }
     }
@@ -436,7 +436,7 @@ its description. subscribe takes its event names from that same registry.";
     notification session-established {
         description "BGP session established.";
         leaf peer { type zt:ip-address; description "Peer address"; }
-        leaf asn { type zt:asn; description "Peer ASN"; }
+        leaf asn { type zt:asn; description "Peer ASN, as a decimal value. No producer emits this notification today, so the type states the conservative form rather than a spelling nothing writes"; }
     }
 
     notification session-closed {

@@ -117,6 +117,21 @@ module ze-types {
         description "Autonomous System Number (2-byte legacy)";
     }
 
+    typedef asn-notated {
+        type union {
+            type asn;
+            type string {
+                pattern '[0-9]{1,5}\.[0-9]{1,5}';
+            }
+        }
+        description "Autonomous System Number in any of the three notations RFC 5396 Section 2 names.
+            An API leaf takes this type rather than asn. A command ACCEPTS asdot wherever an AS number is
+            typed, and an answer WRITES asdot when bgp/as-notation selects it. The pattern here states the
+            shape alone. Each field of the dotted form is range checked by asn.Parse, which every reader of
+            an AS number goes through. A config leaf keeps type asn, because the tree stores the decimal
+            value whatever the operator typed.";
+    }
+
     typedef port {
         type uint16 {
             range "1..65535";

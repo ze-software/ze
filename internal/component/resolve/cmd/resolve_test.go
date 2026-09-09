@@ -218,3 +218,28 @@ func TestHandlers_ZeroValueResolvers(t *testing.T) {
 		})
 	}
 }
+
+// TestRequireASNReadsEveryNotation proves the shared ASN reader behind every
+// `resolve` input takes the three RFC 5396 spellings. The method reads each
+// spelling of one AS number and compares the value the handlers receive.
+//
+// VALIDATES: requireASN reads asplain, asdot and asdot+ (AC-1).
+// PREVENTS: `resolve cymru asn-name 1.10` failing with "invalid ASN".
+func TestRequireASNReadsEveryNotation(t *testing.T) {
+	for _, tt := range []struct {
+		spelling string
+		want     uint32
+	}{
+		{"65546", 65546},   // asplain
+		{"1.10", 65546},    // asdot
+		{"0.65001", 65001}, // asdot+, which asdot writes as plain 65001
+	} {
+		got, errResp := requireASN([]string{tt.spelling})
+		assert.Nil(t, errResp, tt.spelling)
+		assert.Equal(t, tt.want, got, tt.spelling)
+	}
+
+	// A dotted token whose low field overflows names no AS number.
+	_, errResp := requireASN([]string{"1.65536"})
+	assert.NotNil(t, errResp)
+}

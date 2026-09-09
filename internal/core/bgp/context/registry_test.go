@@ -211,3 +211,50 @@ func TestRegistryCount(t *testing.T) {
 		t.Errorf("after duplicate, count should still be 2, got %d", r.Count())
 	}
 }
+
+// TestEncodingContextIDDiffersOnASN4Alone holds the property the receive-side
+// ASN4 relabel rests on: two contexts that agree on everything except the AS
+// number width are two contexts, never one.
+//
+// The RFC 6793 ingest reconciliation rewrites a received UPDATE to four octets
+// and relabels it with fwdContextIDWithASN4(recvCtxID, true)
+// (internal/component/bgp/reactor/forward_context.go). If the registry
+// deduplicated the pair, that relabel would hand the collapsed payload the
+// SAME id the two-octet session reads, and every consumer would decode a
+// four-octet AS_PATH at two octets.
+//
+// VALIDATES: A-2 of spec-forwarded-as-path-obeys-rfc6793-for-every-destination.
+// PREVENTS: a silent width collision. Nothing downstream compares widths, so
+// this failure would surface as wrong AS numbers rather than as an error.
+func TestEncodingContextIDDiffersOnASN4Alone(t *testing.T) {
+	r := NewRegistry()
+
+	identity := &capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001}
+	addPath := map[capability.Family]capability.AddPathMode{
+		{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: capability.AddPathBoth,
+	}
+
+	narrow := NewEncodingContext(identity,
+		&capability.EncodingCaps{ASN4: false, AddPathMode: addPath}, DirectionRecv)
+	wide := NewEncodingContext(identity,
+		&capability.EncodingCaps{ASN4: true, AddPathMode: addPath}, DirectionRecv)
+
+	narrowID, err := r.Register(narrow)
+	if err != nil {
+		t.Fatalf("register the two-octet context: %v", err)
+	}
+	wideID, err := r.Register(wide)
+	if err != nil {
+		t.Fatalf("register the four-octet context: %v", err)
+	}
+
+	if narrowID == wideID {
+		t.Fatalf("contexts differing only in ASN4 share id %d, so the relabel cannot distinguish them", narrowID)
+	}
+	if got := r.Get(narrowID); got == nil || got.ASN4() {
+		t.Errorf("the two-octet id must resolve to a two-octet context")
+	}
+	if got := r.Get(wideID); got == nil || !got.ASN4() {
+		t.Errorf("the four-octet id must resolve to a four-octet context")
+	}
+}

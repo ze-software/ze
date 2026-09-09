@@ -291,11 +291,13 @@ func parseCommonAttributeBuilder(key string, args []string, idx int, b *attribut
 		if idx+1 >= len(args) {
 			return 0, errMissingAsPathValue
 		}
-		// Collect tokens until boundary or end
-		tokens, consumed := attribute.ParseBracketedList(args[idx+1:])
-		if err := b.ParseASPath(textbuf.Join(tokens, " ")); err != nil {
+		// ParseASPathText collects the tokens itself and reads each one with
+		// asn.Parse, so `as-path [ 1.10 65002 ]` is accepted as typed.
+		path, consumed, err := attribute.ParseASPathText(args[idx+1:])
+		if err != nil {
 			return 0, err
 		}
+		b.SetASPath(path)
 		return consumed, nil
 
 	case "community":
@@ -420,26 +422,6 @@ func parseRouteAttributes(args []string, allowedKeywords KeywordSet) (ParsedRout
 	}
 
 	return result, nil
-}
-
-// parseASPath parses AS_PATH in format [ ASN1 ASN2 ... ] or [ASN1,ASN2,...].
-// Returns the parsed AS numbers and how many tokens were consumed.
-func parseASPath(args []string) ([]uint32, int, error) {
-	if len(args) == 0 {
-		return nil, 0, errMissingAsPathValue
-	}
-
-	tokens, consumed := attribute.ParseBracketedList(args)
-	asPath := make([]uint32, 0, len(tokens))
-	for _, tok := range tokens {
-		asn, err := strconv.ParseUint(tok, 10, 32)
-		if err != nil {
-			return nil, consumed, fmt.Errorf("invalid ASN in as-path: %s", tok)
-		}
-		asPath = append(asPath, uint32(asn))
-	}
-
-	return asPath, consumed, nil
 }
 
 // ParseParenthesizedValue parses a parenthesis-delimited value from args.

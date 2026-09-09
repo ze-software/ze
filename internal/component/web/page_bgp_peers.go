@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
+
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -28,6 +30,21 @@ type peerEntry struct {
 	Families string
 	Disabled bool
 	EditURL  string
+}
+
+// asnText renders a stored AS number in the configured notation.
+//
+// The tree holds the decimal form whatever the operator typed
+// (config.NormalizeLeafValue). A config table would otherwise show 65546 beside
+// a route table showing 1.10. A value that names no AS number is shown as it is
+// stored. This is a view, and hiding an unreadable value would tell the
+// operator less than showing it.
+func asnText(stored string) string {
+	number, err := asn.Parse(stored)
+	if err != nil {
+		return stored
+	}
+	return asn.Text(number, asn.Configured())
 }
 
 // collectPeers walks the config tree and returns all BGP peers from both
@@ -86,12 +103,12 @@ func extractPeerEntry(name string, peerTree *config.Tree, group string) peerEntr
 
 	// session/asn/local and session/asn/remote
 	if sess := peerTree.GetContainer("session"); sess != nil {
-		if asn := sess.GetContainer("asn"); asn != nil {
-			if local, ok := asn.Get("local"); ok {
-				pe.LocalAS = local
+		if asnTree := sess.GetContainer("asn"); asnTree != nil {
+			if local, ok := asnTree.Get("local"); ok {
+				pe.LocalAS = asnText(local)
 			}
-			if remote, ok := asn.Get("remote"); ok {
-				pe.RemoteAS = remote
+			if remote, ok := asnTree.Get("remote"); ok {
+				pe.RemoteAS = asnText(remote)
 			}
 		}
 

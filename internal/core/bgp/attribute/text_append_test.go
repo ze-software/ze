@@ -3,6 +3,8 @@ package attribute
 import (
 	"net/netip"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 )
 
 // -----------------------------------------------------------------------------
@@ -433,5 +435,48 @@ func TestAppendText_BufferReuse_NoGrow(t *testing.T) {
 	buf = p.AppendText(buf[:0])
 	if cap(buf) != firstCap {
 		t.Fatalf("cap changed after reuse: got %d, want %d (append grew the slice)", cap(buf), firstCap)
+	}
+}
+
+// TestASPathAppendTextStaysAsplain proves the filter-text rendering of an AS
+// path is asplain, whatever an operator configured. A filter plugin matches
+// these bytes, and a replayed `update text` command re-parses them. The method
+// renders a 4-byte and a 2-byte AS number and compares the whole line.
+//
+// VALIDATES: AppendText writes decimal AS numbers only.
+// PREVENTS: a display notation reaching the filter-text contract, where a
+// changed rendering silently stops matching a configured filter. The notation
+// an operator reads is applied in asPathList
+// (internal/component/bgp/plugins/rib/rib_attr_format.go), and that is where
+// TestASPathListRendersConfiguredNotation asserts it.
+func TestASPathAppendTextStaysAsplain(t *testing.T) {
+	// A dotted notation is CONFIGURED for the whole test. Without it the
+	// assertions below pass against an AppendText that reads asn.Configured(),
+	// because the default is asplain. The test would then permit the exact leak
+	// its PREVENTS line names.
+	restore := asn.Configured()
+	t.Cleanup(func() { configureNotation(t, restore) })
+	configureNotation(t, asn.NotationDotPlus)
+
+	single := &ASPath{Segments: []ASPathSegment{{Type: ASSequence, ASNs: []uint32{65546}}}}
+	list := &ASPath{Segments: []ASPathSegment{{Type: ASSequence, ASNs: []uint32{65546, 100, 65526}}}}
+
+	if got := string(single.AppendText(nil)); got != "as-path 65546" {
+		t.Errorf("AppendText = %q, want %q", got, "as-path 65546")
+	}
+	if got := string(list.AppendText(nil)); got != "as-path [65546 100 65526]" {
+		t.Errorf("AppendText = %q, want %q", got, "as-path [65546 100 65526]")
+	}
+	agg := &Aggregator{ASN: 65546, Address: netip.MustParseAddr("192.0.2.1")}
+	if got := string(agg.AppendText(nil)); got != "65546:192.0.2.1" {
+		t.Errorf("Aggregator AppendText = %q, want %q", got, "65546:192.0.2.1")
+	}
+}
+
+// configureNotation records one notation for the rest of a test.
+func configureNotation(t *testing.T, notation asn.Notation) {
+	t.Helper()
+	if err := asn.Configure(notation.String()); err != nil {
+		t.Fatalf("asn.Configure(%s): %v", notation, err)
 	}
 }

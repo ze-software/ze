@@ -8,6 +8,8 @@ package lg
 import (
 	"fmt"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
+
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/graph"
 )
@@ -22,7 +24,8 @@ type GraphNode = graph.Node
 type GraphEdge = graph.Edge
 
 // buildGraph constructs a topology graph from a set of routes.
-// Each route must have an "as-path" field (array of numbers).
+// Each route must have an "as-path" field, whose members are JSON numbers
+// under asplain and quoted strings under a dotted notation.
 // AS prepending (repeated ASN) is collapsed to a single node.
 // This is an LG-specific wrapper that parses JSON route maps.
 func buildGraph(routes []any) *Graph {
@@ -53,27 +56,14 @@ func extractASPath(route map[string]any) []uint32 {
 		return nil
 	}
 
-	const maxASN = 4294967295
+	// asn.FromJSON reads every shape an AS number arrives in, including the
+	// STRING a dotted notation writes (bgp/as-notation). This walk used to skip
+	// a string. A graph built under asdot would then have dropped every AS
+	// number of 65536 or more, and drawn a path that does not exist.
 	var path []uint32
 	for _, v := range arr {
-		var asn int64
-		valid := true
-		switch n := v.(type) {
-		case float64:
-			if n < 0 || n > maxASN {
-				valid = false
-			} else {
-				asn = int64(n)
-			}
-		case int:
-			asn = int64(n)
-		case int64:
-			asn = n
-		default: // unknown type (e.g., string) -- skip
-			valid = false
-		}
-		if valid && asn >= 0 && asn <= maxASN {
-			path = append(path, uint32(asn))
+		if number, ok := asn.FromJSON(v); ok {
+			path = append(path, number)
 		}
 	}
 
@@ -86,7 +76,9 @@ func renderGraphText(g *Graph) string {
 	sb.Str("mode aspath\n")
 	var tb textbuf.Buffer
 	for _, n := range g.Nodes {
-		tb.Reset().Str("AS").Int(int64(n.ASN))
+		// A node label is read by a human, so it carries the configured
+		// notation. The lookup key resolveASN builds is decimal (server.go).
+		tb.Reset().Str("AS").Str(asn.Text(n.ASN, asn.Configured()))
 		if n.Name != "" {
 			tb.Byte(' ').Str(n.Name)
 		}
@@ -94,7 +86,8 @@ func renderGraphText(g *Graph) string {
 		fmt.Fprintf(&sb, "node %s layer=%d\n", label, n.Layer) //nolint:errcheck // report output
 	}
 	for _, e := range g.Edges {
-		fmt.Fprintf(&sb, "edge AS%d -> AS%d\n", e.FromASN, e.ToASN) //nolint:errcheck // report output
+		fmt.Fprintf(&sb, "edge AS%s -> AS%s\n", //nolint:errcheck // report output
+			asn.Text(e.FromASN, asn.Configured()), asn.Text(e.ToASN, asn.Configured()))
 	}
 	return sb.String()
 }

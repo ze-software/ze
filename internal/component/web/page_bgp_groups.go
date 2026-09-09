@@ -50,9 +50,9 @@ func extractGroupEntry(name string, groupTree *config.Tree) groupEntry {
 
 	// Group-level session defaults
 	if sess := groupTree.GetContainer("session"); sess != nil {
-		if asn := sess.GetContainer("asn"); asn != nil {
-			if remote, ok := asn.Get("remote"); ok {
-				ge.RemoteAS = remote
+		if asnTree := sess.GetContainer("asn"); asnTree != nil {
+			if remote, ok := asnTree.Get("remote"); ok {
+				ge.RemoteAS = asnText(remote)
 			}
 		}
 

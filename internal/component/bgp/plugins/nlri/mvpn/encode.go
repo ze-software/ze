@@ -9,9 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
-	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -81,11 +81,12 @@ func parseMVPNFields(content []string, isIPv6 bool) (mvpnFields, error) {
 		case "rd":
 			rdText = value
 		case "source-as":
-			asn, err := strconv.ParseUint(value, 10, 32)
+			// asn.Parse reads all three RFC 5396 spellings.
+			number, err := asn.Parse(value)
 			if err != nil {
 				return mvpnFields{}, fmt.Errorf("mvpn source-as %q: %w", value, err)
 			}
-			f.sourceAS = uint32(asn) //nolint:gosec // G115: bounded by ParseUint bitSize 32
+			f.sourceAS = number
 			sourceASSet = true
 		default:
 			return mvpnFields{}, fmt.Errorf("unknown MVPN keyword: %s", key)

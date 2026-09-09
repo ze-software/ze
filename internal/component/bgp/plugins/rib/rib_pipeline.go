@@ -19,6 +19,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
@@ -464,11 +465,11 @@ func matchASPath(asPath []uint32, pattern string) bool {
 		if s == "" {
 			continue
 		}
-		asn, err := strconv.ParseUint(s, 10, 32)
+		number, err := asn.Parse(s)
 		if err != nil {
 			return false
 		}
-		needles = append(needles, uint32(asn))
+		needles = append(needles, number)
 	}
 
 	if len(needles) == 0 {
@@ -516,7 +517,10 @@ func validatePathPattern(pattern string) string {
 		if s == "" {
 			continue
 		}
-		if _, err := strconv.ParseUint(s, 10, 32); err != nil {
+		// asn.Parse reads all three RFC 5396 spellings. It moves with the
+		// reader in matchASPath: a pattern this accepts and that one refuses
+		// would validate and then match nothing.
+		if _, err := asn.Parse(s); err != nil {
 			var tb textbuf.Buffer
 			return tb.Str("invalid ASN in path pattern: ").Str(s).String()
 		}

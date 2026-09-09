@@ -221,6 +221,12 @@ func TestAsLeafAnswersThreeStates(t *testing.T) {
 	if _, ok, err = asLeaf(read(t, "session {\n\tasn {\n\t\tremote sixty-five-thousand\n\t}\n}"), "remote"); ok || err == nil {
 		t.Errorf("an unreadable AS = %v, %v; want an error, never absent", ok, err)
 	}
+	// The daemon's config parser reads the asdot spellings RFC 5396 Section 2
+	// defines, so this reader does too. A harness that read fewer spellings
+	// would refuse a .ci whose configuration the daemon accepts.
+	if as, ok, err = asLeaf(read(t, "session {\n\tasn {\n\t\tremote 1.10\n\t}\n}"), "remote"); err != nil || !ok || as != 65546 {
+		t.Errorf("asdot remote AS = %d, %v, %v; want 65546, true, nil", as, ok, err)
+	}
 }
 
 // TestPeerLocalASReadsTheRouterLevelDeclaration is the classifier's own reader.

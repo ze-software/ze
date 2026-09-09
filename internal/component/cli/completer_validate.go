@@ -13,6 +13,7 @@ import (
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -140,6 +141,12 @@ func validateYangType(t *gyang.YangType, value string) bool {
 	case gyang.Yuint16:
 		return validateUintRange(value, 0, 65535)
 	case gyang.Yuint32:
+		// An AS number leaf takes the asdot spellings beside the decimal one
+		// (asn.Parse). Every other uint32 leaf keeps rejecting a period.
+		if asn.IsTypedef(t.Name) {
+			_, err := asn.Parse(value)
+			return err == nil
+		}
 		return validateUintRange(value, 0, 4294967295)
 
 	case gyang.Ybool:

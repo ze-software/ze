@@ -177,6 +177,41 @@ unknown value and the valid set.
 
 ---
 
+### One text form, a private parser per package
+
+**Symptom.** An operator types a value that one entry point accepts and the
+next refuses, with no rule saying which is right. The copies drift apart
+silently, because each one is correct on its own tests.
+
+**Cause.** The value looks primitive, so each package reads it where it needs
+it rather than calling one reader. Nothing in the tree says a second reader
+appeared.
+
+**Evidence.** Measured over seven review rounds of `plan/spec-bgp-as-notation.md`
+(2026-09). One text form, the AS number, had EIGHT readers: two AS-path
+parsers, four route distinguisher parsers, and two `AS<n>` peer selector
+parsers. Each read decimal only, so `1.10` was accepted in a config file and
+refused at the command that consumed it. The selector copy failed silently:
+`selector.ParseDefault` turned its refusal into a peer NAME, which matched no
+peer and reported nothing at all.
+
+Every round that swept from the CONFIG LEAF down found the parser that leaf
+reaches, and stopped. That is why the class survived five rounds. A sweep from
+the leaf never ends, because a second parser is invisible from the leaf that
+does not use it.
+
+**Prevention.** Declare the reader once and make every package call it. Sweep
+from the PARSER side, not from the leaf.
+
+`./le repository check` now carries `checkNumberParseSites`
+(`internal/le/repository/numberparse.go`). It reports a 32-bit text-to-integer
+parse in any product file that `internal/le/repository/numberparse-allowlist.txt`
+does not justify. It sees a NEW parse. It cannot see an old one that was always
+meant to be `asn.Parse`. The per-parser enumeration in the spec is the evidence
+for that older population.
+
+---
+
 ### Fallible function returns `(nil, nil)`
 
 **Symptom.** A function returns `(nil, nil)` on an error path. Callers

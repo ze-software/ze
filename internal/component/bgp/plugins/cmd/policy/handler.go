@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	selectorpkg "github.com/ze-software/ze/internal/core/selector"
+
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -296,16 +298,17 @@ func filterPeersByPolicySelector(peers []plugin.PeerInfo, selector string) []plu
 		}
 	}
 
-	if len(selector) > 2 && (selector[0] == 'a' || selector[0] == 'A') && (selector[1] == 's' || selector[1] == 'S') {
-		if asn, err := strconv.ParseUint(selector[2:], 10, 32); err == nil {
-			var matched []plugin.PeerInfo
-			for i := range peers {
-				if uint64(peers[i].PeerAS) == asn {
-					matched = append(matched, peers[i])
-				}
+	// selectorpkg.ParseASNSelector is the one declaration of the `as<N>` form,
+	// shared with the selector every other peer command parses. It reads all
+	// three RFC 5396 spellings, so `AS1.10` selects the peers `AS65546` does.
+	if number, ok := selectorpkg.ParseASNSelector(selector); ok {
+		var matched []plugin.PeerInfo
+		for i := range peers {
+			if peers[i].PeerAS == number {
+				matched = append(matched, peers[i])
 			}
-			return matched
 		}
+		return matched
 	}
 
 	return nil

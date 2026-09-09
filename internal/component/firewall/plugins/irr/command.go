@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
+
+	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -145,12 +147,16 @@ func (plug *irrPlugin) updateASN(args []string) (string, any, error) {
 	if len(args) == 0 || args[0] == "" {
 		return statusError, nil, errors.New("usage: update firewall irr asn <asn>")
 	}
-	n, err := strconv.ParseUint(args[0], 10, 32)
-	if err != nil || n == 0 || n > 4294967294 {
+	// asn.Parse reads the asdot spellings beside the decimal one, and the
+	// range is RFC 7607 (AS 0 is reserved) plus the 4-byte maximum.
+	number, err := asn.Parse(args[0])
+	if err != nil || number == 0 || number > 4294967294 {
 		return statusError, nil, errors.New("invalid ASN: must be 1-4294967294")
 	}
-	var tb textbuf.Buffer
-	name := tb.Str("AS").Uint32(uint32(n)).String() //nolint:gosec // range checked
+	// The whois key is the decimal spelling, because a server asked for AS1.10
+	// answers nothing. firewall.IRRASNName is the one declaration of that
+	// name, shared with the rule parser that MATCHES the set it feeds.
+	name := firewall.IRRASNName(args[0])
 
 	if err := plug.refreshName(name); err != nil {
 		return statusError, nil, err
@@ -158,7 +164,7 @@ func (plug *irrPlugin) updateASN(args []string) (string, any, error) {
 
 	ps := plug.getPrefixStore()
 	entry := ps.Get(name)
-	tb.Reset()
+	var tb textbuf.Buffer
 	if entry != nil {
 		tb.Str(`{"refreshed":"`).Str(name).Str(`","ipv4-count":`).Int(int64(len(entry.IPv4)))
 		tb.Str(`,"ipv6-count":`).Int(int64(len(entry.IPv6))).Byte('}')
@@ -199,12 +205,11 @@ func (plug *irrPlugin) clearASN(args []string) (string, any, error) {
 	if len(args) == 0 || args[0] == "" {
 		return statusError, nil, errors.New("usage: clear firewall irr asn <asn>")
 	}
-	n, err := strconv.ParseUint(args[0], 10, 32)
-	if err != nil || n == 0 || n > 4294967294 {
+	number, err := asn.Parse(args[0])
+	if err != nil || number == 0 || number > 4294967294 {
 		return statusError, nil, errors.New("invalid ASN: must be 1-4294967294")
 	}
-	var tb textbuf.Buffer
-	return plug.purge(tb.Str("AS").Uint32(uint32(n)).String()) //nolint:gosec // range checked
+	return plug.purge(firewall.IRRASNName(args[0]))
 }
 
 // clearASSet removes an AS-SET's cached prefixes. See purge.

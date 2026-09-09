@@ -275,7 +275,7 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		if err := ValidateLeafValue(leaf, value); err != nil {
 			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
 		}
-		setLeafMeta(normalizeSetValue(leaf.Type, value))
+		setLeafMeta(NormalizeLeafValue(leaf.Type, value))
 		return nil
 	}
 

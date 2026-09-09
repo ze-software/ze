@@ -3,6 +3,7 @@ package config
 import (
 	"testing"
 
+	gyang "github.com/openconfig/goyang/pkg/yang"
 	"github.com/stretchr/testify/require"
 )
 
@@ -278,4 +279,88 @@ func TestMergeListNodeDoesNotWidenBackend(t *testing.T) {
 	require.True(t, ok, "expected bridge ListNode")
 	require.Equal(t, []string{"netlink"}, bridge.Backend,
 		"populated dst backend must survive an annotation-free overlay merge")
+}
+
+// TestParseASNAsdot proves an ASN-typed leaf takes an AS number in any of the
+// three RFC 5396 notations and stores the decimal form, while a plain uint32
+// leaf keeps rejecting a dotted token. The method validates then normalizes
+// each value the way every write path does.
+//
+// VALIDATES: ValidateValue and NormalizeLeafValue on TypeASN.
+// PREVENTS: an asdot value reaching the tree unconverted, which every reader
+// downstream parses as a decimal and fails on.
+func TestParseASNAsdot(t *testing.T) {
+	accepted := []struct {
+		value string
+		want  string
+	}{
+		{"1.10", "65546"},
+		{"65546", "65546"},
+		{"0.100", "100"},
+		{"100", "100"},
+		{"65535.65535", "4294967295"},
+		{"4294967295", "4294967295"},
+	}
+	for _, tc := range accepted {
+		if err := ValidateValue(TypeASN, tc.value); err != nil {
+			t.Fatalf("ValidateValue(TypeASN, %q): unexpected error %v", tc.value, err)
+		}
+		if got := NormalizeLeafValue(TypeASN, tc.value); got != tc.want {
+			t.Errorf("NormalizeLeafValue(TypeASN, %q) = %q, want %q", tc.value, got, tc.want)
+		}
+	}
+
+	for _, value := range []string{"1.99999", "65536.0", "1.2.3", "4294967296", "one.ten", ""} {
+		if err := ValidateValue(TypeASN, value); err == nil {
+			t.Errorf("ValidateValue(TypeASN, %q) accepted an invalid AS number", value)
+		}
+	}
+
+	// R-2: a leaf that is a bare 32-bit number, not an AS number, must keep
+	// refusing a dotted token. Nothing in the asdot work widens uint32.
+	if err := ValidateValue(TypeUint32, "1.10"); err == nil {
+		t.Error("ValidateValue(TypeUint32, \"1.10\") accepted a dotted value")
+	}
+	if got := NormalizeLeafValue(TypeUint32, "1.10"); got != "1.10" {
+		t.Errorf("NormalizeLeafValue(TypeUint32, %q) = %q, want the value unchanged", "1.10", got)
+	}
+}
+
+// TestValidateASNLeafRange proves the YANG range on the asn typedef is applied
+// to the NUMBER an asdot token names, not to its text. The method runs a leaf
+// carrying the typedef's own range over both spellings of AS 0.
+//
+// VALIDATES: validateNumericRanges reads TypeASN through asn.Parse.
+// PREVENTS: "0.0" slipping past a `range "1..4294967295"` that "0" fails.
+func TestValidateASNLeafRange(t *testing.T) {
+	leaf := &LeafNode{Type: TypeASN, Ranges: []NumericRange{{Min: "1", Max: "4294967295"}}}
+
+	for _, value := range []string{"1.10", "65546", "1", "0.1"} {
+		if err := ValidateLeafValue(leaf, value); err != nil {
+			t.Errorf("ValidateLeafValue(%q): unexpected error %v", value, err)
+		}
+	}
+	for _, value := range []string{"0", "0.0"} {
+		if err := ValidateLeafValue(leaf, value); err == nil {
+			t.Errorf("ValidateLeafValue(%q) accepted AS 0, which the range refuses", value)
+		}
+	}
+}
+
+// TestASNTypedefMapsToTypeASN proves the ze-types `asn` typedef is what marks a
+// leaf as taking the dotted notations, and that the mapping holds for the
+// prefixed spelling a module importing ze-types writes. The method maps each
+// type name and compares the ValueType.
+//
+// VALIDATES: yangTypeToValueType answers TypeASN for the asn typedef.
+// PREVENTS: an ASN leaf falling back to TypeUint32, which refuses "1.10".
+func TestASNTypedefMapsToTypeASN(t *testing.T) {
+	for _, name := range []string{"asn", "zt:asn"} {
+		if got := yangTypeToValueType(&gyang.YangType{Name: name, Kind: gyang.Yuint32}); got != TypeASN {
+			t.Errorf("yangTypeToValueType(%q) = %v, want TypeASN", name, got)
+		}
+	}
+	if got := yangTypeToValueType(&gyang.YangType{Name: "uint32", Kind: gyang.Yuint32}); got != TypeUint32 {
+		t.Errorf("yangTypeToValueType(\"uint32\") = %v, want TypeUint32", got)
+	}
 }

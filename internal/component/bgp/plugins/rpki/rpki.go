@@ -14,10 +14,11 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
@@ -1279,7 +1280,9 @@ func (rp *rPKIPlugin) roaCommand(args []string) (string, any, error) {
 		}
 		b.Str(`{"prefix":"`).Str(e.Prefix).Byte('"')
 		b.Str(`,"max-length":`).Uint8(e.MaxLength)
-		b.Str(`,"asn":`).Uint32(e.ASN)
+		// The ROA's AS number is a row an operator reads, so it carries the
+		// notation bgp/as-notation selected (asn.AppendJSON states the rule).
+		b.Str(`,"asn":`).Str(asn.JSONValue(e.ASN))
 		b.Byte('}')
 	}
 	b.Str(`]}`)
@@ -1304,7 +1307,7 @@ func (rp *rPKIPlugin) roaLookupCommand(prefix string) (string, any, error) {
 		}
 		b.Str(`{"prefix":"`).Str(e.Prefix).Byte('"')
 		b.Str(`,"max-length":`).Uint8(e.MaxLength)
-		b.Str(`,"asn":`).Uint32(e.ASN)
+		b.Str(`,"asn":`).Str(asn.JSONValue(e.ASN))
 		b.Byte('}')
 	}
 	// "covered" states whether the VRP set holds anything for this prefix, which is what
@@ -1435,18 +1438,20 @@ func (rp *rPKIPlugin) validateCommand(args []string) (string, any, error) {
 	}
 	prefix := ipnet.String()
 
-	originAS, err := strconv.ParseUint(args[1], 10, 32)
+	// asn.Parse reads all three RFC 5396 spellings, so an operator validates
+	// the origin they read on a show output.
+	originAS, err := asn.Parse(args[1])
 	if err != nil {
 		return statusError, "", fmt.Errorf("invalid ASN: %s", args[1])
 	}
 
-	state := rp.cache.Validate(prefix, uint32(originAS)) //nolint:gosec // range checked by ParseUint
+	state := rp.cache.Validate(prefix, originAS)
 	covering := rp.cache.Lookup(prefix)
 
 	b := textbuf.Get()
 	defer b.Release()
 	b.Str(`{"prefix":"`).Str(prefix).Byte('"')
-	b.Str(`,"origin-asn":`).Uint(originAS)
+	b.Str(`,"origin-asn":`).Str(asn.JSONValue(originAS))
 	b.Str(`,"state":"`).Str(validationStateString(state)).Byte('"')
 	// "not-found" from a cache that never synced is not a verdict about the prefix.
 	b.Str(`,"synced":`).Bool(syncedSessions(rp.snapshots()) > 0)
@@ -1457,7 +1462,7 @@ func (rp *rPKIPlugin) validateCommand(args []string) (string, any, error) {
 		}
 		b.Str(`{"prefix":"`).Str(e.Prefix).Byte('"')
 		b.Str(`,"max-length":`).Uint8(e.MaxLength)
-		b.Str(`,"asn":`).Uint32(e.ASN)
+		b.Str(`,"asn":`).Str(asn.JSONValue(e.ASN))
 		b.Byte('}')
 	}
 	b.Str(`]}`)
@@ -1469,11 +1474,11 @@ const aspaDiagLimit = 1000
 func (rp *rPKIPlugin) aspaCommand(args []string) (string, any, error) {
 	// "show bgp rpki aspa <customer-asn>" looks up a specific customer.
 	if len(args) > 0 && args[0] != "" {
-		asn, err := strconv.ParseUint(args[0], 10, 32)
+		customer, err := asn.Parse(args[0])
 		if err != nil {
 			return statusError, "", fmt.Errorf("invalid ASN: %s", args[0])
 		}
-		providers := rp.aspaCache.lookupCustomer(uint32(asn)) //nolint:gosec // range checked by ParseUint
+		providers := rp.aspaCache.lookupCustomer(customer)
 		b := textbuf.Get()
 		defer b.Release()
 
@@ -1482,19 +1487,19 @@ func (rp *rPKIPlugin) aspaCommand(args []string) (string, any, error) {
 		// argument and a single answer-shape declaration can describe it. "found"
 		// stays beside it: it separates "this customer has no ASPA record" from
 		// "the cache is empty", which the row count alone cannot say.
-		b.Str(`{"customer-asn":`).Uint(asn)
+		b.Str(`{"customer-asn":`).Str(asn.JSONValue(customer))
 		if providers == nil {
 			b.Str(`,"found":false,"entries":[]}`)
 			return statusDone, json.RawMessage(b.String()), nil
 		}
 
-		b.Str(`,"found":true,"entries":[{"customer-asn":`).Uint(asn)
+		b.Str(`,"found":true,"entries":[{"customer-asn":`).Str(asn.JSONValue(customer))
 		b.Str(`,"providers":[`)
 		for i, p := range providers {
 			if i > 0 {
 				b.Byte(',')
 			}
-			b.Uint32(p)
+			b.Str(asn.JSONValue(p))
 		}
 		b.Str(`]}]}`)
 		return statusDone, json.RawMessage(b.String()), nil
@@ -1518,13 +1523,13 @@ func (rp *rPKIPlugin) aspaCommand(args []string) (string, any, error) {
 		if i > 0 {
 			b.Byte(',')
 		}
-		b.Str(`{"customer-asn":`).Uint32(e.CustomerAS)
+		b.Str(`{"customer-asn":`).Str(asn.JSONValue(e.CustomerAS))
 		b.Str(`,"providers":[`)
 		for j, p := range e.Providers {
 			if j > 0 {
 				b.Byte(',')
 			}
-			b.Uint32(p)
+			b.Str(asn.JSONValue(p))
 		}
 		b.Str(`]}`)
 	}

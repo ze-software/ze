@@ -3,7 +3,8 @@ package cli
 
 import (
 	"errors"
-	"strconv"
+
+	asnpkg "github.com/ze-software/ze/internal/core/bgp/asn"
 
 	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/core/helpfmt"
@@ -28,19 +29,19 @@ func cmdRIR(args []string) int {
 		return exitError
 	}
 
-	// ParseUint with a bit size of 32 bounds the AS number to uint32, so the
-	// conversion below cannot truncate.
-	asn, err := strconv.ParseUint(args[0], 10, 32)
+	// asn.Parse answers a uint32, and it reads the asdot spellings beside the
+	// decimal one. An operator looks the AS number up as they read it.
+	number, err := asnpkg.Parse(args[0])
 	if err != nil {
 		var tb textbuf.Buffer
 		_ = tb.Str("error: invalid AS number: ").Str(args[0]).Byte('\n').StdErr()
 		return exitError
 	}
 
-	entry, err := irr.RegistryForASN(uint32(asn))
+	entry, err := irr.RegistryForASN(number)
 	if errors.Is(err, irr.ErrASNUnallocated) {
 		var tb textbuf.Buffer
-		_ = tb.Str("AS").Uint(asn).Str(" is in no delegated range\n").StdErr()
+		_ = tb.Str("AS").Uint32(number).Str(" is in no delegated range\n").StdErr()
 		return exitError
 	}
 	if err != nil {

@@ -18,6 +18,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -126,12 +127,19 @@ func peerCreateTree(selector string, args []string) (map[string]any, error) {
 	return tree, nil
 }
 
-// remoteASOf reads back the remote AS the tree states. It answers the empty
-// string when the command stated none, which is the one keyword that has no
-// default and no answer without it.
+// remoteASOf reads back the remote AS the tree states, written in the notation
+// the operator reads. It answers the empty string when the command stated none,
+// which is the one keyword that has no default and no answer without it.
+//
+// The tree holds the decimal form whatever the operator typed (setASN above),
+// so the echo would otherwise contradict every other surface under asdot.
 func remoteASOf(tree map[string]any) string {
 	remote, _ := treeReach(tree, "session", "asn")["remote"].(string)
-	return remote
+	number, err := asn.Parse(remote)
+	if err != nil {
+		return remote
+	}
+	return asn.Text(number, asn.Configured())
 }
 
 // peerCreateKeywords maps each keyword `create bgp peer` accepts to the leaf it
@@ -174,11 +182,14 @@ func setASN(tree map[string]any, leaf, value string) error {
 	// System numbers". AS 0 names no speaker: RFC 7607 Section 1 states "AS 0
 	// is reserved and MUST NOT be used", so it is refused here rather than
 	// carried into an OPEN.
-	asn, err := strconv.ParseUint(value, 10, 32)
-	if err != nil || asn == 0 {
+	// asn.Parse reads the asdot spellings beside asplain. The tree stores the
+	// decimal form whichever one the operator typed, so the loader downstream
+	// keeps reading one spelling.
+	number, err := asn.Parse(value)
+	if err != nil || number == 0 {
 		return fmt.Errorf("an AS number is 1 to 4294967295, got %q", value)
 	}
-	treeReach(tree, "session", "asn")[leaf] = value
+	treeReach(tree, "session", "asn")[leaf] = asn.Text(number, asn.NotationPlain)
 	return nil
 }
 

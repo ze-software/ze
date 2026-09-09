@@ -10,7 +10,8 @@ import (
 	"io"
 	"os"
 	"slices"
-	"strconv"
+
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 
 	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -53,10 +54,20 @@ type peerListResponse struct {
 }
 
 // peerEntry is one peer in the list response.
+//
+// This process reads no configuration of its own: writePeers loads SSH
+// credentials and runs a remote command, and nothing here calls asn.Configure.
+// The AS number is therefore shown as the DAEMON rendered it, which asn.Number
+// carries. Deriving a notation here instead would be a second declaration of
+// one fact, free to disagree with the show output the operator just read.
 type peerEntry struct {
-	Name     string `json:"name"`
-	RemoteAS uint32 `json:"remote-as"`
-	State    string `json:"state"`
+	Name string `json:"name"`
+	// RemoteAS is an asn.Number, not a uint32, because the daemon writes it in
+	// the notation bgp/as-notation selected. Under asdot it is the string
+	// "1.10", and a uint32 field fails the whole decode, which this function
+	// answers by offering no completion at all.
+	RemoteAS asn.Number `json:"remote-as"`
+	State    string     `json:"state"`
 }
 
 // formatPeerCompletions parses the peer list JSON and writes completion pairs.
@@ -79,7 +90,10 @@ func formatPeerCompletions(w io.Writer, jsonData string) int {
 
 	for _, ip := range ips {
 		info := data.Peers[ip]
-		asnStr := strconv.FormatUint(uint64(info.RemoteAS), 10)
+		// The operator completes on what they READ. asn.Number carries the
+		// spelling the daemon wrote, so this process needs no notation of its
+		// own and cannot disagree with the daemon about one.
+		asnStr := info.RemoteAS.String()
 
 		// Name entry
 		if info.Name != "" {
@@ -101,8 +115,8 @@ func formatPeerCompletions(w io.Writer, jsonData string) int {
 		}
 
 		// ASN entry (deduplicated)
-		if !seenASN[info.RemoteAS] {
-			seenASN[info.RemoteAS] = true
+		if !seenASN[info.RemoteAS.Value()] {
+			seenASN[info.RemoteAS.Value()] = true
 			var asnDesc string
 			if info.Name != "" {
 				asnDesc = tb.Reset().Str("peer asn (").Str(info.Name).Byte(' ').Str(ip).Byte(')').String()

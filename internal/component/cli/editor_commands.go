@@ -186,6 +186,7 @@ func (e *Editor) SetValue(path []string, key, value string) error {
 	if e.isValueOrArrayLeaf(path, key) {
 		return e.setLeafListMember(path, key, value)
 	}
+	value = e.normalizeLeafValue(path, key, value)
 	if e.session != nil {
 		return e.writeThroughSet(path, key, value)
 	}
@@ -196,6 +197,29 @@ func (e *Editor) SetValue(path []string, key, value string) error {
 	target.Set(key, value)
 	e.dirty.Store(true)
 	return nil
+}
+
+// normalizeLeafValue rewrites the value into the one spelling the tree stores.
+// The file parser and `set` already do this, through
+// config.NormalizeLeafValue. Without it this editor is the one write path that
+// stores an AS number as the operator spelled it. Every reader of local-as and
+// peer-as downstream then reads a form it does not parse.
+//
+// A path with no schema leaf keeps the value as typed. The value is validated
+// already, and there is no type here to normalize against.
+func (e *Editor) normalizeLeafValue(path []string, key, value string) string {
+	if e.schema == nil {
+		return value
+	}
+	parentSchema := e.walkSchema(path)
+	if parentSchema == nil {
+		return value
+	}
+	leaf, ok := parentSchema.Get(key).(*config.LeafNode)
+	if !ok {
+		return value
+	}
+	return config.NormalizeLeafValue(leaf.Type, value)
 }
 
 // isValueOrArrayLeaf reports whether key under path is a plain leaf-list

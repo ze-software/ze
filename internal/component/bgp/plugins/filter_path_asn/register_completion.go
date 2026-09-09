@@ -27,7 +27,7 @@
 package filter_path_asn
 
 import (
-	"strconv"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -62,9 +62,11 @@ func curatedASNValues() []string {
 // the same way. This function is the boundary that turns the completer's typed
 // text into the ASN that lookup takes.
 func curatedASNHelp(value string) string {
-	asn, err := strconv.ParseUint(value, 10, 32)
+	// The operator types the AS number in the notation they read it in, so the
+	// annotation follows what they typed rather than one spelling of it.
+	number, err := asn.Parse(value)
 	if err != nil {
 		return ""
 	}
-	return curatedAnnotation(uint32(asn))
+	return curatedAnnotation(number)
 }

@@ -9,8 +9,6 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
-
-	"github.com/ze-software/ze/internal/core/stringsx"
 )
 
 var errEmptyOriginValue = errors.New("empty origin value")
@@ -60,56 +58,6 @@ func (b *Builder) ParseLocalPref(s string) error {
 		return fmt.Errorf("invalid local-preference: %s", s)
 	}
 	b.SetLocalPref(uint32(lp)) //nolint:gosec // G115: bounded by ParseUint 32-bit
-	return nil
-}
-
-// ParseASPath parses an AS_PATH from string.
-// Replaces any previously set AS_PATH.
-// Supports formats:
-//   - "[65001 65002]" - bracketed with spaces
-//   - "[65001,65002]" - bracketed with commas
-//   - "65001 65002" - space-separated
-//   - "65001" - single ASN
-func (b *Builder) ParseASPath(s string) error {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return nil
-	}
-
-	// Handle brackets
-	s = strings.TrimPrefix(s, "[")
-	s = strings.TrimSuffix(s, "]")
-	s = strings.TrimSpace(s)
-
-	if s == "" {
-		// Empty brackets: []
-		b.SetASPath(nil)
-		return nil
-	}
-
-	var tokens []string
-	var tokenCount int
-	if strings.Contains(s, ",") {
-		tokens, tokenCount = stringsx.SplitCount(s, ",")
-	} else {
-		tokens = strings.Fields(s)
-		tokenCount = len(tokens)
-	}
-
-	asPath := make([]uint32, 0, tokenCount)
-	for _, tok := range tokens {
-		tok = strings.TrimSpace(tok)
-		if tok == "" {
-			continue
-		}
-		asn, err := strconv.ParseUint(tok, 10, 32)
-		if err != nil {
-			return fmt.Errorf("invalid ASN in as-path: %s", tok)
-		}
-		asPath = append(asPath, uint32(asn)) //nolint:gosec // G115: bounded by ParseUint 32-bit
-	}
-
-	b.SetASPath(asPath)
 	return nil
 }
 
@@ -270,13 +218,13 @@ func ParseSingleExtCommunity(s string) (ExtendedCommunity, error) {
 
 	// Detect admin field format: IPv4 address or ASN
 	// RFC 4360: Type 0x00 = 2-byte ASN, Type 0x01 = IPv4, Type 0x02 = 4-byte ASN
-	if strings.Contains(parts[1], ".") {
+	//
+	// netip answers "is this an address", rather than a search for a dot.
+	// RFC 5396 Section 2 writes AS 65546 as `1.10`, which netip refuses, so
+	// a dotted AS number reaches the AS branch below.
+	if addr, addrErr := netip.ParseAddr(parts[1]); addrErr == nil && addr.Unmap().Is4() {
 		// IPv4 address format: target:1.2.3.4:100
 		// Type 0x01 (IPv4 Address), 4-byte IP, 2-byte value
-		addr, err := netip.ParseAddr(parts[1])
-		if err != nil || !addr.Unmap().Is4() {
-			return ExtendedCommunity{}, fmt.Errorf("extended-community requires IPv4 address, got: %s", parts[1])
-		}
 		ip4 := addr.Unmap().As4()
 
 		val, err := strconv.ParseUint(parts[2], 10, 16)
@@ -289,15 +237,9 @@ func ParseSingleExtCommunity(s string) (ExtendedCommunity, error) {
 		copy(ec[2:6], ip4[:])
 		binary.BigEndian.PutUint16(ec[6:8], uint16(val)) //nolint:gosec // G115: bounded by ParseUint 16-bit
 	} else {
-		// ASN format: try to determine 2-byte vs 4-byte
-		// Strip "L" suffix that forces 4-byte encoding (e.g., "120000L")
-		asnStr := parts[1]
-		forced4Byte := false
-		if strings.HasSuffix(asnStr, "L") || strings.HasSuffix(asnStr, "l") {
-			asnStr = asnStr[:len(asnStr)-1]
-			forced4Byte = true
-		}
-		asn, err := strconv.ParseUint(asnStr, 10, 32)
+		// ASN format: ParseExtCommunityAdmin reads every RFC 5396 spelling and
+		// the "L" suffix that forces 4-byte encoding (e.g. "120000L").
+		asn, forced4Byte, err := ParseExtCommunityAdmin(parts[1])
 		if err != nil {
 			return ExtendedCommunity{}, fmt.Errorf("invalid extended-community ASN: %s", parts[1])
 		}
@@ -324,7 +266,7 @@ func ParseSingleExtCommunity(s string) (ExtendedCommunity, error) {
 
 			ec[0] = 0x02 // Type: 4-byte ASN
 			ec[1] = subtype
-			binary.BigEndian.PutUint32(ec[2:6], uint32(asn)) //nolint:gosec // G115: bounded by ParseUint 32-bit
+			binary.BigEndian.PutUint32(ec[2:6], asn)
 			binary.BigEndian.PutUint16(ec[6:8], uint16(val)) //nolint:gosec // G115: bounded by ParseUint 16-bit
 		}
 	}

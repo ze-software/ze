@@ -24,6 +24,11 @@ func FormatAnnounceCommand(route *Route) string {
 
 // formatAnnounceText builds an "update text" command with per-field attributes.
 // Used when raw attributes are not available (e.g., plugin-originated routes).
+//
+// Every AS number here is asplain, and the bgp/as-notation leaf does NOT reach
+// this function. The result is a COMMAND Ze replays to itself, not a line an
+// operator reads. A replay that spelled its AS path in a display notation would
+// depend on that notation still being configured when it runs.
 func formatAnnounceText(route *Route) string {
 	var sb textbuf.Buffer
 

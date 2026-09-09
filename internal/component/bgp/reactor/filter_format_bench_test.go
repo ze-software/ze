@@ -17,9 +17,11 @@ func buildAttrsWireFixture(tb testing.TB) *attribute.AttributesWire {
 	if err := b.ParseOrigin("igp"); err != nil {
 		tb.Fatalf("origin: %v", err)
 	}
-	if err := b.ParseASPath("65001 65002 65003"); err != nil {
+	asPath, _, err := attribute.ParseASPathText([]string{"[65001", "65002", "65003]"})
+	if err != nil {
 		tb.Fatalf("as-path: %v", err)
 	}
+	b.SetASPath(asPath)
 	if err := b.ParseMED("100"); err != nil {
 		tb.Fatalf("med: %v", err)
 	}

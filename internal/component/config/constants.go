@@ -23,6 +23,9 @@ const (
 
 	// valueTypeEmpty is the YANG keyword for TypeEmpty leaves (presence flags).
 	valueTypeEmpty = "empty"
+
+	// valueTypeASN is the ze-types typedef name TypeASN leaves carry.
+	valueTypeASN = "asn"
 )
 
 // extractSections lists environment sections consumed by ApplyEnvConfig

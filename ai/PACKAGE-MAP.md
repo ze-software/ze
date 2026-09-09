@@ -425,7 +425,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 |---------|----------------|------------|
 | `internal/core/anomalyevent` | defines the source-oriented behavioral anomaly detection event contract |  |
 | `internal/core/audit` | provides Ze's local, append-only structured audit log |  |
-| `internal/core/bgp/asn` | TODO |  |
+| `internal/core/bgp/asn` | is the textual representation of an AS number, in the three notations RFC 5396 names |  |
 | `internal/core/bgp/attribute` | provides BGP path attribute types, builders, and pool-based deduplication for ORIGIN, AS_PATH, NEXT_HOP, MED, and other path attributes defined in RFC 4271 and extensions |  |
 | `internal/core/bgp/capability` | implements BGP capability negotiation per RFC 5492, including multiprotocol extensions, 4-byte ASN, ADD-PATH, extended messages, and graceful restart capabilities |  |
 | `internal/core/bgp/configop` | defines the config operation labels of the BGP root |  |

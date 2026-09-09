@@ -69,6 +69,14 @@ func appendNextHopJSON(buf []byte, attr Attribute) []byte {
 	return append(buf, '"')
 }
 
+// appendASPathJSON writes the AS path of the plugin EVENT stream.
+//
+// Every AS number here is asplain, and the bgp/as-notation leaf does NOT reach
+// this function. This JSON is a contract between Ze and a plugin, in any
+// language. A plugin that matched an AS number would stop matching the moment
+// an operator changed a display preference. The notation an operator reads is
+// applied where a row is built for them
+// (asPathList, internal/component/bgp/plugins/rib/rib_attr_format.go).
 func appendASPathJSON(buf []byte, attr Attribute) []byte {
 	ap, ok := attr.(*ASPath)
 	if !ok {

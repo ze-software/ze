@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
+
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ze-software/ze/internal/component/cli/contract"
@@ -54,8 +56,14 @@ func (dashboardDataMsg) isViewMsg() {}
 
 // dashboardPeer holds per-peer data parsed from the summary RPC response.
 type dashboardPeer struct {
-	Address            string
-	RemoteAS           uint32
+	Address string
+	// RemoteAS is an asn.Number, not a uint32, because the daemon writes it in
+	// the notation bgp/as-notation selected. Under asdot it is the string
+	// "1.10", which a uint32 field fails to decode, and the failure takes the
+	// whole peer list with it. The Number keeps that spelling, so the
+	// dashboard shows what the daemon rendered rather than deriving a
+	// notation of its own.
+	RemoteAS           asn.Number
 	State              string
 	Uptime             string
 	UpdatesReceived    uint32
@@ -69,7 +77,7 @@ type dashboardPeer struct {
 // dashboardSnapshot holds the parsed summary RPC response.
 type dashboardSnapshot struct {
 	RouterID         string
-	LocalAS          uint32
+	LocalAS          asn.Number
 	Uptime           string
 	PeersConfigured  int
 	PeersEstablished int
@@ -80,22 +88,22 @@ type dashboardSnapshot struct {
 // The format is: {"router-id": ..., "peers": [...]}, aggregates and rows as siblings.
 func parseDashboardSnapshot(data string) (*dashboardSnapshot, error) {
 	var raw struct {
-		RouterID         string `json:"router-id"`
-		LocalAS          uint32 `json:"local-as"`
-		Uptime           string `json:"uptime"`
-		PeersConfigured  int    `json:"peers-configured"`
-		PeersEstablished int    `json:"peers-established"`
+		RouterID         string     `json:"router-id"`
+		LocalAS          asn.Number `json:"local-as"`
+		Uptime           string     `json:"uptime"`
+		PeersConfigured  int        `json:"peers-configured"`
+		PeersEstablished int        `json:"peers-established"`
 		Peers            []struct {
-			Address            string `json:"address"`
-			RemoteAS           uint32 `json:"remote-as"`
-			State              string `json:"state"`
-			Uptime             string `json:"uptime"`
-			UpdatesReceived    uint32 `json:"updates-received"`
-			UpdatesSent        uint32 `json:"updates-sent"`
-			KeepalivesReceived uint32 `json:"keepalives-received"`
-			KeepalivesSent     uint32 `json:"keepalives-sent"`
-			EORReceived        uint32 `json:"eor-received"`
-			EORSent            uint32 `json:"eor-sent"`
+			Address            string     `json:"address"`
+			RemoteAS           asn.Number `json:"remote-as"`
+			State              string     `json:"state"`
+			Uptime             string     `json:"uptime"`
+			UpdatesReceived    uint32     `json:"updates-received"`
+			UpdatesSent        uint32     `json:"updates-sent"`
+			KeepalivesReceived uint32     `json:"keepalives-received"`
+			KeepalivesSent     uint32     `json:"keepalives-sent"`
+			EORReceived        uint32     `json:"eor-received"`
+			EORSent            uint32     `json:"eor-sent"`
 		} `json:"peers"`
 	}
 

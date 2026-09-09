@@ -6,9 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/ze-software/ze/internal/component/resolve/peeringdb"
+	asnpkg "github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -40,11 +40,13 @@ func cmdPeeringDB(ctx context.Context, args []string) int {
 	op := remaining[0]
 	asnStr := remaining[1]
 
-	asn, err := strconv.ParseUint(asnStr, 10, 32)
+	// The operator types the AS number in the notation they read it in.
+	number, err := asnpkg.Parse(asnStr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: invalid ASN: %s\n", asnStr)
 		return exitError
 	}
+	asn := uint64(number)
 
 	c := peeringdb.NewPeeringDB(*urlFlag)
 

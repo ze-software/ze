@@ -315,12 +315,15 @@ func parseRouteTargetExtCommunity(value string) (attribute.ExtendedCommunity, er
 		}, nil
 	}
 
-	asn, err := strconv.ParseUint(parts[0], 10, 32)
+	// attribute.ParseExtCommunityAdmin is the one reader of this field: every
+	// RFC 5396 spelling, and the `L` suffix that forces the 4-octet form.
+	number, forced4Byte, err := attribute.ParseExtCommunityAdmin(parts[0])
 	if err != nil {
 		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid ASN in target: %s", parts[0])
 	}
+	asn := uint64(number)
 
-	if asn > 0xFFFF {
+	if forced4Byte || asn > 0xFFFF {
 		num, err := strconv.ParseUint(parts[1], 10, 16)
 		if err != nil {
 			return attribute.ExtendedCommunity{}, fmt.Errorf("invalid value in target: %s (4-byte ASN format max 65535)", parts[1])

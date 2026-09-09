@@ -19,6 +19,7 @@ import (
 	"unicode/utf8"
 
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -45,6 +46,11 @@ const (
 	TypeDuration // time.Duration (e.g., "100ms", "5s")
 	TypeInt      // signed integer
 	TypeEmpty    // YANG "type empty": valueless presence flag (e.g. "no-default-route;")
+	// TypeASN is an AS number, stored as a uint32 and typed by the ze-types
+	// `asn` typedef. It is separate from TypeUint32 so that the dotted spelling
+	// internal/core/bgp/asn defines is accepted HERE and nowhere else. A leaf
+	// holding a bare 32-bit number keeps rejecting "1.10".
+	TypeASN
 )
 
 func (t ValueType) String() string {
@@ -71,6 +77,8 @@ func (t ValueType) String() string {
 		return valueTypeInt
 	case TypeEmpty:
 		return valueTypeEmpty
+	case TypeASN:
+		return valueTypeASN
 	default:
 		return "unknown"
 	}
@@ -784,6 +792,15 @@ func ValidateValue(typ ValueType, value string) error {
 		}
 		return nil
 
+	case TypeASN:
+		// An AS number is typed in any of the three notations, and asn.Parse
+		// is the only reader of them. NormalizeLeafValue rewrites the accepted
+		// value to its decimal form before the tree stores it.
+		if _, err := asn.Parse(value); err != nil {
+			return err
+		}
+		return nil
+
 	case TypeIPv4:
 		addr, err := netip.ParseAddr(value)
 		if err != nil || !addr.Is4() {
@@ -973,6 +990,15 @@ func parseNumericRangeValue(typ ValueType, value string) (*big.Int, error) {
 			return nil, fmt.Errorf("invalid uint: %q", value)
 		}
 		return new(big.Int).SetUint64(v), nil
+	case TypeASN:
+		// The YANG `range "1..4294967295"` on the asn typedef is compared
+		// against the NUMBER, so a dotted value is read first. Without this
+		// case a range check would refuse every asdot value it was given.
+		v, err := asn.Parse(value)
+		if err != nil {
+			return nil, err
+		}
+		return new(big.Int).SetUint64(uint64(v)), nil
 	case TypeInt:
 		v, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {

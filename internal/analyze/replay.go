@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/mrt"
 )
@@ -54,11 +55,12 @@ func parseReplayOpts(args []string) (*replayOpts, bool) {
 			if i >= len(args) {
 				return nil, false
 			}
-			v, err := strconv.ParseUint(args[i], 10, 32)
+			// asn.Parse reads every RFC 5396 spelling.
+			number, err := asn.Parse(args[i])
 			if err != nil {
 				return nil, false
 			}
-			opts.localAS = uint32(v) //nolint:gosec // validated range
+			opts.localAS = number
 		case "--router-id": //nolint:goconst // CLI flag name
 			i++
 			if i >= len(args) {

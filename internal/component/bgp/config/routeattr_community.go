@@ -557,16 +557,13 @@ func parseFlowSpecRedirect(adminStr, numStr string) ([]byte, error) {
 // Returns the parsed ASN value and whether 4-byte encoding was explicitly requested.
 // The "L" suffix forces Type 2 (4-byte AS, RFC 5668) wire format regardless of ASN value.
 func parseExtCommunityASN(s string) (uint64, bool, error) {
-	forced := false
-	if strings.HasSuffix(s, "L") || strings.HasSuffix(s, "l") {
-		s = s[:len(s)-1]
-		forced = true
-	}
-	asn, err := strconv.ParseUint(s, 10, 32)
+	// attribute.ParseExtCommunityAdmin is the one declaration of this text
+	// form. It reads every RFC 5396 spelling and the "L" suffix.
+	number, forced, err := attribute.ParseExtCommunityAdmin(s)
 	if err != nil {
 		return 0, false, err
 	}
-	return asn, forced, nil
+	return uint64(number), forced, nil
 }
 
 func (ec ExtendedCommunity) String() string {

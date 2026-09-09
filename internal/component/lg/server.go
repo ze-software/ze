@@ -43,6 +43,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
+
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/errorfragment"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -371,11 +373,21 @@ func (s *LGServer) registerRoutes() error {
 
 // resolveASN returns the organization name for an ASN, or empty string if
 // no decorator is configured or the lookup fails.
-func (s *LGServer) resolveASN(asn string) string {
-	if s.decorateASN == nil || asn == "" {
+//
+// The argument arrives as the daemon rendered it, so under bgp/as-notation
+// asdot it reads "1.10". The decorator behind this is a Team Cymru DNS lookup
+// (internal/component/web/decorator_asn.go), and its key is the decimal value
+// alone. The notation is therefore undone here rather than at each caller. A
+// token that names no AS number is passed through, and the decorator answers
+// "" for it, which is what an unresolvable ASN already produces.
+func (s *LGServer) resolveASN(text string) string {
+	if s.decorateASN == nil || text == "" {
 		return ""
 	}
-	return s.decorateASN(asn)
+	if number, err := asn.Parse(text); err == nil {
+		text = asn.Text(number, asn.NotationPlain)
+	}
+	return s.decorateASN(text)
 }
 
 // ListenAndServe binds every configured listen address and starts serving.

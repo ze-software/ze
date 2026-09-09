@@ -13,7 +13,7 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		Description: "the post-verify repository checks: source anchors resolve, exported symbols have a cross-package caller, CLI commands have a .ci test, and an in-progress spec's acceptance criteria say how they are demonstrated",
+		Description: "the post-verify repository checks: source anchors resolve, exported symbols have a cross-package caller, CLI commands have a .ci test, an in-progress spec's acceptance criteria say how they are demonstrated, and every 32-bit text-to-integer parse is on the allowlist that keeps AS numbers going through asn.Parse",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.

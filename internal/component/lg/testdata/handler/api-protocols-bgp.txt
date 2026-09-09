@@ -17,7 +17,7 @@ header: X-Ze-Version: <VERSION>
       "description": "",
       "last_error": "",
       "neighbor_address": "10.0.0.1",
-      "neighbor_as": 0,
+      "neighbor_as": 65001,
       "routes": {
         "exported": 0,
         "filtered": 0,

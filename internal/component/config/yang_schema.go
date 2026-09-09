@@ -19,6 +19,7 @@ import (
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
 	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 )
 
 // sortedKeys returns the keys of a map[string]*gyang.Entry in sorted order.
@@ -943,7 +944,7 @@ func yangTypeToValueType(t *gyang.YangType) ValueType {
 		return TypeIP
 	}
 	if isASNType(name) {
-		return TypeUint32
+		return TypeASN
 	}
 
 	//nolint:exhaustive // default handles all other types
@@ -980,7 +981,7 @@ func isIPType(name string) bool {
 }
 
 func isASNType(name string) bool {
-	return name == "asn" || name == "zt:asn"
+	return asn.IsTypedef(name)
 }
 
 // LoadYANGModule loads a YANG module entry into a schema.

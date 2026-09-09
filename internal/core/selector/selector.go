@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
-	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/stringsx"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -225,8 +225,8 @@ func parsePositive(s string) (*Selector, error) {
 		return Addr(ap.Addr()), nil
 	}
 
-	if asn, ok := parseASNSelector(s); ok {
-		return ASN(asn), nil
+	if number, ok := ParseASNSelector(s); ok {
+		return ASN(number), nil
 	}
 
 	if strings.ContainsRune(s, '*') {
@@ -236,7 +236,15 @@ func parsePositive(s string) (*Selector, error) {
 	return PeerName(s), nil
 }
 
-func parseASNSelector(s string) (uint32, bool) {
+// ParseASNSelector reads an `as<N>` peer selector, and is the ONE declaration
+// of that text form. `cmd/policy` matches peers by the same syntax and calls
+// this rather than repeating it.
+//
+// The AS number is read in every RFC 5396 spelling, so `as1.10` selects the
+// peers `as65546` selects. Getting this wrong is silent: ParseDefault turns a
+// refusal into a peer NAME, so the selector then matches no peer and reports
+// nothing (ai/rules/principles.md, on a value that is silently wrong).
+func ParseASNSelector(s string) (uint32, bool) {
 	if len(s) <= 2 {
 		return 0, false
 	}
@@ -246,11 +254,11 @@ func parseASNSelector(s string) (uint32, bool) {
 	if s[1] != 's' && s[1] != 'S' {
 		return 0, false
 	}
-	n, err := strconv.ParseUint(s[2:], 10, 32)
+	number, err := asn.Parse(s[2:])
 	if err != nil {
 		return 0, false
 	}
-	return uint32(n), true
+	return number, true
 }
 
 func parseMultiIP(s string) (*Selector, error) {

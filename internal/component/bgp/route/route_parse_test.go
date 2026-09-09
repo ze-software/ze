@@ -253,6 +253,11 @@ func TestParseBracketedList(t *testing.T) {
 }
 
 // TestParseASPath tests AS_PATH parsing per RFC 4271 Section 5.1.2.
+//
+// It drives attribute.ParseASPathText, the one parser the `as-path` command
+// word reaches. The package's own copy of it was deleted: nothing but this
+// test called it, so it was a second answer to one question with no way for an
+// operator to reach it.
 func TestParseASPath(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -277,21 +282,21 @@ func TestParseASPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			path, consumed, err := parseASPath(tt.args)
+			path, consumed, err := attribute.ParseASPathText(tt.args)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseASPath(%v) error = %v, wantErr %v", tt.args, err, tt.wantErr)
+				t.Errorf("attribute.ParseASPathText(%v) error = %v, wantErr %v", tt.args, err, tt.wantErr)
 				return
 			}
 			if consumed != tt.wantConsumed {
-				t.Errorf("parseASPath(%v) consumed = %d, want %d", tt.args, consumed, tt.wantConsumed)
+				t.Errorf("attribute.ParseASPathText(%v) consumed = %d, want %d", tt.args, consumed, tt.wantConsumed)
 			}
 			if len(path) != len(tt.wantPath) {
-				t.Errorf("parseASPath(%v) path = %v, want %v", tt.args, path, tt.wantPath)
+				t.Errorf("attribute.ParseASPathText(%v) path = %v, want %v", tt.args, path, tt.wantPath)
 				return
 			}
 			for i, asn := range path {
 				if asn != tt.wantPath[i] {
-					t.Errorf("parseASPath(%v) path[%d] = %d, want %d", tt.args, i, asn, tt.wantPath[i])
+					t.Errorf("attribute.ParseASPathText(%v) path[%d] = %d, want %d", tt.args, i, asn, tt.wantPath[i])
 				}
 			}
 		})

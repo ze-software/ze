@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/configorder"
 	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/dscp"
@@ -558,13 +559,10 @@ func parseLogAction(m map[string]any) (Log, error) {
 // against it instead of reporting an unknown set (validate.go, validateMatch).
 func irrSetMatch(v string, isASSet, isSource bool) MatchInSet {
 	var tb textbuf.Buffer
-	switch {
-	case isASSet:
+	if isASSet {
 		tb.Str(irrV4Prefix).Str(v)
-	case len(v) >= 2 && (v[0] == 'A' || v[0] == 'a') && (v[1] == 'S' || v[1] == 's'):
-		tb.Str(irrV4Prefix).Str(v)
-	default:
-		tb.Str(irrV4Prefix).Str("AS").Str(v)
+	} else {
+		tb.Str(irrV4Prefix).Str(IRRASNName(v))
 	}
 	field := SetFieldSourceAddr
 	if !isSource {
@@ -578,6 +576,31 @@ const irrV6Prefix = "irr_v6_"
 
 const domainV4Prefix = "domain_v4_"
 const domainV6Prefix = "domain_v6_"
+
+// IRRASNName renders the element name an `asn` firewall field names.
+//
+// It is exported because the firewall-irr plugin BUILDS the set under this
+// name and this parser MATCHES it, from two different packages. One
+// declaration keeps them from drifting. A divergence leaves the rule naming a
+// set no owner supplies. dropTablesMissingAProvidedSet then holds back the
+// table carrying it while the commit still reports success, which is a
+// firewall that fails open.
+//
+// The field takes any of the three RFC 5396 spellings, and the IRR whois key
+// is the decimal one. A dotted AS number is therefore normalized here, so
+// `asn 1.10` and `asn 65546` name one set. Two values pass through unchanged:
+// one that already carries the AS prefix, and one that names no AS number.
+// The whois lookup then fails with the operator's own text in the message.
+func IRRASNName(v string) string {
+	if len(v) >= 2 && (v[0] == 'A' || v[0] == 'a') && (v[1] == 'S' || v[1] == 's') {
+		return v
+	}
+	if number, err := asn.Parse(v); err == nil {
+		v = asn.Text(number, asn.NotationPlain)
+	}
+	var tb textbuf.Buffer
+	return tb.Str("AS").Str(v).String()
+}
 
 // DomainGroupSetNames returns the two nftables set names a domain group
 // produces.

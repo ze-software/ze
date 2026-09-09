@@ -14,10 +14,15 @@ package lg
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/report"
+
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -224,7 +229,6 @@ func transformBMPProtocols(ze map[string]any) map[string]any {
 		}
 
 		router := getStr(peer, "router")
-		peerAS := getNum(peer, "peer-as")
 		bgpID := getStr(peer, "peer-bgp-id")
 		isUp := getBool(peer, "up")
 
@@ -232,10 +236,9 @@ func transformBMPProtocols(ze map[string]any) map[string]any {
 
 		var tb textbuf.Buffer
 		name := tb.Str(router).Byte(':').Str(bgpID).String()
-		protocols[name] = map[string]any{
+		protocol := map[string]any{
 			"bird_protocol":   name,
 			fieldState:        state,
-			"neighbor_as":     peerAS,
 			"description":     "BMP monitored",
 			fieldTable:        "bmp",
 			"routes_received": 0,
@@ -252,6 +255,8 @@ func transformBMPProtocols(ze map[string]any) map[string]any {
 				"preferred": 0,
 			},
 		}
+		setNeighborAS(protocol, peer, "peer-as", name)
+		protocols[name] = protocol
 	}
 
 	return apiEnvelope("protocols", protocols)
@@ -548,12 +553,11 @@ func transformProtocols(ze map[string]any) map[string]any {
 		sent := getNum(peer, "routes-sent")
 		filtered := getNum(peer, "routes-filtered")
 
-		protocols[name] = map[string]any{
+		protocol := map[string]any{
 			"bird_protocol":    name,
 			fieldState:         getStr(peer, fieldState),
 			"state_changed":    getStr(peer, "state-changed"),
 			"neighbor_address": addr,
-			"neighbor_as":      getNum(peer, "remote-as"),
 			"description":      getStr(peer, "description"),
 			"last_error":       getStr(peer, "last-error"),
 			fieldTable:         "master",
@@ -575,6 +579,8 @@ func transformProtocols(ze map[string]any) map[string]any {
 				"preferred": accepted,
 			},
 		}
+		setNeighborAS(protocol, peer, "remote-as", name)
+		protocols[name] = protocol
 	}
 
 	return apiEnvelope("protocols", protocols)
@@ -629,8 +635,15 @@ func transformRoutes(ze map[string]any, peerName string) map[string]any {
 			"learnt_from":   getStr(route, "peer-address"),
 			"primary":       getBool(route, "best"),
 			"bgp": map[string]any{
-				"origin":            getStr(route, "origin"),
-				"as_path":           getVal(route, "as-path"),
+				"origin": getStr(route, "origin"),
+				// The birdwatcher-compatible API declares as_path an array of
+				// NUMBERS (docs/architecture/api/birdwatcher-compat.md), and
+				// bgp/as-notation does NOT reach it. The route row it is built
+				// from carries strings under a dotted notation, so the numbers
+				// are put back here. This is a machine contract, like the
+				// plugin event stream. A consumer that parses an integer must
+				// not fail because an operator changed a display preference.
+				"as_path":           asPathNumbers(getVal(route, "as-path")),
 				"next_hop":          getStr(route, "next-hop"),
 				"local_pref":        getNum(route, "local-preference"),
 				"med":               getNum(route, "med"),
@@ -947,3 +960,67 @@ func getVal(m map[string]any, key string) any {
 
 	return v
 }
+
+// asPathNumbers answers the AS path as the numbers the birdwatcher-compatible
+// API declares, whatever notation the route row carried.
+//
+// A value that is not an AS path is returned unchanged, so a caller sees the
+// same thing it saw before this function existed. An element that names no AS
+// number is dropped rather than answered as 0.
+func asPathNumbers(value any) any {
+	path, ok := value.([]any)
+	if !ok {
+		return value
+	}
+	numbers := make([]any, 0, len(path))
+	for _, element := range path {
+		if number, ok := asn.FromJSON(element); ok {
+			numbers = append(numbers, number)
+		}
+	}
+	return numbers
+}
+
+// setNeighborAS writes the birdwatcher `neighbor_as` of one protocol, read
+// from the named AS number field of a Ze peer row.
+//
+// The row carries the spelling bgp/as-notation selected, so under a dotted
+// notation it is the string "1.10". getNum has no case for a string and
+// answers 0. RFC 7607 Section 1 reserves AS 0, so a consumer would read a
+// syntactically valid AS number that is wrong for every peer
+// (ai/rules/principles.md: a silently wrong value must not be reachable).
+//
+// The key is ALWAYS written. birdwatcher declares it mandatory
+// (docs/architecture/api/birdwatcher-compat.md), and a client decoding into a
+// struct reads an absent key as 0 anyway, so omitting it buys nothing.
+//
+// A row that names no readable AS number writes 0 and RAISES A WARNING, so the
+// fault reaches an operator rather than passing as data. That case is a Ze
+// defect in the row. No notation an operator picks can cause it, because
+// asn.Of writes the peer rows (../bgp/plugins/cmd/peer/summary.go).
+//
+// The report bus rather than a log line, because this runs once per peer per
+// request and a looking glass is polled every few seconds. The bus keys an
+// active warning on (source, code, subject). A broken row therefore refreshes
+// ONE entry in `show warnings` however often it is read, and a repaired row
+// clears it on the next request.
+func setNeighborAS(protocol, peer map[string]any, key, name string) {
+	value := getVal(peer, key)
+	number, ok := asn.FromJSON(value)
+	if !ok {
+		report.RaiseWarning(reportSourceLG, reportCodeUnreadableAS, name,
+			"a peer row carries no readable AS number, so its neighbor_as is 0",
+			map[string]any{"field": key, "value": fmt.Sprint(value)})
+	} else {
+		report.ClearWarning(reportSourceLG, reportCodeUnreadableAS, name)
+	}
+	protocol["neighbor_as"] = number
+}
+
+// The report bus identity of the fault above. reportCodeUnreadableAS names the
+// condition rather than the field, because the two callers read two different
+// fields for one answer.
+const (
+	reportSourceLG         = "looking-glass"
+	reportCodeUnreadableAS = "lg-unreadable-as-number"
+)

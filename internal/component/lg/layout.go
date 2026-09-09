@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"html/template"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
+
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/graph"
 )
@@ -109,7 +111,7 @@ func renderGraphSVG(g *Graph, layout *Layout) string {
 			pos.X+nodePadding, pos.Y+nodeHeight/2+fontSize/3,
 			template.HTMLEscapeString(label))
 		fmt.Fprintf(&sb, `<title>%s</title>`, //nolint:errcheck // buffer output
-			template.HTMLEscapeString(fmt.Sprintf("AS%d%s", n.ASN, tooltipName(n.Name))))
+			template.HTMLEscapeString(fmt.Sprintf("AS%s%s", asn.Text(n.ASN, asn.Configured()), tooltipName(n.Name))))
 		sb.WriteString("</g>\n")
 	}
 

@@ -235,15 +235,18 @@ func FlowSpecRedirect(admin, value string) (ExtendedCommunity, error) {
 		return flowSpecRedirectIPv4(addr, value)
 	}
 
-	asn, err := strconv.ParseUint(admin, 10, 32)
+	// ParseExtCommunityAdmin is the one reader of this field: every RFC 5396
+	// spelling, and the `L` suffix that forces the 4-octet form whatever the
+	// value. Nothing that parsed before changes, because both were errors here.
+	number, forced4Byte, err := ParseExtCommunityAdmin(admin)
 	if err != nil {
 		return ExtendedCommunity{}, fmt.Errorf(
 			"invalid redirect administrator %q: expected an AS number or an IPv4 address", admin)
 	}
-	if asn > 0xFFFF {
-		return flowSpecRedirect4ByteAS(uint32(asn), value)
+	if forced4Byte || number > 0xFFFF {
+		return flowSpecRedirect4ByteAS(number, value)
 	}
-	return flowSpecRedirect2ByteAS(uint16(asn), value)
+	return flowSpecRedirect2ByteAS(uint16(number), value)
 }
 
 // flowSpecRedirect2ByteAS builds the type 0x80 form: RFC 4360 Section 3.1, a

@@ -63,7 +63,7 @@ func consumeOneField(tree *Tree, parent Node, tokens []string) (int, error) {
 		}
 		value := tokens[1]
 		if leaf, ok := child.(*LeafNode); ok {
-			value = normalizeSetValue(leaf.Type, value)
+			value = NormalizeLeafValue(leaf.Type, value)
 		}
 		tree.Set(name, value)
 		return 2, nil

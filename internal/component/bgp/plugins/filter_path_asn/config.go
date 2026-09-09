@@ -37,6 +37,8 @@ import (
 	"slices"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
+
 	"github.com/ze-software/ze/internal/core/configvalue"
 )
 
@@ -262,18 +264,21 @@ func parseOneList(name string, body any) (*rejectList, error) {
 
 // addASNs unions one leaf-list's ASNs into the list under positions.
 //
-// The leaf-list is `type uint32`, so the config parser refuses a non-numeric
-// value before this runs. The error stays because the alternative is to skip the
-// value, which would drop an ASN the operator wrote and leave a filter that
-// looks configured (ai/rules/principles.md).
+// The leaf-list is `type zt:asn`. The config parser therefore refuses a value
+// that names no AS number before this runs, and it accepts all three RFC 5396
+// spellings. asn.Parse reads them here for the same reason.
+//
+// The error stays because the alternative is to skip the value. That would
+// drop an ASN the operator wrote and leave a filter that looks configured
+// (ai/rules/principles.md).
 func (l *rejectList) addASNs(where string, positions positionSet, values []string) error {
 	for _, value := range values {
-		asn, err := strconv.ParseUint(value, 10, 32)
+		number, err := asn.Parse(value)
 		if err != nil {
 			return fmt.Errorf("reject-asn %q: %s expects an ASN in 0-4294967295, got %q",
 				l.name, where, value)
 		}
-		l.positions[uint32(asn)] |= positions
+		l.positions[number] |= positions
 	}
 	return nil
 }
@@ -305,12 +310,12 @@ func (l *rejectList) addNth(entry configvalue.ListEntry) error {
 		l.nth = make(map[nthKey]struct{}, len(values))
 	}
 	for _, value := range values {
-		asn, err := strconv.ParseUint(value, 10, 32)
+		number, err := asn.Parse(value)
 		if err != nil {
 			return fmt.Errorf("reject-asn %q: nth %s expects an ASN in 0-4294967295, got %q",
 				l.name, entry.Key, value)
 		}
-		l.nth[nthKey{index: uint8(index), asn: uint32(asn)}] = struct{}{}
+		l.nth[nthKey{index: uint8(index), asn: number}] = struct{}{}
 	}
 	return nil
 }

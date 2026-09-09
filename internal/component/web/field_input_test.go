@@ -29,6 +29,9 @@ var fieldEditorMarkers = map[string]string{
 	"ip":       `type="text"`,
 	"prefix":   `type="text"`,
 	"duration": `type="text"`,
+	// An AS number is a text box rather than a number one, because the asdot
+	// form (1.10) is not a number the browser accepts.
+	"asn": `type="text"`,
 }
 
 // producedFieldTypes returns every string a FieldMeta.Type can hold, derived
@@ -38,15 +41,15 @@ var fieldEditorMarkers = map[string]string{
 // It reads valueTypeToFieldType for the leaf's type, and it overwrites the
 // answer with "enum" when the leaf declares enums.
 //
-// The walk is over config.ValueType, an iota run from TypeString to TypeEmpty.
+// The walk is over config.ValueType, an iota run from TypeString to TypeASN.
 // A constant added past the end would fall outside that walk. The guard below
-// therefore reads the value after TypeEmpty, and fails when the String method
+// therefore reads the value after TypeASN, and fails when the String method
 // recognizes it.
 func producedFieldTypes(t *testing.T) []string {
 	t.Helper()
 
-	if next := config.ValueType(int(config.TypeEmpty) + 1); next.String() != "unknown" {
-		t.Fatalf("config.ValueType gained %q past TypeEmpty; extend this walk", next.String())
+	if next := config.ValueType(int(config.TypeASN) + 1); next.String() != "unknown" {
+		t.Fatalf("config.ValueType gained %q past TypeASN; extend this walk", next.String())
 	}
 
 	seen := map[string]bool{
@@ -54,7 +57,7 @@ func producedFieldTypes(t *testing.T) []string {
 		"enum": true,
 	}
 
-	for vt := config.TypeString; vt <= config.TypeEmpty; vt++ {
+	for vt := config.TypeString; vt <= config.TypeASN; vt++ {
 		seen[valueTypeToFieldType(vt)] = true
 	}
 

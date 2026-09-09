@@ -1,6 +1,7 @@
 package attribute
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -100,8 +101,9 @@ func FuzzParseASPath(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, s string) {
 		skipOversizedFuzzText(t, s)
-		b := NewBuilder()
-		_ = b.ParseASPath(s) // MUST NOT panic
+		// ParseASPathText is the parser the `as-path` command word reaches,
+		// and it takes the command's own argument list.
+		_, _, _ = ParseASPathText(strings.Fields(s)) // MUST NOT panic
 	})
 }
 

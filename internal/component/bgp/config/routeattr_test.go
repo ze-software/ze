@@ -45,19 +45,19 @@ func TestParseExtendedCommunityHex(t *testing.T) {
 			name:    "invalid - odd length",
 			input:   "0x0002fde8000001",
 			wantErr: true,
-			errMsg:  "hex format must be 16 chars",
+			errMsg:  "the raw form is 0x followed by 16 hex digits",
 		},
 		{
 			name:    "invalid - too short",
 			input:   "0x0002",
 			wantErr: true,
-			errMsg:  "hex format must be 16 chars",
+			errMsg:  "the raw form is 0x followed by 16 hex digits",
 		},
 		{
 			name:    "invalid - too long",
 			input:   "0x0002fde80000000100",
 			wantErr: true,
-			errMsg:  "hex format must be 16 chars",
+			errMsg:  "the raw form is 0x followed by 16 hex digits",
 		},
 		{
 			name:    "invalid - not hex",

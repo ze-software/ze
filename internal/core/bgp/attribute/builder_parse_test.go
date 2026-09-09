@@ -45,41 +45,6 @@ func TestBuilderParseOrigin(t *testing.T) {
 	}
 }
 
-// TestBuilderParseASPath verifies AS_PATH text parsing.
-//
-// VALIDATES: Builder correctly parses AS_PATH strings.
-// PREVENTS: Malformed AS_PATH from text commands.
-func TestBuilderParseASPath(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name    string
-		input   string
-		want    []uint32
-		wantErr bool
-	}{
-		{name: "bracketed_spaces", input: "[65001 65002]", want: []uint32{65001, 65002}},
-		{name: "bracketed_commas", input: "[65001,65002]", want: []uint32{65001, 65002}},
-		{name: "single", input: "65001", want: []uint32{65001}},
-		{name: "space_separated", input: "65001 65002 65003", want: []uint32{65001, 65002, 65003}},
-		{name: "empty_brackets", input: "[]", want: nil},
-		{name: "invalid_asn", input: "[abc]", wantErr: true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			b := NewBuilder()
-			err := b.ParseASPath(tt.input)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Equal(t, tt.want, b.ASPathSlice())
-		})
-	}
-}
-
 // TestBuilderParseCommunity verifies community text parsing.
 //
 // VALIDATES: Builder correctly parses community strings.

@@ -13,6 +13,7 @@ import (
 )
 
 func init() {
+	Register("plugin/bgp-as-notation", bgpASNotation13)
 	Register("plugin/rib-advertised-user-path", ribAdvertisedUserPath13)
 	Register("plugin/rib-best-selection", ribBestSelection13)
 	Register("plugin/rib-clear-out-family", ribClearOutFamily13)
@@ -36,6 +37,85 @@ func countFrom13(result commandResult13) (int, bool) {
 		return 0, false
 	}
 	return number13(value), true
+}
+
+// bgpASNotation13 proves the bgp/as-notation leaf reaches the route rows an
+// operator reads. It also proves an AS number is accepted in the asdot form on
+// the way in. The scenario injects a route whose AS path is typed "1.10,100".
+// It then reads the route back through `show bgp rib received`.
+//
+// The daemon config sets as-notation asdot, and writes its own local and
+// remote AS in asdot. A config that refused the dotted spelling would never
+// reach this function.
+func bgpASNotation13(ctx context.Context, args []string) error {
+	return observe13(ctx, "as-notation-test", func(ctx context.Context, plugin *sdk.Plugin) error {
+		if err := ribReady13(ctx, plugin); err != nil {
+			return err
+		}
+		a := &assertions13{}
+		a.status("inject", command13(ctx, plugin, "request bgp rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 1.10,100"))
+
+		show := pollCommand13(ctx, plugin, "show bgp rib received prefix 10.10.1.0/24", 20, 250*time.Millisecond, func(result commandResult13) bool {
+			return done13(result) && strings.Contains(result.text(), "10.10.1.0/24")
+		})
+		a.status("show", show)
+		// AS 65546 renders dotted because it is 65536 or more. AS 100 stays
+		// plain, because asdot leaves a 2-byte AS number alone
+		// (RFC 5396 Section 2).
+		a.contains("show", show, `"1.10"`)
+		a.contains("show", show, `"100"`)
+		// The number itself must not reach the row: an as-notation that renders
+		// beside the decimal form rather than instead of it is not a notation.
+		a.notContains("show", show, "65546")
+		// A second display surface, so the leaf is proven to reach more than one
+		// row builder. `show bgp peer <ip> detail` writes remote-as and
+		// local-as through a different producer (peer.go).
+		detail := command13(ctx, plugin, "show bgp peer 127.0.0.1 detail")
+		a.status("detail", detail)
+		a.contains("detail", detail, `"remote-as":"1.10"`)
+		a.notContains("detail", detail, `"remote-as":65546`)
+
+		if err := a.finish("as-notation"); err != nil {
+			return err
+		}
+		// The .ci reads these lines back, so the rendering an operator would
+		// see is asserted at the process boundary and not only in this fixture.
+		fmt.Fprintln(os.Stderr, "AS-NOTATION OK as-path "+asPathText13(show))
+		fmt.Fprintln(os.Stderr, "AS-NOTATION OK remote-as "+peerRemoteAS13(detail))
+		return nil
+	})
+}
+
+// peerRemoteAS13 answers the remote-as of the first peer row, exactly as the
+// row carries it.
+func peerRemoteAS13(result commandResult13) string {
+	for _, value := range peerRows13(result) {
+		row, _ := value.(map[string]any)
+		if remote, ok := row["remote-as"]; ok {
+			return fmt.Sprint(remote)
+		}
+	}
+	return ""
+}
+
+// asPathText13 answers the as-path of the first route row, space separated,
+// exactly as the row carries it.
+func asPathText13(result commandResult13) string {
+	rows, _ := result.object()["routes"].([]any)
+	for _, value := range rows {
+		row, _ := value.(map[string]any)
+		attr, ok := row["as-path"].(map[string]any)
+		if !ok {
+			continue
+		}
+		path, _ := attr["value"].([]any)
+		parts := make([]string, 0, len(path))
+		for _, number := range path {
+			parts = append(parts, fmt.Sprint(number))
+		}
+		return strings.Join(parts, " ")
+	}
+	return ""
 }
 
 func ribAdvertisedUserPath13(ctx context.Context, args []string) error {

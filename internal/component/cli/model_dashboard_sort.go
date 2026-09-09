@@ -78,7 +78,7 @@ func comparePeers(a, b dashboardPeer, col dashboardSortColumn, rate rateLookup) 
 	order := 0
 	switch col {
 	case sortColumnASN:
-		order = cmp.Compare(a.RemoteAS, b.RemoteAS)
+		order = cmp.Compare(a.RemoteAS.Value(), b.RemoteAS.Value())
 	case sortColumnState:
 		order = cmp.Compare(stateRank(a.State), stateRank(b.State))
 	case sortColumnUptime:

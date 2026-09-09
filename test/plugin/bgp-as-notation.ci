@@ -1,0 +1,78 @@
+# Test: bgp as-notation reaches config input and route output
+#
+# Flow:
+# 1. The daemon config writes its local and remote AS in asdot (1.10 = 65546)
+#    and sets as-notation asdot.
+# 2. The fixture injects a route whose AS path is typed "1.10,100".
+# 3. `show bgp rib received` answers the AS path as ["1.10","100"].
+# 4. `show bgp peer 127.0.0.1 detail` answers remote-as as "1.10".
+#
+# VALIDATES: AC-1 asdot config input, AC-3 asdot rendering of an AS number of
+# 65536 or more, AC-4 a 2-byte AS number staying plain under asdot.
+# PREVENTS: the as-notation leaf parsing and reaching no renderer, and an
+# asdot AS number being refused wherever an AS number is configured.
+
+# ze-peer runs as a sink: only a dial target, asserts nothing (routes injected via API)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external as-notation-test {
+		run "ze-test fixture plugin/bgp-as-notation"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+bgp {
+	as-notation asdot;
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1.10
+				remote 1.10
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+# The rendering an operator reads, read back at the process boundary. AS 65546
+# is written 1.10 and AS 100 stays plain, on the route row and on the peer row:
+# two producers, so the leaf is proven to reach more than one of them.
+expect=stderr:pattern=AS-NOTATION OK as-path 1\.10 100
+expect=stderr:pattern=AS-NOTATION OK remote-as 1\.10

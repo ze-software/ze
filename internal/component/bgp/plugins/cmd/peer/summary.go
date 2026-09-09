@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -322,7 +323,7 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 			fieldAddress:            p.Address.String(),
 			fieldName:               p.Name,
 			"description":           p.GroupName,
-			fieldRemoteAS:           p.PeerAS,
+			fieldRemoteAS:           asn.Of(p.PeerAS),
 			fieldPeerType:           p.PeerType,
 			fieldState:              p.State.String(),
 			"state-changed":         stateChangedString(p),
@@ -355,7 +356,7 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	// than descending into an envelope.
 	summary := plugin.Map{
 		fieldRouterID:       routerID,
-		fieldLocalAS:        stats.LocalAS, // global BGP local AS, kept as "local-as" for summary context
+		fieldLocalAS:        asn.Of(stats.LocalAS), // global BGP local AS, kept as "local-as" for summary context
 		fieldUptime:         stats.Uptime.Truncate(time.Second).String(),
 		"peers-configured":  len(allPeers),
 		"peers-established": established,
@@ -512,7 +513,7 @@ func handleBgpPeerStatistics(ctx *pluginserver.CommandContext, args []string) (*
 
 		entry := plugin.Map{
 			fieldAddress:            p.Address.String(),
-			fieldRemoteAS:           p.PeerAS,
+			fieldRemoteAS:           asn.Of(p.PeerAS),
 			fieldState:              p.State.String(),
 			fieldUptime:             p.Uptime.Truncate(time.Second).String(),
 			fieldUpdatesReceived:    p.UpdatesReceived,

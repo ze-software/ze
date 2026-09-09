@@ -111,7 +111,7 @@ name, whose values are protocol objects.
 | `state` | string | MUST be present |
 | `state_changed` | string | RFC 3339 timestamp of the last transition. MUST be present, MAY be empty |
 | `neighbor_address` | string | MUST be present |
-| `neighbor_as` | number | MUST be present |
+| `neighbor_as` | number | MUST be present. The `bgp { as-notation }` leaf does NOT reach it. The value is the AS number itself, read whatever notation wrote the peer row. A row carrying no readable AS number writes 0 and logs at WARN, because the field is mandatory (`setNeighborAS`, `internal/component/lg/handler_api.go`) |
 | `description` | string | MUST be present, MAY be empty |
 | `last_error` | string | MUST be present, and MUST be empty when there is no error |
 | `table` | string | MUST be `master` for a BGP session and `bmp` for a BMP-monitored peer |
@@ -148,7 +148,7 @@ Every routes endpoint MUST return an array of route objects under `routes`.
 | Member | Type | Attribute |
 |--------|------|-----------|
 | `origin` | string | ORIGIN |
-| `as_path` | array | AS_PATH |
+| `as_path` | array of numbers | AS_PATH. The `bgp { as-notation }` leaf does NOT reach this field. It is a machine contract: a client that parses an integer must not fail because an operator changed a display preference (`asPathNumbers`, `internal/component/lg/handler_api.go`) |
 | `next_hop` | string | NEXT_HOP |
 | `local_pref` | number | LOCAL_PREF |
 | `med` | number | MULTI_EXIT_DISC |

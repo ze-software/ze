@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -118,17 +119,17 @@ func (rd RouteDistinguisher) String() string {
 	defer b.Release()
 	switch rd.Type {
 	case RDType0:
-		asn := binary.BigEndian.Uint16(rd.Value[:2])
+		administrator := binary.BigEndian.Uint16(rd.Value[:2])
 		assigned := binary.BigEndian.Uint32(rd.Value[2:6])
-		return b.Str("0:").Uint16(asn).Byte(':').Uint32(assigned).String()
+		return b.Str("0:").Uint16(administrator).Byte(':').Uint32(assigned).String()
 	case RDType1:
 		ip := netip.AddrFrom4([4]byte(rd.Value[:4]))
 		assigned := binary.BigEndian.Uint16(rd.Value[4:6])
 		return b.Str("1:").Addr(ip).Byte(':').Uint16(assigned).String()
 	case RDType2:
-		asn := binary.BigEndian.Uint32(rd.Value[:4])
+		administrator := binary.BigEndian.Uint32(rd.Value[:4])
 		assigned := binary.BigEndian.Uint16(rd.Value[4:6])
-		return b.Str("2:").Uint32(asn).Byte(':').Uint16(assigned).String()
+		return b.Str("2:").Uint32(administrator).Byte(':').Uint16(assigned).String()
 	default:
 		return b.Str("rd-type").Uint16(uint16(rd.Type)).Byte(':').Hex(rd.Value[:]).String()
 	}
@@ -141,12 +142,23 @@ func (rd RouteDistinguisher) String() string {
 //   - Type 1: "IP:value" (4-byte IP, 2-byte value) e.g., "192.0.2.1:100"
 //   - Type 2: "ASN:value" (4-byte ASN, 2-byte value) e.g., "4200000001:100"
 //
-// Detection:
-//   - If first part contains "." → Type 1 (IP:value)
-//   - If ASN > 65535 → Type 2 (4-byte ASN, 2-byte value)
-//   - Otherwise → Type 0 (2-byte ASN, 4-byte value)
+// The administrator decides the type, and netip decides the administrator:
+//   - netip reads it as an IPv4 address -> Type 1.
+//   - the AS number needs more than two octets -> Type 2.
+//   - otherwise -> Type 0.
+//
+// A DECLARED type wins over that last rule. `String()` writes the type prefix
+// because Type 0 and Type 2 are indistinguishable for an AS number of 65535 or
+// less. So `2:65000:100` MUST come back as Type 2, or the round trip through
+// String() loses what the prefix carries. A declared type the administrator
+// cannot hold is refused rather than corrected.
+//
+// The AS number is read in every RFC 5396 spelling. A dot does not say the
+// field is an address, because Section 2 of that RFC writes AS 65546 as `1.10`.
+// The probe above is netip for that reason, rather than a search for a dot.
 func ParseRDString(s string) (RouteDistinguisher, error) {
 	var rd RouteDistinguisher
+	declaredType := false
 	parts := strings.Split(s, ":")
 
 	// Handle typed format: type:ASN:value or type:IP:value (3 parts)
@@ -159,27 +171,35 @@ func ParseRDString(s string) (RouteDistinguisher, error) {
 		if err != nil || rdType > 2 {
 			return rd, fmt.Errorf("invalid RD type: %s", parts[0])
 		}
-		// For Type 1, middle part must be an IP address (contains dots)
-		if rdType == 1 && !strings.Contains(parts[1], ".") {
+		// The declared type and the administrator must be the same KIND.
+		//
+		// The question asked is "is this an address", answered by netip. It is
+		// not "does it contain a dot". A dot is not the tell, because RFC 5396
+		// Section 2 writes AS 65546 as `1.10`. So `2:1.10:5` declares a
+		// four-byte AS number and MUST be accepted. `0:1.2.3.4:5` declares an
+		// AS number, carries an address, and MUST NOT be.
+		_, addrErr := netip.ParseAddr(parts[1])
+		if rdType == 1 && addrErr != nil {
 			return rd, fmt.Errorf("invalid RD format: type 1 requires IP address, got %s", parts[1])
 		}
-		// For Type 0/2, middle part must be numeric (no dots)
-		if rdType != 1 && strings.Contains(parts[1], ".") {
+		if rdType != 1 && addrErr == nil {
 			return rd, fmt.Errorf("invalid RD format: type %d requires ASN, got IP %s", rdType, parts[1])
 		}
 		// Reconstruct as 2-part format for parsing below
 		rd.Type = RDType(rdType)
+		declaredType = true
 		parts = parts[1:] // Now parts is [ASN/IP, value]
 	} else if len(parts) != 2 {
 		return rd, fmt.Errorf("invalid RD format: %s (expected ASN:value or IP:value)", s)
 	}
 
-	// Check if first part is an IP address (Type 1)
-	if strings.Contains(parts[0], ".") {
-		ip, err := netip.ParseAddr(parts[0])
-		if err != nil || !ip.Is4() {
-			return rd, fmt.Errorf("invalid IP in RD: %s", parts[0])
-		}
+	// Check if first part is an IP address (Type 1).
+	//
+	// The probe is netip rather than a search for a dot. A dot is not the
+	// tell. RFC 5396 Section 2 writes AS 65546 as `1.10`, so a dotted
+	// administrator is an AS number as often as it is an address. netip
+	// refuses `1.10`, which leaves it to the AS branch below.
+	if ip, err := netip.ParseAddr(parts[0]); err == nil && ip.Is4() {
 		val, err := strconv.ParseUint(parts[1], 10, 16)
 		if err != nil {
 			return rd, fmt.Errorf("invalid RD value (must be 0-65535): %s", parts[1])
@@ -192,23 +212,35 @@ func ParseRDString(s string) (RouteDistinguisher, error) {
 		return rd, nil
 	}
 
-	// Parse ASN to determine Type 0 vs Type 2
-	asn, err := strconv.ParseUint(parts[0], 10, 32)
+	// Parse ASN to determine Type 0 vs Type 2. asn.Parse reads all three RFC
+	// 5396 spellings, so `rd 1.10:5` names the route distinguisher `65546:5`
+	// names, on the command path as well as in the configuration.
+	number, err := asn.Parse(parts[0])
 	if err != nil {
 		return rd, fmt.Errorf("invalid ASN in RD: %s", parts[0])
 	}
+	// The magnitude picks the type, and a type the caller DECLARED overrides
+	// it: see the note on the round trip above.
+	fourByte := number > 65535
+	if declaredType {
+		if rd.Type == RDType0 && fourByte {
+			return RouteDistinguisher{}, fmt.Errorf(
+				"invalid RD %q: type 0 holds a 2-byte AS number, and %s needs four", s, parts[0])
+		}
+		fourByte = rd.Type == RDType2
+	}
 
-	if asn > 65535 {
+	if fourByte {
 		// Type 2: 4-byte ASN : 2-byte value
 		val, err := strconv.ParseUint(parts[1], 10, 16)
 		if err != nil {
 			return rd, fmt.Errorf("invalid RD value (must be 0-65535 for 4-byte ASN): %s", parts[1])
 		}
 		rd.Type = RDType2
-		rd.Value[0] = byte(asn >> 24)
-		rd.Value[1] = byte(asn >> 16)
-		rd.Value[2] = byte(asn >> 8)
-		rd.Value[3] = byte(asn)
+		rd.Value[0] = byte(number >> 24)
+		rd.Value[1] = byte(number >> 16)
+		rd.Value[2] = byte(number >> 8)
+		rd.Value[3] = byte(number)
 		rd.Value[4] = byte(val >> 8)
 		rd.Value[5] = byte(val)
 		return rd, nil
@@ -220,8 +252,8 @@ func ParseRDString(s string) (RouteDistinguisher, error) {
 		return rd, fmt.Errorf("invalid RD value: %s", parts[1])
 	}
 	rd.Type = RDType0
-	rd.Value[0] = byte(asn >> 8)
-	rd.Value[1] = byte(asn)
+	rd.Value[0] = byte(number >> 8)
+	rd.Value[1] = byte(number)
 	rd.Value[2] = byte(val >> 24)
 	rd.Value[3] = byte(val >> 16)
 	rd.Value[4] = byte(val >> 8)

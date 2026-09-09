@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 )
 
 var zzAnsiRe = regexp.MustCompile("\x1b\\[[0-9;]*m")
@@ -25,7 +27,7 @@ var zzAnsiRe = regexp.MustCompile("\x1b\\[[0-9;]*m")
 func TestDashboardRowColumnsAlignWithHeader(t *testing.T) {
 	t.Parallel()
 	for _, state := range []string{"established", "idle", "connecting", "opensent", "stopped"} {
-		peers := []dashboardPeer{{Address: "10.0.0.1", RemoteAS: 65001, State: state, Uptime: "1h2m"}}
+		peers := []dashboardPeer{{Address: "10.0.0.1", RemoteAS: asn.Of(65001), State: state, Uptime: "1h2m"}}
 		table := renderDashboardPeerTable(peers, &dashboardState{}, sortColumnAddress, true, 200, 0)
 		lines := strings.Split(table, "\n")
 		if len(lines) < 2 {
@@ -100,8 +102,8 @@ func TestDashboardRowColumnsAlignWithHeader(t *testing.T) {
 func TestDashboardSelectedRowKeepsStateColor(t *testing.T) {
 	t.Parallel()
 	peers := []dashboardPeer{
-		{Address: "10.0.0.1", RemoteAS: 65001, State: "established", Uptime: "1h2m"},
-		{Address: "10.0.0.2", RemoteAS: 65002, State: "idle", Uptime: "5m"},
+		{Address: "10.0.0.1", RemoteAS: asn.Of(65001), State: "established", Uptime: "1h2m"},
+		{Address: "10.0.0.2", RemoteAS: asn.Of(65002), State: "idle", Uptime: "5m"},
 	}
 	lines := strings.Split(renderDashboardPeerTable(peers, &dashboardState{}, sortColumnAddress, true, 200, 0), "\n")
 	if len(lines) < 3 {

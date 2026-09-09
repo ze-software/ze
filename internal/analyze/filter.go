@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/mrt"
 )
 
@@ -65,11 +66,13 @@ func parseFilterOpts(args []string) (*filterOpts, bool) {
 			if i >= len(args) {
 				return nil, false
 			}
-			v, err := strconv.ParseUint(args[i], 10, 32)
+			// asn.Parse reads every RFC 5396 spelling, so a peer AS number
+			// filters as the operator read it.
+			number, err := asn.Parse(args[i])
 			if err != nil {
 				return nil, false
 			}
-			opts.peerASN = uint32(v) //nolint:gosec // validated range
+			opts.peerASN = number
 		case "--prefix":
 			i++
 			if i >= len(args) {

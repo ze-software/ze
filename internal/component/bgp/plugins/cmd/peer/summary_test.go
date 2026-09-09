@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -60,7 +61,7 @@ func TestBgpSummaryFormat(t *testing.T) {
 
 	// Check identity fields (AC-3: router-id, local-as)
 	assert.Equal(t, "10.0.0.1", summary["router-id"])
-	assert.Equal(t, uint32(65000), summary["local-as"])
+	assert.Equal(t, asn.Of(65000), summary["local-as"])
 
 	// Check aggregate fields
 	assert.Equal(t, 2, summary["peers-configured"])
@@ -73,7 +74,7 @@ func TestBgpSummaryFormat(t *testing.T) {
 
 	// First peer should have stats
 	assert.Equal(t, "192.0.2.1", peers[0]["address"])
-	assert.Equal(t, uint32(65001), peers[0]["remote-as"])
+	assert.Equal(t, asn.Of(65001), peers[0]["remote-as"])
 	assert.Equal(t, "established", peers[0]["state"])
 	assert.Equal(t, uint32(10), peers[0]["updates-received"])
 	assert.Equal(t, uint32(5), peers[0]["updates-sent"])
@@ -936,7 +937,7 @@ func TestBgpSummaryPayloadIsFlat(t *testing.T) {
 	assert.False(t, wrapped, "the summary envelope must be gone, not kept beside the flat form")
 
 	assert.Equal(t, "10.0.0.1", data["router-id"])
-	assert.Equal(t, uint32(65000), data["local-as"])
+	assert.Equal(t, asn.Of(65000), data["local-as"])
 	assert.Equal(t, "10m0s", data["uptime"])
 	assert.Equal(t, 1, data["peers-configured"])
 	assert.Equal(t, 1, data["peers-established"])

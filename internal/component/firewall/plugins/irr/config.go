@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/firewall"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -185,13 +185,13 @@ func extractFromBlock(from map[string]any, seen map[refKey]bool, refs *[]irrRef,
 		*refs = append(*refs, irrRef{Name: name, IsASSet: isASSet, IsSrc: isSrc, TableName: tableName})
 	}
 	if v, ok := from["source-asn"].(string); ok {
-		addRef(asnName(v), false, true)
+		addRef(firewall.IRRASNName(v), false, true)
 	}
 	if v, ok := from["source-as-set"].(string); ok {
 		addRef(v, true, true)
 	}
 	if v, ok := from["destination-asn"].(string); ok {
-		addRef(asnName(v), false, false)
+		addRef(firewall.IRRASNName(v), false, false)
 	}
 	if v, ok := from["destination-as-set"].(string); ok {
 		addRef(v, true, false)
@@ -215,12 +215,4 @@ func parseIfaceBindings(m map[string]any) []ifaceBinding {
 		return bindings[i].Interface < bindings[j].Interface
 	})
 	return bindings
-}
-
-func asnName(v string) string {
-	if len(v) >= 2 && (v[0] == 'A' || v[0] == 'a') && (v[1] == 'S' || v[1] == 's') {
-		return v
-	}
-	var tb textbuf.Buffer
-	return tb.Str("AS").Str(v).String()
 }

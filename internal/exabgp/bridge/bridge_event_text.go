@@ -242,6 +242,11 @@ var textAttributes = map[string]textAttribute{
 // appendTextAttributes renders an UPDATE's attributes as ExaBGP writes them:
 // each one preceded by a space, in attribute-code order.
 //
+// Every AS number this bridge writes is asplain, and the bgp/as-notation leaf
+// does NOT reach it. The line is ExaBGP's own text format, read by an ExaBGP
+// process. Its spelling is fixed by that program rather than by a Ze display
+// preference.
+//
 // An attribute whose value is an EMPTY list is written NOT AT ALL, which is
 // what ExaBGP does with one: `_generate_text` renders a list attribute through
 // `str(attribute)` and skips it when that answers the empty string, and

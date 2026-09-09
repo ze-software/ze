@@ -6,7 +6,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strconv"
+
+	asnpkg "github.com/ze-software/ze/internal/core/bgp/asn"
 
 	"github.com/ze-software/ze/internal/component/resolve/cymru"
 	resolveDNS "github.com/ze-software/ze/internal/component/resolve/dns"
@@ -36,7 +37,8 @@ func cmdCymru(args []string) int {
 		return exitError
 	}
 
-	asn, err := strconv.ParseUint(remaining[1], 10, 32)
+	// The operator types the AS number in the notation they read it in.
+	number, err := asnpkg.Parse(remaining[1])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: invalid ASN: %s\n", remaining[1])
 		return exitError
@@ -56,14 +58,14 @@ func cmdCymru(args []string) int {
 
 	r := cymru.New(txtResolver, nil)
 
-	name, err := r.LookupASNName(context.Background(), uint32(asn))
+	name, err := r.LookupASNName(context.Background(), number)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
 	}
 
 	if name == "" {
-		fmt.Fprintf(os.Stderr, "no name found for AS%d\n", asn)
+		fmt.Fprintf(os.Stderr, "no name found for AS%d\n", number)
 		return exitError
 	}
 

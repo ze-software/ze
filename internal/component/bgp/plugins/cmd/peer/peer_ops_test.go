@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 )
 
 // TestHandlerPeerDetailAllPeers verifies peer detail returns all peers with wildcard.
@@ -37,7 +38,7 @@ func TestHandlerPeerDetailAllPeers(t *testing.T) {
 	// Verify peers are indexed by IP with detailed fields
 	peer1, ok := peers["192.0.2.1"].(map[string]any)
 	require.True(t, ok, "peer 192.0.2.1 not found")
-	assert.Equal(t, uint32(65001), peer1["remote-as"])
+	assert.Equal(t, asn.Of(65001), peer1["remote-as"])
 	assert.Equal(t, "established", peer1["state"])
 	assert.Contains(t, peer1, "updates-received")
 	assert.Contains(t, peer1, "keepalives-received")
@@ -458,7 +459,7 @@ func TestBgpSummaryHandler(t *testing.T) {
 	// Verify first peer has stats
 	p1 := peers[0]
 	assert.Equal(t, "192.0.2.1", p1["address"])
-	assert.Equal(t, uint32(65001), p1["remote-as"])
+	assert.Equal(t, asn.Of(65001), p1["remote-as"])
 	assert.Equal(t, "established", p1["state"])
 	assert.Equal(t, uint32(10), p1["updates-received"])
 	assert.Equal(t, uint32(5), p1["updates-sent"])

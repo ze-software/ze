@@ -108,3 +108,27 @@ func TestToFilterRefs(t *testing.T) {
 		t.Errorf("ref1 = %+v, want {inactive:out-filter, inactive:aspath:out-filter}", refs[1])
 	}
 }
+
+// TestPolicySelectorReadsEveryNotation proves the `AS<n>` peer selector takes
+// the AS number in any RFC 5396 spelling.
+//
+// VALIDATES: filterPeersByPolicySelector reads asplain, asdot and asdot+.
+// PREVENTS: `show bgp policy AS1.10` selecting no peer while `AS65546`
+// selects two.
+func TestPolicySelectorReadsEveryNotation(t *testing.T) {
+	peers := []plugin.PeerInfo{
+		{Address: netip.MustParseAddr("10.0.0.1"), Name: "alpha", PeerAS: 65546},
+		{Address: netip.MustParseAddr("10.0.0.2"), Name: "beta", PeerAS: 65002},
+		{Address: netip.MustParseAddr("10.0.0.3"), Name: "gamma", PeerAS: 65546},
+	}
+	for _, selector := range []string{"AS65546", "as65546", "AS1.10", "as1.10"} {
+		got := filterPeersByPolicySelector(peers, selector)
+		if len(got) != 2 {
+			t.Errorf("selector %q returned %d peers (%v), want 2", selector, len(got), got)
+		}
+	}
+	// A token that names no AS number selects nothing rather than everything.
+	if got := filterPeersByPolicySelector(peers, "AS1.99999"); len(got) != 0 {
+		t.Errorf("selector AS1.99999 returned %v, want none", got)
+	}
+}

@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
+
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/component/resolve"
@@ -78,14 +80,16 @@ func requireASN(args []string) (uint32, *plugin.Response) {
 	if errResp != nil {
 		return 0, errResp
 	}
-	n, err := strconv.ParseUint(s, 10, 32)
+	// asn.Parse reads the asdot spellings beside the decimal one, so an
+	// operator looks up the AS number in the notation they read it in.
+	n, err := asn.Parse(s)
 	if err != nil {
 		return 0, &plugin.Response{
 			Status: plugin.StatusError,
 			Error:  fmt.Sprintf("invalid ASN %q: %v", s, err),
 		}
 	}
-	return uint32(n), nil
+	return n, nil
 }
 
 func errResponse(msg string) (*plugin.Response, error) {

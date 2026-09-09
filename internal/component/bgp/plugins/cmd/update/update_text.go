@@ -54,6 +54,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
@@ -340,11 +341,13 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		tokens, consumed := parseBracketedListText(args[idx+1:])
 		asPath := make([]uint32, 0, len(tokens))
 		for _, tok := range tokens {
-			asn, err := strconv.ParseUint(tok, 10, 32)
+			// asn.Parse reads asplain, asdot and asdot+, so a path copied from
+			// a router that displays a dotted notation is accepted as typed.
+			number, err := asn.Parse(tok)
 			if err != nil {
 				return 0, fmt.Errorf("invalid ASN in as-path: %s", tok)
 			}
-			asPath = append(asPath, uint32(asn))
+			asPath = append(asPath, number)
 		}
 		attrs.ASPath = asPath
 		return consumed, nil
@@ -357,11 +360,11 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		if idx+1 >= len(args) {
 			return 0, errMissingOriginASValue
 		}
-		n, err := strconv.ParseUint(args[idx+1], 10, 32)
-		if err != nil || n == 0 {
+		number, err := asn.Parse(args[idx+1])
+		if err != nil || number == 0 {
 			return 0, fmt.Errorf("invalid origin-as %q: expected 1..4294967295", args[idx+1])
 		}
-		attrs.OriginAS = uint32(n) //nolint:gosec // bounded by ParseUint bitSize=32
+		attrs.OriginAS = number
 		return 1, nil
 
 	case kwCommunity:
@@ -506,14 +509,14 @@ func parseAggregatorText(s string) (uint32, netip.Addr, error) {
 		return 0, netip.Addr{}, fmt.Errorf("invalid aggregator %q: expected <asn>:<ip>", s)
 	}
 
-	asn, err := strconv.ParseUint(asnText, 10, 32)
+	number, err := asn.Parse(asnText)
 	if err != nil {
 		return 0, netip.Addr{}, fmt.Errorf("invalid aggregator ASN %q: expected 1..4294967295", asnText)
 	}
 	// RFC 7607 Section 2: "A BGP speaker MUST NOT originate or propagate a route
 	// with an AS number of zero in the AS_PATH, AS4_PATH, AGGREGATOR, or
 	// AS4_AGGREGATOR attributes."
-	if asn == 0 {
+	if number == 0 {
 		return 0, netip.Addr{}, errors.New("invalid aggregator ASN 0: RFC 7607 forbids originating AS 0")
 	}
 
@@ -521,7 +524,7 @@ func parseAggregatorText(s string) (uint32, netip.Addr, error) {
 	if err != nil {
 		return 0, netip.Addr{}, fmt.Errorf("invalid aggregator address: %w", err)
 	}
-	return uint32(asn), addr, nil //nolint:gosec // G115: bounded by ParseUint bitSize=32
+	return number, addr, nil
 }
 
 // parseClusterIDText parses one CLUSTER_ID as dotted-decimal "a.b.c.d".

@@ -267,10 +267,9 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 		return p.errorf(tok, "invalid value for %s: %v", name, err)
 	}
 
-	// Normalize bool values (enable->true, disable->false)
-	if node.Type == TypeBool {
-		value = NormalizeBool(value)
-	}
+	// Rewrite the accepted value into the one spelling the tree stores
+	// (enable to true, an asdot AS number to its decimal value).
+	value = NormalizeLeafValue(node.Type, value)
 
 	// Expect semicolon
 	tok = p.tok.peek()

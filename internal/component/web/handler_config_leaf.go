@@ -108,6 +108,12 @@ func leafInputType(vt config.ValueType) LeafField {
 		return LeafField{InputType: leafInputNumber}
 	case config.TypeEmpty:
 		return LeafField{InputType: leafInputText}
+
+	case config.TypeASN:
+		// Text rather than a number field. An AS number is also typed in the
+		// asdot form (1.10). A number input refuses that value before it
+		// reaches the schema.
+		return LeafField{InputType: leafInputText, Placeholder: "e.g., 65546 or 1.10"}
 	}
 
 	return LeafField{InputType: leafInputText}

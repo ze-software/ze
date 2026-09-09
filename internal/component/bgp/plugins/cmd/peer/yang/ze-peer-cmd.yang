@@ -145,6 +145,25 @@ without a peer scope.";
                 }
             }
 
+            // The command node lives HERE, in the -cmd module, and not beside the
+            // handler's other declarations in ze-bgp-cmd-peer-api.yang.
+            // BuildCommandTree walks modules whose name ends -cmd alone
+            // (cmdModuleSuffix), so a container declared in the -api module
+            // produces no CLI path at all, and both dispatchers take their
+            // "no path" branch and continue in SILENCE. The command was
+            // unreachable from every entry point for exactly that reason.
+            container update-delay {
+                config false;
+                ze:command "ze-bgp:update-delay";
+                description "Show the startup convergence hold and what it waits for.";
+                ze:help "The command takes no argument, because the hold belongs to the speaker and not to a
+peer. configured says an operator set bgp update-delay max-delay. holding says this speaker is withholding its
+first advertisement right now, and released says the hold has ended. reason names the condition that ended it:
+converged, establish-wait or max-delay. expected-peers, peers-held and peers-converged say what the hold is
+still waiting for, so you can name the neighbor that has not finished. Read this command when a speaker has come
+up and advertised nothing: it separates a hold that is working from a daemon that is wedged.";
+            }
+
             container health {
                 config false;
                 ze:command "ze-show:bgp-health";
@@ -190,8 +209,8 @@ less.";
                 // pattern, so every other selector form names nothing here.
                 leaf selector { type zt:ip-address; mandatory true; description "Address of the peer to create"; }
 
-                leaf asn { type zt:asn; mandatory true; description "Remote AS of the peer"; }
-                leaf local-as { type zt:asn; description "Local AS for this session, overriding the router's"; }
+                leaf asn { type zt:asn-notated; mandatory true; description "Remote AS of the peer, in any notation RFC 5396 names"; }
+                leaf local-as { type zt:asn-notated; description "Local AS for this session, overriding the router's, in any notation RFC 5396 names"; }
                 leaf local-address { type zt:ip-address; description "Local address to bind the session to"; }
                 leaf router-id { type zt:ipv4-address; description "BGP Identifier for this session, overriding the router's"; }
                 leaf receive-hold-time { type uint16; description "Hold time in seconds (RFC 4271)"; }

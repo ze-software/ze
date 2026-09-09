@@ -35,6 +35,21 @@ module ze-bgp-conf {
                 0.0.0.0 with Bad BGP Identifier.";
         }
 
+        leaf as-notation {
+            type enumeration {
+                enum asplain { description "Every AS number is a decimal integer"; }
+                enum asdot { description "An AS number of 65536 or more is X.Y, and a lower one is a decimal integer"; }
+                enum "asdot+" { description "Every AS number is X.Y"; }
+            }
+            default asplain;
+            description "How Ze writes an AS number in the output an operator reads.";
+            ze:help "RFC 5396 Section 2 names the three notations. Take AS 65546 and AS 100. asplain
+                writes them 65546 and 100. asdot writes 1.10 and 100, leaving an AS number less than 65536
+                alone, and asdot+ writes 1.10 and 0.100. The leaf changes the text Ze WRITES, and the
+                wire value stays the same 4-octet number (RFC 6793). Ze READS all three notations wherever
+                an AS number is configured, and asplain is the default RFC 5396 Section 3 recommends.";
+        }
+
         container multipath {
             description "BGP multipath / ECMP configuration";
             ze:help "The container holds maximum-paths and relax-as-path. When maximum-paths is more than 1, Ze
@@ -58,6 +73,49 @@ module ze-bgp-conf {
                 ze:help "When false, multipath requires an identical AS-path length and identical AS-path content. When true,
                     the AS-path length alone must match, and the content can differ. Other vendors spell this option
                     'bgp bestpath as-path multipath-relax'.";
+            }
+        }
+
+        container update-delay {
+            description "Hold the first advertisement at startup until the RIB settles.";
+            ze:help "An absent container is the default, and it keeps the behavior Ze had before the container
+                existed: each peer advertises as soon as it reaches Established. The container holds max-delay,
+                which enables the feature and bounds the wait, and establish-wait, which can end the wait early.
+                While Ze holds, sessions negotiate, reach Established and receive UPDATE messages as usual. Ze
+                sends no UPDATE and no End-of-RIB marker until the hold ends. RFC 4724 Section 4.1 prescribes
+                the same deferral for a speaker that restarts, and requires the configurable upper bound
+                max-delay supplies. The hold applies at startup alone: a reload validates a changed value and
+                Ze keeps the hold it already armed, or none, so a new value takes effect at the next restart.
+                Ze does not enforce a relation between max-delay and the Restart Time it advertises in its
+                graceful-restart capability, so keep max-delay below that number yourself. A neighbor whose own
+                restart timer expires first discards the routes it kept for Ze. Read `show bgp update-delay` to
+                see whether a speaker is holding and what it waits for.";
+
+            leaf max-delay {
+                type uint16 {
+                    range "0..3600";
+                }
+                default 0;
+                description "Seconds to hold the first advertisement. 0 disables the hold.";
+                ze:help "0 is the default and disables the feature. A value of more than 0 arms the hold when the
+                    daemon starts its peers. The hold ends when every configured peer sends its End-of-RIB
+                    marker, or when establish-wait ends it early, or when these seconds elapse, whichever comes
+                    first. Ze waits for the marker and not for Established, because Established says only that
+                    the neighbor answered. RFC 4724 Section 4.1 excludes a peer that advertised no
+                    graceful-restart capability and a peer that is itself restarting, and Ze excludes the same
+                    two. A peer that never comes up cannot extend the wait past this number.";
+            }
+
+            leaf establish-wait {
+                type uint16 {
+                    range "1..3600";
+                }
+                description "Seconds after which the peers that are held end the hold. Must not exceed max-delay.";
+                ze:help "The leaf is optional, and an absent leaf lets only max-delay and full convergence end
+                    the hold. When these seconds elapse and one or more peers are held, Ze ends the hold and
+                    advertises to them, whether or not they sent an End-of-RIB marker. When no peer is held, Ze
+                    keeps waiting until max-delay, because there is no peer to advertise to yet. Ze refuses a
+                    configuration where this value is more than max-delay.";
             }
         }
 
@@ -583,6 +641,39 @@ module ze-bgp-conf {
                     description "Single-hop egress interface for the BFD session.";
                     ze:help "The leaf is optional. When the leaf is absent, the BFD plugin derives the interface from the local
                         address of the peer. Ze ignores the leaf for multi-hop.";
+                }
+
+                leaf strict {
+                    type boolean;
+                    default false;
+                    description "BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode).";
+                    ze:help "Ze advertises BGP capability 74 in its OPEN and does not let the BGP session go past OpenSent until
+                        the BFD session is Up. Both speakers must advertise the capability: against a peer that does not, Ze
+                        establishes the session on the normal path and BFD stays a failure detector. Ze opens the BFD session
+                        before it starts the BGP FSM, and keeps it open while the BGP session is down.";
+                }
+
+                leaf hold-down {
+                    type uint32;
+                    units milliseconds;
+                    default 0;
+                    description "BFD hold-down interval for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 10).";
+                    ze:help "How long the BFD session must stay Up before Ze lets the BGP session establish. Zero, the default,
+                        establishes on the first Up and is the behaviour of a peer that sets no hold-down. A non-zero value damps
+                        a flapping link: a BFD session that goes down again inside the interval never completes it. Set the
+                        negotiated BGP hold time long enough to cover this interval, or the far end times out waiting.";
+                }
+
+                leaf hold-time {
+                    type uint16 {
+                        range "1..65535";
+                    }
+                    units seconds;
+                    default 30;
+                    description "BfdHoldTime for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 3).";
+                    ze:help "The maximum time Ze waits for BFD to come Up after the peer's OPEN, and only when the negotiated BGP
+                        hold time is zero. A non-zero BGP hold time bounds the wait already, so this timer does not run. On
+                        expiry Ze sends a NOTIFICATION with Cease and subcode BFD Down, and the peer returns to Idle.";
                 }
             }
         }

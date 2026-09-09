@@ -4,6 +4,8 @@ import (
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 )
 
 // VALIDATES: the peer column orders addresses by their numeric value, so a
@@ -159,9 +161,9 @@ func TestDashboardSelectionFollowsResort(t *testing.T) {
 	ds := &dashboardState{
 		sortAsc: true,
 		snapshot: &dashboardSnapshot{Peers: []dashboardPeer{
-			{Address: "10.0.0.1", RemoteAS: 65003},
-			{Address: "10.0.0.2", RemoteAS: 65002},
-			{Address: "10.0.0.3", RemoteAS: 65001},
+			{Address: "10.0.0.1", RemoteAS: asn.Of(65003)},
+			{Address: "10.0.0.2", RemoteAS: asn.Of(65002)},
+			{Address: "10.0.0.3", RemoteAS: asn.Of(65001)},
 		}},
 	}
 

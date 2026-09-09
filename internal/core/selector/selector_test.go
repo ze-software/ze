@@ -763,7 +763,7 @@ func TestMatchesPeerKeyAddrNonIPExclude(t *testing.T) {
 	}
 }
 
-// TestParseASNRejection verifies parseASNSelector rejects non-ASN strings.
+// TestParseASNRejection verifies ParseASNSelector rejects non-ASN strings.
 //
 // VALIDATES: Only "as<digits>" (case-insensitive) parses as ASN.
 // PREVENTS: Random strings parsing as ASN selectors.
@@ -776,8 +776,13 @@ func TestParseASNRejection(t *testing.T) {
 		"ab100", // wrong second char
 		"aS",    // no number
 		"as-1",  // not a number
-		"as1.5", // not an integer
-		"asXYZ", // not a number
+		// `as1.5` used to be here as "not an integer". It names AS 65541 now:
+		// ParseASNSelector reads RFC 5396 dotted spellings, so the
+		// rejection moved to tokens that still name no AS number.
+		"as1.99999", // low field over 16 bits
+		"as65536.0", // high field over 16 bits
+		"as1.2.3",   // three fields
+		"asXYZ",     // not a number
 	}
 	for _, s := range rejects {
 		sel, err := Parse(s)

@@ -1,0 +1,120 @@
+# 32-bit text-to-integer parses in product Go, one line per file: `count path`.
+#
+# The gate is `checkNumberParseSites` in numberparse.go, run by
+# `./le repository check` and `./le repository tree-check`. Three things are an
+# ISSUE: a file that parses a 32-bit integer and is not named here, a file whose
+# count differs from its line, and a line whose file parses none. The count is
+# EXACT, so deleting a justified parse leaves no free slot behind it.
+#
+# Each line records that somebody looked at the file's 32-bit parses and found
+# no AS number read by hand. It does not say the file has nothing to do with AS
+# numbers: `internal/core/bgp/asn/asn.go` is here because it is asn.Parse
+# ITSELF, which is where an AS number is read, and the two halves of a dotted
+# token are integers like any other.
+#
+# An AS number anywhere else is read with `asn.Parse` (internal/core/bgp/asn),
+# which takes all three RFC 5396 spellings, and a file that does that is absent
+# from this list.
+#
+# Adding a line is how a new parse is justified. Say in the commit message what
+# the value is, and if it IS an AS number, call asn.Parse instead of writing the
+# line. The evidence for the current population is the per-parser enumeration in
+# plan/spec-bgp-as-notation.md, "Every Text-to-AS-Number Parser In The Tree".
+#
+# `./le repository check` names every file that differs from this list. Read
+# what it names before you change a line.
+2 internal/analyze/filter.go
+1 internal/component/bfd/auth/persist.go
+3 internal/component/bfd/config.go
+2 internal/component/bgp/config/bgp_routes.go
+1 internal/component/bgp/config/loader_create.go
+1 internal/component/bgp/config/peers.go
+1 internal/component/bgp/config/resolve.go
+3 internal/component/bgp/config/routeattr.go
+2 internal/component/bgp/config/routeattr_community.go
+3 internal/component/bgp/plugins/adj_rib_in/rib_commands.go
+1 internal/component/bgp/plugins/bmp/sender_config.go
+4 internal/component/bgp/plugins/cmd/update/update_text.go
+2 internal/component/bgp/plugins/cmd/update/update_text_evpn.go
+1 internal/component/bgp/plugins/cmd/update/update_text_nlri.go
+2 internal/component/bgp/plugins/cmd/update/update_text_srpolicy.go
+1 internal/component/bgp/plugins/cmd/update/update_text_vpls.go
+4 internal/component/bgp/plugins/filter_community/config.go
+2 internal/component/bgp/plugins/filter_modify/modify.go
+1 internal/component/bgp/plugins/filter_path_asn/match.go
+1 internal/component/bgp/plugins/filter_remove_private_as/private_as.go
+1 internal/component/bgp/plugins/gr/gr_llgr.go
+3 internal/component/bgp/plugins/nlri/evpn/encode.go
+2 internal/component/bgp/plugins/nlri/evpn/plugin.go
+1 internal/component/bgp/plugins/nlri/flowspec/config.go
+2 internal/component/bgp/plugins/nlri/flowspec/config_builder.go
+2 internal/component/bgp/plugins/nlri/labeled/encode.go
+2 internal/component/bgp/plugins/nlri/mup/encode.go
+1 internal/component/bgp/plugins/nlri/mvpn/config.go
+6 internal/component/bgp/plugins/nlri/srpolicy/config.go
+2 internal/component/bgp/plugins/nlri/srpolicy/encode.go
+2 internal/component/bgp/plugins/nlri/vpls/encode.go
+2 internal/component/bgp/plugins/nlri/vpn/vpn.go
+2 internal/component/bgp/plugins/persist/server.go
+2 internal/component/bgp/plugins/rib/rib_commands.go
+2 internal/component/bgp/plugins/rs/server_text.go
+4 internal/component/bgp/plugins/watchdog/config.go
+1 internal/component/bgp/plugins/watchdog/server.go
+1 internal/component/bgp/reactor/config.go
+3 internal/component/bgp/reactor/filter_delta.go
+1 internal/component/bgp/route/route_community.go
+2 internal/component/bgp/route/route_flowspec.go
+2 internal/component/bgp/route/route_labeled.go
+1 internal/component/config/cli/cmd_validate.go
+1 internal/component/config/infra/authz.go
+1 internal/component/config/infra/ssh.go
+1 internal/component/config/loader_redistribute.go
+1 internal/component/config/schema.go
+1 internal/component/config/validators.go
+2 internal/component/doctor/checks_as112_coordination.go
+7 internal/component/firewall/config.go
+1 internal/component/firewall/plugins/domain/config.go
+1 internal/component/firewall/plugins/irr/irr.go
+7 internal/component/iface/config.go
+2 internal/component/iface/config_ra.go
+1 internal/component/ike/cmd/show_dataplane.go
+4 internal/component/ike/ipsec/config.go
+1 internal/component/ike/ipsec/spd_policy.go
+1 internal/component/l2tp/cmd/l2tp.go
+3 internal/component/l2tp/config.go
+1 internal/component/l2tp/plugins/authradius/extract.go
+3 internal/component/l2tp/subsystem_reload.go
+1 internal/component/resolve/irr/client.go
+4 internal/component/resolve/irr/rir.go
+1 internal/component/resolve/irr/store/store.go
+1 internal/component/sysctl/backend_darwin.go
+1 internal/component/traffic/config.go
+2 internal/component/vpp/config.go
+1 internal/core/bgp/asn/asn.go
+3 internal/core/bgp/attribute/builder_parse.go
+1 internal/core/bgp/attribute/flowspec_encode.go
+4 internal/core/bgp/attribute/prefixsid.go
+4 internal/core/bgp/attribute/text.go
+1 internal/core/bgp/nlri/rd.go
+2 internal/exabgp/bridge/bridge_attribute.go
+1 internal/exabgp/migration/migrate_flow_scope.go
+1 internal/le/interoplab/bgp/check_rfc_predicate.go
+2 internal/le/interoplab/bgp/exabgp_server.go
+1 internal/plugins/as112/config.go
+1 internal/plugins/copp/config.go
+1 internal/plugins/cos/config.go
+1 internal/plugins/dhcpserver/config.go
+1 internal/plugins/fib/vpp/fibvpp.go
+1 internal/plugins/firewall/nft/lower_linux.go
+1 internal/plugins/flowexport/config.go
+2 internal/plugins/geodns/config.go
+1 internal/plugins/ospf/config.go
+2 internal/plugins/policyroute/config.go
+1 internal/plugins/trafficusage/config.go
+1 internal/test/cli/cmd_bgp.go
+1 internal/test/fixture/tunnel_fixture_l2tp_ppp.go
+1 internal/test/mock/peeringdb/peeringdb.go
+3 internal/test/mock/rtr/rtr.go
+4 internal/test/peer/expect.go
+1 internal/test/plugins/fakeas112/fakeas112.go
+3 internal/test/plugins/fakefib/fakefib.go

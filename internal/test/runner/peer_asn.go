@@ -20,9 +20,9 @@ import (
 	"maps"
 	"os"
 	"slices"
-	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -543,11 +543,14 @@ func asLeaf(block configFile, keyword string) (uint32, bool, error) {
 	if !declared {
 		return 0, false, nil
 	}
-	parsed, err := strconv.ParseUint(value, 10, 32)
+	// asn.Parse reads the asdot spellings beside the decimal one, exactly as
+	// the daemon's config parser does. A harness that read fewer spellings
+	// than the daemon would refuse a config the daemon accepts.
+	parsed, err := asn.Parse(value)
 	if err != nil {
 		var why textbuf.Buffer
 		why.Str("the configured ").Str(keyword).Str(" AS ").Quoted(value).
-			Str(" is not a 32-bit number, so nothing can be derived from it")
+			Str(" is not an AS number, so nothing can be derived from it")
 		return 0, false, errors.New(why.String())
 	}
 	if parsed == 0 {
@@ -556,5 +559,5 @@ func asLeaf(block configFile, keyword string) (uint32, bool, error) {
 			Str(" AS is 0, which RFC 7607 Section 2 reserves and ze refuses on the wire")
 		return 0, false, errors.New(why.String())
 	}
-	return uint32(parsed), true, nil
+	return parsed, true, nil
 }

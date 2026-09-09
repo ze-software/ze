@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 )
 
 // FlowSpec path attribute wire constants.
@@ -189,21 +190,25 @@ func flowRDStringToBytes(s string) ([8]byte, error) {
 		rd[6], rd[7] = byte(num>>8), byte(num)
 		return rd, nil
 	}
-	asn, err := strconv.ParseUint(left, 10, 32)
+	// asn.Parse reads all three RFC 5396 spellings, so the RD's AS number is
+	// written in the notation the operator reads it in. netip decided the
+	// IPv4 form above, so a dotted token reaches here as an AS number.
+	number, err := asn.Parse(left)
 	if err != nil {
 		return rd, fmt.Errorf("invalid rd ASN %q", left)
 	}
+	administrator := uint64(number)
 	num, err := strconv.ParseUint(right, 10, 32)
 	if err != nil {
 		return rd, fmt.Errorf("invalid rd number %q", right)
 	}
-	if asn <= 0xFFFF {
+	if administrator <= 0xFFFF {
 		rd[1] = 0 // Type 0
-		rd[2], rd[3] = byte(asn>>8), byte(asn)
+		rd[2], rd[3] = byte(administrator>>8), byte(administrator)
 		rd[4], rd[5], rd[6], rd[7] = byte(num>>24), byte(num>>16), byte(num>>8), byte(num)
 	} else {
 		rd[1] = 2 // Type 2
-		rd[2], rd[3], rd[4], rd[5] = byte(asn>>24), byte(asn>>16), byte(asn>>8), byte(asn)
+		rd[2], rd[3], rd[4], rd[5] = byte(administrator>>24), byte(administrator>>16), byte(administrator>>8), byte(administrator)
 		rd[6], rd[7] = byte(num>>8), byte(num)
 	}
 	return rd, nil

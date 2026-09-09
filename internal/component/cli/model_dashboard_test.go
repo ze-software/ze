@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 )
 
 // VALIDATES: AC-12 -- dashboard parses summary JSON into header + peer data.
@@ -50,8 +52,8 @@ func TestDashboardParseSnapshot(t *testing.T) {
 	if snap.RouterID != "1.2.3.4" {
 		t.Errorf("router-id: got %q, want %q", snap.RouterID, "1.2.3.4")
 	}
-	if snap.LocalAS != 65000 {
-		t.Errorf("local-as: got %d, want 65000", snap.LocalAS)
+	if snap.LocalAS.Value() != 65000 {
+		t.Errorf("local-as: got %d, want 65000", snap.LocalAS.Value())
 	}
 	if snap.Uptime != "1h30m0s" {
 		t.Errorf("uptime: got %q, want %q", snap.Uptime, "1h30m0s")
@@ -70,8 +72,8 @@ func TestDashboardParseSnapshot(t *testing.T) {
 	if p.Address != "10.0.0.1" {
 		t.Errorf("peer[0].address: got %q", p.Address)
 	}
-	if p.RemoteAS != 65001 {
-		t.Errorf("peer[0].remote-as: got %d", p.RemoteAS)
+	if p.RemoteAS.Value() != 65001 {
+		t.Errorf("peer[0].remote-as: got %d", p.RemoteAS.Value())
 	}
 	if p.State != "established" {
 		t.Errorf("peer[0].state: got %q", p.State)
@@ -212,9 +214,9 @@ func TestDashboardRateShortInterval(t *testing.T) {
 // PREVENTS: wrong sort order or column cycle sequence.
 func TestDashboardSortPeers(t *testing.T) {
 	peers := []dashboardPeer{
-		{Address: "10.0.0.3", RemoteAS: 65003, State: "established", UpdatesReceived: 50},
-		{Address: "10.0.0.1", RemoteAS: 65001, State: "active", UpdatesReceived: 200},
-		{Address: "10.0.0.2", RemoteAS: 65002, State: "established", UpdatesReceived: 100},
+		{Address: "10.0.0.3", RemoteAS: asn.Of(65003), State: "established", UpdatesReceived: 50},
+		{Address: "10.0.0.1", RemoteAS: asn.Of(65001), State: "active", UpdatesReceived: 200},
+		{Address: "10.0.0.2", RemoteAS: asn.Of(65002), State: "established", UpdatesReceived: 100},
 	}
 
 	// Sort by address ascending.
@@ -231,8 +233,8 @@ func TestDashboardSortPeers(t *testing.T) {
 
 	// Sort by ASN ascending.
 	sorted = sortDashboardPeers(peers, sortColumnASN, true, noRates)
-	if sorted[0].RemoteAS != 65001 {
-		t.Errorf("sort by ASN asc: first got %d, want 65001", sorted[0].RemoteAS)
+	if sorted[0].RemoteAS.Value() != 65001 {
+		t.Errorf("sort by ASN asc: first got %d, want 65001", sorted[0].RemoteAS.Value())
 	}
 
 	// Sort by updates-received descending.
@@ -295,7 +297,7 @@ func TestDashboardSelectionPersistence(t *testing.T) {
 func TestDashboardRenderHeader(t *testing.T) {
 	snap := &dashboardSnapshot{
 		RouterID:         "1.2.3.4",
-		LocalAS:          65000,
+		LocalAS:          asn.Of(65000),
 		Uptime:           "2h30m0s",
 		PeersConfigured:  3,
 		PeersEstablished: 2,
@@ -328,8 +330,8 @@ func TestDashboardRenderHeader(t *testing.T) {
 // PREVENTS: columns missing or showing wrong data.
 func TestDashboardRenderPeerTable(t *testing.T) {
 	peers := []dashboardPeer{
-		{Address: "10.0.0.1", RemoteAS: 65001, State: "established", Uptime: "1h0m0s", UpdatesReceived: 100, UpdatesSent: 50},
-		{Address: "10.0.0.2", RemoteAS: 65002, State: "active", Uptime: "0s", UpdatesReceived: 0, UpdatesSent: 0},
+		{Address: "10.0.0.1", RemoteAS: asn.Of(65001), State: "established", Uptime: "1h0m0s", UpdatesReceived: 100, UpdatesSent: 50},
+		{Address: "10.0.0.2", RemoteAS: asn.Of(65002), State: "active", Uptime: "0s", UpdatesReceived: 0, UpdatesSent: 0},
 	}
 	ds := &dashboardState{
 		selectedAddr: "10.0.0.1",
@@ -486,7 +488,7 @@ func TestDashboardPollFailure(t *testing.T) {
 		rates:   map[string]*peerRateEntry{},
 		snapshot: &dashboardSnapshot{
 			RouterID:         "1.2.3.4",
-			LocalAS:          65000,
+			LocalAS:          asn.Of(65000),
 			PeersConfigured:  1,
 			PeersEstablished: 1,
 			Peers: []dashboardPeer{
@@ -595,8 +597,8 @@ func TestDashboardParsesFlatPayload(t *testing.T) {
 	if snap.RouterID != "1.2.3.4" {
 		t.Errorf("router-id: got %q, want %q", snap.RouterID, "1.2.3.4")
 	}
-	if snap.LocalAS != 65000 {
-		t.Errorf("local-as: got %d, want 65000", snap.LocalAS)
+	if snap.LocalAS.Value() != 65000 {
+		t.Errorf("local-as: got %d, want 65000", snap.LocalAS.Value())
 	}
 	if snap.Uptime != "1h30m0s" {
 		t.Errorf("uptime: got %q, want %q", snap.Uptime, "1h30m0s")
@@ -649,7 +651,7 @@ func TestDashboardViewAnswersItsFaultRatherThanRenderingIt(t *testing.T) {
 		t.Errorf("problem: got %q, want %q", got, "connection lost")
 	}
 
-	snap := &dashboardSnapshot{RouterID: "1.2.3.4", LocalAS: 65000, Uptime: "1m0s"}
+	snap := &dashboardSnapshot{RouterID: "1.2.3.4", LocalAS: asn.Of(65000), Uptime: "1m0s"}
 	if header := renderDashboardHeader(snap, 120); strings.Contains(header, "connection lost") {
 		t.Errorf("the header carries the fault, which belongs to the error zone: %q", header)
 	}

@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/mrt"
 )
@@ -56,12 +57,13 @@ func runServe(args []string) int {
 				os.Stderr.WriteString(serveUsage) //nolint:errcheck // usage
 				return 1
 			}
-			v, err := strconv.ParseUint(args[i], 10, 32)
+			// asn.Parse reads every RFC 5396 spelling.
+			number, err := asn.Parse(args[i])
 			if err != nil {
 				os.Stderr.WriteString("serve: invalid --local-as\n") //nolint:errcheck // error
 				return 1
 			}
-			localAS = uint32(v) //nolint:gosec // validated range
+			localAS = number
 		case "--router-id": //nolint:goconst // CLI flag name
 			i++
 			if i >= len(args) {
