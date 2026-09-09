@@ -16,6 +16,11 @@ type SessionCaps struct {
 	// RFC 7313: Enhanced Route Refresh Capability for BGP.
 	EnhancedRouteRefresh bool
 
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 3, attribute 20
+	// (BfdStrictNegotiated): TRUE when both speakers advertised the BFD
+	// Strict-Mode capability.
+	BFDStrictMode bool
+
 	// RFC 4271 Section 4.2: Negotiated Hold Time (minimum of local and peer).
 	HoldTime uint16
 

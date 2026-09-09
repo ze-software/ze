@@ -257,6 +257,18 @@ func (e *engine) runBFDSubscriber(c *bfdClient, svc api.Service) {
 			e.bfdMu.Lock()
 			c.state = change.State.String()
 			e.bfdMu.Unlock()
+			if change.Initial {
+				// The state the session already held when this client
+				// subscribed, not a transition into it (api.StateChange.Initial).
+				// A session that has not come up yet sits in Down, and RFC 5882
+				// Section 4.2 asks a client to react to a path that FAILED:
+				// declaring the neighbor down here would drop the adjacency
+				// this subscriber was opened to protect. Recorded, not acted on.
+				e.log.Debug("bfd initial state for ospf neighbor",
+					"interface", c.key.iface, "neighbor", c.key.router.String(),
+					"bfd-state", change.State.String())
+				continue
+			}
 			// RFC 5880 sec 6.8.1: Down carries Diag 1 (Control Detection Time Expired) on a
 			// timer miss and Diag 3 (Neighbor Signaled Session Down) when the peer reports Down.
 			// OSPF treats BOTH StateDown and StateAdminDown as "neighbor down" regardless of Diag.

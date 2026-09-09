@@ -75,6 +75,12 @@ type Negotiated struct {
 	RouteRefresh bool
 	// RFC 7313: Enhanced Route Refresh Capability for BGP
 	EnhancedRouteRefresh bool
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 3, attribute 20
+	// (BfdStrictNegotiated). Section 6: "If both the local and remote BGP
+	// speakers include the BFD Strict-Mode Capability, the
+	// BfdStrictNegotiated session attribute (Section 3 below) is set to
+	// TRUE." Nothing in the FSM waits for BFD unless this is TRUE.
+	BFDStrictMode bool
 	// RFC 4271 Section 4.2: Hold Time is the minimum of the two Hold Time values
 	HoldTime uint16
 
@@ -138,6 +144,8 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 	remoteRR := false
 	localERR := false
 	remoteERR := false
+	localBFDStrict := false
+	remoteBFDStrict := false
 
 	for _, c := range local {
 		switch cap := c.(type) {
@@ -153,10 +161,16 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 			localRR = true
 		case *EnhancedRouteRefresh:
 			localERR = true
+		case *BFDStrictMode:
+			localBFDStrict = true
 		case *ExtendedNextHop:
 			localExtNH = cap
 		case *PathsLimit:
-			localPathsLimit = cap
+			// The draft requires one instance. Tolerate extras without allowing
+			// them to replace the first instance, including an empty one.
+			if localPathsLimit == nil {
+				localPathsLimit = cap
+			}
 		}
 	}
 
@@ -177,12 +191,16 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 			remoteRR = true
 		case *EnhancedRouteRefresh:
 			remoteERR = true
+		case *BFDStrictMode:
+			remoteBFDStrict = true
 		case *GracefulRestart:
 			neg.GracefulRestart = cap
 		case *ExtendedNextHop:
 			remoteExtNH = cap
 		case *PathsLimit:
-			remotePathsLimit = cap
+			if remotePathsLimit == nil {
+				remotePathsLimit = cap
+			}
 		}
 	}
 
@@ -195,6 +213,10 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 	neg.RouteRefresh = localRR && remoteRR
 	// RFC 7313 Section 3.1: Enhanced Route Refresh capability negotiation
 	neg.EnhancedRouteRefresh = localERR && remoteERR
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 6: "If both the local and
+	// remote BGP speakers include the BFD Strict-Mode Capability, the
+	// BfdStrictNegotiated session attribute (Section 3 below) is set to TRUE."
+	neg.BFDStrictMode = localBFDStrict && remoteBFDStrict
 
 	// RFC 5492 Section 3: Track mismatches for reporting
 	if localASN4 != remoteASN4 {
@@ -223,6 +245,13 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 			Code:           CodeEnhancedRouteRefresh,
 			LocalSupported: localERR,
 			PeerSupported:  remoteERR,
+		})
+	}
+	if localBFDStrict != remoteBFDStrict {
+		neg.Mismatches = append(neg.Mismatches, Mismatch{
+			Code:           CodeBFDStrictMode,
+			LocalSupported: localBFDStrict,
+			PeerSupported:  remoteBFDStrict,
 		})
 	}
 
@@ -362,24 +391,34 @@ func (n *Negotiated) negotiatePathsLimit(local, remote *PathsLimit) {
 	n.pathsLimitSend = make(map[Family]uint16)
 	n.pathsLimitRecv = make(map[Family]uint16)
 
-	// Remote's limits constrain our send
-	if remote != nil {
-		for _, e := range remote.Entries {
-			f := Family{AFI: e.AFI, SAFI: e.SAFI}
-			if n.addPath[f] != AddPathNone {
-				n.pathsLimitSend[f] = e.Limit
-			}
-		}
-	}
+	// The direction matters: only a receiver's limit constrains a sender.
+	n.negotiatePathsLimitDirection(remote, AddPathSend, n.pathsLimitSend)
+	n.negotiatePathsLimitDirection(local, AddPathReceive, n.pathsLimitRecv)
+}
 
-	// Local's limits constrain peer's send
-	if local != nil {
-		for _, e := range local.Entries {
-			f := Family{AFI: e.AFI, SAFI: e.SAFI}
-			if n.addPath[f] != AddPathNone {
-				n.pathsLimitRecv[f] = e.Limit
-			}
+func (n *Negotiated) negotiatePathsLimitDirection(cap *PathsLimit, direction AddPathMode, limits map[Family]uint16) {
+	if cap == nil {
+		return
+	}
+	seen := make(map[Family]bool, len(cap.Entries))
+	for _, e := range cap.Entries {
+		f := Family{AFI: e.AFI, SAFI: e.SAFI}
+		// draft-abraitis-idr-addpath-paths-limit-04 Section 3:
+		// "All others MUST be ignored." This also applies to capabilities
+		// supplied directly by configuration instead of the wire parser.
+		if seen[f] {
+			continue
 		}
+		seen[f] = true
+		if e.Limit == 0 {
+			continue
+		}
+		// A negotiated direction proves both peers advertised ADD-PATH for
+		// this AFI/SAFI, as required by the draft's Section 3.
+		if n.addPath[f]&direction == 0 {
+			continue
+		}
+		limits[f] = e.Limit
 	}
 }
 
@@ -427,6 +466,7 @@ func (n *Negotiated) buildSubComponents() {
 	n.Session = &SessionCaps{
 		RouteRefresh:         n.RouteRefresh,
 		EnhancedRouteRefresh: n.EnhancedRouteRefresh,
+		BFDStrictMode:        n.BFDStrictMode,
 		HoldTime:             n.HoldTime,
 		GracefulRestart:      n.GracefulRestart,
 		Mismatches:           n.Mismatches,
@@ -485,6 +525,7 @@ func (n *Negotiated) CheckRequiredCodes(required []Code) []Code {
 		CodeASN4:            n.ASN4,
 		CodeExtendedMessage: n.ExtendedMessage,
 		CodeRouteRefresh:    n.RouteRefresh,
+		CodeBFDStrictMode:   n.BFDStrictMode,
 		CodeAddPath:         len(n.addPath) > 0,
 		CodeExtendedNextHop: len(n.extendedNextHop) > 0,
 		CodeGracefulRestart: n.GracefulRestart != nil,

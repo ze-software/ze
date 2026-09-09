@@ -87,6 +87,10 @@ func (s State) String() string {
 // (AutomaticStop) for a teardown the system chose, and Event 23
 // (OpenCollisionDump) for a connection lost to collision resolution. The
 // remaining optional events (3-5, 7, 12-15, 20) are not implemented.
+//
+// Six further events come from draft-ietf-idr-bgp-bfd-strict-mode Section 4,
+// registered as FSM events 30 to 35 by its Section 13.3. They are declared at
+// the end of the const block below.
 type Event int
 
 // FSM events per RFC 4271 Section 8.1.
@@ -198,7 +202,120 @@ const (
 	// Event 23 action list of OpenSent, OpenConfirm and Established, where
 	// Event 2 would have zeroed it.
 	EventOpenCollisionDump
+
+	// The six BFD strict-mode events of
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 4, registered by its
+	// Section 13.3 as BGP-4 FSM events 30 to 35. Each is Optional in the
+	// draft's own words and each is implemented here, because Ze runs the
+	// strict-mode procedures of Section 8. The reactor raises the first
+	// three from the BFD subscription channel (reactor/peer_bfd.go), the
+	// fifth from the BfdHoldTimer, and the sixth from a config reload.
+
+	// EventBfdAdminDown is draft-ietf-idr-bgp-bfd-strict-mode Section 4
+	// Event 30, "The BFD session associated with this BGP session has
+	// transitioned to the AdminDown state".
+	//
+	// It is grouped with EventBfdUp in every state handler, because the draft
+	// groups them: an administratively disabled BFD session says nothing about
+	// the forwarding path (RFC 5882 Section 4.2), so a strict session must not
+	// be held out of Established waiting for it.
+	EventBfdAdminDown
+
+	// EventBfdDown is draft-ietf-idr-bgp-bfd-strict-mode Section 4 Event 31,
+	// "The BFD session associated with this BGP session has transitioned to
+	// the Down state".
+	EventBfdDown
+
+	// EventBfdUp is draft-ietf-idr-bgp-bfd-strict-mode Section 4 Event 32,
+	// "The BFD session associated with this BGP session has transitioned to
+	// the Up state".
+	EventBfdUp
+
+	// EventBfdDisabled is draft-ietf-idr-bgp-bfd-strict-mode Section 4
+	// Event 33, "The BfdEnabled session attribute has been changed to FALSE".
+	//
+	// It has NO producer, by the draft's own instruction. Section 4's Event 35
+	// note routes the disable case elsewhere: "When BFD has been disabled, the
+	// local system will trigger a BfdAdminDown event instead", and
+	// Session.raiseBFDStrictConfigChanged does exactly that. The event is
+	// declared and handled because the draft defines it and a peer
+	// implementation may raise its own; every state handler answers it beside
+	// Event 30, which is the answer Sections 8.3.1, 8.4.1, 8.5.1, 8.6.1 and
+	// 8.7.1 each give the two together.
+	EventBfdDisabled
+
+	// EventBfdHoldTimerExpires is draft-ietf-idr-bgp-bfd-strict-mode Section 4
+	// Event 34, "The BFD holdtimer, which is set when the negotiated BGP hold
+	// time is zero, has expired".
+	EventBfdHoldTimerExpires
+
+	// EventBfdStrictConfigChanged is draft-ietf-idr-bgp-bfd-strict-mode
+	// Section 4 Event 35, "The configuration for the BFD strict configuration
+	// for the BGP session has been changed".
+	//
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 4 MUST NOT: "If BfdEnabled is
+	// FALSE, this event MUST NOT occur. When BFD has been disabled, the local
+	// system will trigger a BfdAdminDown event instead". The one producer,
+	// Peer.raiseBFDStrictConfigChanged (reactor/peer_bfd.go), enforces it.
+	EventBfdStrictConfigChanged
 )
+
+// BfdSubState is the strict-mode sub-state of
+// draft-ietf-idr-bgp-bfd-strict-mode Section 8.1. It tracks a pending BFD Up
+// event while the BGP FSM waits in one of RFC 4271's own states.
+//
+// SubStateNone is not "unset": it is the sub-state of every session that is
+// not waiting for BFD, which is every session where BFD strict-mode was not
+// negotiated. A session that IS waiting always carries one of the other two.
+type BfdSubState int
+
+// The strict-mode sub-states per draft-ietf-idr-bgp-bfd-strict-mode Section 8.1.
+//
+// The draft names four. Two of them, ConnectDelayOpenBfdUpPending and
+// ActiveDelayOpenBfdUpPending, are entered only by Event 20 (an OPEN received
+// while the DelayOpenTimer runs, Sections 8.3.5 and 8.4.5). Ze implements no
+// DelayOpenTimer, which RFC 4271 Section 8.2.1.3 permits and the fsm.go header
+// records, so neither is reachable and neither is declared here. The Connect
+// and Active handlers still answer every BFD event, and their answer is the
+// draft's "not in the sub-state" branch.
+const (
+	// SubStateNone says the FSM is not waiting for a BFD Up event.
+	SubStateNone BfdSubState = iota
+
+	// SubStateOpenSentBfdUpPending is draft-ietf-idr-bgp-bfd-strict-mode
+	// Section 8.1 "OpenSentBfdUpPending". The peer's OPEN arrived, the local
+	// system withheld its KEEPALIVE, and the next BFD Up event advances the
+	// session to OpenConfirm.
+	SubStateOpenSentBfdUpPending
+
+	// SubStateOpenSentConfirmedBfdUpPending is
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 8.1
+	// "OpenSentConfirmedBfdUpPending". The peer's KEEPALIVE arrived
+	// while the local system was still waiting for BFD, so the next BFD Up
+	// event advances the session straight to Established (Section 8.5.6).
+	SubStateOpenSentConfirmedBfdUpPending
+)
+
+var bfdSubStateNames = map[BfdSubState]string{
+	SubStateNone:                          "NONE",
+	SubStateOpenSentBfdUpPending:          "OPENSENT-BFD-UP-PENDING",
+	SubStateOpenSentConfirmedBfdUpPending: "OPENSENT-CONFIRMED-BFD-UP-PENDING",
+}
+
+// String returns a human-readable sub-state name.
+//
+// draft-ietf-idr-bgp-bfd-strict-mode Section 11: "Implementations SHOULD
+// provide visibility for these sub-states in its display of the BGP finite
+// state machine". This is the name that reaches an operator, through
+// Peer.bfdSubState (reactor/peer_bfd.go) and the `bfd-sub-state` field of
+// `show bgp peer list` and `show bgp peer detail` (plugins/cmd/peer/peer.go).
+func (s BfdSubState) String() string {
+	if name, ok := bfdSubStateNames[s]; ok {
+		return name
+	}
+	var b textbuf.Buffer
+	return b.Reset().Str("UNKNOWN(").Int(int64(s)).Byte(')').String()
+}
 
 var eventNames = map[Event]string{
 	EventManualStart:              "ManualStart",
@@ -220,6 +337,13 @@ var eventNames = map[Event]string{
 	EventAutomaticStartWithDampPeerOscillations: "AutomaticStartWithDampPeerOscillations",
 	EventAutomaticStop:                          "AutomaticStop",
 	EventOpenCollisionDump:                      "OpenCollisionDump",
+
+	EventBfdAdminDown:           "BfdAdminDown",
+	EventBfdDown:                "BfdDown",
+	EventBfdUp:                  "BfdUp",
+	EventBfdDisabled:            "BfdDisabled",
+	EventBfdHoldTimerExpires:    "BfdHoldTimerExpires",
+	EventBfdStrictConfigChanged: "BfdStrictConfigChanged",
 }
 
 // String returns a human-readable event name.

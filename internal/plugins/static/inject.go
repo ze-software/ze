@@ -310,6 +310,13 @@ func (rm *routeManager) watchBFD(key routeKey, nhIdx int, ch <-chan bfdapi.State
 				return
 			}
 
+			// A snapshot (sc.Initial) needs no branch here, and it is a FIX
+			// rather than a hazard: this handler asks only "is the session Up",
+			// compares against what it already believed, and programs on a
+			// difference. A next-hop starts inactive, so a snapshot of Down
+			// changes nothing, and a snapshot of Up activates a next-hop whose
+			// session another client had already brought up -- which this
+			// plugin previously waited for a transition to learn.
 			wasActive := rs.nhStates[nhIdx].active
 			nowActive := sc.State == bfdapi.StateUp
 

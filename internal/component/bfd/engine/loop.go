@@ -263,13 +263,32 @@ type handle struct {
 // Key returns the session identity.
 func (h *handle) Key() api.Key { return h.key }
 
-// Subscribe registers a buffered channel for state-change notifications.
+// Subscribe registers a buffered channel for state-change notifications, and
+// delivers the session's CURRENT state on it as the first value, marked
+// api.StateChange.Initial.
+//
+// The snapshot is what makes the seam total. EnsureSession on an existing key
+// only bumps a refcount, so a client that subscribes to a session another
+// client already brought Up would otherwise wait for a transition that never
+// comes, and could only guess at the state meanwhile. A BGP peer running
+// draft-ietf-idr-bgp-bfd-strict-mode against a neighbor that also has a
+// top-level `bfd { session ... }` entry is exactly that client, and its guess
+// held it out of Established for the life of the process.
+//
+// The alternative, a State() accessor, leaves the race in every caller: a
+// transition between the read and the subscription is either missed or seen
+// twice, and each caller has to order the two calls correctly. Delivering it on
+// the channel means the first value a subscriber reads is the truth, and one
+// place can be wrong instead of three.
+//
+// Loop.subscribe takes the snapshot and registers the channel as ONE critical
+// section, in makeNotify's own lock order, so no transition can land in the gap
+// and reach a subscriber list this channel is not yet in. Callers MUST branch
+// on Initial: a session that has not come up yet sits in Down, and a client
+// that treats that snapshot as a failure tears down an adjacency it just opened
+// (api.StateChange.Initial).
 func (h *handle) Subscribe() <-chan api.StateChange {
-	ch := make(chan api.StateChange, SubscribeBuffer)
-	h.loop.subsMu.Lock()
-	h.loop.subscribers[h.key] = append(h.loop.subscribers[h.key], ch)
-	h.loop.subsMu.Unlock()
-	return ch
+	return h.loop.subscribe(h.key)
 }
 
 // Unsubscribe removes ch from the subscriber list so the express loop

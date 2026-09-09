@@ -47,6 +47,7 @@ package fsm
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 )
 
@@ -102,6 +103,18 @@ type FSM struct {
 	// without holding mu across the (re-entrant) callback.
 	pending  []transition
 	draining bool
+
+	// bfdSub is the draft-ietf-idr-bgp-bfd-strict-mode Section 8.1 sub-state.
+	// It is only ever non-None while state is StateOpenSent, and change()
+	// clears it on every transition out of that state.
+	bfdSub BfdSubState
+
+	// bfdStrict is the conjunction the draft writes in every conditional
+	// clause: "If BfdEnabled is TRUE, and BfdStrictNegotiated is TRUE"
+	// (Sections 8.5.2, 8.5.5, 8.5.6, 8.6.2). The session sets it after
+	// capability negotiation, so it is false for every peer that did not
+	// exchange capability 74.
+	bfdStrict bool
 }
 
 // transition records a single (from, to) state change awaiting its callback.
@@ -191,6 +204,56 @@ func (f *FSM) IsPassive() bool {
 	return f.passive
 }
 
+// SetBFDStrict records whether the strict-mode procedures apply to this
+// session. It is the conjunction of the draft's two session attributes,
+// BfdEnabled (Section 3, attribute 16) and BfdStrictNegotiated (Section 3,
+// attribute 20), because the draft never tests one without the other.
+//
+// The session calls it once, after capability negotiation. Every FSM built for
+// a peer that does not run strict mode leaves it false, and the six BFD events
+// then take their "else" branches, which the draft writes as "stays in the
+// <current> state".
+func (f *FSM) SetBFDStrict(strict bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.bfdStrict = strict
+}
+
+// BFDStrict reports whether the strict-mode procedures apply to this session.
+func (f *FSM) BFDStrict() bool {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	return f.bfdStrict
+}
+
+// BfdSubState returns the draft-ietf-idr-bgp-bfd-strict-mode Section 8.1
+// sub-state. The session reads it to decide whether a withheld KEEPALIVE is
+// owed, and the CLI reads it for the display the draft's Section 11 asks for.
+func (f *FSM) BfdSubState() BfdSubState {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	return f.bfdSub
+}
+
+// EnterBfdUpPending puts the FSM into the OpenSentBfdUpPending sub-state, which
+// draft-ietf-idr-bgp-bfd-strict-mode Section 8.5.5 enters when an OPEN arrives
+// and bfd.SessionState is neither Up nor AdminDown. The state stays OpenSent,
+// so this is a sub-state write and not a transition.
+//
+// It refuses the write outside OpenSent: the two OTHER pending sub-states the
+// draft names belong to the Connect and Active DelayOpen path, which Ze does
+// not implement, so an OpenSent sub-state set in any other state would be a
+// defect this reports rather than a state nobody can explain.
+func (f *FSM) EnterBfdUpPending() error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.state != StateOpenSent {
+		return fmt.Errorf("%w: OpenSentBfdUpPending requested in %s", ErrFSMError, f.state)
+	}
+	f.bfdSub = SubStateOpenSentBfdUpPending
+	return nil
+}
+
 // change transitions to a new state and schedules the state-change callback.
 //
 // Callbacks are serialized through a per-FSM FIFO queue so they never overlap and always
@@ -231,6 +294,20 @@ func (f *FSM) IsPassive() bool {
 func (f *FSM) change(to State) {
 	from := f.state
 	f.state = to
+
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 8.1 puts every sub-state
+	// INSIDE one RFC 4271 state, so leaving that state leaves the sub-state.
+	// Ze declares only the two OpenSent ones (state.go), so any state other
+	// than OpenSent carries none.
+	if to != StateOpenSent {
+		f.bfdSub = SubStateNone
+	}
+	// draft-ietf-idr-bgp-bfd-strict-mode Sections 8.3, 8.4 and 8.5: "The
+	// BfdHoldTimer is reset to zero and stopped on any transition to the Idle
+	// state." One place, so no handler can forget it.
+	if to == StateIdle && f.timers != nil {
+		f.timers.StopBfdHoldTimer()
+	}
 
 	if f.callback == nil || from == to {
 		return
@@ -343,6 +420,20 @@ func (f *FSM) handleIdle(event Event) {
 		// Ignored means the ConnectRetryCounter is untouched by BOTH. Event 2
 		// zeroes it in every other state and Event 8 increments it, and here
 		// neither happens: there is no connection to stop.
+
+	case EventBfdAdminDown, EventBfdDown, EventBfdUp, EventBfdDisabled,
+		EventBfdStrictConfigChanged, EventBfdHoldTimerExpires:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.2: "In the 'Idle
+		// State', the BfdAdminDown, BfdDown, BfdUp, BfdDisabled,
+		// BfdStrictConfigChanged events are ignored." and "In the 'Idle
+		// State', the BfdHoldTimerExpires event is ignored, but only would
+		// occur as an error in the FSM implementation."
+		//
+		// Written as its own arm rather than left to the default below because
+		// a reader looking for the six events must find them, and because the
+		// BFD session of a strict peer outlives the connection (Section 7), so
+		// these arrive here routinely rather than by accident.
+
 	default:
 		// RFC 4271 Section 8.2.2: "Any other event (Events 9-12, 15-28) received
 		// in the Idle state does not cause change in the state of the local system."
@@ -405,6 +496,54 @@ func (f *FSM) handleConnect(event Event) error {
 		// RFC 4271 Section 8.2.2: Event 18 (TcpConnectionFails)
 		// "If the DelayOpenTimer is not running... drops the TCP connection,
 		// releases all BGP resources, and changes its state to Idle."
+		f.change(StateIdle)
+
+	case EventBfdAdminDown, EventBfdDisabled, EventBfdUp:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.3.1: the local system
+		// checks for the ConnectDelayOpenBfdUpPending sub-state, and "If the
+		// FSM is not in the ConnectDelayOpenBfdUpPending sub-state, the local
+		// system: stays in the Connect state."
+		//
+		// Ze never enters that sub-state. It is reached only from Section
+		// 8.3.5, an OPEN received while the DelayOpenTimer runs, and ze
+		// implements no DelayOpenTimer (see VIOLATIONS 2 in the file header,
+		// permitted by RFC 4271 Section 8.2.1.3). So the "not in the sub-state"
+		// branch is the only one, and staying in Connect is the whole action.
+
+	case EventBfdDown:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.3.2: "The BfdDown event
+		// (Event 31) is ignored while in the Connect state."
+		//
+		// The draft gives the reason: "A BFD session can transition to Down
+		// from the Init state, indicating the session has failed to come Up, or
+		// transition to Down from the AdminDown as part of starting the BFD
+		// state machine." Both are normal for a session ze started before the
+		// FSM (Section 7), so neither is a failure of the forwarding path.
+
+	case EventBfdHoldTimerExpires:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.3.3: "sends a
+		// NOTIFICATION message with the error code Cease (6) and error subcode
+		// BFD Down (10), drops the TCP connection, releases all BGP resources,
+		// increments the ConnectRetryCounter, ... and changes its state to
+		// Idle."
+		//
+		// Unreachable in ze today: the BfdHoldTimer is started only by the
+		// Section 8.3.5 and 8.4.5 DelayOpen paths and by Section 8.5.5, and the
+		// first two need a DelayOpenTimer ze does not implement. The arm exists
+		// so the counter clause is right the day one does, and because the
+		// alternative is the default arm, which would send an FSM Error.
+		f.crc.Increment()
+		f.change(StateIdle)
+
+	case EventBfdStrictConfigChanged:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.3.4: "drops the TCP
+		// connection, releases all BGP resources, sets ConnectRetryCounter to
+		// zero, stops the ConnectRetryTimer and sets ConnectRetryTimer to
+		// zero, and changes its state to Idle."
+		//
+		// No NOTIFICATION in this clause, unlike the OpenSent and OpenConfirm
+		// ones: there is no BGP session yet to tell.
+		f.crc.Reset()
 		f.change(StateIdle)
 
 	case EventBGPHeaderErr, EventBGPOpenMsgErr, EventNotifMsgVerErr, EventNotifMsg:
@@ -514,6 +653,36 @@ func (f *FSM) handleActive(event Event) error {
 		f.crc.Increment()
 		f.change(StateIdle)
 
+	case EventBfdAdminDown, EventBfdDisabled, EventBfdUp:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.4.1: "If the FSM is not
+		// in the ActiveDelayOpenBfdUpPending sub-state, the local system:
+		// stays in the Active state."
+		//
+		// Ze never enters that sub-state, for the reason handleConnect's
+		// matching arm gives: Section 8.4.5 is its only entry and it needs a
+		// DelayOpenTimer ze does not implement.
+
+	case EventBfdDown:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.4.2: "The BfdDown event
+		// (Event 31) is ignored while in the Active state."
+
+	case EventBfdHoldTimerExpires:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.4.3: "sends a
+		// NOTIFICATION message with the error code Cease (6) and error subcode
+		// BFD Down (10), drops the TCP connection, releases all BGP resources,
+		// increments the ConnectRetryCounter, ... and changes its state to
+		// Idle."
+		f.crc.Increment()
+		f.change(StateIdle)
+
+	case EventBfdStrictConfigChanged:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.4.4: "drops the TCP
+		// connection, releases all BGP resources, sets ConnectRetryCounter to
+		// zero, stops the ConnectRetryTimer and sets ConnectRetryTimer to
+		// zero, and changes its state to Idle."
+		f.crc.Reset()
+		f.change(StateIdle)
+
 	default:
 		// RFC 4271 Section 8.2.2: "In response to any other event (Events 8,
 		// 10-11, 13, 19, 23, 25-28), the local system: ... increments the
@@ -573,7 +742,122 @@ func (f *FSM) handleOpenSent(event Event) error {
 		// to zero, sends a KEEPALIVE message... sets the HoldTimer according
 		// to the negotiated value... changes its state to OpenConfirm."
 		// No ConnectRetryCounter clause: the attempt is succeeding.
+		//
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.5.5 splits this in two.
+		// "If the FSM is in the OpenSentBfdUpPending sub-state or the
+		// OpenSentConfirmedBfdUpPending sub-state, the reception of a second
+		// OPEN message is a FSM error. The local system: sends the
+		// NOTIFICATION with the Error Code Finite State Machine Error, ...
+		// increments the ConnectRetryCounter by 1, ... and changes its state
+		// to Idle."
+		//
+		// The other half of that section, withholding the KEEPALIVE when
+		// bfd.SessionState is neither Up nor AdminDown, is on the wire side:
+		// Session.handleOpen calls EnterBfdUpPending instead of firing this
+		// event (reactor/session_handlers.go).
+		if f.bfdSub != SubStateNone {
+			f.crc.Increment()
+			f.change(StateIdle)
+			return ErrFSMError
+		}
 		f.change(StateOpenConfirm)
+
+	case EventKeepaliveMsg:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.5.6: "When a KEEPALIVE
+		// message is received, BfdEnabled is TRUE, and BfdStrictNegotiated is
+		// TRUE and the local system is in either the OpenSentBfdUpPending or
+		// OpenSentConfirmedBfdUpPending sub-states, the local system: resets
+		// the HoldTimer to the negotiated value, transitions to the
+		// OpenSentConfirmedBfdUpPending sub-state."
+		//
+		// The draft's own explanation: the remote BFD session can come Up
+		// before the local one, so the remote speaker sends its KEEPALIVE and
+		// moves to OpenConfirm while ze is still waiting. Tracking that is
+		// what makes the next BfdUp go straight to Established (Section 8.5.1).
+		//
+		// "When a KEEPALIVE message is received, and either BfdEnabled is
+		// FALSE or BfdStrictNegotiated is FALSE, or in response to any other
+		// event (Events 9, 11-13, 20, 25, 27-28)": the unmodified RFC 4271
+		// FSM Error, which is the default arm below.
+		if !f.bfdStrict || f.bfdSub == SubStateNone {
+			f.crc.Increment()
+			f.change(StateIdle)
+			return ErrFSMError
+		}
+		if f.timers != nil {
+			f.timers.ResetHoldTimer()
+		}
+		f.bfdSub = SubStateOpenSentConfirmedBfdUpPending
+
+	case EventBfdAdminDown, EventBfdDisabled, EventBfdUp:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.5.1: in the
+		// OpenSentBfdUpPending or OpenSentConfirmedBfdUpPending sub-states the
+		// local system "sends a KEEPALIVE message, and sets a KeepaliveTimer
+		// (via the text below), resets the BfdHoldTimer value to zero", then
+		// goes to OpenConfirm from the first sub-state and, "resets the
+		// HoldTimer to the negotiated value, and, changes its state to
+		// Established" from the second. Outside both sub-states it "stays in
+		// the OpenSent state".
+		//
+		// The KEEPALIVE and the KeepaliveTimer are the session's, exactly as
+		// they are for Event 19 (Session.handleBFDEvent, reactor/peer_bfd.go).
+		// This handler owns the two state changes and the BfdHoldTimer.
+		if f.bfdSub == SubStateNone {
+			return nil
+		}
+		if f.timers != nil {
+			f.timers.StopBfdHoldTimer()
+		}
+		if f.bfdSub == SubStateOpenSentBfdUpPending {
+			f.change(StateOpenConfirm)
+			return nil
+		}
+		if f.timers != nil {
+			f.timers.ResetHoldTimer()
+		}
+		f.change(StateEstablished)
+
+	case EventBfdDown:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.5.2: "if BfdEnabled is
+		// TRUE, and BfdStrictNegotiated is TRUE, the local system: sends a
+		// NOTIFICATION message with the error code Cease (6) and error subcode
+		// BFD Down (10), drops the TCP connection, releases all BGP resources,
+		// sets ConnectRetryCounter to zero, stops the ConnectRetryTimer and
+		// sets ConnectRetryTimer to zero, and changes its state to Idle."
+		// Otherwise it "stays in the OpenSent State".
+		//
+		// The counter is ZEROED here and INCREMENTED by the same event in
+		// Established (Section 8.7.2). The draft is deliberate: a BFD session
+		// that never came Up is not a BGP attempt that failed, so the retry
+		// history is not charged for it.
+		if !f.bfdStrict {
+			return nil
+		}
+		f.crc.Reset()
+		f.change(StateIdle)
+
+	case EventBfdHoldTimerExpires:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.5.3: "sends a
+		// NOTIFICATION message with the error code Cease (6) and error subcode
+		// BFD Down (10), drops the TCP connection, releases all BGP resources,
+		// increments the ConnectRetryCounter, ... and changes its state to
+		// Idle."
+		//
+		// The counter direction is the opposite of Section 8.5.2's, one
+		// paragraph above it: the session waited out its whole BfdHoldTime and
+		// the attempt did fail.
+		f.crc.Increment()
+		f.change(StateIdle)
+
+	case EventBfdStrictConfigChanged:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.5.4: "sends the
+		// NOTIFICATION with an error code Cease (6), error subcode Other
+		// Configuration Change (6), drops the TCP connection, releases all BGP
+		// resources, sets ConnectRetryCounter to zero, stops the
+		// ConnectRetryTimer and sets ConnectRetryTimer to zero, and changes
+		// its state to Idle."
+		f.crc.Reset()
+		f.change(StateIdle)
 
 	case EventHoldTimerExpires:
 		// RFC 4271 Section 8.2.2: Event 10 (HoldTimer_Expires)
@@ -761,6 +1045,48 @@ func (f *FSM) handleOpenConfirm(event Event) error {
 		// Sending is handled externally by the session timer callback.
 		// No state change and no ConnectRetryCounter clause.
 
+	case EventBfdAdminDown, EventBfdDisabled, EventBfdUp:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.6.1: "The
+		// BfdAdminDown, BfdDisabled, and BfdUp events are ignored in the
+		// OpenConfirm state."
+		//
+		// By this point the KEEPALIVE has gone out and the wait is over: the
+		// session is one received KEEPALIVE from Established, and no sub-state
+		// of this state exists for BFD to release.
+
+	case EventBfdDown:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.6.2: "if BfdEnabled is
+		// TRUE, and BfdStrictNegotiated is TRUE, the local system: sends a
+		// NOTIFICATION message with the error code Cease (6) and error subcode
+		// BFD Down (10), drops the TCP connection, releases all BGP resources,
+		// sets ConnectRetryCounter to zero, stops the ConnectRetryTimer and
+		// sets ConnectRetryTimer to zero, and changes its state to Idle."
+		// Otherwise it "stays in the OpenConfirm State".
+		if !f.bfdStrict {
+			return nil
+		}
+		f.crc.Reset()
+		f.change(StateIdle)
+
+	case EventBfdStrictConfigChanged:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.6.3: "sends a
+		// NOTIFICATION message with the error code Cease (6) and error subcode
+		// Other Configuration Change (6), drops the TCP connection, releases
+		// all BGP resources, sets ConnectRetryCounter to zero, stops the
+		// ConnectRetryTimer and sets ConnectRetryTimer to zero, and changes
+		// its state to Idle."
+		f.crc.Reset()
+		f.change(StateIdle)
+
+	case EventBfdHoldTimerExpires:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 4, Event 34: "The BGP
+		// session state SHOULD be in Connect, Active, or OpenSent." The draft
+		// writes no OpenConfirm clause, so the timer firing here is an error in
+		// the FSM implementation and is ignored, which is what Section 8.2 and
+		// Section 8.7.3 say about the same event in the two states that DO
+		// name it. Ignoring it beats the default arm, which would answer a
+		// local bookkeeping slip by dropping a nearly established session.
+
 	default:
 		// RFC 4271 Section 8.2.2: "In response to any other event (Events 9,
 		// 12-13, 20, 27-28), the local system: sends a NOTIFICATION with a
@@ -901,6 +1227,43 @@ func (f *FSM) handleEstablished(event Event) error {
 		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
 		f.crc.Increment()
 		f.change(StateIdle)
+
+	case EventBfdAdminDown, EventBfdDisabled, EventBfdUp:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.7.1: "The
+		// BfdAdminDown, BfdDisabled, and BfdUp events are ignored in the
+		// Established state."
+		//
+		// AdminDown is the one that changed behavior: ze used to tear the BGP
+		// session down on it, along with Down. RFC 5882 Section 4.2 says the
+		// opposite -- "If a BFD session transitions from Up state to
+		// AdminDown, ... clients SHOULD NOT take any control protocol action"
+		// -- because Section 3.2 makes AdminDown say nothing about the data
+		// path, and BGP has its own hold timer as an independent liveness
+		// check.
+
+	case EventBfdDown:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.7.2: "sends a
+		// NOTIFICATION message with the error code Cease (6) and error subcode
+		// BFD Down (10), drops the TCP connection, deletes all routes
+		// associated with this connection, releases all BGP resources,
+		// increments the ConnectRetryCounter by 1, ... and changes its state
+		// to Idle."
+		//
+		// Unconditional: this is the RFC 5882 Section 4.2 failure detector ze
+		// has always run, and the draft does not gate it on strict mode.
+		f.crc.Increment()
+		f.change(StateIdle)
+
+	case EventBfdStrictConfigChanged, EventBfdHoldTimerExpires:
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.7.3: "The
+		// BfdStrictConfigChange event is ignored in the Established state."
+		// and "The BfdHoldTimerExpires event in the Established state is a FSM
+		// error, and is ignored."
+		//
+		// The draft's reason for the first, from Section 8.1: "Once the BGP
+		// session has reached the Established state, changes to BFD
+		// strict-mode are irrelevant since the work of this feature has been
+		// completed."
 
 	default: // RFC 4271 Section 8.2.2: "any other event" → Idle (FSM Error)
 		// Note: RFC specifies Event 11 (KeepaliveTimer_Expires) should send

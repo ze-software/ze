@@ -15,9 +15,10 @@ import (
 	"github.com/ze-software/ze/internal/core/clock"
 )
 
-// RFC requirement: RFC5882-4.4-1 positive -- "If more than one control protocol
-// desires a BFD session to a particular remote system, ... they MUST share a
-// single BFD session" (RFC 5882 sec 4.4). EnsureSession
+// RFC requirement: RFC5882-4.4-1 positive -- "If multiple control protocols
+// wish to establish BFD sessions with the same remote system for the same data
+// protocol, all MUST share a single BFD session" (RFC 5882 sec 4.4).
+// EnsureSession
 // (internal/component/bfd/engine/engine.go:344) keys a session by
 // api.Key{Peer, Local, Interface, VRF, Mode} -- deliberately excluding timer
 // parameters (internal/component/bfd/api/events.go:155-156) so two clients with

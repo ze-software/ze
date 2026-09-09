@@ -1,0 +1,1792 @@
+
+
+
+
+IDR Workgroup                                                   M. Zheng
+Internet-Draft                                                     Ciena
+Updates: 4271 (if approved)                                    A. Lindem
+Intended status: Standards Track                             Arrcus, Inc
+Expires: 27 February 2027                                        J. Haas
+                                                                     HPE
+                                                                   A. Fu
+                                                          Bloomberg L.P.
+                                                          26 August 2026
+
+
+                          BGP BFD Strict-Mode
+                 draft-ietf-idr-bgp-bfd-strict-mode-19
+
+Abstract
+
+   This document specifies extensions to RFC4271 BGP-4 that enable a BGP
+   speaker to negotiate additional Bidirectional Forwarding Detection
+   (BFD) extensions using a BGP capability.  This BFD Strict-Mode
+   Capability enables a BGP speaker to prevent a BGP session from being
+   established until a BFD session is established.  This is referred to
+   as BFD "strict-mode".
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 27 February 2027.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+
+
+
+Zheng, et al.           Expires 27 February 2027                [Page 1]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
+   2.  Requirements Language . . . . . . . . . . . . . . . . . . . .   4
+   3.  BGP Session Attributes for BFD Strict-Mode  . . . . . . . . .   4
+   4.  BGP FSM Events for BFD Strict-Mode  . . . . . . . . . . . . .   5
+   5.  BFD Strict-Mode Capability Definition . . . . . . . . . . . .   6
+   6.  BFD Strict-Mode Capability Negotiation  . . . . . . . . . . .   6
+   7.  Starting and Stopping BFD Sessions Associated BGP BFD
+           Strict-Mode . . . . . . . . . . . . . . . . . . . . . . .   7
+   8.  BGP FSM State Changes . . . . . . . . . . . . . . . . . . . .   7
+     8.1.  Overview of BFD Strict FSM Changes  . . . . . . . . . . .   7
+     8.2.  Changes to the Idle State . . . . . . . . . . . . . . . .   8
+     8.3.  Changes to the Connect State  . . . . . . . . . . . . . .   8
+       8.3.1.  Connect - Handling BfdAdminDown / BfdDisabled /
+               BfdUp . . . . . . . . . . . . . . . . . . . . . . . .   8
+       8.3.2.  Connect - Handling BfdDown  . . . . . . . . . . . . .   9
+       8.3.3.  Connect - Handling BfdHoldTimerExpires  . . . . . . .   9
+       8.3.4.  Connect - Handling BfdStrictConfigChanged . . . . . .   9
+       8.3.5.  Connect - Handling Event 20, BGPOpen with
+               DelayOpenTimer running. . . . . . . . . . . . . . . .  10
+     8.4.  Changes to the Active State . . . . . . . . . . . . . . .  12
+       8.4.1.  Active - Handling BfdAdminDown / BfdDisabled /
+               BfdUp . . . . . . . . . . . . . . . . . . . . . . . .  12
+       8.4.2.  Active - Handling BfdDown . . . . . . . . . . . . . .  13
+       8.4.3.  Active - Handling BfdHoldTimerExpires . . . . . . . .  13
+       8.4.4.  Active - Handling BfdStrictConfigChanged  . . . . . .  13
+       8.4.5.  Active - Handling Event 20, BGPOpen with DelayOpenTimer
+               running.  . . . . . . . . . . . . . . . . . . . . . .  13
+     8.5.  Changes to the OpenSent State . . . . . . . . . . . . . .  16
+       8.5.1.  OpenSent - Handling BfdAdminDown / BfdDisabled /
+               BfdUp . . . . . . . . . . . . . . . . . . . . . . . .  16
+       8.5.2.  OpenSent - Handling BfdDown . . . . . . . . . . . . .  17
+       8.5.3.  OpenSent - Handling BfdHoldTimerExpires . . . . . . .  17
+       8.5.4.  OpenSent - Handling BfdStrictConfigChanged  . . . . .  17
+       8.5.5.  OpenSent - Handling Event 19, BGPOpen . . . . . . . .  18
+       8.5.6.  OpenSent - Handling Event 26, KeepAliveMsg  . . . . .  20
+     8.6.  Changes to the OpenConfirm State  . . . . . . . . . . . .  21
+       8.6.1.  OpenConfirm - Handling BfdAdminDown / BfdDisabled /
+               BfdUp . . . . . . . . . . . . . . . . . . . . . . . .  21
+       8.6.2.  OpenConfirm - Handling BfdDown  . . . . . . . . . . .  21
+       8.6.3.  OpenConfirm - Handling BfdStrictConfigChanged . . . .  22
+
+
+
+Zheng, et al.           Expires 27 February 2027                [Page 2]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+     8.7.  Changes to the Established State  . . . . . . . . . . . .  22
+       8.7.1.  Established - Handling BfdAdminDown / BfdDisabled /
+               BfdUp . . . . . . . . . . . . . . . . . . . . . . . .  22
+       8.7.2.  Established - Handling BfdDown  . . . . . . . . . . .  22
+       8.7.3.  Established - Handling BfdStrictConfigChanged /
+               BfdHoldTimerExpires . . . . . . . . . . . . . . . . .  23
+   9.  Closing BGP Sessions  . . . . . . . . . . . . . . . . . . . .  23
+   10. Stability Considerations  . . . . . . . . . . . . . . . . . .  23
+   11. Manageability Considerations  . . . . . . . . . . . . . . . .  24
+   12. Security Considerations . . . . . . . . . . . . . . . . . . .  24
+   13. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  24
+     13.1.  BGP BFD Strict-Mode Capability . . . . . . . . . . . . .  25
+     13.2.  BGP-4 FSM Optional Session Attributes Registry . . . . .  25
+     13.3.  BGP-4 FSM Events Registry  . . . . . . . . . . . . . . .  25
+   14. Acknowledgement . . . . . . . . . . . . . . . . . . . . . . .  26
+   15. Normative References  . . . . . . . . . . . . . . . . . . . .  26
+   16. Informative References  . . . . . . . . . . . . . . . . . . .  27
+   Appendix A.  Implementation Status  . . . . . . . . . . . . . . .  27
+     A.1.  HPE / Juniper Networks  . . . . . . . . . . . . . . . . .  27
+     A.2.  Cisco . . . . . . . . . . . . . . . . . . . . . . . . . .  29
+     A.3.  Nokia . . . . . . . . . . . . . . . . . . . . . . . . . .  30
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  32
+
+1.  Introduction
+
+   Bidirectional Forwarding Detection BFD [RFC5880] enables routers to
+   monitor data plane connectivity and to detect faults in the
+   bidirectional forwarding path between them.  This functionality is
+   leveraged by routing protocols such as BGP [RFC4271] to rapidly react
+   to topology changes in the face of path failures.
+
+   The BFD interaction with BGP is specified in Section 10.2 of
+   [RFC5882].  When BFD is enabled for a BGP neighbor, faults in the
+   bidirectional forwarding detected by BFD result in BGP session
+   termination.  It is possible in some failure scenarios for the
+   network to be in a state such that a BGP session may be established
+   but a BFD session cannot be established.  In some other scenarios, it
+   may be possible to establish a BGP session, but a degraded or poor-
+   quality link may result in the corresponding BFD session going up and
+   down frequently.
+
+   To avoid situations that result in routing churn and to minimize the
+   impact of network interruptions, it will be beneficial to disallow
+   BGP to establish a session until BFD session is successfully
+   established and has stabilized.  We refer to this mode of operation
+   as BFD "strict-mode".  However, always using "strict-mode" would
+   preclude BGP operation in an environment where not all routers
+   support BFD strict-mode or have BFD enabled.
+
+
+
+Zheng, et al.           Expires 27 February 2027                [Page 3]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   This document defines BFD "strict-mode" operation as preventing BGP
+   session establishment until both the local and remote speakers have
+   an established BFD session.  The document also specifies a BGP
+   capability [RFC5492] for announcing a BGP speaker's support for
+   "strict-mode"; i.e., requiring a BFD session for BGP session
+   establishment.
+
+2.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+3.  BGP Session Attributes for BFD Strict-Mode
+
+   Defined in this document:
+
+   16) BfdEnabled:
+      A boolean value that is TRUE when BFD is configured and enabled
+      for this BGP session.
+
+   17) BfdStrictEnabled:
+      A boolean value that is TRUE when BGP BFD Strict-Mode procedures
+      are to be used when BFD is enabled for this BGP session.  If
+      BfdEnabled is not TRUE for this BGP session, this attribute has no
+      impact.
+
+   18) BfdHoldTime:
+      Hold time value used for the BfdHoldTimer.  The default value for
+      this attribute is 30 seconds and is user configurable.
+
+   19) BfdHoldTimer:
+      Hold timer used when the BGP HoldTime has been negotiated to zero
+      to ensure the BGP session terminates if the associated BFD session
+      does not enter the Up state.
+
+   20) BfdStrictNegotiated:
+      A boolean value that is TRUE when the BFD strict-mode feature
+      capability has been successfully negotiated for this BGP session.
+      (See Section 6.)
+
+   Defined in RFC 5880:
+
+
+
+
+
+
+
+Zheng, et al.           Expires 27 February 2027                [Page 4]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   bfd.SessionState:
+      The BFD session state associated with this BGP session when BFD is
+      configured and enabled for the session.  (See Section 6.8.1 of
+      [RFC5880].)
+
+4.  BGP FSM Events for BFD Strict-Mode
+
+   Event 30: BfdAdminDown
+      Definition:
+         The BFD session associated with this BGP session has
+         transitioned to the AdminDown state.
+
+      Status:
+         Optional
+
+      Optional Attribute Status:
+         The BfdEnabled attribute for this BGP session SHOULD be set to
+         TRUE.
+
+   Event 31: BfdDown
+      Definition:
+         The BFD session associated with this BGP session has
+         transitioned to the Down state.
+
+      Status:
+         Optional
+
+      Optional Attribute Status:
+
+   Event 32: BfdUp
+      Definition:
+         The BFD session associated with this BGP session has
+         transitioned to the Up state.
+
+      Status:
+         Optional
+
+      Optional Attribute Status:
+         The BfdEnabled attribute for this BGP session SHOULD be set to
+         TRUE.
+
+   Event 33: BfdDisabled
+      Definition:
+         The BfdEnabled session attribute has been changed to FALSE.
+
+      Status:
+         Optional
+
+
+
+
+Zheng, et al.           Expires 27 February 2027                [Page 5]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+      Optional Attribute Status:
+
+   Event 34: BfdHoldTimerExpires
+      Definition:
+         The BFD holdtimer, which is set when the negotiated BGP hold
+         time is zero, has expired.
+
+      Status:
+         Optional
+
+      Optional Attribute Status:
+         *  The HoldTimer SHOULD NOT be running.
+
+         *  The negotiated HoldTime SHOULD be zero.
+
+         *  The BGP session state SHOULD be in Connect, Active, or
+            OpenSent.
+
+   Event 35: BfdStrictConfigChanged
+      Definition:
+         The configuration for the BFD strict configuration for the BGP
+         session has been changed.
+
+      Status:
+         Optional
+
+      Optional Attribute Status:
+         If BfdEnabled is FALSE, this event MUST NOT occur.  When BFD
+         has been disabled, the local system will trigger a BfdAdminDown
+         event instead.
+
+5.  BFD Strict-Mode Capability Definition
+
+   The BFD Strict-Mode Capability is a BGP Capability [RFC5492] defined
+   as follows:
+
+   Capability code: 74
+
+   Capability length: 0 octets
+
+6.  BFD Strict-Mode Capability Negotiation
+
+   A BGP speaker which supports capabilities advertisement and has BFD
+   strict-mode enabled MUST include the BFD Strict-Mode Capability in
+   its OPEN message.
+
+
+
+
+
+
+Zheng, et al.           Expires 27 February 2027                [Page 6]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   A BGP speaker which supports the BFD Strict-Mode Capability examines
+   the list of capabilities received from its peer.  If both the local
+   and remote BGP speakers include the BFD Strict-Mode Capability, the
+   BfdStrictNegotiated session attribute (Section 3 below) is set to
+   TRUE.
+
+7.  Starting and Stopping BFD Sessions Associated BGP BFD Strict-Mode
+
+   Implementations SHOULD start the BFD session associated with the BGP
+   BFD strict-mode session prior to the BGP FSM starting.  The
+   motivation is to avoid delaying BGP FSM transitions while waiting for
+   the BFD session reach the Up state.
+
+   Similarly, to support BFD hold-down requirements for detecting BFD
+   session stability (see Section 10), implementations SHOULD NOT
+   immediately destroy BFD sessions when associated BGP connections
+   transition to Idle.
+
+8.  BGP FSM State Changes
+
+8.1.  Overview of BFD Strict FSM Changes
+
+   When BFD is enabled, and BFD strict-mode is enabled and negotiated,
+   the BGP finite state machine is prevented from sending a KEEPALIVE to
+   the remote BGP speaker and advancing to the OpenConfirm state until
+   the associated BFD session has reached the Up state.
+
+   In the FSM defined in [RFC4271], sending of a KEEPALIVE to the remote
+   BGP speaker and advancement to the OpenConfirm state happens:
+
+   *  In the Connect state upon receiving an OPEN message and the
+      DelayOpenTimer is running.
+
+   *  In the Active state upon receiving an OPEN message and the
+      DelayOpenTimer is running.
+
+   *  In the OpenSent state upon receiving an OPEN message.
+
+   For each of these scenarios, when BFD is enabled, and BFD strict-mode
+   is negotiated, a sub-state is introduced to track the pending BFD Up
+   event:
+
+   *  ConnectDelayOpenBfdUpPending
+
+   *  ActiveDelayOpenBfdUpPending
+
+   *  OpenSentBfdUpPending
+
+
+
+
+Zheng, et al.           Expires 27 February 2027                [Page 7]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   *  OpenSentConfirmedBfdUpPending
+
+   If BFD strict-mode configuration is changed once the BGP FSM has
+   started executing, but has not reached the Established state, the
+   session is reset to the Idle state to ensure consistent behavior.
+   I.e., no unexpected timers are running, and the BGP session's
+   transition to Established is not lingering on a pending event.  Once
+   the BGP session has reached the Established state, changes to BFD
+   strict-mode are irrelevant since the work of this feature has been
+   completed.
+
+   The following changes are made to the BGP FSM defined in
+   Section 8.2.2 of [RFC4271]:
+
+8.2.  Changes to the Idle State
+
+   In the "Idle State", the BfdAdminDown, BfdDown, BfdUp, BfdDisabled,
+   BfdStrictConfigChanged events are ignored.
+
+   In the "Idle State", the BfdHoldTimerExpires event is ignored, but
+   only would occur as an error in the FSM implementation.
+
+8.3.  Changes to the Connect State
+
+   The BfdHoldTimer is reset to zero and stopped on any transition to
+   the Idle state.
+
+8.3.1.  Connect - Handling BfdAdminDown / BfdDisabled / BfdUp
+
+   In response to the BfdAdminDown event (Event 30), the BfdDisabled
+   event (Event 33), or the BfdUp event (Event 32) the local system
+   checks to see if it is in the ConnectDelayOpenBfdUpPending sub-state.
+   If the FSM is in the ConnectDelayOpenBfdUpPending sub-state, the
+   local system:
+
+   *  sends a KEEPALIVE message,
+
+   *  if the HoldTimer initial value is non-zero,
+
+      -  starts the KeepaliveTimer with the initial value and
+
+      -  resets the BfdHoldTimer value to zero,
+
+   *  and changes its state to OpenConfirm (leaves
+      ConnectDelayOpenBfdUpPending).
+
+   If the FSM is not in the ConnectDelayOpenBfdUpPending sub-state, the
+   local system:
+
+
+
+Zheng, et al.           Expires 27 February 2027                [Page 8]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   *  stays in the Connect state.
+
+8.3.2.  Connect - Handling BfdDown
+
+   The BfdDown event (Event 31) is ignored while in the Connect state.
+
+   A BFD session can transition to Down from the Init state, indicating
+   the session has failed to come Up, or transition to Down from the
+   AdminDown as part of starting the BFD state machine.
+
+8.3.3.  Connect - Handling BfdHoldTimerExpires
+
+   In response to the BfdHoldTimerExpires event (Event 34), the local
+   system:
+
+   *  sends a NOTIFICATION message with the error code Cease (6) and
+      error subcode BFD Down (10),
+
+   *  drops the TCP connection,
+
+   *  releases all BGP resources,
+
+   *  increments the ConnectRetryCounter,
+
+   *  (optionally) performs peer oscillation damping if the
+      DampPeerOscillations attribute is set to TRUE, and
+
+   *  changes its state to Idle.
+
+8.3.4.  Connect - Handling BfdStrictConfigChanged
+
+   In response to the BfdStrictConfigChanged event (Event 35) the local
+   system:
+
+   *  drops the TCP connection,
+
+   *  releases all BGP resources,
+
+   *  sets ConnectRetryCounter to zero,
+
+   *  stops the ConnectRetryTimer and sets ConnectRetryTimer to zero,
+      and
+
+   *  changes its state to Idle.
+
+
+
+
+
+
+
+Zheng, et al.           Expires 27 February 2027                [Page 9]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+8.3.5.  Connect - Handling Event 20, BGPOpen with DelayOpenTimer
+        running.
+
+   In the "Connect State", the handling of Event 20, an OPEN message is
+   received while the DelayOpenTimer is running, is revised as follows:
+
+   Old Text:
+
+   *  stops the ConnectRetryTimer (if running) and sets the
+      ConnectRetryTimer to zero,
+
+   *  completes the BGP initialization,
+
+   *  stops and clears the DelayOpenTimer (sets the value to zero),
+
+   *  sends an OPEN message,
+
+   *  sends a KEEPALIVE message,
+
+   *  if the HoldTimer initial value is non-zero,
+
+      -  starts the KeepaliveTimer with the initial value and
+
+      -  resets the HoldTimer to the negotiated value,
+
+   *  else, if the HoldTimer initial value is zero,
+
+      -  resets the KeepaliveTimer and
+
+      -  resets the HoldTimer value to zero,
+
+   *  and changes its state to OpenConfirm.
+
+   If the value of the autonomous system field is the same as the local
+   Autonomous System number, set the connection status to an internal
+   connection; otherwise it will be "external".
+
+   New Text:
+
+   If the FSM is in the ConnectDelayOpenBfdUpPending sub-state, the
+   reception of a second OPEN message is a FSM error.  The local system:
+
+   *  sends the NOTIFICATION with the Error Code Finite State Machine
+      Error,
+
+   *  sets the ConnectRetryTimer to zero,
+
+   *  releases all BGP resources,
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 10]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   *  drops the TCP connection,
+
+   *  increments the ConnectRetryCounter by 1,
+
+   *  (optionally) performs peer oscillation damping if the
+      DampPeerOscillations attribute is set to TRUE, and
+
+   *  changes its state to Idle.
+
+   If the FSM is NOT in the ConnectDelayOpenBfdUpPending, the local
+   system:
+
+   *  stops the ConnectRetryTimer (if running) and sets the
+      ConnectRetryTimer to zero,
+
+   *  completes the BGP initialization,
+
+   *  stops and clears the DelayOpenTimer (sets the value to zero),
+
+   *  sends an OPEN message,
+
+   *  If BfdEnabled is TRUE, and BfdStrictNegotiated is TRUE, and
+      bfd.SessionState is neither Up nor AdminDown,
+
+      -  DOES NOT send a KEEPALIVE message,
+
+      -  if the HoldTimer initial value is non-zero,
+
+         o  DOES NOT start the KeepaliveTimer
+
+         o  resets the HoldTimer to the negotiated value,
+
+      -  else, if the HoldTimer initial value is zero,
+
+         o  resets the KeepaliveTimer and
+
+         o  resets the HoldTimer value to zero,
+
+         o  starts the BfdHoldTimer with the value BfdHoldTime,
+
+      -  stays in the Connect state (enters
+         ConnectDelayOpenBfdUpPending).
+
+   *  else,
+
+      -  sends a KEEPALIVE message,
+
+      -  if the HoldTimer initial value is non-zero,
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 11]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+         o  starts the KeepaliveTimer with the initial value and
+
+         o  resets the HoldTimer to the negotiated value,
+
+      -  else, if the HoldTimer initial value is zero,
+
+         o  resets the KeepaliveTimer and
+
+         o  resets the HoldTimer value to zero,
+
+      -  and changes its state to OpenConfirm.
+
+   If the value of the autonomous system field is the same as the local
+   Autonomous System number, set the connection status to an internal
+   connection; otherwise it will be "external".
+
+8.4.  Changes to the Active State
+
+   The BfdHoldTimer is reset to zero and stopped for any transition to
+   the Idle state.
+
+8.4.1.  Active - Handling BfdAdminDown / BfdDisabled / BfdUp
+
+   In response to the BfdAdminDown event (Event 30), the BfdDisabled
+   event (Event 33), or the BfdUp event (Event 32), the local system
+   checks to see if it is in the ActiveDelayOpenBfdUpPending sub-state.
+   If the FSM is in the ActiveDelayOpenBfdUpPending sub-state, the local
+   system:
+
+   *  sends a KEEPALIVE message,
+
+   *  if the HoldTimer initial value is non-zero,
+
+      -  starts the KeepaliveTimer with the initial value and
+
+      -  resets the BfdHoldTimer value to zero,
+
+   *  and changes its state to OpenConfirm (leaves
+      ActiveDelayOpenBfdUpPending).
+
+   If the FSM is not in the ActiveDelayOpenBfdUpPending sub-state, the
+   local system:
+
+   *  stays in the Active state.
+
+
+
+
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 12]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+8.4.2.  Active - Handling BfdDown
+
+   The BfdDown event (Event 31) is ignored while in the Active state.
+
+   A BFD session can transition to Down from the Init state, indicating
+   the session has failed to come Up, or transition to Down from the
+   AdminDown as part of starting the BFD state machine.
+
+8.4.3.  Active - Handling BfdHoldTimerExpires
+
+   In response to the BfdHoldTimerExpires event (Event 34), the local
+   system:
+
+   *  sends a NOTIFICATION message with the error code Cease (6) and
+      error subcode BFD Down (10),
+
+   *  drops the TCP connection,
+
+   *  releases all BGP resources,
+
+   *  increments the ConnectRetryCounter,
+
+   *  (optionally) performs peer oscillation damping if the
+      DampPeerOscillations attribute is set to TRUE, and
+
+   *  changes its state to Idle.
+
+8.4.4.  Active - Handling BfdStrictConfigChanged
+
+   In response to the BfdStrictConfigChanged event (Event 35), the local
+   system:
+
+   *  drops the TCP connection,
+
+   *  releases all BGP resources,
+
+   *  sets ConnectRetryCounter to zero,
+
+   *  stops the ConnectRetryTimer and sets ConnectRetryTimer to zero,
+      and
+
+   *  changes its state to Idle.
+
+8.4.5.  Active - Handling Event 20, BGPOpen with DelayOpenTimer running.
+
+   In the "Active State", the handling of Event 20, an OPEN message is
+   received while the DelayOpenTimer is running, is revised as follows:
+
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 13]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   Old Text:
+
+   *  stops the ConnectRetryTimer (if running) and sets the
+      ConnectRetryTimer to zero,
+
+   *  completes the BGP initialization,
+
+   *  stops and clears the DelayOpenTimer (sets the value to zero),
+
+   *  sends an OPEN message,
+
+   *  sends a KEEPALIVE message,
+
+   *  if the HoldTimer initial value is non-zero,
+
+      -  starts the KeepaliveTimer with the initial value and
+
+      -  resets the HoldTimer to the negotiated value,
+
+   *  else, if the HoldTimer initial value is zero,
+
+      -  resets the KeepaliveTimer and
+
+      -  resets the HoldTimer value to zero,
+
+   *  and changes its state to OpenConfirm.
+
+   If the value of the autonomous system field is the same as the local
+   Autonomous System number, set the connection status to an internal
+   connection; otherwise it will be "external".
+
+   New Text:
+
+   If the FSM is in the ActiveDelayOpenBfdUpPending sub-state, the
+   reception of a second OPEN message is a FSM error.  The local system:
+
+   *  sends the NOTIFICATION with the Error Code Finite State Machine
+      Error,
+
+   *  sets the ConnectRetryTimer to zero,
+
+   *  releases all BGP resources,
+
+   *  drops the TCP connection,
+
+   *  increments the ConnectRetryCounter by 1,
+
+
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 14]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   *  (optionally) performs peer oscillation damping if the
+      DampPeerOscillations attribute is set to TRUE, and
+
+   *  changes its state to Idle.
+
+   If the FSM is NOT in the ActiveDelayOpenBfdUpPending, the local
+   system:
+
+   *  stops the ConnectRetryTimer (if running) and sets the
+      ConnectRetryTimer to zero,
+
+   *  completes the BGP initialization,
+
+   *  stops and clears the DelayOpenTimer (sets the value to zero),
+
+   *  sends an OPEN message,
+
+   *  If BfdEnabled is TRUE, and BfdStrictNegotiated is TRUE, and
+      bfd.SessionState is neither Up nor AdminDown,
+
+      -  DOES NOT send a KEEPALIVE message,
+
+      -  if the HoldTimer initial value is non-zero,
+
+         o  DOES NOT start the KeepaliveTimer
+
+         o  resets the HoldTimer to the negotiated value,
+
+      -  else, if the HoldTimer initial value is zero,
+
+         o  resets the KeepaliveTimer and
+
+         o  resets the HoldTimer value to zero,
+
+         o  starts the BfdHoldTimer with the value BfdHoldTime,
+
+      -  stays in the Active state (enters ActiveDelayOpenBfdUpPending).
+
+   *  else,
+
+      -  sends a KEEPALIVE message,
+
+      -  if the HoldTimer initial value is non-zero,
+
+         o  starts the KeepaliveTimer with the initial value and
+
+         o  resets the HoldTimer to the negotiated value,
+
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 15]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+      -  else, if the HoldTimer initial value is zero,
+
+         o  resets the KeepaliveTimer and
+
+         o  resets the HoldTimer value to zero,
+
+      -  and changes its state to OpenConfirm.
+
+   If the value of the autonomous system field is the same as the local
+   Autonomous System number, set the connection status to an internal
+   connection; otherwise it will be "external".
+
+8.5.  Changes to the OpenSent State
+
+   The BfdHoldTimer is reset to zero and stopped for any transition to
+   the Idle state.
+
+8.5.1.  OpenSent - Handling BfdAdminDown / BfdDisabled / BfdUp
+
+   In response to the BfdAdminDown event (Event 30), the BfdDisabled
+   event (Event 33), or the BfdUp event (Event 32), and the FSM is in
+   the OpenSentBfdUpPending or the OpenSentConfirmedBfdUpPending sub-
+   states, the local system:
+
+   *  sends a KEEPALIVE message, and
+
+   *  sets a KeepaliveTimer (via the text below)
+
+   *  resets the BfdHoldTimer value to zero,
+
+   *  If the FSM is in the OpenSentBfdUpPending sub-state, the local
+      system:
+
+      -  changes its state to OpenConfirm (leaves OpenSentBfdUpPending).
+
+   *  Otherwise, if the FSM is in the OpenSentConfirmedBfdUpPending sub-
+      state, the local system:
+
+      -  resets the HoldTimer to the negotiated value, and,
+
+      -  changes its state to Established (leaves
+         OpenSentConfirmedBfdUpPending).
+
+   If the FSM is not in the OpenSentBfdUpPending or
+   OpenSentConfirmedBfdUpPending sub-states, the local system:
+
+   *  stays in the OpenSent state.
+
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 16]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+8.5.2.  OpenSent - Handling BfdDown
+
+   In response to the BfdDown event (Event 31):
+
+   *  if BfdEnabled is TRUE, and BfdStrictNegotiated is TRUE, the local
+      system:
+
+      -  sends a NOTIFICATION message with the error code Cease (6) and
+         error subcode BFD Down (10),
+
+      -  drops the TCP connection,
+
+      -  releases all BGP resources,
+
+      -  sets ConnectRetryCounter to zero,
+
+      -  stops the ConnectRetryTimer and sets ConnectRetryTimer to zero,
+         and
+
+      -  changes its state to Idle.
+
+   *  else,
+
+      -  stays in the OpenSent State
+
+8.5.3.  OpenSent - Handling BfdHoldTimerExpires
+
+   In response to the BfdHoldTimerExpires event (Event 34), the local
+   system:
+
+   *  sends a NOTIFICATION message with the error code Cease (6) and
+      error subcode BFD Down (10),
+
+   *  drops the TCP connection,
+
+   *  releases all BGP resources,
+
+   *  increments the ConnectRetryCounter,
+
+   *  (optionally) performs peer oscillation damping if the
+      DampPeerOscillations attribute is set to TRUE, and
+
+   *  changes its state to Idle.
+
+8.5.4.  OpenSent - Handling BfdStrictConfigChanged
+
+   In response to the BfdStrictConfigChanged event (Event 35), the local
+   system:
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 17]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   *  sends the NOTIFICATION with an error code Cease (6), error subcode
+      Other Configuration Change (6),
+
+   *  drops the TCP connection,
+
+   *  releases all BGP resources,
+
+   *  sets ConnectRetryCounter to zero,
+
+   *  stops the ConnectRetryTimer and sets ConnectRetryTimer to zero,
+      and
+
+   *  changes its state to Idle.
+
+8.5.5.  OpenSent - Handling Event 19, BGPOpen
+
+   Old Text:
+
+   When an OPEN message is received, all fields are checked for
+   correctness.  If there are no errors in the OPEN message (Event 19),
+   the local system:
+
+   *  resets the DelayOpenTimer to zero,
+
+   *  sets the BGP ConnectRetryTimer to zero,
+
+   *  sends a KEEPALIVE message, and
+
+   *  sets a KeepaliveTimer (via the text below)
+
+   *  sets the HoldTimer according to the negotiated value (see
+      Section 4.2), - changes its state to OpenConfirm.
+
+   If the negotiated hold time value is zero, then the HoldTimer and
+   KeepaliveTimer are not started.  If the value of the Autonomous
+   System field is the same as the local Autonomous System number, then
+   the connection is an "internal" connection; otherwise, it is an
+   "external" connection.
+
+   New Text:
+
+   If the FSM is in the OpenSentBfdUpPending sub-state or the
+   OpenSentConfirmedBfdUpPending sub-state, the reception of a second
+   OPEN message is a FSM error.  The local system:
+
+   *  sends the NOTIFICATION with the Error Code Finite State Machine
+      Error,
+
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 18]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   *  sets the ConnectRetryTimer to zero,
+
+   *  releases all BGP resources,
+
+   *  drops the TCP connection,
+
+   *  increments the ConnectRetryCounter by 1,
+
+   *  (optionally) performs peer oscillation damping if the
+      DampPeerOscillations attribute is set to TRUE, and
+
+   *  changes its state to Idle.
+
+   If the FSM is NOT in the OpenSentBfdUpPending sub-state or the
+   OpenSentConfirmedBfdUpPending sub-state, the local system:
+
+   When an OPEN message is received, all fields are checked for
+   correctness.  If there are no errors in the OPEN message (Event 19),
+   the local system:
+
+   *  resets the DelayOpenTimer to zero,
+
+   *  sets the BGP ConnectRetryTimer to zero,
+
+   *  sets the HoldTimer according to the negotiated value (see
+      Section 4.2),
+
+   *  If BfdEnabled is TRUE, and BfdStrictNegotiated is TRUE, and
+      bfd.SessionState is neither Up nor AdminDown,
+
+      -  DOES NOT send a KEEPALIVE message, and
+
+      -  DOES NOT start the KeepaliveTimer
+
+      -  if the HoldTimer negotiated value is zero,
+
+         o  starts the BfdHoldTimer with the value BfdHoldTime,
+
+      -  stays in OpenSent state (OpenSentBfdUpPending)
+
+   *  else,
+
+      -  sends a KEEPALIVE message, and
+
+      -  sets a KeepaliveTimer (via the text below)
+
+      -  changes its state to OpenConfirm.
+
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 19]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   If the negotiated hold time value is zero, then the HoldTimer and
+   KeepaliveTimer are not started.  If the value of the Autonomous
+   System field is the same as the local Autonomous System number, then
+   the connection is an "internal" connection; otherwise, it is an
+   "external" connection.
+
+8.5.6.  OpenSent - Handling Event 26, KeepAliveMsg
+
+   When BFD strict-mode is not in use, receiving a KEEPALIVE message
+   while in the OpenSent state is a finite state machine error.
+
+   When BFD strict-mode is enabled and negotiated, and the local BGP
+   speaker has received an OPEN message, it transitions to the
+   OpenSentBfdUpPending sub-state waiting for BFD to move to the Up
+   state.  While in this sub-state, the remote BFD speaker's BFD session
+   can transition to the Up state prior to the local BFD session making
+   a similar transition.  When that occurs, the remote BGP speaker will
+   send its KEEPALIVE message and transition to the OpenConfirm state.
+
+   When in the OpenSentBfdUpPending sub-state and a KEEPALIVE message is
+   received, but the BFD session is not yet in the Up state, it is
+   necessary to track that the next BGP finite state machine transition
+   is to the Established state.  This is tracked using the
+   OpenSentConfirmedBfdUpPending sub-state.
+
+   Old Text:
+
+   In response to any other event (Events 9, 11-13, 20, 25-28), the
+   local system:
+
+   *  sends the NOTIFICATION with the Error Code Finite State Machine
+      Error,
+
+   *  sets the ConnectRetryTimer to zero,
+
+   *  releases all BGP resources,
+
+   *  drops the TCP connection,
+
+   *  increments the ConnectRetryCounter by 1,
+
+   *  (optionally) performs peer oscillation damping if the
+      DampPeerOscillations attribute is set to TRUE, and
+
+   *  changes its state to Idle.
+
+   New Text:
+
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 20]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   When a KEEPALIVE message is received, BfdEnabled is TRUE, and
+   BfdStrictNegotiated is TRUE and the local system is in either the
+   OpenSentBfdUpPending or OpenSentConfirmedBfdUpPending sub-states, the
+   local system:
+
+   *  resets the HoldTimer to the negotiated value,
+
+   *  transitions to the OpenSentConfirmedBfdUpPending sub-state.
+
+   When a KEEPALIVE message is received, and either BfdEnabled is FALSE
+   or BfdStrictNegotiated is FALSE, or in response to any other event
+   (Events 9, 11-13, 20, 25, 27-28), the local system:
+
+   *  sends the NOTIFICATION with the Error Code Finite State Machine
+      Error,
+
+   *  sets the ConnectRetryTimer to zero,
+
+   *  releases all BGP resources,
+
+   *  drops the TCP connection,
+
+   *  increments the ConnectRetryCounter by 1,
+
+   *  (optionally) performs peer oscillation damping if the
+      DampPeerOscillations attribute is set to TRUE, and
+
+   *  changes its state to Idle.
+
+8.6.  Changes to the OpenConfirm State
+
+8.6.1.  OpenConfirm - Handling BfdAdminDown / BfdDisabled / BfdUp
+
+   The BfdAdminDown, BfdDisabled, and BfdUp events are ignored in the
+   OpenConfirm state.
+
+8.6.2.  OpenConfirm - Handling BfdDown
+
+   In response to the BfdDown event (Event 31):
+
+   *  if BfdEnabled is TRUE, and BfdStrictNegotiated is TRUE, the local
+      system:
+
+      -  sends a NOTIFICATION message with the error code Cease (6) and
+         error subcode BFD Down (10),
+
+      -  drops the TCP connection,
+
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 21]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+      -  releases all BGP resources,
+
+      -  sets ConnectRetryCounter to zero,
+
+      -  stops the ConnectRetryTimer and sets ConnectRetryTimer to zero,
+         and
+
+      -  changes its state to Idle.
+
+   *  else,
+
+      -  stays in the OpenConfirm State
+
+8.6.3.  OpenConfirm - Handling BfdStrictConfigChanged
+
+   In response to the BfdStrictConfigChanged event (Event 35), the local
+   system:
+
+   *  sends a NOTIFICATION message with the error code Cease (6) and
+      error subcode Other Configuration Change (6),
+
+   *  drops the TCP connection,
+
+   *  releases all BGP resources,
+
+   *  sets ConnectRetryCounter to zero,
+
+   *  stops the ConnectRetryTimer and sets ConnectRetryTimer to zero,
+      and
+
+   *  changes its state to Idle.
+
+8.7.  Changes to the Established State
+
+8.7.1.  Established - Handling BfdAdminDown / BfdDisabled / BfdUp
+
+   The BfdAdminDown, BfdDisabled, and BfdUp events are ignored in the
+   Established state.
+
+8.7.2.  Established - Handling BfdDown
+
+   In response to the BfdDown event (Event 31), the local system:
+
+   *  sends a NOTIFICATION message with the error code Cease (6) and
+      error subcode BFD Down (10),
+
+   *  drops the TCP connection,
+
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 22]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   *  deletes all routes associated with this connection,
+
+   *  releases all BGP resources,
+
+   *  increments the ConnectRetryCounter by 1,
+
+   *  (optionally) performs peer oscillation damping if the
+      DampPeerOscillations attribute is set to TRUE, and
+
+   *  changes its state to Idle.
+
+8.7.3.  Established - Handling BfdStrictConfigChanged /
+        BfdHoldTimerExpires
+
+   The BfdStrictConfigChange event is ignored in the Established state.
+
+   The BfdHoldTimerExpires event in the Established state is a FSM
+   error, and is ignored.
+
+9.  Closing BGP Sessions
+
+   When BGP sessions are closed according to the procedures in this
+   document, the session SHOULD be terminated with a NOTIFICATION
+   message with the Cease Code (6) and the "BFD Down" Subcode (10); see
+   [RFC9384].  This informs the operator that interaction with BFD is
+   the root cause of the BGP session being unable to move to the
+   Established state.
+
+10.  Stability Considerations
+
+   The use of BFD strict-mode along with mechanisms such as hold-down (a
+   delay in the initial BGP Establishment state following BFD session
+   establishment) and/or dampening (a delay in the BGP Establishment
+   state following failure detected by BFD) may help reduce the
+   frequency of BGP session flaps and therefore reduce the associated
+   routing churn.
+
+   To avoid deadlock when utilizing both BFD hold-down and BFD strict-
+   mode, when strict-mode is enabled for a peer, the BGP FSM MUST be
+   enabled.  That is, BFD hold-down procedures MUST NOT prevent BGP from
+   establishing a connection with the remote BGP speaker.
+
+   If both the local and remote BGP speakers include the BFD Strict-Mode
+   Capability, the BGP state machine is permitted to transition to the
+   Established state from the OpenConfirm state after the locally
+   configured BFD hold-down interval is observed.  That is, the BFD
+   session has been Up for the desired amount of time.
+
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 23]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   It is RECOMMENDED that the BFD hold-down intervals used with BFD
+   strict-mode, when configured, use similar values.  Similarly, the
+   negotiated BGP holdtime SHOULD be long enough to account for the time
+   between the BGP FSM reaching the OpenConfirm state, the BFD hold-down
+   interval, and any delay for the BFD session being initiated.  Failure
+   to do so can result in the BGP speaker that has transitioned to the
+   Established state expiring its BGP holdtime and closing the
+   connection.  This is because the remote BGP speaker hasn't
+   transitioned to Established and begun sending KEEPALIVE messages.
+
+   A BGP speaker SHOULD log a message if it closes its session due to
+   hold timer expiration while waiting for the BFD hold-down interval.
+
+   The behavior of BGP speakers implementing BFD hold-down without
+   negotiating the BFD strict-mode feature is out of scope of this
+   document.  However, the authors are aware that inconsistent behaviors
+   in BGP implementations for BFD hold-down without BFD strict-mode may
+   result in BGP session deadlock.
+
+11.  Manageability Considerations
+
+   Auto-configuration is possible for enabling BFD strict-mode.
+   However, the configuration automation is out of the scope of this
+   document.
+
+   To simplify troubleshooting and avoid inconsistencies, it is
+   RECOMMENDED that BFD strict-mode configuration be consistent for both
+   BGP peers.
+
+   This draft introduces sub-states in the existing BGP finite state
+   machine for tracking BFD session status inputs for strict mode
+   operation.  Implementations SHOULD provide visibility for these sub-
+   states in its display of the BGP finite state machine.
+
+12.  Security Considerations
+
+   The mechanism defined in this document interacts with the BGP finite
+   state machine when so configured.  The security considerations for
+   BFD thus, become BGP-4 considerations [RFC4271] when so used.  Given
+   that a BFD session is required for a BGP session, a Denial-of-Service
+   (DoS) attack on BGP can now be mounted by preventing a BFD session
+   between the BGP peers from reaching the Up state, or interrupting an
+   existing BFD session.  The use of a BFD Authentication mechanism,
+   some of which are defined in [RFC5880], is thus RECOMMENDED when used
+   to protect BGP-4 [RFC4271].
+
+13.  IANA Considerations
+
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 24]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+13.1.  BGP BFD Strict-Mode Capability
+
+   This document defines the BFD Strict-Mode Capability.  The Capability
+   Code 74 has been assigned from the First-Come-First-Served range
+   (64-238) of the Capability Codes registry.
+
+13.2.  BGP-4 FSM Optional Session Attributes Registry
+
+   This document defines new BGP finite state machine session
+   attributes.  [BGP-IANA-FSM] manages these new registrations.
+
+   +=======+=====================+===============+
+   | Value | Name                | Reference     |
+   +=======+=====================+===============+
+   | 16    | BfdEnabled          | This Document |
+   +-------+---------------------+---------------+
+   | 17    | BfdStrictEnabled    | This Document |
+   +-------+---------------------+---------------+
+   | 18    | BfdHoldTime         | This Document |
+   +-------+---------------------+---------------+
+   | 19    | BfdHoldTimer        | This Document |
+   +-------+---------------------+---------------+
+   | 20    | BfdStrictNegotiated | This Document |
+   +-------+---------------------+---------------+
+
+    Table 1: BGP-4 FSM Optional Session Attributes
+
+13.3.  BGP-4 FSM Events Registry
+
+   This document defines new BGP finite state machine events.
+   [BGP-IANA-FSM] manages these new registrations.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 25]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   +=======+========================+====================+===========+
+   | Value | Name                   | Event Type         | Reference |
+   +=======+========================+====================+===========+
+   | 30    | BfdAdminDown           | BFD Protocol Event | This      |
+   |       |                        |                    | Document  |
+   +-------+------------------------+--------------------+-----------+
+   | 31    | BfdDown                | BFD Protocol Event | This      |
+   |       |                        |                    | Document  |
+   +-------+------------------------+--------------------+-----------+
+   | 32    | BfdUp                  | BFD Protocol Event | This      |
+   |       |                        |                    | Document  |
+   +-------+------------------------+--------------------+-----------+
+   | 33    | BfdDisabled            | Configuration      | This      |
+   |       |                        |                    | Document  |
+   +-------+------------------------+--------------------+-----------+
+   | 34    | BfdHoldTimerExpires    | Timer              | This      |
+   |       |                        |                    | Document  |
+   +-------+------------------------+--------------------+-----------+
+   | 35    | BfdStrictConfigChanged | Configuration      | This      |
+   |       |                        |                    | Document  |
+   +-------+------------------------+--------------------+-----------+
+
+                        Table 2: BGP-4 FSM Events
+
+14.  Acknowledgement
+
+   The authors would like to acknowledge the review and inputs from
+   Shyam Sethuram, Mohammed Mirza, Bruno Decraene, Carlos Pignataro,
+   Enke Chen, Anup Kumar, and Ketan Talalukar.
+
+15.  Normative References
+
+   [BGP-IANA-FSM]
+              Haas, J., Hares, S., and K. Patel, "IANA Registrations for
+              the BGP Finite State Machine (FSM)", Work in Progress,
+              Internet-Draft, draft-ietf-idr-bgp-fsm-iana-02, 26 June
+              2026, <https://datatracker.ietf.org/doc/html/draft-ietf-
+              idr-bgp-fsm-iana-02>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC4271]  Rekhter, Y., Ed., Li, T., Ed., and S. Hares, Ed., "A
+              Border Gateway Protocol 4 (BGP-4)", RFC 4271,
+              DOI 10.17487/RFC4271, January 2006,
+              <https://www.rfc-editor.org/info/rfc4271>.
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 26]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   [RFC5492]  Scudder, J. and R. Chandra, "Capabilities Advertisement
+              with BGP-4", RFC 5492, DOI 10.17487/RFC5492, February
+              2009, <https://www.rfc-editor.org/info/rfc5492>.
+
+   [RFC5880]  Katz, D. and D. Ward, "Bidirectional Forwarding Detection
+              (BFD)", RFC 5880, DOI 10.17487/RFC5880, June 2010,
+              <https://www.rfc-editor.org/info/rfc5880>.
+
+   [RFC5882]  Katz, D. and D. Ward, "Generic Application of
+              Bidirectional Forwarding Detection (BFD)", RFC 5882,
+              DOI 10.17487/RFC5882, June 2010,
+              <https://www.rfc-editor.org/info/rfc5882>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+   [RFC9384]  Haas, J., "A BGP Cease NOTIFICATION Subcode for
+              Bidirectional Forwarding Detection (BFD)", RFC 9384,
+              DOI 10.17487/RFC9384, March 2023,
+              <https://www.rfc-editor.org/info/rfc9384>.
+
+16.  Informative References
+
+   [RFC7942]  Sheffer, Y. and A. Farrel, "Improving Awareness of Running
+              Code: The Implementation Status Section", BCP 205,
+              RFC 7942, DOI 10.17487/RFC7942, July 2016,
+              <https://www.rfc-editor.org/info/rfc7942>.
+
+Appendix A.  Implementation Status
+
+   Note to the RFC Editor: This section may be removed upon publication
+   as an RFC.
+
+   This section documents the [RFC7942] implementation status of this
+   document.
+
+A.1.  HPE / Juniper Networks
+
+   Organization:
+      HPE / Juniper Networks
+
+   Implementation Name:
+      Junos 23.2R1 and later
+
+   Description:
+      Juniper BFD strict mode for BGP peer sessions
+
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 27]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   Maturity:
+      Used.
+
+   Coverage:
+      *  BFD Strict-Mode Capability Negotiation - Implemented.
+
+      *  Changes to the Idle State - Implemented.
+
+      *  Changes to the Connect State - Implemented.
+
+      *  Connect - Handling BfdAdminDown / BfdDisabled / BfdUp -
+         Implemented.
+
+      *  Connect - Handling BfdDown - Implemented.
+
+      *  Connect - Handling BfdHoldTimerExpires - Implemented.
+
+      *  Connect - Handling BfdStrictConfigChanged - Implemented.
+
+      *  Connect - Handling Event 20, BGPOpen with DelayOpenTimer
+         running. - Implemented.
+
+      *  Changes to the Active State - Implemented.
+
+      *  Active - Handling BfdAdminDown / BfdDisabled / BfdUp -
+         Implemented.
+
+      *  Active - Handling BfdDown - Implemented.
+
+      *  Active - Handling BfdHoldTimerExpires - Implemented.
+
+      *  Active - Handling BfdStrictConfigChanged - Implemented.
+
+      *  Active - Handling Event 20, BGPOpen with DelayOpenTimer
+         running. - Implemented.
+
+      *  Changes to the OpenSent State - Implemented.
+
+      *  OpenSent - Handling BfdAdminDown / BfdDisabled / BfdUp -
+         Implemented
+
+      *  OpenSent - Handling BfdDown - Implemented
+
+      *  OpenSent - Handling BfdHoldTimerExpires - Implemented
+
+      *  OpenSent - Handling BfdStrictConfigChanged - Implemented
+
+      *  OpenSent - Handling Event 19, BGPOpen - Implemented
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 28]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+      *  OpenSent - Handling Event 26, KeepAliveMsg - Implemented
+
+      *  OpenConfirm - Handling BfdAdminDown / BfdDisabled / BfdUp -
+         Implemented.
+
+      *  OpenConfirm - Handling BfdDown - Implemented.
+
+      *  OpenConfirm - Handling BfdStrictConfigChanged - Implemented.
+
+      *  Established - Handling BfdAdminDown / BfdDisabled / BfdUp -
+         Implemented.
+
+      *  Established - Handling BfdDown - Implemented.
+
+      *  Established - Handling BfdStrictConfigChanged /
+         BfdHoldTimerExpires - Implemented.
+
+   Version Compatibility:
+      draft-ietf-idr-bgp-bfd-strict-mode-17
+
+   Licensing:
+      Proprietary
+
+   Implementation Experience:
+
+   Contact Information:
+      Jeffrey Haas - jeffrey.haas@hpe.com
+
+   Last Updated:
+      June 2026
+
+A.2.  Cisco
+
+   Organization:
+      Cisco
+
+   Implementation Name:
+      IOS-XR 24.3.1 and later
+
+   Description:
+      Cisco BFD strict mode for BGP peer sessions
+
+   Maturity:
+      Used.
+
+   Coverage:
+      *  BFD Strict-Mode Capability Negotiation - Implemented.
+
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 29]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   Version Compatibility:
+      draft-ietf-idr-bgp-bfd-strict-mode-12
+
+   Licensing:
+      Proprietary
+
+   Implementation Experience:
+
+   Contact Information:
+      Ketan Talaulikar
+
+   Last Updated:
+      June 2026
+
+A.3.  Nokia
+
+   Organization:
+      Nokia
+
+   Implementation Name:
+      Release 23.7R1
+
+   Description:
+      Strict-Mode BFD procedures for BGP
+
+   Maturity:
+      Used.
+
+   Coverage:
+      Nokia's implementation currently does not support the
+      BfdHoldTimer.  Coverage for this feature is planned for an
+      upcoming release.
+
+      *  BFD Strict-Mode Capability Negotiation - Implemented.
+
+      *  Changes to the Idle State - Implemented.
+
+      *  Changes to the Connect State - Implemented.
+
+      *  Connect - Handling BfdAdminDown / BfdDisabled / BfdUp -
+         Implemented.
+
+      *  Connect - Handling BfdDown - Implemented.
+
+      *  Connect - Handling BfdHoldTimerExpires - Not implemented.
+
+      *  Connect - Handling BfdStrictConfigChanged - Implemented.
+
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 30]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+      *  Connect - Handling Event 20, BGPOpen with DelayOpenTimer
+         running. - Implemented.
+
+      *  Changes to the Active State - Implemented.
+
+      *  Active - Handling BfdAdminDown / BfdDisabled / BfdUp -
+         Implemented.
+
+      *  Active - Handling BfdDown - Implemented.
+
+      *  Active - Handling BfdHoldTimerExpires - Not implemented.
+
+      *  Active - Handling BfdStrictConfigChanged - Implemented.
+
+      *  Active - Handling Event 20, BGPOpen with DelayOpenTimer
+         running. - Implemented.
+
+      *  Changes to the OpenSent State - Implemented.
+
+      *  OpenSent - Handling BfdAdminDown / BfdDisabled / BfdUp -
+         Implemented
+
+      *  OpenSent - Handling BfdDown - Implemented
+
+      *  OpenSent - Handling BfdHoldTimerExpires - Not implemented
+
+      *  OpenSent - Handling BfdStrictConfigChanged - Implemented
+
+      *  OpenSent - Handling Event 19, BGPOpen - Implemented
+
+      *  OpenSent - Handling Event 26, KeepAliveMsg - Implemented
+
+      *  OpenConfirm - Handling BfdAdminDown / BfdDisabled / BfdUp -
+         Implemented.
+
+      *  OpenConfirm - Handling BfdDown - Implemented.
+
+      *  OpenConfirm - Handling BfdStrictConfigChanged - Implemented.
+
+      *  Established - Handling BfdAdminDown / BfdDisabled / BfdUp -
+         Implemented.
+
+      *  Established - Handling BfdDown - Implemented.
+
+      *  Established - Handling BfdStrictConfigChanged /
+         BfdHoldTimerExpires - Implemented.
+
+
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 31]
+
+Internet-Draft             BGP BFD Strict-Mode               August 2026
+
+
+   Version Compatibility:
+      draft-ietf-idr-bgp-bfd-strict-mode-07
+
+   Licensing:
+      Proprietary
+
+   Implementation Experience:
+
+   Contact Information:
+      Scott Ralph - scott.ralph@nokia.com
+
+   Last Updated:
+      June 2026
+
+Authors' Addresses
+
+   Mercia Zheng
+   Ciena
+   3939 N. 1st Street
+   San Jose, CA 95134
+   United States
+   Email: merciaz.ietf@gmail.com
+
+
+   Acee Lindem
+   Arrcus, Inc
+   301 Midenhall Way
+   Cary, NC 27513
+   United States
+   Email: acee.ietf@gmail.com
+
+
+   Jeffrey Haas
+   HPE
+   Email: jeffrey.haas@hpe.com
+
+
+   Albert Fu
+   Bloomberg L.P.
+   731 Lexington Avenue
+   New York, NY 10022
+   United States of America
+   Email: afu14@bloomberg.net
+
+
+
+
+
+
+
+
+Zheng, et al.           Expires 27 February 2027               [Page 32]

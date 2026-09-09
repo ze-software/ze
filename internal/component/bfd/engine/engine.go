@@ -145,13 +145,23 @@ func (l *Loop) SetMetricsHook(h MetricsHook) {
 // txPackets / rxPackets are incremented inside the express loop and
 // exported via Snapshot + Prometheus counters.
 type sessionEntry struct {
-	machine     *session.Machine
-	profile     string
-	createdAt   time.Time
+	machine   *session.Machine
+	profile   string
+	createdAt time.Time
+	// lastChange is when the session entered lastState, or the zero time when
+	// it has never left the state it was created in. It answers the snapshot's
+	// When without walking the display ring.
+	lastChange  time.Time
 	txPackets   uint64
 	rxPackets   uint64
 	transitions []api.TransitionRecord
 	lastState   packet.State
+	// lastDiag is the diagnostic that came with lastState, kept beside it so
+	// the snapshot Subscribe delivers carries the same pair a transition
+	// would. Reading it back out of transitions is not equivalent: that ring
+	// holds STRINGS for display, and a session that has made no transition has
+	// no entry at all.
+	lastDiag packet.Diag
 }
 
 // recordTransition appends a new TransitionRecord to the ring buffer.
@@ -494,6 +504,59 @@ func (l *Loop) ReleaseSession(h api.SessionHandle) error {
 	return nil
 }
 
+// subscribe registers a channel for key and seeds it with the session's current
+// state, as ONE critical section.
+//
+// The two steps cannot be split. makeNotify writes entry.lastState under l.mu
+// and then copies l.subscribers[key] under subsMu, so a transition that lands
+// between a released snapshot and the append is written to a subscriber list
+// that does not yet hold this channel: the subscriber keeps a stale snapshot
+// and never learns it was superseded. For a BGP peer running
+// draft-ietf-idr-bgp-bfd-strict-mode the handle outlives every connection
+// retry, so a missed Up is not re-read until BFD next flaps.
+//
+// The lock ORDER is makeNotify's: l.mu first, then subsMu. Taking them the
+// other way here would trade a lost update for a deadlock.
+//
+// The entry time is the last transition's, or the session's creation time when
+// it has made none: a session that has never left Down entered Down when it was
+// created. It is a real fact rather than "now", because
+// draft-ietf-idr-bgp-bfd-strict-mode Section 10 measures how long a session has
+// been Up, and answering "now" would restart every hold-down interval on each
+// new subscription.
+//
+// A key with no session gets a registered channel and NO snapshot: there is no
+// state to report, and inventing one would be a value a caller cannot tell from
+// a fact (ai/rules/principles.md).
+func (l *Loop) subscribe(key api.Key) chan api.StateChange {
+	ch := make(chan api.StateChange, SubscribeBuffer)
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.subsMu.Lock()
+	defer l.subsMu.Unlock()
+
+	if entry, ok := l.sessions[key]; ok {
+		when := entry.lastChange
+		if when.IsZero() {
+			when = entry.createdAt
+		}
+		// Buffered and unpublished, so this send cannot block and no
+		// transition can precede it: makeNotify cannot reach this channel
+		// until the append below, and it cannot run at all while l.mu is held.
+		ch <- api.StateChange{
+			Key:     key,
+			State:   entry.lastState,
+			Diag:    entry.lastDiag,
+			When:    when,
+			Initial: true,
+		}
+	}
+
+	l.subscribers[key] = append(l.subscribers[key], ch)
+	return ch
+}
+
 // makeNotify returns a notify callback bound to a session key and its
 // engine-side bookkeeping entry. The callback runs from the express
 // loop goroutine while l.mu is held; it appends a TransitionRecord to
@@ -506,6 +569,8 @@ func (l *Loop) makeNotify(key api.Key, entry *sessionEntry) func(packet.State, p
 		from := entry.lastState
 		entry.recordTransition(from, state, diag, now)
 		entry.lastState = state
+		entry.lastDiag = diag
+		entry.lastChange = now
 
 		if hook := l.metricsHook.Load(); hook != nil {
 			(*hook).OnStateChange(from, state, diag, key.Mode.String(), key.VRF)

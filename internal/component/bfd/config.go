@@ -436,18 +436,12 @@ func parseBool(v string, def bool) bool {
 	return def
 }
 
-// defaultVRFName is the canonical string used throughout the plugin for
-// "no VRF configured / global routing table". Kept as a constant so the
-// loop dispatcher and the device-resolution helper share one source of
-// truth instead of scattering the literal across comparisons.
-const defaultVRFName = "default"
-
-// defaultVRF normalises an unset VRF to defaultVRFName so the rest of
+// defaultVRF normalises an unset VRF to api.DefaultVRF so the rest of
 // the plugin compares VRF names without special-casing the empty
 // string.
 func defaultVRF(v string) string {
 	if v == "" {
-		return defaultVRFName
+		return api.DefaultVRF
 	}
 	return v
 }

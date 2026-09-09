@@ -163,6 +163,11 @@ type Key struct {
 }
 
 // Key derives the session key from a request.
+// DefaultVRF is the name a session takes when the client names no VRF. It is
+// part of the session's identity, so the empty string and "default" MUST
+// resolve to one key: Canonical performs that reduction for every client.
+const DefaultVRF = "default"
+
 func (r SessionRequest) Key() Key {
 	return Key{
 		Peer:      r.Peer,
@@ -181,4 +186,33 @@ type StateChange struct {
 	State packet.State
 	Diag  packet.Diag
 	When  time.Time
+
+	// Initial marks the SNAPSHOT a subscriber receives as the first value on
+	// its channel: the state the session already held when Subscribe was
+	// called, rather than a transition into it. When is the moment the session
+	// entered that state, which may be long before the subscription.
+	//
+	// Every subscriber MUST branch on it, because a snapshot and a transition
+	// mean different things to a client. A session that is merely STARTING sits
+	// in Down (RFC 5880 Section 6.8.1), and RFC 5882 Section 4.2 asks a client
+	// to react to a path that FAILED, not to one that has not come up yet:
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 8.3.2 says the same in the BGP
+	// FSM's own words, "A BFD session can transition to Down from the Init
+	// state, indicating the session has failed to come Up ... as part of
+	// starting the BFD state machine". A client that tore its adjacency down on
+	// a snapshot would drop every session it opened.
+	//
+	// It exists because the alternative loses information no caller can
+	// recover: without the flag, a client cannot tell a fresh session's Down
+	// from a real failure, and with no snapshot at all a client that subscribes
+	// to an ALREADY-Up session waits for a transition that never comes.
+	//
+	// False is the permissive default, so nothing in the type stops a new
+	// subscriber forgetting it. An IsTransition accessor was tried and removed:
+	// every call site read `!IsTransition()`, which is the same shape as
+	// reading the field, so it transformed nothing and cost a second spelling
+	// (ai/rules/simplicity.md). What guards this is the contract on
+	// SessionHandle.Subscribe and the review that reads a new subscriber
+	// against it.
+	Initial bool
 }

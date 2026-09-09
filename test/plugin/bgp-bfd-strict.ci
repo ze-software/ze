@@ -1,0 +1,42 @@
+# Test: BGP peer runs BFD strict mode via `bgp peer connection bfd { strict true; }`
+#
+# VALIDATES: spec-bgp-bfd-strict -- the two new YANG leaves parse, the BGP
+#            config parser sets PeerSettings.BFD.Strict and HoldTime, and the
+#            reactor opens the peer's BFD session BEFORE the BGP FSM starts,
+#            which is what draft-ietf-idr-bgp-bfd-strict-mode Section 7 asks
+#            for: "Implementations SHOULD start the BFD session associated with
+#            the BGP BFD strict-mode session prior to the BGP FSM starting."
+# PREVENTS:  regression where the new leaves fail YANG validation, the parser
+#            drops them, or the BFD session goes back to opening on Established,
+#            which would make a strict peer wait for a session that is not
+#            running yet.
+#
+# Method: a compiled driver launches ze with a top-level `bfd { ... }` block AND
+# a BGP peer whose `connection { bfd { strict true; hold-time 45 } }` opts into
+# strict mode. The peer's remote address is a loopback IP that cannot complete a
+# TCP handshake, so BGP NEVER reaches Established. The log line proving the BFD
+# session opened anyway, carrying strict=true, is therefore only producible by
+# the early-start path.
+#
+# What this test cannot see: the capability negotiation and the OpenSent wait
+# need a peer. Those are
+# internal/core/bgp/capability/bfd_strict_test.go,
+# internal/component/bgp/fsm/bfd_strict_test.go,
+# internal/component/bgp/reactor/session_bfd_strict_test.go, and the interop
+# scenario test/interop/scenarios/bgp-bfd-strict-frr.
+
+option=env:var=ze.bfd.test-parallel:value=true
+# BFD listens on the RFC 5881 / RFC 5883 FIXED ports, so every concurrently
+# running BFD test's daemon binds the same wildcard (0.0.0.0, 3784/3785) tuple.
+# SO_REUSEPORT above lets them co-bind, and the kernel then HASHES each inbound
+# datagram to one socket in the group. That is the kernel-global surface
+# option=exclusive exists for: unique addresses cannot partition a port number
+# the RFC fixes.
+option=exclusive:group=bfd-ports
+
+
+cmd=foreground:seq=1:exec=ze-test fixture plugin/bgp-bfd-strict:timeout=30s
+expect=exit:code=0
+expect=stderr:pattern=bfd plugin running
+expect=stderr:pattern=bfd session opened for peer
+expect=stderr:pattern=strict=true

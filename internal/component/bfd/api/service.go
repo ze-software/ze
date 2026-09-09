@@ -57,6 +57,29 @@ type SessionHandle interface {
 	// this session. The channel has a small buffer; if the subscriber
 	// cannot keep up, older events are dropped.
 	//
+	// The FIRST value is a SNAPSHOT of the state the session already held,
+	// carrying StateChange.Initial. It exists because EnsureSession on an
+	// existing key only bumps a refcount: without it a client that joins a
+	// session another client already brought Up waits for a transition that
+	// never comes, and can only guess at the state meanwhile. A key with no
+	// session yields no snapshot, so a caller must not wait for one.
+	//
+	// A caller whose reaction to a state DIFFERS from its reaction to being IN
+	// that state MUST branch on Initial. A session that has not come up yet
+	// sits in Down (RFC 5880 Section 6.8.1), and RFC 5882 Section 4.2 asks a
+	// client to react to a path that FAILED: such a client that reads the
+	// snapshot as a failure tears down the adjacency it just opened. The BGP
+	// and OSPF subscribers are both of that kind and both branch.
+	//
+	// A caller that only asks "what is the state now" needs no branch, and the
+	// static-route next-hop tracker is the worked example: it compares Up
+	// against what it already believed and programs on a difference, so a
+	// snapshot is simply the earliest correct answer it can get. Read the
+	// exception as the rule's own boundary rather than as an oversight.
+	//
+	// The snapshot and the registration are one atomic step, so no transition
+	// can be lost between them.
+	//
 	// Caller MUST call Unsubscribe on the returned channel when done.
 	Subscribe() <-chan StateChange
 

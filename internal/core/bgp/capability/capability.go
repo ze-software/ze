@@ -79,6 +79,7 @@ const (
 	CodeAddPath              Code = 69 // RFC 7911 Section 4
 	CodeEnhancedRouteRefresh Code = 70 // RFC 7313 Section 3.1
 	CodeFQDN                 Code = 73 // draft-walton-bgp-hostname-capability
+	CodeBFDStrictMode        Code = 74 // draft-ietf-idr-bgp-bfd-strict-mode Section 5
 	CodePathsLimit           Code = 76 // draft-abraitis-idr-addpath-paths-limit
 )
 
@@ -105,6 +106,8 @@ func (c Code) String() string {
 		return "Enhanced Route Refresh(70)"
 	case CodeFQDN:
 		return "FQDN(73)"
+	case CodeBFDStrictMode:
+		return "BFD Strict-Mode(74)"
 	case CodePathsLimit:
 		return "PATHS-LIMIT(76)"
 	default:
@@ -230,6 +233,8 @@ func parseCapability(code Code, data []byte) (Capability, error) {
 		return parseZeroLengthCapability(code, data, &ExtendedMessage{})
 	case CodeEnhancedRouteRefresh:
 		return parseZeroLengthCapability(code, data, &EnhancedRouteRefresh{})
+	case CodeBFDStrictMode:
+		return parseZeroLengthCapability(code, data, &BFDStrictMode{})
 	case CodeExtendedNextHop:
 		return parseExtendedNextHop(data)
 	case CodeAddPath:
@@ -247,9 +252,10 @@ func parseCapability(code Code, data []byte) (Capability, error) {
 }
 
 func parseZeroLengthCapability(code Code, data []byte, cap Capability) (Capability, error) {
-	// RFC 2918 Section 2, RFC 8654 Section 3, and RFC 7313 Section 3.1
-	// define these known capabilities with Capability Length 0. Unknown
-	// capabilities remain ignorable, but malformed known capability TLVs do not.
+	// RFC 2918 Section 2, RFC 8654 Section 3, RFC 7313 Section 3.1 and
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 5 define these known
+	// capabilities with Capability Length 0. Unknown capabilities remain
+	// ignorable, but malformed known capability TLVs do not.
 	if len(data) != 0 {
 		return nil, fmt.Errorf("%w for %s: got %d, want 0", ErrInvalidLength, code, len(data))
 	}
@@ -414,6 +420,33 @@ func (e *EnhancedRouteRefresh) WriteTo(buf []byte, off int) int {
 // ConfigValues implements ConfigProvider for plugin config delivery.
 func (e *EnhancedRouteRefresh) ConfigValues() map[string]string {
 	return map[string]string{"rfc7313:enabled": configTrue}
+}
+
+// BFDStrictMode represents the BFD Strict-Mode capability
+// (draft-ietf-idr-bgp-bfd-strict-mode Section 5).
+//
+// draft-ietf-idr-bgp-bfd-strict-mode Section 5: "Capability code: 74"
+// and "Capability length: 0 octets".
+//
+// Advertising it says this speaker runs the strict-mode procedures of
+// Section 8: the BGP session does not advance to OpenConfirm until the
+// associated BFD session reaches the Up state. The peer that also
+// advertises it makes the BfdStrictNegotiated session attribute TRUE
+// (Section 6), and only then does either speaker wait.
+type BFDStrictMode struct{}
+
+func (b *BFDStrictMode) Code() Code { return CodeBFDStrictMode }
+
+func (b *BFDStrictMode) Len() int { return 2 } // 2 header + 0 value
+
+func (b *BFDStrictMode) WriteTo(buf []byte, off int) int {
+	writeCapabilityTo(buf, off, CodeBFDStrictMode, 0)
+	return 2
+}
+
+// ConfigValues implements ConfigProvider for plugin config delivery.
+func (b *BFDStrictMode) ConfigValues() map[string]string {
+	return map[string]string{"draft-ietf-idr-bgp-bfd-strict-mode:enabled": configTrue}
 }
 
 // AddPathMode indicates send/receive capability for ADD-PATH.
@@ -762,8 +795,12 @@ func parseFQDN(data []byte) (*FQDN, error) {
 
 // PathsLimitEntry describes path count limit for one AFI/SAFI.
 //
-// draft-abraitis-idr-addpath-paths-limit Section 3: Each entry is 5 octets:
-// AFI (2) + SAFI (1) + Max Paths (2).
+// draft-abraitis-idr-addpath-paths-limit-04 Section 3: Each entry is 5 octets:
+//
+//	Offset  0       2      3       5
+//	        +-------+------+-------+
+//	        |  AFI  | SAFI | Limit |
+//	        +-------+------+-------+
 type PathsLimitEntry struct {
 	AFI   AFI
 	SAFI  SAFI
@@ -781,18 +818,13 @@ type PathsLimit struct {
 
 func (p *PathsLimit) Code() Code { return CodePathsLimit }
 
-// Len returns 0 when Entries is empty (draft-abraitis-idr-addpath-paths-limit: do not emit empty).
+// Len includes the header for an empty capability, which communicates no limits
+// (draft-abraitis-idr-addpath-paths-limit-04 Section 3).
 func (p *PathsLimit) Len() int {
-	if len(p.Entries) == 0 {
-		return 0
-	}
 	return 2 + len(p.Entries)*5
 }
 
 func (p *PathsLimit) WriteTo(buf []byte, off int) int {
-	if len(p.Entries) == 0 {
-		return 0
-	}
 	dataLen := len(p.Entries) * 5
 	writeCapabilityTo(buf, off, CodePathsLimit, dataLen)
 	for i, e := range p.Entries {
@@ -829,16 +861,18 @@ func parsePathsLimit(data []byte) (*PathsLimit, error) {
 		safi := SAFI(data[i+2])
 		limit := binary.BigEndian.Uint16(data[i+3:])
 
-		// draft-abraitis-idr-addpath-paths-limit: skip entries with limit 0
-		if limit == 0 {
-			continue
-		}
-
 		f := Family{AFI: afi, SAFI: safi}
 		if seen[f] {
 			continue
 		}
 		seen[f] = true
+
+		// draft-abraitis-idr-addpath-paths-limit-04 Section 3:
+		// "If the received Paths Limit is zero (0), the tuple SHOULD be ignored."
+		// It remains the first tuple, so later duplicates cannot replace it.
+		if limit == 0 {
+			continue
+		}
 
 		entries = append(entries, PathsLimitEntry{
 			AFI:   afi,

@@ -153,10 +153,17 @@ func (r *runtimeState) applyPinned(cfg *pluginConfig) error {
 	// under runtimeStateGuard which applyPinned also holds.
 	r.cfg = cfg
 
+	// A pinned session is a client like any other, so its key goes through
+	// the same canonicalization the protocol clients get (api.SessionRequest.Canonical).
+	// A configured session and a strict-mode BGP peer to one neighbor then
+	// share one session instead of racing for the link.
+	links := connectedLinks()
 	wanted := make(map[api.Key]sessionConfig, len(cfg.sessions))
+	requests := make(map[api.Key]api.SessionRequest, len(cfg.sessions))
 	for _, s := range cfg.sessions {
-		req := s.toSessionRequest(cfg.profiles)
+		req := s.toSessionRequest(cfg.profiles).Canonical(links)
 		wanted[req.Key()] = s
+		requests[req.Key()] = req
 	}
 
 	// Release sessions absent from the new config.
@@ -188,7 +195,7 @@ func (r *runtimeState) applyPinned(cfg *pluginConfig) error {
 		if err != nil {
 			return err
 		}
-		req := s.toSessionRequest(cfg.profiles)
+		req := requests[key]
 		req.PersistDir = cfg.persistDir
 		handle, ok := r.pinned[key]
 		if !ok {
@@ -255,7 +262,7 @@ func resolveLoopDevices(wanted map[api.Key]sessionConfig) map[loopKey]string {
 	for key, s := range wanted {
 		lk := loopKey{vrf: key.VRF, mode: key.Mode}
 		st := getState(lk)
-		if key.VRF != defaultVRFName {
+		if key.VRF != api.DefaultVRF {
 			st.vrfBind = key.VRF
 			if s.iface != "" {
 				st.overriddenByVRF = append(st.overriddenByVRF, s.iface)
@@ -439,23 +446,24 @@ type pluginService struct {
 func (s *pluginService) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) {
 	runtimeStateGuard.Lock()
 	defer runtimeStateGuard.Unlock()
-	vrf := req.VRF
-	if vrf == "" {
-		vrf = defaultVRFName
-	}
+	// RFC 5882 Section 4.4: "If multiple control protocols wish to establish
+	// BFD sessions with the same remote system for the same data protocol,
+	// all MUST share a single BFD session." Every client reaches the engine
+	// through this method, so Canonical here is what makes the OSPF request
+	// and the BGP request for one neighbor land on one key, and so on one
+	// session (api/session_identity.go).
+	normalized := req.Canonical(connectedLinks())
 	device := ""
-	if vrf != defaultVRFName {
-		device = vrf
-	} else if req.Mode == api.SingleHop {
-		device = req.Interface
+	if normalized.VRF != api.DefaultVRF {
+		device = normalized.VRF
+	} else if normalized.Mode == api.SingleHop {
+		device = normalized.Interface
 	}
-	lk := loopKey{vrf: vrf, mode: req.Mode}
+	lk := loopKey{vrf: normalized.VRF, mode: normalized.Mode}
 	loop, err := s.state.loopFor(lk, device)
 	if err != nil {
 		return nil, err
 	}
-	normalized := req
-	normalized.VRF = vrf
 	return loop.EnsureSession(normalized)
 }
 
@@ -472,7 +480,7 @@ func (s *pluginService) ReleaseSession(h api.SessionHandle) error {
 	key := h.Key()
 	vrf := key.VRF
 	if vrf == "" {
-		vrf = defaultVRFName
+		vrf = api.DefaultVRF
 	}
 	loop, ok := s.state.loops[loopKey{vrf: vrf, mode: key.Mode}]
 	if !ok {

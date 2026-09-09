@@ -61,8 +61,9 @@ All capabilities share a common TLV (Type-Length-Value) format:
 | 69 | 0x45 | ADD-PATH | RFC 7911 | 4 per family | Core parser |
 | 70 | 0x46 | Enhanced Route Refresh | RFC 7313 | 0 | Core parser |
 | 73 | 0x49 | FQDN | draft-walton-bgp-hostname-capability | Variable | Core parser |
+| 74 | 0x4A | BFD Strict-Mode | draft-ietf-idr-bgp-bfd-strict-mode | 0 | Core parser |
 | 75 | 0x4B | Software Version | draft-abraitis-bgp-version-capability | Variable | Preserved as unknown |
-| 76 | 0x4C | PATHS-LIMIT | draft-abraitis-idr-addpath-paths-limit | 5 per family | Core parser |
+| 76 | 0x4C | PATHS-LIMIT | draft-abraitis-idr-addpath-paths-limit-04 | 0 or 5 per family | Core parser |
 | 77 | 0x4D | Link-Local Next Hop | draft-ietf-idr-linklocal-capability | 0 | Preserved as unknown |
 | 128 | 0x80 | Route Refresh (Cisco) | Vendor | 0 | Preserved as unknown |
 | 131 | 0x83 | Multisession (Cisco) | Vendor | Variable | Preserved as unknown |
@@ -291,9 +292,42 @@ When ADD-PATH is enabled, NLRI includes a 4-byte Path ID before each prefix.
 
 ---
 
+## 9b. BFD Strict-Mode (Code 74)
+
+draft-ietf-idr-bgp-bfd-strict-mode Section 5.
+
+```
+[Empty - Length = 0]
+```
+
+No value field. Advertising it says this speaker runs the strict-mode
+procedures of Section 8: the BGP session does not send its KEEPALIVE and does
+not advance to OpenConfirm until the BFD session to that neighbour is Up.
+
+Negotiation is the plain RFC 5492 intersection. Both speakers advertising it
+sets the draft's `BfdStrictNegotiated` session attribute, which is
+`Negotiated.BFDStrictMode`. A peer that does not advertise it leaves the
+attribute false and the session establishes on the unmodified RFC 4271 path,
+which is what Section 1 asks for: "always using 'strict-mode' would preclude BGP
+operation in an environment where not all routers support BFD strict-mode".
+
+Ze advertises the capability from the peer's `connection bfd { strict true; }`
+leaf rather than from the `capability` block, because it is not an independent
+choice. It commits the speaker to procedures that only exist when BFD is enabled
+for that peer, so a `bfd` block with `enabled false` advertises nothing.
+
+The FSM half is `docs/architecture/behavior/fsm.md`. The operator-facing half is
+`docs/guide/bfd.md`.
+
+<!-- source: internal/core/bgp/capability/capability.go -- BFDStrictMode, CodeBFDStrictMode -->
+<!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate, BFDStrictMode -->
+<!-- source: internal/component/bgp/reactor/config.go -- parsePeerFromTree, the bfd block that advertises it -->
+
+---
+
 ## 7b. PATHS-LIMIT (Code 76)
 
-draft-abraitis-idr-addpath-paths-limit: per-family path count limit for ADD-PATH.
+draft-abraitis-idr-addpath-paths-limit-04: receiver-requested path count limit for ADD-PATH.
 
 ```
 +---------------------------------------------+
@@ -301,14 +335,23 @@ draft-abraitis-idr-addpath-paths-limit: per-family path count limit for ADD-PATH
 +---------------------------------------------+
 ```
 
-Variable length: sequence of 5-byte entries. Only meaningful for families with ADD-PATH negotiated.
+The value contains zero or more 5-byte entries. An empty capability encodes as `4C 00` and requests no limit.
 
-- Entries with limit 0 are skipped during parsing.
-- Duplicate AFI/SAFI: first entry wins.
-- Receiver-advertised: remote's limit constrains our send, ours constrains peer's send.
-- RS fast-path peers suppress PATHS-LIMIT (no per-prefix state in forwarding).
+- The first tuple for an AFI/SAFI wins, even when its limit is zero.
+- A zero limit is ignored. A later duplicate cannot replace it with a nonzero limit.
+- The first received PATHS-LIMIT capability instance wins, including an empty instance.
+- The remote limit constrains Ze's send only for a family with negotiated ADD-PATH send.
+- The local limit requests a bound on the peer's send only for a family with negotiated ADD-PATH receive.
+
+A local limit is a receiver request, not a guarantee that the peer obeys it.
+
+The session writer enforces the remote limit per AFI/SAFI, prefix, and distinct path ID across messages and batches. This includes route-server fast-path forwarding. The first admitted paths keep their slots, and replacements with the same path ID remain permitted at the limit. A withdrawal frees its slot, and a new destination connection starts with no admitted paths.
+
+Ze does not queue suppressed announcements. A later re-announcement can retry after capacity becomes available. Normal send and forwarding paths share enforcement, but deliberate raw-message injection remains an exact-byte diagnostic command.
 
 <!-- source: internal/core/bgp/capability/capability.go -- PathsLimit struct, PathsLimitEntry -->
+<!-- source: internal/core/bgp/capability/negotiated.go -- negotiatePathsLimit, negotiatePathsLimitDirection -->
+<!-- source: internal/component/bgp/reactor/session_paths_limit.go -- initPathsLimit, pathsLimitSection, filterPathsLimit -->
 
 ---
 
@@ -412,6 +455,7 @@ type Negotiated struct {
     ExtendedMessage      bool
     RouteRefresh         bool
     EnhancedRouteRefresh bool
+    BFDStrictMode        bool
     HoldTime             uint16
     GracefulRestart      *GracefulRestart
 
@@ -538,6 +582,7 @@ sendNotification(OpenMessageError, UnsupportedCapability, data)
 | ADD-PATH (code 69) | absent (opt-in) | Needs send/receive config |
 | Extended Next Hop (code 5) | absent (opt-in) | Needs family mapping |
 | Software Version (code 75) | absent (opt-in) | Only active if configured |
+| BFD Strict-Mode (code 74) | absent (opt-in) | Advertised by `connection bfd { strict true; }`, never by the `capability` block |
 
 "Absent" means the capability is not advertised and has no enforcement — it's as if it doesn't exist. Setting it to `enable`, `require`, or `refuse` activates it.
 
@@ -570,6 +615,7 @@ const (
     CodeAddPath              Code = 69 // RFC 7911
     CodeEnhancedRouteRefresh Code = 70 // RFC 7313
     CodeFQDN                 Code = 73 // RFC 8516
+    CodeBFDStrictMode        Code = 74 // draft-ietf-idr-bgp-bfd-strict-mode
     CodeSoftwareVersion      Code = 75 // draft
 )
 ```

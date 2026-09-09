@@ -1,0 +1,70 @@
+# Test: a BFD strict peer whose BFD session ALREADY EXISTS, created by a
+# top-level `bfd { single-hop-session ... }` pinned entry to the same neighbour.
+#
+# VALIDATES: spec-bgp-bfd-strict -- the peer reads the BFD session's CURRENT
+#            state rather than assuming Down. api.SessionHandle.Subscribe
+#            delivers that state as its first value, marked Initial, and
+#            Peer.startBFDClient seeds from it.
+# PREVENTS:  the round-2 blocker. The pinned session is created at plugin
+#            configure time, before any peer runs, so the peer's EnsureSession
+#            finds the key and only bumps a refcount, and Subscribe used to
+#            replay nothing. The peer therefore read Down until the session next
+#            TRANSITIONED -- which for a stable session never happens -- and sat
+#            in OpenSentBfdUpPending until the BGP hold timer dropped it to
+#            Idle, then retried, forever. Nothing corrupted; the peer simply
+#            could never establish, from a supported configuration.
+#
+# Method: a compiled driver launches ze with a pinned single-hop session AND a
+# strict peer naming the same address. The peer's remote address completes no
+# TCP handshake, so BGP never reaches Established, and the assertion is not
+# about establishment: it is that the BFD wiring runs to completion with the
+# pinned session in place. `bfd service delivered no initial state` is in the
+# REJECT list, so a Service that stops delivering the snapshot fails this test
+# rather than silently returning to the guess.
+#
+# The state-level proof, that an already-Up session is read as Up and the
+# KEEPALIVE is not withheld, is
+# TestSessionBFDStrictProceedsWhenBFDWasAlreadyUpBeforeTheSession
+# (internal/component/bgp/reactor/session_bfd_strict_test.go), and the
+# forced-red proof of the snapshot itself is
+# TestSubscribeReportsAStateAnotherClientAlreadyReached
+# (internal/component/bfd/engine/subscribe_snapshot_test.go).
+#
+# MEASURED, 2026-09-09: this test DISCRIMINATES the snapshot. Disabling the
+# enqueue in Loop.subscribe (internal/component/bfd/engine/engine.go) and
+# rebuilding the daemon fails it with `configuration rejected: bfd service
+# delivered no initial state`, and restoring it passes. An earlier note here
+# said the opposite; that measurement had broken Loop.EnsureSession's refcount
+# branch instead, which gives the peer a session of its own whose creation
+# transition arrives on the channel, so the reject string never fires.
+#
+# WHAT THIS TEST STILL CANNOT SHOW. The pinned session here never comes up,
+# because nothing answers BFD on 127.0.0.254, so a snapshot of Down and an
+# assumed Down carry the same VALUE: what fails without the snapshot is the
+# absence of any delivery, not a wrong state. The state-level proof against a
+# session that is genuinely Up is the interop scenario
+# bgp-bfd-strict-reload-speaker, where the speaker answers BFD, a SIGHUP reload
+# adds the strict peer to an already-Up session, and removing the snapshot
+# leaves the peer unable to establish.
+#
+# What this test also shows is the key collision: the pinned entry carries
+# `local 127.0.0.1` so its api.SessionRequest.Key matches the peer's and the two
+# share ONE session, which is RFC 5882 Section 4.4. Since
+# api.SessionRequest.Canonical landed, a pinned entry that OMITS the leaf is
+# derived onto the same key wherever an interface backend can name the link;
+# this daemon has none (`bfd session identity: no interface backend`), so here
+# the leaf is still what makes the two agree.
+
+option=env:var=ze.bfd.test-parallel:value=true
+# BFD listens on the RFC 5881 / RFC 5883 FIXED ports, so every concurrently
+# running BFD test's daemon binds the same wildcard tuple. SO_REUSEPORT lets
+# them co-bind and the kernel then hashes each datagram to one socket in the
+# group, which is the kernel-global surface option=exclusive exists for.
+option=exclusive:group=bfd-ports
+
+
+cmd=foreground:seq=1:exec=ze-test fixture plugin/bgp-bfd-strict-pinned:timeout=30s
+expect=exit:code=0
+expect=stderr:pattern=bfd plugin running
+expect=stderr:pattern=bfd session opened for peer
+expect=stderr:pattern=strict=true

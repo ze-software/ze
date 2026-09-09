@@ -24,6 +24,25 @@ import (
 const (
 	DefaultHoldTime         = 90 * time.Second  // RFC 4271 Section 10: suggested default 90s
 	DefaultConnectRetryTime = 120 * time.Second // RFC 4271 Section 10: suggested default 120s
+
+	// DefaultBfdHoldTime is draft-ietf-idr-bgp-bfd-strict-mode Section 3,
+	// attribute 18 (BfdHoldTime): "The default value for this attribute is 30
+	// seconds and is user configurable." The peer's bfd hold-time leaf is that
+	// configuration (reactor/config.go, parseBFDSettings).
+	DefaultBfdHoldTime = 30 * time.Second
+
+	// DefaultBfdHoldDown is the BFD hold-down interval of
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 10, and it is ZERO by
+	// deliberate choice.
+	//
+	// The draft gives the interval no default. It calls it "the locally
+	// configured BFD hold-down interval", and Section 10 offers it as a
+	// mechanism that "may help reduce the frequency of BGP session flaps"
+	// rather than one every session runs. Zero means the session advances on
+	// the first BFD Up, which is what a peer with no hold-down leaf did before
+	// the interval existed, so an operator who does not ask for damping is not
+	// given any.
+	DefaultBfdHoldDown = time.Duration(0)
 )
 
 // TimerCallback is called when a timer expires.
@@ -64,21 +83,37 @@ type Timers struct {
 	holdTime         time.Duration
 	keepaliveTime    time.Duration // 0 = derive from holdTime/3 (RFC 4271 Section 10)
 	connectRetryTime time.Duration
+	bfdHoldTime      time.Duration // draft-ietf-idr-bgp-bfd-strict-mode Section 3, attribute 18
+	bfdHoldDown      time.Duration // draft-ietf-idr-bgp-bfd-strict-mode Section 10
 
 	// Active timers
 	holdTimer         clock.Timer
 	keepaliveTimer    clock.Timer
 	connectRetryTimer clock.Timer
+	bfdHoldTimer      clock.Timer
+	bfdHoldDownTimer  clock.Timer
 
 	// Callbacks
 	onHoldExpires         TimerCallback
 	onKeepaliveExpires    TimerCallback
 	onConnectRetryExpires TimerCallback
+	onBfdHoldExpires      TimerCallback
+	onBfdHoldDownExpires  TimerCallback
 
 	// State tracking
 	holdRunning         bool
 	keepaliveRunning    bool
 	connectRetryRunning bool
+	bfdHoldRunning      bool
+	bfdHoldDownRunning  bool
+
+	// BfdHoldTimer generation guard, the same ABA defence the hold timer
+	// carries below: a fired closure that captured an older generation
+	// declines to touch shared state.
+	bfdHoldGen uint64
+
+	// BFD hold-down generation guard, same contract as bfdHoldGen.
+	bfdHoldDownGen uint64
 
 	// Hold-timer generation guard. holdGen is bumped on every arm and on every
 	// stop of a live hold timer, so a fired closure that captured an older
@@ -94,6 +129,8 @@ func NewTimers() *Timers {
 		clock:            clock.RealClock{},
 		holdTime:         DefaultHoldTime,
 		connectRetryTime: DefaultConnectRetryTime,
+		bfdHoldTime:      DefaultBfdHoldTime,
+		bfdHoldDown:      DefaultBfdHoldDown,
 	}
 }
 
@@ -434,4 +471,215 @@ func (t *Timers) StopAll() {
 	t.stopHoldTimerLocked()
 	t.stopKeepaliveTimerLocked()
 	t.stopConnectRetryTimerLocked()
+	t.stopBfdHoldTimerLocked()
+	t.stopBfdHoldDownTimerLocked()
+}
+
+// SetBfdHoldDown sets the BFD hold-down interval of
+// draft-ietf-idr-bgp-bfd-strict-mode Section 10. Zero disables the wait, which
+// is the behaviour of a peer that configures no hold-down.
+//
+// Zero is NOT clamped to a default here, unlike SetBfdHoldTime above, and the
+// difference is the draft's: BfdHoldTime is a session attribute with a stated
+// default of 30 seconds, while the hold-down interval is "locally configured"
+// and the draft names no value for it.
+func (t *Timers) SetBfdHoldDown(d time.Duration) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if d < 0 {
+		d = 0
+	}
+	t.bfdHoldDown = d
+}
+
+// BfdHoldDown returns the configured BFD hold-down interval.
+func (t *Timers) BfdHoldDown() time.Duration {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.bfdHoldDown
+}
+
+// OnBfdHoldDownTimerExpires registers the callback that runs when the BFD
+// session has been Up for the whole hold-down interval.
+func (t *Timers) OnBfdHoldDownTimerExpires(cb TimerCallback) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.onBfdHoldDownExpires = cb
+}
+
+// StartBfdHoldDownTimer arms the hold-down timer for BfdHoldDown, and reports
+// whether it armed one. It answers false for a zero interval, which is how the
+// caller learns there is nothing to wait for.
+//
+// draft-ietf-idr-bgp-bfd-strict-mode Section 10: "If both the local and remote
+// BGP speakers include the BFD Strict-Mode Capability, the BGP state machine is
+// permitted to transition to the Established state from the OpenConfirm state
+// after the locally configured BFD hold-down interval is observed. That is, the
+// BFD session has been Up for the desired amount of time."
+//
+// Re-arming restarts the interval, because the sentence measures how long the
+// session has been Up rather than how long ago it first came Up.
+func (t *Timers) StartBfdHoldDownTimer() bool {
+	t.mu.Lock()
+	interval := t.bfdHoldDown
+	t.mu.Unlock()
+	return t.StartBfdHoldDownTimerFor(interval)
+}
+
+// StartBfdHoldDownTimerFor arms the hold-down timer for a stated duration, which
+// is what a caller uses when part of the interval has already been served.
+//
+// draft-ietf-idr-bgp-bfd-strict-mode Section 10 measures how long "the BFD
+// session has been Up", not how long ago the BGP session noticed, so a session
+// that came Up before this connection attempt owes only the remainder. A
+// non-positive duration arms nothing and answers false, so the caller advances
+// rather than waiting on a timer that would never fire.
+func (t *Timers) StartBfdHoldDownTimerFor(interval time.Duration) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.stopBfdHoldDownTimerLocked()
+	if interval <= 0 {
+		return false
+	}
+	t.bfdHoldDownGen++
+	gen := t.bfdHoldDownGen
+	t.bfdHoldDownTimer = t.clock.AfterFunc(interval, func() { t.fireBfdHoldDown(gen) })
+	t.bfdHoldDownRunning = true
+	return true
+}
+
+// fireBfdHoldDown runs when the hold-down timer's AfterFunc fires. A generation
+// mismatch means the timer was stopped or re-armed after this closure fired, so
+// it must not touch state and must not release the wait.
+func (t *Timers) fireBfdHoldDown(gen uint64) {
+	t.mu.Lock()
+	if t.bfdHoldDownGen != gen {
+		t.mu.Unlock()
+		return
+	}
+	t.bfdHoldDownRunning = false
+	cb := t.onBfdHoldDownExpires
+	t.mu.Unlock()
+
+	if cb != nil {
+		cb()
+	}
+}
+
+// StopBfdHoldDownTimer stops the hold-down timer. A BFD session that leaves the
+// Up state before the interval elapses has not been Up for the desired amount
+// of time, so the wait it started is abandoned rather than completed.
+func (t *Timers) StopBfdHoldDownTimer() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.stopBfdHoldDownTimerLocked()
+}
+
+func (t *Timers) stopBfdHoldDownTimerLocked() {
+	if t.bfdHoldDownTimer != nil {
+		t.bfdHoldDownTimer.Stop()
+		t.bfdHoldDownTimer = nil
+		t.bfdHoldDownGen++
+	}
+	t.bfdHoldDownRunning = false
+}
+
+// IsBfdHoldDownTimerRunning reports whether the hold-down timer is running.
+func (t *Timers) IsBfdHoldDownTimerRunning() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.bfdHoldDownRunning
+}
+
+// SetBfdHoldTime sets the BfdHoldTime attribute of
+// draft-ietf-idr-bgp-bfd-strict-mode Section 3, item 18. Zero restores the
+// draft's own default of 30 seconds, so a peer that configures no hold-time
+// gets the value the draft names rather than a timer that never fires.
+func (t *Timers) SetBfdHoldTime(d time.Duration) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if d <= 0 {
+		t.bfdHoldTime = DefaultBfdHoldTime
+		return
+	}
+	t.bfdHoldTime = d
+}
+
+// BfdHoldTime returns the current BfdHoldTime.
+func (t *Timers) BfdHoldTime() time.Duration {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.bfdHoldTime
+}
+
+// OnBfdHoldTimerExpires registers the callback that raises FSM Event 34,
+// BfdHoldTimerExpires (draft-ietf-idr-bgp-bfd-strict-mode Section 4).
+func (t *Timers) OnBfdHoldTimerExpires(cb TimerCallback) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.onBfdHoldExpires = cb
+}
+
+// StartBfdHoldTimer arms the BfdHoldTimer with BfdHoldTime.
+//
+// draft-ietf-idr-bgp-bfd-strict-mode Section 8.5.5 starts it in exactly one
+// place: an OPEN received while the strict-mode wait is on AND "the HoldTimer
+// negotiated value is zero". A negotiated hold time of zero means RFC 4271
+// starts no HoldTimer, so without this timer a session waiting for BFD would
+// wait forever.
+func (t *Timers) StartBfdHoldTimer() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.stopBfdHoldTimerLocked()
+	t.bfdHoldGen++
+	gen := t.bfdHoldGen
+	t.bfdHoldTimer = t.clock.AfterFunc(t.bfdHoldTime, func() { t.fireBfdHold(gen) })
+	t.bfdHoldRunning = true
+}
+
+// fireBfdHold runs when the BfdHoldTimer's AfterFunc fires. gen is the
+// generation captured when the timer was armed; a mismatch means the timer was
+// stopped or re-armed after this closure fired, so it must not touch state.
+func (t *Timers) fireBfdHold(gen uint64) {
+	t.mu.Lock()
+	if t.bfdHoldGen != gen {
+		t.mu.Unlock()
+		return
+	}
+	t.bfdHoldRunning = false
+	cb := t.onBfdHoldExpires
+	t.mu.Unlock()
+
+	if cb != nil {
+		cb()
+	}
+}
+
+// StopBfdHoldTimer stops the BfdHoldTimer and sets it to zero.
+//
+// draft-ietf-idr-bgp-bfd-strict-mode Sections 8.3, 8.4 and 8.5: "The
+// BfdHoldTimer is reset to zero and stopped on any transition to the Idle
+// state." Sections 8.3.1, 8.4.1 and 8.5.1 also reset it when the wait ends.
+func (t *Timers) StopBfdHoldTimer() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.stopBfdHoldTimerLocked()
+}
+
+func (t *Timers) stopBfdHoldTimerLocked() {
+	if t.bfdHoldTimer != nil {
+		t.bfdHoldTimer.Stop()
+		t.bfdHoldTimer = nil
+		t.bfdHoldGen++
+	}
+	t.bfdHoldRunning = false
+}
+
+// IsBfdHoldTimerRunning reports whether the BfdHoldTimer is running.
+func (t *Timers) IsBfdHoldTimerRunning() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.bfdHoldRunning
 }

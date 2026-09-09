@@ -75,6 +75,38 @@ but differing by interface/VRF would race for the first incoming packet.
 
 <!-- source: internal/component/bfd/engine/engine.go -- firstPacketKey, firstPacketIndex -->
 
+### One session per neighbor, whatever asks for it
+
+RFC 5882 §4.4: "If multiple control protocols wish to establish BFD sessions
+with the same remote system for the same data protocol, all MUST share a single
+BFD session."
+
+The engine shares a session per `api.Key`, so the requirement binds the key as
+much as the registry. The clients do not build a key the same way. OSPF always
+names the interface it runs on and the address it runs from. BGP names an
+interface only when the operator wrote the optional `bfd interface` leaf, and a
+local address only when the peer has one. A pinned `single-hop-session` entry
+can leave both out.
+
+`api.SessionRequest.Canonical` reduces those shapes to one key before the
+engine sees them. It defaults the VRF, and for a single-hop request it derives
+the missing interface and local address from the link the peer is on: the link
+that holds the request's local address, or the one link whose connected prefix
+contains the peer. Every client passes through it, `pluginService.EnsureSession`
+for the protocol clients and `applyPinned` for the configured ones, so BGP and
+OSPF to one neighbor land on one session and one packet stream.
+
+The derivation refuses to guess. No matching link, or more than one, leaves the
+request exactly as the client wrote it, and the under-specified request gets
+its own session rather than being merged onto a link it may not be on. An IPv6
+link-local peer is the standing example: every link carries `fe80::/64`. Both
+OSPF families name their interface, so they never reach the derivation. With no
+interface backend loaded, the link table is empty and every key stays as its
+client wrote it.
+
+<!-- source: internal/component/bfd/api/session_identity.go -- Canonical -->
+<!-- source: internal/component/bfd/session_identity.go -- connectedLinks -->
+
 ### Discriminator allocation
 
 Discriminators are 32-bit unsigned, must be unique within the local
@@ -94,10 +126,24 @@ forbidden. The express loop holds `mu` while calling into the session FSM,
 which calls `notify` which briefly takes `subsMu` to read the subscriber
 list. Subscriber delivery happens outside `subsMu` via a non-blocking
 capacity check (`trySendStateChange`) so a slow consumer cannot stall the
-loop. The single-writer invariant (only the express loop writes to subscriber
-channels) keeps the `len/cap` precheck race-free.
+loop.
 
-<!-- source: internal/component/bfd/engine/engine.go -- Loop, makeNotify, trySendStateChange -->
+`Loop.subscribe` is the second writer to a subscriber channel, and the only
+other one. It takes both locks in the same `mu → subsMu` order and, inside
+them, enqueues the session's current state and appends the channel to the
+registry. Both halves are needed: the snapshot is what lets a client that joins
+an already-Up session learn the state at all, since `EnsureSession` on an
+existing key only bumps a refcount, and doing them together is what stops a
+transition landing in the gap and being written to a subscriber list the new
+channel is not yet in.
+
+That leaves the `len/cap` precheck race-free for a different reason than the
+old single-writer invariant gave. The express loop is still the only writer to
+a PUBLISHED channel: `subscribe` writes only while it holds both locks, before
+the append, so `makeNotify` cannot hold that channel yet and cannot run at all
+meanwhile.
+
+<!-- source: internal/component/bfd/engine/engine.go -- Loop, subscribe, makeNotify, trySendStateChange -->
 
 ### Timer arithmetic
 

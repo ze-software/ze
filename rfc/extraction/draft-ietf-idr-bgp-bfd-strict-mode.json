@@ -1,0 +1,326 @@
+{
+  "schema-version": 1,
+  "stem": "draft-ietf-idr-bgp-bfd-strict-mode",
+  "register": "rfc2119",
+  "source-path": "rfc/drafts/draft-ietf-idr-bgp-bfd-strict-mode.txt",
+  "source-sha": "d68744366556d25a",
+  "signed-off": "2026-09-08",
+  "reviewer": "ze-implement (spec-bgp-bfd-strict)",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, abstract, status of this memo, copyright notice and table of contents."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.5.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.5.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.5.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.5.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.6.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.7.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.7.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations: the registrations this document requests. They bind IANA, not an implementation."
+    },
+    {
+      "id": "13.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations: the registrations this document requests. They bind IANA, not an implementation."
+    },
+    {
+      "id": "13.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations: the registrations this document requests. They bind IANA, not an implementation."
+    },
+    {
+      "id": "13.3",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations: the registrations this document requests. They bind IANA, not an implementation."
+    },
+    {
+      "id": "14",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgement of reviewers."
+    },
+    {
+      "id": "15",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Reference list entries."
+    },
+    {
+      "id": "16",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Reference list entries."
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "RFC 7942 implementation status of other vendors. Removed on publication by the document's own note."
+    },
+    {
+      "id": "A.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "RFC 7942 implementation status of other vendors. Removed on publication by the document's own note."
+    },
+    {
+      "id": "A.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "RFC 7942 implementation status of other vendors. Removed on publication by the document's own note."
+    },
+    {
+      "id": "A.3",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "RFC 7942 implementation status of other vendors. Removed on publication by the document's own note."
+    }
+  ],
+  "sites": [
+    {
+      "id": "4:1",
+      "quote": "Optional Attribute Status: If BfdEnabled is FALSE, this event MUST NOT occur.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-4-1"
+    },
+    {
+      "id": "6:1",
+      "quote": "A BGP speaker which supports capabilities advertisement and has BFD strict-mode enabled MUST include the BFD Strict-Mode Capability in its OPEN message.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-6-1"
+    },
+    {
+      "id": "10:1",
+      "quote": "To avoid deadlock when utilizing both BFD hold-down and BFD strict- mode, when strict-mode is enabled for a peer, the BGP FSM MUST be enabled.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-1"
+    },
+    {
+      "id": "10:2",
+      "quote": "That is, BFD hold-down procedures MUST NOT prevent BGP from establishing a connection with the remote BGP speaker.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-2"
+    }
+  ]
+}

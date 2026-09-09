@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/grmarker"
@@ -33,6 +35,17 @@ func init() {
 	infra.SetBGPPeerValidator(validatePeersFromTree)
 	infra.SetBGPRolelessPeerReporter(rolelessPeersFromTree)
 	infra.SetGRMarkerWriter(writeGRMarker)
+
+	// A peer that asks for BFD strict mode in a configuration with no BFD
+	// engine never establishes at all, and nothing on its own surface says why.
+	// bfd_strict_doctor.go reports that arrangement before the daemon starts.
+	for _, meta := range bfdStrictDiagnosticCodes {
+		_ = diagnostic.Register(meta)
+	}
+	if err := diagnostic.RegisterDoctorCheck(bfdStrictDoctorCheck); err != nil {
+		fmt.Fprintf(os.Stderr, "bgp: bfd strict doctor check registration failed: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 // validatePeersFromTree adapts PeersFromConfigTree to the infra.BGPPeerValidator

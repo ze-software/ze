@@ -181,6 +181,55 @@ event it would otherwise be folded into.
 <!-- source: internal/component/bgp/fsm/state.go -- EventAutomaticStartWithDampPeerOscillations, EventAutomaticStop, EventOpenCollisionDump -->
 <!-- source: internal/component/bgp/reactor/session_connection.go -- TeardownAutomatic, CloseWithNotification -->
 
+### The six BFD strict-mode events
+
+draft-ietf-idr-bgp-bfd-strict-mode Section 4 adds six events, registered as FSM
+events 30 to 35 by its Section 13.3. Each is Optional in the draft's own words
+and each is implemented, because ze runs the strict-mode procedures of Section 8.
+
+| Event | Ze name | Ze producer | What it does |
+|-------|---------|-------------|--------------|
+| 30 `BfdAdminDown` | `EventBfdAdminDown` | `Peer.runBFDSubscriber` | Releases a pending sub-state; ignored everywhere else. AdminDown says nothing about the data path (RFC 5882 Section 3.2) |
+| 31 `BfdDown` | `EventBfdDown` | `Peer.runBFDSubscriber` | Closes the session with Cease / BFD Down in Established always, and in OpenSent or OpenConfirm when strict mode is negotiated. Ignored in Connect and Active |
+| 32 `BfdUp` | `EventBfdUp` | `Peer.runBFDSubscriber` | Releases a pending sub-state: the withheld KEEPALIVE goes out and the session advances |
+| 33 `BfdDisabled` | `EventBfdDisabled` | `Session.raiseBFDStrictConfigChanged`, when BFD was turned off | Same release as event 30 |
+| 34 `BfdHoldTimerExpires` | `EventBfdHoldTimerExpires` | the BfdHoldTimer below | Closes the session with Cease / BFD Down and increments the ConnectRetryCounter |
+| 35 `BfdStrictConfigChanged` | `EventBfdStrictConfigChanged` | `Session.raiseBFDStrictConfigChanged`, from the reload path | Drops every pre-Established state to Idle, with Cease / Other Configuration Change from OpenSent and OpenConfirm. Ignored in Established |
+
+The ConnectRetryCounter directions are the draft's and they differ by state.
+Event 31 ZEROES the counter in OpenSent and OpenConfirm (Sections 8.5.2 and
+8.6.2) and INCREMENTS it in Established (Section 8.7.2). Event 34 increments
+(Sections 8.3.3, 8.4.3, 8.5.3) and event 35 zeroes.
+
+<!-- source: internal/component/bgp/fsm/state.go -- EventBfdAdminDown, EventBfdDown, EventBfdUp, EventBfdDisabled, EventBfdHoldTimerExpires, EventBfdStrictConfigChanged -->
+<!-- source: internal/component/bgp/reactor/peer_bfd.go -- runBFDSubscriber, bfdEventFor -->
+<!-- source: internal/component/bgp/reactor/session_bfd_strict.go -- handleBFDEvent, bfdTeardown -->
+
+### The two BFD strict-mode sub-states
+
+draft-ietf-idr-bgp-bfd-strict-mode Section 8.1 names four sub-states. Ze declares
+the two that sit inside OpenSent. The other two,
+`ConnectDelayOpenBfdUpPending` and `ActiveDelayOpenBfdUpPending`, are entered
+only by Event 20, an OPEN received while the DelayOpenTimer runs, and ze
+implements no DelayOpenTimer (permitted by RFC 4271 Section 8.2.1.3).
+
+| Sub-state | Entered when | Left by |
+|-----------|--------------|---------|
+| `OpenSentBfdUpPending` | the peer's OPEN arrives, strict mode is negotiated and the BFD session is neither Up nor AdminDown. The KEEPALIVE is withheld (Section 8.5.5) | events 30, 32 or 33: KEEPALIVE sent, state becomes OpenConfirm |
+| `OpenSentConfirmedBfdUpPending` | the peer's KEEPALIVE arrives while the wait is on. The remote BFD session can come Up first (Section 8.5.6) | events 30, 32 or 33: KEEPALIVE sent, state becomes Established |
+
+A sub-state is cleared by any transition out of OpenSent, in `FSM.change`, so no
+handler can leave one behind. `Peer.bfdSubState` reads `FSM.BfdSubState` and
+`show bgp peer list` and `show bgp peer detail` render it as `bfd-sub-state`, which is the
+visibility Section 11 asks for. The key is written only while a session is
+waiting, so a peer that is not carries none.
+
+<!-- source: internal/component/bgp/reactor/peer_bfd.go -- bfdSubState -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- handleBgpPeerDetail, fieldBFDSubState -->
+
+<!-- source: internal/component/bgp/fsm/state.go -- BfdSubState, SubStateOpenSentBfdUpPending, SubStateOpenSentConfirmedBfdUpPending -->
+<!-- source: internal/component/bgp/fsm/fsm.go -- EnterBfdUpPending, handleOpenSent -->
+
 ---
 
 ## ConnectRetryCounter
@@ -265,6 +314,18 @@ zeroing clauses make the value go down, which a Prometheus counter may not do.
 - **Purpose:** Timeout waiting for OPEN
 - **Default:** 60 seconds (`exabgp.bgp.openwait`)
 - **Behavior:** Fire in OPENSENT triggers disconnect
+
+### BFD Hold-Down Timer
+
+- **Purpose:** Delay the release until the BFD session has been Up for the configured interval (draft-ietf-idr-bgp-bfd-strict-mode Section 10)
+- **Default:** 0, meaning no hold-down, set by the peer's `connection bfd { hold-down }` leaf in milliseconds
+- **Behavior:** A BFD Up arms it instead of releasing the pending sub-state; the expiry re-enters the release. `EventBfdAdminDown` and `EventBfdDisabled` skip it, because neither says the session has been Up for any time at all
+
+### BFD Hold Timer
+
+- **Purpose:** Bound the strict-mode wait for BFD when nothing else does
+- **Default:** 30 seconds (draft-ietf-idr-bgp-bfd-strict-mode Section 3, attribute 18), set by the peer's `connection bfd { hold-time }` leaf
+- **Behavior:** Started only when the NEGOTIATED BGP hold time is zero, because a non-zero one already bounds the wait: `Session.advanceAfterOpen` re-arms the ordinary HoldTimer to the negotiated value on the way into the wait, and RFC 4271 Section 8.2.2 Event 10 in OpenSent then ends it. Its expiry closes the session with Cease / BFD Down. Stopped on any transition to Idle and when the wait ends
 <!-- source: internal/component/bgp/fsm/state.go -- EventHoldTimerExpires, EventKeepaliveTimerExpires, EventConnectRetryTimerExpires -->
 
 ---
