@@ -22,13 +22,19 @@ BDR election, passive and loopback records, interface snapshots and OSPF events.
 
 ## Constraints on callers
 
-- A config reload that changes the router id or an area type recreates or
-  refreshes the runtimes. Otherwise Hellos advertise a stale E-bit, N-bit or
-  identity. A `reference-bandwidth` change joins that set for each interface
-  whose derived cost changes, and for no other: a recreated runtime drops the
-  neighbors, the DR and the BDR of the interface, so an interface that would
-  re-form at the cost it already advertises keeps its adjacency instead.
+- A config reload that changes the router id or an area type recreates the
+  runtimes, and those two are the whole set. Otherwise Hellos advertise a stale
+  E-bit, N-bit or identity. Recreating a runtime empties its neighbor map,
+  clears its DR and its BDR, and reports the interface down, so the set is kept
+  to what the runtime stamps into a packet.
   <!-- source: internal/plugins/ospf/instance.go -- interfaceGlobalParamsChanged -->
+- A `reference-bandwidth` change is NOT in that set. The cost reaches the wire
+  through the engine's origination topology rather than through the runtime, so
+  a re-priced interface takes its new cost through `SetCost` and keeps its
+  neighbors. `Cost` is the one `Config` field no running behavior reads: the two
+  snapshots are its only readers in this package.
+  <!-- source: internal/plugins/ospf/iface/iface.go -- Interface.SetCost, snapshotLocked, DetailSnapshot -->
+  <!-- source: internal/plugins/ospf/instance.go -- repriceInterfaceLocked -->
 - BackupSeen requires a 2-Way Hello before it shortens the Wait timer. A one-way
   Hello otherwise triggers a premature DR election.
 - Neighbour inactivity scheduling uses the exact next `LastSeen` plus

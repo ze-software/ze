@@ -354,6 +354,18 @@ func (i *Interface) SetEncoder(e Encoder) {
 	i.mu.Unlock()
 }
 
+// SetCost replaces the output cost this interface reports, leaving its state machine, its
+// neighbors and its timers untouched. Cost is the one Config field no running behavior
+// reads: the metric reaches the Router-LSA through the engine's origination topology, and
+// Snapshot and DetailSnapshot are its only readers here. Every other field is stamped into
+// the ISM at Start, into each Hello, or into the neighbor table's interface record, so a
+// change to one of those MUST recreate the interface rather than call this.
+func (i *Interface) SetCost(cost uint16) {
+	i.mu.Lock()
+	i.cfg.Cost = cost
+	i.mu.Unlock()
+}
+
 func (i *Interface) Start() {
 	i.mu.Lock()
 	startTimers := true

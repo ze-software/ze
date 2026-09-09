@@ -54,31 +54,44 @@ implementation, so a refusal is the placeholder rather than the answer, and this
 spec then stays open. `plan/spec-vrf.md` records that arrangement for the `vrf`
 leaf.
 
-## OPEN, for the owner: what a `reference-bandwidth` commit costs (2026-09-09)
+## SETTLED by the owner: a `reference-bandwidth` commit costs no adjacency (2026-09-09)
 
-**This is not decided, and this session did not decide it. The behavior below is
-what Ze does today and stays until Thomas answers.** Round 2 of the review raised
-it as ISSUE 1; the round 1 fix narrowed which interfaces the restart reaches and
-left the mechanism in place.
+**Thomas decided on 2026-09-09: re-price in place. A `reference-bandwidth`
+commit MUST NOT tear down an established adjacency.** This closes round 2's
+ISSUE 1 and replaces the open question that stood here. The behavior is
+implemented, and no later reader re-opens it.
 
-| | Today | The alternative |
-|---|-------|-----------------|
-| What the operator sees at the commit | Every interface whose derived cost changes is restarted, which drops its adjacency. A router with 40 auto-costed 10 Gbit/s links drops all 40 at the commit, and each one re-forms over a dead interval plus a database exchange | Re-price in place: derive the snapshot cost the way `lsdbTopology` already derives it, drop the cost arm of `interfaceGlobalParamsChanged`, and have `reconcile` call `originateSelfLSAs`. No adjacency drops |
-| What reaches the wire | The re-priced metric, on the origination pass that follows the restart | The same metric, on the next origination pass |
+| | What Ze did until 2026-09-09 | What Ze does now |
+|---|------------------------------|------------------|
+| At the commit | Every interface whose derived cost changed was restarted, which dropped its neighbors. A router with 40 auto-costed 10 Gbit/s links dropped all 40, each re-forming over a dead interval plus a database exchange | `reconcile` pushes the new cost into the running interface through `repriceInterfaceLocked` and `(*Interface).SetCost`. No neighbor moves |
+| What reaches the wire | The re-priced metric, on the origination pass that followed the restart | The same metric, on the origination pass `reconcile` now performs before it returns |
 
-Both answers advertise the correct cost, so this is not a trade against
-correctness. What separates them is the outage the commit causes.
+The evidence that the restart never published the cost is one line, and it was
+already in this spec: a carrier flap re-prices a link with no restart at all,
+because `lsdbTopology` derives `InterfaceInfo.Cost` from
+`e.cfg.ReferenceBandwidth` and the live link speed on every origination pass,
+and `reconcile` replaces `e.cfg` before it touches an interface. The restart
+refreshed one reader only, the `Interface.cfg.Cost` copy that `snapshotLocked`
+and `DetailSnapshot` hand to `show ospf interface`. `SetCost` refreshes that
+copy without stopping anything.
 
-The evidence that the restart is not what publishes the cost is one line, and it
-is already in this spec: a carrier flap re-prices the link with no restart at
-all, because `lsdbTopology` derives `InterfaceInfo.Cost` from
-`e.cfg.ReferenceBandwidth` and the live link speed on every origination pass.
-Known Limitations records that path. The restart refreshes one other reader,
-`Interface.cfg.Cost`, which `snapshotLocked` hands to `show ospf interface`.
+**Which parameters still force a restart, established by reading the code.**
+`Cost` is the ONLY field of `ospfiface.Config` that no running behavior reads:
+its two readers in `internal/plugins/ospf/iface/` are `snapshotLocked` and
+`DetailSnapshot`. Every other field is stamped into the ISM at `Start`
+(`Passive`, `NetworkType`, `Priority`, `HelloInterval`, `DeadInterval`), into
+each Hello (`RouterID`, `AreaID`, `NetworkMask`, `InterfaceAddress`,
+`InstanceID`, `InterfaceID`, `IsV6`, `NBMANeighbors`, `PollInterval`), or into
+the neighbor table's interface record through `neighborInterfaceConfig`
+(`AreaType`, `InterfaceMTU`, `MTUIgnore`, `RetransmitInterval`, and the four
+BFD fields). So `interfaceGlobalParamsChanged` keeps both of its remaining
+arms, the Router ID and the area type, and `interfaceParamsEqual` is untouched.
 
-Producers: `interfaceGlobalParamsChanged` and `startInterfaceLocked`
-(`internal/plugins/ospf/instance.go`) decide and perform the restart;
-`lsdbTopology` (same file) is the reader that needs none.
+**One sibling stays as it was, and it is the owner's to decide.** A change to an
+interface's own `cost` leaf still restarts that interface, because
+`interfaceParamsEqual` compares `Cost` and `HasCost`. It is the same question
+Thomas answered for the router-wide leaf, asked of the per-interface one, and
+this session did not extend his answer to it.
 
 ## Progress (2026-09-06)
 
@@ -177,6 +190,7 @@ the sections below, and none of them changes the design.
 - [ ] `internal/plugins/iface/netlink/backend_other.go` - `stubBackend.LinkSpeedDuplex` answers 0 on every other platform
 - [ ] `internal/plugins/iface/vpp/query.go` - `vppBackendImpl.LinkSpeedDuplex` answers 0, because a VPP interface has no `/sys/class/net` entry
 - [ ] `internal/plugins/ospf/iface/iface.go` - `(*Interface).Stop` empties the neighbor map, clears the DR and the BDR, and calls `neighborSink.InterfaceDown`, so restarting an interface drops its adjacencies
+  → Constraint: `Cost` is the ONLY `Config` field no running behavior reads. Its two readers in this package are `snapshotLocked` and `DetailSnapshot`; every other field is stamped into the ISM at `Start`, into each Hello, or into the neighbor table through `neighborInterfaceConfig`. That is what makes `SetCost` safe and a general config setter unsafe
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - An interface with an explicit `cost` advertises that cost, whatever the link speed.
@@ -186,7 +200,7 @@ the sections below, and none of them changes the design.
 **Behavior to change:** (only what the user asked for)
 - An interface with no `cost` on a link the kernel prices is now costed `reference-bandwidth / speed`, clamped to 1..65535. Under the default 100000 a 10 Gbit/s link costs 10 rather than 1.
 - `DefaultMetric` now takes both operands in Mbit/s (it took bits per second) and clamps at `MetricMax` instead of erroring above it. `types.DefaultReferenceBandwidth`, a bits-per-second constant with no non-test user, is deleted; `config.DefaultReferenceBandwidth` (Mbps) is the one declaration.
-- `interfaceGlobalParamsChanged` takes the whole `interfaceConfig` rather than the Area ID alone, so a `reference-bandwidth` change restarts the interfaces it re-prices.
+- A `reference-bandwidth` change re-prices each interface it moves IN PLACE, through `(*engine).repriceInterfaceLocked` and `(*ospfiface.Interface).SetCost`, and restarts nothing. `interfaceGlobalParamsChanged` keeps only its Router ID and area-type arms, and `reconcile` originates the self-LSAs before it returns so the commit publishes the new metric (owner decision, 2026-09-09).
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -199,7 +213,8 @@ the sections below, and none of them changes the design.
 2. `interfaceCost` (`internal/plugins/ospf/interface_cost.go`) returns `ic.Cost` when `ic.HasCost`, otherwise calls `interfaceLinkSpeedMbps` and `types.DefaultMetric`.
 3. `interfaceLinkSpeedMbps` calls `ifcomp.LinkSpeedDuplex`, which reaches the netlink backend's sysfs read.
 4. `types.DefaultMetric` divides and clamps to `[MetricMin, MetricMax]`, and returns `ErrOutOfRange` for a zero operand.
-5. Four consumers read the result: `lsdbTopology` (what the Router-LSA advertises), `interfaceRuntimeConfigLocked` (what `show ospf interface` reports), `updateLDPSyncMachines` (the restore value), and `applyTELinkAttributes` (the RFC 3630 TE metric fallback).
+5. Five consumers read the result: `lsdbTopology` (what the Router-LSA advertises), `interfaceRuntimeConfigLocked` (what `show ospf interface` reports on a runtime being created), `repriceInterfaceLocked` (the same reader on a runtime already running), `updateLDPSyncMachines` (the restore value), and `applyTELinkAttributes` (the RFC 3630 TE metric fallback).
+6. On a reload, `reconcile` re-prices every interface it does not recreate and then calls `originateSelfLSAs`, so the commit publishes the new metric.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -209,7 +224,7 @@ the sections below, and none of them changes the design.
 
 ### Integration Points
 - `types.DefaultMetric` - the derivation that existed and had no production caller; this spec gives it one.
-- `interfaceGlobalParamsChanged` - already restarted an interface on a Router ID or area-type change; a re-pricing joins that set.
+- `interfaceGlobalParamsChanged` - restarts an interface on a Router ID or area-type change. A re-pricing does NOT join that set (owner decision, 2026-09-09): `reconcile` calls `repriceInterfaceLocked` for it instead, and originates before it returns.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -243,8 +258,8 @@ the sections below, and none of them changes the design.
 | R-1 | Every unconfigured interface changes cost on upgrade, so paths move | Route selection changes with no config change | This is the feature the leaf promised, and it is what every other OSPF implementation does. The guide states it and `cost` pins any interface an operator wants unchanged |
 | R-2 | A link that renegotiates re-prices mid-session and churns LSAs | Router-LSA re-origination on a carrier event | The speed is read on the origination pass, so a re-price rides the LSA Ze was already going to send; nothing schedules an extra one |
 | R-3 | Two sysfs reads per interface per origination pass cost time | Origination latency on a router with many interfaces | Measured against what the same pass already does: `lsdbTopology` performs five netlink address dumps per interface beside these two file reads |
-| R-4 | A reference-bandwidth change bounces an adjacency that did not need it | An interface whose advertised cost is unchanged restarts | MATERIALIZED and fixed. The first implementation compared the numerator, so 100000 to 105000 bounced every 10 Gbit/s interface at the same cost 10, and on a VPP dataplane or a non-Linux host it bounced every adjacency on the router while pricing nothing. `interfaceGlobalParamsChanged` now compares `interfaceCost` on each side, which subsumes the `ic.HasCost` arm, and `TestInterfaceGlobalParamsChangedReferenceBandwidth` pins all four arms |
-| R-5 | An operator raises `reference-bandwidth` network-wide and every auto-costed adjacency in the OSPF domain re-forms at once | A burst of interface-down events at the moment of the commit | The trigger is a deliberate config change, and the same operator changing one interface's `cost` leaf already gets the same bounce on that interface. The domain-wide reach is what is new. `cost` pins any interface the operator must not bounce, and the guide states the reload behavior. The reach is now bounded by the derived cost rather than by the leaf: only an interface whose advertised metric changes is restarted (R-4). Open for the owner to overrule: see Key Design Decisions, "Re-price through the existing interface restart" |
+| R-4 | A reference-bandwidth change bounces an adjacency that did not need it | An interface restarts on a numerator change | CLOSED. No reference-bandwidth change bounces any adjacency: `interfaceGlobalParamsChanged` no longer reads the numerator at all, and `reconcile` re-prices in place (owner decision, 2026-09-09). `TestInterfaceGlobalParamsChangedIgnoresReferenceBandwidth` pins both directions: the numerator never restarts, the Router ID and the area type always do |
+| R-5 | An operator raises `reference-bandwidth` network-wide and every auto-costed adjacency in the OSPF domain re-forms at once | A burst of interface-down events at the moment of the commit | CLOSED by the owner's decision of 2026-09-09. No interface is restarted for a numerator change, so no adjacency re-forms and there is no burst. `TestReferenceBandwidthReloadKeepsNeighborAndReprices` holds a 2-Way neighbor across the reload and reads the re-priced metric off the Router-LSA |
 
 ## Blast Radius
 
@@ -265,7 +280,7 @@ the sections below, and none of them changes the design.
 |-------------|---|--------------|------|
 | `reference-bandwidth 100000` in the config file | → | `applyTree` → `interfaceCost` → `lsdbTopology` | `TestOSPFTopologyCostFollowsReferenceBandwidth` |
 | The same leaf reaching `show ospf interface` | → | `interfaceRuntimeConfigLocked` → `iface.Snapshot.Cost` | `TestOSPFTopologyCostFollowsReferenceBandwidth`, snapshot assertion |
-| A config reload lowering the leaf | → | `reconcile` → `interfaceGlobalParamsChanged` | `TestInterfaceGlobalParamsChangedReferenceBandwidth` |
+| A config reload lowering the leaf | → | `reconcile` → `repriceInterfaceLocked` → `originateSelfLSAs` | `TestReferenceBandwidthReloadKeepsNeighborAndReprices` |
 | An OSPF peer reading Ze's Router-LSA | → | the derived metric on the wire | `ospf-auto-cost-frr` interop scenario |
 
 ## Acceptance Criteria
@@ -281,9 +296,9 @@ the sections below, and none of them changes the design.
 | AC-5 | An interface whose link speed the backend does not report: a loopback, a dummy, a bridge, a tunnel, a link with no carrier, any interface on a VPP dataplane, and every interface when no iface backend is loaded | Cost is 1 |
 | AC-6 | A `reference-bandwidth` of 0 | Cost is 1 |
 | AC-7 | The default config, no `reference-bandwidth` stated | 100000 applies, so a 1 Gbit/s link costs 100 |
-| AC-8 | A reload lowering `reference-bandwidth` | An interface whose derived cost changes is restarted and re-priced; one with an explicit `cost` is left alone |
-| AC-8b | The same reload, on an interface that already holds a 2-Way neighbor and sets no `cost` | The restart drops that neighbor to Down, and the interface runtime that replaces it advertises the new cost. This is what a change to the interface's own `cost` leaf already does, because `interfaceParamsEqual` compares `Cost` and `HasCost`. The neighbor the unit test drives really reaches 2-Way, because its Hello lists this router and that is what `receiveHello` reads for `TwoWay`; the test asserts the state out of the neighbor table on both sides of the reload. An adjacency re-forming to Full needs a peer, and Known Limitations records that no test observes it. The word "adjacency" was corrected to "2-Way neighbor" on 2026-09-09: RFC 2328 section 10 makes an adjacency ExStart or later, and the behavior this row promises is unchanged |
-| AC-8c | A `reference-bandwidth` change that derives the SAME cost for an interface: it sets an explicit `cost`, its new quotient truncates to the number it already advertises, or the kernel reports no speed for its link | The interface is not restarted and its adjacency is not dropped |
+| AC-8 | A reload lowering `reference-bandwidth` | An interface whose derived cost changes is re-priced in place and keeps its adjacency; one with an explicit `cost` is left alone. `reconcile` originates the self-LSAs before it returns, so the new metric is published at the commit |
+| AC-8b | The same reload, on an interface that already holds a 2-Way neighbor and sets no `cost` | The neighbor stays 2-Way, the interface runtime is the same object, and both the Router-LSA link metric and the cost `show ospf interface` reports carry the new number. This is the owner's decision of 2026-09-09: a `reference-bandwidth` commit tears down no adjacency. The neighbor the unit test drives really reaches 2-Way, because its Hello lists this router and that is what `receiveHello` reads for `TwoWay`; the test asserts the state out of the neighbor table on both sides of the reload |
+| AC-8c | A reload that changes the Router ID, or the type of the area an interface sits in | That interface IS recreated and its neighbor drops to Down. Both are stamped into the packets the runtime sends, so a stale runtime would advertise a stale identity or a stale E-bit. These two are the whole set: `Cost` is the only `ospfiface.Config` field no running behavior reads |
 | AC-9 | The same interface read four ways | The Router-LSA metric, `show ospf interface`, the LDP-sync restore value and the TE metric fallback all carry the same number |
 | AC-10 | An OSPF peer reads Ze's Router-LSA | The peer sees the derived cost, not 1 |
 | AC-11 | The same link configured under `ospf` and under `address-family { ipv6 }`, with a non-default `reference-bandwidth` | Both families advertise the same derived cost. Every RFC 5838 address family carries the router-wide numerator |
@@ -309,12 +324,12 @@ the sections below, and none of them changes the design.
 | `TestInterfaceCostAutoDerivation` | `internal/plugins/ospf/interface_cost_test.go` | AC-1 to AC-6, eleven cases over a stubbed speed table | pass |
 | `TestInterfaceLinkSpeedMbpsUnknownName` | `internal/plugins/ospf/interface_cost_test.go` | the production reader answers 0 for a name the kernel does not know | pass |
 | `TestOSPFTopologyCostFollowsReferenceBandwidth` | `internal/plugins/ospf/interface_cost_test.go` | AC-7, AC-8, AC-9: the wiring test, from the real config parser to the origination topology and the snapshot | pass |
-| `TestInterfaceGlobalParamsChangedReferenceBandwidth` | `internal/plugins/ospf/interface_cost_test.go` | AC-8 and AC-8c: the restart follows the derived cost, so a re-priced interface restarts while an explicitly-costed one, one whose quotient truncates to the same number, and one with no reported speed do not. A fifth arm pins the single link-speed sample: a reader that renegotiates between calls must not restart anything | pass |
-| `TestReferenceBandwidthReloadRepricesEveryAddressFamily` | `internal/plugins/ospf/interface_cost_test.go` | AC-8b and AC-11 on the reload path: an OSPFv3 address-family engine reconciled with the `v6Families` entry restarts eth0 and its origination topology carries the re-priced 23 | pass |
+| `TestInterfaceGlobalParamsChangedIgnoresReferenceBandwidth` | `internal/plugins/ospf/interface_cost_test.go` | AC-8 and AC-8c: a reference-bandwidth change never restarts an interface, and a Router ID change and an area-type change both do | pass |
+| `TestReferenceBandwidthReloadRepricesEveryAddressFamily` | `internal/plugins/ospf/interface_cost_test.go` | AC-8b and AC-11 on the reload path: an OSPFv3 address-family engine reconciled with the `v6Families` entry keeps eth0's runtime, and both its origination topology and its interface snapshot carry the re-priced 23 | pass |
 | `TestReferenceBandwidthReachesEveryAddressFamily` | `internal/plugins/ospf/interface_cost_test.go` | AC-11: one link, `reference-bandwidth 470000` and a 10 Gbit/s speed, read out of the OSPFv2 origination topology and out of the OSPFv3 engine's, plus the numerator every entry of `v6Families` carries | pass |
-| `TestReferenceBandwidthReloadDropsAdjacencyAndReprices` | `internal/plugins/ospf/interface_cost_test.go` | AC-8b through the production path: `parseOSPFConfig`, `reconcile`, `interfaceGlobalParamsChanged`, `startInterfaceLocked`. The interface holds a neighbor in 2-Way, the reload drops it to Down, and the runtime that replaces it advertises the new cost | pass |
+| `TestReferenceBandwidthReloadKeepsNeighborAndReprices` | `internal/plugins/ospf/interface_cost_test.go` | AC-8b and AC-8c through the production path: `parseOSPFConfig`, `reconcile`, `interfaceGlobalParamsChanged`, `repriceInterfaceLocked`, `originateSelfLSAs`. The interface holds a 2-Way neighbor, the reload keeps it and keeps the runtime, the Router-LSA link metric and the `show ospf interface` cost both move, and a second reload changing the Router ID does restart and does drop the neighbor | pass |
 | `TestDefaultMetric` | `internal/plugins/ospf/types/metric_test.go` | the derivation and both clamps, in Mbit/s | pass |
-| `TestInterfaceStopClearsNeighbors` | `internal/plugins/ospf/iface/iface_test.go` | AC-8b: `(*Interface).Stop` empties the neighbor map, clears the DR and the BDR, and calls `neighborSink.InterfaceDown`, which is what makes a re-pricing restart drop an adjacency | pass. `TestOSPFStopLeavesAllDRouters` asserts the multicast leave alone, so this test carries the neighbor consequence |
+| `TestInterfaceStopClearsNeighbors` | `internal/plugins/ospf/iface/iface_test.go` | AC-8c: `(*Interface).Stop` empties the neighbor map, clears the DR and the BDR, and calls `neighborSink.InterfaceDown`, which is what a Router ID or area-type reload costs an interface, and what a re-pricing reload no longer costs one | pass. `TestOSPFStopLeavesAllDRouters` asserts the multicast leave alone, so this test carries the neighbor consequence |
 | `TestDerivedCostReachesLDPSyncAndTEMetric` | `internal/plugins/ospf/interface_cost_test.go` | AC-9, one interface read four ways: eth0's Router-LSA metric, its `show ospf interface` cost, its LDP-sync restore value and its TE metric are all the derived 100. eth1 keeps the point-to-point TE arm beside it | pass |
 
 ### Boundary Tests (numeric inputs)
@@ -347,7 +362,8 @@ the sections below, and none of them changes the design.
      Check each file's // Design: annotation: if the change alters behavior the
      referenced architecture doc describes, list that doc here too. -->
 - `internal/plugins/ospf/config.go` - `parseOSPFConfig` inherits `ReferenceBandwidth` into `cfg.V6` and every `cfg.V6Extra` entry, beside the four inheritances already there (review BLOCKER)
-- `internal/plugins/ospf/instance.go` - both cost copies deleted, `interfaceGlobalParamsChanged` takes the interface and compares the derived cost rather than the numerator (review ISSUE 2), over ONE link-speed sample (review round 2, NOTE 3)
+- `internal/plugins/ospf/instance.go` - both cost copies deleted; `interfaceGlobalParamsChanged` reduced to its Router ID and area-type arms; `reconcile` gains a default arm that calls the new `repriceInterfaceLocked`, and originates the self-LSAs before it returns (owner decision, 2026-09-09)
+- `internal/plugins/ospf/iface/iface.go` - `(*Interface).SetCost`, the in-place re-price. `Cost` is the one `Config` field no running behavior reads, which is what makes writing it safe and every other field unsafe
 - `docs/architecture/ospf/ospf-5-interface-ism.md` - "Constraints on callers" named the Router ID and the area type as the reloads that recreate a runtime; a re-pricing reference-bandwidth change joins them, and one that derives no new cost does not
 - `internal/plugins/ospf/ldp_sync.go` - third cost copy deleted
 - `internal/plugins/ospf/te_originate.go` - fourth cost copy deleted, the reference bandwidth threaded to the TE metric fallback
@@ -361,7 +377,7 @@ the sections below, and none of them changes the design.
 - `internal/le/interoplab/bgp/checkers.go`, `internal/le/interoplab/bgp/check_extras.go` - the scenario's assertions: the adjacency wait and the two cost assertions. Both were committed by the RFC 7854 session that shared their hunks
 
 ## Files to Create
-- `internal/plugins/ospf/interface_cost.go` - `interfaceCost`, `interfaceCostAtSpeed`, `interfaceLinkSpeedMbps`, `costLinkSpeedUnknown`. `interfaceCostAtSpeed` prices one side from a link speed the caller has already read, so a caller that prices one link twice compares one sample (review round 2, NOTE 3)
+- `internal/plugins/ospf/interface_cost.go` - `interfaceCost`, `interfaceLinkSpeedMbps`, `costLinkSpeedUnknown`. `interfaceCostAtSpeed` existed for the one caller that priced a link twice from a single speed sample, `interfaceGlobalParamsChanged`; that caller is gone with the numerator arm, so the helper folded back into `interfaceCost` rather than staying as a hop with a comment about a caller that no longer exists
 - `internal/plugins/ospf/interface_cost_test.go` - the derivation, the wiring and the reload behavior
 - `test/interop/scenarios/ospf-auto-cost-frr/ze.conf`, `frr.conf` - the interop scenario, landed by `178f73002c`
 
@@ -400,7 +416,7 @@ the sections below, and none of them changes the design.
 | 9 | RFC behavior implemented, changed, or newly proven? | No | RFC 2328 Appendix C.3 defines no derivation from a link speed, so no requirement id is claimed. The RFC 3630 section 2.5.5 fallback still holds and its wording in `te_originate.go` was updated to say the fallback now carries the derived cost |
 | 10 | Test infrastructure changed? | No | The scenario uses existing operation kinds |
 | 11 | Affects daemon comparison? | No | `docs/comparison.md` does not enumerate cost derivation |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/ospf/ospf-4-component-config.md`, declared by `interface_cost.go`'s `// Design:` header |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/ospf/ospf-4-component-config.md`, declared by `interface_cost.go`'s `// Design:` header, and `docs/architecture/ospf/ospf-5-interface-ism.md`, declared by `iface/iface.go` |
 | 13 | Route metadata keys added/changed? | N-A | -- |
 | 14 | Prometheus counters added/changed? | No | -- |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | -- |
@@ -423,10 +439,10 @@ the sections below, and none of them changes the design.
    - Tests: `TestInterfaceCostAutoDerivation`, `TestDefaultMetric`
    - Files: `interface_cost.go`, `instance.go`, `ldp_sync.go`, `te_originate.go`, `types/metric.go`
    - Verify: every consumer reads the same number
-3. **Phase: Reload** -- re-price on a reference-bandwidth change, and only where it applies
-   - Tests: `TestInterfaceGlobalParamsChangedReferenceBandwidth`
-   - Files: `instance.go`
-   - Verify: an auto-cost interface restarts, an explicitly-costed one does not
+3. **Phase: Reload** -- re-price on a reference-bandwidth change without dropping an adjacency
+   - Tests: `TestInterfaceGlobalParamsChangedIgnoresReferenceBandwidth`, `TestReferenceBandwidthReloadKeepsNeighborAndReprices`
+   - Files: `instance.go`, `iface/iface.go`
+   - Verify: a re-priced interface keeps its neighbor and its runtime while the Router-LSA metric moves; a Router ID or area-type reload still restarts it
 4. **Phase: Prove it against a peer** -- the interop scenario and its red
    - Tests: `ospf-auto-cost-frr`
    - Files: `test/interop/scenarios/ospf-auto-cost-frr/`, the two checker maps
@@ -497,7 +513,9 @@ the sections below, and none of them changes the design.
 | An unknown speed costs 1 | Cost 65535 (unusable), or refuse to originate the link | 1 is what Ze advertised for every unconfigured interface before, so a tunnel or a bridge behaves exactly as it did. Making an unpriceable link unusable would change behavior nobody asked to change |
 | `interfaceCost` takes the whole `interfaceConfig` | Pass the name, the cost and the flag separately | The function needs three fields of it, and a signature that takes three primitives invites a caller to pass them in the wrong order |
 | Clamp at `MetricMax` rather than erroring | Keep the old `ErrOutOfRange` above 65535 | The old contract made a slow link under a large reference bandwidth an ERROR, and the caller then had to invent a cost. 65535 is the honest answer: the most expensive link the wire field can describe |
-| Re-price through the existing interface restart | Re-originate the Router-LSA in place, leaving the interface state machine running | A restart drops the adjacencies on that interface: `(*Interface).Stop` empties the neighbor map, clears the DR and the BDR, and calls `neighborSink.InterfaceDown`. Ze already accepts that cost for a change to the interface's own `cost` leaf, because `interfaceParamsEqual` compares `Cost` and `HasCost`, so auto-cost adds a trigger to a path rather than a path. An in-place re-price needs a config-update method on `Interface`, which no parameter has today, and `ai/rules/simplicity.md` puts the burden of proof on the new machinery. The blast radius is bounded by `interfaceGlobalParamsChanged` returning false for an explicitly-costed interface. **This decision is OPEN: round 2 of the review showed the restart is not what publishes the new cost, and the question is stated for the owner in "OPEN, for the owner" above** |
+| Re-price the running interface in place | Restart the interface, which is what Ze did until 2026-09-09 | Owner decision, 2026-09-09. The restart never published the cost: `lsdbTopology` derives it from `e.cfg.ReferenceBandwidth` on every origination pass and `reconcile` replaces `e.cfg` first, so a carrier flap already re-prices a link with no restart at all. What the restart refreshed was the `Interface.cfg.Cost` copy `show ospf interface` reads, and `SetCost` refreshes that without stopping the state machine. The machinery is one setter and one engine helper, and it buys back every adjacency on the router |
+| `SetCost` writes one field rather than taking a whole new `Config` | A general `UpdateConfig` on `Interface` | `Cost` is the ONLY `Config` field no running behavior reads, so a general setter would silently accept a `HelloInterval` or a `NetworkType` that the running timers and the ISM would ignore. Naming the one field makes the guarantee checkable: `ai/rules/simplicity.md` puts the burden of proof on the wider surface |
+| `reconcile` originates before it returns | Leave origination to the next event | A re-priced interface is not restarted, so no neighbor transition drives an origination pass for it. Without the call the operator's commit reaches the wire at an unrelated later event. The LSDB floods on a diff, so a reload that changed nothing emits nothing |
 
 ## Known Limitations
 <!-- Deliberate scope boundaries. Anything here that is actually outstanding work
@@ -525,16 +543,28 @@ the sections below, and none of them changes the design.
   override. `reference-bandwidth` is one instance-wide number, which is what the
   leaf declares, and `parseOSPFConfig` inherits it into every RFC 5838 address
   family so the two families never price one link differently.
-- **No test observes an adjacency re-forming to Full at the new cost after a
-  re-pricing reload.** `TestReferenceBandwidthReloadDropsAdjacencyAndReprices`
-  drives the reload, watches the neighbor drop from 2-Way to Down, and reads the
-  new cost off the runtime that replaces the interface and off the origination
-  topology. The neighbor it drives reaches 2-Way and no further, because a Full
-  adjacency needs a database exchange with a peer, and the `ospf-auto-cost-frr`
-  scenario performs no reload:
-  it starts Ze at `reference-bandwidth 470000` and asserts the 47 FRR reads. A
-  reload step in that scenario is the proof this leaves open, and AC-8b claims
-  only what the test checks.
+- **No test observes a re-pricing reload against a live peer.**
+  `TestReferenceBandwidthReloadKeepsNeighborAndReprices` drives the reload, holds
+  the neighbor at 2-Way across it, and reads the re-priced metric off the
+  OSPFv2 Router-LSA the LSDB installed. The neighbor it drives reaches 2-Way and
+  no further, because a Full adjacency needs a database exchange with a peer, and
+  the `ospf-auto-cost-frr` scenario performs no reload: it starts Ze at
+  `reference-bandwidth 470000` and asserts the 47 FRR reads. A reload step in
+  that scenario, showing FRR's adjacency stay Full while the metric moves, is the
+  proof this leaves open, and AC-8b claims only what the test checks.
+- **The OSPFv3 re-price is proven at the origination topology and the interface
+  snapshot, not at a v3 Router-LSA body.** An OSPFv3 Router-LSA describes
+  adjacencies rather than stub networks, so an interface with no Full neighbor
+  contributes no link to read a metric off, and a Full neighbor needs a peer.
+  `v6RouterLSABody` takes the metric from the same `InterfaceInfo.Cost` field
+  `routerLinks` reads, and
+  `TestReferenceBandwidthReloadRepricesEveryAddressFamily` asserts that field and
+  the snapshot at 23 after the reload.
+- **A change to an interface's own `cost` leaf still restarts that interface.**
+  `interfaceParamsEqual` compares `Cost` and `HasCost`, so the per-interface leaf
+  keeps the behavior the router-wide leaf just lost. It is the same question
+  Thomas answered on 2026-09-09 asked of the other leaf, and this session did not
+  extend his answer to it.
 - A carrier flap re-prices on the next origination pass rather than immediately.
   Nothing schedules an origination for a speed change alone.
 
@@ -572,6 +602,7 @@ That fallback is unchanged and now carries the derived cost, which
 - The interop scenario `test/interop/scenarios/ospf-auto-cost-frr/` and its two checker-map entries landed in `178f73002c`.
 - This phase wrote no product behavior. It added the two tests the design phase recorded as owed, and the guide clause it recorded as missing.
 - The review-fix phase (2026-09-09) landed two product changes, both defects this spec introduced: the address-family inheritance in `parseOSPFConfig` and the cost comparison in `interfaceGlobalParamsChanged`.
+- The re-price phase (2026-09-09) implemented the owner's answer to round 2's ISSUE 1: `(*ospfiface.Interface).SetCost`, `(*engine).repriceInterfaceLocked`, a `default` arm in `reconcile` that calls it, an `originateSelfLSAs` call at the end of `reconcile`, and `interfaceGlobalParamsChanged` reduced to its Router ID and area-type arms. `interfaceCostAtSpeed` folded back into `interfaceCost` with its last caller. A `reference-bandwidth` commit now tears down no adjacency.
 
 ### Bugs Found/Fixed
 - **Every OSPFv3 address family was pinned to reference bandwidth 100000** (review BLOCKER). `applyAddressFamilies` seeds each RFC 5838 child from `defaultOSPFConfig`, and the `ospf-af-topology` grouping declares no `reference-bandwidth` leaf, so no operator value ever reached the child. One physical link configured in both families advertised 47 in the OSPFv2 Router-LSA and 10 in the OSPFv3 one under `reference-bandwidth 470000`, with no configuration that made them agree. Fixed by inheritance in `parseOSPFConfig`, beside the Router ID, Router Information, Graceful Restart and Fast Reroute inheritances, and unconditional because no sub-config can state a value of its own.
@@ -772,6 +803,130 @@ ok  	github.com/ze-software/ze/internal/plugins/ospf/neighbor	5.077s
 ok  	github.com/ze-software/ze/internal/plugins/ospf/v3/transport	4.489s
 ```
 
+#### Re-price phase, 2026-09-09 (owner decision: a `reference-bandwidth` commit costs no adjacency)
+
+The product change is three edits: `(*Interface).SetCost`
+(`internal/plugins/ospf/iface/iface.go`), `(*engine).repriceInterfaceLocked` plus a
+`default` arm in `reconcile` and an `originateSelfLSAs` call before it returns, and
+`interfaceGlobalParamsChanged` cut back to its Router ID and area-type arms (both
+`internal/plugins/ospf/instance.go`). `interfaceCostAtSpeed` folded back into
+`interfaceCost`: its only reason to exist was the two-price comparison in
+`interfaceGlobalParamsChanged`, which is gone.
+
+RED, before the product change, all four proofs (`./le job run label ospf-cost-red command
+go test ./internal/plugins/ospf/ -run '...' -count=1`):
+
+```
+--- FAIL: TestOSPFTopologyCostFollowsReferenceBandwidth (0.00s)
+    interface_cost_test.go:117: reconcile journal = {opened:[] closed:[] changed:map[eth0:true]}, want no interface restarted: a re-pricing publishes through the next origination pass
+--- FAIL: TestInterfaceGlobalParamsChangedIgnoresReferenceBandwidth (0.00s)
+    interface_cost_test.go:139: a reference-bandwidth change restarted an auto-cost interface: the Router-LSA carries the new cost without one
+--- FAIL: TestReferenceBandwidthReloadRepricesEveryAddressFamily (0.00s)
+    interface_cost_test.go:251: OSPFv3 reconcile journal = {opened:[] closed:[] changed:map[eth0:true]}, want eth0 untouched: a re-pricing must not restart the interface
+    interface_cost_test.go:254: the OSPFv3 reconcile replaced the interface runtime it re-priced, so it dropped the adjacency
+--- FAIL: TestReferenceBandwidthReloadKeepsNeighborAndReprices (0.00s)
+    interface_cost_test.go:324: reconcile journal = {opened:[] closed:[] changed:map[eth0:true]}, want eth0 untouched: a re-pricing must not restart the interface
+    interface_cost_test.go:327: reconcile replaced the interface runtime it re-priced, so it dropped the adjacency
+```
+
+RED for proof 3 (`show ospf interface` reports the new cost), forced by removing the
+`e.repriceInterfaceLocked(want)` call from `reconcile`'s default arm:
+
+```
+--- FAIL: TestOSPFTopologyCostFollowsReferenceBandwidth (0.00s)
+    interface_cost_test.go:114: eth0 runtime cost = 100 after the reload, want 10: the snapshot must not keep the old cost
+--- FAIL: TestReferenceBandwidthReloadRepricesEveryAddressFamily (0.00s)
+    interface_cost_test.go:262: OSPFv3 `show ospf interface` cost after the reload = 47, want the re-priced 23
+--- FAIL: TestReferenceBandwidthReloadKeepsNeighborAndReprices (0.00s)
+    interface_cost_test.go:339: eth0 `show ospf interface` cost = 100 after the reload, want the re-priced 10
+```
+
+RED for proof 4 (a change that DOES need a restart still gets one), forced by pinning
+`interfaceGlobalParamsChanged` to false:
+
+```
+--- FAIL: TestInterfaceGlobalParamsChangedIgnoresReferenceBandwidth (0.00s)
+    interface_cost_test.go:150: a Router ID change did not restart the interface: its Hellos would carry the old identity
+    interface_cost_test.go:155: an area-type change did not restart the interface: its Hellos would carry the old E-bit
+--- FAIL: TestReferenceBandwidthReloadKeepsNeighborAndReprices (0.00s)
+    interface_cost_test.go:350: reconcile journal = {opened:[] closed:[] changed:map[]}, want eth0 restarted by a Router ID change
+```
+
+RED for proof 2 (the Router-LSA the next origination pass produces carries the new cost, in
+both families), forced by withholding the reloaded config from `e.cfg` in `reconcile`. Each
+family's BEFORE reading still passes, so the red is about the reload rather than about the
+derivation:
+
+```
+--- FAIL: TestOSPFTopologyCostFollowsReferenceBandwidth (0.00s)
+    interface_cost_test.go:111: eth0 advertised cost = 100 after lowering the reference bandwidth to 10000, want 10
+--- FAIL: TestReferenceBandwidthReloadRepricesEveryAddressFamily (0.00s)
+    interface_cost_test.go:259: OSPFv3 cost after the reload = 47, want the re-priced 23
+    interface_cost_test.go:262: OSPFv3 `show ospf interface` cost after the reload = 47, want the re-priced 23
+--- FAIL: TestReferenceBandwidthReloadKeepsNeighborAndReprices (0.00s)
+    interface_cost_test.go:336: eth0 advertised cost = 100 after the reload, want the re-priced 10
+    interface_cost_test.go:339: eth0 `show ospf interface` cost = 100 after the reload, want the re-priced 10
+```
+
+RED for the `reconcile` origination itself, forced by deleting the `e.originateSelfLSAs()`
+call. The topology and the snapshot both read 10, and the Router-LSA an OSPFv2 peer would
+read does not:
+
+```
+--- FAIL: TestReferenceBandwidthReloadKeepsNeighborAndReprices (0.00s)
+    interface_cost_test.go:358: Router-LSA link metric = 100 after the reload, want the re-priced 10
+```
+
+GREEN, the whole OSPF tree (`./le job run label ospf-green-all command go test
+./internal/plugins/ospf/... -count=1`):
+
+```
+ok  	github.com/ze-software/ze/internal/plugins/ospf	3.136s
+ok  	github.com/ze-software/ze/internal/plugins/ospf/cli	4.178s
+ok  	github.com/ze-software/ze/internal/plugins/ospf/iface	4.865s
+ok  	github.com/ze-software/ze/internal/plugins/ospf/lsdb	3.656s
+ok  	github.com/ze-software/ze/internal/plugins/ospf/neighbor	0.617s
+ok  	github.com/ze-software/ze/internal/plugins/ospf/packet	2.710s
+ok  	github.com/ze-software/ze/internal/plugins/ospf/redistribute	0.895s
+ok  	github.com/ze-software/ze/internal/plugins/ospf/redistribute/events	1.444s
+ok  	github.com/ze-software/ze/internal/plugins/ospf/spf	2.421s
+ok  	github.com/ze-software/ze/internal/plugins/ospf/sr	0.292s
+ok  	github.com/ze-software/ze/internal/plugins/ospf/transport	2.054s
+ok  	github.com/ze-software/ze/internal/plugins/ospf/types	1.148s
+ok  	github.com/ze-software/ze/internal/plugins/ospf/v3/packet	1.703s
+ok  	github.com/ze-software/ze/internal/plugins/ospf/v3/transport	4.521s
+ok  	github.com/ze-software/ze/internal/plugins/ospf/v3/types	3.905s
+?   	github.com/ze-software/ze/internal/plugins/ospf/wire	[no test files]
+ok  	github.com/ze-software/ze/internal/plugins/ospf/yang	3.297s
+```
+
+`./le verify lint run` reports no finding in `internal/plugins/ospf` or
+`internal/plugins/ospf/iface`. Its 114 findings across the tree name no file this spec
+touches, and they are pre-existing.
+
+Two facts the reload test had to state to observe the Router-LSA at all, and both are the
+test's environment rather than the product's:
+
+- `eth0` does not exist on the test host, so `interfaceIPv4Address` reads no address for it
+  and `routerLinks` emits no link. `addressedTopology` wires the engine's OWN origination
+  topology into the LSDB with an address substituted, so the cost the assertion reads is
+  still the one `lsdbTopology` derived.
+- RFC 2328 Appendix B sets MinLSInterval to 5 seconds, which defers a second origination of
+  one LSA whatever produced it, so the default would hide the reconcile pass behind the rate
+  limit. The test's config sets `min-ls-interval-ms 1` and asserts the parse took it.
+
+- The re-price phase (2026-09-09) carried four page edits with its product change.
+  `docs/guide/ospf.md` drops the sentence saying a `reference-bandwidth` change restarts an
+  interface and states the new promise, that the commit costs no adjacency, with the two
+  reloads that do restart one. `docs/architecture/ospf/ospf-4-component-config.md` replaces
+  the restart trap with the owner's decision and its evidence, and adds the reconcile
+  origination. `docs/architecture/ospf/ospf-5-interface-ism.md` removes
+  `reference-bandwidth` from the set of reloads that recreate a runtime and states why
+  `Cost` is the one field that can be written into a running interface. The
+  `reference-bandwidth` `ze:help` carries the same promise for the operator who reads the
+  schema instead of the guide. Two new source anchors point at
+  `(*Interface).SetCost` and `repriceInterfaceLocked`.
+
 ### Deviations from Plan
 - The Review Gate section was written by the review into the session scratch and appended
   here by the fix phase. The `pretool-writeedit` gate refuses a line-number citation in
@@ -785,10 +940,11 @@ ok  	github.com/ze-software/ze/internal/plugins/ospf/v3/transport	4.489s
 | `reference-bandwidth` divided by the link speed is the cost Ze advertises | interop | `ospf-auto-cost-frr`: FRR 10.3.1 reads 47 out of Ze's Router-LSA under `reference-bandwidth 470000` over a 10 Gbit/s veth. The implementation phase recorded its RED with `interfaceCost` cut to the pre-auto-cost behavior: "assertion 2: wait for frr output timed out before the peer became ready". This phase did not re-run the scenario |
 | A fast link costs less than a slow one with no per-interface configuration | unit | `TestInterfaceCostAutoDerivation`, eleven cases over a stubbed speed table: 1 Gbit/s costs 100, 10 Gbit/s costs 10, 100 Gbit/s costs 1 |
 | Raising or lowering the leaf re-prices the network | unit | `TestOSPFTopologyCostFollowsReferenceBandwidth`: the real config parser to the origination topology, 100 before the reload and 10 after it |
-| An explicit `cost` is never overridden | unit | `TestInterfaceCostAutoDerivation` "explicit cost wins"; `TestInterfaceGlobalParamsChangedReferenceBandwidth` pins five arms of the restart decision: the re-priced interface restarts, and the explicitly-costed one, the truncating quotient, the unpriced link and a link that renegotiates between two speed reads do not |
+| An explicit `cost` is never overridden | unit | `TestInterfaceCostAutoDerivation` "explicit cost wins" |
 | Every consumer of the cost carries the same number (AC-9) | unit | `TestDerivedCostReachesLDPSyncAndTEMetric`: eth0 is read FOUR ways and each reading is the derived 100 -- its Router-LSA metric, its `show ospf interface` cost, its `show ospf ldp-sync` restore value and its RFC 3630 TE metric. eth1 keeps the point-to-point TE arm at 10 beside it. RED observed with `interfaceCost` cut to the pre-auto-cost behavior: all five assertions read 1 |
-| A re-pricing reload drops the adjacency of the interface it re-prices and the replacement advertises the new cost (AC-8b) | unit | `TestReferenceBandwidthReloadDropsAdjacencyAndReprices` drives the production path: `parseOSPFConfig`, `reconcile`, `interfaceGlobalParamsChanged`, `startInterfaceLocked`. The interface holds a 2-Way neighbor before the reload and a Down one after, a new runtime replaces the old one, and both it and the origination topology carry the re-priced 10. RED observed three times: with the restart disabled, with the old runtime left running, and with `receiveHello` never setting `TwoWay` (the state read "init"). `TestInterfaceStopClearsNeighbors` still pins what `Stop` clears. UNPROVEN: no test observes the adjacency re-forming to Full at the new cost. The neighbor a unit test drives stops at 2-Way, Full needs a peer, and `ospf-auto-cost-frr` performs no reload -- see Known Limitations |
-| One reference bandwidth prices a link the same way in both families ACROSS A RELOAD (AC-8b, AC-11) | unit | `TestReferenceBandwidthReloadRepricesEveryAddressFamily`: an OSPFv3 engine started at `reference-bandwidth 470000` reads cost 47, and reconciling it with the `v6Families` entry of a 235000 config restarts eth0 and reads 23. No default produces 23, so a family that failed to inherit the reload's numerator cannot pass by accident. RED observed twice: with the inheritance pinned at the seeded default (47 read as 10) and with the restart disabled (the reconcile journal stayed empty) |
+| A re-pricing reload keeps the adjacency and still publishes the new cost (AC-8b, owner decision 2026-09-09) | unit | `TestReferenceBandwidthReloadKeepsNeighborAndReprices` drives the production path: `parseOSPFConfig`, `reconcile`, `interfaceGlobalParamsChanged`, `repriceInterfaceLocked`, `originateSelfLSAs`. The neighbor is 2-Way on both sides of the reload, the runtime is the same object, and the OSPFv2 Router-LSA link metric moves from 100 to 10. Four forced REDs recorded in the TDD Evidence: the restart still firing, the re-price call removed, the reconcile origination removed, and the reloaded numerator withheld from `e.cfg`. UNPROVEN: no test observes a live peer holding its adjacency across the reload -- see Known Limitations |
+| A change that DOES need a restart still gets one (AC-8c) | unit | `TestInterfaceGlobalParamsChangedIgnoresReferenceBandwidth` asserts the Router ID and area-type arms return true, and `TestReferenceBandwidthReloadKeepsNeighborAndReprices` drives a Router ID reload through `reconcile`: the runtime is replaced and the neighbor drops to Down. RED observed with `interfaceGlobalParamsChanged` pinned to false: all three assertions fail |
+| One reference bandwidth prices a link the same way in both families ACROSS A RELOAD (AC-8b, AC-11) | unit | `TestReferenceBandwidthReloadRepricesEveryAddressFamily`: an OSPFv3 engine started at `reference-bandwidth 470000` reads cost 47, and reconciling it with the `v6Families` entry of a 235000 config keeps eth0's runtime while its origination topology and its interface snapshot both read 23. No default produces 23, so a family that failed to inherit the reload's numerator cannot pass by accident. RED observed twice in the re-price phase: with the re-price call removed (the snapshot stayed 47) and with the reloaded numerator withheld from `e.cfg` (both readings stayed 47) |
 | One reference bandwidth prices a link the same way in both address families (AC-11) | unit | `TestReferenceBandwidthReachesEveryAddressFamily`: `reference-bandwidth 470000` over a 10 Gbit/s link is cost 47 in the OSPFv2 origination topology and 47 in the OSPFv3 engine's, and every `v6Families` entry carries 470000. RED observed against the code the review found: the OSPFv3 family read 10 |
 | The operator reads the cost Ze decided | interop | `ospf-auto-cost-frr`, the `show ospf interface` assertion: Ze's own CLI reports the same 47. Recorded by the implementation phase; not re-run here |
 
@@ -1095,6 +1251,19 @@ when `v > 0`, so the parent value is never 0.
    to him. The round 1 fix narrowed the trigger and left the mechanism, so the question
    is now sharper, not answered.
 
+   **RESOLVED 2026-09-09 by the owner. Thomas decided: re-price in place, a
+   `reference-bandwidth` commit must not tear down an established adjacency.** The
+   finding was correct on every point and is implemented, not merely recorded.
+   `interfaceGlobalParamsChanged` no longer reads the numerator, `reconcile` re-prices
+   the running interface through `repriceInterfaceLocked` and `(*Interface).SetCost`,
+   and `reconcile` calls `originateSelfLSAs` before it returns so the commit publishes
+   the metric. The review's suggested shape (derive the cost inside `Snapshot` /
+   `DetailSnapshot`) was NOT taken: `Interface` holds no reference bandwidth and no link
+   name resolution, so deriving there would import the engine's config into the ISM
+   package. Writing the one field the snapshots read is the smaller change and keeps the
+   derivation in `interfaceCost`, which is still the only place the rule lives. See
+   "SETTLED by the owner" near the top of this spec.
+
 2. **The reload test drives a one-way neighbor, and three places say 2-Way.**
    `receiveHello` (`internal/plugins/ospf/iface/iface.go`) sets
    `TwoWay: helloHasNeighbor(h, i.cfg.RouterID)`.
@@ -1185,9 +1354,8 @@ when `v > 0`, so the parent value is never 0.
 
 **Do not close yet, on ISSUE 2 alone.** It is one field in a test plus three sentences,
 and leaving it publishes an AC and a Goal Validation row that claim more than the test
-observes. ISSUE 1 is the owner's call: the spec already says the restart decision is
-open for him to overrule, and the round 1 fix narrowed the trigger without answering the
-question. Everything else is a NOTE.
+observes. ISSUE 1 was the owner's call: he answered it on 2026-09-09 (re-price
+in place), and the answer is implemented. Everything else is a NOTE.
 
 ### Resolution (round 2 fix phase, 2026-09-09)
 
@@ -1195,7 +1363,7 @@ Every finding was re-read at the producer the review named before it was acted o
 
 | # | Verdict | Resolution |
 |---|---------|------------|
-| 1 ISSUE | reproduced, NOT acted on: owner's decision | `lsdbTopology` derives the cost from `e.cfg.ReferenceBandwidth` on every origination pass, so the restart is not what publishes the metric. Changing it changes what an operator's commit costs, which is not this session's call. The question is written for Thomas in "OPEN, for the owner: what a `reference-bandwidth` commit costs" near the top of this spec, with today's cost, the alternative, and the carrier-flap evidence. The Key Design Decisions row points at it. Behavior is unchanged |
+| 1 ISSUE | reproduced, ANSWERED by the owner on 2026-09-09, and FIXED | `lsdbTopology` derives the cost from `e.cfg.ReferenceBandwidth` on every origination pass, so the restart is not what publishes the metric. Thomas decided on 2026-09-09 that a `reference-bandwidth` commit must tear down no adjacency, and that decision is implemented: `interfaceGlobalParamsChanged` keeps only its Router ID and area-type arms, `reconcile` re-prices in place through `repriceInterfaceLocked` and `(*Interface).SetCost`, and `reconcile` originates before it returns. Four proofs, each with a recorded RED, are in the TDD Evidence for the 2026-09-09 re-price phase. "SETTLED by the owner" near the top of this spec carries the decision |
 | 2 ISSUE | reproduced, fixed | `receiveHello` was read at the producer first: `TwoWay: helloHasNeighbor(h, i.cfg.RouterID)`, and `helloHasNeighbor` is `slices.Contains(h.Neighbors, id)`. The test's Hello now carries `Neighbors: []types.RouterID{cfg.RouterID}`, and the claim is now OBSERVED rather than constructed: the test reads the state out of `eng.neighbors.Lookup` and asserts 2-Way before the reload and Down after it. Three forced REDs recorded. `Table.InterfaceDown` keeps the row and drops it to Down (RFC 2328 sec 10.2 KillNbr), so the assertion is on the state rather than on the row's absence. AC-8b, the test header and Known Limitations now say what the test checks; AC-8b's "adjacency" became "2-Way neighbor", which is the RFC 2328 section 10 term, and the behavior the row promises did not change |
 | 3 NOTE | acted on | `interfaceGlobalParamsChanged` reads the link speed ONCE and prices both sides from that sample, through the new `interfaceCostAtSpeed` (`internal/plugins/ospf/interface_cost.go`). An explicit `cost` returns false before the read. A fifth test arm pins it with a reader that renegotiates between calls, and counts the reads. RED recorded |
 | 4 NOTE | acted on | `TestReferenceBandwidthReloadRepricesEveryAddressFamily` drives an OSPFv3 engine through `reconcile` with the `v6Families` entry `v6EngineSet.apply` hands it. Two forced REDs recorded |

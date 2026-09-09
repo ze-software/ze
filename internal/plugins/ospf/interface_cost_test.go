@@ -113,70 +113,46 @@ func TestOSPFTopologyCostFollowsReferenceBandwidth(t *testing.T) {
 	if got := snapshotByName(t, eng.interfaceSnapshot(), "eth0").Cost; got != 10 {
 		t.Fatalf("eth0 runtime cost = %d after the reload, want 10: the snapshot must not keep the old cost", got)
 	}
-	if !res.changed["eth0"] {
-		t.Errorf("reconcile journal = %+v, want eth0 restarted: its cost changed", res)
-	}
-	if res.changed["eth1"] {
-		t.Errorf("reconcile journal = %+v, want eth1 untouched: an explicit cost is not re-priced", res)
+	if res.changed["eth0"] || res.changed["eth1"] {
+		t.Errorf("reconcile journal = %+v, want no interface restarted: a re-pricing publishes through the next origination pass", res)
 	}
 }
 
-// VALIDATES: the restart decision follows the derived COST, not the reference bandwidth. An
-// interface whose cost changes is restarted; one whose cost is unchanged is left alone,
-// whether it sets an explicit `cost`, sits on a link fast enough that the new quotient
-// truncates to the old one, or sits on a link the kernel does not price.
-// PREVENTS: a bounce that buys nothing. Every adjacency on the router re-forms and the
-// advertised metric is byte-identical, which on a VPP dataplane or a non-Linux host is
-// EVERY interface, because none of them is priced at any reference bandwidth.
-func TestInterfaceGlobalParamsChangedReferenceBandwidth(t *testing.T) {
-	stubLinkSpeed(t, map[string]uint64{"eth0": 1000, "eth1": 1000, "eth2": 10000})
-	oldCfg := ospfConfig{ReferenceBandwidth: 100000}
-	newCfg := ospfConfig{ReferenceBandwidth: 10000}
-	auto := interfaceConfig{Name: "eth0"}
-	explicit := interfaceConfig{Name: "eth1", Cost: 10, HasCost: true}
+// VALIDATES: the restart decision covers what an interface STAMPS into the packets it
+// sends, and nothing else. A Router ID or an area-type change recreates the runtime; a
+// reference-bandwidth change never does, whether or not it re-prices the interface.
+// PREVENTS: a bounce that buys nothing. The cost reaches the Router-LSA through
+// lsdbTopology on the next origination pass, so restarting an interface to publish it drops
+// every neighbor on it for a number the wire was going to carry anyway. On a router with
+// forty auto-costed links that is forty adjacencies for one commit.
+func TestInterfaceGlobalParamsChangedIgnoresReferenceBandwidth(t *testing.T) {
+	stubLinkSpeed(t, map[string]uint64{"eth0": 1000})
+	backbone := []areaConfig{{AreaID: types.BackboneArea, AreaType: areaTypeNormal}}
+	oldCfg := ospfConfig{RouterID: types.RouterID{10, 0, 0, 1}, ReferenceBandwidth: 100000, Areas: backbone}
+	auto := interfaceConfig{Name: "eth0", AreaID: types.BackboneArea}
 
-	// 100000 over 1000 is 100; 10000 over 1000 is 10. eth0 is re-priced, so it restarts.
-	if !interfaceGlobalParamsChanged(oldCfg, newCfg, auto) {
-		t.Error("an auto-cost interface was not restarted by a reference-bandwidth change that re-prices it")
-	}
-	if interfaceGlobalParamsChanged(oldCfg, newCfg, explicit) {
-		t.Error("an explicitly-costed interface was restarted by a reference-bandwidth change")
+	// 100000 over 1000 is cost 100; 10000 over 1000 is cost 10. The metric moves and the
+	// interface still keeps its adjacency.
+	lowered := oldCfg
+	lowered.ReferenceBandwidth = 10000
+	if interfaceGlobalParamsChanged(oldCfg, lowered, auto) {
+		t.Error("a reference-bandwidth change restarted an auto-cost interface: the Router-LSA carries the new cost without one")
 	}
 	if interfaceGlobalParamsChanged(oldCfg, oldCfg, auto) {
-		t.Error("an unchanged reference bandwidth restarted an interface")
+		t.Error("an unchanged config restarted an interface")
 	}
 
-	// 100000 and 105000 both price a 10 Gbit/s link at 10: the quotient truncates.
-	sameQuotient := ospfConfig{ReferenceBandwidth: 105000}
-	tenGig := interfaceConfig{Name: "eth2"}
-	if interfaceGlobalParamsChanged(oldCfg, sameQuotient, tenGig) {
-		t.Error("a reference-bandwidth change that leaves the cost at 10 restarted the interface")
+	// The two changes that DO reach the wire through the interface runtime: the Router ID is
+	// stamped into every Hello, and the area type decides the E-bit and the N-bit.
+	renamed := oldCfg
+	renamed.RouterID = types.RouterID{10, 0, 0, 9}
+	if !interfaceGlobalParamsChanged(oldCfg, renamed, auto) {
+		t.Error("a Router ID change did not restart the interface: its Hellos would carry the old identity")
 	}
-	// veth0 has no speed in the table, which is what the kernel reports for a loopback or a
-	// tunnel, and what a VPP dataplane and a non-Linux host report for every interface.
-	unpriced := interfaceConfig{Name: "veth0"}
-	if interfaceGlobalParamsChanged(oldCfg, newCfg, unpriced) {
-		t.Error("a reference-bandwidth change restarted an interface whose link speed the kernel does not report")
-	}
-
-	// The predicate samples the link speed ONCE. The reader below renegotiates 1 Gbit/s to
-	// 10 Gbit/s between calls, so a predicate that reads per side compares 100 against 10 and
-	// bounces an interface at a reference bandwidth that did not change.
-	previous := interfaceLinkSpeedMbps
-	reads := 0
-	interfaceLinkSpeedMbps = func(string) uint64 {
-		reads++
-		if reads == 1 {
-			return 1000
-		}
-		return 10000
-	}
-	t.Cleanup(func() { interfaceLinkSpeedMbps = previous })
-	if interfaceGlobalParamsChanged(oldCfg, oldCfg, interfaceConfig{Name: "eth3"}) {
-		t.Error("a link that renegotiated between two speed reads restarted an interface at an unchanged reference bandwidth")
-	}
-	if reads != 1 {
-		t.Errorf("interfaceGlobalParamsChanged read the link speed %d times, want 1", reads)
+	stub := oldCfg
+	stub.Areas = []areaConfig{{AreaID: types.BackboneArea, AreaType: areaTypeStub}}
+	if !interfaceGlobalParamsChanged(oldCfg, stub, auto) {
+		t.Error("an area-type change did not restart the interface: its Hellos would carry the old E-bit")
 	}
 }
 
@@ -269,34 +245,52 @@ func TestReferenceBandwidthReloadRepricesEveryAddressFamily(t *testing.T) {
 	if !found {
 		t.Fatal("v6Families carries no ipv6-unicast entry to reconcile with")
 	}
+	before := eng6.interfaces["eth0"]
 	res := eng6.reconcile(loweredV6)
-	if !res.changed["eth0"] {
-		t.Fatalf("OSPFv3 reconcile journal = %+v, want eth0 restarted: 235000 over a 10G link prices it 23, not 47", res)
+	if res.changed["eth0"] {
+		t.Errorf("OSPFv3 reconcile journal = %+v, want eth0 untouched: a re-pricing must not restart the interface", res)
+	}
+	if eng6.interfaces["eth0"] != before {
+		t.Error("the OSPFv3 reconcile replaced the interface runtime it re-priced, so it dropped the adjacency")
 	}
 	// 23 is 235000 over 10000. No default produces it: the seeded 100000 gives 10, so a
 	// family that failed to inherit the reload's numerator cannot read 23 by accident.
 	if got := topologyCost(t, eng6, "eth0"); got != 23 {
 		t.Errorf("OSPFv3 cost after the reload = %d, want the re-priced 23", got)
 	}
+	if got := snapshotByName(t, eng6.interfaceSnapshot(), "eth0").Cost; got != 23 {
+		t.Errorf("OSPFv3 `show ospf interface` cost after the reload = %d, want the re-priced 23", got)
+	}
 }
 
-// VALIDATES: AC-8b -- a reload that re-prices an interface drops the adjacency that
-// interface held, and the runtime that replaces it advertises the new cost. The path is the
-// production one: parseOSPFConfig, reconcile, interfaceGlobalParamsChanged and
-// startInterfaceLocked, over an interface that holds a neighbor.
-// PREVENTS: a re-price that leaves the old runtime and its neighbor records in place, and a
-// restart that drops the adjacency without changing the cost it re-forms at.
+// VALIDATES: AC-8b -- a reload that re-prices an interface keeps the 2-Way neighbor that
+// interface holds, keeps the runtime holding it, and still re-prices the Router-LSA metric
+// and the cost `show ospf interface` reports. A reload that changes the Router ID restarts
+// the same interface, which is what proves the re-price is a decision rather than a lost
+// restart.
+// PREVENTS: the outage the owner refused on 2026-09-09. A router with forty auto-costed
+// links drops forty neighbors at the commit, each re-forming over a dead interval and a
+// database exchange, to publish a metric lsdbTopology derives from e.cfg with no restart at
+// all.
 // The neighbor reaches 2-Way rather than Full: the Hello names this router, which is what
 // receiveHello reads for TwoWay, while Full needs a database exchange with a peer and
 // ospf-auto-cost-frr is where a peer exists.
-func TestReferenceBandwidthReloadDropsAdjacencyAndReprices(t *testing.T) {
+func TestReferenceBandwidthReloadKeepsNeighborAndReprices(t *testing.T) {
 	stubLinkSpeed(t, map[string]uint64{"eth0": 1000})
-	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","reference-bandwidth":"100000","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}}}}`), nil)
+	// min-ls-interval-ms 1 lets the reload's origination install inside one test. RFC 2328
+	// Appendix B sets MinLSInterval to 5 seconds, which defers a second origination of one
+	// LSA whatever produced it, so the default would hide the reconcile pass rather than the
+	// rate limit.
+	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","reference-bandwidth":"100000","timers":{"min-ls-interval-ms":"1"},"areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}}}}`), nil)
 	if err != nil {
 		t.Fatalf("parseOSPFConfig: %v", err)
 	}
+	if cfg.Timers.MinLSIntervalMS != 1 {
+		t.Fatalf("min-ls-interval-ms = %d, want 1: the reload origination would be rate-limited", cfg.Timers.MinLSIntervalMS)
+	}
 	eng := newEngine(transport.New(&fakeBackend{}))
 	eng.setConfig(cfg)
+	addressedTopology(eng)
 	if err := eng.openInterfaces(); err != nil {
 		t.Fatalf("openInterfaces: %v", err)
 	}
@@ -321,49 +315,68 @@ func TestReferenceBandwidthReloadDropsAdjacencyAndReprices(t *testing.T) {
 	if reason := before.ReceiveHello(peer, hello, time.Now()); reason != "" {
 		t.Fatalf("ReceiveHello: %s", reason)
 	}
-	if got := before.Snapshot().NeighborCount; got != 1 {
-		t.Fatalf("neighbors before the reload = %d, want 1: the reload needs a neighbor to drop", got)
-	}
-	snap, ok := eng.neighbors.Lookup("eth0", peer)
-	if !ok {
-		t.Fatal("the neighbor table holds no eth0 neighbor before the reload")
-	}
-	if snap.State != "2-way" {
-		t.Fatalf("neighbor state before the reload = %q, want 2-way: the Hello names this router", snap.State)
+	if snap, ok := eng.neighbors.Lookup("eth0", peer); !ok || snap.State != "2-way" {
+		t.Fatalf("neighbor state before the reload = %q (present %v), want 2-way: the Hello names this router", snap.State, ok)
 	}
 	if got := topologyCost(t, eng, "eth0"); got != 100 {
 		t.Fatalf("eth0 advertised cost = %d, want 100 before the reload", got)
 	}
+	eng.originateSelfLSAs()
+	if got := selfRouterLSAMetric(t, eng, cfg.RouterID); got != 100 {
+		t.Fatalf("Router-LSA link metric = %d, want 100 before the reload", got)
+	}
 
-	lowered, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","reference-bandwidth":"10000","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}}}}`), nil)
+	lowered, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","reference-bandwidth":"10000","timers":{"min-ls-interval-ms":"1"},"areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}}}}`), nil)
 	if err != nil {
 		t.Fatalf("parseOSPFConfig(lowered): %v", err)
 	}
+	// Past the 1 ms MinLSInterval set above, so the reconcile's origination installs rather
+	// than being deferred by RFC 2328 Appendix B rate limiting.
+	time.Sleep(2 * time.Millisecond)
 	res := eng.reconcile(lowered)
 
-	if !res.changed["eth0"] {
-		t.Fatalf("reconcile journal = %+v, want eth0 restarted: 10000 over a 1G link prices it 10, not 100", res)
+	if res.changed["eth0"] {
+		t.Errorf("reconcile journal = %+v, want eth0 untouched: a re-pricing must not restart the interface", res)
 	}
-	if got := before.Snapshot().NeighborCount; got != 0 {
-		t.Errorf("the replaced runtime kept %d neighbors, want 0: the re-price drops the adjacency", got)
+	if eng.interfaces["eth0"] != before {
+		t.Fatal("reconcile replaced the interface runtime it re-priced, so it dropped the adjacency")
+	}
+	if snap, ok := eng.neighbors.Lookup("eth0", peer); !ok || snap.State != "2-way" {
+		t.Errorf("neighbor state after the re-pricing reload = %q (present %v), want 2-way: the neighbor must survive it", snap.State, ok)
+	}
+	if got := before.Snapshot().NeighborCount; got != 1 {
+		t.Errorf("the re-priced runtime holds %d neighbors, want 1", got)
+	}
+	if got := topologyCost(t, eng, "eth0"); got != 10 {
+		t.Errorf("eth0 advertised cost = %d after the reload, want the re-priced 10", got)
+	}
+	if got := snapshotByName(t, eng.interfaceSnapshot(), "eth0").Cost; got != 10 {
+		t.Errorf("eth0 `show ospf interface` cost = %d after the reload, want the re-priced 10", got)
+	}
+	// The Router-LSA an OSPFv2 peer reads. reconcile originates before it returns, so the
+	// commit publishes the new metric rather than waiting for an unrelated event: no
+	// interface restarted, so no neighbor transition drives an origination pass.
+	if got := selfRouterLSAMetric(t, eng, cfg.RouterID); got != 10 {
+		t.Errorf("Router-LSA link metric = %d after the reload, want the re-priced 10", got)
+	}
+
+	// A Router ID change is stamped into every Hello the interface sends, so it still
+	// recreates the runtime and drops the neighbor. Without this arm the assertions above
+	// would also pass against a reconcile that never restarts anything.
+	renamed, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.9","reference-bandwidth":"10000","timers":{"min-ls-interval-ms":"1"},"areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}}}}`), nil)
+	if err != nil {
+		t.Fatalf("parseOSPFConfig(renamed): %v", err)
+	}
+	if res := eng.reconcile(renamed); !res.changed["eth0"] {
+		t.Fatalf("reconcile journal = %+v, want eth0 restarted by a Router ID change", res)
+	}
+	if eng.interfaces["eth0"] == before {
+		t.Error("a Router ID change kept the interface runtime, so the Hellos carry the old identity")
 	}
 	// InterfaceDown keeps the table entry and drops it to Down (RFC 2328 sec 10.2 KillNbr),
 	// so the 2-Way the Hello reached is gone rather than the row.
 	if held, ok := eng.neighbors.Lookup("eth0", peer); !ok || held.State != "down" {
-		t.Errorf("eth0 neighbor after the re-pricing restart = %q (present %v), want down", held.State, ok)
-	}
-	after := eng.interfaces["eth0"]
-	if after == before {
-		t.Fatal("reconcile kept the interface runtime it re-priced, so no adjacency was dropped")
-	}
-	if got := after.Snapshot().NeighborCount; got != 0 {
-		t.Errorf("the replacement runtime starts with %d neighbors, want 0", got)
-	}
-	if got := after.Snapshot().Cost; got != 10 {
-		t.Errorf("the replacement runtime advertises cost %d, want the re-priced 10", got)
-	}
-	if got := topologyCost(t, eng, "eth0"); got != 10 {
-		t.Errorf("eth0 advertised cost = %d after the reload, want 10", got)
+		t.Errorf("eth0 neighbor after the Router ID restart = %q (present %v), want down", held.State, ok)
 	}
 }
 
@@ -389,6 +402,41 @@ func teMetricForLocalAddress(t *testing.T, originations []opaqueOrigination, add
 		return int(lsa.Link.TEMetric), true
 	}
 	return 0, false
+}
+
+// addressedTopology wires the engine's own origination topology into its LSDB with one
+// substitution: an IPv4 address for every interface. eth0 does not exist on the test host,
+// so interfaceIPv4Address reads none and the Router-LSA carries no link to read a metric
+// off. Everything else in the topology, the derived cost included, is what lsdbTopology
+// produced.
+func addressedTopology(eng *engine) {
+	eng.lsdb.SetTopology(func() []ospflsdb.InterfaceInfo {
+		topology := eng.lsdbTopology()
+		for idx := range topology {
+			topology[idx].Address = [4]byte{10, 0, 0, 1}
+			topology[idx].NetworkMask = [4]byte{255, 255, 255, 0}
+		}
+		return topology
+	})
+}
+
+// selfRouterLSAMetric returns the metric of the one link in this router's own Router-LSA,
+// which is what an OSPFv2 peer reads off the wire.
+func selfRouterLSAMetric(t *testing.T, eng *engine, router types.RouterID) types.Metric {
+	t.Helper()
+	key := types.LSAKey{Type: types.LSTypeRouter, LinkStateID: types.LinkStateID(router), AdvertisingRouter: router}
+	lsa, ok := eng.lsdb.LookupLSA(types.BackboneArea, key)
+	if !ok {
+		t.Fatal("this router originated no Router-LSA in the backbone area")
+	}
+	body, err := lsa.DecodeRouter()
+	if err != nil {
+		t.Fatalf("DecodeRouter: %v", err)
+	}
+	if len(body.Links) != 1 {
+		t.Fatalf("Router-LSA carries %d links, want 1", len(body.Links))
+	}
+	return body.Links[0].Metric
 }
 
 // topologyCost returns the cost the LSA-origination topology carries for one interface.

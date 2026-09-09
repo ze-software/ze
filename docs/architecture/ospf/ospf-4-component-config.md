@@ -75,17 +75,25 @@ lifecycle callbacks, transport enrolment and config validation.
   transport lock before publishing the socket, or the interface stays joined
   after removal.
 - A `reference-bandwidth` change re-prices an interface that configures no
-  `cost`, so `interfaceGlobalParamsChanged` must restart it the way a Router ID
-  or area-type change does. It takes the whole `interfaceConfig` rather than the
-  Area ID alone for that reason. What it compares is the derived COST on each
-  side, never the numerator: a restart drops the adjacencies of the interface,
-  and 100000 to 105000 over a 10 Gbit/s link advertises the same 10 either way.
-  Comparing the numerator bounces every adjacency on a VPP dataplane and on a
-  non-Linux host, where no interface is priced at any reference bandwidth. It
-  samples the link speed ONCE and prices both sides from that one sample. Two
-  samples straddle a renegotiation, and the interface then restarts for a cost
-  change the operator did not make.
-  <!-- source: internal/plugins/ospf/instance.go -- interfaceGlobalParamsChanged -->
+  `cost`, and it MUST NOT restart it (owner decision, 2026-09-09). The restart
+  is not what publishes the metric: `lsdbTopology` derives the cost from
+  `e.cfg.ReferenceBandwidth` on every origination pass and `reconcile` replaces
+  `e.cfg` before it reaches an interface, so the new cost is advertised whether
+  or not the runtime is recreated. A carrier flap already re-prices a link with
+  no restart at all. Recreating the runtime empties its neighbor map and clears
+  its DR, so on a router with forty auto-costed links the numerator change cost
+  forty adjacencies to publish a number the wire was going to carry anyway.
+  `interfaceGlobalParamsChanged` therefore covers only what the runtime stamps
+  into a packet, the Router ID and the area type, and `reconcile` re-prices
+  every other interface in place through `repriceInterfaceLocked`.
+  <!-- source: internal/plugins/ospf/instance.go -- interfaceGlobalParamsChanged, repriceInterfaceLocked, lsdbTopology -->
+- `reconcile` originates the self-LSAs before it returns, so the commit
+  publishes the reloaded config. A re-priced interface is not restarted, so no
+  neighbor transition drives an origination for it, and the Router-LSA would
+  otherwise carry the old metric until an unrelated event. The LSDB floods on a
+  diff, so a reload that changed nothing emits nothing, and RFC 2328 Appendix B
+  MinLSInterval still defers a second origination of one LSA.
+  <!-- source: internal/plugins/ospf/instance.go -- reconcile, originateSelfLSAs -->
 - Which synthetic device reports a link speed is the kernel's decision, and it
   is not "none of them". A veth reports 10000 because its driver declares 10
   Gbit/s, which is what lets a Docker container observe auto-cost at all and is

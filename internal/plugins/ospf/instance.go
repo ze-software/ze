@@ -837,6 +837,15 @@ func (e *engine) reconcile(newCfg ospfConfig) reconcileResult {
 				e.mu.Unlock()
 			}
 			res.changed[name] = true
+		default:
+			// Nothing this interface stamps into a packet moved, so it keeps its state
+			// machine, its neighbors and its DR. Its auto-cost quotient can still have
+			// moved, because the reference bandwidth lives outside its block: push the new
+			// cost into the runtime so `show ospf interface` reports what the Router-LSA
+			// carries.
+			e.mu.Lock()
+			e.repriceInterfaceLocked(want)
+			e.mu.Unlock()
 		}
 	}
 	// Re-evaluate `default-information originate` against the new config: `always`
@@ -859,6 +868,11 @@ func (e *engine) reconcile(newCfg ospfConfig) reconcileResult {
 	// Reconcile the per-interface LDP-sync machines to the new config (create/remove/
 	// update); re-originates if the managed set changed.
 	e.updateLDPSyncMachines()
+	// Publish the reloaded config. A re-priced interface is not restarted, so no neighbor
+	// event drives origination for it, and the Router-LSA link metric lsdbTopology derives
+	// from e.cfg would otherwise wait for an unrelated pass. The LSDB floods on a diff, so a
+	// reload that changed nothing the wire carries emits nothing.
+	e.originateSelfLSAs()
 	return res
 }
 
@@ -902,6 +916,19 @@ func (e *engine) startInterfaceLocked(ic interfaceConfig) {
 	if ic.Passive || ic.NetworkType == networkLoopback || e.transport == nil || e.transport.InterfaceOpen(ic.Name) {
 		rt.Start()
 	}
+}
+
+// repriceInterfaceLocked pushes the interface's current output cost into its running
+// runtime. A `reference-bandwidth` change moves the auto-cost quotient of every interface
+// that configures no `cost`, and the Router-LSA takes that quotient from lsdbTopology on
+// the next origination pass, so the runtime's stored copy is the only reader a restart
+// would have refreshed. Callers MUST hold e.mu.
+func (e *engine) repriceInterfaceLocked(ic interfaceConfig) {
+	rt := e.interfaces[ic.Name]
+	if rt == nil {
+		return
+	}
+	rt.SetCost(interfaceCost(ic, e.cfg.ReferenceBandwidth))
 }
 
 func (e *engine) stopInterfaceLocked(name string) {
@@ -1199,29 +1226,20 @@ func interfaceParamsEqual(a, b interfaceConfig) bool {
 }
 
 // interfaceGlobalParamsChanged reports whether a config change outside an interface's own
-// block changes what that interface advertises, so reconcile restarts it. The Router ID and
-// the area type are stamped into every packet it originates. The reference bandwidth is the
-// auto-cost numerator, so what decides the restart is the COST it derives rather than the
-// numerator itself: a restart drops the adjacencies of the interface, and an interface
-// whose cost is unchanged has nothing to re-advertise. Three interfaces keep their cost
-// across a numerator change: one with an explicit `cost`, one whose new quotient truncates
-// to the old one, and one whose link speed the kernel does not report.
+// block changes what that interface STAMPS into the packets it sends, so reconcile has to
+// recreate its runtime. The Router ID goes into every Hello and the area type decides the
+// E-bit and the N-bit, so both do. The auto-cost numerator does NOT: the Router-LSA link
+// metric is derived in lsdbTopology from e.cfg on every origination pass, and reconcile
+// replaces e.cfg before it reaches an interface, so the new cost is advertised whether or
+// not the interface restarts. Recreating a runtime empties its neighbor map and clears its
+// DR, which on a router with forty auto-costed links is forty adjacencies dropped for a
+// metric the wire was going to carry anyway (owner decision, 2026-09-09). reconcile
+// re-prices such an interface in place instead, through repriceInterfaceLocked.
 func interfaceGlobalParamsChanged(oldCfg, newCfg ospfConfig, ic interfaceConfig) bool {
 	if oldCfg.RouterID != newCfg.RouterID {
 		return true
 	}
-	if areaTypeFor(oldCfg, ic.AreaID) != areaTypeFor(newCfg, ic.AreaID) {
-		return true
-	}
-	if ic.HasCost {
-		// The `cost` leaf is the cost, so no numerator changes it.
-		return false
-	}
-	// One speed sample decides both sides. Reading it for each side compares two independent
-	// samples, and a link that renegotiates between them reports a cost change the config did
-	// not make, which is the needless bounce this predicate exists to avoid.
-	speedMbps := interfaceLinkSpeedMbps(ic.Name)
-	return interfaceCostAtSpeed(oldCfg.ReferenceBandwidth, speedMbps) != interfaceCostAtSpeed(newCfg.ReferenceBandwidth, speedMbps)
+	return areaTypeFor(oldCfg, ic.AreaID) != areaTypeFor(newCfg, ic.AreaID)
 }
 
 func areaTypeFor(cfg ospfConfig, areaID types.AreaID) areaType {

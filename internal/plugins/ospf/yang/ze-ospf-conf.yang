@@ -526,9 +526,8 @@ octets wide. A link whose speed the kernel does not report costs 1, which covers
 a dummy, a tunnel and a link with no carrier; a veth reports 10000 and is derived like a real
 NIC. The speed is read again on each origination pass, so a link that renegotiates re-prices
 itself. The value is router-wide: every OSPFv3 address family prices a link exactly as the
-IPv4 family does. A change to this leaf restarts an interface only when it derives a new
-cost for that interface, so an adjacency that would re-form at the cost it already
-advertises is not dropped.";
+IPv4 family does. A change to this leaf drops no adjacency: Ze re-prices each interface in
+place and originates the new Router-LSA at the commit.";
         }
 
         leaf maximum-paths {
