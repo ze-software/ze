@@ -662,7 +662,7 @@ func ReconcileASPathFamily(recv ReceivedASPathFamily) (CanonicalASPathFamily, er
 // only on its LENGTH: "The AS4_AGGREGATOR attribute in an UPDATE message SHALL
 // be considered malformed if the attribute length is not 8." A well-formed lone
 // one is therefore undefined rather than malformed, and Ze's answer is a
-// DECISION rather than conformance (owner ruling, 2026-09-09).
+// DECISION rather than conformance (Thomas, 2026-09-09).
 //
 // The shape is invalid at its source. RFC 6793 Section 4.2.2 obliges a sender to
 // emit the pair: "if the NEW BGP speaker has to send the AGGREGATOR attribute,

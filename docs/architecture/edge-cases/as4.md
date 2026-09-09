@@ -103,7 +103,7 @@ construction below as an absent one.
 ### An AS4_AGGREGATOR with no AGGREGATOR is dropped
 
 Ze drops it, keeps the UPDATE, and reports the drop. **No RFC says to do this,
-and the choice is ze's** (owner ruling, 2026-09-09).
+and the choice is ze's** (Thomas, 2026-09-09).
 
 The shape cannot come from a conformant speaker. RFC 6793 Section 4.2.2 obliges
 a sender to emit the pair: "if the NEW BGP speaker has to send the AGGREGATOR
