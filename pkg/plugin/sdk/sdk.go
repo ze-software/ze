@@ -94,6 +94,14 @@ type Plugin struct {
 	// Capabilities to declare during Stage 3.
 	capabilities []CapabilityDecl
 
+	// wantsValidateOpen records that this plugin's author registered an OPEN
+	// validation handler, which is what Stage 1 declares as
+	// WantsValidateOpen. The callbacks map cannot carry that fact: it holds a
+	// default accept-everything handler for validate-open
+	// (initCallbackDefaults), so an entry is present for every plugin ever
+	// built and presence answers "how do I reply", never "ask me".
+	wantsValidateOpen bool
+
 	// claims holds the exclusive runtime roles claimed by other plugins in this
 	// daemon, as delivered by the engine on the Stage-2 configure callback.
 	// Read through ClaimActive. Populated before the plugin sends Stage 5 ready
@@ -197,6 +205,32 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.token", Type: envTypeString, Description: "Auth token for plugin-to-engine TLS (required for external plugins)", Private: true, Secret: true})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.ca.pem", Type: envTypeString, Description: "PEM certificate authority root the plugin validates the engine's certificate against (required)"})
 )
+
+// EnvPluginMode names the variable that tells a plugin process which job it is
+// being started for. An external plugin is started as a shell-quoted run
+// string, so a forker cannot append a flag to it, and the environment block is
+// the one carrier that string cannot swallow.
+const EnvPluginMode = "ze.plugin.mode"
+
+// ModeDeclare is the value EnvPluginMode carries when the process is being
+// interrogated rather than run. The plugin writes its Stage 1 declaration to
+// stdout, exits 0, and does none of a live start's work: no data, no
+// connection, no bind, no listener, no timer. Any other value, and an absent
+// variable, is a live start, which is what every start was before query mode
+// existed.
+const ModeDeclare = "declare"
+
+var _ = env.MustRegister(env.EnvEntry{Key: EnvPluginMode, Type: envTypeString, Description: "Set to 'declare' to start a plugin for a declaration query: it writes its Stage 1 declaration to stdout and exits without running"})
+
+// QueryModeRequested reports whether this process was started to answer a
+// declaration query rather than to run. A plugin binary ze does not carry
+// answers that query through RunOrDeclare (sdk_query.go), which writes the
+// declaration and never calls the plugin's activation function. This reader is
+// for a plugin with its own reason to branch, and it guarantees nothing about
+// what already ran above the branch.
+func QueryModeRequested() bool {
+	return env.Get(EnvPluginMode) == ModeDeclare
+}
 
 // Default plugin transport address (matches hub config default listen address).
 const (
@@ -364,15 +398,20 @@ func (p *Plugin) Close() error {
 // Run executes the 5-stage startup protocol and enters the event loop.
 // Returns nil on clean shutdown (bye received), or error on failure.
 func (p *Plugin) Run(ctx context.Context, reg Registration) error {
-	// Auto-set WantsValidateOpen if callback is registered.
+	// A plugin that registered an OPEN validation handler asks to be consulted
+	// on every OPEN, and declares it here rather than in the registration it
+	// wrote. The engine sends validate-open to exactly the plugins that
+	// declared it (askOpenValidators, internal/component/bgp/server/validate.go),
+	// so a plugin that declares it and does not want it is asked once for each
+	// session it has nothing to say about.
 	p.mu.Lock()
-	if p.callbacks[callbackValidateOpen] != nil {
+	if p.wantsValidateOpen {
 		reg.WantsValidateOpen = true
 	}
 	p.mu.Unlock()
 
 	// Stage 1: declare-registration
-	if err := p.callEngine(ctx, "ze-plugin-engine:declare-registration", &reg); err != nil {
+	if err := p.callEngine(ctx, rpc.MethodDeclareRegistration, &reg); err != nil {
 		return fmt.Errorf("stage 1 (declare-registration): %w", err)
 	}
 

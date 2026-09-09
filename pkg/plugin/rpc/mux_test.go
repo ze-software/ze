@@ -491,7 +491,7 @@ func TestMuxConn_MixedTraffic(t *testing.T) {
 	}()
 
 	// Plugin sends an outbound call.
-	raw, err := mux.CallRPC(ctx, "ze-plugin-engine:declare-registration", nil)
+	raw, err := mux.CallRPC(ctx, MethodDeclareRegistration, nil)
 	require.NoError(t, err)
 	var result struct {
 		Status string `json:"status"`

@@ -295,6 +295,16 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
+		Code:  "doctor-plugin-shell-missing",
+		Title: "Shell for external plugins not found",
+		Description: "The config names an external plugin and this host carries no shell at /bin/sh. " +
+			"Ze starts an external plugin by giving the `run` string to `/bin/sh -c`, so every external plugin in the config fails to start and the daemon runs without them. " +
+			"A gokrazy appliance image carries no shell utilities, which is where a host reaches this state. " +
+			"Move the plugin to an `internal` block where a built-in plugin provides it, or install a shell on this host.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-plugin-shell-missing"},
+		RelatedCodes: []string{"doctor-plugin-missing"},
+	},
+	{
 		Code:  "doctor-hub-managed-collision",
 		Title: "Managed client listener cannot bind",
 		Description: "A plugin/hub/server block declares managed clients on the address the plugin acceptor binds. " +

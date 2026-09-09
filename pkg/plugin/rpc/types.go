@@ -293,7 +293,16 @@ const (
 	MethodResolveDNS          = "ze-plugin-engine:resolve-dns"
 )
 
-// DeclareRegistrationInput is the input for ze-plugin-engine:declare-registration (Stage 1).
+// MethodDeclareRegistration is the Stage 1 startup method, the first request a
+// plugin sends and the only one query mode sends
+// (docs/architecture/api/process-protocol.md). It is declared here, beside the
+// runtime methods rather than inside them, because the startup handshake and a
+// query answer are two carriers of one message: the engine's stage driver
+// dispatches on this string, the SDK sends it over the hub connection, and a
+// plugin started in query mode writes it to stdout.
+const MethodDeclareRegistration = "ze-plugin-engine:declare-registration"
+
+// DeclareRegistrationInput is the input for MethodDeclareRegistration (Stage 1).
 type DeclareRegistrationInput struct {
 	Families               []FamilyDecl          `json:"families,omitempty"`
 	Commands               []CommandDecl         `json:"commands,omitempty"`

@@ -134,7 +134,7 @@ func TestHandleProcessStartupRPC(t *testing.T) {
 		defer close(pluginDone)
 
 		// Stage 1: Send declare-registration
-		if _, err := pluginMux.CallRPC(ctx, "ze-plugin-engine:declare-registration", &rpc.DeclareRegistrationInput{
+		if _, err := pluginMux.CallRPC(ctx, rpc.MethodDeclareRegistration, &rpc.DeclareRegistrationInput{
 			Families:    []rpc.FamilyDecl{{Name: "ipv4/unicast", Mode: "both"}},
 			WantsConfig: []string{"bgp"},
 		}); err != nil {
@@ -228,7 +228,7 @@ func TestStartupRPC_DependencyValidation(t *testing.T) {
 	pluginDone := make(chan struct{})
 	go func() {
 		defer close(pluginDone)
-		if _, err := pluginMux.CallRPC(ctx, "ze-plugin-engine:declare-registration", &rpc.DeclareRegistrationInput{
+		if _, err := pluginMux.CallRPC(ctx, rpc.MethodDeclareRegistration, &rpc.DeclareRegistrationInput{
 			Dependencies: []string{"bgp-adj-rib-in"},
 		}); err != nil {
 			return // expected: server rejects
@@ -285,7 +285,7 @@ func TestStartupRPC_DependencySatisfied(t *testing.T) {
 	go func() {
 		defer close(pluginDone)
 
-		if _, err := pluginMux.CallRPC(ctx, "ze-plugin-engine:declare-registration", &rpc.DeclareRegistrationInput{
+		if _, err := pluginMux.CallRPC(ctx, rpc.MethodDeclareRegistration, &rpc.DeclareRegistrationInput{
 			Dependencies: []string{"bgp-adj-rib-in"},
 		}); err != nil {
 			return

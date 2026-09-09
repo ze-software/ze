@@ -2,11 +2,13 @@
 // Related: resolve.go — InternalPluginInfo, the registry walk this answers with
 // Related: registry/setup.go — SetupResults, the record each row's outcome comes from
 //
-// register.go registers `show plugin list`, the one command that answers which
-// plugins this binary carries and what each plugin's own init() recorded about
-// its setup. Both facts describe one set, so they are one row rather than two
-// commands: InternalPluginInfo walks registry.All, SetupResults walks the same
-// map, and a reader asking either question was being made to run both.
+// register.go registers the two commands on the plugin noun. `show plugin list`
+// answers which plugins this binary carries and what each plugin's own init()
+// recorded about its setup. Both facts describe one set, so they are one row
+// rather than two commands: InternalPluginInfo walks registry.All, SetupResults
+// walks the same map, and a reader asking either question was being made to run
+// both. `show plugin declarations` answers the other question, what each plugin
+// declares, and its rows are built in declarations.go.
 //
 // The command answers with DATA, so `| json`, `| yaml` and `| table` are three
 // renderings of one payload (ai/rules/cli.md). It is registered here rather
@@ -70,6 +72,38 @@ func init() {
 	command.RegisterColumns([]string{"show plugin list"},
 		command.ColumnOrder{"name", "description", "outcome", "families", "rfcs", "capabilities", "reason"},
 	)
+
+	// `show plugin declarations` is the second command on this noun: the list
+	// answers which plugins the binary carries, and this one answers what each
+	// plugin declares. Its rows and its states are declarations.go.
+	//
+	// The `config <path>` form is a command of its own because the keyword is a
+	// command word rather than a value: the CLI tree carries it, so completion
+	// offers it and the usage line states the grammar. Both forms answer one
+	// payload, so both declare the same shape and the same columns.
+	cmdregistry.MustRegisterLocalData("show plugin declarations", dataDeclarations, cmdregistry.Meta{
+		Description: "What each plugin declares: the commands it serves and the pipe aliases it puts on them.",
+		LongHelp: "One row is written for each plugin this binary carries. A plugin whose " +
+			"declaration could not be read keeps its row and says why in the state field, so a " +
+			"plugin is never missing from the answer.",
+		Mode: modeOffline,
+	}, command.RenderLocalAnswer)
+	cmdregistry.MustRegisterLocalData("show plugin declarations config", dataDeclarationsConfig, cmdregistry.Meta{
+		Description: "The same answer, plus a row for each plugin a config file names.",
+		LongHelp: "The file is read with the daemon's own loader, so the answer covers the plugins " +
+			"the daemon would start from it, external ones included. A plugin the file names and " +
+			"this binary also carries keeps one row rather than two.",
+		Mode: modeOffline,
+	}, command.RenderLocalAnswer)
+
+	command.RegisterShape([]string{
+		"show plugin declarations",
+		"show plugin declarations config",
+	}, command.ShapeTab)
+	command.RegisterColumns([]string{
+		"show plugin declarations",
+		"show plugin declarations config",
+	}, command.ColumnOrder{"name", "kind", "state", "commands", "pipes", "reason"})
 }
 
 // dataPlugins answers `show plugin list` with every plugin this binary carries and

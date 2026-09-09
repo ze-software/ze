@@ -13,6 +13,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 // renderJSON unmarshals a command answer and renders it, which is what every
@@ -129,4 +131,42 @@ func TestRenderYAMLIgnoresColumnOrder(t *testing.T) {
 		t.Errorf("| yaml did not keep its alphabetical keys: %q", declared)
 	}
 	requireTextOrderingIsLive(t, payload)
+}
+
+// TestRenderYAMLSequenceItemWithANestedListParses holds the doc comment on
+// RenderYAML: it "formats a parsed JSON value as valid YAML". The case is a
+// sequence item whose FIRST key holds a list of maps, which is what every
+// row-shaped answer produces when its alphabetically first column is a nested
+// container: `show plugin declarations` sorts `commands` first.
+//
+// The assertion is a real YAML parse rather than a substring, because the
+// failure this test exists to catch renders every field the reader wants and
+// still cannot be read: a continuation line indented under a `- ` prefix opens
+// a NEW sequence entry, so one row decodes as three.
+func TestRenderYAMLSequenceItemWithANestedListParses(t *testing.T) {
+	rendered := renderJSON(t, `{"rows":[{"commands":[{"name":"request mrt dump-rib"}],"kind":"internal","state":"declared"}]}`)
+
+	var decoded struct {
+		Rows []struct {
+			Commands []struct {
+				Name string `yaml:"name"`
+			} `yaml:"commands"`
+			Kind  string `yaml:"kind"`
+			State string `yaml:"state"`
+		} `yaml:"rows"`
+	}
+	if err := yaml.Unmarshal([]byte(rendered), &decoded); err != nil {
+		t.Fatalf("RenderYAML wrote something no YAML reader accepts: %v\n%s", err, rendered)
+	}
+
+	if len(decoded.Rows) != 1 {
+		t.Fatalf("the answer holds one row and decoded as %d\n%s", len(decoded.Rows), rendered)
+	}
+	row := decoded.Rows[0]
+	if row.Kind != "internal" || row.State != "declared" {
+		t.Fatalf("the row decoded kind %q state %q, want internal and declared\n%s", row.Kind, row.State, rendered)
+	}
+	if len(row.Commands) != 1 || row.Commands[0].Name != "request mrt dump-rib" {
+		t.Fatalf("the row's nested list decoded as %v\n%s", row.Commands, rendered)
+	}
 }

@@ -39,14 +39,14 @@ func TestProcessSingleConnInitConns(t *testing.T) {
 	// Plugin side: send a request (simulating plugin->engine RPC).
 	pluginConn := rpc.NewConn(pluginEnd, pluginEnd)
 	go func() {
-		line := rpc.FormatRequest(1, "ze-plugin-engine:declare-registration", json.RawMessage(`{"families":[]}`))
+		line := rpc.FormatRequest(1, rpc.MethodDeclareRegistration, json.RawMessage(`{"families":[]}`))
 		_ = pluginConn.WriteRawFrame(append(line, '\n'))
 	}()
 
 	// Engine side: read from ConnA (should receive the plugin's request via MuxConn).
 	req, err := conn.ReadRequest(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
 	assert.Equal(t, uint64(1), req.ID)
 
 	// Start plugin-side reader BEFORE engine writes response.

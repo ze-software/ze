@@ -1,0 +1,50 @@
+# Test: one answer, three renderings, and the state read as a field
+# Spec: spec-plugin-query-mode -- AC-8
+# VALIDATES: `show plugin declarations` answers structured data, so `| json`,
+#   `| yaml` and `| table` are three renderings of ONE payload, and `| match`
+#   selects rows out of it. Each row carries its state in a field beside the
+#   name.
+# PREVENTS: a handler that answers finished text, which picks the reader's
+#   format for them, and a row whose state is glued to its name, which an
+#   operator cannot select on and a program cannot read.
+#
+# No daemon runs here. `ze cli -c` serves a local-data command in its own
+# process, before it asks for credentials (ServeLocal,
+# internal/component/command/local_data.go), and that is the surface an
+# operator's pipe chain arrives on.
+#
+# Every expectation in this file is FILE-level: the runner checks each one
+# against the accumulated stdout AND stderr of every command in the file
+# (checkOutputAssertions, internal/test/runner/runner_output_assert.go). A
+# per-command exit code therefore goes on the `cmd=` line as `exit=`, and each
+# pattern below is written so that only ONE of the three renderings can
+# produce it.
+#
+# mrt is the plugin the operator selects because it declares one command with
+# a stable name, the same reason plugin-declarations-external.ci names it.
+
+cmd=foreground:seq=1:exec=ze cli -c "show plugin declarations | match mrt | json":exit=0
+cmd=foreground:seq=2:exec=ze cli -c "show plugin declarations | match mrt | yaml":exit=0
+cmd=foreground:seq=3:exec=ze cli -c "show plugin declarations | match mrt | table":exit=0
+
+# The JSON rendering carries the name and the state as two keys. A state glued
+# to the name would leave one key holding both.
+expect=stdout:pattern="name": "mrt",
+expect=stdout:pattern="state": "declared"
+expect=stdout:pattern="name": "request mrt dump-rib"
+
+# The YAML rendering is that same payload unquoted. Neither pattern can match
+# the JSON above, which spells the key with its quotes.
+expect=stdout:pattern=state: declared
+expect=stdout:pattern=name: request mrt dump-rib
+
+# The table rendering gives `state` a column of its own, and the row reads
+# under it. Its nested cell carries the command the two encodings carry.
+expect=stdout:pattern=name +\S kind +\S state
+expect=stdout:pattern=mrt +\S internal \S declared
+expect=stdout:pattern=request mrt dump-rib +\S Write the current RIB
+
+# `match` selected rather than passed everything through: each command above
+# asked for the mrt row alone, so a plugin the unfiltered answer carries is in
+# none of the three renderings.
+reject=stdout:pattern="name": "static"

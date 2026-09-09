@@ -58,7 +58,7 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 
 	// Stage 1: Read declare-registration from plugin-to-engine, send OK.
 	stage1Req := readMuxRequestTimeout(t, ctx, mux)
-	require.Equal(t, "ze-plugin-engine:declare-registration", stage1Req.Method)
+	require.Equal(t, rpc.MethodDeclareRegistration, stage1Req.Method)
 	require.NoError(t, mux.SendOK(ctx, stage1Req.ID))
 
 	// Stage 2: Send configure on engine-to-plugin (empty config is fine).

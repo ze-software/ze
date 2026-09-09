@@ -1,6 +1,6 @@
 # Plugin CLI Modes
 
-Plugins have three distinct operating modes with different input/output formats.
+Plugins have four distinct operating modes with different input/output formats.
 
 ## Modes Overview
 
@@ -9,7 +9,9 @@ Plugins have three distinct operating modes with different input/output formats.
 | **CLI Mode** | `ze plugin <name> --nlri <hex>` | Flag value or `-` for stdin | Direct user invocation |
 | **Engine Decode Mode** | `ze plugin <name> --decode` | Decode commands on stdin/stdout | Engine decode delegation |
 | **Engine Mode** | `ze plugin <name>` | YANG RPC over TLS connect-back | Engine-plugin communication |
+| **Query Mode** | `ZE_PLUGIN_MODE=declare ze plugin <name>` | No input: one environment variable | Read what a plugin declares, with no daemon |
 <!-- source: internal/component/bgp/cli/cmd_plugin.go -- plugin CLI dispatch -->
+<!-- source: internal/component/plugin/cli/main.go -- Run, answerQuery -->
 
 ## Design Principle
 
@@ -18,6 +20,7 @@ Plugins have three distinct operating modes with different input/output formats.
 - CLI mode: Simple, direct input. No protocol framing.
 - Engine decode mode: stdin/stdout decode commands for one decoder process.
 - Engine mode: full YANG RPC protocol over the plugin hub TLS connection.
+- Query mode: one Stage 1 declaration on stdout, and none of a live start's work.
 
 ## Plugin Features
 
@@ -174,7 +177,67 @@ Uses the plugin process protocol:
 
 See `docs/architecture/api/process-protocol.md` for the full protocol.
 
-## Why Three Modes?
+## Query Mode (`ZE_PLUGIN_MODE=declare`)
+
+For reading what a plugin declares. The process starts, and it knows that it is
+interrogated rather than started.
+
+### Invocation
+
+```bash
+ZE_PLUGIN_MODE=declare ze plugin bgp-rib
+# stdout: #1 ze-plugin-engine:declare-registration {"commands":[...],"pipes":[...]}
+# exit code: 0
+```
+
+### Carrier
+
+The mode is carried by the `ze.plugin.mode` environment variable, read as
+`ZE_PLUGIN_MODE`. An external plugin is started as a shell-quoted run string, so
+a forker cannot append a flag to it, and the environment block is the one
+carrier that string cannot swallow. `declare` is the only value the mode takes.
+Any other value, and an absent variable, is a live start.
+<!-- source: pkg/plugin/sdk/sdk.go -- EnvPluginMode, ModeDeclare, QueryModeRequested -->
+
+The run string is given to `/bin/sh -c`, by the query and by the daemon's live
+start, so a plugin the daemon can start is startable by the query. A host with
+no shell starts neither: the query row reads `unstartable` and its reason names
+the shell, and `ze doctor` reports the same dependency under
+`doctor-plugin-shell-missing`.
+<!-- source: internal/component/plugin/shell.go -- Shell, ShellAvailable -->
+<!-- source: internal/component/plugin/declarations.go -- unstartableOutcome -->
+
+### The answer
+
+The answer is the Stage 1 `declare-registration` message, in the protocol's own
+newline framing, written to stdout instead of to the hub connection. It carries
+the commands and the pipe aliases the plugin declares. One message in one
+format: a reader parses the framed line and ignores every other line, so a
+banner or a log line does not corrupt the answer.
+
+A plugin that declares no command and no pipe still writes the line, with an
+empty declaration. "Declared nothing" and "sent nothing" are different answers,
+and a reader that cannot tell them apart reports a working plugin as silent.
+
+### Inertness
+
+For a plugin the ze binary carries, inertness is unreachability rather than a
+promise. `Run` looks the plugin up in the registry and answers from that
+registration, so `CLIHandler` is never called and no plugin code runs at all: no
+data initialization, no connection, no bind, no listener, no timer. The query
+process reads no hub variable and opens no connection, so it joins no hub.
+
+For a plugin binary ze does not carry, the same guarantee is bought by adopting
+`sdk.RunOrDeclare(declaration, activate)`: the declaration and the activation
+function are separate arguments, and the mode returns before `activate` is
+called, so the plugin's side-effecting code is unreachable under a query. What
+the plugin's `main` does ABOVE that call is outside the guarantee. A plugin that
+adopts neither route runs its live start under a query, and the reader records
+it as having sent nothing. For third-party code this is enforcement for adopters
+and convention for everyone else.
+<!-- source: pkg/plugin/sdk/sdk_query.go -- RunOrDeclare -->
+
+## Why Four Modes?
 
 ### CLI Mode Benefits
 
@@ -195,6 +258,12 @@ See `docs/architecture/api/process-protocol.md` for the full protocol.
 - **Bidirectional**: Engine can send config, receive events
 - **Lifecycle managed**: Engine handles respawn, backpressure
 <!-- source: internal/component/plugin/server/ -- plugin process management -->
+
+### Query Mode Benefits
+
+- **No daemon**: the declarations are readable with nothing running
+- **Inert**: no plugin code runs for a plugin the ze binary carries
+- **One format**: the answer is the Stage 1 message the engine already receives
 
 ## Implementation Pattern
 

@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // configureWithClaims is the Stage-2 payload shape the engine sends
@@ -77,7 +79,7 @@ func TestStartupClaimsPrecedeReady(t *testing.T) {
 
 	// Stage 1.
 	req := readEngineRequest(t, ctx, engine.mux)
-	require.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	require.Equal(t, rpc.MethodDeclareRegistration, req.Method)
 	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	// Stage 2: the engine delivers the claim set alongside the config sections.

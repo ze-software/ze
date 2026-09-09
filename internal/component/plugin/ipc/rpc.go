@@ -162,7 +162,7 @@ func (pc *PluginConn) Close() error {
 
 // sendDeclareRegistration sends Stage 1: declare-registration to the engine.
 func (pc *PluginConn) sendDeclareRegistration(ctx context.Context, input *rpc.DeclareRegistrationInput) error {
-	_, err := pc.CallRPC(ctx, "ze-plugin-engine:declare-registration", input)
+	_, err := pc.CallRPC(ctx, rpc.MethodDeclareRegistration, input)
 	return err
 }
 

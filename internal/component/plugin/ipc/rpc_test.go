@@ -69,7 +69,7 @@ func TestRPCDeclareRegistration(t *testing.T) {
 	// Engine receives via plugin conn (read side)
 	req, err := engineConn.ReadRequest(context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
 
 	// Parse the params
 	var received rpc.DeclareRegistrationInput
@@ -527,7 +527,7 @@ func TestRPCFullStartupCycle(t *testing.T) {
 	// Stage 1: engine reads declare-registration
 	req, err := engineConn.ReadRequest(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
 
 	var regInput rpc.DeclareRegistrationInput
 	require.NoError(t, json.Unmarshal(req.Params, &regInput))

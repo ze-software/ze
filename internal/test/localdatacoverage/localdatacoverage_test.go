@@ -335,11 +335,13 @@ func TestEvidenceAndMarkersAreTheCurrentPopulation(t *testing.T) {
 		{Command: "show env get ze.cli.format | json compact", Evidence: "show env get"},
 		{Command: "show env registered | json compact", Evidence: "show env registered"},
 		{Command: "show plugin list | json compact", Evidence: "show plugin list"},
+		{Command: "show plugin declarations | json compact", Evidence: "show plugin declarations"},
+		{Command: "show plugin declarations config %s | json compact", Evidence: "show plugin declarations config"},
 	}
 	if got := Evidence(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("Evidence() = %#v, want %#v", got, want)
 	}
-	if CompletionMarker != "OK: 18/18 local-data commands and local one-shot save" {
+	if CompletionMarker != "OK: 20/20 local-data commands and local one-shot save" {
 		t.Fatalf("CompletionMarker = %q", CompletionMarker)
 	}
 	for _, invocation := range want {

@@ -10,5 +10,6 @@ directives ## Directives
   give-every-rpc-a-yang-registration
   cross-a-boundary-with-value-types-only
   bound-and-clean-every-declared-text
+  answer-a-declaration-without-activating
 registration-based-dispatch ## Registration-Based Dispatch
   dispatch-subcommands-by-registration-not-switch

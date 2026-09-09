@@ -88,7 +88,7 @@ func TestDispatchCommandAnswerYieldsRows(t *testing.T) {
 	}()
 
 	req := readEngineRequest(t, ctx, engine.mux)
-	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
 	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	completeStartupFromStage2(t, ctx, engine)
@@ -170,7 +170,7 @@ func TestDispatchCommandAnswerBoundedIsDocument(t *testing.T) {
 	}()
 
 	req := readEngineRequest(t, ctx, engine.mux)
-	require.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	require.Equal(t, rpc.MethodDeclareRegistration, req.Method)
 	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	completeStartupFromStage2(t, ctx, engine)

@@ -110,6 +110,69 @@ secret in one.
 <!-- source: internal/component/plugin/registry/setup.go -- RecordSetup, SetupOutcome, SetupResults -->
 <!-- source: internal/plugins/memlock/memlock_linux.go -- init, the worked example -->
 
+## Two commands on the plugin noun
+
+The plugin component owns both, and each answers one question.
+
+| Command | Question | Population |
+|---------|----------|------------|
+| `show plugin list` | Which plugins does this binary carry, and what did each one's `init()` record? | `registry.All` joined to `registry.SetupResults` |
+| `show plugin declarations` | What does each plugin declare about its command surface? | `registry.SetupResults`, the same set the row above answers for, plus the plugin blocks of a config file named with `config <path>` |
+
+Both are local-data commands, so both answer with no daemon and both render
+through every pipe operator.
+
+The second command's row set is wider than the first's, because a config file
+can name a plugin whose code is in another binary. Reading such a plugin's
+declaration means starting that binary, which is why the state is a field of
+the row rather than a promise: a plugin that could not be read keeps its row.
+
+A row's declaration comes from the binary that holds the plugin's code, and the
+config block is what says which binary that is. A plugin with no config block,
+and a plugin an `internal` block names, are read from the compiled-in
+`registry.Registration`, and no process is started. A plugin an `external`
+block names is read by starting that block's own `run` command under a shell,
+even where this binary carries a plugin of the same name: the block names
+another program, so answering it from the registration would put commands that
+program does not serve into a row that reads `kind: external`.
+
+The queried child is started with `ZE_PLUGIN_MODE=declare` and with every
+inherited variable in the `ze.plugin.` namespace removed, under any spelling,
+so it gets no hub host, no token and no CA. The spelling is load-bearing:
+`env.Get` reads a dot and an underscore as one separator and `env.Set` writes
+the dotted key with `os.Setenv`, so a drop matching `ZE_PLUGIN_` alone leaves
+`ze.plugin.hub.token` in the child's environment. The child writes one
+newline-framed Stage 1 `declare-registration` line to stdout and exits; every
+other line it writes is ignored. The state field then says which of five
+answers the row carries: `declared`, `declared-none`, `no-answer`,
+`unstartable` or `timeout`. The wait is `ze.plugin.query.timeout`, 5 seconds by
+default, and a child that runs out of it is stopped with everything it started:
+the fork puts the plugin in its own process group and the stop signals that
+group, because a stop aimed at the shell alone leaves the plugin running its
+live start past the budget.
+
+The reader forks that run string itself rather than calling
+`(*Process).startExternal`, for two reasons: `internal/component/plugin/process`
+imports this package, so a call from here is an import cycle, and that path
+discards the child's exit status, which is the one fact separating a plugin that
+could not start from a plugin that ran and said nothing. What the two starts
+share is shared in one place each: the PATH they compose in `childenv.go`, and
+the stop they fork with in `KillGroupOnCancel`. That function sets the process
+group and the kill that signals it together, because either half alone stops
+the shell and leaves the plugin.
+
+The config file is read through a seam rather than a call. This package parses
+config and imports `internal/component/plugin` for `PluginConfig`, so the plugin
+package cannot import it back; the plugin package declares the reader type and
+the config component registers a reader for it from an `init()`. A binary that
+links no config parser refuses the `config` keyword rather than reporting that
+the file names no plugin.
+<!-- source: internal/component/plugin/declarations.go -- declarationRows, queriedDeclarationRow, runQuery -->
+<!-- source: internal/component/plugin/childenv.go -- ChildPathEnv, EngineBinDir -->
+<!-- source: internal/component/plugin/sysproc.go -- KillGroupOnCancel -->
+<!-- source: internal/core/env/env.go -- InNamespace -->
+<!-- source: internal/component/config/register_plugin_declarations.go -- readConfiguredPlugins -->
+
 ## Dependencies
 
 | Field | Semantics |

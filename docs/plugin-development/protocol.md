@@ -383,6 +383,76 @@ callbacks flow through `bridge.CallbackCh()` instead of the MuxConn.
 After Stage 5, the SDK activates the DirectBridge (for internal plugins) and enters
 the event loop.
 
+## Query Mode: Answering Without Starting
+
+Ze can start your plugin to ask what it declares, with no daemon running and no
+hub to connect to. It sets `ZE_PLUGIN_MODE=declare` in your process's
+environment. Your plugin writes its Stage 1 declaration to stdout, exits 0, and
+does none of a live start's work: no data initialization, no connection, no
+bind, no listener, no timer.
+
+### What you call
+
+`sdk.RunOrDeclare` takes your declaration and your start function as two
+arguments and returns the exit code:
+
+```go
+// declaration is what this plugin provides. It is a pure value: no file, no
+// socket, no goroutine.
+func declaration() sdk.Registration {
+    return sdk.Registration{
+        Commands: []sdk.CommandDecl{{Name: "acme-monitor status", Description: "Show monitor status"}},
+    }
+}
+
+func main() {
+    os.Exit(sdk.RunOrDeclare(declaration(), start))
+}
+
+// start does everything a live start does, and query mode never calls it.
+func start() int {
+    p, err := sdk.NewFromEnv("acme-monitor")
+    if err != nil {
+        return 1
+    }
+    defer p.Close()
+    // ... register callbacks, open files, dial, start timers ...
+    if err := p.Run(context.Background(), declaration()); err != nil {
+        return 1
+    }
+    return 0
+}
+```
+
+The declaration is the same `sdk.Registration` value you pass to `Plugin.Run`,
+so query mode reads nothing new and adds no second list to keep in step.
+<!-- source: pkg/plugin/sdk/sdk_query.go -- RunOrDeclare -->
+
+### What the SDK guarantees
+
+- Your start function is NOT called under the mode. Side-effecting code inside
+  it is unreachable during a query, not merely discouraged.
+- The line written is the Stage 1 `declare-registration` message in the
+  protocol's own framing, so the reader parses one format.
+- A declaration naming no command and no pipe still writes the line. "Declared
+  nothing" and "sent nothing" are different answers.
+
+### What it does not guarantee
+
+- Work your `main` does BEFORE the call runs under a query too. The SDK cannot
+  reach it. Put every side effect inside the start function.
+- `Plugin.Run` derives `wants-validate-open` from the callbacks you registered.
+  A query has no `Plugin`, so state that field in the declaration you pass here
+  when you want it in the answer.
+- A plugin that adopts neither this entry point nor the `ze plugin` route is
+  reported as having sent nothing. Ze cannot make a binary it does not compile
+  inert, so for third-party code this is enforcement for adopters and convention
+  for everyone else.
+- `QueryModeRequested()` reports the mode for a plugin that has its own reason
+  to branch. It is a reader, not a guarantee: the branch is yours to place, and
+  anything above it has already run.
+<!-- source: pkg/plugin/sdk/sdk.go -- QueryModeRequested, EnvPluginMode, ModeDeclare -->
+
 ## Runtime Callbacks (Engine to Plugin)
 
 After startup, the engine sends runtime RPCs to the plugin. The SDK dispatches

@@ -18,7 +18,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -29,7 +28,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/syncutil"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -573,45 +571,22 @@ func (p *Process) startInternal() error {
 	return nil
 }
 
-// execBinDir returns the directory of the running binary, preferring the
-// argv[0] path (which preserves symlinks) over os.Executable (which resolves
-// them). This matters when ze runs from a symlink in a QEMU VM: the resolved
-// path can land in a directory that also contains a host-architecture binary.
-func execBinDir() string {
-	if arg0 := os.Args[0]; filepath.IsAbs(arg0) {
-		return filepath.Dir(arg0)
-	} else if abs, err := filepath.Abs(arg0); err == nil {
-		return filepath.Dir(abs)
-	}
-	if exe, err := os.Executable(); err == nil {
-		return filepath.Dir(exe)
-	}
-	return ""
-}
-
-// pluginPathEnv composes the PATH a spawned external plugin receives: the
-// inherited PATH first, then the engine binary's own directory. That directory
-// is a FALLBACK, so a run command like "ze plugin bgp-rib" still finds ze when
-// it is not installed system-wide, and it MUST NOT come first, because a
-// cross-built checkout holds a host binary and a guest binary of the same name
-// side by side. Under QEMU the engine runs as bin/ze-linux-arm64 next to a
-// darwin bin/ze-test, and putting that directory first made every
-// `run "ze-test ..."` in test/ resolve to the darwin binary, which the guest
-// shell reads as a script.
+// startFailure says why the fork produced no process.
 //
-// An empty binDir answers the empty string, so the caller adds no PATH entry
-// and the child keeps what it inherited.
-func pluginPathEnv(binDir, inherited string) string {
-	if binDir == "" {
-		return ""
+// The run string is given to plugin.Shell, so a host with no shell fails every
+// external plugin start for one reason. The error names the absent shell,
+// because an error naming the plugin sends the operator to the plugin's own
+// code, where there is nothing to repair (`ai/rules/principles.md`).
+// `ze doctor` reports the same dependency before the daemon starts, under
+// doctor-plugin-shell-missing.
+//
+// The shell answer is a parameter so a test states it: no test can take /bin/sh
+// away from the host it runs on.
+func startFailure(startErr, shellErr error) error {
+	if shellErr != nil {
+		return shellErr
 	}
-	parts := make([]string, 0, 2)
-	if inherited != "" {
-		parts = append(parts, inherited)
-	}
-	parts = append(parts, binDir)
-	var tb textbuf.Buffer
-	return tb.Str("PATH=").Join(parts, string(os.PathListSeparator)).String()
+	return startErr
 }
 
 // startExternal starts an external plugin via exec.Command.
@@ -639,7 +614,7 @@ func (p *Process) startExternal() error {
 	}
 
 	// #nosec G204 - Run command is from trusted configuration, not user input
-	p.cmd = exec.CommandContext(p.ctx, "/bin/sh", "-c", p.config.Run)
+	p.cmd = exec.CommandContext(p.ctx, plugin.Shell, "-c", p.config.Run)
 	if p.config.WorkDir != "" {
 		p.cmd.Dir = p.config.WorkDir
 	}
@@ -648,12 +623,11 @@ func (p *Process) startExternal() error {
 	// The engine binary's directory goes on PATH as a fallback, so run
 	// commands like "ze plugin bgp-rib" find the ze binary even when it is
 	// not installed system-wide (e.g., running from ./bin/ze in dev/test).
-	// pluginPathEnv states why it is a fallback rather than an override.
-	// Use os.Args[0] instead of os.Executable(): the latter follows symlinks,
-	// which can resolve to a directory containing a different-architecture
-	// binary with the same name (QEMU 9p mount with both host and VM binaries).
+	// plugin.ChildPathEnv states why it is a fallback rather than an override,
+	// and it is shared with the declaration query, which starts the same run
+	// string and owes the same PATH (../childenv.go).
 	p.cmd.Env = os.Environ()
-	if pathEnv := pluginPathEnv(execBinDir(), os.Getenv("PATH")); pathEnv != "" {
+	if pathEnv := plugin.ChildPathEnv(plugin.EngineBinDir(), os.Getenv("PATH")); pathEnv != "" {
 		p.cmd.Env = append(p.cmd.Env, pathEnv)
 	}
 	// Generate a per-plugin token for name-bound authentication.
@@ -676,12 +650,27 @@ func (p *Process) startExternal() error {
 	}
 	p.stderr = stderrRead
 
-	p.cmd.SysProcAttr = newSysProcAttr()
+	// The plugin is started in its own process group and Stop signals that
+	// group, so the stop reaches the plugin and not only the shell that was
+	// given the run string. A shell keeps the plugin as its own child for every
+	// run string it does not exec-optimize, and a stop that reached the shell
+	// alone would leave the plugin running after the daemon stopped it. The
+	// declaration query takes the same stop from the same function
+	// (KillGroupOnCancel, ../sysproc.go).
+	//
+	// WaitDelay stays zero here, and it is set on the query's fork. WaitDelay
+	// bounds two waits: a child that outlives its canceled context, and a
+	// child that exits holding a pipe exec created. Neither reaches this fork.
+	// The cancel is SIGKILL to the group, which nothing catches, and the only
+	// stream this child is given is an *os.File, which os/exec hands to the
+	// child directly rather than through a pipe of its own. The relay reading
+	// that file is bounded by stderrDrainGrace in monitorCmd.
+	plugin.KillGroupOnCancel(p.cmd)
 
 	if err := p.cmd.Start(); err != nil {
 		stderrWrite.Close() //nolint:errcheck,gosec // cleanup on error
 		stderrRead.Close()  //nolint:errcheck,gosec // cleanup on error
-		return fmt.Errorf("plugin %s: start: %w", p.config.Name, err)
+		return fmt.Errorf("plugin %s: start: %w", p.config.Name, startFailure(err, plugin.ShellAvailable()))
 	}
 	// The child holds its own descriptor now. Closing the parent's copy of the
 	// write end is what turns the child's exit into EOF for the reader below.
@@ -705,9 +694,13 @@ func (p *Process) startExternal() error {
 
 	conn, waitErr := p.acceptor.WaitForPlugin(waitCtx, p.config.Name)
 	if waitErr != nil {
-		// Kill the child process to prevent orphaning.
+		// Stop the child, and everything it started, to prevent orphaning. The
+		// timeout is not a cancellation of p.ctx, so the Cancel above has not
+		// run: this path signals the group itself. Killing the direct child
+		// alone would leave the plugin behind whenever the shell did not
+		// exec-optimize the run string.
 		if p.cmd != nil && p.cmd.Process != nil {
-			p.cmd.Process.Kill() //nolint:errcheck,gosec // cleanup on connect-back failure
+			plugin.KillProcessGroup(p.cmd.Process.Pid) //nolint:errcheck,gosec // cleanup on connect-back failure
 		}
 		// Stop delivery goroutine started by startDeliveryLocked to prevent leak.
 		p.stopEventChan()

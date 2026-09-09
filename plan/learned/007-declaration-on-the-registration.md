@@ -30,9 +30,10 @@ before it declares.
 | Declares no commands at all | The MAJORITY. Roughly 60 of 97 reach Stage 1 with an empty `Commands` list, so "declared nothing" is the normal answer and never a failure signal |
 
 `./le command list` must not program nftables. **This table is the answer to any
-future proposal to run engines for introspection.** `plan/spec-plugin-query-mode.md`
-transcribes the part of it that bears on a query mode, and its A-3 says the
-findings are re-read at design time rather than trusted forever.
+future proposal to run engines for introspection.** `spec-plugin-query-mode`
+re-measured this table at every producer on 2026-09-08, confirmed it with three
+corrections, and answered it by never entering a runner body at all:
+`plan/learned/013-inertness-is-unreachability.md` carries what it decided.
 
 The last row is the one that generalizes past this repository. A collector whose
 normal answer for two thirds of its inputs is "nothing" has no failure signal:

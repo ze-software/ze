@@ -1,0 +1,64 @@
+# Test: every configured plugin has a row, whatever answering did to it
+# Spec: spec-plugin-query-mode -- story 2, AC-4, R-2, R-4
+# VALIDATES: `show plugin declarations config <path>` answers one row per
+#   configured plugin, and the row's state tells a working plugin from one that
+#   could not start, one that ran and said nothing, and one that ran out of time.
+# PREVENTS: a broken plugin vanishing from the answer, or a plugin that ignores
+#   query mode being reported as a plugin with nothing to declare. Both read as
+#   "this plugin adds no commands", which is the wrong operator conclusion.
+#
+# No daemon runs here. The command is a local-data command, so `ze show ...`
+# serves it in its own process.
+#
+# Every expectation in this file is FILE-level: the runner checks each one
+# against the accumulated stdout AND stderr of every command in the file
+# (checkOutputAssertions, internal/test/runner/runner_output_assert.go). A
+# per-command exit code therefore goes on the `cmd=` line as `exit=`, and the
+# state assertions are regexes that hold the plugin name and its state on ONE
+# line, because a bare `contains=` would pass with the two on different rows.
+#
+# The budget is cut to two seconds so the sleeping plugin costs the suite two
+# seconds instead of the five a default query waits.
+option=env:var=ze.plugin.query.timeout:value=2s
+
+tmpfs=plugin-declarations-states.conf:terminator=EOF_CONF
+plugin {
+    external mrt-out-of-process {
+        run "ze plugin mrt"
+        encoder json
+    }
+    external plugin-absent {
+        run "/no/such/ze-plugin"
+        encoder json
+    }
+    external plugin-silent {
+        run "exit 0"
+        encoder json
+    }
+    external plugin-slow {
+        run "sleep 30"
+        encoder json
+    }
+}
+EOF_CONF
+
+# One command, four plugins, four different answers. The command itself succeeds:
+# a plugin that could not answer is a row, never an error.
+cmd=foreground:seq=1:exec=ze show plugin declarations config plugin-declarations-states.conf:exit=0
+
+# A plugin that supports query mode declares, and the row carries what it
+# declared rather than the fact that it answered.
+expect=stdout:pattern=mrt-out-of-process +external +declared
+expect=stdout:contains=request mrt dump-rib
+
+# A run command that names no binary could not start. It is not silence: the
+# plugin never ran.
+expect=stdout:pattern=plugin-absent +external +unstartable
+
+# A plugin that ran and wrote no declaration answered nothing. That is what a
+# binary with no query mode in it looks like, and it is NOT `declared-none`.
+expect=stdout:pattern=plugin-silent +external +no-answer
+
+# A plugin that started and said nothing inside the budget is stopped, and the
+# row says the budget ran out rather than reporting the plugin silent.
+expect=stdout:pattern=plugin-slow +external +timeout

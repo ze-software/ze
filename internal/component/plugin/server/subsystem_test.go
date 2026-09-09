@@ -63,7 +63,7 @@ func startTestHandler(t *testing.T, name string, mock *mockPluginCommands) *Subs
 		if mock != nil {
 			reg.Commands = mock.decls
 		}
-		if _, err := pluginMux.CallRPC(ctx, "ze-plugin-engine:declare-registration", reg); err != nil {
+		if _, err := pluginMux.CallRPC(ctx, rpc.MethodDeclareRegistration, reg); err != nil {
 			return
 		}
 

@@ -567,6 +567,7 @@ func (p *Plugin) OnConfigOperationCommit(fn ConfigOperationCommitHandler) {
 func (p *Plugin) OnValidateOpen(fn ValidateOpenHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	p.wantsValidateOpen = true
 	p.callbacks[callbackValidateOpen] = func(params json.RawMessage) (json.RawMessage, error) {
 		var input rpc.ValidateOpenInput
 		if err := json.Unmarshal(params, &input); err != nil {

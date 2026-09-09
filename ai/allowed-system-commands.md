@@ -21,7 +21,7 @@ has a native answer that is shorter, typed, and available everywhere Ze runs.
 
 | Command | Where it runs | Authorised | Why no Go path exists |
 |---------|---------------|------------|-----------------------|
-| _(none yet)_ | | | |
+| The operator's own plugin program, named by `plugin { external <name> { run ... } }` | `(*Process).startExternal` (`internal/component/plugin/process/process.go`) for a live start, and the declaration query reader (`internal/component/plugin/declarations.go`) for `show plugin declarations` | Thomas, 2026-09-08 | An external plugin IS a program Ze does not carry. Running it is the feature, so there is nothing for a native path to replace: no kernel interface answers "what does this operator's binary declare" |
 
 An entry is added by Thomas, and only by Thomas. An agent that believes a fork
 is unavoidable states the case and STOPS; it does not add its own row.

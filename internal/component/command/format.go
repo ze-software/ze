@@ -79,33 +79,39 @@ func writeMap(b *textbuf.Buffer, m map[string]any, indent string) {
 	slices.Sort(keys)
 
 	for _, key := range keys {
-		writeKeyValue(b, key, m[key], indent)
+		writeKeyValue(b, key, m[key], indent, indent)
 	}
 }
 
 // writeKeyValue writes a single key-value pair with proper YAML formatting.
-func writeKeyValue(b *textbuf.Buffer, key string, value any, indent string) {
+//
+// prefix opens the key's OWN line and indent opens every line under it. The two
+// differ for the first key of a sequence item, whose prefix carries the `- `
+// that starts the item. They MUST NOT be merged: a `- ` inherited by a child
+// line starts a new sequence entry there, so a row whose first key holds a list
+// or a map renders as several rows and no YAML reader accepts it.
+func writeKeyValue(b *textbuf.Buffer, key string, value any, prefix, indent string) {
 	var tb textbuf.Buffer
 	deeper := tb.Str(indent).Str("  ").String()
 	switch child := value.(type) {
 	case map[string]any:
-		b.Str(indent).Str(key).Str(":\n")
+		b.Str(prefix).Str(key).Str(":\n")
 		writeMap(b, child, deeper)
 	case []any:
 		if len(child) == 0 {
-			b.Str(indent).Str(key).Str(": []\n")
+			b.Str(prefix).Str(key).Str(": []\n")
 		} else {
-			b.Str(indent).Str(key).Str(":\n")
+			b.Str(prefix).Str(key).Str(":\n")
 			writeValue(b, child, deeper)
 		}
 	case nil:
-		b.Str(indent).Str(key).Str(": null\n")
+		b.Str(prefix).Str(key).Str(": null\n")
 	case bool:
-		b.Str(indent).Str(key).Str(": ").Bool(child).Byte('\n')
+		b.Str(prefix).Str(key).Str(": ").Bool(child).Byte('\n')
 	case string:
-		b.Str(indent).Str(key).Str(": ").Str(child).Byte('\n')
+		b.Str(prefix).Str(key).Str(": ").Str(child).Byte('\n')
 	case float64:
-		b.Str(indent).Str(key).Str(": ")
+		b.Str(prefix).Str(key).Str(": ")
 		if child == float64(int64(child)) {
 			b.Int(int64(child))
 		} else {
@@ -128,9 +134,9 @@ func writeMapItem(b *textbuf.Buffer, m map[string]any, indent string) {
 	contIndent := tb.Reset().Str(indent).Str("  ").String()
 	for i, key := range keys {
 		if i == 0 {
-			writeKeyValue(b, key, m[key], dashIndent)
-		} else {
-			writeKeyValue(b, key, m[key], contIndent)
+			writeKeyValue(b, key, m[key], dashIndent, contIndent)
+			continue
 		}
+		writeKeyValue(b, key, m[key], contIndent, contIndent)
 	}
 }

@@ -5,12 +5,15 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/suggest"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // Run executes the plugin subcommand with the given arguments.
@@ -40,7 +43,32 @@ func Run(args []string) int {
 		usage()
 		return 1
 	}
+	// Query mode is answered here, from the registration this process already
+	// holds, and never by the plugin. No plugin code runs at all, so a query
+	// cannot initialize data, open a connection, bind a socket, or start a
+	// timer (docs/architecture/cli/plugin-modes.md).
+	if sdk.QueryModeRequested() {
+		return answerQuery(os.Stdout, reg)
+	}
 	return reg.CLIHandler(args[1:])
+}
+
+// answerQuery writes the plugin's Stage 1 declaration to out as one
+// newline-framed request line, and returns the exit code. The line itself is
+// rpc.WriteDeclaration's, the same writer the SDK gives a plugin binary ze does
+// not carry, so both answers are one message.
+//
+// Commands and pipes are the declaration fields the compiled-in registration
+// carries. The Stage 1 fields with no compiled-in twin are not answered
+// (spec-plugin-declaration-fields-on-registration).
+func answerQuery(out io.Writer, reg *registry.Registration) int {
+	declaration := rpc.DeclareRegistrationInput{Commands: reg.Commands, Pipes: reg.Pipes}
+
+	if err := rpc.WriteDeclaration(out, &declaration); err != nil {
+		writeError(os.Stderr, "error: plugin '%s' declaration: %v", reg.Name, err)
+		return 1
+	}
+	return 0
 }
 
 func usage() {

@@ -479,6 +479,38 @@ contract is in `docs/architecture/api/commands.md`.
 <!-- source: internal/component/command/answer_shape.go -- RegisterPluginShapes, UnregisterPluginShapes -->
 <!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
 
+### Query Mode: Stage 1 and No Stage 2
+
+A process started with `ZE_PLUGIN_MODE=declare` is being interrogated rather
+than run. It writes the Stage 1 `declare-registration` message to STDOUT, in the
+same newline framing and under the same request id `#1`, and exits 0. There is
+no connection, no `ok` response to read, no barrier and no Stage 2, so none of
+the five stages above runs.
+
+| | Live start | Query mode |
+|---|---|---|
+| Carrier | the hub connection | the child's stdout |
+| Message | `#1 ze-plugin-engine:declare-registration <json>` | the same line, byte for byte for the same declaration |
+| After it | Stage 2 configure, then the barrier | the process exits 0 |
+| Hub variables read | host, port, token, CA | none |
+
+The declaration a query answers carries what the plugin states in its own
+source. `Run` derives one field from a Plugin's registered callbacks,
+`wants-validate-open`, so a plugin that wants that field in its query answer
+states it in the declaration it hands the query entry point.
+
+Two routes write that line, and neither drives the handshake. For a plugin the
+ze binary carries, `cli.Run` answers from the looked-up registration and calls
+no plugin code. For a plugin binary ze does not carry,
+`sdk.RunOrDeclare(declaration, activate)` writes the line and never calls
+`activate`. A plugin that adopts neither route runs its live start under a
+query, and the reader records it as having sent nothing. Both routes write the
+line through `rpc.WriteDeclaration`, so the id, the method and the framing have
+one definition and cannot drift apart.
+<!-- source: pkg/plugin/rpc/declaration.go -- WriteDeclaration -->
+<!-- source: pkg/plugin/sdk/sdk_query.go -- RunOrDeclare -->
+<!-- source: internal/component/plugin/cli/main.go -- Run, answerQuery -->
+
 ### Tier-Ordered Startup
 
 Plugins are grouped into dependency tiers before handshake begins. All processes
@@ -628,7 +660,7 @@ produced no operation for is applied through `config-apply` rather than
 `config-operation-apply`.
 
 <!-- source: pkg/plugin/rpc/types.go -- ConfigOperation, OperationVerb -->
-<!-- source: internal/component/config/transaction/operation.go -- ValidateOperationVerbs -->
+<!-- source: internal/component/config/transaction/operation.go -- ValidateOperations -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- initCallbackDefaults -->
 
 **doctor-check:** Engine invokes a plugin's declared doctor check by name.
@@ -1230,7 +1262,7 @@ For external plugins (Python, Rust, etc.) -- runs as separate process:
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv -->
 
 1. Engine starts TLS listener from `plugin { hub { server <name> { ip ...; port ...; secret ...; } } }` config
-2. Engine forks child with env vars: `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN` (per-plugin unique token), `ZE_PLUGIN_CA_PEM` (the PEM certificate authority root that issued the listener's certificate), `ZE_PLUGIN_NAME`
+2. Engine forks `/bin/sh -c <run>` as the child, with env vars: `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN` (per-plugin unique token), `ZE_PLUGIN_CA_PEM` (the PEM certificate authority root that issued the listener's certificate), `ZE_PLUGIN_NAME`
 3. Child validates the engine certificate chain against that root and nothing else, then authenticates with `#0 auth {"token":"...","name":"..."}`
 4. Engine validates token matches the per-plugin token generated for that name (name binding prevents impersonation)
 5. Token is cleared from the child's OS environment after first read (`Secret: true` registration)
@@ -1603,6 +1635,27 @@ No network, no TLS, no auth. Fastest path.
 
 Transport: single TLS connection per plugin.
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv -->
+
+The child is started as `/bin/sh -c <run>`, because the `run` string is written
+for a shell and the engine appends no argv to it. The shell is therefore a
+runtime dependency of every external plugin. On a host that carries none, such
+as a gokrazy appliance image, the start names the absent shell rather than the
+plugin, and `ze doctor` reports the same fact before the daemon runs, under
+`doctor-plugin-shell-missing`.
+The child is started in a process group of its own, and the daemon's stop
+signals that whole group. The shell is the daemon's direct child, and a shell
+that does not exec-optimize the `run` string stays alive with the plugin as its
+own child, so a stop aimed at the direct child leaves the plugin running with
+nothing to talk to. The declaration query stops its child the same way, through
+the same function, so a plugin started two ways is stopped one way. On Linux the
+fork also carries `Pdeathsig`, which the kernel delivers to that direct child
+when ze dies. It reaches the plugin for a `run` string the shell
+exec-optimizes, and a `run` string the shell keeps a process for leaves the
+plugin a grandchild, which no death signal reaches.
+<!-- source: internal/component/plugin/shell.go -- Shell, ShellAvailable -->
+<!-- source: internal/component/plugin/process/process.go -- startFailure -->
+<!-- source: internal/component/plugin/sysproc.go -- KillGroupOnCancel, KillProcessGroup -->
+<!-- source: internal/component/plugin/sysproc_linux.go -- NewSysProcAttr -->
 
 1. Engine reads `plugin { hub { server <name> { ip ...; port ...; secret ...; } } }` from config
 2. Engine starts TLS listener(s) (one per `server` entry), creates `PluginAcceptor` holding the certificate authority root that issued the served certificate

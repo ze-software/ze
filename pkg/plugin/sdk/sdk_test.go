@@ -146,7 +146,7 @@ func TestSDKStartup(t *testing.T) {
 
 	// === Stage 1: Engine reads declare-registration ===
 	req := readEngineRequest(t, ctx, engine.mux)
-	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
 
 	var regInput Registration
 	require.NoError(t, json.Unmarshal(req.Params, &regInput))
@@ -323,7 +323,7 @@ func completeStartup(t *testing.T, ctx context.Context, engine *engineSide) {
 
 	// Stage 1: read and respond to declare-registration
 	req := readEngineRequest(t, ctx, engine.mux)
-	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
 	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	// Stage 2: send configure
@@ -485,7 +485,7 @@ func TestSDKCapabilities(t *testing.T) {
 
 	// Stage 1: read declare-registration
 	req := readEngineRequest(t, ctx, engine.mux)
-	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
 	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	// Stage 2: send configure
@@ -1398,7 +1398,7 @@ func TestSDKStage5ConnectionCloseCleanShutdown(t *testing.T) {
 
 	// Stage 1: read and respond to declare-registration
 	req := readEngineRequest(t, ctx, engine.mux)
-	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
 	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	// Stage 2: send configure
@@ -1463,7 +1463,7 @@ func TestSDKDispatchValidateOpen(t *testing.T) {
 
 	// Verify WantsValidateOpen is auto-set in Stage 1
 	req := readEngineRequest(t, ctx, engine.mux)
-	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
 
 	var regInput rpc.DeclareRegistrationInput
 	require.NoError(t, json.Unmarshal(req.Params, &regInput))
@@ -2307,7 +2307,7 @@ func TestSDKSingleConnStartup(t *testing.T) {
 
 	// Stage 1: Read declare-registration from plugin.
 	req := readMuxRequest(t, ctx, engineMux)
-	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
 	require.NoError(t, engineMux.SendOK(ctx, req.ID))
 
 	// Stage 2: Send configure to plugin.
@@ -2392,7 +2392,7 @@ func TestRegistrationWantsConfig(t *testing.T) {
 
 	// Stage 1: read declare-registration and verify WantsConfig
 	req := readEngineRequest(t, ctx, engine.mux)
-	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
 
 	var regInput rpc.DeclareRegistrationInput
 	require.NoError(t, json.Unmarshal(req.Params, &regInput))
@@ -2428,7 +2428,7 @@ func TestRegistrationBudgets(t *testing.T) {
 
 	// Stage 1: read declare-registration and verify budgets
 	req := readEngineRequest(t, ctx, engine.mux)
-	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
 
 	var regInput rpc.DeclareRegistrationInput
 	require.NoError(t, json.Unmarshal(req.Params, &regInput))
@@ -2564,7 +2564,7 @@ func TestSDKOnAllPluginsReadyFires(t *testing.T) {
 
 	// Stage 1: declare-registration
 	req := readEngineRequest(t, ctx, engine.mux)
-	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
 	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	// Complete stages 2-5.
@@ -2624,7 +2624,7 @@ func TestSDKOnAllPluginsReadyPropagatesError(t *testing.T) {
 	}()
 
 	req := readEngineRequest(t, ctx, engine.mux)
-	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
 	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	completeStartupFromStage2(t, ctx, engine)
@@ -2663,7 +2663,7 @@ func TestSDKOnAllPluginsReadyNoHandlerIsNoop(t *testing.T) {
 	}()
 
 	req := readEngineRequest(t, ctx, engine.mux)
-	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
 	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	completeStartupFromStage2(t, ctx, engine)
@@ -2708,7 +2708,7 @@ func TestPluginAnswersRecordsWithoutDeclaringAShape(t *testing.T) {
 
 	// Stage 1: declare-registration.
 	req := readEngineRequest(t, ctx, engine.mux)
-	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
 	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	// Stage 2: configure.

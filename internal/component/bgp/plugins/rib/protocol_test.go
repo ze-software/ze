@@ -41,7 +41,7 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	// ── Stage 1: declare-registration ───────────────────────────────────
 	// The rib plugin declares its commands (14 total: 7 short + 5 long + 2 GR).
 	stage1 := readMuxRequestTimeout(t, ctx, mux)
-	require.Equal(t, "ze-plugin-engine:declare-registration", stage1.Method)
+	require.Equal(t, rpc.MethodDeclareRegistration, stage1.Method)
 
 	var regInput rpc.DeclareRegistrationInput
 	require.NoError(t, json.Unmarshal(stage1.Params, &regInput))
@@ -174,7 +174,7 @@ func TestRIBPluginStageOrdering(t *testing.T) {
 	// Stage 1: Plugin sends declare-registration on plugin-initiated first.
 	// Verify this is always the first message (no other RPC before it).
 	stage1 := readMuxRequestTimeout(t, ctx, mux)
-	assert.Equal(t, "ze-plugin-engine:declare-registration", stage1.Method,
+	assert.Equal(t, rpc.MethodDeclareRegistration, stage1.Method,
 		"Stage 1 must be declare-registration (first message on plugin-initiated)")
 	require.NoError(t, mux.SendOK(ctx, stage1.ID))
 

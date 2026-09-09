@@ -1807,30 +1807,33 @@ var doctorDependencyCovered = map[string]string{
 	// carries no ze:listener service). The schema path probes the same endpoint
 	// as listener/prometheus, so the two rows are one dependency seen from the
 	// two collection paths, not two listeners.
-	"listener/telemetry":      "doctor-listen-unavailable",
-	"external/tacacs":         "doctor-tacacs-unreachable",
-	"external/radius":         "doctor-radius-unreachable",
-	"external/radius-admin":   "doctor-radius-admin-unreachable",
-	"external/rpki":           "doctor-rpki-unreachable",
-	"external/bmp":            "doctor-bmp-unreachable",
-	"external/ntp-server":     "doctor-ntp-server-unreachable",
-	"external/update-check":   "doctor-update-check-unreachable",
-	"external/archive-http":   "doctor-archive-unreachable",
-	"external/dns":            "doctor-dns-resolver",
-	"writable/ntp-persist":    "doctor-write-destination",
-	"writable/bfd-persist":    "doctor-write-destination",
-	"writable/dns-resolv":     "doctor-write-destination",
-	"writable/archive-file":   "doctor-write-destination",
-	"writable/self-update":    "doctor-write-destination",
-	"module/l2tp":             "doctor-l2tp-module",
-	"module/pppoe":            "doctor-pppoe-module",
-	"module/ipsec":            "doctor-module-missing",
-	"procfs/mpls":             "doctor-mpls-unavailable",
-	"netlink/xfrm":            "doctor-ipsec-xfrm-unavailable",
-	"module/nftables":         "doctor-firewall-nftables",
-	"module/vfio":             "doctor-vpp-dpdk",
-	"socket/vpp":              "doctor-vpp-unreachable",
-	"binary/plugin":           "doctor-plugin-missing",
+	"listener/telemetry":    "doctor-listen-unavailable",
+	"external/tacacs":       "doctor-tacacs-unreachable",
+	"external/radius":       "doctor-radius-unreachable",
+	"external/radius-admin": "doctor-radius-admin-unreachable",
+	"external/rpki":         "doctor-rpki-unreachable",
+	"external/bmp":          "doctor-bmp-unreachable",
+	"external/ntp-server":   "doctor-ntp-server-unreachable",
+	"external/update-check": "doctor-update-check-unreachable",
+	"external/archive-http": "doctor-archive-unreachable",
+	"external/dns":          "doctor-dns-resolver",
+	"writable/ntp-persist":  "doctor-write-destination",
+	"writable/bfd-persist":  "doctor-write-destination",
+	"writable/dns-resolv":   "doctor-write-destination",
+	"writable/archive-file": "doctor-write-destination",
+	"writable/self-update":  "doctor-write-destination",
+	"module/l2tp":           "doctor-l2tp-module",
+	"module/pppoe":          "doctor-pppoe-module",
+	"module/ipsec":          "doctor-module-missing",
+	"procfs/mpls":           "doctor-mpls-unavailable",
+	"netlink/xfrm":          "doctor-ipsec-xfrm-unavailable",
+	"module/nftables":       "doctor-firewall-nftables",
+	"module/vfio":           "doctor-vpp-dpdk",
+	"socket/vpp":            "doctor-vpp-unreachable",
+	"binary/plugin":         "doctor-plugin-missing",
+	// The shell is the second binary an external plugin start needs: the run
+	// string names the first, and the shell is what the run string is given to.
+	"binary/plugin-shell":     "doctor-plugin-shell-missing",
 	"binary/vpp":              "doctor-vpp-version",
 	"cert/tls":                "doctor-tls-missing",
 	"cert/pki":                "doctor-pki-cert",
@@ -2078,7 +2081,7 @@ func TestDoctorDependencyInventory(t *testing.T) {
 		}
 	}
 
-	const expectedTotal = 62
+	const expectedTotal = 63
 	total := len(doctorDependencyCovered) + len(doctorDependencyExcluded)
 	assert.Equal(t, expectedTotal, total,
 		"dependency inventory changed; update covered or excluded map (got %d)", total)

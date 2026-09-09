@@ -10,19 +10,45 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// componentPlugin names the component every check here belongs to. The doctor
+// runner reports it beside each diagnostic, so one spelling serves all three.
+const componentPlugin = "plugin"
+
 // codePluginMissing is the diagnostic code this check publishes and raises.
 const codePluginMissing = "doctor-plugin-missing"
+
+// codePluginShellMissing is the code the shell check publishes and raises. The
+// shell is the second runtime dependency of an external plugin: the binary the
+// run string names is the first, and nothing starts without both.
+const codePluginShellMissing = "doctor-plugin-shell-missing"
 
 func init() {
 	if err := diagnostic.RegisterDoctorCheck(diagnostic.DoctorCheck{
 		Name:         "plugin-binaries",
 		Phase:        diagnostic.DoctorPhasePostConfig,
 		Order:        700,
-		Component:    "plugin",
+		Component:    componentPlugin,
 		Dependencies: []string{"external-binary"},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
 		Codes:        []string{codePluginMissing},
 		Check:        checkPlugins,
+	}); err != nil {
+		exitOnRegistrationFailure(err)
+	}
+
+	// The shell check answers the other half of "can this external plugin
+	// start". The binary check above reads the command the run string names;
+	// this one reads the shell that command is given to, which an appliance
+	// image does not carry.
+	if err := diagnostic.RegisterDoctorCheck(diagnostic.DoctorCheck{
+		Name:         "plugin-shell",
+		Phase:        diagnostic.DoctorPhasePostConfig,
+		Order:        702,
+		Component:    componentPlugin,
+		Dependencies: []string{"external-binary"},
+		Platforms:    []string{diagnostic.DoctorPlatformAny},
+		Codes:        []string{codePluginShellMissing},
+		Check:        checkPluginShell,
 	}); err != nil {
 		exitOnRegistrationFailure(err)
 	}
@@ -36,7 +62,7 @@ func init() {
 		Name:         "hub-managed-listener",
 		Phase:        diagnostic.DoctorPhasePostConfig,
 		Order:        701,
-		Component:    "plugin",
+		Component:    componentPlugin,
 		Dependencies: []string{"config-tree"},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
 		Codes:        []string{codeHubManagedCollision},

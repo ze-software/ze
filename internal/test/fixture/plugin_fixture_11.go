@@ -688,7 +688,7 @@ func eofNoSpin(ctx context.Context, _ []string) error {
 	}
 
 	request, err := nextRequest()
-	if err != nil || request.Method != "ze-plugin-engine:declare-registration" {
+	if err != nil || request.Method != rpc.MethodDeclareRegistration {
 		return fmt.Errorf("stage 1: request=%v: %w", request, err)
 	}
 	if err := engine.SendOK(ctx, request.ID); err != nil {

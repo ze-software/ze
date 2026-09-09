@@ -117,6 +117,37 @@ own value is never overwritten: only a table reading exactly 0 is repaired.
 
 <!-- source: internal/plugins/fib/kernel/labelspace_linux.go -- ensureLabelSpace, repairLabelSpace -->
 
+## An external plugin depends on two binaries, so doctor reads both
+
+Ze starts an external plugin by giving the operator's `run` string to a shell,
+`/bin/sh -c <run>`. The run string is written for a shell: it carries quoting,
+and the daemon appends no argv to it. So the shell is a runtime dependency of
+every external plugin, beside the binary the run string names.
+
+`plugin-binaries` reads the first dependency and `plugin-shell` reads the second.
+Both are registered by the plugin component, because it owns the two call sites
+that fork: `(*Process).startExternal` for a live start, and `runQuery` for the
+declaration query behind `show plugin declarations`.
+
+<!-- source: internal/component/plugin/shell.go -- Shell, ShellAvailable -->
+<!-- source: internal/component/plugin/doctor/check_shell.go -- diagnosePluginShell -->
+<!-- source: internal/component/plugin/doctor/register.go -- the plugin-shell registration -->
+
+`plugin-shell` reports `doctor-plugin-shell-missing` at error severity when the
+config names at least one external plugin and the host carries no shell ze can
+start. The probe asks the kernel whether THIS process may execute that path,
+rather than reading the mode bits, because a mode carries three answers and only
+the one for ze decides whether the fork starts: a shell with mode 0700 owned by
+root has an execute bit and starts nothing under an unprivileged ze. A config
+that names no external plugin forks nothing, so it depends on no shell and the
+check stays silent. A gokrazy appliance image carries no shell utilities, which is the
+host where this fires, and its repair is an `internal` block rather than a shell.
+
+The two fork sites name the shell when they meet the same absence: the live
+start reports it in place of the plugin's start error, and the declaration query
+carries it as the `unstartable` row's reason. Without that, one missing file
+reads as every external plugin failing for its own reason.
+
 ## Two tiers on one topic: locking the executable
 
 `memlock` shows why tier one and tier three are not the same fact, and why

@@ -23,14 +23,19 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// The three plugin-initiated stage methods of the 5-stage startup handshake.
-// These are the wire contract between the engine/hub and every plugin. They
-// live here, in the single shared stage-driver, so the choreography is declared
-// once rather than duplicated per orchestrator. The two engine-initiated
-// callback methods (ze-plugin-callback:configure and :share-registry) live in
-// the ipc layer, inside PluginConn.SendConfigure / SendShareRegistry.
+// Two of the three plugin-initiated stage methods of the 5-stage startup
+// handshake. These are the wire contract between the engine/hub and every
+// plugin. They live here, in the single shared stage-driver, so the
+// choreography is declared once rather than duplicated per orchestrator. The
+// two engine-initiated callback methods (ze-plugin-callback:configure and
+// :share-registry) live in the ipc layer, inside PluginConn.SendConfigure /
+// SendShareRegistry.
+//
+// Stage 1 is rpc.MethodDeclareRegistration, declared in the protocol package
+// instead, because the handshake is no longer its only carrier: a plugin
+// started in query mode writes the same method to stdout, and one method
+// string spelled twice is a future disagreement.
 const (
-	methodDeclareRegistration = "ze-plugin-engine:declare-registration"
 	methodDeclareCapabilities = "ze-plugin-engine:declare-capabilities"
 	methodReady               = "ze-plugin-engine:ready"
 )
@@ -127,7 +132,7 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 	if err != nil {
 		return fmt.Errorf("stage 1 read: %w", err)
 	}
-	if req.Method != methodDeclareRegistration {
+	if req.Method != rpc.MethodDeclareRegistration {
 		var tb textbuf.Buffer
 		_ = conn.SendError(ctx, req.ID, tb.Str("expected declare-registration, got ").Str(req.Method).String())
 		return fmt.Errorf("stage 1: expected declare-registration, got %s", req.Method)

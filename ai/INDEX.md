@@ -593,6 +593,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | pipe first, pipe last, pipe metadata | `ai/rules/cli.md` (The Rule (pipes)), `docs/guide/command-reference.md`, `docs/features/formatting.md` |
 | RIB dump, bounded dump, replay batching, update cursor | `docs/architecture/bgp/replay-cursor.md`, `ai/digests/rib.md` |
 | plugin internal keyword, in-process plugin config | `docs/guide/plugins.md` (the `internal` keyword), `ai/patterns/plugin.md` |
+| plugin declarations, query mode, declare mode, ZE_PLUGIN_MODE, ask a plugin what it declares without running it, show plugin declarations | `docs/architecture/cli/plugin-modes.md` (Query Mode), `docs/features/introspection.md` (the five states), `docs/plugin-development/protocol.md` (`sdk.RunOrDeclare`), `internal/component/plugin/declarations.go` |
 | appliance auth, local admin, bootstrap auth, RBAC | `docs/guide/operator-access-rbac.md`, `ai/digests/aaa-auth.md`, `internal/component/authz/`, `internal/component/aaa/` |
 | appliance, appliance iso, appliance build, appliance init | `internal/appliance/`, `docs/guide/appliance.md`, `docs/guide/ze-install.md`, `./le build-artifacts`, `./le qemu` |
 | Dependabot alert on vendored go.mod, gokrazy/modcache manifest, bump gokrazy init, appliance dependency bump, CVE on vendored appliance dep | `ai/rules/platform-linux.md`, `./le setup install`, `internal/le/setup/`, `.github/dependabot.yml` |

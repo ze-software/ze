@@ -25,7 +25,12 @@ const (
 // envKeyCLIFormat is the env row this walk reads, sets and clears.
 const envKeyCLIFormat = "ze.cli.format"
 
-const CompletionMarker = "OK: 18/18 local-data commands and local one-shot save"
+// pluginNameRIB is the plugin three commands below look for by name. It carries
+// no feature tag, so it is in every build, and a binary without it is a binary
+// this walk was never run against.
+const pluginNameRIB = "rib"
+
+const CompletionMarker = "OK: 20/20 local-data commands and local one-shot save"
 
 // Marker returns the terminal-delimited evidence emitted after a local command
 // has successfully run and answered JSON.
@@ -62,6 +67,8 @@ func Evidence() []Invocation {
 		{Command: "show env get ze.cli.format | json compact", Evidence: "show env get"},
 		{Command: "show env registered | json compact", Evidence: "show env registered"},
 		{Command: "show plugin list | json compact", Evidence: "show plugin list"},
+		{Command: "show plugin declarations | json compact", Evidence: "show plugin declarations"},
+		{Command: "show plugin declarations config %s | json compact", Evidence: "show plugin declarations config"},
 	}
 }
 
@@ -656,7 +663,7 @@ func runScenario(output io.Writer, work string) error {
 	// binary without it is a binary this walk was never run against.
 	if err := requireAnyRow(values, func(row map[string]any) bool {
 		description, ok := row["description"].(string)
-		return row["name"] == "rib" && ok && description != ""
+		return row["name"] == pluginNameRIB && ok && description != ""
 	}, "show plugin list lost the system RIB row or its description"); err != nil {
 		return err
 	}
@@ -678,6 +685,90 @@ func runScenario(output io.Writer, work string) error {
 			"show plugin list row %q carries outcome %#v", name, row["outcome"]); err != nil {
 			return err
 		}
+	}
+
+	payload, err = localJSON("show plugin declarations | json compact", "show plugin declarations", output)
+	if err != nil {
+		return err
+	}
+	values, err = rows(payload, "declarations")
+	if err != nil {
+		return err
+	}
+	// With no config file named, every row comes from a compiled-in
+	// registration, so the RIB row the list above found is here too and reads
+	// as internal.
+	if err := requireAnyRow(values, func(row map[string]any) bool {
+		return row["name"] == pluginNameRIB && row["kind"] == "internal"
+	}, "show plugin declarations lost the system RIB row: %#v", values); err != nil {
+		return err
+	}
+	// The state is what says whether an empty declaration means the plugin
+	// declares nothing, so a row that carries a command and does not read
+	// "declared" is the ambiguity that field exists to remove. At least one row
+	// carries a declaration: a binary whose registrations never reached the
+	// answer returns rows that all read "declared-none", and every one of them
+	// is a well-formed row.
+	declaredCommands := 0
+	for _, value := range values {
+		row, rowErr := rowObject(value)
+		if rowErr != nil {
+			return rowErr
+		}
+		name, hasName := row["name"].(string)
+		if err := require(hasName && name != "", "show plugin declarations row has no name: %#v", value); err != nil {
+			return err
+		}
+		commands, _ := row["commands"].([]any)
+		pipes, _ := row["pipes"].([]any)
+		if len(commands) == 0 && len(pipes) == 0 {
+			if err := require(row["state"] == "declared-none",
+				"show plugin declarations row %q declares nothing under state %#v", name, row["state"]); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := require(row["state"] == "declared",
+			"show plugin declarations row %q declares %d commands and %d pipes under state %#v",
+			name, len(commands), len(pipes), row["state"]); err != nil {
+			return err
+		}
+		declaredCommands += len(commands)
+	}
+	if err := require(declaredCommands > 0, "no row carried a command: the compiled-in declarations did not reach the answer"); err != nil {
+		return err
+	}
+
+	// One external plugin whose run command names no binary. The row it
+	// produces is one no compiled-in registration can answer, so a command that
+	// ignored the path fails here instead of passing on the in-tree rows.
+	pluginConfigPath := filepath.Join(work, "pipe-local-plugin.conf")
+	if err := writeFixture(pluginConfigPath, "plugin {\n    external pipe-local-absent {\n        run \"/no/such/ze-plugin\"\n        encoder json\n    }\n}\n"); err != nil {
+		return err
+	}
+	payload, err = localJSON(
+		"show plugin declarations config "+pluginConfigPath+" | json compact",
+		"show plugin declarations config", output)
+	if err != nil {
+		return err
+	}
+	values, err = rows(payload, "declarations")
+	if err != nil {
+		return err
+	}
+	if err := requireAnyRow(values, func(row map[string]any) bool {
+		reason, hasReason := row["reason"].(string)
+		return row["name"] == "pipe-local-absent" && row["kind"] == "external" &&
+			row["state"] == "unstartable" && hasReason && reason != ""
+	}, "show plugin declarations config lost the configured plugin that cannot start: %#v", values); err != nil {
+		return err
+	}
+	// The config form answers the plugins this binary carries as well as the
+	// ones the file names, so the row the command above found is still here.
+	if err := requireAnyRow(values, func(row map[string]any) bool {
+		return row["name"] == pluginNameRIB
+	}, "show plugin declarations config dropped the compiled-in rows: %#v", values); err != nil {
+		return err
 	}
 
 	savePath := filepath.Join(work, "local-save.ndjson")

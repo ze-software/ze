@@ -43,6 +43,22 @@ func normalize(key string) string {
 	return strings.ToLower(strings.ReplaceAll(key, ".", "_"))
 }
 
+// InNamespace answers whether an environment variable name sits inside a
+// dotted key namespace, under any spelling of either.
+//
+// It exists because a caller that decides something about a variable MUST
+// decide it by the same reading this package does. Get matches case-insensitively
+// and treats a dot and an underscore as one separator, and Set writes the
+// canonical DOT spelling into the OS environment, so a caller comparing raw
+// names against "ZE_PLUGIN_" answers no for "ze.plugin.hub.token" while Get
+// still reads that variable. The guarantee then covers one spelling and the
+// value arrives under the other (ai/rules/principles.md).
+//
+// namespace is a dotted key prefix, "ze.plugin." for every plugin variable.
+func InNamespace(name, namespace string) bool {
+	return strings.HasPrefix(normalize(name), normalize(namespace))
+}
+
 // ensureCache populates the cache from os.Environ() on first call.
 func ensureCache() {
 	cacheOnce.Do(func() {

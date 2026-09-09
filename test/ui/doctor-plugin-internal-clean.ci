@@ -14,3 +14,4 @@ cmd=foreground:seq=1:exec=ze doctor --json internal-clean.conf
 expect=exit:code=0
 expect=stdout:contains=diagnostics
 reject=stdout:contains=doctor-plugin-missing
+reject=stdout:contains=doctor-plugin-shell-missing

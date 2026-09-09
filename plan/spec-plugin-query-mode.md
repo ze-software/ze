@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | plugin |
 | Depends | - |
-| Phase | - |
+| Phase | 5/5 |
 | Handoff | - |
 | Updated | 2026-09-08 |
 
@@ -58,6 +58,8 @@ part of it that bears on query mode.
   -> Constraint: Stage 1 `declare-registration` is the FIRST engine call, carries the whole `DeclareRegistrationInput`, and is sent unconditionally even for an empty registration. Query mode emits that same message and nothing else
   -> Constraint: the wire format is newline-framed `#<id> <method> <json>`, so an answer written to stdout in that framing is the protocol's own format rather than a second one
   -> Constraint: each stage has a 5-second budget (`defaultStageTimeout`, `internal/component/plugin/server/server.go`, overridden by `ze.plugin.stage.timeout`). The query budget is set from the same number
+- [ ] `docs/architecture/api/commands.md` - where a command is served, and the local-data command the reader is one of
+  -> Constraint: a local-data handler returns DATA rather than finished text, "which is what lets `| json`, `| yaml` and `| table` be three renderings of one payload". AC-8 asserts that property over this command's own answer
 - [ ] `docs/architecture/cli/plugin-modes.md` - internal and external plugin modes
   -> Decision: the page names three modes (CLI, engine decode, engine). Query mode is a FOURTH and the page gains a row; `--features` and `--yang` are the existing precedent for a mode answered before any connection
 - [ ] `docs/architecture/plugin/plugin-system.md` - registration, discovery, process boundary
@@ -252,7 +254,7 @@ same number as `defaultStageTimeout`, overridable with `ze.plugin.query.timeout`
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Every field of a command declaration is static, so a query-mode answer equals a live daemon's answer | `CommandDecl` and `PipeDecl`, `pkg/plugin/rpc/types.go`; 122 `p.Run` call sites read 2026-09-08, all constant or pure except `runSDKMode` | A plugin whose declaration varies with configuration answers differently in the two modes | AC-7: the same plugin's query answer and its live Stage 1 declaration compared field by field | unvalidated |
+| A-1 | Every field of a command declaration is static, so a query-mode answer equals a live daemon's answer | `CommandDecl` and `PipeDecl`, `pkg/plugin/rpc/types.go`; 122 `p.Run` call sites read 2026-09-08, all constant or pure except `runSDKMode` | A plugin whose declaration varies with configuration answers differently in the two modes | AC-7: the same plugin's query answer and its live Stage 1 declaration compared field by field | confirmed 2026-09-08, with one field named. `TestDeclarationAnswerMatchesStageOne` (`internal/component/plugin/declarations_test.go`) runs one declaration through the real SDK startup over a `net.Pipe` and through `sdk.RunOrDeclare`, and the two JSON values are equal. `Run` derives ONE field the declaration does not state, `WantsValidateOpen`, and the test's second case pins it: every other field stays equal, so a second derived field goes red. That derivation was broken until this spec fixed it (`plan/journal/field-carries-two-meanings.md`, 2026-09-08): a default handler in `initCallbackDefaults` made `Run` declare the field for EVERY plugin, so no author could make the two agree. In-tree plugins are covered separately by `./le plugin declarations check`, green on 2026-09-08 |
 | A-2 | `cli.Run` holds the registration before any plugin code runs | `cli.Run`, `internal/component/plugin/cli/main.go`: `registry.Lookup` precedes `reg.CLIHandler` | Query mode for the ze binary would need the plugin's own cooperation, and inertness would drop to convention | AC-3: the fake plugin's `CLIHandler` is never called in query mode | confirmed at the producer 2026-09-08 |
 | A-3 | The audit's runner findings still hold | re-measured at every producer 2026-09-08, three corrections recorded above | The follow-up spec is the wrong size | already re-measured | confirmed |
 | A-4 | An external plugin's `run` string can be forked by the reader with the same semantics the daemon uses | `(*Process).startExternal`: the run string under a shell, env from `os.Environ()` plus an append | A plugin startable by the daemon is unstartable by the reader, so a row reads `unstartable` when the plugin is fine | AC-5: the functional test starts the same run string both ways | unvalidated |
@@ -294,7 +296,7 @@ same number as `defaultStageTimeout`, overridable with `ze.plugin.query.timeout`
 | AC-4 | `show plugin declarations config <path>` over a config naming one plugin per state: a good external plugin, a plugin whose `run` string does not exist, a plugin that exits without answering, a plugin that sleeps past the budget | The five row states are distinguishable and every configured plugin has a row: `declared`, `declared-none`, `no-answer`, `unstartable`, `timeout`. No plugin is omitted |
 | AC-5 | The same external `run` string started by the daemon and by the reader | Both start; the daemon's live start reaches Stage 5, the reader's query start exits 0 after one line and never appears in the hub |
 | AC-6 | An external plugin binary that implements neither route, queried | The row reads `no-answer`, and the reader names it as a plugin that does not support query mode |
-| AC-7 | The declaration a plugin sends at Stage 1 to a live daemon, and the declaration the same plugin writes in query mode | The two JSON values are equal |
+| AC-7 | The declaration a plugin sends at Stage 1 to a live daemon, and the declaration the same plugin writes in query mode through `sdk.RunOrDeclare` | The two JSON values are equal. The claim is about THAT route: the ze binary answers for a plugin it carries from `registry.Registration`, which holds commands and pipes and not the rest of the Stage 1 value, so its answer is the declared subset by the field-scope decision above and not a second declaration of the same fields |
 | AC-8 | `show plugin declarations` rendered through `json`, `yaml` and `table`, and through a row operator such as `match` | Each is a rendering of the same payload, with the state carried as a field rather than glued to the name |
 | AC-9 | `show plugin declarations` with no `config` keyword and no daemon running | Answers a row for every plugin the binary carries, from the compiled-in registration, starting no process |
 
@@ -316,7 +318,8 @@ same number as `defaultStageTimeout`, overridable with `ze.plugin.query.timeout`
 | `TestQueryModeSkipsActivation` | `pkg/plugin/sdk/sdk_query_test.go` | AC-1, AC-6: the SDK entry point writes the declaration and does not call the activation function | |
 | `TestQueryModeActivatesWithoutTheMode` | `pkg/plugin/sdk/sdk_query_test.go` | the same entry point runs activation normally when the variable is absent, so a live start is unchanged | |
 | `TestDeclarationRowsCarryEveryState` | `internal/component/plugin/declarations_test.go` | AC-4: the five states, one row each, none omitted | |
-| `TestDeclarationRowsAnswerInTreeFromTheRegistration` | `internal/component/plugin/declarations_test.go` | AC-9: an in-tree row starts no process | |
+| `TestDeclarationRowsAnswerInTreeFromTheRegistration` | `internal/component/plugin/declarations_test.go` | an in-tree row starts no process: the config names the plugin INTERNAL and gives it a `run` string that cannot start, so a reader that started anything answers `unstartable` | |
+| `TestDeclarationRowsCoverEveryRegisteredPlugin` | `internal/component/plugin/declarations_test.go` | AC-9: the form with no `config` keyword answers one row per plugin the binary carries, over the `registry.SetupResults` population rather than the narrower registered set | |
 | `TestDeclarationAnswerMatchesStageOne` | `internal/component/plugin/declarations_test.go` | AC-7: the query answer equals the Stage 1 declaration for the same plugin | |
 | `TestDeclarationIgnoresUnframedStdout` | `internal/component/plugin/declarations_test.go` | R-3: a banner line before the framed answer does not corrupt the row | |
 
@@ -372,7 +375,7 @@ own, and query mode emits an existing message on an existing framing.
 | Functional test for new RPC/API | Yes | the three `.ci` tests above |
 | Pipe completeness | Yes | `MustRegisterLocalData` plus `RegisterShape` and `RegisterColumns`, as `show plugin list` does; AC-8 |
 | Env var registration | Yes | `ze.plugin.mode` and `ze.plugin.query.timeout`, through `env.MustRegister` |
-| Doctor check for runtime dependencies | N-A | no new file, socket, port, module, binary or kernel interface: the reader forks a command the config already names |
+| Doctor check for runtime dependencies | Yes | the reader forks a command the config already names, and it forks it through `/bin/sh`, which an appliance image does not carry. That shell is a runtime dependency of every external plugin, live start and query alike, so it owes a check: `plugin-shell` (`internal/component/plugin/doctor/register.go`) raising `doctor-plugin-shell-missing` (owner decision, 2026-09-08) |
 | Prometheus counters/metrics | N-A | an operator-invoked offline read |
 | BGP family surface (new SAFI / capability / attribute) | N-A | no family, capability or attribute |
 
@@ -474,6 +477,8 @@ own, and query mode emits an existing message on an existing framing.
 - A third-party plugin that implements neither route cannot be queried. It is reported `no-answer`, never guessed at. For such a plugin, query mode is convention, and this spec does not pretend otherwise (R-1).
 - Query mode answers commands and pipes. The Stage 1 fields with no compiled-in twin (config operations, filters, doctor checks, enrichers, schema, budgets, failure policy) are not answered: `spec-plugin-declaration-fields-on-registration`.
 - The 19 runners that mutate the host, the process or a global before they declare are unchanged: `spec-plugin-runner-inertness`.
+- The two routes answer with different field sets, and no single test spans them. `sdk.RunOrDeclare` writes the whole declaration its caller passes, while the ze binary writes the commands and pipes `registry.Registration` carries. `rpc.WriteDeclaration` pins the line's id, method, framing and encoding for both, and `./le plugin declarations check` pins the compiled-in declaration against the runner's own literal, so what is unpinned is the field SET each route chooses, which the row above names as the follow-up spec.
+- A plugin's Go package `init()` runs before either route answers, because the answer is written by a process that has already started. One of them mutates this process: `memlock` calls `lockexe.OnFault()` (`internal/plugins/memlock/memlock_linux.go`), an `mlock2` against `RLIMIT_MEMLOCK`. That is the state of every `ze plugin <name>` invocation, `--features` and `--yang` included, rather than something query mode introduced, and it is outside what an entry point can hold inert.
 
 ## RFC Documentation (Scope: protocol)
 
@@ -485,6 +490,39 @@ N-A. No RFC governs the plugin RPC.
 
 | Run | Blockers | Issues | Notes |
 |-----|----------|--------|-------|
+| 1 (implementation, independent diff pass) | 2 | 4 | The merge answered Ze's declaration for an external block; the queried child outlived its budget. Both fixed at the producer with the red observed first |
+| 2 (implementation, independent diff pass) | 0 | 1 | The live start carried the process-group attributes and not the group stop. Fixed with `KillGroupOnCancel`, plus four nits |
+| 3 (closure, this context, every lens) | 0 | 2 | Discovery: `ai/INDEX.md` carried no keyword row for the command its own Discovery table names. Documentation: `docs/guide/command-reference.md` documents `show plugin list` by hand and carried no sibling section |
+| 4 (closure, re-read after the round 3 edits) | 0 | 0 | Clean. The round 3 edits are prose and a YANG revision date; `./le docvalid command-contract` and `./le cli-grammar` re-run green after them |
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/plugin-query-mode-8e533ac8-8f4a-4ba7-ac45-ed497b31f2a8.md` (78 files) |
+| `./le spec session review check` | `review_gate: OK (56 code files, clean, hashes match ...)` |
+| Rounds | 4 |
+| Reviewer lenses used | wiring, functional-test coverage, documentation drift, removed-behavior audit, data flow, edge cases, security, allocation bounds, logic correctness, altitude and simplicity, project rules, the six-question Go style pass |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | The merge answered Ze's own declaration for a config block that names ANOTHER binary under a name Ze also uses | `declarationRows`, `internal/component/plugin/declarations.go` | The config block's kind decides: an `external` block is always queried. `TestDeclarationRowsQueryTheBinaryAnExternalBlockNames` |
+| 2 | BLOCKER | The queried child outlived its budget: the stop reached the shell and left the plugin running | `runQuery`, `declarations.go` | `KillGroupOnCancel` sets `Setpgid` and a group-aimed `Cancel`. `TestDeclarationQueryStopsThePluginTheShellStarted` |
+| 3 | ISSUE | The environment strip missed the dotted spelling of a plugin variable, so the hub token could reach the child | `queryChildEnv`, `declarations.go` | `env.InNamespace` (`internal/core/env/env.go`) drops the whole `ze.plugin.` namespace under either spelling. `TestQueryChildEnvDropsEveryPluginVariableSpelling` |
+| 4 | ISSUE | The in-tree population was narrower than `show plugin list`, so a plugin that recorded a setup outcome and never registered had no row | `inTreeDeclarationRows`, `declarations.go` | The walk is `registry.SetupResults`. `TestDeclarationRowsCoverAPluginThatNeverRegistered` |
+| 5 | ISSUE | Two of the three exits in the external `.ci` asserted nothing | `test/plugin/plugin-declarations-external.ci` | Per-command `cmd=...:exit=N`, and the external row's declaration proved through a `match`-scoped JSON rendering |
+| 6 | ISSUE | `shellAvailable` accepted a directory and read the mode bits rather than asking the kernel | `shellAvailable`, `internal/component/plugin/shell.go` | `unix.Faccessat(AT_FDCWD, shell, X_OK, AT_EACCESS)`, the question `execve` asks. `TestShellAvailableAnswersForTheUserZeRunsAs` |
+| 7 | ISSUE | The live start had the process-group attributes and not the group stop, so a daemon stop left the plugin running behind the shell | `(*Process).startExternal`, `internal/component/plugin/process/process.go` | `KillGroupOnCancel` (`sysproc.go`) is the one function that sets both; the connect-back failure path calls `KillProcessGroup`. `TestStopReachesThePluginTheShellStarted` |
+| 8 | ISSUE | The internal-block-not-carried branch had no test | `queriedDeclarationRow`, `declarations.go` | `TestDeclarationRowsRefuseAnInternalBlockWithNoCodeHere`, which also proves no process started |
+| 9 | ISSUE | `ai/INDEX.md` carried no keyword row, so an agent could not reach the feature from the discovery surface the spec's own Discovery table names | `ai/INDEX.md`, Keyword to Architecture Doc | One row: `plugin declarations, query mode, declare mode, ZE_PLUGIN_MODE, ...` pointing at the four pages |
+| 10 | ISSUE | `docs/guide/command-reference.md` documents `show plugin list` in a hand-written section and carried no sibling section for the command this spec adds | `docs/guide/command-reference.md`, after `### show plugin list` | The `### show plugin declarations` section is WRITTEN and correct. It is NOT in the commit: the page carries another session's `show bgp update-delay` row whose source anchor names an untracked file, so carrying the page publishes a claim the committed tree cannot support (`ai/rules/git-safety.md`). Recorded in `plan/journal/documentation-stranded-by-a-siblings-hunk.md` |
+
+### Notes (not blocking)
+| Note | Disposition |
+|------|-------------|
+| The new YANG revision repeated the date of the revision below it, so the module had two revisions dated 2026-09-08 | Fixed: the new one reads 2026-09-09. `./le docvalid command-contract` exit 0, both wire methods paired |
+| The published website catalog under `../gh-pages/` carries no page for either new command | Pre-existing and tree-wide: the same `./le doc check verify` run reports the identical failure for `request bgp rib mark-stale`, `show bgp rib` filters and others. The catalog is generated into another branch by `./le wiki-catalog update` and no commit on `main` can carry it |
+| `ai/allowed-system-commands.md` carries an uncommitted row for the plugin fork, attributed "Thomas, 2026-09-08" | LEFT OUT of the commit. No phase handoff claims that edit, and that file's own rule says a row is added by Thomas and only by Thomas. It is the owner's to confirm |
+| `sdk.RunOrDeclare` has no non-test caller in this repository | By construction: its audience is a binary ze does not compile. Stated in D-4 and in `docs/plugin-development/protocol.md` |
 
 ## Checklist
 
@@ -517,9 +555,9 @@ N-A. No RFC governs the plugin RPC.
 ### Goal Validation
 | Goal | Evidence |
 |------|----------|
-| A plugin can be asked for its details while it is started and aware it is being queried | |
-| A query-mode start performs none of a live start's work | |
-| No configured plugin is missing from the answer | |
+| A plugin can be asked for its details while it is started and aware it is being queried | `test/plugin/plugin-declarations-external.ci`: with no daemon, `show plugin declarations config <path>` forks `ze plugin mrt` and reads `request mrt dump-rib` off its stdout. The answer is the SAME message a live daemon receives, and `TestDeclarationAnswerMatchesStageOne` (`internal/component/plugin/declarations_test.go`) proves it by running one declaration through the real SDK startup and through `sdk.RunOrDeclare` and comparing the two JSON values |
+| A query-mode start performs none of a live start's work | The work is UNREACHABLE rather than skipped, and three tests hold the three routes. `TestQueryModeAnswersBeforeTheHandler` (`internal/component/plugin/cli/main_test.go`): the ze binary answers from the looked-up `Registration` and never calls `CLIHandler`. `TestQueryModeSkipsActivation` (`pkg/plugin/sdk/sdk_query_test.go`): `RunOrDeclare` never calls the activation function it was given. `TestDeclarationRowsAnswerInTreeFromTheRegistration` (`internal/component/plugin/declarations_test.go`): an in-tree row is answered in 0.00s from a config whose `run` string cannot start, so no process was started at all |
+| No configured plugin is missing from the answer | `TestDeclarationRowsCarryEveryState` and `test/plugin/plugin-declarations-states.ci`: one config names a plugin per state, and each of `declared`, `declared-none`, `no-answer`, `unstartable` and `timeout` has its own row. The state is a FIELD of that row, which `test/plugin/plugin-declarations-pipes.ci` renders through `\| json`, `\| yaml` and `\| table` and selects on with `\| match` |
 
 ### TDD
 - [ ] Tests written
@@ -535,3 +573,201 @@ N-A. No RFC governs the plugin RPC.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** the spec removal only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `show plugin declarations` and `show plugin declarations config <path>`, registered with `MustRegisterLocalData` beside `show plugin list` (`internal/component/plugin/register.go`), answering rows built in `internal/component/plugin/declarations.go`. One row per plugin, never an omission, with the five states as a FIELD.
+- The query answer for the ze binary: `cli.Run` (`internal/component/plugin/cli/main.go`) answers from the looked-up `*registry.Registration` before `reg.CLIHandler`, so no plugin code runs.
+- The query answer for a third-party binary: `sdk.RunOrDeclare` (`pkg/plugin/sdk/sdk_query.go`), taking the declaration and the activation function as separate arguments.
+- One writer for both: `rpc.WriteDeclaration` (`pkg/plugin/rpc/declaration.go`) holds the id, the method, the framing and the encoding of the Stage 1 line, and `rpc.MethodDeclareRegistration` replaced the string literal at every Go site that spelled it.
+- The reader's fork: `runQuery` starts the operator's `run` string under `plugin.Shell` with `KillGroupOnCancel`, `queryChildEnv` (every `ze.plugin.` variable dropped, the mode added), a bounded stdout buffer, and `declarationFromStdout` parsing only the framed line.
+- Two env keys, `ze.plugin.mode` and `ze.plugin.query.timeout`, registered through `env.MustRegister`; a budget of zero or less is refused.
+- The shell as a named runtime dependency: `plugin.Shell` and `ShellAvailable` (`shell.go`), read by both fork sites and by the new `plugin-shell` doctor check raising `doctor-plugin-shell-missing`.
+- The local-data walk covers both new commands (`internal/test/localdatacoverage`), moving the completion marker to `20/20`.
+
+### Bugs Found/Fixed
+- The SDK declared `WantsValidateOpen` for EVERY plugin ever built: `Run` read `p.callbacks[callbackValidateOpen] != nil` and `initCallbackDefaults` fills that entry for every plugin, so the engine asked every plugin to validate every OPEN. Now `p.wantsValidateOpen`, set only by `OnValidateOpen`. Covered by `TestDeclarationAnswerMatchesStageOne` (`internal/component/plugin/declarations_test.go`), whose "nothing is derived from the plugin" case was RED on the unfixed tree.
+- A row whose alphabetically first key held a list rendered YAML no parser accepts: `writeKeyValue` (`internal/component/command/format.go`) used one string for the key's own line and for every line under it. Covered by `TestRenderYAMLSequenceItemWithANestedListParses`, which decodes with `gopkg.in/yaml.v3`.
+- The daemon's live start stopped the shell rather than the plugin behind it. Covered by `TestStopReachesThePluginTheShellStarted` (`internal/component/plugin/process/process_stop_test.go`).
+- Both product defects were older than this spec, and both are daemon-visible.
+
+### Documentation Updates
+- `docs/architecture/cli/plugin-modes.md`: query mode as the fourth mode, its carrier, its answer, its inertness.
+- `docs/architecture/api/process-protocol.md`: Stage 1 on a second carrier with no Stage 2; the group stop and Pdeathsig with its limit.
+- `docs/plugin-development/protocol.md`: the `main` shape a third-party author writes, and what the SDK does and does not guarantee.
+- `docs/architecture/plugin/plugin-system.md`: the two answer routes, the population, the shared stop.
+- `docs/features/introspection.md`: the two commands in the table, the five states, the budget, the config-block rule.
+- `docs/architecture/doctor-and-health-checks.md`, `docs/guide/health-checks.md`, `docs/guide/plugins.md`, `docs/guide/appliance.md`: the shell dependency and `doctor-plugin-shell-missing`.
+- `ai/rules/plugins.md` gained one directive (`ai/rules/points/plugins/directives/answer-a-declaration-without-activating.md`); `ai/INDEX.md` gained the keyword row.
+- `./le doc check verify`: the source-anchor stage names four stale anchors, all pre-existing and none in a file this spec touched (`docs/architecture/api/commands.md` at `getHelpExtension`, `docs/architecture/exabgp-bridge.md` at `script.line`, and two in `docs/architecture/firewall/firewall-irr.md` at `expandIRRTermV6` and `sdk.Registration.FailurePolicy`). Every anchor this spec wrote resolves.
+- NOT updated, and recorded rather than forced: `docs/guide/command-reference.md`. See Review Gate finding 10.
+
+### Deviations from Plan
+- The spec named `internal/component/plugin/declarations.go` and `pkg/plugin/sdk/sdk_query.go` as the new files. Five more were created, each because a fact would otherwise have had two declarations: `pkg/plugin/rpc/declaration.go` (one writer for both binaries), `internal/component/plugin/childenv.go` (one PATH for both forks), `internal/component/plugin/sysproc*.go` (one stop for both forks), `internal/component/plugin/shell.go` (one shell for both forks and the doctor check), `internal/component/config/register_plugin_declarations.go` (the config seam the import direction requires).
+- The doctor check was `N-A` in the Integration Checklist at design time and is now `Yes`. The reader forks through `/bin/sh`, which an appliance image does not carry, so the shell is a runtime dependency and owes a check (owner decision, 2026-09-08).
+- The spec planned no change to `internal/component/command`. The YAML defect was found by AC-8's own rendering test and fixed at its producer.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1 assumed a query answer equals the live Stage 1 declaration for the same plugin | One field was derived rather than declared, and derived wrongly for every plugin: `WantsValidateOpen` | AC-7's test could not be made to pass | Product fixed at `(*Plugin).Run`; A-1 confirmed with the one derived field named |
+| approach | Phase 2 and phase 4 each wrote the framed declaration line, each with its own `declarationRequestID = 1` | One line, two definitions, free to drift | Phase 4b read both | Consolidated into `rpc.WriteDeclaration`; `TestQueryAnswerIsTheSameLineFromBothWriters` pins the two answers byte for byte |
+| approach | The query fork was given a group-aimed cancel while the live fork kept the attributes, so each fork held one half of one stop | Either half alone stops nothing extra | Review round 2 | `KillGroupOnCancel`, the only caller of `NewSysProcAttr`; journal row in `plan/journal/guard-added-to-one-half-of-a-pair.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The plugin process IS started, and is told it is being interrogated | Done | `runQuery` (`declarations.go`) starts the run string with `ZE_PLUGIN_MODE=declare` | The owner's correction of 2026-09-07 |
+| It answers with its declarations | Done | `rpc.WriteDeclaration`, read by `declarationFromStdout` | The same Stage 1 message a live daemon receives |
+| It performs none of a live start's work | Done | `cli.Run` for a plugin ze carries; `sdk.RunOrDeclare` for one it does not | Unreachability, not a promise. Convention only for a plugin that adopts neither, and D-4/R-1 say so |
+| No second declaration of anything | Done | `registry.Registration` for in-tree, the plugin's own `commandDecls()` for external | No manifest, no build-time emission, no generated list |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestQueryModeAnswersBeforeTheHandler`, `TestQueryModeSkipsActivation` | Framed line on stdout, exit 0, no connection |
+| AC-2 | Done | `TestQueryModeEmptyDeclarationIsNotSilence` | The empty declaration still writes the line |
+| AC-3 | Done | `TestQueryModeAnswersBeforeTheHandler` | The fake plugin's `CLIHandler` records that it ran, and it never runs |
+| AC-4 | Done | `TestDeclarationRowsCarryEveryState`, `test/plugin/plugin-declarations-states.ci` | Five states, one row each, none omitted |
+| AC-5 | Done | `test/plugin/plugin-declarations-external.ci` against `test/plugin/llgr-egress-state-unloaded.ci` | The same `run "ze plugin <name>"` shape is started live by the daemon there and queried by the reader here. Both forks now call `plugin.Shell` and `plugin.ChildPathEnv` |
+| AC-6 | Done | `plugin-declarations-states.ci`, the `plugin-silent` row | A plugin that ran and wrote nothing reads `no-answer`, with the reason naming the missing support |
+| AC-7 | Done | `TestDeclarationAnswerMatchesStageOne`, `TestQueryAnswerIsTheSameLineFromBothWriters` | One declaration through the real SDK startup over a `net.Pipe` and through `RunOrDeclare`, compared whole |
+| AC-8 | Done | `test/plugin/plugin-declarations-pipes.ci`, `test/ui/pipe-local-command.ci` | `json`, `yaml`, `table` and `match` over one payload; the walk reads the state as a FIELD |
+| AC-9 | Done | `TestDeclarationRowsCoverEveryRegisteredPlugin`, `plugin-declarations-external.ci` seq=1 | The bare form answers from the registration with no daemon and no process |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestQueryModeAnswersBeforeTheHandler` | Done | `internal/component/plugin/cli/main_test.go` | |
+| `TestQueryModeEmptyDeclarationIsNotSilence` | Done | `internal/component/plugin/cli/main_test.go` | |
+| `TestQueryModeSkipsActivation` | Done | `pkg/plugin/sdk/sdk_query_test.go` | |
+| `TestQueryModeActivatesWithoutTheMode` | Done | `pkg/plugin/sdk/sdk_query_test.go` | |
+| `TestDeclarationRowsCarryEveryState` | Done | `internal/component/plugin/declarations_test.go` | |
+| `TestDeclarationRowsAnswerInTreeFromTheRegistration` | Done | `internal/component/plugin/declarations_test.go` | Runs in 0.00s, which is the no-process evidence |
+| `TestDeclarationRowsCoverEveryRegisteredPlugin` | Done | `internal/component/plugin/declarations_test.go` | |
+| `TestDeclarationAnswerMatchesStageOne` | Done | `internal/component/plugin/declarations_test.go` | |
+| `TestDeclarationIgnoresUnframedStdout` | Done | `internal/component/plugin/declarations_test.go` | |
+| `plugin-declarations-external` | Done | `test/plugin/plugin-declarations-external.ci` | |
+| `plugin-declarations-states` | Done | `test/plugin/plugin-declarations-states.ci` | |
+| `plugin-declarations-pipes` | Done | `test/plugin/plugin-declarations-pipes.ci` | |
+| Boundary: the budget | Done | `TestDeclarationBudgetRefusesNonPositive`, the `plugin-slow` row of the states `.ci` | Zero or less refused; an answer past the budget is `timeout` and the child is stopped |
+| Added beyond the plan | Done | 11 further tests, named in the Review Gate findings and in the Files table | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/plugin/cli/main.go` | Done | `answerQuery` before `CLIHandler` |
+| `pkg/plugin/sdk/sdk.go` | Done | `EnvPluginMode`, `ModeDeclare`, `QueryModeRequested`, and the `wantsValidateOpen` fix |
+| `docs/architecture/cli/plugin-modes.md` | Done | |
+| `docs/architecture/api/process-protocol.md` | Done | |
+| `docs/plugin-development/protocol.md` | Done | |
+| `docs/architecture/plugin/plugin-system.md` | Done | |
+| `ai/rules/plugins.md` | Done | One directive, rendered from its point file |
+| `internal/component/plugin/declarations.go` + `_test.go` | Done | |
+| `pkg/plugin/sdk/sdk_query.go` + `_test.go` | Done | |
+| The three `.ci` files | Done | |
+| Seven files beyond the plan | Changed | Recorded in Deviations |
+
+### Audit Summary
+- **Total items:** 9 ACs, 13 planned tests, 15 planned files, 4 task requirements
+- **Done:** all of them
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** the file list grew by seven, recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A plugin can be asked for its details while it is started and aware it is being queried | functional | `test/plugin/plugin-declarations-external.ci`: with no daemon, `show plugin declarations config <path>` forks `ze plugin mrt` and reads `"name": "request mrt dump-rib"` off its stdout through a `match`-scoped JSON rendering. The answer is the SAME message a live daemon receives, and `TestDeclarationAnswerMatchesStageOne` proves it by running one declaration through the real SDK startup and through `sdk.RunOrDeclare` and comparing the two JSON values whole |
+| A query-mode start performs none of a live start's work | unit, three routes | `TestQueryModeAnswersBeforeTheHandler` (the ze binary never calls `CLIHandler`), `TestQueryModeSkipsActivation` (`RunOrDeclare` never calls the activation function), `TestDeclarationRowsAnswerInTreeFromTheRegistration` (an in-tree row answered in 0.00s from a config whose `run` string cannot start, so no process was started). The residual for a plugin that adopts neither route is R-1, stated in Known Limitations |
+| No configured plugin is missing from the answer | functional + unit | `test/plugin/plugin-declarations-states.ci`: one config names a plugin per state and each of `declared`, `unstartable`, `no-answer` and `timeout` has its own row; `TestDeclarationRowsCarryEveryState` covers all five including `declared-none`. `TestDeclarationRowsCoverAPluginThatNeverRegistered` covers the plugin the registry knows and the registration walk would drop |
+| The answer renders through every operator | functional | `test/plugin/plugin-declarations-pipes.ci` and `test/ui/pipe-local-command.ci` (test 214): `| json`, `| yaml`, `| table` and `| match` over one payload, with the walk reading `name`, `kind`, `state`, `commands`, `pipes` and `reason` as FIELDS. The `| yaml` rendering is the one that found the `writeKeyValue` defect |
+| Interop | N-A | No wire-visible protocol change and no peer daemon: the plugin RPC is Ze's own, and query mode emits an existing message on an existing framing |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| The Stage 1 fields with no compiled-in twin (config operations, filters, doctor checks, enrichers, schema, budgets, failure policy) are not answered for a plugin ze carries | The field-scope decision in Key Design Decisions: the untwinned fields are a separate change with a separate blast radius | `plan/spec-plugin-declaration-fields-on-registration.md` |
+| The 19 runners that mutate the host, the process or a process global before they declare are unchanged | Query mode never enters a runner body, so it does not depend on them | `plan/spec-plugin-runner-inertness.md` |
+| The `### show plugin declarations` section of `docs/guide/command-reference.md` is written and not committed | The page carries another session's hunk whose source anchor names an untracked file, so committing the page publishes a claim the tree cannot support | No spec: one row in `plan/journal/documentation-stranded-by-a-siblings-hunk.md`, and the owner's call |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/plugin/declarations.go` | Yes | `ls -l` 27K |
+| `internal/component/plugin/declarations_test.go` | Yes | `ls -l` 36K |
+| `pkg/plugin/sdk/sdk_query.go` | Yes | `ls -l` 2.5K |
+| `pkg/plugin/sdk/sdk_query_test.go` | Yes | `ls -l` 3.9K |
+| `pkg/plugin/rpc/declaration.go` | Yes | `ls -l` 1.7K |
+| `internal/component/plugin/shell.go` | Yes | `ls -l` 3.1K |
+| `internal/component/plugin/sysproc.go` | Yes | `ls -l` 2.2K |
+| `internal/component/plugin/childenv.go` | Yes | `ls -l` 2.4K |
+| `internal/component/plugin/doctor/check_shell.go` | Yes | `ls -l` 2.1K |
+| `internal/component/config/register_plugin_declarations.go` | Yes | `ls -l` 1.6K |
+| `test/plugin/plugin-declarations-external.ci` | Yes | `ls -l` 2.9K |
+| `test/plugin/plugin-declarations-states.ci` | Yes | `ls -l` 2.8K |
+| `test/plugin/plugin-declarations-pipes.ci` | Yes | `ls -l` 2.6K |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2, AC-3 | The ze binary answers before the handler, and an empty declaration is not silence | `go test ./internal/component/plugin/cli`: `ok github.com/ze-software/ze/internal/component/plugin/cli 1.789s`, run 2026-09-09 in this closure context |
+| AC-1, AC-6 (SDK half) | `RunOrDeclare` writes the declaration and does not activate | `go test ./pkg/plugin/sdk`: `ok ... 4.302s` |
+| AC-4, AC-9 | Five states, one row each, the bare form starts nothing | `--- PASS: TestDeclarationRowsCarryEveryState (1.02s)`, `--- PASS: TestDeclarationRowsCoverEveryRegisteredPlugin (0.00s)`, `--- PASS: TestDeclarationRowsCoverAPluginThatNeverRegistered (0.00s)` |
+| AC-7 | The query answer equals the live Stage 1 declaration | `--- PASS: TestDeclarationAnswerMatchesStageOne (0.00s)` |
+| AC-8 | One payload, every rendering | `--- PASS: TestEvidenceAndMarkersAreTheCurrentPopulation`, and `ok github.com/ze-software/ze/internal/test/localdatacoverage 0.323s` |
+| Budget boundary | Zero or less is refused | `--- PASS: TestDeclarationBudgetRefusesNonPositive (0.00s)` |
+| The stop | Reaches the plugin, not the shell | `--- PASS: TestDeclarationQueryStopsThePluginTheShellStarted (1.00s)` |
+| Lint | No finding in any file this spec wrote | `./le verify lint run scope "<the ten packages>"`: 2 issues, both the pre-existing `nilnil` in `internal/component/plugin/leaf_test.go` already recorded in `plan/journal/nil-nil-return.md` |
+| Command contract | Both new wire methods are paired with a handler | `./le docvalid command-contract` exit 0: `ze-show:plugin-declarations` and `ze-show:plugin-declarations-config` both listed against `ze-plugin-show-cmd` |
+| CLI grammar | Keyword before value | `./le cli-grammar`: 0 grammar findings; the 2 `flag-in-yang` are committed prose in `ze-hub-conf.yang`, already journaled |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `show plugin declarations` typed at the CLI | `test/plugin/plugin-declarations-external.ci` | Yes: seq=1 runs the bare form with no daemon and asserts `mrt +internal +declared`; seq=3 runs the config form through `ze cli -c` and reads the started plugin's own declaration out of the JSON rendering |
+| `ze plugin <name>` started with the mode variable | `TestQueryModeAnswersBeforeTheHandler` (`internal/component/plugin/cli/main_test.go`) | Yes: the fake plugin's `CLIHandler` records that it ran, the answer is parsed with `rpc.ParseLine`, and the handler never ran |
+| a third-party plugin's `main` | `TestQueryModeSkipsActivation` (`pkg/plugin/sdk/sdk_query_test.go`) | Yes: the activation function records that it ran and is never called; the sibling test proves it IS called with the variable absent |
+| the pipe surface | `test/ui/pipe-local-command.ci` | Yes: the compiled walk executes both commands with `| json compact` and reads the six fields, and the `.ci` demands the `20/20` line the walk prints only after every assertion passes |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed, with one field named | `TestDeclarationAnswerMatchesStageOne`. `Run` derives one field the declaration does not state, `WantsValidateOpen`, and that derivation was broken until this spec fixed it |
+| A-2 | confirmed | `cli.Run` holds the `*registry.Registration` from `registry.Lookup` before `reg.CLIHandler`, read at the producer 2026-09-08 |
+| A-3 | confirmed | Re-measured at every producer on 2026-09-08, with three corrections and seven additions recorded in Current Behavior |
+| A-4 | confirmed | The two forks are now one composition: `plugin.Shell`, `plugin.ChildPathEnv(plugin.EngineBinDir(), ...)` and `KillGroupOnCancel` are called by `(*Process).startExternal` and by `runQuery` alike, so a run string the daemon starts is started the same way by the reader. `test/plugin/llgr-egress-state-unloaded.ci` starts `run "ze plugin bgp-gr"` live, and `plugin-declarations-external.ci` queries `run "ze plugin mrt"`, the same shape |
+| A-5 | confirmed | `TestQueryChildEnvDropsEveryPluginVariableSpelling` proves no `ze.plugin.` variable reaches the child under either spelling, so an unaware plugin has no hub host, port, token, CA or name and cannot join a live daemon. `plugin-declarations-states.ci` shows the unaware plugin reported `no-answer`. The residual for a third-party binary that runs its live start anyway is R-1, in Known Limitations |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| 1, 3, 6 user-facing feature and CLI command | `docs/architecture/cli/plugin-modes.md`, `docs/features/introspection.md` | Yes: the state table matches the five constants in `declarations.go`; the budget sentence matches `declarationBudget`; the config-block rule matches `declarationRows`. The hand-written section owed by `docs/guide/command-reference.md` is Review Gate finding 10 |
+| 4, 8 API/RPC and plugin SDK | `docs/architecture/api/process-protocol.md`, `docs/plugin-development/protocol.md`, `ai/rules/plugins.md` | Yes: both pages name `rpc.WriteDeclaration` as the one writer, and the SDK page's `main` shape matches `RunOrDeclare`'s signature |
+| 12 internal architecture | `docs/architecture/plugin/plugin-system.md` | Yes: the population sentence matches `registry.SetupResults`, and the stop sentence matches `KillGroupOnCancel` |
+| 15 registered command inventory | `./le docvalid command-contract` | Yes: both wire methods listed and paired |
+| 16 changed files under existing anchors | `./le doc check verify`, source-anchor stage | Yes: every anchor this spec wrote resolves. Four pre-existing stale anchors remain, none in a file this spec touched |
+| Runtime dependency owes a doctor check | `internal/component/plugin/doctor/check_shell.go`, `internal/core/diagnostic/codes.go` | Yes: `plugin-shell` registered at order 702, `doctor-plugin-shell-missing` declared with title, description and repairs; `TestDoctorDependencyInventory` carries the `binary/plugin-shell` row |
+| 2, 5, 7, 9, 10, 11, 13, 14 | N-A | No config node, no plugin added, no wire format, no RFC, no test infrastructure change, no daemon behavior comparison, no route metadata, no metric. `grep -rn "show plugin declarations" docs/` names only the pages listed above |
+
+## Core Insight
+
+A mode a plugin READS is a promise. A mode it never REACHES is a guarantee. The
+19 runners that program nftables, install XFRM policies or call `setrlimit`
+before they declare are the measurement that decides the shape: the answer must
+be written by a process that already holds the declaration, so the runner is
+never entered at all. Where Ze does not own the binary that guarantee is not
+available, and the honest move is to give that population an entry point and
+call it convention in those words, rather than write one sentence that reads as
+a guarantee for both. `plan/learned/013-inertness-is-unreachability.md` carries
+it.

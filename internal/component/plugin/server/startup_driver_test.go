@@ -85,7 +85,7 @@ func newDriverPipe(t *testing.T) (*ipc.PluginConn, *rpc.MuxConn) {
 // the three plugin-initiated requests and answers the two engine-initiated
 // callbacks. Runs in its own goroutine.
 func drivePluginHandshake(ctx context.Context, pluginMux *rpc.MuxConn) {
-	if _, err := pluginMux.CallRPC(ctx, methodDeclareRegistration, &rpc.DeclareRegistrationInput{
+	if _, err := pluginMux.CallRPC(ctx, rpc.MethodDeclareRegistration, &rpc.DeclareRegistrationInput{
 		Commands: []rpc.CommandDecl{{Name: "widget show"}},
 	}); err != nil {
 		return
@@ -212,7 +212,7 @@ func TestSharedStartupDriverRegistrationErrorAborts(t *testing.T) {
 
 	callErr := make(chan error, 1)
 	go func() {
-		_, err := pluginMux.CallRPC(ctx, methodDeclareRegistration, &rpc.DeclareRegistrationInput{})
+		_, err := pluginMux.CallRPC(ctx, rpc.MethodDeclareRegistration, &rpc.DeclareRegistrationInput{})
 		callErr <- err
 	}()
 

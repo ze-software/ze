@@ -1,0 +1,54 @@
+# Test: an operator reads an external plugin's declarations with no daemon running
+# Spec: spec-plugin-query-mode -- Wiring Test row 1, story 1, AC-4 and AC-9
+# VALIDATES: `show plugin declarations` answers from the compiled-in registry with
+#   nothing running, and `config <path>` adds a row for the external plugin the
+#   file names, carrying the command that plugin declares.
+# PREVENTS: an operator having to start a router, and put a plugin in the path of
+#   live traffic, to find out which commands that plugin adds.
+#
+# No daemon runs here. The command is a local-data command, so `ze show ...`
+# serves it in its own process before it asks for credentials
+# (internal/component/cli/client/main.go, runBGP).
+#
+# Every expectation in this file is FILE-level: the runner checks each one
+# against the accumulated stdout AND stderr of every command in the file
+# (checkOutputAssertions, internal/test/runner/runner_output_assert.go), and
+# expect=exit:code= reaches the LAST quick-exit ze command alone
+# (Record.ExpectExitCode is one value, internal/test/runner/record.go). A
+# per-command exit code therefore goes on the `cmd=` line as `exit=`, and each
+# pattern below is written so that only ONE command in the file can produce it.
+#
+# The external plugin is the in-tree mrt plugin started as its own process, the
+# shape AC-5 compares against a live start. mrt is used because it declares one
+# command with a stable name and needs no kernel privilege to be asked what it
+# declares.
+
+tmpfs=plugin-declarations.conf:terminator=EOF_CONF
+plugin {
+    external mrt-out-of-process {
+        run "ze plugin mrt"
+        encoder json
+    }
+}
+EOF_CONF
+
+# With no config named, the answer covers the plugins this binary carries, read
+# from the compiled-in registration with no process started.
+cmd=foreground:seq=1:exec=ze show plugin declarations:exit=0
+expect=stdout:pattern=mrt +internal +declared
+
+# Naming the config adds the external plugin, under the name its block gives it.
+cmd=foreground:seq=2:exec=ze show plugin declarations config plugin-declarations.conf:exit=0
+expect=stdout:pattern=mrt-out-of-process +external +declared
+
+# The declaration in that row came from the plugin the reader STARTED. `match`
+# selects the external row before the rendering, so this answer holds no in-tree
+# row at all, and the quoted JSON spelling below is in no other command's output
+# in this file: it can only come from the plugin that was started and queried.
+cmd=foreground:seq=3:exec=ze cli -c "show plugin declarations config plugin-declarations.conf | match mrt-out-of-process | json":exit=0
+expect=stdout:pattern="name": "request mrt dump-rib"
+
+# A path that does not exist is refused by name, so a typo is never reported as
+# a config that declares no plugin.
+cmd=foreground:seq=4:exec=ze show plugin declarations config no-such-file.conf:exit=1
+expect=stderr:contains=no-such-file.conf
