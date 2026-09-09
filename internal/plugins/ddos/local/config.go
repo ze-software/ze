@@ -42,23 +42,33 @@ func DefaultConfig() *Config {
 	}
 }
 
-func ParseConfig(data string) (*Config, error) {
-	cfg := DefaultConfig()
+// ParseConfig reads the ddos local section out of one delivered config section,
+// and reports whether the section carries one at all.
+//
+// found is what tells a removal from a default. A reload that DELETES the block
+// still reaches the plugin: the server sends an empty body for a root the new
+// tree no longer holds (internal/component/plugin/server/reload.go), which
+// parses to the same values as a block that names no leaf. The caller acts on
+// the difference, so it may not be folded into the returned Config
+// (ai/rules/principles.md -- a value that is silently wrong must not be
+// reachable).
+func ParseConfig(data string) (cfg *Config, found bool, err error) {
+	cfg = DefaultConfig()
 	if strings.TrimSpace(data) == "" {
-		return cfg, nil
+		return cfg, false, nil
 	}
 	var root map[string]any
 	if err := json.Unmarshal([]byte(data), &root); err != nil {
-		return nil, fmt.Errorf("unmarshal: %w", err)
+		return nil, false, fmt.Errorf("unmarshal: %w", err)
 	}
 	// Section is wrapped by ExtractConfigSubtree as {"ddos":{"local":{...}}}.
 	ddos, ok := root["ddos"].(map[string]any)
 	if !ok {
-		return cfg, nil
+		return cfg, false, nil
 	}
 	m, ok := ddos["local"].(map[string]any)
 	if !ok {
-		return cfg, nil
+		return cfg, false, nil
 	}
 	if v, ok := m["response-level"].(string); ok {
 		cfg.ResponseLevel = v
@@ -78,7 +88,7 @@ func ParseConfig(data string) (*Config, error) {
 			cfg.ConfidenceMin = n
 		}
 	}
-	return cfg, nil
+	return cfg, true, nil
 }
 
 func (c *Config) Validate() error {

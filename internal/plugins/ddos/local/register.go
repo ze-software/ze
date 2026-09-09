@@ -103,21 +103,66 @@ func startMaxDurationWorker(ctx context.Context, every time.Duration) (exited <-
 	return done
 }
 
-// replaceResponder builds the responder for cfg, carries a live drop rule across
-// from the responder it replaces, and publishes it to the cap worker and to the
-// show handler.
+// replaceResponder builds the responder for cfg, decides what becomes of a drop
+// rule the responder it replaces installed, and publishes it to the cap worker
+// and to the show handler.
 //
-// Carrying is what stops a config apply orphaning a rule. The firewall registry
-// is keyed by TABLE NAME rather than by responder, so the nftables table
-// applyMitigation registered outlives the responder that registered it. A fresh
-// idle responder believes no rule exists, and both removal paths return on
-// !active -- enforceMaxDuration and onCleared alike -- so the drop would be
-// bounded by neither the operator's cap nor a clear, for the life of the daemon,
-// while show ddos local reported no mitigation.
+// configured says the delivered config still carries a `ddos local` section.
+//
+// The default is to CARRY the rule, and carrying is what stops an ordinary
+// commit orphaning it. The firewall registry is keyed by TABLE NAME rather than
+// by responder, so the nftables table applyMitigation registered outlives the
+// responder that registered it. A fresh idle responder believes no rule exists,
+// and both removal paths return on !active -- enforceMaxDuration and onCleared
+// alike -- so the drop would be bounded by neither the operator's cap nor a
+// clear, for the life of the daemon, while show ddos local reported no
+// mitigation.
+//
+// Two commits say the opposite, that the box must stop dropping, and each
+// withdraws instead. Both go through the OUTGOING responder, because the
+// incoming one has installed nothing and its own removal paths return on
+// !active:
+//
+//   - The section is gone. The plugin is STOPPED as soon as this reload
+//     transaction commits (Server.collectProcessesForRemovedConfigPaths,
+//     internal/component/plugin/server/startup_autoload.go), and it runs
+//     in-process, so the firewall registry it wrote to is the daemon's own and
+//     outlives this engine. A carried rule would sit in the kernel with no
+//     responder to see it and no cap worker to remove it, for the life of the
+//     daemon. The withdrawal is on `configured` and not on the parsed
+//     response-level, which a removed section leaves at the DefaultConfig value
+//     of alert: reading the removal off that default would make the guard vanish
+//     the day the default changes, with no line deleted and no test red
+//     (docs/contributing/ze-go-style.md -- a zero value is never an answer).
+//   - response-level left enforce. `alert` is "detect and report, do not block"
+//     (applyMitigation), and un-blackholing a victim is what an operator commits
+//     it for. Neither enforceMaxDuration nor onCleared reads response-level, so a
+//     carried rule would outlive the instruction by up to
+//     max-mitigation-duration, 3600 seconds by default, with show ddos local
+//     naming a drop the operator has just asked to end.
 //
 // prev MAY be nil, which is the first configure.
-func replaceResponder(cfg *Config, bus eventBus, prev *responder) *responder {
+func replaceResponder(cfg *Config, bus eventBus, prev *responder, configured bool) *responder {
 	r := newResponder(cfg, bus)
+
+	if prev != nil {
+		// One critical section covers the whole handover: what becomes of the
+		// outgoing responder's rule, the carry into the new one, and the publish.
+		// A cap tick or a clear that raced the swap then finds prev either before
+		// the handover or after it, never halfway through, and never re-installs
+		// between a withdrawal and the carry that would not have seen it.
+		// adoptMitigation states the obligation.
+		prev.mu.Lock()
+		defer prev.mu.Unlock()
+
+		switch {
+		case !configured:
+			prev.withdrawMitigation(withdrawSectionRemoved)
+		case cfg.ResponseLevel != responseEnforce:
+			prev.withdrawMitigation(withdrawNotEnforcing)
+		}
+	}
+
 	r.adoptMitigation(prev)
 	activeResponder.Store(r)
 	return r
@@ -133,25 +178,34 @@ func runEngine(conn net.Conn) int {
 	var resp *responder
 	defer activeResponder.Store(nil)
 
-	parseSections := func(sections []sdk.ConfigSection) (*Config, error) {
+	// parseSections returns the ddos local config the delivered sections carry,
+	// and whether they carry one at all. The second answer is what a removal
+	// looks like from in here: the server sends an empty body for a root the new
+	// tree no longer holds, so an absent section is a value the plugin is TOLD
+	// rather than a message it misses.
+	parseSections := func(sections []sdk.ConfigSection) (*Config, bool, error) {
 		for _, s := range sections {
 			if s.Root != configRoot {
 				continue
 			}
-			cfg, err := ParseConfig(s.Data)
+			cfg, configured, err := ParseConfig(s.Data)
 			if err != nil {
-				return nil, fmt.Errorf("ddos-local config: %w", err)
+				return nil, false, fmt.Errorf("ddos-local config: %w", err)
 			}
 			if err := cfg.Validate(); err != nil {
-				return nil, fmt.Errorf("ddos-local config: %w", err)
+				return nil, false, fmt.Errorf("ddos-local config: %w", err)
 			}
-			return cfg, nil
+			return cfg, configured, nil
 		}
-		return DefaultConfig(), nil
+		return DefaultConfig(), false, nil
 	}
 
 	var (
-		pendingCfg         *Config
+		pendingCfg *Config
+		// pendingConfigured travels with pendingCfg: the config a removal
+		// delivers parses to the same values as a block that names no leaf, so
+		// the apply cannot recover it from pendingCfg alone.
+		pendingConfigured  bool
 		unsubDetect        func()
 		unsubCharacterized func()
 		unsubCleared       func()
@@ -176,7 +230,7 @@ func runEngine(conn net.Conn) int {
 	}
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		cfg, err := parseSections(sections)
+		cfg, configured, err := parseSections(sections)
 		if err != nil {
 			return err
 		}
@@ -184,7 +238,7 @@ func runEngine(conn net.Conn) int {
 		if err != nil {
 			return err
 		}
-		resp = replaceResponder(cfg, bus, resp)
+		resp = replaceResponder(cfg, bus, resp, configured)
 		subscribe(bus, resp)
 
 		// One empty reconcile while the one-time removal of the tables an older
@@ -205,17 +259,20 @@ func runEngine(conn net.Conn) int {
 	})
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		cfg, err := parseSections(sections)
+		cfg, configured, err := parseSections(sections)
 		if err != nil {
 			return err
 		}
 		pendingCfg = cfg
+		pendingConfigured = configured
 		return nil
 	})
 
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
 		cfg := pendingCfg
+		configured := pendingConfigured
 		pendingCfg = nil
+		pendingConfigured = false
 		if cfg == nil {
 			// Fail closed. The reload transaction drives verify and apply over the
 			// SAME participant set -- runTxCoordinator builds both from `affected`
@@ -235,7 +292,7 @@ func runEngine(conn net.Conn) int {
 		if err != nil {
 			return err
 		}
-		resp = replaceResponder(cfg, bus, resp)
+		resp = replaceResponder(cfg, bus, resp, configured)
 		subscribe(bus, resp)
 		// Mirrors the "configured" line OnConfigure emits. Without it a reload that
 		// reached the responder and one that never did looked identical in the log,
@@ -257,6 +314,13 @@ func runEngine(conn net.Conn) int {
 	// removeMitigation -> applyAll, a netlink round trip, so returning on the
 	// cancel alone would report the engine done while it was still writing the
 	// kernel (ai/rules/goroutine-lifecycle.md).
+	//
+	// The wait is bounded, and the bound is the firewall's rather than this
+	// plugin's: applyAll takes the process-wide reconcileMu
+	// (internal/component/firewall/registry.go) and every backend operation
+	// behind it runs under firewall.MaxBackendDeadline, 60 seconds
+	// (internal/component/firewall/backend.go). One tick is in flight at a time,
+	// so the worst case is one queued reconcile for each firewall owner.
 	workerExited := startMaxDurationWorker(ctx, maxDurationCheckInterval)
 	defer func() {
 		cancel()

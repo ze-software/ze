@@ -79,7 +79,9 @@ then narrows it in place to the attack's protocol, ports, and TCP flags.
 
 The drop rule is removed automatically when the attack stops (the detector
 observes RxPps falling below threshold, which works because nftables drops occur
-after the kernel NIC RX counter).
+after the kernel NIC RX counter), when it reaches `max-mitigation-duration`, and
+when a `commit` turns mitigation off or deletes the `ddos local` block. The table
+under "When the clear never comes" gives each case.
 
 ### Attack characterization (Stage 2)
 
@@ -424,13 +426,15 @@ drop rule in both cases: a worker in the plugin checks the age of the live rule
 once a second and removes a rule that has reached the cap, logging
 `max-mitigation-duration reached`. `show ddos local` then reports no mitigation.
 
-A `commit` that changes any `ddos local` leaf while a drop rule is live keeps the
-rule and its cap. The plugin builds a new responder for the new config and hands
-it the live rule, the victim it covers and the instant it went in, so the cap
-keeps counting from the FIRST install and an `AttackCleared` still removes the
-rule. The new config governs from the commit, so a `commit` that shortens
-`max-mitigation-duration` applies the shorter cap to the rule already installed.
-<!-- source: internal/plugins/ddos/local/responder.go -- enforceMaxDuration, adoptMitigation; internal/plugins/ddos/local/register.go -- startMaxDurationWorker, replaceResponder -->
+**What a commit does to a live drop rule.** The plugin builds a new responder for
+the new config, and what happens to the rule depends on what the commit says.
+
+| The commit | The live drop rule |
+|------------|--------------------|
+| Any `ddos local` leaf, `response-level` still `enforce` | KEPT, with its cap. The new responder is handed the rule, the victim it covers and the instant it went in, so the cap keeps counting from the FIRST install and an `AttackCleared` still removes it. The new config governs from the commit, so a `commit` that shortens `max-mitigation-duration` applies the shorter cap to the rule already installed |
+| `response-level alert` | REMOVED at once. `alert` is detect-and-report, and un-blackholing a victim is what an operator commits it for. The log line is `response-level left enforce, removing the drop rule` |
+| The `ddos local` block deleted | REMOVED at once. The plugin is stopped as soon as the reload lands, so a rule carried past this point would stay in the kernel with no responder and no cap worker left to remove it. The log line is `the ddos local section was removed, removing the drop rule` |
+<!-- source: internal/plugins/ddos/local/responder.go -- enforceMaxDuration, adoptMitigation, withdrawMitigation; internal/plugins/ddos/local/register.go -- startMaxDurationWorker, replaceResponder -->
 
 ### FlowSpec mode sensor blindness
 

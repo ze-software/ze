@@ -14,7 +14,7 @@ func TestParseConfig_StringValuedDelivery(t *testing.T) {
 	data := `{"ddos":{"local":{` +
 		`"response-level":"enforce","max-mitigation-duration":"1800",` +
 		`"confidence-min":"75","forward-mitigation":"true"}}}`
-	cfg, err := ParseConfig(data)
+	cfg, _, err := ParseConfig(data)
 	if err != nil {
 		t.Fatal(err)
 	}

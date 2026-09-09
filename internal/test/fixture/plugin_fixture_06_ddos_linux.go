@@ -27,6 +27,7 @@ func init() {
 	Register("plugin/ddos-local-max-duration-driver", fixture06DDOSLocalMaxDuration)
 	Register("plugin/ddos-announce-rate-limit-driver", fixture06DDOSAnnounceRateLimit)
 	Register("plugin/ddos-local-cap-survives-reload-driver", fixture06DDOSLocalCapSurvivesReload)
+	Register("plugin/ddos-local-config-removed-driver", fixture06DDOSLocalConfigRemoved)
 }
 
 func fixture06DDOSTransitSetup(context.Context, []string) error {
@@ -553,16 +554,24 @@ func fixture06DDOSLocalCapSurvivesReload(ctx context.Context, args []string) err
 		var lastShow map[string]any
 		removed := Poll(ctx, 160, 250*time.Millisecond, func() bool {
 			sent += sockets.blast(4000)
-			live, _, state, stateErr := fixture06DDOSDropState(victim)
-			if stateErr != nil {
-				return false
-			}
-			summary = state
+			// The daemon is read BEFORE the kernel, and the order is what keeps
+			// the orphan arm below honest. removeMitigation (responder.go) takes
+			// the rule out of the kernel first and publishes the idle status
+			// after, so a cap that fires between two reads taken the other way
+			// round yields live=true with active=false -- the orphan pattern
+			// exactly, produced by correct code. Read this way the intermediate
+			// state is active=true with live=false, which matches neither arm and
+			// only costs the poll one more turn.
 			row, showErr := p05ShowMap(ctx, plugin, "show ddos local")
 			if showErr != nil {
 				return false
 			}
 			lastShow = row
+			live, _, state, stateErr := fixture06DDOSDropState(victim)
+			if stateErr != nil {
+				return false
+			}
+			summary = state
 			if live && row["active"] == false {
 				// The apply built a responder that knows nothing of the rule the
 				// kernel is enforcing. Stop the poll and let the caller name it.
@@ -581,6 +590,148 @@ func fixture06DDOSLocalCapSurvivesReload(ctx context.Context, args []string) err
 		}
 		if _, err := fmt.Fprintf(os.Stderr, "RELOAD-CAP-REMOVED %s (sent %d)\n", victim, sent); err != nil {
 			return fmt.Errorf("report the removal: %w", err)
+		}
+		return nil
+	})
+}
+
+// fixture06LocalConfigRemovedVictim is the box-owned address the config-removal
+// driver floods. Every ddos test floods loopback and the suite serializes them,
+// but each one takes an address of its own so a failure names one test.
+const fixture06LocalConfigRemovedVictim = "127.0.0.11"
+
+// fixture06LocalConfigRemovedConfig is what the operator commits: the same file
+// with the `ddos local` block deleted and nothing else touched.
+//
+// detect and observe stay, so the removal is of `ddos/local` alone. That is the
+// path this test exists for: the reload delivers an empty body for the removed
+// root and then STOPS the plugin, because ddos-local declares
+// ConfigRoots ["ddos/local"] (Server.collectProcessesForRemovedConfigPaths,
+// internal/component/plugin/server/startup_autoload.go).
+//
+// max-mitigation-duration is 3600 in the config this replaces, not the 20 its
+// sibling test uses, so the cap cannot expire inside this test's window. The
+// withdrawal is then the ONLY thing that can take the rule out of the kernel,
+// which is what makes the assertion discriminate.
+//
+// The control-plane-protection block stays, and it is load-bearing rather than
+// scenery: copp declares the firewall plugin as a dependency, so it keeps the
+// firewall engine running after ddos-local stops. Without a second dependent the
+// reload stops firewall too (Server.collectOrphanedDependencies), and the engine
+// flushes every ze-owned table on its way out (firewall.FlushAllTables), which
+// removes the orphaned drop by accident. The .ci header carries the measurement.
+const fixture06LocalConfigRemovedConfig = `ddos {
+	detect {
+		enabled true
+		absolute-floor 1000
+		confirm-duration 1
+		clear-consecutive-checks 100
+		startup-grace 0
+		baseline-window 10
+		check-interval 1
+		characterize-enable false
+	}
+	observe {
+		incident-ring-size 100
+	}
+}
+
+control-plane-protection {
+	bgp {
+		rate 100/second
+		burst 20
+	}
+}
+
+traffic {
+	usage {
+		enabled true
+		track-ip true
+		interfaces {
+			interface lo {
+				enabled true
+			}
+		}
+	}
+}
+
+plugin {
+	external ddos-local-config-removed-probe {
+		run "ze-test fixture plugin/ddos-local-config-removed-driver"
+		encoder json
+	}
+}
+`
+
+// fixture06DDOSLocalConfigRemoved proves an operator who deletes the `ddos local`
+// config block gets the drop rule out of the kernel.
+//
+// It installs a drop under an unbroken flood, commits a config with the block
+// deleted, and then reads the kernel back. Deleting the block STOPS the plugin
+// once the reload transaction commits, and the plugin is in-process, so the
+// firewall registry it wrote to is the daemon's own and outlives the engine: a
+// rule still installed at that point has no responder to see it and no cap
+// worker to remove it, for the life of the daemon.
+//
+// The kernel is the only witness after the reload, and that is not a shortcut:
+// `show ddos local` belongs to the plugin the removal stops, so the daemon has
+// no answer left to give. It is also the reading that matters, because the
+// orphan is precisely a rule the daemon does not know it is enforcing.
+//
+// The flood never stops and the cap is 3600, so neither an AttackCleared nor
+// max-mitigation-duration can account for a removal this test observes.
+func fixture06DDOSLocalConfigRemoved(ctx context.Context, args []string) error {
+	return p05Observe(ctx, args, "ddos-local-config-removed-probe", func(ctx context.Context, plugin *sdk.Plugin) error {
+		victim := fixture06LocalConfigRemovedVictim
+		sockets, err := p05OpenFlood("", victim, 64)
+		if err != nil {
+			return err
+		}
+		defer sockets.Close()
+
+		sent := 0
+		summary := ""
+		installed := Poll(ctx, 200, 250*time.Millisecond, func() bool {
+			sent += sockets.blast(4000)
+			row, showErr := p05ShowMap(ctx, plugin, "show ddos local")
+			if showErr != nil || row["active"] != true {
+				return false
+			}
+			live, _, state, stateErr := fixture06DDOSDropState(victim)
+			summary = state
+			return stateErr == nil && live
+		})
+		if !installed {
+			return fmt.Errorf("ddos-local installed no drop for %s within 50s of an unbroken flood (sent %d packets):\n%s",
+				victim, sent, summary)
+		}
+		// The markers go to stderr, not stdout: this fixture runs as a plugin of
+		// the daemon, and a plugin's stdout is the JSON protocol channel the
+		// encoder owns.
+		if _, err := fmt.Fprintf(os.Stderr, "CONFIG-REMOVED-INSTALLED %s (sent %d)\n", victim, sent); err != nil {
+			return fmt.Errorf("report the install: %w", err)
+		}
+
+		if err := fixture06ReloadDaemon(fixture06LocalConfigRemovedConfig); err != nil {
+			return err
+		}
+
+		withdrawn := Poll(ctx, 160, 250*time.Millisecond, func() bool {
+			sent += sockets.blast(4000)
+			live, _, state, stateErr := fixture06DDOSDropState(victim)
+			if stateErr != nil {
+				return false
+			}
+			summary = state
+			return !live
+		})
+		if !withdrawn {
+			return fmt.Errorf("deleting the ddos local config block left the drop for %s in the kernel 40s later, under a flood that never stopped "+
+				"and a cap of 3600 seconds: the plugin that installed it is stopped, so no responder and no cap worker is left to remove it and the box "+
+				"blackholes the victim for the life of the daemon (sent %d packets):\n%s", victim, sent, summary)
+		}
+		if _, err := fmt.Fprintf(os.Stderr, "CONFIG-REMOVED-WITHDRAWN %s (sent %d)\n", victim, sent); err != nil {
+			return fmt.Errorf("report the withdrawal: %w", err)
 		}
 		return nil
 	})

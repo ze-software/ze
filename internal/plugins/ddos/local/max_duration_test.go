@@ -30,11 +30,24 @@ func waitFor(within time.Duration, want func() bool) bool {
 	return want()
 }
 
+// clockBaseOffset separates the movable clock from the wall clock.
+//
+// A test that asserts a CARRIED timestamp has to be able to tell the instant the
+// rule went in from the instant something re-stamped it. With a base of
+// time.Now() a stamp taken from the REAL clock is one microsecond from a stamp
+// taken from this clock at elapsed zero, so a responder that re-stamped on
+// adoption computed the same age as one that carried the instant across, and the
+// assertion held against both. An hour of separation is longer than any elapsed
+// time these tests move, so the two readings can never be confused.
+const clockBaseOffset = time.Hour
+
 // movableClock returns a clock the test can advance without sleeping, and the
-// advance function. The elapsed time is atomic because the worker goroutine
-// reads the clock while the test writes it.
+// advance function. advance sets the elapsed time ABSOLUTELY, so each call
+// states a distance from the clock's base rather than from the call before it.
+// The elapsed time is atomic because the worker goroutine reads the clock while
+// the test writes it.
 func movableClock() (now func() time.Time, advance func(time.Duration)) {
-	base := time.Now()
+	base := time.Now().Add(-clockBaseOffset)
 	var elapsed atomic.Int64
 	return func() time.Time { return base.Add(time.Duration(elapsed.Load())) },
 		func(d time.Duration) { elapsed.Store(int64(d)) }
@@ -326,7 +339,7 @@ func TestLocalMitigationSurvivesAConfigApply(t *testing.T) {
 	// local change. This call is the whole of what OnConfigApply does with the
 	// responder.
 	advance(10 * time.Second)
-	second := replaceResponder(&Config{ResponseLevel: responseEnforce, MaxMitigationDuration: 60}, nil, first)
+	second := replaceResponder(&Config{ResponseLevel: responseEnforce, MaxMitigationDuration: 60}, nil, first, true)
 	if active, target := second.status(); !active || target.DstPrefix != floodVictim().DstPrefix {
 		t.Errorf("a config apply left the drop rule in the kernel and the new responder reporting no mitigation: active=%v target=%v", active, target.DstPrefix)
 	}
@@ -364,7 +377,7 @@ func TestLocalClearSurvivesAConfigApply(t *testing.T) {
 		t.Fatal("setup: the install must leave the ddos-local table registered")
 	}
 
-	second := replaceResponder(&Config{ResponseLevel: responseEnforce, MaxMitigationDuration: 0}, nil, first)
+	second := replaceResponder(&Config{ResponseLevel: responseEnforce, MaxMitigationDuration: 0}, nil, first, true)
 	second.onCleared(&ddosevent.AttackCleared{})
 
 	// The kernel is what this asserts, not the snapshot: an orphaning responder
@@ -375,5 +388,133 @@ func TestLocalClearSurvivesAConfigApply(t *testing.T) {
 	}
 	if active, _ := second.status(); active {
 		t.Error("the responder still reports a live mitigation after the clear")
+	}
+}
+
+// TestLocalRemovingTheSectionRemovesTheDrop proves an operator who deletes the
+// `ddos local` config block gets the drop rule out of the kernel.
+//
+// VALIDATES: AC-6's premise -- a drop rule ddos local installs is always
+// reachable by something that can remove it.
+// PREVENTS: the removal carrying the rule into a responder that is about to be
+// discarded. A removed config root has the plugin STOPPED as soon as the reload
+// transaction commits (Server.collectProcessesForRemovedConfigPaths,
+// internal/component/plugin/server/startup_autoload.go), and the plugin is
+// in-process, so the firewall registry it wrote to is the daemon's own and
+// outlives the engine. The nftables drop would then stay in the kernel with no
+// responder to see it and no cap worker left to remove it, for the life of the
+// daemon.
+//
+// The incoming config is `enforce` on purpose. A removed section parses to
+// DefaultConfig, whose response-level is `alert`, so the alert withdraw below
+// would hide this arm and the removal would be handled by accident rather than
+// on purpose (docs/contributing/ze-go-style.md -- a zero value is never an
+// answer).
+func TestLocalRemovingTheSectionRemovesTheDrop(t *testing.T) {
+	withdrawn, restore := withdrawingFirewall()
+	defer restore()
+
+	first := newResponder(&Config{ResponseLevel: responseEnforce, MaxMitigationDuration: 0}, nil)
+	publishResponder(t, first)
+
+	first.onDetected(&ddosevent.AttackDetected{Target: floodVictim(), Family: ddosevent.FamilyUDPFlood})
+	if active, _ := first.status(); !active {
+		t.Fatal("setup: the drop rule must be installed before the removal can lift it")
+	}
+	if withdrawn() {
+		t.Fatal("setup: the install must leave the ddos-local table registered")
+	}
+
+	second := replaceResponder(&Config{ResponseLevel: responseEnforce, MaxMitigationDuration: 0}, nil, first, false)
+
+	// The kernel is what this asserts, not the snapshot: a responder that never
+	// knew about the rule also reports no mitigation, so a status() assertion
+	// would pass over the very orphan this test exists to catch.
+	if !withdrawn() {
+		t.Error("removing the ddos local section left the drop rule installed in the kernel, with the plugin about to stop")
+	}
+	if active, _ := second.status(); active {
+		t.Error("the responder still reports a live mitigation after the section was removed")
+	}
+}
+
+// TestLocalLeavingEnforceRemovesTheDrop proves an operator can stop an on-host
+// drop by committing `response-level alert`.
+//
+// VALIDATES: AC-6's premise across a config apply that turns mitigation off.
+// PREVENTS: adoptMitigation carrying the rule unconditionally. `alert` is the
+// documented "detect and report, do not block" mode (applyMitigation), and
+// neither enforceMaxDuration nor onCleared reads response-level, so a carried
+// rule keeps the victim blackholed until the cap expires -- up to
+// max-mitigation-duration, 3600 by default -- while `show ddos local` reports it
+// as active. Un-blackholing a victim is exactly what an operator switches to
+// alert for.
+func TestLocalLeavingEnforceRemovesTheDrop(t *testing.T) {
+	withdrawn, restore := withdrawingFirewall()
+	defer restore()
+
+	first := newResponder(&Config{ResponseLevel: responseEnforce, MaxMitigationDuration: 0}, nil)
+	publishResponder(t, first)
+
+	first.onDetected(&ddosevent.AttackDetected{Target: floodVictim(), Family: ddosevent.FamilyUDPFlood})
+	if active, _ := first.status(); !active {
+		t.Fatal("setup: the drop rule must be installed before alert mode can lift it")
+	}
+	if withdrawn() {
+		t.Fatal("setup: the install must leave the ddos-local table registered")
+	}
+
+	second := replaceResponder(&Config{ResponseLevel: "alert", MaxMitigationDuration: 0}, nil, first, true)
+
+	if !withdrawn() {
+		t.Error("a commit of response-level alert left the drop rule installed in the kernel")
+	}
+	if active, _ := second.status(); active {
+		t.Error("the alert-mode responder still reports a live mitigation")
+	}
+}
+
+// TestLocalAdoptionTakesOwnershipFromTheOldResponder proves one rule has one
+// owner across a config apply.
+//
+// VALIDATES: AC-6 across a config apply -- the responder that reports a live
+// mitigation is the one that can remove it.
+// PREVENTS: the replaced responder still acting on the rule the new one adopted.
+// The cap worker reads activeResponder, so a tick that loaded the OLD pointer
+// before the swap runs on the old responder afterwards, and an AttackCleared
+// dispatched before unsubscribe does the same. Either would remove the rule from
+// the kernel while the new responder reports it as active, so `show ddos local`
+// would name a drop the box is not enforcing.
+func TestLocalAdoptionTakesOwnershipFromTheOldResponder(t *testing.T) {
+	withdrawn, restore := withdrawingFirewall()
+	defer restore()
+
+	now, advance := movableClock()
+	first := newResponder(&Config{ResponseLevel: responseEnforce, MaxMitigationDuration: 60}, nil)
+	first.now = now
+	publishResponder(t, first)
+
+	first.onDetected(&ddosevent.AttackDetected{Target: floodVictim(), Family: ddosevent.FamilyUDPFlood})
+	if active, _ := first.status(); !active {
+		t.Fatal("setup: the drop rule must be installed before the swap can move it")
+	}
+
+	second := replaceResponder(&Config{ResponseLevel: responseEnforce, MaxMitigationDuration: 60}, nil, first, true)
+
+	// A cap tick that loaded the old pointer before the swap, running after it.
+	advance(61 * time.Second)
+	first.enforceMaxDuration()
+	if withdrawn() {
+		t.Error("a cap tick on the replaced responder removed the rule the new responder now owns")
+	}
+
+	// A clear dispatched before unsubscribe, delivered after the swap.
+	first.onCleared(&ddosevent.AttackCleared{})
+	if withdrawn() {
+		t.Error("a clear still in flight on the replaced responder removed the rule the new responder now owns")
+	}
+
+	if active, _ := second.status(); !active {
+		t.Error("the new responder must still report the mitigation it owns")
 	}
 }

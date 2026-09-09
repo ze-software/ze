@@ -321,6 +321,8 @@ rather than assumed; this one was checked and failed.
 | `ddos local max-mitigation-duration 1` in the daemon config | -> | `runEngine`'s worker -> `(*responder).enforceMaxDuration` -> `removeMitigation` | `test/plugin/ddos-local-max-duration.ci` (LOCAL-CAP-REMOVED) |
 | The plugin's one-second worker tick | -> | `(*responder).enforceMaxDuration` | `TestLocalMaxDurationRemovesTheRule`, driven through the worker `startMaxDurationWorker` returns and never by calling `enforceMaxDuration` directly |
 | `ddosevent.Detected` on the bus | -> | `applyMitigation` -> `setStatus(true, ...)` -> `installedAt` | `TestLocalMaxDurationClockStartsOnTheFirstInstall` |
+| The `ddos local` block deleted and committed | -> | `parseSections` -> `replaceResponder` -> `(*responder).withdrawMitigation` -> the kernel | `test/plugin/ddos-local-config-removed.ci` (CONFIG-REMOVED-WITHDRAWN), `TestLocalRemovingTheSectionRemovesTheDrop` |
+| `ddos local response-level alert` committed while a drop is live | -> | `replaceResponder` -> `(*responder).withdrawMitigation` -> the kernel | `TestLocalLeavingEnforceRemovesTheDrop` |
 
 ## Acceptance Criteria
 
@@ -440,6 +442,15 @@ Added 2026-09-08 for AC-6 through AC-9:
 - `internal/test/fixture/plugin_fixture_05_ddos.go` - the two new fixtures
 - `plan/journal/unwired-feature.md` - the Fix column of the 2026-09-04 row, which names this leaf
 
+Added 2026-09-09, clearing the round 2 review gate:
+
+- `internal/plugins/ddos/local/config.go` - `ParseConfig` reports whether the delivered section carries a `ddos local` body
+- `internal/plugins/ddos/local/register.go` - `parseSections` carries that answer, `pendingConfigured` moves it from verify to apply, and `replaceResponder` withdraws instead of carrying on the two commits that say the box must stop dropping
+- `internal/plugins/ddos/local/responder.go` - `withdrawMitigation` and its two reasons; `adoptMitigation` transfers ownership off the responder it replaces
+- `internal/test/fixture/plugin_fixture_06_ddos_linux.go` - the config-removal driver, and the reload driver's poll order
+- `docs/guide/ddos-mitigation.md` - the commit table, which replaces a paragraph the removal case made false
+- `plan/journal/component-rebuilt-during-reload.md` - two walked-into finds
+
 ## Files to Create
 - `internal/plugins/ddos/detect/interval_test.go`
 - `internal/plugins/ddos/flowspec/announce_limit_test.go`
@@ -449,6 +460,7 @@ Added 2026-09-08 for AC-6 through AC-9:
 - `test/plugin/ddos-announce-rate-limit.ci`
 - `test/plugin/ddos-local-max-duration.ci`
 - `test/plugin/ddos-local-cap-survives-reload.ci`
+- `test/plugin/ddos-local-config-removed.ci`
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -812,7 +824,9 @@ worker stops reaching the cap, and the kernel readback is what catches it.
 | A re-characterizing attack cannot outlive its cap | functional | `TestLocalMaxDurationClockStartsOnTheFirstInstall`, red under discrimination cut 1 with the exact message that names the failure |
 | The worker costs an unattacked box nothing and stops with its owner | resilience | `TestLocalMaxDurationIdleWorkerRemovesNothing` (zero firewall reconciles over many ticks) and `TestLocalMaxDurationWorkerStops` (the worker exits on context cancel) |
 | An operator reaches the cap end to end | functional `.ci` | `test/plugin/ddos-local-max-duration.ci`, RUN in the QEMU guest on ze's runtime kernel: PASS in 9.7s, and FAIL with the drop still installed under the rebuilt cut that stops the worker reaching the cap. Both pasted above |
-| The cap survives an operator's unrelated commit | functional `.ci` | `test/plugin/ddos-local-cap-survives-reload.ci`, RUN in the guest on 2026-09-09: PASS in 24.5s, and FAIL naming the orphaned rule under the rebuilt cut that deletes `adoptMitigation`. Both pasted in the Review Gate |
+| The cap survives an operator's unrelated commit | functional `.ci` | `test/plugin/ddos-local-cap-survives-reload.ci`, RUN in the guest on 2026-09-09: PASS in 24.5s, and FAIL naming the orphaned rule under the rebuilt cut that deletes `adoptMitigation`. Both pasted in the Review Gate. Re-run green at 24.5s after the round 2 changes |
+| A drop rule is never left in the kernel with nothing able to remove it | functional `.ci` | `test/plugin/ddos-local-config-removed.ci`, RUN in the guest on 2026-09-09: PASS in 3.1s, and FAIL under the rebuilt cut that deletes both withdraw arms, naming `table=ze_ddos-local chain=ingress rules=1` still in the kernel 40s after the block was deleted. Both pasted in the Review Gate |
+| An operator can stop an on-host drop by committing `response-level alert` | functional (unit, kernel-read) | `TestLocalLeavingEnforceRemovesTheDrop`: the firewall stub reports the withdraw, not the responder's own snapshot. Red before the arm existed |
 | An operator reaches the announce limit end to end | functional `.ci` | `test/plugin/ddos-announce-rate-limit.ci`, RUN in the guest on 2026-09-09: PASS in 55.5s, and FAIL with a second announcement 18s into the window under the rebuilt limiter cut |
 
 ## Work Not Done
@@ -1085,6 +1099,361 @@ QEMU VM: FAIL (exit code 1)
 finding 3's repair is exercised by the same run. Both cuts were reverted, both
 binaries rebuilt, and `grep -rn MUTATION-APPLIED internal/plugins/ddos internal/test test/`
 returns nothing.
+
+### Round 2 (independent, over commit `4008c0c98`)
+
+Scope: the fixes round 1 drove, and what they newly touched. 1 BLOCKER, 3 ISSUE,
+3 NOTE. Every finding below was read at its producing function.
+
+**Round 1 re-check.** Findings 2, 3, 4, 5 and 6 are fixed as the table above
+records, verified at `runEngine` (`register.go:260-264`), `runWorker`
+(`max_duration_test.go`), `fixture06DDOSAnnounceRateLimit`
+(`internal/test/fixture/plugin_fixture_06_ddos_linux.go`), `(*responder).clock`
+(`responder.go:312-317`) and the 2026-09-04 row in
+`plan/journal/unwired-feature.md`. Finding 1 is fixed for the path it names:
+`newResponder` has exactly ONE non-test caller in the package,
+`replaceResponder` (`register.go:119`), and `activeResponder.Store` has two
+sites, `replaceResponder` and the `defer` in `runEngine`, so no other path
+builds or publishes a responder. The ordering is right: `newResponder` ->
+`adoptMitigation` -> `Store`, so a worker tick cannot observe a constructed but
+unadopted responder.
+
+**Deadline of ISSUE 3, checked at the producer.** `announceLimiter.allow`
+(`internal/plugins/ddos/flowspec/responder.go:188`) is a sliding window over
+`announceWindow`, evicting entries older than `now - 60s`. The window is
+therefore relative to the announce instant, which is the event `spent` takes,
+late by the observation lag and covered by `fixture06AnnounceWindowMargin`. The
+"passes for the wrong reason" arm is closed OUTSIDE the fixture:
+`test/plugin/ddos-announce-rate-limit.ci:156` expects
+`ddos-flowspec: announce-rate-limit reached, not announcing`, which is the
+in-run witness that the responder was ASKED. No finding.
+
+#### 7 (BLOCKER). Removing the `ddos local` config section orphans a live drop rule, with nothing left to bound it
+
+`runEngine` (`internal/plugins/ddos/local/register.go:126`) has no withdraw on
+its return path. Its three defers are `p.Close`, `activeResponder.Store(nil)`
+and the new `cancel(); <-workerExited`. None calls `registerTables(tableName,
+nil)`.
+
+`Server.autoStopForRemovedConfigPaths`
+(`internal/component/plugin/server/startup_autoload.go:406`) stops a plugin
+whose config root was removed, and `ddos-local` declares
+`ConfigRoots: []string{"ddos/local"}`. The plugin is IN-PROCESS
+(`internal/component/plugin/inprocess.go:127` calls `reg.RunEngine`), so it
+shares the daemon's `tableRegistry` (`internal/component/firewall/registry.go`),
+which is keyed by owner name. `firewall.FlushAllTables` runs only from the
+firewall ENGINE's own shutdown (`internal/component/firewall/engine.go:457`),
+not from a plugin stop.
+
+So: an operator removes `ddos { local { ... } }` while a drop is live. The
+engine stops, `ze_ddos-local` stays registered, the nftables drop stays in the
+kernel, the responder is nil and the cap worker has exited. Neither
+`enforceMaxDuration` nor `onCleared` exists to reach it any more. This is the
+round-1 BLOCKER's shape on the sibling path, and it is strictly worse: the
+fixed one left a rule the new responder could not see, this one leaves a rule
+NO responder will ever exist to see.
+
+The sibling plugin names this exact case and handles it: `runEngine`
+(`internal/plugins/copp/register.go:172-177`) states that clean-shutdown
+teardown is central "Config removal while running still withdraws via
+OnConfigApply -> applyCoppPolicy(nil)". `ddos-local` has no equivalent, because
+`parseSections` returns `DefaultConfig()` for a missing section and
+`replaceResponder` then ADOPTS the live rule into a responder that is about to
+be discarded.
+
+The commit's own documentation is made false by it. `docs/guide/ddos-mitigation.md`
+now says "A `commit` that changes any `ddos local` leaf while a drop rule is
+live keeps the rule and its cap." A `commit` that removes the block keeps the
+rule and loses the cap.
+
+Read-verified at the four producing functions above; NOT reproduced at runtime,
+and the reproduction is the next step (a `.ci` shaped like
+`ddos-local-cap-survives-reload.ci` whose reload writes a config with the
+`ddos local` block deleted).
+
+#### 8 (ISSUE). Nothing in this change discriminates the `installedAt` half of the carry
+
+Cut `r.installedAt = installedAt` to `r.installedAt = r.clock()` in
+`(*responder).adoptMitigation` (`responder.go:150`). Both new tests stay GREEN.
+
+`TestLocalMitigationSurvivesAConfigApply` (`max_duration_test.go`) installs at
+T0 with a 60s cap, advances 10s, applies, then advances 61s. Under the cut the
+adopted stamp is T0+10, and T0+71 minus T0+10 is 61s, still past the cap, so
+the rule expires and the test passes. `ddos-local-cap-survives-reload.ci` is the
+same: the reload lands seconds after the install and the probe allows 40s for a
+20s cap, so 20s-from-install and 20s-from-reload are indistinguishable to it.
+
+The test's own `VALIDATES` line says "it counts from the FIRST install", the
+`adoptMitigation` doc comment says "Resetting it would let a box under attack
+renew its own cap on every unrelated commit", and the guide paragraph added in
+this commit says "the cap keeps counting from the FIRST install". Three claims
+wider than any assertion (`ai/rules/evidence.md`).
+
+Fix: advance 51s rather than 61s after the apply. That is 61s from the first
+install and 51s from the apply, so the correct carry expires and the reset
+stamp does not.
+
+#### 9 (ISSUE). The `.ci` probe's orphan arm can false-red on correct code
+
+`fixture06DDOSLocalCapSurvivesReload`
+(`internal/test/fixture/plugin_fixture_06_ddos_linux.go`) polls the kernel
+first and the daemon second:
+
+```go
+live, _, state, stateErr := fixture06DDOSDropState(victim)
+row, showErr := p05ShowMap(ctx, plugin, "show ddos local")
+if live && row["active"] == false { orphan = state; return true }
+```
+
+`(*responder).removeMitigation` (`responder.go:356`) removes the KERNEL rule
+first (`registerTables(tableName, nil)` then `applyAll()`) and publishes
+`setStatus(false, ...)` after. So a cap that fires between the two reads gives
+`live=true, active=false` on correct code, and the probe returns the orphan
+message: "the config apply orphaned the drop ... so neither
+max-mitigation-duration nor an AttackCleared can remove it again". A false red
+under the most alarming wording the fixture owns. The window is one show-RPC
+round trip inside a 250ms poll, and the cap fires exactly once during the
+40s poll, so it is small and real.
+
+Fix: swap the two reads. With `show` read first, correct code's intermediate
+state is `active=true, live=false`, which the orphan arm does not match, and
+the false positive is gone by construction rather than by timing.
+
+#### 10 (ISSUE). The carry keeps a drop rule alive under `response-level alert`
+
+`adoptMitigation` carries `active` unconditionally, and neither
+`enforceMaxDuration` (`responder.go:333`) nor `onCleared` (`responder.go:302`)
+reads `cfg.ResponseLevel`. `alert` is the documented "detect and report, do not
+block" mode (`applyMitigation`, `responder.go:189`).
+
+So an operator who switches `response-level enforce` to `alert` mid-incident,
+which is what an operator does to un-blackhole a victim, keeps the drop in the
+kernel until the cap expires: up to `max-mitigation-duration`, whose default is
+3600. `show ddos local` reports it as active the whole time, so the operator can
+see it and cannot make it stop.
+
+This is better than the pre-fix behavior, where the rule persisted forever
+invisibly. It is still the wrong answer to an explicit operator instruction, it
+is new code deciding it, and no test and no doc line covers it. The repair is in
+`replaceResponder`: adopt when the new `cfg.ResponseLevel` is `responseEnforce`,
+and withdraw through the outgoing responder when it is not.
+
+#### 11 (NOTE). A live tick on the outgoing responder can make the new one over-report
+
+`adoptMitigation` reads `prev` under `prev.mu` and returns; `replaceResponder`
+publishes with `activeResponder.Store(r)` afterwards. Between those two,
+`activeResponder` still points at `prev`, so the cap worker can tick on `prev`
+and remove the rule, and an `onCleared` dispatched before `unsubscribe()` can do
+the same. The new responder is then published with `active=true` over a kernel
+with no rule.
+
+It over-reports and never under-reports, so it cannot orphan anything: with a
+cap set the next tick removes nothing and clears the status within a second.
+With `max-mitigation-duration 0` it persists until the next attack cycle, and
+`show ddos local` names a drop that is not installed. Closing it costs one line:
+take `prev.mu` across the `Store` rather than releasing it first.
+
+#### 12 (NOTE). The `<-workerExited` wait states no bound
+
+`runEngine` (`register.go:261-264`) waits with no deadline. The bound is real
+but transitive: a tick in flight sits in `enforceMaxDuration` ->
+`removeMitigation` -> `applyAll`, which takes the process-wide `reconcileMu`
+(`internal/component/firewall/registry.go:85`) behind
+`firewall.MaxBackendDeadline`, 60 seconds
+(`internal/component/firewall/backend.go`). Worst case is one queued reconcile
+per firewall owner. The comment says why the wait is owed and not what bounds
+it, which `docs/contributing/ze-go-style.md` "A limit on everything" asks for in
+one sentence.
+
+#### 13 (NOTE). `adoptMitigation` re-opens the write path round 1's NOTE 4 closed
+
+Round 1 deleted the `r.now == nil` branch in `clock` on the ground that
+"newResponder is the only constructor and always sets it". `adoptMitigation`
+now writes `r.now = now` from `prev` with no check, so `now` is settable from
+outside the constructor and a nil `prev.now` would propagate to a `clock()` with
+no guard. No caller can produce it today, since `prev` always comes from
+`newResponder`. In production the copy is also a no-op, because both sides hold
+`time.Now`: it is observable only through a test double. Worth one line on the
+field comment saying `adoptMitigation` is the second writer and what keeps it
+non-nil.
+
+#### Round 2 disposition
+
+Every finding was re-verified at its producing function before any edit. The two
+findings whose diagnosis did not survive that check are marked, with what the
+producer actually says.
+
+| # | Severity | Status |
+|---|----------|--------|
+| 7 | BLOCKER | reproduced AT RUNTIME, FIXED. `replaceResponder` withdraws through the OUTGOING responder when the delivered config no longer carries a `ddos local` section. `test/plugin/ddos-local-config-removed.ci` is red in the guest with the withdraw cut, naming the rule left in the kernel, and green with it. The mechanism is NOT the one the finding names: the removal DOES reach the plugin, as an empty body for the removed root |
+| 8 | ISSUE | reproduced, FIXED, and the proposed repair would have been wrong. `movableClock` based its clock on `time.Now()`, which is what made the carry undiscriminated; `advance` stores absolutely, so advancing 51s rather than 61s would have failed the test against CORRECT code. The base is now an hour behind the wall clock and both reset cuts go red |
+| 9 | ISSUE | reproduced by source, FIXED. `fixture06DDOSLocalCapSurvivesReload` reads the daemon first and the kernel second, so correct code's intermediate state matches neither arm |
+| 10 | ISSUE | reproduced, FIXED. A commit that leaves `enforce` withdraws through the outgoing responder, with its own log line. `TestLocalLeavingEnforceRemovesTheDrop` reads the withdraw out of the firewall |
+| 11 | NOTE | reproduced, FIXED, and the proposed one-line repair does not close it. Holding `prev.mu` across the `Store` only DELAYS the late tick: it still finds `prev.active` true and still removes the rule. Adoption now TRANSFERS ownership, so both removal paths on `prev` return on `!active`. `TestLocalAdoptionTakesOwnershipFromTheOldResponder` |
+| 12 | NOTE | FIXED. The `<-workerExited` comment names the bound: `applyAll` takes the process-wide `reconcileMu` and every backend operation under it runs under `firewall.MaxBackendDeadline`, 60 seconds, so the worst case is one queued reconcile for each firewall owner |
+| 13 | NOTE | FIXED. The `now` field's comment names `adoptMitigation` as its second writer and says the copy comes from a `prev` that `newResponder` built, so the non-nil invariant survives it |
+
+**Finding 7's mechanism, corrected at the producer.** The finding says
+`runEngine` returns with no withdraw and that no config-apply reaches the plugin.
+The first half is true and the second is not, for the case it describes.
+`(*Server).reloadConfig` (`internal/component/plugin/server/reload.go`) puts
+ddos-local in `affected` because `rootHasChanges` matches the removed
+`ddos/local` key, and `ExtractConfigSubtree` returns nil for a root the new tree
+no longer holds, so the plugin receives `{Root: "ddos/local", Data: "{}"}` and
+runs verify and apply over it BEFORE `stopCollectedProcesses` stops it. What
+`ParseConfig` then did was read that empty body as DefaultConfig and report
+nothing unusual, so `replaceResponder` adopted the live rule into a responder the
+next line discarded. The fix is therefore at the config boundary, which is where
+the sibling plugin puts it, and not on the engine's exit path.
+
+**Why the withdrawal is on the section and not on the response-level.** A removed
+section parses to `DefaultConfig`, whose `response-level` is `alert`, so finding
+10's withdraw would have covered finding 7 by accident. That is the shape
+`docs/contributing/ze-go-style.md` names as the sharpest zero-value failure: a
+test asking WHICH value to use also answering WHETHER the action is permitted,
+until a legitimate value arrives and the guard vanishes with no line deleted and
+no test red. `ParseConfig` now reports whether the section was present, and each
+withdrawal has its own arm, its own reason and its own test.
+
+**Two finds, journalled and not fixed here** (`ai/rules/rule-precedence.md`), both
+as rows in `plan/journal/component-rebuilt-during-reload.md` dated 2026-09-09:
+
+- `copp` has the defect it was cited as the cure for. `OnConfigApply` returns
+  early on `newPolicy == nil`, and `nil` means both "nothing staged" and "the
+  section is gone", so deleting `control-plane-protection` leaves copp's table in
+  the kernel. The comment at the tail of `runCoppPlugin` states the opposite.
+  `internal/plugins/copp/**` was read-only for this work.
+- Deleting a PARENT block stops a child-root plugin without telling it.
+  `diffMapsRecursive` records one removed key for a whole subtree, so removing
+  `ddos { ... }` entire puts only `ddos` in `diff.Removed`; `rootHasChanges` does
+  not match an ancestor, so ddos-local is not in `affected` and gets no apply,
+  while `parentRemoved` still stops it. The producer is `internal/component/**`,
+  outside this work's file scope.
+
+**Measured while proving finding 7, and it is why the `.ci` carries a copp
+block.** ddos-local declares `firewall` as a dependency, so stopping ddos-local
+leaves firewall with no dependents and the reload stops it too
+(`Server.collectOrphanedDependencies`). The firewall engine flushes every
+ze-owned table on its own clean shutdown, which removes the orphaned drop by
+accident. The first guest run of the new `.ci` therefore PASSED against code that
+withdraws nothing, and only the log-line expectation failed. A
+`control-plane-protection` block keeps a second dependent on firewall, which is
+what a real box has, and the orphan is then left where an operator meets it.
+
+### Round 2 TDD evidence
+
+**RED, finding 8, under the cut that re-stamps `installedAt` at adoption, with
+the clock base still `time.Now()`.** Both tests stayed GREEN, which is the
+finding reproduced:
+
+```
+=== RUN   TestLocalMitigationSurvivesAConfigApply
+--- PASS: TestLocalMitigationSurvivesAConfigApply (0.00s)
+=== RUN   TestLocalClearSurvivesAConfigApply
+--- PASS: TestLocalClearSurvivesAConfigApply (0.00s)
+ok  	github.com/ze-software/ze/internal/plugins/ddos/local	0.437s
+```
+
+**RED, finding 8, with the clock base an hour behind the wall clock.** Both cut
+ORDERS are shown, because they stamp from different clocks: `r.installedAt =
+r.clock()` written after `r.now = prev.now` reads the carried clock, and written
+before it reads the real one. Each was applied on its own and each is red:
+
+```
+=== RUN   TestLocalMitigationSurvivesAConfigApply
+    max_duration_test.go:354: the cap never fired after a config apply: the drop rule outlived max-mitigation-duration with the flood still running
+--- FAIL: TestLocalMitigationSurvivesAConfigApply (2.00s)
+FAIL	github.com/ze-software/ze/internal/plugins/ddos/local	2.419s
+```
+
+**RED, findings 7, 10 and 11, before the fix.** `replaceResponder` had taken its
+new `configured` parameter and ignored it, so this is behavioral rather than a
+build failure:
+
+```
+=== RUN   TestLocalRemovingTheSectionRemovesTheDrop
+    max_duration_test.go:434: removing the ddos local section left the drop rule installed in the kernel, with the plugin about to stop
+    max_duration_test.go:437: the responder still reports a live mitigation after the section was removed
+--- FAIL: TestLocalRemovingTheSectionRemovesTheDrop (0.00s)
+=== RUN   TestLocalLeavingEnforceRemovesTheDrop
+    max_duration_test.go:470: a commit of response-level alert left the drop rule installed in the kernel
+    max_duration_test.go:473: the alert-mode responder still reports a live mitigation
+--- FAIL: TestLocalLeavingEnforceRemovesTheDrop (0.00s)
+=== RUN   TestLocalAdoptionTakesOwnershipFromTheOldResponder
+INFO ddos-local: max-mitigation-duration reached, removing the drop rule target=10.0.0.1/32 seconds=60
+    max_duration_test.go:508: a cap tick on the replaced responder removed the rule the new responder now owns
+    max_duration_test.go:514: a clear still in flight on the replaced responder removed the rule the new responder now owns
+--- FAIL: TestLocalAdoptionTakesOwnershipFromTheOldResponder (0.00s)
+FAIL	github.com/ze-software/ze/internal/plugins/ddos/local	0.620s
+```
+
+**GREEN, all eighteen `TestLocal*` cases at `-race -count=3`:**
+
+```
+      3 --- PASS: TestLocalAdoptionTakesOwnershipFromTheOldResponder (0.00s)
+      3 --- PASS: TestLocalClearSurvivesAConfigApply (0.00s)
+      3 --- PASS: TestLocalLeavingEnforceRemovesTheDrop (0.00s)
+      3 --- PASS: TestLocalMitigationSurvivesAConfigApply (0.00s)
+      3 --- PASS: TestLocalRemovingTheSectionRemovesTheDrop (0.00s)
+      1 ok  	github.com/ze-software/ze/internal/plugins/ddos/local	2.146s
+```
+
+### The config-removal proof, run in the QEMU guest (2026-09-09)
+
+`test/plugin/ddos-local-config-removed.ci` was RUN on ze's runtime kernel,
+through `./le qemu run kernel tmp/kernel/build/vmlinuz packages "iproute2 libcap"`
+with the guest-side `ze-test bgp plugin ddos-local-config-removed`. The probe
+installs a drop under an unbroken flood, commits a config with the `ddos local`
+block deleted, and reads the kernel back. The cap is 3600 and the flood never
+stops, so neither the cap nor an `AttackCleared` can account for a removal.
+
+**RED, under the cut that deletes both withdraw arms from `replaceResponder`,
+which is byte-for-byte what the apply did before this work, with the guest binary
+REBUILT so the cut reached the daemon:**
+
+```
+48.2s    1/1  FAIL  223  ddos-local-config-removed
+INFO ddos-local: drop rule installed  target=127.0.0.11/32 hook=ingress phase=detected
+WARN CONFIG-REMOVED-INSTALLED 127.0.0.11 (sent 32000)
+INFO ddos-local: reconfigured  response-level=alert forward-mitigation=false
+INFO ddos-local plugin stopped
+WARN plugin exited and is not to be started again, so ze continues without it  plugin=ddos-local
+ERROR ZE-OBSERVER-FAIL: deleting the ddos local config block left the drop for 127.0.0.11 in the
+  kernel 40s later, under a flood that never stopped and a cap of 3600 seconds: the plugin that
+  installed it is stopped, so no responder and no cap worker is left to remove it and the box
+  blackholes the victim for the life of the daemon (sent 672000 packets):
+table=ze_ddos-local chain=ingress rules=1
+QEMU VM: FAIL (exit code 1)
+```
+
+The `ddos-local plugin stopped` line between the install and the failure is what
+says the removal really landed, so the red is the orphan and not a reload that
+never ran.
+
+**GREEN, with the withdraw:**
+
+```
+3.1s     1/1  PASS  223  ddos-local-config-removed
+pass  1/1  100.0%  3.1s
+QEMU VM: PASS
+```
+
+**The two sibling `.ci` tests were re-run in the guest against the same binaries,
+because the ownership transfer and the alert withdraw are on their path too:**
+
+```
+24.5s    1/1  PASS  222  ddos-local-cap-survives-reload
+9.5s     1/1  PASS  224  ddos-local-max-duration
+```
+
+All three green runs above are against binaries built from the FINAL code,
+rebuilt after the withdrawal and the carry were folded into one critical section
+over `prev.mu`.
+
+The cut was reverted, both guest binaries rebuilt, and
+`grep -rn MUTATION-APPLIED internal/plugins/ddos internal/test test/` returns
+nothing.
+
 
 ## RFC Documentation (Scope: protocol)
 

@@ -43,7 +43,7 @@ func deliverSection(t *testing.T, text string) *Config {
 		t.Fatalf("marshal subtree: %v", err)
 	}
 	t.Logf("delivered section for %s: %s", configRoot, data)
-	cfg, err := ParseConfig(string(data))
+	cfg, _, err := ParseConfig(string(data))
 	if err != nil {
 		t.Fatalf("ParseConfig(%s): %v", data, err)
 	}
@@ -153,7 +153,7 @@ func TestForwardMitigationReloadSelectsPlugin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	cfg, err := ParseConfig(string(data))
+	cfg, _, err := ParseConfig(string(data))
 	if err != nil {
 		t.Fatalf("ParseConfig(%s): %v", data, err)
 	}

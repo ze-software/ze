@@ -44,9 +44,11 @@ type responder struct {
 	bus eventBus
 	// active and target are guarded by mu. setStatus is their ONLY writer once
 	// this responder is live, in production and in tests: it is what keeps
-	// `published` in step with them. adoptMitigation seeds them, with installedAt
-	// and the clock beside them, from the responder a config apply replaces, and
-	// it runs before this one is published.
+	// `published` in step with them. adoptMitigation is the exception at both
+	// ends of a config apply: it seeds them here, with installedAt and the clock
+	// beside them, from the responder the apply replaces, and it clears them on
+	// that responder, which is how ownership of one rule stays with one
+	// responder. It runs before this one is published.
 	active bool
 	target ddosevent.VectorTuple
 	// installedAt is when the live drop rule went in, and now is the clock that
@@ -54,7 +56,10 @@ type responder struct {
 	// cfg.MaxMitigationDuration. setStatus writes installedAt on the transition
 	// into a live rule, so a refresh cannot restart the cap. now is a field so a
 	// test can move time without sleeping; newResponder MUST set it, and does,
-	// so clock() never has to answer for a nil.
+	// so clock() never has to answer for a nil. adoptMitigation is the second
+	// writer of now, and it copies prev.now, which newResponder set on prev: the
+	// invariant survives the copy because every responder in the chain came from
+	// that constructor.
 	installedAt time.Time
 	now         func() time.Time
 	// published mirrors {active, target} for readers that must not wait on mu.
@@ -109,8 +114,8 @@ func (r *responder) setStatus(active bool, target ddosevent.VectorTuple) {
 }
 
 // adoptMitigation carries a live drop rule from the responder a config apply
-// replaces into the one that replaces it, so the new responder can remove what
-// the old one installed.
+// replaces into the one that replaces it, and leaves prev owning nothing, so the
+// rule has exactly one owner at every instant.
 //
 // Without it a config apply orphans the rule. The firewall registry is keyed by
 // table name rather than by responder, so the kernel keeps the drop while the
@@ -124,32 +129,66 @@ func (r *responder) setStatus(active bool, target ddosevent.VectorTuple) {
 // from here, so a reload that shortens max-mitigation-duration applies the
 // shorter cap to the rule already installed.
 //
-// Caller MUST call this before the new responder is published, and on a
-// responder that has installed nothing of its own. prev MAY be nil and MAY be
-// idle, which are the first configure and the common case.
+// Caller MUST call this before the new responder is published, on a responder
+// that has installed nothing of its own, and MUST hold prev.mu from before this
+// call until after the publish. The cap worker reads activeResponder, so a tick
+// that loaded the old pointer before the swap runs on prev after it, and an
+// AttackCleared dispatched before unsubscribe does the same; the lock holds both
+// off until prev has stopped owning the rule, after which both find !active and
+// return. replaceResponder (register.go) is the one caller. prev MAY be nil and
+// MAY be idle, which are the first configure and the common case; a nil prev
+// needs no lock.
 func (r *responder) adoptMitigation(prev *responder) {
 	if prev == nil {
 		return
 	}
-
-	prev.mu.Lock()
-	active, target, installedAt, now := prev.active, prev.target, prev.installedAt, prev.now
-	prev.mu.Unlock()
-
-	if !active {
+	if !prev.active {
 		return
 	}
 
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	// Written here rather than through setStatus: setStatus stamps installedAt
 	// with the current clock on the transition into a live rule, which is right
 	// for an install this responder performs and wrong for one it inherits.
 	r.active = true
-	r.target = target
-	r.installedAt = installedAt
-	r.now = now
-	r.published.Store(&mitigationStatus{active: true, target: target})
+	r.target = prev.target
+	r.installedAt = prev.installedAt
+	r.now = prev.now
+	r.published.Store(&mitigationStatus{active: true, target: prev.target})
+	r.mu.Unlock()
+
+	// Ownership has moved, so prev stops claiming the rule. Both of its removal
+	// paths return on !active, which is what keeps a late tick or a late clear
+	// from taking out of the kernel a rule r has just published as live.
+	prev.active = false
+	prev.published.Store(&mitigationStatus{})
+}
+
+// withdrawReason is the whole log line a config-driven withdrawal writes. It is
+// a constant rather than a phrase assembled at the call site, so each outcome
+// has one stable string an operator can grep back to the commit that caused it
+// (ai/rules/cli.md).
+type withdrawReason string
+
+const (
+	withdrawSectionRemoved withdrawReason = "ddos-local: the ddos local section was removed, removing the drop rule"
+	withdrawNotEnforcing   withdrawReason = "ddos-local: response-level left enforce, removing the drop rule"
+)
+
+// withdrawMitigation removes the drop rule this responder installed because the
+// operator's new config says the box must stop dropping. A no-op when no rule is
+// installed. Caller holds r.mu, as applyMitigation and removeMitigation do.
+//
+// It is the removal path for a config apply, beside enforceMaxDuration for the
+// cap and onCleared for the attack ending. replaceResponder (register.go) is its
+// one caller, and it calls it on the OUTGOING responder: the incoming one has
+// installed nothing, and its own removal paths return on !active.
+func (r *responder) withdrawMitigation(reason withdrawReason) {
+	if !r.active {
+		return
+	}
+	logger().Info(string(reason), "target", r.target.DstPrefix)
+	r.removeMitigation()
 }
 
 // onDetected installs the fast coarse drop for the victim (all traffic to the
