@@ -110,8 +110,16 @@ unregistered access (<code>env.MustRegister()</code>).</p>
 <td>Details for a single environment variable</td>
 </tr>
 <tr>
-<td><code>ze show plugins</code></td>
+<td><code>ze show plugin list</code></td>
 <td>All registered plugins with families, RFCs, and capability codes</td>
+</tr>
+<tr>
+<td><code>ze show plugin declarations</code></td>
+<td>One row for each plugin, with the state that says whether its declaration was read</td>
+</tr>
+<tr>
+<td><code>ze show plugin declarations config &lt;path&gt;</code></td>
+<td>The same, plus a row for each plugin that config file names</td>
 </tr>
 <tr>
 <td><code>ze help command [filter]</code></td>
@@ -131,16 +139,74 @@ unregistered access (<code>env.MustRegister()</code>).</p>
 </tr>
 </tbody>
 </table>
-<p>One registration is out of reach of both catalogs. <code>ze help command --json</code> and
-<code>./le command list</code> read the compiled command tree in their own process, and
-they start no plugin. Neither reports a pipe alias a plugin declared in its
-Stage 1 message. The running daemon answers that question, through
-<code>command help "&lt;name&gt;"</code> and through Tab completion in the interactive session.
-The wiki catalog built from the JSON therefore lists a plugin's commands without
-its aliases. That answer carries a command's two help texts under <code>description</code>
-(the one-line summary) and <code>long-help</code> (the explanation), for a builtin and for
-a plugin command alike.</p>
+<p>An in-tree plugin's declarations are in reach of both catalogs. <code>ze help command --json</code> and <code>./le command list</code> read the compiled command tree in their own
+process and start no plugin, but a registered plugin puts the same declarations
+on its <code>registry.Registration</code>: <code>Commands</code> for what each answer holds and
+<code>Pipes</code> for the aliases it puts on its commands. So both catalogs name every
+plugin command and publish its <code>answer-shape</code>, <code>column-orders</code>,
+<code>address-fields</code> and <code>pipe-aliases</code>. A command the plugin marks hidden is left
+out of both, the way the daemon leaves it out of completion.</p>
+<p>One registration is still out of their reach: an EXTERNAL plugin's. It registers
+nothing in the composition root, so its declaration reaches a running daemon
+alone, through <code>show command help "&lt;name&gt;"</code> and Tab completion in the
+interactive session. That answer carries a command's two help texts under
+<code>description</code> (the one-line summary) and <code>long-help</code> (the explanation), for a
+builtin and for a plugin command alike.</p>
+<p><code>ze show plugin declarations</code> closes that last gap. One row for each plugin
+this binary carries, one for each plugin the named config file declares, and no
+plugin omitted. The plugins this binary carries are the set <code>ze show plugin list</code> answers for, so a plugin whose own <code>init()</code> recorded a setup outcome and
+never completed its registration keeps a row in both commands.</p>
+<p>The config block decides where a row's declaration comes from, because the
+block says which binary holds the plugin's code. An <code>internal</code> block names code
+this binary carries, so the row is answered from the compiled-in
+<code>registry.Registration</code> and no process is started. An <code>external</code> block names
+another program, whatever name the block gives it, so the row is answered by
+starting that program in query mode (<code>ZE_PLUGIN_MODE=declare</code>), with every
+<code>ze.plugin.</code> variable removed from the child's environment, and reading the
+declaration it writes to stdout. A block reading <code>external mrt { run "/opt/vendor/my-mrt" }</code> is a vendor's program that took a name Ze also uses,
+and it answers for itself. Anything else the child writes is ignored, so a
+banner or a log line cannot corrupt the answer.</p>
+<p>The state field carries one of five values, so absence never stands in for an
+answer:</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>declared</code></td>
+<td>an answer arrived carrying declarations</td>
+</tr>
+<tr>
+<td><code>declared-none</code></td>
+<td>an answer arrived carrying an empty declaration</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td>the process ran and wrote no declaration, which is what a plugin with no query mode in it does</td>
+</tr>
+<tr>
+<td><code>unstartable</code></td>
+<td>the process could not be started</td>
+</tr>
+<tr>
+<td><code>timeout</code></td>
+<td>the process started, wrote no declaration inside the budget, and was stopped</td>
+</tr>
+</tbody>
+</table>
+<p>The budget is 5 seconds, the same wait a startup stage gets, and
+<code>ze.plugin.query.timeout</code> sets it. A value of zero or less is refused rather
+than read as "wait no time". A plugin that runs out of the budget is stopped
+with everything it started: the run string is given to a shell, and a shell
+that runs more than one command holds the plugin as its own child.</p>
+<!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, queriedDeclarationRow -->
+<!-- source: internal/component/config/register_plugin_declarations.go -- readConfiguredPlugins -->
 <!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
+<!-- source: internal/component/command/declared.go -- DeclaredForCommand -->
 <!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp -->
 <h2 id="build-time-verification">Build-Time Verification</h2>
 <table>
@@ -224,7 +290,7 @@ completion, schema discovery, inventory, and environment variable listing. No ma
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
+                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
                 </div>
             </div>
         </footer>

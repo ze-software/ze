@@ -28,13 +28,22 @@ test/interop-pppoe/
   Dockerfile.accel     accel-ppp access-concentrator image
   Dockerfile.client    pppd and rp-pppoe client image
   scenarios/
-    01-pppoe-chap-ipv4/    Ze client, accel-ppp concentrator
-    02-ze-ac-pppd-client/   Ze concentrator, pppd client
+    01-pppoe-chap-ipv4/         Ze client, accel-ppp concentrator
+    02-ze-ac-pppd-client/       Ze concentrator, pppd client
+    pppoe-empty-service-name/  Ze concentrator, pppd client, no service-name configured
+    pppoe-padr-replay/         Ze concentrator, pppd client, max-sessions-per-mac 1
+    ipv6cp-zero-identifier/    Ze concentrator, pppd client offering a zero IPv6CP identifier
+    ipv6cp-missing-option/     Ze concentrator, pppd client whose IPv6CP request carries no identifier option
 internal/le/interoplab/pppoe/
   pppoe.go             Native images, preflight, selection, and lifecycle
   scenarios.go         Role-selected container plans and mounts
   check_client.go      Ze client assertions
   check_ac.go          Ze access-concentrator assertions
+  check_service_name.go  pppoe-empty-service-name: wire-level Service-Name proof
+  check_padr_replay.go   pppoe-padr-replay: wire-level replay and per-MAC cap proof
+  check_ipv6cp.go        ipv6cp-zero-identifier, ipv6cp-missing-option: wire-level
+                         IPv6CP proof, BLOCKED until plan/spec-l2tp-ipv6-subscriber.md
+                         lands (see the file's own header comment)
 ```
 
 The Dockerfiles keep their small amount of peer initialisation in the image
@@ -59,7 +68,17 @@ machine. The QEMU action remains available for a host where the probe refuses.
 ./le deployment docker-pppoe-accel-test
 ZE_PPPOE_INTEROP_SCENARIO=01-pppoe-chap-ipv4 ./le deployment docker-pppoe-accel-test
 ZE_PPPOE_INTEROP_SCENARIO=02-ze-ac-pppd-client ./le deployment docker-pppoe-accel-test
+ZE_PPPOE_INTEROP_SCENARIO=pppoe-empty-service-name ./le deployment docker-pppoe-accel-test
+ZE_PPPOE_INTEROP_SCENARIO=pppoe-padr-replay ./le deployment docker-pppoe-accel-test
+ZE_PPPOE_INTEROP_SCENARIO=ipv6cp-zero-identifier ./le deployment docker-pppoe-accel-test
+ZE_PPPOE_INTEROP_SCENARIO=ipv6cp-missing-option ./le deployment docker-pppoe-accel-test
 ```
+
+`01-pppoe-chap-ipv4` and `02-ze-ac-pppd-client` predate the naming rule and keep
+their numeric prefixes. A scenario added since carries none:
+`interoplab.Discover` and `ZE_PPPOE_INTEROP_SCENARIO` both match a scenario by
+its directory name, and a number is a reservation a later scenario can take, or
+a hole nothing tells apart from one (`ai/rules/interop-and-goal-validation.md`).
 
 `NO_BUILD` skips image builds, `SESSION_TIMEOUT` changes the default 90-second
 scenario bound, and `ZE_PPPOE_INTEROP_SUFFIX` provides parallel-run isolation.
@@ -92,11 +111,55 @@ with Ze's REST session table. It then requires PADT and empty state before
 repeating the dial with `wrong-secret`; the second trace must reach CHAP and
 receive a refusal without creating a session.
 
+### pppoe-empty-service-name
+
+Ze's AC carries no `service-name` leaf. The independent pppd client dials with
+no requested service (RFC 2516 Section 5.1's "any service is acceptable"). The
+checker captures the discovery exchange on the wire (tcpdump inside the client
+container, decoded with `internal/core/pcap` and
+`internal/component/l2tp/pppoe.ParseDiscovery`) and requires exactly one
+Service-Name tag on the PADO and exactly one on the PADS, alongside the same
+LCP/CHAP/IPCP proof `02-ze-ac-pppd-client` performs. A session coming up is not
+enough evidence here: the unit tests already pin `BuildPADO`/`BuildPADS` always
+writing one tag, so this scenario's job is proving a real peer reads the same
+bytes off Ze's own wire, not proving the encoder again.
+
+### pppoe-padr-replay
+
+Ze's AC carries `max-sessions-per-mac 1`. The checker dials one session with the
+independent pppd client, waits until it is live in PPP, then replays the exact
+captured PADR frame from inside the client container's own network namespace
+(`interoplab.SendFrameInNamespace`, the same AF_PACKET/netns mechanism the BGP
+lab's IS-IS purge injector uses). It requires the PADS that replay provokes to
+carry the SAME session id, never a second one. It then dials a second,
+genuinely independent session from the same MAC and requires the PADS it
+provokes to carry session id `0x0000` and an AC-System-Error tag, read off the
+captured frame -- a session count that stayed at one is not enough evidence on
+its own for either claim (`ai/rules/interop-and-goal-validation.md`, "Prove a
+scenario discriminates"). `spec-pppoe-padr-replay-allocates-unbounded-sessions`.
+
+### ipv6cp-zero-identifier and ipv6cp-missing-option
+
+Written and registered against RFC 5072 Section 4.1's zero-identifier Nak
+and its missing-option one-shot Nak, driven by a real pppd 2.5.1 client and
+read off the wire (`check_ipv6cp.go`), the same shape `pppoe-padr-replay`
+established. **Neither can pass today.** `poolPlugin.handle`
+(`internal/component/l2tp/plugins/pool/register.go`) answers every
+`EventIPRequest` whose family is not IPv4 with `Accept: false`, and
+`runNCPPhase` (`internal/component/l2tp/ppp/ncp.go`) reads that decline
+before the session reads a single client frame, so Ze's IPv6CP FSM never
+starts, on any configuration. Both scenarios run against pppd 2.5.1 only: this
+lab's client image carries pppd and rp-pppoe, and accel-ppp-as-client is not a
+role its images support. Both checkers return a citing error at the first
+missing wire evidence rather than passing vacuously.
+`plan/spec-l2tp-ipv6-subscriber.md` is what switches them on.
+
 ## Relationship to other evidence
 
 | Evidence | Ze role | Independent peer | Kernel PPPoE |
 |----------|---------|------------------|--------------|
 | `test/pppoe/pppoe-basic.ci` | Access concentrator | Functional fixture | No |
 | `test/pppoe/pppoe-vlan.ci` | Access concentrator on VLAN | Functional fixture | No |
+| `test/pppoe/pppoe-service-name.ci` | Access concentrator | Functional fixture | No (`option=netns-link`, `./le qemu pppoe-test`) |
 | `./le deployment docker-pppoe-accel-test` | Client and access concentrator | accel-ppp and pppd | Host kernel |
 | `./le qemu pppoe-accel-test` | Client | accel-ppp | Runtime kernel |

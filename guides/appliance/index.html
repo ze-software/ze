@@ -427,6 +427,8 @@ fill <code>/perm</code>.</p>
 <h3 id="internal-plugins-only">Internal plugins only</h3>
 <p>Gokrazy has no shell and no PATH. Ze's external plugin mechanism (which uses <code>/bin/sh -c</code> to fork processes) does not work. All Ze plugins (bgp-rib, bgp-gr, bgp-adj-rib-in, etc.) are compiled into the ze binary as internal plugins and run as goroutines. This is the default and covers all standard BGP functionality.</p>
 <!-- source: internal/component/plugin/process/process.go -- startExternal uses /bin/sh -->
+<p>A config that names an <code>external</code> plugin anyway is reported: <code>ze doctor</code> raises <code>doctor-plugin-shell-missing</code>, naming the absent shell and the plugins that depend on it, and a start that reaches the fork names the shell rather than the plugin.</p>
+<!-- source: internal/component/plugin/doctor/check_shell.go -- diagnosePluginShell -->
 <h3 id="process-supervision">Process supervision</h3>
 <p>Gokrazy's init restarts Ze if it exits with a non-zero status (except 125, which means "don't restart"). Ze handles SIGTERM for graceful shutdown. Logs (stdout/stderr) are captured in ring buffers visible through the gokrazy web UI.</p>
 <h3 id="persistent-storage">Persistent storage</h3>
@@ -979,7 +981,7 @@ config was saved. If the window completes, the active config hash is written to
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
                 </div>
             </div>
         </footer>

@@ -9,6 +9,10 @@ sessions`, `show bfd session <peer>`, `show bfd profile`, Prometheus
 `bgp peer connection` block opens a per-peer BFD session on
 Established and tears the BGP session down with RFC 9384 Cease
 subcode 10 ("BFD Down") when BFD reports the forwarding path lost.
+Adding `strict true` to that block runs
+`draft-ietf-idr-bgp-bfd-strict-mode` instead: capability 74 is
+negotiated, the BFD session opens before the BGP FSM starts, and the
+BGP session is held out of Established until BFD is Up.
 <!-- source: internal/component/bfd/bfd.go — runtimeState, loopFor, newUDPTransport, pluginService -->
 <!-- source: internal/component/bfd/api/registry.go — SetService, GetService -->
 <!-- source: internal/component/bfd/engine/loop.go — passesTTLGate, tick jitter -->
@@ -260,6 +264,87 @@ TTL below the configured value are discarded. Choose `min-ttl` to be
 `256 - max-hops`; for example, `min-ttl 250` allows the packet to
 cross up to 5 hops. `min-ttl` must be non-zero for multi-hop; the
 parser rejects zero at config-validate time.
+
+### Strict mode
+
+Plain BFD is a failure detector. It opens after the BGP session is up, so a
+peer whose control plane answers while its forwarding path is broken still
+establishes BGP and blackholes traffic until something else notices.
+
+Strict mode closes that window. It is
+`draft-ietf-idr-bgp-bfd-strict-mode`, and it holds the BGP session out of
+Established until the BFD session to that neighbour is Up.
+
+```
+bgp {
+    peer peer1 {
+        connection {
+            local  { ip 192.0.2.1 }
+            remote { ip 192.0.2.2 }
+            bfd {
+                enabled   true
+                mode      single-hop
+                profile   fast-link
+                strict    true
+                hold-time 30
+            }
+        }
+    }
+}
+```
+
+`strict true` does three things.
+
+| What | Detail |
+|------|--------|
+| Advertises capability 74 | The BFD Strict-Mode Capability, code 74, length 0, in every OPEN. Draft Section 6 makes this a MUST for a speaker with strict mode enabled |
+| Opens the BFD session early | Before the BGP FSM starts, and keeps it open while BGP is down. Draft Section 7 asks for both, so the BFD handshake is not serialized behind the BGP one |
+| Holds the session in OpenSent | When the peer's OPEN arrives and BFD is not yet Up, Ze withholds its KEEPALIVE and waits. `show bgp peer list` and `show bgp peer detail` carry a `bfd-sub-state` field while it does |
+
+A fourth leaf, `hold-down`, is optional and described below.
+
+**Both speakers must advertise it.** Against a peer whose OPEN carries no
+capability 74, Ze establishes on the normal path and BFD stays a failure
+detector. That is deliberate: a one-sided strict mode is a session that never
+comes up.
+
+`hold-time` bounds the wait, and only when the negotiated BGP hold time is
+zero. A non-zero BGP hold time already bounds it, so the timer does not run.
+On expiry Ze sends a NOTIFICATION with Cease and subcode 10 ("BFD Down"), and
+the peer returns to Idle and retries. The default is 30 seconds, which is the
+draft's own.
+
+**Nothing waits forever.** Where the negotiated BGP hold time is non-zero, the
+ordinary RFC 4271 hold timer is what ends a wait for a BFD session that never
+comes up: Ze arms it at the negotiated value on the way into the wait, and its
+expiry sends NOTIFICATION code 4 (Hold Timer Expired) and returns the peer to
+Idle. That is why the draft arms its own BfdHoldTimer only for a negotiated
+hold time of zero.
+
+`hold-down` damps a flapping link. It is how long the BFD session must stay Up
+before Ze lets the BGP session establish, in milliseconds, and it is zero by
+default: without it Ze establishes on the first BFD Up, which is what a peer
+did before the leaf existed. A BFD session that goes down again inside the
+interval never completes it, so a link that flaps carries no BGP session.
+draft-ietf-idr-bgp-bfd-strict-mode Section 10 recommends the BFD hold-down and
+BGP hold time "use similar values"; set the BGP hold time long enough to cover
+the interval, or the far end times out waiting for you.
+
+Two operational notes, both from the draft.
+
+- **Give the BGP hold time room** (Section 10). It has to cover the time
+  between OpenConfirm, the BFD hold-down interval, and the delay before the
+  BFD session starts. Too short and the speaker that reached Established
+  first times out waiting for the other to follow.
+- **Authenticate BFD** (Section 12). A BGP session now depends on a BFD
+  session, so anything that can stop BFD coming Up can stop BGP. The `auth`
+  block above is the answer.
+
+**The BFD plugin must be loaded.** A strict peer with no BFD plugin is held
+down rather than run without the check: establishing would deliver the
+opposite of what was configured. Ze logs an error naming the peer.
+<!-- source: internal/component/bgp/reactor/session_bfd_strict.go — advanceAfterOpen, bfdStrictHolds, handleBFDEvent -->
+<!-- source: internal/component/bgp/fsm/state.go — BfdSubState, EventBfdUp -->
 
 ## Standalone sessions
 

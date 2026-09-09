@@ -20,7 +20,7 @@ Show the health of every component and the overall status of this box.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns per-component health (bgp, fib, iface, plugins, l2tp, etc.) plus an overall status. Each component reports healthy, degraded, or unhealthy with a reason. Start here when troubleshooting. This runs a probe NOW and reports what the daemon is doing at this moment. 'show plugins' answers the other question, by replaying the setup outcome each plugin recorded once, before main(), when it set itself up.
+Returns per-component health (bgp, fib, iface, plugins, l2tp, etc.) plus an overall status. Each component reports healthy, degraded, or unhealthy with a reason. Start here when troubleshooting. This runs a probe NOW and reports what the daemon is doing at this moment. 'show plugin list' answers the other question, by replaying the setup outcome each plugin recorded once, before main(), when it set itself up.
 
 ## Arguments
 

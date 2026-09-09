@@ -118,7 +118,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>54.1%</strong><b>33 of 61 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8.2%</strong><b>5 of 61 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 61 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>44.2%</strong><b>34 of 77 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>36.4%</strong><b>28 of 77 tagged units, 0 escaped and 6 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -482,8 +482,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>SHOULD NOT</td>
 <td>7.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-7.10-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L118" title="internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go" target="_blank" rel="noopener"><code>TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L169" title="internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go" target="_blank" rel="noopener"><code>TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L120" title="internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go" target="_blank" rel="noopener"><code>TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L171" title="internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go" target="_blank" rel="noopener"><code>TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4-4">RFC3748-4-4</code></td><td colspan="3"><span class="rfc-subject">Octets outside the range of the Length field MUST be ignored upon reception (S4, S4.1)</span></td></tr>
@@ -491,8 +491,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L105" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748LengthBoundsTypeData</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L117" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748LengthBoundsTypeData</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L106" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748LengthBoundsTypeData</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L118" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748LengthBoundsTypeData</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.1-3">RFC3748-4.1-3</code></td><td colspan="3"><span class="rfc-subject">A retransmitted Request MUST carry the same Identifier value, and a new (non-retransmission) Request MUST carry one different from the previous Request (S4.1)</span></td></tr>
@@ -500,8 +500,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L135" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NewRequestChangesIdentifier</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L146" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NewRequestChangesIdentifier</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L136" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NewRequestChangesIdentifier</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L147" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NewRequestChangesIdentifier</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.1-4">RFC3748-4.1-4</code></td><td colspan="3"><span class="rfc-subject">The Identifier field of a Response MUST match that of the currently outstanding Request (S4.1)</span></td></tr>
@@ -509,8 +509,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.1-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L167" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748ResponseEchoesRequestIdentifier</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L178" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748ResponseEchoesRequestIdentifier</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L168" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748ResponseEchoesRequestIdentifier</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L179" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748ResponseEchoesRequestIdentifier</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.1-5">RFC3748-4.1-5</code></td><td colspan="3"><span class="rfc-subject">The Type field of a Response MUST match that of the Request, or be a legacy or Expanded NAK (S4.1)</span></td></tr>
@@ -518,8 +518,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.1-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L204" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748ResponseTypeMatchesRequest</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L215" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748ResponseTypeMatchesRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L205" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748ResponseTypeMatchesRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L216" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748ResponseTypeMatchesRequest</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.2-5">RFC3748-4.2-5</code></td><td colspan="3"><span class="rfc-subject">Once the method completes unsuccessfully, the peer MUST terminate the conversation and indicate failure to the lower layer (S4.2)</span></td></tr>
@@ -527,8 +527,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L249" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerEndsAnUnsuccessfulConversation</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L264" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerEndsAnUnsuccessfulConversation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L250" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerEndsAnUnsuccessfulConversation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L265" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerEndsAnUnsuccessfulConversation</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.2-6">RFC3748-4.2-6</code></td><td colspan="3"><span class="rfc-subject">Where the authenticator has sent no result indication, the peer MUST NOT silently discard the Success or Failure it waits for (S4.2)</span></td></tr>
@@ -536,8 +536,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST NOT</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.2-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L283" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerActsOnTheTerminalPacket</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L295" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerActsOnTheTerminalPacket</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L284" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerActsOnTheTerminalPacket</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L296" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerActsOnTheTerminalPacket</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4-5">RFC3748-4-5</code></td><td colspan="3"><span class="rfc-subject">EAP packets carrying a Code outside 1-4 MUST be silently discarded by both authenticators and peers (S4)</span></td></tr>
@@ -743,8 +743,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST NOT</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L312" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoNAKInARequest</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L322" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoNAKInARequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L313" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoNAKInARequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L323" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoNAKInARequest</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-5-2">RFC3748-5-2</code></td><td colspan="3"><span class="rfc-subject">All EAP implementations MUST support Types 1-4, which are defined in this document (S5)</span></td></tr>
@@ -834,8 +834,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST NOT</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-5.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L365" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748IdentityResponseIsNotNullTerminated</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L373" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748IdentityResponseIsNotNullTerminated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L366" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748IdentityResponseIsNotNullTerminated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L374" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748IdentityResponseIsNotNullTerminated</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-7.5-1">RFC3748-7.5-1</code></td><td colspan="3"><span class="rfc-subject">Where an EAP method employs a per-packet MIC, the peer and an authenticator not in pass-through mode MUST validate it (S7.5)</span></td></tr>
@@ -843,8 +843,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST</td>
 <td>7.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-7.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L472" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748EAPTLSValidatesItsPerPacketMIC</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L485" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748EAPTLSValidatesItsPerPacketMIC</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L473" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748EAPTLSValidatesItsPerPacketMIC</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L486" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748EAPTLSValidatesItsPerPacketMIC</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-7.10-4">RFC3748-7.10-4</code></td><td colspan="3"><span class="rfc-subject">EAP methods deriving keys MUST provide for mutual authentication between the EAP peer and the EAP server (S7.10)</span></td></tr>
@@ -852,8 +852,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST</td>
 <td>7.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-7.10-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L504" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748KeyDerivingMethodAuthenticatesBothEnds</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L519" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748KeyDerivingMethodAuthenticatesBothEnds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L505" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748KeyDerivingMethodAuthenticatesBothEnds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L520" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748KeyDerivingMethodAuthenticatesBothEnds</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-5.1-1">RFC3748-5.1-1</code></td><td colspan="3"><span class="rfc-subject">Identity (Type 1) SHOULD NOT be relied upon for authentication; it is sent in cleartext (S5.1, S7.1)</span></td></tr>
@@ -1278,12 +1278,12 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L169" title="internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go" target="_blank" rel="noopener"><code>TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L171" title="internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go" target="_blank" rel="noopener"><code>TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L118" title="internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go" target="_blank" rel="noopener"><code>TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L120" title="internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go" target="_blank" rel="noopener"><code>TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1298,12 +1298,12 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L117" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748LengthBoundsTypeData</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L118" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748LengthBoundsTypeData</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L105" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748LengthBoundsTypeData</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L106" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748LengthBoundsTypeData</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1318,12 +1318,12 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L146" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NewRequestChangesIdentifier</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L147" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NewRequestChangesIdentifier</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L135" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NewRequestChangesIdentifier</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L136" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NewRequestChangesIdentifier</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1338,12 +1338,12 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L178" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748ResponseEchoesRequestIdentifier</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L179" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748ResponseEchoesRequestIdentifier</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L167" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748ResponseEchoesRequestIdentifier</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L168" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748ResponseEchoesRequestIdentifier</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1358,12 +1358,12 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L215" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748ResponseTypeMatchesRequest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L216" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748ResponseTypeMatchesRequest</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L204" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748ResponseTypeMatchesRequest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L205" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748ResponseTypeMatchesRequest</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1378,12 +1378,12 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L264" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerEndsAnUnsuccessfulConversation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L265" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerEndsAnUnsuccessfulConversation</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L249" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerEndsAnUnsuccessfulConversation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L250" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerEndsAnUnsuccessfulConversation</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1398,12 +1398,12 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L295" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerActsOnTheTerminalPacket</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L296" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerActsOnTheTerminalPacket</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L283" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerActsOnTheTerminalPacket</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L284" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerActsOnTheTerminalPacket</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1440,12 +1440,12 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L103" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsACannedSuccess</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L82" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsACannedSuccess</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1460,12 +1460,12 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L145" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L132" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1480,12 +1480,12 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L199" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsAFailureAfterMutualSuccess</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L178" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsAFailureAfterMutualSuccess</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1618,12 +1618,12 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L322" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoNAKInARequest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L323" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoNAKInARequest</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L312" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoNAKInARequest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L313" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoNAKInARequest</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1823,12 +1823,12 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L373" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748IdentityResponseIsNotNullTerminated</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L374" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748IdentityResponseIsNotNullTerminated</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L365" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748IdentityResponseIsNotNullTerminated</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L366" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748IdentityResponseIsNotNullTerminated</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1843,12 +1843,12 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L485" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748EAPTLSValidatesItsPerPacketMIC</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L486" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748EAPTLSValidatesItsPerPacketMIC</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L472" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748EAPTLSValidatesItsPerPacketMIC</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L473" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748EAPTLSValidatesItsPerPacketMIC</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1863,12 +1863,12 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L519" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748KeyDerivingMethodAuthenticatesBothEnds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L520" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748KeyDerivingMethodAuthenticatesBothEnds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L504" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748KeyDerivingMethodAuthenticatesBothEnds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L505" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748KeyDerivingMethodAuthenticatesBothEnds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2555,7 +2555,7 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 8 September 2026 15:44 UTC</span>
                 </div>
             </div>
         </footer>

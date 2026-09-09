@@ -350,7 +350,7 @@ Symptom: session establishes briefly then NOTIFICATION received
 
 1. **Check plugin is loaded:**
    ```bash
-   ze show plugins               # list compiled-in plugins
+   ze show plugin list               # list compiled-in plugins
    ```
 
 2. **Check plugin is bound to peer:** Config must have `attach process <name> { receive [...] }` on the peer

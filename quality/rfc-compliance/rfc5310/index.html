@@ -319,7 +319,7 @@ Same IS-IS experimental status.
 <td>SHALL</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5310-3.2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/runtime_test.go#L71" title="internal/plugins/isis/circuit/runtime_test.go" target="_blank" rel="noopener"><code>TestISISHelloSignedOverPaddedPDU</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/runtime_test.go#L72" title="internal/plugins/isis/circuit/runtime_test.go" target="_blank" rel="noopener"><code>TestISISHelloSignedOverPaddedPDU</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze always pads the IIH before signing it (circuit/runtime.go:273-276 for LAN, :293-304 for P2P), so there is no sign-before-pad code path and no negative (unpadded-sign) behavior to assert. The positive is proven in TestISISHelloSignedOverPaddedPDU: the bytes handed to the signer are already padded to MTU-LLC and carry Padding TLV 8</p></td>
 </tr>
@@ -347,7 +347,7 @@ Same IS-IS experimental status.
 <td>MUST</td>
 <td>3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5310-3.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/runtime_test.go#L74" title="internal/plugins/isis/circuit/runtime_test.go" target="_blank" rel="noopener"><code>TestISISHelloSignedOverPaddedPDU</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/runtime_test.go#L75" title="internal/plugins/isis/circuit/runtime_test.go" target="_blank" rel="noopener"><code>TestISISHelloSignedOverPaddedPDU</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze pads the IIH before signing it (circuit/runtime.go:273-276 pads then signs), with no sign-before-pad code path, so no negative (auth-computed-before-padding) behavior exists to assert. The positive is proven in TestISISHelloSignedOverPaddedPDU: the signer receives the PDU already padded to MTU-LLC</p></td>
 </tr>
@@ -486,7 +486,7 @@ Same IS-IS experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/runtime_test.go#L71" title="internal/plugins/isis/circuit/runtime_test.go" target="_blank" rel="noopener"><code>TestISISHelloSignedOverPaddedPDU</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/runtime_test.go#L72" title="internal/plugins/isis/circuit/runtime_test.go" target="_blank" rel="noopener"><code>TestISISHelloSignedOverPaddedPDU</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -525,7 +525,7 @@ Same IS-IS experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/runtime_test.go#L74" title="internal/plugins/isis/circuit/runtime_test.go" target="_blank" rel="noopener"><code>TestISISHelloSignedOverPaddedPDU</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/runtime_test.go#L75" title="internal/plugins/isis/circuit/runtime_test.go" target="_blank" rel="noopener"><code>TestISISHelloSignedOverPaddedPDU</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -618,7 +618,7 @@ Same IS-IS experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 8 September 2026 15:44 UTC</span>
                 </div>
             </div>
         </footer>

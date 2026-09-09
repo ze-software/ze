@@ -164,7 +164,7 @@ local-data command has no daemon side at all, registers no RPC, and therefore
 owes no `wire-methods.snapshot` row.
 
 `internal/component/plugin/register.go` serves one of them, and it is the
-template: `show plugins` answers which plugins this binary carries and what
+template: `show plugin list` answers which plugins this binary carries and what
 each plugin's own `init()` recorded about its setup. It is owned by the package
 that owns the registry it reads, so removing the plugin host removes the
 command with it.
@@ -1692,7 +1692,7 @@ answers, and that is the trap all five registries exist in.
 | Registry | Declares | Read by |
 |----------|----------|---------|
 | `RegisterShape` | whether the answer holds rows (`tab`, `map`) or one document (`doc`) | `validateDeclaredShape`, before the command runs, and `ze help command --json` |
-| `RegisterColumns` | the order the table and text renderers put this command's columns in | `tableStyle.orderKeys`, through the four `ProcessPipes*` wrappers |
+| `RegisterColumns` | the order the table and text renderers put this command's columns in | `tableStyle.orderKeys`, through the four `ProcessPipes*` wrappers, and the four catalog readers as `column-orders` |
 | `RegisterAddressFields` | that a field of the answer holds an IP address | `validateDeclaredShape`, which admits `\| resolve` and `\| origin` only where a field is declared |
 | `RegisterPipeFilters` | the pipe segments this command accepts as its own, which `foldFilters` rewrites into server-side arguments | `foldFilters`, the completer, the pipe validator |
 | `RegisterAliases` | a name an operator types in the operator slot, standing for a chain (see "Pipe aliases" below) | `lookupAlias` |
@@ -1786,7 +1786,7 @@ as an address.
 <!-- source: internal/component/command/pipe_origin.go -- originJSON -->
 
 Every `show bgp` command declares a shape, and two channels write them. Go
-compiled into the daemon declares nineteen paths. Nine of those name an address
+compiled into the daemon declares twenty paths. Nine of those name an address
 field. `show bgp rib` and `show bgp irr` are served by a plugin process, and an
 in-core shim declares for them. Scope is therefore the registration site rather
 than the process boundary.
@@ -2110,31 +2110,126 @@ to the client at session start, and it is NOT built.
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
 <!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
 
-#### Discovery: the running daemon is the only source
+#### Discovery: what each catalog reader can see
 
-A surface that reads the compiled tree in its own process starts no plugin, so
-it never sees a plugin's Stage 1 message.
+A declaration a plugin makes travels TWO channels, and both carry the same
+slice. The Stage 1 registration message reaches a running daemon. The plugin's
+`registry.Registration` reaches anything that links the composition root, which
+is how a catalog generator reads a declaration without starting an engine.
+`Commands` carries the answer shape, the column order and the address fields;
+`Pipes` carries the aliases the plugin puts on its own commands. Until
+2026-09-07 the alias had no second channel, so no reader outside a daemon could
+report one.
 
-| Surface | Reads | Reports a plugin's alias |
-|---------|-------|--------------------------|
-| `command help "<name>"` | the running daemon's registries | Yes, as a `pipe-aliases` list beside `pipe-filters` |
-| Tab completion in the daemon-hosted TUI | the running daemon's registries | Yes |
-| `./le command list` | the compiled tree in its own process | No, and it cannot |
-| `ze help command --json`, and the wiki catalog built from it | the compiled tree in its own process | No, and it cannot |
+| Surface | Reads | Alias | Shape, column order, address fields |
+|---------|-------|-------|-------------------------------------|
+| `show command help "<name>"` | the running daemon's registries | Yes, as a `pipe-aliases` list beside `pipe-filters` | Yes, as `answer-shape`, `column-orders` and `address-fields` |
+| Tab completion in the daemon-hosted TUI | the running daemon's registries | Yes | Yes |
+| `./le command list` | the compiled tree and `registry.All()` | Yes | Yes |
+| `ze help command --json` | the compiled tree and `registry.All()` | Yes | Yes |
+| the wiki catalog (`wikicatalog.Collect`) | the compiled tree and `registry.All()` | Yes | Yes |
 
-`command help` lists an in-tree alias and a declared one the same way, and it
-listed neither before 2026-08. It reports the expansion beside the description.
-An alias takes no argument and names no other alias, so the chain it stands for
-is the whole of what the name does.
+An EXTERNAL plugin is the one case the last three rows still cannot answer for.
+It registers nothing in the composition root, so its declaration exists on the
+Stage 1 message alone and a running daemon is the only reader of it.
 
-The same table governs a plugin's declared answer shape. `ze help command
---json` and the wiki catalog built from it read the compiled tree in their own
-process. So they list a plugin's commands without the operators the plugin
-declared. The running daemon refuses and publishes correctly. The published
-catalog cannot yet say so.
+`show command help` lists an in-tree alias and a declared one the same way, and
+it listed neither before 2026-08. It reports the expansion beside the
+description. An alias takes no argument and names no other alias, so the chain
+it stands for is the whole of what the name does.
+
+`command.DeclaredForCommand` is the ONE reader of both channels, and the last
+three rows call it. So the three catalogs agree by derivation, not because a
+check reconciles them.
+
+It weighs the two channels by PATH LENGTH together, and not one after the other.
+Inside a daemon there is only one channel: `registerPluginShapes`
+(`internal/component/plugin/server/startup.go`) writes each Stage 1 declaration
+into the three registries at the plugin's own command path, and every later read
+resolves to the longest declared path that is a prefix of the command. A reader
+that asked the registries first and the plugin second gave an ancestor's
+declaration to a command that declares its own, and `show bgp rib help`
+published the eleven route columns of `show bgp rib` and offered `| resolve` on
+an answer holding no address.
+
+Two rules follow from reproducing what a daemon holds. A plugin declaration that
+names no column and no address field is a BARRIER and not an absence, so a
+command whose answer has no columns says so and inherits nothing. And a
+declaration that states no answer shape is passed over entirely, because
+`registerPluginShapes` writes nothing for one.
+
+`AliasesForCommand` is deliberately NOT changed to read the registration. It is
+what a running daemon reads, and a daemon has already written each STARTED
+plugin's aliases into the registry, so adding a registration's aliases there
+would offer an operator a name no running command answers to.
+
+The alias channel is weighed by PATH LENGTH beside the registry, as the three
+above are. `lookupAlias` reads the set on the longest registered prefix and
+never falls back to a shorter one, so a plugin's alias on a longer path SHADOWS
+an in-tree ancestor's rather than joining it, and the two merge only where they
+sit on ONE path. The barrier holds on the read side for the same reason:
+`show bgp rpki` answers to `summary`, and `show bgp rpki roa` answers to nothing
+at all, because the daemon writes an empty declaration on a command the same
+plugin declares below its alias path, and no path is longer than the command
+itself. The global aliases sit under both, as they sit under every registered
+set.
+
+`./le plugin declarations check` gates BOTH channels. It compares what a
+plugin's runner passes to `p.Run` against what its `registry.Registration`
+carries, identifying a command by its name and a pipe alias by the pair its
+registry keys it on, the command path and the name. A field both literals write
+as a call to one parameterless function is compared by that function's identity
+rather than by reading its body, because one function answers one slice.
+
+Anything else is compared in BOTH directions and over every field an entry
+states. The published catalog is generated from the registration, so a command
+the registration carries and the runner never declares is a phantom on the
+website, and a `Shape`, a `Columns` or a `Hidden` the two spell differently is a
+catalog describing an answer the daemon does not give.
+
+The gate pairs ONE runner literal to ONE registration literal in a package, and
+it refuses a package that builds two of either rather than pooling both sides.
+Pooled, two plugins wired to each other's declaration functions agree as a
+package and disagree one by one: dropping either plugin takes the surviving
+one's catalog entries with it while the daemon still serves them.
+
+The wiki catalog is NOT built from `ze help command --json`. Both join the
+registries in their own process, because an `internal` package cannot import
+`cmd/ze`'s main package. `compareWikiCatalogProducer`
+(`internal/le/docvalid/command_surfaces.go`) holds what is left of that split to
+one answer: the four main-package commands `wikicatalog.Collect` carries as
+literal entries, and the `le ` paths it drops.
+
+All three readers name a purely plugin-provided command. Each walks
+`registry.All()` after its own registry, because a plugin's command is
+dispatched through the plugin and reaches neither the YANG command tree nor the
+local command registry. Until 2026-09-07 the two published catalogs named none
+of them: `ze help command --json` answered 270 commands at `ze_core,ze_bgp` and
+`show bgp rpki roa` was not one, although it declares a shape, a column order
+and an address field. It answers 313 now.
+
+Two rules govern what such an entry carries.
+
+- A HIDDEN declaration is skipped by the two published catalogs, because the
+  daemon already keeps one out of `VisibleCommandEntries` and out of completion.
+  `./le command list` keeps it, because that inventory answers what ze
+  REGISTERS. `request bgp adj-rib-in claim-replay` is the one such command.
+- The YANG node WINS wherever one exists. A plugin command can be modeled and
+  still carry no wire method, `show vrrp interface` among them, so it arrives
+  with an authored summary, long help and grammar already written. For a command
+  no node models, `usage` carries the invocation form the plugin declares and
+  `grammar` stays empty: a plugin declares its arguments as text, and a token
+  list built from that text would state kinds nobody declared. A declared
+  argument is spelled in ANGLE BRACKETS, because both catalogs publish the
+  tokens verbatim and a bare identifier reads as a keyword an operator types.
+
+<!-- source: internal/component/command/declared.go -- DeclaredForCommand -->
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.Commands -->
+<!-- source: internal/le/plugin/declarations/plugindeclarations.go -- Check -->
 
 <!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp, handleBgpCommandHelp -->
-<!-- source: internal/le/command/list/commandlist.go -- Answer -->
+<!-- source: internal/le/command/list/commandlist.go -- Collect, Answer -->
+<!-- source: internal/le/wikicatalog/catalog.go -- Collect, operatorsFor -->
 <!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
 
 #### A plugin declares its own answer shape

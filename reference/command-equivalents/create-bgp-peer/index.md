@@ -27,8 +27,8 @@ The peer address and 'asn' are required. Every other keyword is optional. Ze bui
 | Name | Type | Required | Values |
 | --- | --- | --- | --- |
 | `selector` | union | yes | any value of this type |
-| `asn` | uint | yes | any value of this type |
-| `local-as` | uint | no | any value of this type |
+| `asn` | union | yes | any value of this type |
+| `local-as` | union | no | any value of this type |
 | `local-address` | union | no | any value of this type |
 | `router-id` | string | no | any value of this type |
 | `receive-hold-time` | uint | no | any value of this type |

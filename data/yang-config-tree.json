@@ -390,6 +390,13 @@
   "bgp": {
     "children": [
       {
+        "description": "How Ze writes an AS number in the output an operator reads.",
+        "kind": "leaf",
+        "name": "as-notation",
+        "source": "config",
+        "type": "enumeration"
+      },
+      {
         "children": [
           {
             "description": "Communities that make Ze discard traffic toward a prefix this peer announces.",
@@ -878,6 +885,20 @@
                     "type": "boolean"
                   },
                   {
+                    "description": "BFD hold-down interval for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 10).",
+                    "kind": "leaf",
+                    "name": "hold-down",
+                    "source": "config",
+                    "type": "uint32"
+                  },
+                  {
+                    "description": "BfdHoldTime for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 3).",
+                    "kind": "leaf",
+                    "name": "hold-time",
+                    "source": "config",
+                    "type": "uint16"
+                  },
+                  {
                     "description": "Single-hop egress interface for the BFD session.",
                     "kind": "leaf",
                     "name": "interface",
@@ -904,6 +925,13 @@
                     "name": "profile",
                     "source": "config",
                     "type": "string"
+                  },
+                  {
+                    "description": "BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode).",
+                    "kind": "leaf",
+                    "name": "strict",
+                    "source": "config",
+                    "type": "boolean"
                   }
                 ],
                 "description": "Bidirectional Forwarding Detection options for this peer (RFC 5880).",
@@ -1365,6 +1393,20 @@
                         "type": "boolean"
                       },
                       {
+                        "description": "BFD hold-down interval for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 10).",
+                        "kind": "leaf",
+                        "name": "hold-down",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "BfdHoldTime for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 3).",
+                        "kind": "leaf",
+                        "name": "hold-time",
+                        "source": "config",
+                        "type": "uint16"
+                      },
+                      {
                         "description": "Single-hop egress interface for the BFD session.",
                         "kind": "leaf",
                         "name": "interface",
@@ -1391,6 +1433,13 @@
                         "name": "profile",
                         "source": "config",
                         "type": "string"
+                      },
+                      {
+                        "description": "BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode).",
+                        "kind": "leaf",
+                        "name": "strict",
+                        "source": "config",
+                        "type": "boolean"
                       }
                     ],
                     "description": "Bidirectional Forwarding Detection options for this peer (RFC 5880).",
@@ -3646,6 +3695,20 @@
                     "type": "boolean"
                   },
                   {
+                    "description": "BFD hold-down interval for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 10).",
+                    "kind": "leaf",
+                    "name": "hold-down",
+                    "source": "config",
+                    "type": "uint32"
+                  },
+                  {
+                    "description": "BfdHoldTime for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 3).",
+                    "kind": "leaf",
+                    "name": "hold-time",
+                    "source": "config",
+                    "type": "uint16"
+                  },
+                  {
                     "description": "Single-hop egress interface for the BFD session.",
                     "kind": "leaf",
                     "name": "interface",
@@ -3672,6 +3735,13 @@
                     "name": "profile",
                     "source": "config",
                     "type": "string"
+                  },
+                  {
+                    "description": "BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode).",
+                    "kind": "leaf",
+                    "name": "strict",
+                    "source": "config",
+                    "type": "boolean"
                   }
                 ],
                 "description": "Bidirectional Forwarding Detection options for this peer (RFC 5880).",
@@ -5139,21 +5209,21 @@
                 "kind": "leaf-list",
                 "name": "anywhere",
                 "source": "config",
-                "type": "uint32"
+                "type": "asn"
               },
               {
                 "description": "Reject these ASNs where they are the peer we are talking to, prepends collapsed.",
                 "kind": "leaf-list",
                 "name": "direct",
                 "source": "config",
-                "type": "uint32"
+                "type": "asn"
               },
               {
                 "description": "Reject these ASNs anywhere they are NOT the peer we are talking to.",
                 "kind": "leaf-list",
                 "name": "indirect",
                 "source": "config",
-                "type": "uint32"
+                "type": "asn"
               },
               {
                 "children": [
@@ -5162,7 +5232,7 @@
                     "kind": "leaf-list",
                     "name": "asn",
                     "source": "config",
-                    "type": "uint32"
+                    "type": "asn"
                   }
                 ],
                 "description": "Reject the listed ASNs at one collapsed position of the AS_PATH.",
@@ -5175,7 +5245,7 @@
                 "kind": "leaf-list",
                 "name": "origin",
                 "source": "config",
-                "type": "uint32"
+                "type": "asn"
               },
               {
                 "description": "Go RE2 patterns matched against the whole space-separated AS_PATH string.",
@@ -5189,7 +5259,7 @@
                 "kind": "leaf-list",
                 "name": "transit",
                 "source": "config",
-                "type": "uint32"
+                "type": "asn"
               }
             ],
             "description": "Named list of ASNs rejected by their position in the AS_PATH.",
@@ -5623,6 +5693,28 @@
         "description": "Native Ze route announcements",
         "kind": "list",
         "name": "update",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "description": "Seconds after which the peers that are held end the hold. Must not exceed max-delay.",
+            "kind": "leaf",
+            "name": "establish-wait",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
+            "description": "Seconds to hold the first advertisement. 0 disables the hold.",
+            "kind": "leaf",
+            "name": "max-delay",
+            "source": "config",
+            "type": "uint16"
+          }
+        ],
+        "description": "Hold the first advertisement at startup until the RIB settles.",
+        "kind": "container",
+        "name": "update-delay",
         "source": "config"
       }
     ],
@@ -7395,7 +7487,7 @@
                         "kind": "leaf",
                         "name": "destination-asn",
                         "source": "config",
-                        "type": "uint32"
+                        "type": "asn"
                       },
                       {
                         "description": "Match the destination address against the addresses of this domain group.",
@@ -7479,7 +7571,7 @@
                         "kind": "leaf",
                         "name": "source-asn",
                         "source": "config",
-                        "type": "uint32"
+                        "type": "asn"
                       },
                       {
                         "description": "Match the source address against the addresses of this domain group.",
@@ -8382,6 +8474,29 @@
                             "type": "uint8"
                           },
                           {
+                            "children": [
+                              {
+                                "children": [
+                                  {
+                                    "description": "Priority subtracted from this group while this interface is down.",
+                                    "kind": "leaf",
+                                    "name": "priority-decrement",
+                                    "source": "config",
+                                    "type": "uint8"
+                                  }
+                                ],
+                                "description": "One tracked interface and the priority its loss costs.",
+                                "kind": "list[name]",
+                                "name": "interface",
+                                "source": "config"
+                              }
+                            ],
+                            "description": "Interfaces whose loss lowers the priority this group advertises.",
+                            "kind": "container",
+                            "name": "track",
+                            "source": "config"
+                          },
+                          {
                             "description": "Protocol version.",
                             "kind": "leaf",
                             "name": "version",
@@ -8661,6 +8776,29 @@
                             "name": "priority",
                             "source": "config",
                             "type": "uint8"
+                          },
+                          {
+                            "children": [
+                              {
+                                "children": [
+                                  {
+                                    "description": "Priority subtracted from this group while this interface is down.",
+                                    "kind": "leaf",
+                                    "name": "priority-decrement",
+                                    "source": "config",
+                                    "type": "uint8"
+                                  }
+                                ],
+                                "description": "One tracked interface and the priority its loss costs.",
+                                "kind": "list[name]",
+                                "name": "interface",
+                                "source": "config"
+                              }
+                            ],
+                            "description": "Interfaces whose loss lowers the priority this group advertises.",
+                            "kind": "container",
+                            "name": "track",
+                            "source": "config"
                           },
                           {
                             "description": "Virtual IPv6 addresses, encoded on the wire in configuration order.",
@@ -9081,6 +9219,29 @@
                             "type": "uint8"
                           },
                           {
+                            "children": [
+                              {
+                                "children": [
+                                  {
+                                    "description": "Priority subtracted from this group while this interface is down.",
+                                    "kind": "leaf",
+                                    "name": "priority-decrement",
+                                    "source": "config",
+                                    "type": "uint8"
+                                  }
+                                ],
+                                "description": "One tracked interface and the priority its loss costs.",
+                                "kind": "list[name]",
+                                "name": "interface",
+                                "source": "config"
+                              }
+                            ],
+                            "description": "Interfaces whose loss lowers the priority this group advertises.",
+                            "kind": "container",
+                            "name": "track",
+                            "source": "config"
+                          },
+                          {
                             "description": "Protocol version.",
                             "kind": "leaf",
                             "name": "version",
@@ -9360,6 +9521,29 @@
                             "name": "priority",
                             "source": "config",
                             "type": "uint8"
+                          },
+                          {
+                            "children": [
+                              {
+                                "children": [
+                                  {
+                                    "description": "Priority subtracted from this group while this interface is down.",
+                                    "kind": "leaf",
+                                    "name": "priority-decrement",
+                                    "source": "config",
+                                    "type": "uint8"
+                                  }
+                                ],
+                                "description": "One tracked interface and the priority its loss costs.",
+                                "kind": "list[name]",
+                                "name": "interface",
+                                "source": "config"
+                              }
+                            ],
+                            "description": "Interfaces whose loss lowers the priority this group advertises.",
+                            "kind": "container",
+                            "name": "track",
+                            "source": "config"
                           },
                           {
                             "description": "Virtual IPv6 addresses, encoded on the wire in configuration order.",
@@ -9773,6 +9957,29 @@
                             "type": "uint8"
                           },
                           {
+                            "children": [
+                              {
+                                "children": [
+                                  {
+                                    "description": "Priority subtracted from this group while this interface is down.",
+                                    "kind": "leaf",
+                                    "name": "priority-decrement",
+                                    "source": "config",
+                                    "type": "uint8"
+                                  }
+                                ],
+                                "description": "One tracked interface and the priority its loss costs.",
+                                "kind": "list[name]",
+                                "name": "interface",
+                                "source": "config"
+                              }
+                            ],
+                            "description": "Interfaces whose loss lowers the priority this group advertises.",
+                            "kind": "container",
+                            "name": "track",
+                            "source": "config"
+                          },
+                          {
                             "description": "Protocol version.",
                             "kind": "leaf",
                             "name": "version",
@@ -10052,6 +10259,29 @@
                             "name": "priority",
                             "source": "config",
                             "type": "uint8"
+                          },
+                          {
+                            "children": [
+                              {
+                                "children": [
+                                  {
+                                    "description": "Priority subtracted from this group while this interface is down.",
+                                    "kind": "leaf",
+                                    "name": "priority-decrement",
+                                    "source": "config",
+                                    "type": "uint8"
+                                  }
+                                ],
+                                "description": "One tracked interface and the priority its loss costs.",
+                                "kind": "list[name]",
+                                "name": "interface",
+                                "source": "config"
+                              }
+                            ],
+                            "description": "Interfaces whose loss lowers the priority this group advertises.",
+                            "kind": "container",
+                            "name": "track",
+                            "source": "config"
                           },
                           {
                             "description": "Virtual IPv6 addresses, encoded on the wire in configuration order.",
@@ -12121,6 +12351,29 @@
                             "type": "uint8"
                           },
                           {
+                            "children": [
+                              {
+                                "children": [
+                                  {
+                                    "description": "Priority subtracted from this group while this interface is down.",
+                                    "kind": "leaf",
+                                    "name": "priority-decrement",
+                                    "source": "config",
+                                    "type": "uint8"
+                                  }
+                                ],
+                                "description": "One tracked interface and the priority its loss costs.",
+                                "kind": "list[name]",
+                                "name": "interface",
+                                "source": "config"
+                              }
+                            ],
+                            "description": "Interfaces whose loss lowers the priority this group advertises.",
+                            "kind": "container",
+                            "name": "track",
+                            "source": "config"
+                          },
+                          {
                             "description": "Protocol version.",
                             "kind": "leaf",
                             "name": "version",
@@ -12400,6 +12653,29 @@
                             "name": "priority",
                             "source": "config",
                             "type": "uint8"
+                          },
+                          {
+                            "children": [
+                              {
+                                "children": [
+                                  {
+                                    "description": "Priority subtracted from this group while this interface is down.",
+                                    "kind": "leaf",
+                                    "name": "priority-decrement",
+                                    "source": "config",
+                                    "type": "uint8"
+                                  }
+                                ],
+                                "description": "One tracked interface and the priority its loss costs.",
+                                "kind": "list[name]",
+                                "name": "interface",
+                                "source": "config"
+                              }
+                            ],
+                            "description": "Interfaces whose loss lowers the priority this group advertises.",
+                            "kind": "container",
+                            "name": "track",
+                            "source": "config"
                           },
                           {
                             "description": "Virtual IPv6 addresses, encoded on the wire in configuration order.",
@@ -17465,6 +17741,13 @@
             "type": "string"
           },
           {
+            "description": "OCSP response about this certificate, stapled to a peer that asks for it.",
+            "kind": "leaf",
+            "name": "ocsp-response",
+            "source": "config",
+            "type": "string"
+          },
+          {
             "children": [
               {
                 "description": "Private key, as a PEM document or as base64-encoded DER.",
@@ -17664,7 +17947,7 @@
       {
         "children": [
           {
-            "description": "Ingress interface(s) to match. A trailing '*' enables\nprefix (wildcard) matching (e.g. 'l2tp*').",
+            "description": "Ingress interfaces to match. The policy matches a packet\nthat arrives on any one of them. A trailing '*' enables\nprefix (wildcard) matching (e.g. 'l2tp*').",
             "kind": "leaf-list",
             "name": "interface",
             "source": "config",
@@ -17837,6 +18120,13 @@
             "type": "uint16"
           },
           {
+            "description": "Per-interface override for max-sessions-per-mac.\nDefaults to the global value when unset.",
+            "kind": "leaf",
+            "name": "max-sessions-per-mac",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
             "description": "Per-interface Service-Name filter. Overrides the\nglobal service-name list when set.",
             "kind": "leaf-list",
             "name": "service-name",
@@ -17853,6 +18143,13 @@
         "description": "Maximum concurrent PPPoE sessions per interface.",
         "kind": "leaf",
         "name": "max-sessions",
+        "source": "config",
+        "type": "uint16"
+      },
+      {
+        "description": "Maximum concurrent sessions one subscriber MAC\naddress may hold.",
+        "kind": "leaf",
+        "name": "max-sessions-per-mac",
         "source": "config",
         "type": "uint16"
       },
@@ -17965,6 +18262,13 @@
         "kind": "container",
         "name": "distance",
         "source": "config"
+      },
+      {
+        "description": "Protocols whose selected routes are not programmed into the\nFIB. An empty list programs all.",
+        "kind": "leaf-list",
+        "name": "fib-withhold",
+        "source": "config",
+        "type": "string"
       }
     ],
     "description": "System RIB configuration.",
@@ -21065,6 +21369,13 @@
                         "type": "uint8"
                       },
                       {
+                        "description": "Check this peer's EAP-TLS certificate chain by the OCSP response it staples.",
+                        "kind": "leaf",
+                        "name": "certificate-status-request",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
                         "description": "The http URL at which this device publishes its own certificate.",
                         "kind": "leaf",
                         "name": "certificate-url",
@@ -21126,6 +21437,13 @@
                         "name": "remote-id-type",
                         "source": "config",
                         "type": "enumeration"
+                      },
+                      {
+                        "description": "Let an EAP-TLS exchange with this peer resume an earlier one.",
+                        "kind": "leaf",
+                        "name": "session-resumption",
+                        "source": "config",
+                        "type": "boolean"
                       },
                       {
                         "children": [

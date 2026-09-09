@@ -127,6 +127,8 @@ BFD control configuration for Ze.
 
 Border Gateway Protocol routing configuration.
 
+- **as-notation** `enumeration`
+  How Ze writes an AS number in the output an operator reads.
 - **blackhole** `container`
   RFC 7999 blackhole agreement on this BGP session, in both directions.
   - **communities** `string[]`
@@ -265,6 +267,10 @@ Border Gateway Protocol routing configuration.
       Bidirectional Forwarding Detection options for this peer (RFC 5880).
       - **enabled** `boolean`
         Master switch for the BFD session of this peer.
+      - **hold-down** `uint32`
+        BFD hold-down interval for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 10).
+      - **hold-time** `uint16`
+        BfdHoldTime for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 3).
       - **interface** `string`
         Single-hop egress interface for the BFD session.
       - **min-ttl** `uint8`
@@ -273,6 +279,8 @@ Border Gateway Protocol routing configuration.
         BFD hop mode for this peer: single-hop or multi-hop.
       - **profile** `string`
         Name of a profile defined under the top-level bfd { profile ... } block.
+      - **strict** `boolean`
+        BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode).
     - **link-local** `boolean`
       Auto-discover IPv6 link-local address for TCP connection
     - **local** `container`
@@ -401,6 +409,10 @@ Border Gateway Protocol routing configuration.
         Bidirectional Forwarding Detection options for this peer (RFC 5880).
         - **enabled** `boolean`
           Master switch for the BFD session of this peer.
+        - **hold-down** `uint32`
+          BFD hold-down interval for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 10).
+        - **hold-time** `uint16`
+          BfdHoldTime for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 3).
         - **interface** `string`
           Single-hop egress interface for the BFD session.
         - **min-ttl** `uint8`
@@ -409,6 +421,8 @@ Border Gateway Protocol routing configuration.
           BFD hop mode for this peer: single-hop or multi-hop.
         - **profile** `string`
           Name of a profile defined under the top-level bfd { profile ... } block.
+        - **strict** `boolean`
+          BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode).
       - **link-local** `boolean`
         Auto-discover IPv6 link-local address for TCP connection
       - **local** `container`
@@ -1033,6 +1047,10 @@ Border Gateway Protocol routing configuration.
       Bidirectional Forwarding Detection options for this peer (RFC 5880).
       - **enabled** `boolean`
         Master switch for the BFD session of this peer.
+      - **hold-down** `uint32`
+        BFD hold-down interval for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 10).
+      - **hold-time** `uint16`
+        BfdHoldTime for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 3).
       - **interface** `string`
         Single-hop egress interface for the BFD session.
       - **min-ttl** `uint8`
@@ -1041,6 +1059,8 @@ Border Gateway Protocol routing configuration.
         BFD hop mode for this peer: single-hop or multi-hop.
       - **profile** `string`
         Name of a profile defined under the top-level bfd { profile ... } block.
+      - **strict** `boolean`
+        BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode).
     - **link-local** `boolean`
       Auto-discover IPv6 link-local address for TCP connection
     - **local** `container`
@@ -1443,21 +1463,21 @@ Border Gateway Protocol routing configuration.
         Maximum match length (less-than-or-equal). Defaults to 32 for IPv4 or 128 for IPv6.
   - **reject-asn <name>** `list`
     Named list of ASNs rejected by their position in the AS_PATH.
-    - **anywhere** `uint32[]`
+    - **anywhere** `asn[]`
       Reject these ASNs at any position: direct, transit and origin together.
-    - **direct** `uint32[]`
+    - **direct** `asn[]`
       Reject these ASNs where they are the peer we are talking to, prepends collapsed.
-    - **indirect** `uint32[]`
+    - **indirect** `asn[]`
       Reject these ASNs anywhere they are NOT the peer we are talking to.
     - **nth <index>** `list`
       Reject the listed ASNs at one collapsed position of the AS_PATH.
-      - **asn** `uint32[]`
+      - **asn** `asn[]`
         The ASNs this position rejects.
-    - **origin** `uint32[]`
+    - **origin** `asn[]`
       Reject these ASNs where they are the last ASN of the AS_PATH.
     - **regex** `string[]`
       Go RE2 patterns matched against the whole space-separated AS_PATH string.
-    - **transit** `uint32[]`
+    - **transit** `asn[]`
       Reject these ASNs where they sit past the peer and are not the last ASN of the AS_PATH.
   - **remove-private-as <name>** `list`
     Named action filter that removes RFC 6996 Private Use ASNs.
@@ -1575,6 +1595,12 @@ Border Gateway Protocol routing configuration.
       Watchdog group name
     - **withdraw** `boolean`
       Start in withdrawn state (default true)
+- **update-delay** `container`
+  Hold the first advertisement at startup until the RIB settles.
+  - **establish-wait** `uint16`
+    Seconds after which the peers that are held end the hold. Must not exceed max-delay.
+  - **max-delay** `uint16`
+    Seconds to hold the first advertisement. 0 disables the hold.
 
 ## class-of-service
 
@@ -2111,7 +2137,7 @@ Ze-managed nftables firewall tables.
           Destination IP prefix or @set-name
         - **destination-as-set** `string`
           Match the destination address against the IRR-resolved prefixes of this AS-SET.
-        - **destination-asn** `uint32`
+        - **destination-asn** `asn`
           Match the destination address against the IRR-resolved prefixes of this ASN.
         - **destination-domain-group** `string`
           Match the destination address against the addresses of this domain group.
@@ -2135,7 +2161,7 @@ Ze-managed nftables firewall tables.
           Source IP prefix or @set-name
         - **source-as-set** `string`
           Match the source address against the IRR-resolved prefixes of this AS-SET.
-        - **source-asn** `uint32`
+        - **source-asn** `asn`
           Match the source address against the IRR-resolved prefixes of this ASN.
         - **source-domain-group** `string`
           Match the source address against the addresses of this domain group.
@@ -2399,6 +2425,12 @@ Interface-level class-of-service bindings and inline QoS maps.
             Preemption hold-time, in Junos semantics.
           - **priority** `uint8`
             Election priority (RFC 9568 Section 5.2.4).
+          - **track** `container`
+            Interfaces whose loss lowers the priority this group advertises.
+            - **interface <name>** `list`
+              One tracked interface and the priority its loss costs.
+              - **priority-decrement** `uint8`
+                Priority subtracted from this group while this interface is down.
           - **version** `enumeration`
             Protocol version.
           - **virtual-address** `ipv4-address[]`
@@ -2477,6 +2509,12 @@ Interface-level class-of-service bindings and inline QoS maps.
             Preemption hold-time, in Junos semantics.
           - **priority** `uint8`
             Election priority (RFC 9568 Section 5.2.4).
+          - **track** `container`
+            Interfaces whose loss lowers the priority this group advertises.
+            - **interface <name>** `list`
+              One tracked interface and the priority its loss costs.
+              - **priority-decrement** `uint8`
+                Priority subtracted from this group while this interface is down.
           - **virtual-address** `ipv6-address[]`
             Virtual IPv6 addresses, encoded on the wire in configuration order.
           - **vrid** `uint8`
@@ -2593,6 +2631,12 @@ Interface-level class-of-service bindings and inline QoS maps.
             Preemption hold-time, in Junos semantics.
           - **priority** `uint8`
             Election priority (RFC 9568 Section 5.2.4).
+          - **track** `container`
+            Interfaces whose loss lowers the priority this group advertises.
+            - **interface <name>** `list`
+              One tracked interface and the priority its loss costs.
+              - **priority-decrement** `uint8`
+                Priority subtracted from this group while this interface is down.
           - **version** `enumeration`
             Protocol version.
           - **virtual-address** `ipv4-address[]`
@@ -2671,6 +2715,12 @@ Interface-level class-of-service bindings and inline QoS maps.
             Preemption hold-time, in Junos semantics.
           - **priority** `uint8`
             Election priority (RFC 9568 Section 5.2.4).
+          - **track** `container`
+            Interfaces whose loss lowers the priority this group advertises.
+            - **interface <name>** `list`
+              One tracked interface and the priority its loss costs.
+              - **priority-decrement** `uint8`
+                Priority subtracted from this group while this interface is down.
           - **virtual-address** `ipv6-address[]`
             Virtual IPv6 addresses, encoded on the wire in configuration order.
           - **vrid** `uint8`
@@ -2785,6 +2835,12 @@ Interface-level class-of-service bindings and inline QoS maps.
             Preemption hold-time, in Junos semantics.
           - **priority** `uint8`
             Election priority (RFC 9568 Section 5.2.4).
+          - **track** `container`
+            Interfaces whose loss lowers the priority this group advertises.
+            - **interface <name>** `list`
+              One tracked interface and the priority its loss costs.
+              - **priority-decrement** `uint8`
+                Priority subtracted from this group while this interface is down.
           - **version** `enumeration`
             Protocol version.
           - **virtual-address** `ipv4-address[]`
@@ -2863,6 +2919,12 @@ Interface-level class-of-service bindings and inline QoS maps.
             Preemption hold-time, in Junos semantics.
           - **priority** `uint8`
             Election priority (RFC 9568 Section 5.2.4).
+          - **track** `container`
+            Interfaces whose loss lowers the priority this group advertises.
+            - **interface <name>** `list`
+              One tracked interface and the priority its loss costs.
+              - **priority-decrement** `uint8`
+                Priority subtracted from this group while this interface is down.
           - **virtual-address** `ipv6-address[]`
             Virtual IPv6 addresses, encoded on the wire in configuration order.
           - **vrid** `uint8`
@@ -3431,6 +3493,12 @@ Interface-level class-of-service bindings and inline QoS maps.
             Preemption hold-time, in Junos semantics.
           - **priority** `uint8`
             Election priority (RFC 9568 Section 5.2.4).
+          - **track** `container`
+            Interfaces whose loss lowers the priority this group advertises.
+            - **interface <name>** `list`
+              One tracked interface and the priority its loss costs.
+              - **priority-decrement** `uint8`
+                Priority subtracted from this group while this interface is down.
           - **version** `enumeration`
             Protocol version.
           - **virtual-address** `ipv4-address[]`
@@ -3509,6 +3577,12 @@ Interface-level class-of-service bindings and inline QoS maps.
             Preemption hold-time, in Junos semantics.
           - **priority** `uint8`
             Election priority (RFC 9568 Section 5.2.4).
+          - **track** `container`
+            Interfaces whose loss lowers the priority this group advertises.
+            - **interface <name>** `list`
+              One tracked interface and the priority its loss costs.
+              - **priority-decrement** `uint8`
+                Priority subtracted from this group while this interface is down.
           - **virtual-address** `ipv6-address[]`
             Virtual IPv6 addresses, encoded on the wire in configuration order.
           - **vrid** `uint8`
@@ -4934,6 +5008,8 @@ PKI certificate and key store.
     X.509 device certificate, as a PEM document or as base64-encoded DER.
   - **intermediate** `string[]`
     Intermediate CA certificates, from the issuer toward the trust anchor.
+  - **ocsp-response** `string`
+    OCSP response about this certificate, stapled to a peer that asks for it.
   - **private** `container`
     Private key associated with this certificate.
     - **key** `string`
@@ -4997,7 +5073,7 @@ Policy routing configuration.
 - **route <name>** `list`
   A named policy route applied to ingress interfaces.
   - **interface** `string[]`
-    Ingress interface(s) to match. A trailing '*' enables prefix (wildcard) matching (e.g. 'l2tp*').
+    Ingress interfaces to match. The policy matches a packet that arrives on any one of them. A trailing '*' enables prefix (wildcard) matching (e.g. 'l2tp*').
   - **rule <name>** `list`
     Ordered list of match/action rules.
     - **from** `container`
@@ -5047,10 +5123,14 @@ PPPoE access concentrator settings (RFC 2516).
   Access interfaces on which PPPoE discovery listens.
   - **max-sessions** `uint16`
     Per-interface session limit. Defaults to the global max-sessions when unset.
+  - **max-sessions-per-mac** `uint16`
+    Per-interface override for max-sessions-per-mac. Defaults to the global value when unset.
   - **service-name** `string[]`
     Per-interface Service-Name filter. Overrides the global service-name list when set.
 - **max-sessions** `uint16`
   Maximum concurrent PPPoE sessions per interface.
+- **max-sessions-per-mac** `uint16`
+  Maximum concurrent sessions one subscriber MAC address may hold.
 - **padi-rate-limit** `uint16`
   Maximum PADI packets accepted per second on one interface.
 - **service-name** `string[]`
@@ -5091,6 +5171,8 @@ System RIB configuration.
     OSPF routes.
   - **static** `uint8`
     Static routes.
+- **fib-withhold** `string[]`
+  Protocols whose selected routes are not programmed into the FIB. An empty list programs all.
 
 ## routing-table
 
@@ -5991,6 +6073,8 @@ VPN subsystems.
           Name of the device certificate in the PKI store.
         - **certificate-count** `uint8`
           The most X.509 certificates Ze sends to this peer and accepts from it.
+        - **certificate-status-request** `boolean`
+          Check this peer's EAP-TLS certificate chain by the OCSP response it staples.
         - **certificate-url** `string`
           The http URL at which this device publishes its own certificate.
         - **certificate-url-allow** `ip-prefix[]`
@@ -6009,6 +6093,8 @@ VPN subsystems.
           Identity the remote endpoint must assert.
         - **remote-id-type** `enumeration`
           The one IKE ID type the remote endpoint CAN assert.
+        - **session-resumption** `boolean`
+          Let an EAP-TLS exchange with this peer resume an earlier one.
         - **x509** `container`
           X.509 certificate references, deprecated in favor of the direct leaves.
           - **ca-certificate** `string`

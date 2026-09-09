@@ -173,7 +173,7 @@
                 <article class="whats-new-item tone-grape">
                     <span class="whats-new-label">Engineering note</span>
                     <h3><a href="blog/reference-from-the-system/">Reference stays attached to code</a></h3>
-                    <p>Generated references stay tied to code, registries and RFC evidence.</p>
+                    <p>How Ze builds its command reference from the binary, and why generated pages still need human judgement.</p>
                 </article>
                 <article class="whats-new-item tone-sky">
                     <span class="whats-new-label">Recently shipped</span>
@@ -209,7 +209,7 @@
                 <div class="proof-strip" aria-label="Project evidence">
                     <a class="proof" href="quality/unit-fuzz-mutation/">
                         <strong
-                            ><span data-ze-stat="tests.unit_display">28,900+</span> <span class="label">unit tests</span></strong
+                            ><span data-ze-stat="tests.unit_display">29,400+</span> <span class="label">unit tests</span></strong
                         >
                         <ul>
                             <li>Wire encoding, parsing</li>
@@ -220,21 +220,19 @@
                     </a>
                     <a class="proof" href="quality/rfc-compliance/">
                         <strong
-                            ><span data-ze-stat="rfc.proven_display">1,817</span> of <span data-ze-stat="rfc.gated_implemented_display">3,041</span>
-                            <span class="label"
-                                >gated MUSTs proven by test (<span data-ze-stat="rfc.proven_percent">59.8</span>%)</span
-                            ></strong
+                            ><span data-ze-stat="rfc.proven_display">1,834</span>
+                            <span class="label">of <span data-ze-stat="rfc.gated_implemented_display">3,047</span> RFC MUSTs</span></strong
                         >
                         <ul>
-                            <li><span data-ze-stat="rfc.implemented_display">145</span> RFCs Ze implements, <span data-ze-stat="rfc.inspected_display">180</span> inspected</li>
-                            <li><span data-ze-stat="rfc.gated_must_display">3,303</span> gated MUSTs across everything inspected</li>
-                            <li>Gaps disclosed before claims</li>
+                            <li><span data-ze-stat="rfc.proven_percent">60.2</span>% tested</li>
+                            <li><span data-ze-stat="rfc.implemented_display">146</span> RFCs Ze claims support for</li>
+                            <li><span data-ze-stat="rfc.inspected_display">181</span> RFCs with requirements extracted</li>
                         </ul>
                         <span class="proof-check">RFC requirement ledger.</span>
                     </a>
                     <a class="proof" href="quality/functional-ci/">
                         <strong
-                            ><span data-ze-stat="tests.e2e_display">1,900+</span>
+                            ><span data-ze-stat="tests.e2e_display">2,000+</span>
                             <span class="label">end to end tests</span></strong
                         >
                         <ul>
@@ -245,7 +243,7 @@
                         <span class="proof-check">Functional transcript format and rerun path.</span>
                     </a>
                     <a class="proof" href="quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests">
-                        <strong><span data-ze-stat="tests.fuzz_display">82</span> <span class="label">fuzz targets</span></strong>
+                        <strong><span data-ze-stat="tests.fuzz_display">83</span> <span class="label">fuzz targets</span></strong>
                         <ul>
                             <li>Parsers, external inputs</li>
                             <li>Wire formats, config files</li>
@@ -258,23 +256,22 @@
                             ><span data-ze-stat="interop.target_display">9</span> <span class="label">interop targets</span></strong
                         >
                         <ul>
-                            <li>Real third-party daemons</li>
-                            <li>BGP sessions in Docker</li>
-                            <li>Routes checked by peer CLIs</li>
+                            <li>BGP, OSPF, IS-IS, BFD, BMP, RPKI, VRRP</li>
+                            <li>IPsec, L2TP, PPPoE, RADIUS</li>
+                            <li>Real daemons in Docker, checked by peer CLIs</li>
                         </ul>
                         <span class="proof-check">Docker interop peer list.</span>
                     </a>
                 </div>
-                <div class="interop-strip" aria-label="Tested BGP peer implementations">
-                    <span class="interop-strip-label">Tested against routing stacks</span>
-                    <a href="quality/qemu-interop-release/#docker-interop">FRR</a>
-                    <a href="quality/qemu-interop-release/#docker-interop">BIRD</a>
-                    <a href="quality/qemu-interop-release/#docker-interop">GoBGP</a>
-                    <a href="quality/qemu-interop-release/#docker-interop">OpenBGPd</a>
-                    <a href="quality/qemu-interop-release/#docker-interop">FreeRtr</a>
-                    <a href="quality/qemu-interop-release/#docker-interop">RustyBGP</a>
-                    <a href="quality/qemu-interop-release/#docker-interop">rustbgpd</a>
-                    <a href="features/exabgp-compatibility/">ExaBGP migration path</a>
+                <div class="interop-strip" aria-label="Implementations Ze is tested against">
+                    <span class="interop-strip-label">Tested against</span>
+                    <div class="interop-groups">
+                        <span class="interop-group"><b>BGP</b><a href="quality/qemu-interop-release/#docker-interop">FRR</a><a href="quality/qemu-interop-release/#docker-interop">BIRD</a><a href="quality/qemu-interop-release/#docker-interop">GoBGP</a><a href="quality/qemu-interop-release/#docker-interop">OpenBGPd</a><a href="quality/qemu-interop-release/#docker-interop">FreeRtr</a><a href="quality/qemu-interop-release/#docker-interop">RustyBGP</a><a href="quality/qemu-interop-release/#docker-interop">rustbgpd</a><a href="features/exabgp-compatibility/">ExaBGP</a></span>
+                        <span class="interop-group"><b>BGP support</b><a href="quality/qemu-interop-release/#docker-interop">StayRTR</a><a href="quality/qemu-interop-release/#docker-interop">pmacct</a></span>
+                        <span class="interop-group"><b>VPN</b><a href="quality/qemu-interop-release/#docker-interop">strongSwan</a></span>
+                        <span class="interop-group"><b>Access</b><a href="quality/qemu-interop-release/#docker-interop">accel-ppp</a><a href="quality/qemu-interop-release/#docker-interop">xl2tpd</a><a href="quality/qemu-interop-release/#docker-interop">FreeRADIUS</a></span>
+                        <span class="interop-group"><b>Redundancy</b><a href="quality/qemu-interop-release/#docker-interop">keepalived</a></span>
+                    </div>
                 </div>
             </section>
 
@@ -689,7 +686,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 9 September 2026 13:12 UTC</span>
                 </div>
             </div>
         </footer>

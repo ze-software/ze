@@ -1,6 +1,6 @@
 # Command Equivalents
 
-413 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+466 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -64,6 +64,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
 | --- | --- | --- | --- | --- | --- | --- |
+| `clear bgp healthcheck` | Daemon | - | - | - | - | [details](clear-bgp-healthcheck/) |
 | `clear bgp rib in` | Daemon | - | - | - | - | [details](clear-bgp-rib-in/) |
 | `clear bgp rib out` | Daemon | - | - | - | - | [details](clear-bgp-rib-out/) |
 | `clear debug` | Offline | - | - | - | - | [details](clear-debug/) |
@@ -181,8 +182,24 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
 | --- | --- | --- | --- | --- | --- | --- |
 | `request as112 healthcheck` | Daemon | - | - | - | - | [details](request-as112-healthcheck/) |
+| `request bgp adj-rib-in accept-routes` | Daemon | - | - | - | - | [details](request-bgp-adj-rib-in-accept-routes/) |
+| `request bgp adj-rib-in batch-validate` | Daemon | - | - | - | - | [details](request-bgp-adj-rib-in-batch-validate/) |
+| `request bgp adj-rib-in enable-validation` | Daemon | - | - | - | - | [details](request-bgp-adj-rib-in-enable-validation/) |
+| `request bgp adj-rib-in reject-routes` | Daemon | - | - | - | - | [details](request-bgp-adj-rib-in-reject-routes/) |
+| `request bgp adj-rib-in replay` | Daemon | - | - | - | - | [details](request-bgp-adj-rib-in-replay/) |
+| `request bgp adj-rib-in revalidate` | Daemon | - | - | - | - | [details](request-bgp-adj-rib-in-revalidate/) |
+| `request bgp rib fastpath` | Daemon | - | - | - | - | [details](request-bgp-rib-fastpath/) |
 | `request bgp rib inject` | Daemon | - | - | - | - | [details](request-bgp-rib-inject/) |
+| `request bgp rib mark-stale` | Daemon | - | - | - | - | [details](request-bgp-rib-mark-stale/) |
+| `request bgp rib purge-stale` | Daemon | - | - | - | - | [details](request-bgp-rib-purge-stale/) |
+| `request bgp rib release-routes` | Daemon | - | - | - | - | [details](request-bgp-rib-release-routes/) |
+| `request bgp rib retain-routes` | Daemon | - | - | - | - | [details](request-bgp-rib-retain-routes/) |
 | `request bgp rib withdraw` | Daemon | - | - | - | - | [details](request-bgp-rib-withdraw/) |
+| `request bgp rib withdraw-protocol` | Daemon | - | - | - | - | [details](request-bgp-rib-withdraw-protocol/) |
+| `request bgp rib withdraw-router` | Daemon | - | - | - | - | [details](request-bgp-rib-withdraw-router/) |
+| `request bgp rpki validate` | Daemon | - | - | - | - | [details](request-bgp-rpki-validate/) |
+| `request bgp watchdog announce` | Daemon | - | - | - | - | [details](request-bgp-watchdog-announce/) |
+| `request bgp watchdog withdraw` | Daemon | - | - | - | - | [details](request-bgp-watchdog-withdraw/) |
 | `request cache expire` | Daemon | - | - | - | - | [details](request-cache-expire/) |
 | `request cache release` | Daemon | - | - | - | - | [details](request-cache-release/) |
 | `request cache retain` | Daemon | - | - | - | - | [details](request-cache-retain/) |
@@ -196,6 +213,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request interface up` | Daemon | - | - | - | - | [details](request-interface-up/) |
 | `request l2tp outgoing-call remote called` | Daemon | - | - | - | - | [details](request-l2tp-outgoing-call-remote-called/) |
 | `request log level` | Daemon | - | - | - | - | [details](request-log-level/) |
+| `request mrt dump-rib` | Daemon | - | - | - | - | [details](request-mrt-dump-rib/) |
 | `request ospf graceful-restart` | Daemon | - | - | - | - | [details](request-ospf-graceful-restart/) |
 | `request peer borr` | Daemon | - | - | - | - | [details](request-peer-borr/) |
 | `request peer clear soft` | Daemon | - | - | - | - | [details](request-peer-clear-soft/) |
@@ -251,6 +269,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `set debug module` | Offline | - | - | - | - | [details](set-debug-module/) |
 | `set debug profile name` | Offline | - | - | - | - | [details](set-debug-profile-name/) |
 | `set debug timeout` | Offline | - | - | - | - | [details](set-debug-timeout/) |
+| `set sysctl` | Daemon | - | - | - | - | [details](set-sysctl/) |
 | `set system file-descriptors` | Daemon | - | - | - | - | [details](set-system-file-descriptors/) |
 
 ### show
@@ -270,9 +289,12 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show bfd session address` | Read-only | - | - | - | - | [details](show-bfd-session-address/) |
 | `show bfd sessions` | Read-only | - | - | - | - | [details](show-bfd-sessions/) |
 | `show bgp` | Read-only | `show bgp summary` | `show bgp ipv4 unicast summary`<br>`show bgp summary` | `show router bgp summary` | `show bgp ipv4 summary`<br>`show ip bgp summary` | [details](show-bgp/) |
+| `show bgp adj-rib-in` | Read-only | - | - | - | - | [details](show-bgp-adj-rib-in/) |
+| `show bgp adj-rib-in status` | Read-only | - | - | - | - | [details](show-bgp-adj-rib-in-status/) |
 | `show bgp decode` | Read-only | - | - | - | - | [details](show-bgp-decode/) |
 | `show bgp encode` | Read-only | - | - | - | - | [details](show-bgp-encode/) |
 | `show bgp health` | Read-only | - | - | - | - | [details](show-bgp-health/) |
+| `show bgp healthcheck` | Read-only | - | - | - | - | [details](show-bgp-healthcheck/) |
 | `show bgp irr` | Read-only | - | - | - | - | [details](show-bgp-irr/) |
 | `show bgp irr check` | Read-only | - | - | - | - | [details](show-bgp-irr-check/) |
 | `show bgp irr prefix` | Read-only | - | - | - | - | [details](show-bgp-irr-prefix/) |
@@ -288,8 +310,21 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show bgp rib` | Read-only | - | - | - | - | [details](show-bgp-rib/) |
 | `show bgp rib best` | Read-only | `show route <prefix> protocol bgp`<br>`show route protocol bgp` | `show bgp ipv4 unicast`<br>`show bgp ipv4 unicast <prefix>` | - | `show ip bgp <prefix>` | [details](show-bgp-rib-best/) |
 | `show bgp rib best status` | Read-only | - | - | - | - | [details](show-bgp-rib-best-status/) |
+| `show bgp rib commands` | Read-only | - | - | - | - | [details](show-bgp-rib-commands/) |
+| `show bgp rib events` | Read-only | - | - | - | - | [details](show-bgp-rib-events/) |
+| `show bgp rib help` | Read-only | - | - | - | - | [details](show-bgp-rib-help/) |
+| `show bgp rib protocol` | Read-only | - | - | - | - | [details](show-bgp-rib-protocol/) |
 | `show bgp rib rpf` | Read-only | - | - | - | - | [details](show-bgp-rib-rpf/) |
 | `show bgp rib status` | Read-only | - | - | - | - | [details](show-bgp-rib-status/) |
+| `show bgp rpki` | Read-only | - | - | - | - | [details](show-bgp-rpki/) |
+| `show bgp rpki aspa` | Read-only | - | - | - | - | [details](show-bgp-rpki-aspa/) |
+| `show bgp rpki cache` | Read-only | - | - | - | - | [details](show-bgp-rpki-cache/) |
+| `show bgp rpki roa` | Read-only | - | - | - | - | [details](show-bgp-rpki-roa/) |
+| `show bgp rpki status` | Read-only | - | - | - | - | [details](show-bgp-rpki-status/) |
+| `show bgp rpki summary` | Read-only | - | - | - | - | [details](show-bgp-rpki-summary/) |
+| `show bgp rs peers` | Read-only | - | - | - | - | [details](show-bgp-rs-peers/) |
+| `show bgp rs status` | Read-only | - | - | - | - | [details](show-bgp-rs-status/) |
+| `show bgp update-delay` | Read-only | - | - | - | - | [details](show-bgp-update-delay/) |
 | `show bmp collectors` | Read-only | - | - | - | - | [details](show-bmp-collectors/) |
 | `show bmp peers` | Read-only | - | - | - | - | [details](show-bmp-peers/) |
 | `show bmp rib` | Read-only | - | - | - | - | [details](show-bmp-rib/) |
@@ -298,6 +333,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show capture` | Read-only | - | - | - | - | [details](show-capture/) |
 | `show capture interface` | Read-only | - | - | - | - | [details](show-capture-interface/) |
 | `show capture raw` | Read-only | - | - | - | - | [details](show-capture-raw/) |
+| `show class-of-service` | Read-only | - | - | - | - | [details](show-class-of-service/) |
 | `show command complete` | Read-only | - | - | - | - | [details](show-command-complete/) |
 | `show command help` | Read-only | - | - | - | - | [details](show-command-help/) |
 | `show command list` | Read-only | - | - | - | - | [details](show-command-list/) |
@@ -323,6 +359,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show dns cache stats` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-stats/) |
 | `show dns lookup` | Read-only | - | - | - | `show dns` | [details](show-dns-lookup/) |
 | `show doctor` | Read-only | - | - | - | `show hardware cpu`<br>`show system memory` | [details](show-doctor/) |
+| `show ecmp-groups` | Read-only | - | - | - | - | [details](show-ecmp-groups/) |
 | `show env get` | Read-only | - | - | - | - | [details](show-env-get/) |
 | `show env list` | Read-only | - | - | - | - | [details](show-env-list/) |
 | `show env registered` | Read-only | - | - | - | - | [details](show-env-registered/) |
@@ -331,6 +368,9 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show event list` | Read-only | - | - | - | - | [details](show-event-list/) |
 | `show event namespaces` | Read-only | - | - | - | - | [details](show-event-namespaces/) |
 | `show event recent` | Read-only | - | - | - | - | [details](show-event-recent/) |
+| `show fib kernel` | Read-only | - | - | - | - | [details](show-fib-kernel/) |
+| `show fib p4` | Read-only | - | - | - | - | [details](show-fib-p4/) |
+| `show fib vpp` | Read-only | - | - | - | - | [details](show-fib-vpp/) |
 | `show firewall domain-group` | Read-only | - | - | - | - | [details](show-firewall-domain-group/) |
 | `show firewall group` | Read-only | - | - | - | - | [details](show-firewall-group/) |
 | `show firewall irr` | Read-only | - | - | - | - | [details](show-firewall-irr/) |
@@ -374,11 +414,13 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show l2tp health` | Read-only | - | - | - | - | [details](show-l2tp-health/) |
 | `show l2tp listeners` | Read-only | - | - | - | - | [details](show-l2tp-listeners/) |
 | `show l2tp observer` | Read-only | - | - | - | - | [details](show-l2tp-observer/) |
+| `show l2tp pool` | Read-only | - | - | - | - | [details](show-l2tp-pool/) |
 | `show l2tp reliable` | Read-only | - | - | - | - | [details](show-l2tp-reliable/) |
 | `show l2tp session history` | Read-only | - | - | - | - | [details](show-l2tp-session-history/) |
 | `show l2tp session id` | Read-only | - | - | - | - | [details](show-l2tp-session-id/) |
 | `show l2tp session traffic` | Read-only | - | - | - | - | [details](show-l2tp-session-traffic/) |
 | `show l2tp sessions` | Read-only | - | - | - | - | [details](show-l2tp-sessions/) |
+| `show l2tp shaper` | Read-only | - | - | - | - | [details](show-l2tp-shaper/) |
 | `show l2tp statistics` | Read-only | - | - | - | - | [details](show-l2tp-statistics/) |
 | `show l2tp tunnel history` | Read-only | - | - | - | - | [details](show-l2tp-tunnel-history/) |
 | `show l2tp tunnel id` | Read-only | - | - | - | - | [details](show-l2tp-tunnel-id/) |
@@ -393,6 +435,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show metrics values` | Read-only | - | - | - | - | [details](show-metrics-values/) |
 | `show mpls forwarding` | Read-only | - | - | - | - | [details](show-mpls-forwarding/) |
 | `show neighbor` | Read-only | - | - | - | `show arp` | [details](show-neighbor/) |
+| `show nexthop-table` | Read-only | - | - | - | - | [details](show-nexthop-table/) |
 | `show ospf` | Read-only | - | - | - | - | [details](show-ospf/) |
 | `show ospf border-routers` | Read-only | - | - | - | - | [details](show-ospf-border-routers/) |
 | `show ospf database` | Read-only | - | - | - | - | [details](show-ospf-database/) |
@@ -449,7 +492,9 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show pki certificate name pem` | Read-only | - | - | - | - | [details](show-pki-certificate-name-pem/) |
 | `show pki certificates` | Read-only | - | - | - | - | [details](show-pki-certificates/) |
 | `show pki local-ca pem` | Read-only | - | - | - | - | [details](show-pki-local-ca-pem/) |
-| `show plugins` | Offline | - | - | - | - | [details](show-plugins/) |
+| `show plugin declarations` | Read-only | - | - | - | - | [details](show-plugin-declarations/) |
+| `show plugin declarations config` | Read-only | - | - | - | - | [details](show-plugin-declarations-config/) |
+| `show plugin list` | Read-only | - | - | - | - | [details](show-plugin-list/) |
 | `show policy chain peer` | Read-only | - | - | - | - | [details](show-policy-chain-peer/) |
 | `show policy list` | Read-only | - | - | - | - | [details](show-policy-list/) |
 | `show policy routes` | Read-only | - | - | - | - | [details](show-policy-routes/) |
@@ -462,6 +507,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show probe-round` | Read-only | - | - | - | - | [details](show-probe-round/) |
 | `show reload-status` | Read-only | - | - | - | - | [details](show-reload-status/) |
 | `show resolve rir` | Read-only | - | - | - | - | [details](show-resolve-rir/) |
+| `show rib` | Read-only | - | - | - | - | [details](show-rib/) |
 | `show route` | Read-only | `show route` | - | - | `show ip route` | [details](show-route/) |
 | `show route lookup` | Read-only | `show route <prefix>` | - | - | `show ip route <prefix>` | [details](show-route-lookup/) |
 | `show rr peers` | Read-only | - | - | - | - | [details](show-rr-peers/) |
@@ -469,6 +515,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show rsvp-te fast-reroute` | Read-only | - | - | - | - | [details](show-rsvp-te-fast-reroute/) |
 | `show rsvp-te interface` | Read-only | - | - | - | - | [details](show-rsvp-te-interface/) |
 | `show rsvp-te lsp` | Read-only | - | - | - | - | [details](show-rsvp-te-lsp/) |
+| `show rsvp-te session` | Read-only | - | - | - | - | [details](show-rsvp-te-session/) |
 | `show rsvp-te tunnel` | Read-only | - | - | - | - | [details](show-rsvp-te-tunnel/) |
 | `show runtime memory` | Read-only | - | - | - | - | [details](show-runtime-memory/) |
 | `show schema events` | Read-only | - | - | - | - | [details](show-schema-events/) |
@@ -481,6 +528,11 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show storage smart` | Read-only | - | - | - | - | [details](show-storage-smart/) |
 | `show subscriber` | Read-only | - | - | - | - | [details](show-subscriber/) |
 | `show subscriber id detail` | Read-only | - | - | - | - | [details](show-subscriber-id-detail/) |
+| `show sysctl` | Read-only | - | - | - | - | [details](show-sysctl/) |
+| `show sysctl key` | Read-only | - | - | - | - | [details](show-sysctl-key/) |
+| `show sysctl keys` | Read-only | - | - | - | - | [details](show-sysctl-keys/) |
+| `show sysctl profile` | Read-only | - | - | - | - | [details](show-sysctl-profile/) |
+| `show sysctl profiles` | Read-only | - | - | - | - | [details](show-sysctl-profiles/) |
 | `show system conntrack` | Read-only | - | - | - | - | [details](show-system-conntrack/) |
 | `show system cpu` | Read-only | - | - | - | `show hardware cpu`<br>`show system memory` | [details](show-system-cpu/) |
 | `show system date` | Read-only | - | - | - | `show date`<br>`show ntp` | [details](show-system-date/) |
@@ -515,6 +567,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show vpp trace show` | Read-only | - | - | - | - | [details](show-vpp-trace-show/) |
 | `show vpp trace start` | Read-only | - | - | - | - | [details](show-vpp-trace-start/) |
 | `show vrrp` | Read-only | - | - | - | - | [details](show-vrrp/) |
+| `show vrrp interface` | Read-only | - | - | - | - | [details](show-vrrp-interface/) |
 | `show vrrp interface name` | Read-only | - | - | - | - | [details](show-vrrp-interface-name/) |
 | `show vrrp statistics` | Read-only | - | - | - | - | [details](show-vrrp-statistics/) |
 | `show warnings` | Read-only | - | - | - | `show log` | [details](show-warnings/) |

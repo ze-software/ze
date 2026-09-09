@@ -26,7 +26,7 @@ Queries Team Cymru DNS to return the organization name for the ASN.
 
 | Name | Type | Required | Values |
 | --- | --- | --- | --- |
-| `asn` | uint | yes | any value of this type |
+| `asn` | union | yes | any value of this type |
 
 ## Mapping intents
 

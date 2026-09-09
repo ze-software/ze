@@ -119,7 +119,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 2 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>66.7%</strong><b>4 of 6 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -216,16 +216,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>2</td>
+<td>6</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>2</td>
+<td>6</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>4</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5882.md</code></td>
@@ -302,7 +302,11 @@ Same BFD partial status.
 <td>4.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5882-4.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_shared_session_test.go#L18" title="internal/component/bfd/engine/rfc5882_shared_session_test.go" target="_blank" rel="noopener"><code>TestBFDSharedSessionSameKey</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_shared_session_test.go#L72" title="internal/component/bfd/engine/rfc5882_shared_session_test.go" target="_blank" rel="noopener"><code>TestBFDDistinctSessionsDifferentKey</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/api/session_identity_test.go#L57" title="internal/component/bfd/api/session_identity_test.go" target="_blank" rel="noopener"><code>TestCanonicalCollapsesEveryClientShapeOntoOneKey</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5882_shared_key_test.go#L16" title="internal/plugins/ospf/rfc5882_shared_key_test.go" target="_blank" rel="noopener"><code>TestOSPFNeighborRequestReachesTheSharedKey</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session_identity_test.go#L17" title="internal/component/bfd/session_identity_test.go" target="_blank" rel="noopener"><code>TestPinnedSessionReachesTheSharedKey</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L205" title="internal/component/bgp/reactor/config_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestStrictPeerRequestReachesTheSharedKey</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_shared_session_test.go#L73" title="internal/component/bfd/engine/rfc5882_shared_session_test.go" target="_blank" rel="noopener"><code>TestBFDDistinctSessionsDifferentKey</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-10.1.3-1">RFC5882-10.1.3-1</code></td><td colspan="3"><span class="rfc-subject">OSPF Virtual Links: the multihop mechanism (RFC 5883) must be used (§10.1.3)</span></td></tr>
@@ -565,14 +569,34 @@ Same BFD partial status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_shared_session_test.go#L72" title="internal/component/bfd/engine/rfc5882_shared_session_test.go" target="_blank" rel="noopener"><code>TestBFDDistinctSessionsDifferentKey</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_shared_session_test.go#L73" title="internal/component/bfd/engine/rfc5882_shared_session_test.go" target="_blank" rel="noopener"><code>TestBFDDistinctSessionsDifferentKey</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/api/session_identity_test.go#L57" title="internal/component/bfd/api/session_identity_test.go" target="_blank" rel="noopener"><code>TestCanonicalCollapsesEveryClientShapeOntoOneKey</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_shared_session_test.go#L18" title="internal/component/bfd/engine/rfc5882_shared_session_test.go" target="_blank" rel="noopener"><code>TestBFDSharedSessionSameKey</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session_identity_test.go#L17" title="internal/component/bfd/session_identity_test.go" target="_blank" rel="noopener"><code>TestPinnedSessionReachesTheSharedKey</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L205" title="internal/component/bgp/reactor/config_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestStrictPeerRequestReachesTheSharedKey</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5882_shared_key_test.go#L16" title="internal/plugins/ospf/rfc5882_shared_key_test.go" target="_blank" rel="noopener"><code>TestOSPFNeighborRequestReachesTheSharedKey</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -617,7 +641,7 @@ Same BFD partial status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 9 September 2026 12:33 UTC</span>
                 </div>
             </div>
         </footer>

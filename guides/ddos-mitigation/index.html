@@ -166,7 +166,9 @@ then narrows it in place to the attack's protocol, ports, and TCP flags.</p>
 <!-- source: internal/plugins/ddos/detect/characterize.go -- characterizeTarget fills the victim DstPrefix from traffic-usage -->
 <p>The drop rule is removed automatically when the attack stops (the detector
 observes RxPps falling below threshold, which works because nftables drops occur
-after the kernel NIC RX counter).</p>
+after the kernel NIC RX counter), when it reaches <code>max-mitigation-duration</code>, and
+when a <code>commit</code> turns mitigation off, and when a <code>commit</code> deletes the <code>ddos local</code> block or the <code>ddos</code> block that holds it. The table under "When the clear
+never comes" gives each case.</p>
 <h3 id="attack-characterization-stage-2">Attack characterization (Stage 2)</h3>
 <p>With <code>flow-export</code> conntrack enabled, the detector runs a second, finer pass on
 the trigger: it queries the flow-export recent-flow ring for flows to the victim,
@@ -482,7 +484,7 @@ duration is not a factor.</p>
 <td><code>max-mitigation-duration</code></td>
 <td><code>3600</code></td>
 <td>0-86400 s</td>
-<td>Parsed and range-checked, but the local responder does not act on it yet. An on-host drop is removed when the attack clears, not on a timer. The FlowSpec responder does enforce its own cap</td>
+<td>Remove the on-host drop after this many seconds. Checked once a second; <code>0</code> means no cap. The clock starts when the rule goes in, and a narrowing of the same rule does not restart it</td>
 </tr>
 <tr>
 <td><code>confidence-min</code></td>
@@ -715,6 +717,99 @@ arriving flood even while it is dropped. The attack is "over" only when RxPps
 actually falls below threshold.</p>
 <p><strong>Caveat:</strong> an XDP drop backend would break this (XDP_DROP precedes the RX
 counter). Local mode is nft-only for v1.</p>
+<p><strong>When the clear never comes.</strong> A detector that is reconfigured or stopped
+mid-attack emits no <code>AttackCleared</code>, and an attack that never falls below the
+threshold produces none either. <code>max-mitigation-duration</code> is what bounds the
+drop rule in both cases: a worker in the plugin checks the age of the live rule
+once a second and removes a rule that has reached the cap, logging
+<code>max-mitigation-duration reached</code>. <code>show ddos local</code> then reports no mitigation.</p>
+<p><strong>What a commit does to a live drop rule.</strong> The plugin builds a new responder for
+the new config, and what happens to the rule depends on what the commit says.</p>
+<table>
+<thead>
+<tr>
+<th>The commit</th>
+<th>The live drop rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Any <code>ddos local</code> leaf, <code>response-level</code> still <code>enforce</code></td>
+<td>KEPT, with its cap. The new responder is handed the rule, the victim it covers and the instant it went in, so the cap keeps counting from the FIRST install and an <code>AttackCleared</code> still removes it. The new config governs from the commit, so a <code>commit</code> that shortens <code>max-mitigation-duration</code> applies the shorter cap to the rule already installed</td>
+</tr>
+<tr>
+<td><code>response-level alert</code></td>
+<td>REMOVED at once. <code>alert</code> is detect-and-report, and un-blackholing a victim is what an operator commits it for. The log line is <code>response-level left enforce, removing the drop rule</code></td>
+</tr>
+<tr>
+<td><code>forward-mitigation false</code>, with the live rule on the FORWARD hook</td>
+<td>REMOVED at once. The leaf's whole subject is whether this box drops a transit victim's traffic on-host, so turning it off is the commit that says stop. The log line is <code>forward-mitigation was disabled, removing the drop rule</code>. A drop on the INPUT hook, for a victim the box owns, is KEPT: this leaf says nothing about it</td>
+</tr>
+<tr>
+<td>The <code>ddos local</code> block deleted</td>
+<td>REMOVED at once. The plugin is stopped as soon as the reload lands, so a rule carried past this point would stay in the kernel with no responder and no cap worker left to remove it. The log line is <code>the ddos local section was removed, removing the drop rule</code></td>
+</tr>
+<tr>
+<td>The parent <code>ddos</code> block deleted</td>
+<td>REMOVED, on the plugin's way out. This commit tells the plugin nothing: the reload records one removed key for the whole subtree, and the walk that picks the plugins to notify does not match an ancestor, so no config reaches <code>ddos local</code> at all. The plugin is stopped all the same, and it removes its own rule as it exits. The log line is <code>the plugin is stopping, removing the drop rule</code></td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/plugins/ddos/local/responder.go -- enforceMaxDuration, adoptMitigation, withdrawMitigation; internal/plugins/ddos/local/register.go -- startMaxDurationWorker, replaceResponder, stopResponder -->
+<p><strong>A daemon stop makes no promise about the drop.</strong> ddos local does try to
+withdraw the rule as it exits, and that withdrawal is what the parent-block row
+above depends on, because there the daemon and the firewall engine both live on.
+At a DAEMON stop nothing orders it. <code>ProcessManager.Stop</code> cancels every plugin at
+once and waits on them together, so the firewall engine can close its backend
+while ddos local is still joining its cap worker, and a withdrawal that lands
+after that close writes nothing to the kernel. A crash, a power loss and
+<code>firewall { flush-on-shutdown false; }</code> each leave the rule as well.</p>
+<p><strong>The rule does not survive the restart, because ddos local clears it at its own
+start.</strong> A ddos drop is not persistent state. It is an attack response, and a
+reboot is one of the ways an operator clears state, so the plugin removes any
+<code>ze_ddos-local</code> table it finds in the kernel before it can be configured,
+whatever put it there and whatever <code>flush-on-shutdown</code> says. Nothing else can:
+the nft backend deletes a <code>ze_</code> table only when the table is in the desired set
+or in that backend instance's own applied set, and a table a previous process
+wrote is in neither. The log line for a sweep that could not reach the kernel is
+<code>could not clear a drop rule left by a previous process</code>.</p>
+<p><strong>Protection after a restart comes from the attack being detected again</strong>, not
+from a rule that outlived the daemon, so the exposure window is the detector's
+and not the responder's. Three things set it:</p>
+<table>
+<thead>
+<tr>
+<th>What</th>
+<th>Default</th>
+<th>What it costs after a restart</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>startup-grace</code></td>
+<td>90</td>
+<td>The opening 90 seconds of the rate feed are discarded, so a cold baseline cannot fire on its own warm-up. A flood escapes the grace at once on either of two facts: a packet rate over five times <code>absolute-floor</code>, or a bandwidth trigger that is enabled, has a ready baseline, and is over its threshold. A flood under both waits the grace out</td>
+</tr>
+<tr>
+<td><code>confirm-duration</code></td>
+<td>3</td>
+<td>Three consecutive above-threshold evaluations before <code>AttackDetected</code>, which is about 3 seconds at the default <code>check-interval</code> of 1</td>
+</tr>
+<tr>
+<td><code>baseline-window</code></td>
+<td>300</td>
+<td>Only when there is no saved baseline. ze persists both baselines and restores them at startup, so a restart normally resumes with a warm baseline. A box that has never run, or whose state store is empty, re-warms over this window first</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/plugins/ddos/detect/detector.go -- applyTick, the startup-grace escape -->
+<!-- source: internal/plugins/ddos/detect/persist.go -- saveBaselines, loadBaselines -->
+<!-- source: internal/plugins/ddos/local/register.go -- clearStaleDropRule -->
+<p><strong>Going back to <code>enforce</code>.</strong> A commit of <code>response-level alert</code> removes the rule,
+and a commit of <code>enforce</code> after it does NOT put the rule back for the attack that
+is already running. The detector signals an attack once for each generation, so
+no new signal arrives until the flood clears and a fresh one starts. Leave the
+box in <code>enforce</code> while an attack is live.</p>
 <h3 id="flowspec-mode-sensor-blindness">FlowSpec mode sensor blindness</h3>
 <p>Once a FlowSpec rule takes effect upstream, the attack traffic never reaches
 Ze's interfaces. The detector goes blind: RxPps drops to baseline immediately.
@@ -809,7 +904,7 @@ degrades to a coarse generic-flood drop.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 9 September 2026 13:12 UTC</span>
                 </div>
             </div>
         </footer>

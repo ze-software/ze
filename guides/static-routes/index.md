@@ -274,11 +274,20 @@ Kernel ECMP uses `RTA_MULTIPATH` with per-next-hop weight mapped from
 the `weight` field (kernel weight = weight - 1). The kernel carries that share in
 one octet, so a `weight` above 255 is capped at 255.
 
-**A main-table route needs a FIB plugin.** Add `fib { kernel { } }` for the Linux
-data plane, or `fib { vpp { } }` for VPP. Without one, the system RIB selects the
-route and nothing writes it, so `ze doctor` reports `doctor-static-no-fib-writer`
-at error severity and the daemon refuses to start. A configuration whose static
-routes are all in named tables does not need it.
+**A main-table route needs a FIB plugin, and Ze loads one for you.** The system
+RIB selects the winner and a FIB plugin writes it. Write no `fib { ... }` block
+and Ze loads the plugin for the data plane your config already selects at
+`interface { backend }`: `fib-kernel` for `netlink`, which is the default, and
+`fib-vpp` for `vpp`.
+
+Write `fib { kernel { } }` or `fib { vpp { } }` when you want to set one of that
+plugin's own leaves, or to pick a plugin other than the one Ze would load. Your
+block always wins. A configuration whose static routes are all in named tables
+needs no FIB plugin at all, because static programs those routes itself.
+
+`ze doctor` reports `doctor-static-no-fib-writer` at error severity when your
+config selects a data plane no plugin programs. The routes then reach the system
+RIB and stop there.
 
 ## Administrative distance
 

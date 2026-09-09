@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 54.1% | 33 of 61 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 8.2% | 5 of 61 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 61 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 44.2% | 34 of 77 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 36.4% | 28 of 77 tagged units, 0 escaped and 6 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -130,13 +130,13 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 | `RFC3748-5.7-1` | When Type = 254 (Expanded Types), Vendor-Id 0 = IETF namespace (S5.7) | MUST | 5.7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze offers MD5-Challenge (4), EAP-TLS (13) and EAP-MSCHAPv2 (26); NewSession rejects every other type (NewSession, internal/core/eap/eap.go) and the codec never encodes or parses an Expanded Type (254) packet or its Vendor-Id field, so no Vendor-Id namespace rule can bind. The peer reads TypeExpandedEAP only to route a Type-254 Request to the legacy Nak that Section 5.7 prescribes for a peer not equipped to interpret it (PeerSession.naks, internal/core/eap/peer.go), and that Nak carries no Vendor-Id |
 | `RFC3748-7.10-1` | MSK MUST be at least 64 octets (S7.10) | MUST | 7.10 | **positive:** `unit/verify` [`TestRFC3748MSKSize`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L324). **negative:** no negative test. **{single-polarity}:** the MSK is the compile-time fixed [64]byte returned by DeriveMSK (internal/core/eap/mschapv2.go:206) and by the EAP-TLS ExportKeyingMaterial(...,64) (eap_tls.go:262), so the 64-octet floor cannot be undershot and has no negative case |
 | `RFC3748-7.10-2` | EMSK MUST be at least 64 octets (S7.10) | MUST | 7.10 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze derives only the MSK (exported for the IKEv2 AUTH payload) and never derives or consumes the EMSK -- no EMSK is produced anywhere in internal/core/eap, so there is no EMSK to size-check |
-| `RFC3748-7.10-3` | An EAP method that establishes no shared key, such as MD5-Challenge, SHOULD NOT be used with IKEv2 (RFC 7296 S2.16 states the rule; S7.10 anchors this id) | SHOULD NOT | 7.10 | **positive:** `unit/verify` [`TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L118). **negative:** `unit/verify` [`TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L169) |
-| `RFC3748-4-4` | Octets outside the range of the Length field MUST be ignored upon reception (S4, S4.1) | MUST | 4 | **positive:** `unit/verify` [`TestRFC3748LengthBoundsTypeData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L105). **negative:** `unit/verify` [`TestRFC3748LengthBoundsTypeData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L117) |
-| `RFC3748-4.1-3` | A retransmitted Request MUST carry the same Identifier value, and a new (non-retransmission) Request MUST carry one different from the previous Request (S4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC3748NewRequestChangesIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L135). **negative:** `unit/verify` [`TestRFC3748NewRequestChangesIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L146) |
-| `RFC3748-4.1-4` | The Identifier field of a Response MUST match that of the currently outstanding Request (S4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC3748ResponseEchoesRequestIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L167). **negative:** `unit/verify` [`TestRFC3748ResponseEchoesRequestIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L178) |
-| `RFC3748-4.1-5` | The Type field of a Response MUST match that of the Request, or be a legacy or Expanded NAK (S4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC3748ResponseTypeMatchesRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L204). **negative:** `unit/verify` [`TestRFC3748ResponseTypeMatchesRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L215) |
-| `RFC3748-4.2-5` | Once the method completes unsuccessfully, the peer MUST terminate the conversation and indicate failure to the lower layer (S4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC3748PeerEndsAnUnsuccessfulConversation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L249). **negative:** `unit/verify` [`TestRFC3748PeerEndsAnUnsuccessfulConversation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L264) |
-| `RFC3748-4.2-6` | Where the authenticator has sent no result indication, the peer MUST NOT silently discard the Success or Failure it waits for (S4.2) | MUST NOT | 4.2 | **positive:** `unit/verify` [`TestRFC3748PeerActsOnTheTerminalPacket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L283). **negative:** `unit/verify` [`TestRFC3748PeerActsOnTheTerminalPacket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L295) |
+| `RFC3748-7.10-3` | An EAP method that establishes no shared key, such as MD5-Challenge, SHOULD NOT be used with IKEv2 (RFC 7296 S2.16 states the rule; S7.10 anchors this id) | SHOULD NOT | 7.10 | **positive:** `unit/verify` [`TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L120). **negative:** `unit/verify` [`TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L171) |
+| `RFC3748-4-4` | Octets outside the range of the Length field MUST be ignored upon reception (S4, S4.1) | MUST | 4 | **positive:** `unit/verify` [`TestRFC3748LengthBoundsTypeData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L106). **negative:** `unit/verify` [`TestRFC3748LengthBoundsTypeData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L118) |
+| `RFC3748-4.1-3` | A retransmitted Request MUST carry the same Identifier value, and a new (non-retransmission) Request MUST carry one different from the previous Request (S4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC3748NewRequestChangesIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L136). **negative:** `unit/verify` [`TestRFC3748NewRequestChangesIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L147) |
+| `RFC3748-4.1-4` | The Identifier field of a Response MUST match that of the currently outstanding Request (S4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC3748ResponseEchoesRequestIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L168). **negative:** `unit/verify` [`TestRFC3748ResponseEchoesRequestIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L179) |
+| `RFC3748-4.1-5` | The Type field of a Response MUST match that of the Request, or be a legacy or Expanded NAK (S4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC3748ResponseTypeMatchesRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L205). **negative:** `unit/verify` [`TestRFC3748ResponseTypeMatchesRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L216) |
+| `RFC3748-4.2-5` | Once the method completes unsuccessfully, the peer MUST terminate the conversation and indicate failure to the lower layer (S4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC3748PeerEndsAnUnsuccessfulConversation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L250). **negative:** `unit/verify` [`TestRFC3748PeerEndsAnUnsuccessfulConversation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L265) |
+| `RFC3748-4.2-6` | Where the authenticator has sent no result indication, the peer MUST NOT silently discard the Success or Failure it waits for (S4.2) | MUST NOT | 4.2 | **positive:** `unit/verify` [`TestRFC3748PeerActsOnTheTerminalPacket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L284). **negative:** `unit/verify` [`TestRFC3748PeerActsOnTheTerminalPacket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L296) |
 | `RFC3748-4-5` | EAP packets carrying a Code outside 1-4 MUST be silently discarded by both authenticators and peers (S4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC3748UndefinedCodesAreSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L223). **negative:** `unit/verify` [`TestRFC3748UndefinedCodesAreSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L263) |
 | `RFC3748-4.2-7` | By default, an EAP peer MUST silently discard a "canned" Success packet, one sent immediately upon connection (S4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC3748PeerDiscardsACannedSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L82). **negative:** `unit/verify` [`TestRFC3748PeerDiscardsACannedSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L103) |
 | `RFC3748-4.2-8` | A peer receiving a Success or Failure packet where sending one is not explicitly permitted MUST silently discard it (S4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L132). **negative:** `unit/verify` [`TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L145) |
@@ -159,7 +159,7 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 | `RFC3748-7.10-5` | The MSK and EMSK MUST NOT be used directly to protect data (S7.10) | MUST NOT | 7.10 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3748-7.10-6` | The EMSK MUST remain on the EAP peer and EAP server where it is derived, and MUST NOT be transported to, shared with, or used to derive keys for additional parties (S7.10) | MUST | 7.10 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3748-7.10-7` | EAP peers, authenticators and authentication servers MUST be prepared for situations in which one of the parties discards the key state, which remains valid on another party (S7.10) | MUST | 7.10 | **positive:** no positive test. **negative:** no negative test |
-| `RFC3748-5-1` | NAK (Type 3) and Expanded NAK (Type 254) MUST NOT be sent in a Request (S5) | MUST NOT | 5 | **positive:** `unit/verify` [`TestRFC3748NoNAKInARequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L312). **negative:** `unit/verify` [`TestRFC3748NoNAKInARequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L322) |
+| `RFC3748-5-1` | NAK (Type 3) and Expanded NAK (Type 254) MUST NOT be sent in a Request (S5) | MUST NOT | 5 | **positive:** `unit/verify` [`TestRFC3748NoNAKInARequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L313). **negative:** `unit/verify` [`TestRFC3748NoNAKInARequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L323) |
 | `RFC3748-5-2` | All EAP implementations MUST support Types 1-4, which are defined in this document (S5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC3748PeerSupportsTypesOneToFour`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L316). **negative:** `unit/verify` [`TestRFC3748PeerRefusesATypeOutsideOneToFour`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L387) |
 | `RFC3748-5.2-1` | The peer MUST respond to a Notification Request with a Notification Response, unless the EAP authentication method specification prohibits the use of Notification messages (S5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestPeerAnswersANotificationRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_notification_test.go#L89). **negative:** `unit/verify` [`TestPeerNeverNaksANotificationRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_notification_test.go#L147) |
 | `RFC3748-5.2-2` | A Nak Response MUST NOT be sent in response to a Notification Request (S5.2) | MUST NOT | 5.2 | **positive:** `unit/verify` [`TestPeerNeverNaksANotificationRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_notification_test.go#L153). **negative:** `unit/verify` [`TestPeerNaksAnAuthenticationTypeButNotANotification`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_notification_test.go#L179) |
@@ -169,9 +169,9 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 | `RFC3748-5.3.1-4` | The legacy Nak MUST NOT be used as a general purpose error indication, such as for communication of error messages or negotiation of method-specific parameters (S5.3.1) | MUST NOT | 5.3.1 | **positive:** `unit/verify` [`TestPeerDoesNotNakAMethodError`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L324). **negative:** `unit/verify` [`TestPeerDoesNotNakAMethodError`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L347) |
 | `RFC3748-5.4-1` | A Response MUST be sent in reply to an MD5-Challenge Request (S5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestRFC3748MD5ChallengeRequestDrawsAResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L117). **negative:** `unit/verify` [`TestRFC3748MD5ChallengeRequeryDrawsNoResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L206) |
 | `RFC3748-5.4-2` | EAP peer and EAP server implementations MUST support the MD5-Challenge mechanism (S5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestRFC3748MD5ChallengeSupportedByBothRoles`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L237). **negative:** `unit/verify` [`TestRFC3748MD5ChallengeIsTheConfiguredMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L278) |
-| `RFC3748-5.1-2` | The Identity Response field MUST NOT be null terminated (S5.1) | MUST NOT | 5.1 | **positive:** `unit/verify` [`TestRFC3748IdentityResponseIsNotNullTerminated`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L365). **negative:** `unit/verify` [`TestRFC3748IdentityResponseIsNotNullTerminated`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L373) |
-| `RFC3748-7.5-1` | Where an EAP method employs a per-packet MIC, the peer and an authenticator not in pass-through mode MUST validate it (S7.5) | MUST | 7.5 | **positive:** `unit/verify` [`TestRFC3748EAPTLSValidatesItsPerPacketMIC`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L472). **negative:** `unit/verify` [`TestRFC3748EAPTLSValidatesItsPerPacketMIC`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L485) |
-| `RFC3748-7.10-4` | EAP methods deriving keys MUST provide for mutual authentication between the EAP peer and the EAP server (S7.10) | MUST | 7.10 | **positive:** `unit/verify` [`TestRFC3748KeyDerivingMethodAuthenticatesBothEnds`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L504). **negative:** `unit/verify` [`TestRFC3748KeyDerivingMethodAuthenticatesBothEnds`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L519) |
+| `RFC3748-5.1-2` | The Identity Response field MUST NOT be null terminated (S5.1) | MUST NOT | 5.1 | **positive:** `unit/verify` [`TestRFC3748IdentityResponseIsNotNullTerminated`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L366). **negative:** `unit/verify` [`TestRFC3748IdentityResponseIsNotNullTerminated`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L374) |
+| `RFC3748-7.5-1` | Where an EAP method employs a per-packet MIC, the peer and an authenticator not in pass-through mode MUST validate it (S7.5) | MUST | 7.5 | **positive:** `unit/verify` [`TestRFC3748EAPTLSValidatesItsPerPacketMIC`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L473). **negative:** `unit/verify` [`TestRFC3748EAPTLSValidatesItsPerPacketMIC`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L486) |
+| `RFC3748-7.10-4` | EAP methods deriving keys MUST provide for mutual authentication between the EAP peer and the EAP server (S7.10) | MUST | 7.10 | **positive:** `unit/verify` [`TestRFC3748KeyDerivingMethodAuthenticatesBothEnds`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L505). **negative:** `unit/verify` [`TestRFC3748KeyDerivingMethodAuthenticatesBothEnds`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L520) |
 | `RFC3748-5.1-1` | Identity (Type 1) SHOULD NOT be relied upon for authentication; it is sent in cleartext (S5.1, S7.1) | SHOULD | 5.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3748-7.4-1` | EAP methods used in environments subject to MITM attacks SHOULD provide mutual authentication (S7.4) | SHOULD | 7.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3748-4.2-3` | Peer SHOULD treat lower-layer success as implicit EAP Success if EAP Success is lost (S4.2) | SHOULD | 4.2 | **positive:** no positive test. **negative:** no negative test |
@@ -412,8 +412,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L169) | unit/verify | revert, verified |
-| positive | [`TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L118) | unit/verify | revert, verified |
+| negative | [`TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L171) | unit/verify | revert, verified |
+| positive | [`TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L120) | unit/verify | revert, verified |
 
 ### [`RFC3748-4-4`](#rfc3748-4-4)
 
@@ -423,8 +423,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3748LengthBoundsTypeData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L117) | unit/verify | unproven |
-| positive | [`TestRFC3748LengthBoundsTypeData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L105) | unit/verify | unproven |
+| negative | [`TestRFC3748LengthBoundsTypeData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L118) | unit/verify | unproven |
+| positive | [`TestRFC3748LengthBoundsTypeData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L106) | unit/verify | unproven |
 
 ### [`RFC3748-4.1-3`](#rfc3748-4.1-3)
 
@@ -434,8 +434,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3748NewRequestChangesIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L146) | unit/verify | unproven |
-| positive | [`TestRFC3748NewRequestChangesIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L135) | unit/verify | unproven |
+| negative | [`TestRFC3748NewRequestChangesIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L147) | unit/verify | unproven |
+| positive | [`TestRFC3748NewRequestChangesIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L136) | unit/verify | unproven |
 
 ### [`RFC3748-4.1-4`](#rfc3748-4.1-4)
 
@@ -445,8 +445,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3748ResponseEchoesRequestIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L178) | unit/verify | unproven |
-| positive | [`TestRFC3748ResponseEchoesRequestIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L167) | unit/verify | unproven |
+| negative | [`TestRFC3748ResponseEchoesRequestIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L179) | unit/verify | unproven |
+| positive | [`TestRFC3748ResponseEchoesRequestIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L168) | unit/verify | unproven |
 
 ### [`RFC3748-4.1-5`](#rfc3748-4.1-5)
 
@@ -456,8 +456,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3748ResponseTypeMatchesRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L215) | unit/verify | revert, verified |
-| positive | [`TestRFC3748ResponseTypeMatchesRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L204) | unit/verify | revert, verified |
+| negative | [`TestRFC3748ResponseTypeMatchesRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L216) | unit/verify | revert, verified |
+| positive | [`TestRFC3748ResponseTypeMatchesRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L205) | unit/verify | revert, verified |
 
 ### [`RFC3748-4.2-5`](#rfc3748-4.2-5)
 
@@ -467,8 +467,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3748PeerEndsAnUnsuccessfulConversation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L264) | unit/verify | unproven |
-| positive | [`TestRFC3748PeerEndsAnUnsuccessfulConversation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L249) | unit/verify | unproven |
+| negative | [`TestRFC3748PeerEndsAnUnsuccessfulConversation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L265) | unit/verify | unproven |
+| positive | [`TestRFC3748PeerEndsAnUnsuccessfulConversation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L250) | unit/verify | unproven |
 
 ### [`RFC3748-4.2-6`](#rfc3748-4.2-6)
 
@@ -478,8 +478,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3748PeerActsOnTheTerminalPacket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L295) | unit/verify | unproven |
-| positive | [`TestRFC3748PeerActsOnTheTerminalPacket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L283) | unit/verify | unproven |
+| negative | [`TestRFC3748PeerActsOnTheTerminalPacket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L296) | unit/verify | unproven |
+| positive | [`TestRFC3748PeerActsOnTheTerminalPacket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L284) | unit/verify | unproven |
 
 ### [`RFC3748-4-5`](#rfc3748-4-5)
 
@@ -500,8 +500,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3748PeerDiscardsACannedSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L103) | unit/verify | revert, verified |
-| positive | [`TestRFC3748PeerDiscardsACannedSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L82) | unit/verify | revert, verified |
+| negative | [`TestRFC3748PeerDiscardsACannedSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L103) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC3748PeerDiscardsACannedSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L82) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC3748-4.2-8`](#rfc3748-4.2-8)
 
@@ -511,8 +511,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L145) | unit/verify | revert, verified |
-| positive | [`TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L132) | unit/verify | revert, verified |
+| negative | [`TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L145) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L132) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC3748-4.2-9`](#rfc3748-4.2-9)
 
@@ -522,8 +522,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3748PeerDiscardsAFailureAfterMutualSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L199) | unit/verify | revert, verified |
-| positive | [`TestRFC3748PeerDiscardsAFailureAfterMutualSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L178) | unit/verify | revert, verified |
+| negative | [`TestRFC3748PeerDiscardsAFailureAfterMutualSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L199) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC3748PeerDiscardsAFailureAfterMutualSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L178) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC3748-2-3`](#rfc3748-2-3)
 
@@ -686,8 +686,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3748NoNAKInARequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L322) | unit/verify | unproven |
-| positive | [`TestRFC3748NoNAKInARequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L312) | unit/verify | unproven |
+| negative | [`TestRFC3748NoNAKInARequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L323) | unit/verify | unproven |
+| positive | [`TestRFC3748NoNAKInARequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L313) | unit/verify | unproven |
 
 ### [`RFC3748-5-2`](#rfc3748-5-2)
 
@@ -797,8 +797,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3748IdentityResponseIsNotNullTerminated`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L373) | unit/verify | unproven |
-| positive | [`TestRFC3748IdentityResponseIsNotNullTerminated`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L365) | unit/verify | unproven |
+| negative | [`TestRFC3748IdentityResponseIsNotNullTerminated`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L374) | unit/verify | unproven |
+| positive | [`TestRFC3748IdentityResponseIsNotNullTerminated`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L366) | unit/verify | unproven |
 
 ### [`RFC3748-7.5-1`](#rfc3748-7.5-1)
 
@@ -808,8 +808,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3748EAPTLSValidatesItsPerPacketMIC`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L485) | unit/verify | unproven |
-| positive | [`TestRFC3748EAPTLSValidatesItsPerPacketMIC`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L472) | unit/verify | unproven |
+| negative | [`TestRFC3748EAPTLSValidatesItsPerPacketMIC`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L486) | unit/verify | unproven |
+| positive | [`TestRFC3748EAPTLSValidatesItsPerPacketMIC`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L473) | unit/verify | unproven |
 
 ### [`RFC3748-7.10-4`](#rfc3748-7.10-4)
 
@@ -819,8 +819,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3748KeyDerivingMethodAuthenticatesBothEnds`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L519) | unit/verify | unproven |
-| positive | [`TestRFC3748KeyDerivingMethodAuthenticatesBothEnds`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L504) | unit/verify | unproven |
+| negative | [`TestRFC3748KeyDerivingMethodAuthenticatesBothEnds`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L520) | unit/verify | unproven |
+| positive | [`TestRFC3748KeyDerivingMethodAuthenticatesBothEnds`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L505) | unit/verify | unproven |
 
 ## Extraction sign-off
 

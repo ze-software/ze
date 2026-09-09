@@ -154,10 +154,11 @@ static {
 }
 </code></pre>
 <h2 id="interface-binding">Interface binding</h2>
-<p>Each policy route binds to one or more ingress interfaces. A trailing
-<code>*</code> enables wildcard matching (e.g., <code>l2tp*</code> matches all L2TP
-interfaces). The interface match is prepended to every rule in the
-policy.</p>
+<p>Each policy route binds to one or more ingress interfaces. The list is an
+OR: the policy matches a packet that arrives on any one of the named
+interfaces. A trailing <code>*</code> enables wildcard matching (e.g., <code>l2tp*</code>
+matches all L2TP interfaces), and each entry keeps its own wildcard
+state, so one list mixes <code>eth1</code> and <code>l2tp*</code>.</p>
 <pre><code>policy {
     route example {
         interface "l2tp*";
@@ -166,6 +167,30 @@ policy.</p>
     }
 }
 </code></pre>
+<p>Ze installs one nftables rule for each named interface, for each rule of
+the policy, with the interface match first. Two interfaces and two rules
+therefore install four nftables rules. nftables ANDs the matches inside
+one rule, so separate rules are the only way to write the alternative.</p>
+<p><code>show firewall ruleset</code> reports each of those rules as its own counter
+row. The row is named <code>&lt;policy&gt;-&lt;rule&gt;</code> when the policy names one
+interface. It is named <code>&lt;policy&gt;-&lt;rule&gt;-&lt;N&gt;</code> when the policy names
+several, where N is the interface's position in the list, counted from</p>
+<ol>
+<li>A multi-interface policy therefore gets one row for each interface,
+and each row names the rule the traffic can take, rather than one merged
+row for the whole policy.</li>
+</ol>
+<p>The packet and byte counts in those rows are not per interface. The nft
+backend puts the counter at the front of the rule, ahead of the interface
+match, so the counter increments for every packet the <code>ze_pr</code> chain sees.
+Two interfaces on one policy report the same count. Read the rows to see
+which rules exist, not to see how much traffic each interface carried.</p>
+<p>A policy that names no interface matches every ingress interface.</p>
+<!-- source: internal/plugins/policyroute/translate.go -- ruleTerms, termName -->
+<!-- source: internal/plugins/firewall/nft/backend_linux.go -- applyChain, mergeRuleCounters -->
+<p>The <code>order</code> leaf still decides which rule runs first. The nftables rules
+of one policy rule stay together, in the order the interfaces are
+listed.</p>
 <h2 id="match-criteria-from-block">Match criteria (from block)</h2>
 <table>
 <thead>
@@ -383,7 +408,7 @@ the shared firewall table registry.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
                 </div>
             </div>
         </footer>

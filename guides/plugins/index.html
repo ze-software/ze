@@ -214,7 +214,7 @@
 <tr>
 <td><code>external</code></td>
 <td><code>run</code></td>
-<td>Command to start an external plugin process</td>
+<td>Command to start an external plugin process. Ze runs it as <code>/bin/sh -c &lt;run&gt;</code>, so quoting, pipes and variable expansion work</td>
 </tr>
 <tr>
 <td><code>external</code></td>
@@ -233,6 +233,12 @@
 </tr>
 </tbody>
 </table>
+<p>An <code>external</code> plugin needs a shell on the host, because the <code>run</code> string is
+given to <code>/bin/sh -c</code>. A gokrazy appliance image carries none, so an appliance
+runs its plugins from <code>internal</code> blocks. <code>ze doctor</code> reports the missing shell
+under <code>doctor-plugin-shell-missing</code>, and a start that meets it names the shell
+rather than the plugin.</p>
+<!-- source: internal/component/plugin/shell.go -- Shell, ShellAvailable -->
 <h2 id="when-a-plugin-fails">When a Plugin Fails</h2>
 <p><strong>The plugin decides, not the configuration.</strong> Every plugin tells ze at startup
 what its own failure means, and ze does that.</p>
@@ -578,13 +584,13 @@ registry name of a plugin loaded with <code>--plugin</code>.</p>
 <!-- source: internal/component/plugin/server/ -- plugin invocation modes; internal/component/plugin/cli/cli.go -- RunPlugin -->
 <h2 id="built-in-plugins">Built-In Plugins</h2>
 <p>List available plugins:</p>
-<pre><code>ze show plugins
+<pre><code>ze show plugin list
 </code></pre>
 <h2 id="reporting-a-setup-outcome">Reporting a Setup Outcome</h2>
 <p>A plugin that sets something up in its own <code>init()</code> records what happened, so
 an operator can ask why a feature is absent. The <code>outcome</code> and <code>reason</code> columns
-of <code>show plugins</code> carry it:</p>
-<pre><code>ze show plugins
+of <code>show plugin list</code> carry it:</p>
+<pre><code>ze show plugin list
 </code></pre>
 <p>The record is one call, made from the plugin's <code>init()</code> beside its
 registration:</p>
@@ -1861,7 +1867,7 @@ command argument, which expands the chain in the client process and answers
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
                 </div>
             </div>
         </footer>

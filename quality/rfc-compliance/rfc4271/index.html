@@ -118,7 +118,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>75.2%</strong><b>76 of 101 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>3.0%</strong><b>3 of 101 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 101 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.9%</strong><b>2 of 232 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.9%</strong><b>2 of 233 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -220,10 +220,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>232</td>
+<td>233</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>232</td>
+<td>233</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
@@ -408,6 +408,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-4.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L339" title="internal/component/bgp/message/open_test.go" target="_blank" rel="noopener"><code>TestOpenValidateHoldTime</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L341" title="internal/component/bgp/message/open_test.go" target="_blank" rel="noopener"><code>TestOpenValidateHoldTime</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/open-hold-time-peer-lower-wins.ci#L3" title="test/plugin/open-hold-time-peer-lower-wins.ci" target="_blank" rel="noopener"><code>open-hold-time-peer-lower-wins.ci</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-4.2-2">RFC4271-4.2-2</code></td><td colspan="3"><span class="rfc-subject">BGP speaker MUST calculate Hold Timer by using the smaller of its configured Hold Time and the received Hold Time (§4.2)</span></td></tr>
@@ -1919,6 +1920,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L339" title="internal/component/bgp/message/open_test.go" target="_blank" rel="noopener"><code>TestOpenValidateHoldTime</code></a></td>
 <td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/open-hold-time-peer-lower-wins.ci#L3" title="test/plugin/open-hold-time-peer-lower-wins.ci" target="_blank" rel="noopener"><code>open-hold-time-peer-lower-wins.ci</code></a></td>
+<td>functional/verify</td>
 <td>unproven</td>
 </tr>
 </tbody>
@@ -3813,7 +3819,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 8 September 2026 15:44 UTC</span>
                 </div>
             </div>
         </footer>

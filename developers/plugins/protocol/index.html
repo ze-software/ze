@@ -61,6 +61,12 @@ plugins connect back via TLS.</p>
 <li><a href="#stage-4-registry-engine-to-plugin">Stage 4: Registry (Engine to Plugin)</a></li>
 <li><a href="#stage-5-ready-plugin-to-engine">Stage 5: Ready (Plugin to Engine)</a></li>
 </ol></li>
+<li><a href="#query-mode-answering-without-starting">Query Mode: Answering Without Starting</a>
+<ol>
+<li><a href="#what-you-call">What you call</a></li>
+<li><a href="#what-the-sdk-guarantees">What the SDK guarantees</a></li>
+<li><a href="#what-it-does-not-guarantee">What it does not guarantee</a></li>
+</ol></li>
 <li><a href="#runtime-callbacks-engine-to-plugin">Runtime Callbacks (Engine to Plugin)</a></li>
 <li><a href="#runtime-rpcs-plugin-to-engine">Runtime RPCs (Plugin to Engine)</a></li>
 <li><a href="#message-flow-example">Message Flow Example</a></li>
@@ -333,7 +339,7 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 <tr>
 <td><code>config-operations</code></td>
 <td><code>[]ConfigOperationDecl</code></td>
-<td>Config operation callbacks the plugin supports</td>
+<td>Config operation callbacks the plugin supports, and the operation labels it emits for each root. The labels are the plugin's own: the engine keeps no list of them</td>
 </tr>
 <tr>
 <td><code>verify-budget</code></td>
@@ -785,6 +791,69 @@ callbacks flow through <code>bridge.CallbackCh()</code> instead of the MuxConn.<
 </code></pre>
 <p>After Stage 5, the SDK activates the DirectBridge (for internal plugins) and enters
 the event loop.</p>
+<h2 id="query-mode-answering-without-starting">Query Mode: Answering Without Starting</h2>
+<p>Ze can start your plugin to ask what it declares, with no daemon running and no
+hub to connect to. It sets <code>ZE_PLUGIN_MODE=declare</code> in your process's
+environment. Your plugin writes its Stage 1 declaration to stdout, exits 0, and
+does none of a live start's work: no data initialization, no connection, no
+bind, no listener, no timer.</p>
+<h3 id="what-you-call">What you call</h3>
+<p><code>sdk.RunOrDeclare</code> takes your declaration and your start function as two
+arguments and returns the exit code:</p>
+<pre><code class="language-go">// declaration is what this plugin provides. It is a pure value: no file, no
+// socket, no goroutine.
+func declaration() sdk.Registration {
+    return sdk.Registration{
+        Commands: []sdk.CommandDecl{{Name: "acme-monitor status", Description: "Show monitor status"}},
+    }
+}
+
+func main() {
+    os.Exit(sdk.RunOrDeclare(declaration(), start))
+}
+
+// start does everything a live start does, and query mode never calls it.
+func start() int {
+    p, err := sdk.NewFromEnv("acme-monitor")
+    if err != nil {
+        return 1
+    }
+    defer p.Close()
+    // ... register callbacks, open files, dial, start timers ...
+    if err := p.Run(context.Background(), declaration()); err != nil {
+        return 1
+    }
+    return 0
+}
+</code></pre>
+<p>The declaration is the same <code>sdk.Registration</code> value you pass to <code>Plugin.Run</code>,
+so query mode reads nothing new and adds no second list to keep in step.</p>
+<!-- source: pkg/plugin/sdk/sdk_query.go -- RunOrDeclare -->
+<h3 id="what-the-sdk-guarantees">What the SDK guarantees</h3>
+<ul>
+<li>Your start function is NOT called under the mode. Side-effecting code inside
+it is unreachable during a query, not merely discouraged.</li>
+<li>The line written is the Stage 1 <code>declare-registration</code> message in the
+protocol's own framing, so the reader parses one format.</li>
+<li>A declaration naming no command and no pipe still writes the line. "Declared
+nothing" and "sent nothing" are different answers.</li>
+</ul>
+<h3 id="what-it-does-not-guarantee">What it does not guarantee</h3>
+<ul>
+<li>Work your <code>main</code> does BEFORE the call runs under a query too. The SDK cannot
+reach it. Put every side effect inside the start function.</li>
+<li><code>Plugin.Run</code> derives <code>wants-validate-open</code> from the callbacks you registered.
+A query has no <code>Plugin</code>, so state that field in the declaration you pass here
+when you want it in the answer.</li>
+<li>A plugin that adopts neither this entry point nor the <code>ze plugin</code> route is
+reported as having sent nothing. Ze cannot make a binary it does not compile
+inert, so for third-party code this is enforcement for adopters and convention
+for everyone else.</li>
+<li><code>QueryModeRequested()</code> reports the mode for a plugin that has its own reason
+to branch. It is a reader, not a guarantee: the branch is yours to place, and
+anything above it has already run.</li>
+</ul>
+<!-- source: pkg/plugin/sdk/sdk.go -- QueryModeRequested, EnvPluginMode, ModeDeclare -->
 <h2 id="runtime-callbacks-engine-to-plugin">Runtime Callbacks (Engine to Plugin)</h2>
 <p>After startup, the engine sends runtime RPCs to the plugin. The SDK dispatches
 each wire method to its registered handler.</p>
@@ -1179,7 +1248,7 @@ config-verify, etc.) and bye.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
                 </div>
             </div>
         </footer>

@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 25.0% | 5 of 20 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 30.0% | 6 of 20 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 35.0% | 7 of 20 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 20 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 30.3% | 10 of 33 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 33.3% | 12 of 36 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -33,7 +33,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 10.0% | 2 of 20 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 5.0% | 1 of 20 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 7 shares marked as a part above are the whole of the 20 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -62,13 +62,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 23 |
 | Gated MUST-level | 20 |
 | Not applicable, so out of scope | 6 |
-| Declared gaps | 2 |
+| Declared gaps | 1 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 33 |
-| Tagged units | 33 |
+| Test tags | 36 |
+| Tagged units | 36 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 10 |
+| Discrimination records | 12 |
 | Summary | `rfc/short/rfc4301.md` |
 | Requirement shard | `rfc/requirements/rfc4301.md` |
 | RFC text | `rfc/full/rfc4301.txt` |
@@ -89,23 +89,23 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 
 Lowered from `Supported` on 2026-08-30, after an extraction walk of [`rfc/full/rfc4301.txt`](https://github.com/ze-software/ze/blob/main/rfc/full/rfc4301.txt) found architecture obligations Ze does not meet. The implementation work is [`plan/immediate/spec-rfc4301-architecture-gaps.md`](https://github.com/ze-software/ze/blob/main/plan/immediate/spec-rfc4301-architecture-gaps.md), one phase per block.
 
-- **Section 6, ICMP processing:** no control lets an administrator accept or reject unauthenticated ICMP error messages per ICMP type, and no check compares a protected transit ICMP error message payload header against the traffic selectors of the SA that carried it. Section 7.4, stateful fragment checking: Ze holds no fragment state, so a forged non-initial fragment matching the port-scoped IKE bypass policies (`ikeBypassPolicies`, [`internal/component/ike/engine/bypass.go`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/bypass.go)) is not classified on its ports. The DISCARD half of that section is now met: `SPAction` carries `SPActionDiscard` and `vpn ipsec policy <name> action discard` installs it ([`RFC4301-7.4-1`](#rfc4301-7.4-1)).
+- **Section 6, ICMP processing:** no control lets an administrator accept or reject unauthenticated ICMP error messages per ICMP type, and no check compares a protected transit ICMP error message payload header against the traffic selectors of the SA that carried it.
 - **Section 8, DF bit and PMTU:** the DF treatment of a tunnel-mode SA is not configurable, and no per-SA PMTU value is held or aged. Section 4.4.2.1, SAD lifetimes: `newLifetimeState` ([`internal/component/ike/engine/rekey.go`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rekey.go)) assigns a time lifetime only, `softBytes` is never assigned, and the byte-count arm of `softExpired` is unreachable in a running daemon; [`plan/spec-ipsec-lifetime-volume.md`](https://github.com/ze-software/ze/blob/main/plan/spec-ipsec-lifetime-volume.md) designs the byte-count lifetime. Section 5.1.2.1, outer header: the DSCP value of the outer tunnel header is not mapped for the domain the packet enters. Section 4.4.1.1, selectors: a port selector holds any port or one exact port rather than the range the section defines, and `SPParams` carries no ICMP type or code field. Only that last item is gated in [`rfc/short/rfc4301.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc4301.md), as [`RFC4301-4.4.1.1-1`](#rfc4301-4.4.1.1-1), and its reason text is stale about ports.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 5 | one part of the gated population |
-| Annotated instead of tested | 15 | one part of the gated population |
+| Positive and negative tests | 6 | one part of the gated population |
+| Annotated instead of tested | 14 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | **Gated MUST-level requirements** | **20** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (5):** [`RFC4301-4.2-1`](#rfc4301-4.2-1), [`RFC4301-4.4.3.1-1`](#rfc4301-4.4.3.1-1), [`RFC4301-4.4.3.1-2`](#rfc4301-4.4.3.1-2), [`RFC4301-4.4.1-4`](#rfc4301-4.4.1-4), [`RFC4301-7.4-1`](#rfc4301-7.4-1)
+**Positive and negative tests (6):** [`RFC4301-4.2-1`](#rfc4301-4.2-1), [`RFC4301-4.4.3.1-1`](#rfc4301-4.4.3.1-1), [`RFC4301-4.4.3.1-2`](#rfc4301-4.4.3.1-2), [`RFC4301-4.4.1-4`](#rfc4301-4.4.1-4), [`RFC4301-7.4-1`](#rfc4301-7.4-1), [`RFC4301-7.4-2`](#rfc4301-7.4-2)
 
-**Annotated instead of tested (15):** [`RFC4301-4.1-1`](#rfc4301-4.1-1), [`RFC4301-4.1-2`](#rfc4301-4.1-2), [`RFC4301-4.1-3`](#rfc4301-4.1-3), [`RFC4301-4.1-4`](#rfc4301-4.1-4), [`RFC4301-4.1-5`](#rfc4301-4.1-5), [`RFC4301-4.4.1-1`](#rfc4301-4.4.1-1), [`RFC4301-4.4.1-2`](#rfc4301-4.4.1-2), [`RFC4301-4.4.1.1-1`](#rfc4301-4.4.1.1-1), [`RFC4301-4.4.2-1`](#rfc4301-4.4.2-1), [`RFC4301-4.5-1`](#rfc4301-4.5-1), [`RFC4301-5.2-1`](#rfc4301-5.2-1), [`RFC4301-5.2-2`](#rfc4301-5.2-2), [`RFC4301-4.1-6`](#rfc4301-4.1-6), [`RFC4301-7-1`](#rfc4301-7-1), [`RFC4301-7.4-2`](#rfc4301-7.4-2)
+**Annotated instead of tested (14):** [`RFC4301-4.1-1`](#rfc4301-4.1-1), [`RFC4301-4.1-2`](#rfc4301-4.1-2), [`RFC4301-4.1-3`](#rfc4301-4.1-3), [`RFC4301-4.1-4`](#rfc4301-4.1-4), [`RFC4301-4.1-5`](#rfc4301-4.1-5), [`RFC4301-4.4.1-1`](#rfc4301-4.4.1-1), [`RFC4301-4.4.1-2`](#rfc4301-4.4.1-2), [`RFC4301-4.4.1.1-1`](#rfc4301-4.4.1.1-1), [`RFC4301-4.4.2-1`](#rfc4301-4.4.2-1), [`RFC4301-4.5-1`](#rfc4301-4.5-1), [`RFC4301-5.2-1`](#rfc4301-5.2-1), [`RFC4301-5.2-2`](#rfc4301-5.2-2), [`RFC4301-4.1-6`](#rfc4301-4.1-6), [`RFC4301-7-1`](#rfc4301-7-1)
 
 ## Requirements
 
@@ -133,7 +133,7 @@ Lowered from `Supported` on 2026-08-30, after an extraction walk of [`rfc/full/r
 | `RFC4301-4.4.3.1-2` | For IPv4 and IPv6 addresses in PAD entries, the same address range syntax used for SPD entries MUST be supported (§4.4.3.1) | MUST | 4.4.3.1 | **positive:** `unit/verify` [`TestPadAddressRangeAdmitsAnAddressInsideIt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_pad_subtree_test.go#L129). **positive:** `unit/verify` [`TestVidPeerAuthorizationSetsCommitOnlyAsRemoteID`](https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/validate_identity_test.go#L167). **negative:** `unit/verify` [`TestPadAddressRangeRefusesWhatIsOutsideIt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_pad_subtree_test.go#L155) |
 | `RFC4301-4.4.1-4` | A user or administrator MUST be able to order the SPD entries, and the management interface MUST support (total) ordering of them as seen via that interface (§4.4.1) | MUST | 4.4.1 | **positive:** `unit/verify` [`TestSPDPolicyMirrorsTheInboundSelector`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_spd_discard_test.go#L94). **positive:** `unit/verify` [`TestSpdOperatorOrdersOverlappingPeers`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_spd_order_test.go#L20). **negative:** `unit/verify` [`TestSPDPolicyOrderInsideBypassBandRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_discard_test.go#L123). **negative:** `unit/verify` [`TestSpdOrderCannotCaptureTheIKEControlPlane`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_spd_order_test.go#L107). **negative:** `unit/verify` [`TestSpdUnstatedOrderTakesTheDefaultRank`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_spd_order_test.go#L67) |
 | `RFC4301-7.4-1` | All implementations MUST support DISCARDing of fragments using the normal SPD packet classification mechanisms (§7.4) | MUST | 7.4 | **positive:** `unit/verify` [`TestDiscardPolicyReachesTheBackend`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_spd_discard_test.go#L45). **positive:** `unit/verify` [`TestDiscardPolicyReachesTheKernelAsBlock`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_discard_linux_test.go#L41). **positive:** `unit/verify` [`TestPolicyReadbackReportsDiscard`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_discard_linux_test.go#L98). **positive:** `unit/verify` [`TestSPDPolicyCarriesTheDiscardDisposition`](https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_discard_test.go#L52). **positive:** `unit/verify` [`TestVPPSPDActionCarriesEveryDisposition`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_discard_vpp_test.go#L23). **negative:** `unit/verify` [`TestBypassPolicyIsNotBlocked`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_discard_linux_test.go#L64). **negative:** `unit/verify` [`TestBypassPolicyReachesTheBackendAsBypass`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_spd_discard_test.go#L75). **negative:** `unit/verify` [`TestSPDPolicyBypassIsNotADiscard`](https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_discard_test.go#L83) |
-| `RFC4301-7.4-2` | All implementations MUST support stateful fragment checking to accommodate BYPASS traffic for which a non-trivial port range is specified (§7.4; Appendix D.4 restates it as "implementations MUST support fragment reassembly for BYPASS/DISCARD traffic when port fields are specified") | MUST | 7.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze holds no fragment state, and the check cannot be an XFRM policy: XfrmSelector (vendor/github.com/vishvananda/netlink/nl/xfrm_linux.go) carries Daddr, Saddr, Dport, DportMask, Sport, SportMask, Family, PrefixlenD, PrefixlenS, Proto, Ifindex and User, and no fragment flag, so a policy cannot match "is a non-initial fragment". ikeBypassPolicies (internal/component/ike/engine/bypass.go) installs four port-scoped BYPASS entries on UDP 500 and 4500, which is the non-trivial port range this requirement binds. WHICH LAYER discharges it is an open design question for the owner: kernel reassembly ahead of the policy check, a netfilter rule, or refusing a port-scoped BYPASS the check does not cover. plan/immediate/spec-rfc4301-architecture-gaps.md phase 2 owns it |
+| `RFC4301-7.4-2` | All implementations MUST support stateful fragment checking to accommodate BYPASS traffic for which a non-trivial port range is specified (§7.4; Appendix D.4 restates it as "implementations MUST support fragment reassembly for BYPASS/DISCARD traffic when port fields are specified") | MUST | 7.4 | **positive:** `unit/verify` [`TestPortScopedBypassNeverReachesTheForwardPath`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_fragment_test.go#L74). **positive:** `unit/verify` [`TestXFRMPortScopedBypassIsNeverStoredOnTheForwardPath`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_fragment_integration_linux_test.go#L69). **negative:** `unit/verify` [`TestIKEBypassIsPortScopedSoSection74Binds`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_fragment_test.go#L133) |
 
 ## Gaps and untested MUSTs
 
@@ -146,7 +146,6 @@ Lowered from `Supported` on 2026-08-30, after an extraction walk of [`rfc/full/r
 | [`RFC4301-5.2-2`](#rfc4301-5.2-2) After decapsulation, inner packet selectors MUST be verified against SAD traffic selectors (§5.2) | no test | no test carries this requirement id; annotated {not-applicable}: post-decapsulation inner-selector verification against the SAD is a kernel XFRM datapath function; the kernel verifies the inner packet against the inbound policy ze installs |
 | [`RFC4301-4.1-6`](#rfc4301-4.1-6) Multicast-capable implementations MUST support multicast SAD lookup (three-step: SPI+dst+src, SPI+dst, SPI alone) (§4.1) | no test | no test carries this requirement id; annotated {not-applicable}: the three-step inbound SAD lookup (SPI+dst+src / SPI+dst / SPI) is a per-packet kernel XFRM function; ze performs no inbound SAD lookups |
 | [`RFC4301-7-1`](#rfc4301-7-1) AH/ESP MUST NOT be applied in transport mode to IPv4 fragments; use tunnel mode (§7) | no test | no test carries this requirement id; annotated {not-applicable}: ze applies transport mode only to IPv6 OSPFv3 traffic (IPv4-family IPsec is rejected at config), so transport-mode IPsec on an IPv4 fragment structurally cannot arise, and per-packet fragment handling is kernel-delegated (internal/plugins/ospf/config_ipsec.go:21-22) |
-| [`RFC4301-7.4-2`](#rfc4301-7.4-2) All implementations MUST support stateful fragment checking to accommodate BYPASS traffic for which a non-trivial port range is specified (§7.4; Appendix D.4 restates it as "implementations MUST support fragment reassembly for BYPASS/DISCARD traffic when port fields are specified") | {gap}, no test | ze holds no fragment state, and the check cannot be an XFRM policy: XfrmSelector (vendor/github.com/vishvananda/netlink/nl/xfrm_linux.go) carries Daddr, Saddr, Dport, DportMask, Sport, SportMask, Family, PrefixlenD, PrefixlenS, Proto, Ifindex and User, and no fragment flag, so a policy cannot match "is a non-initial fragment". ikeBypassPolicies (internal/component/ike/engine/bypass.go) installs four port-scoped BYPASS entries on UDP 500 and 4500, which is the non-trivial port range this requirement binds. WHICH LAYER discharges it is an open design question for the owner: kernel reassembly ahead of the policy check, a netfilter rule, or refusing a port-scoped BYPASS the check does not cover. plan/immediate/spec-rfc4301-architecture-gaps.md phase 2 owns it |
 
 ## Proof state
 
@@ -355,7 +354,11 @@ All implementations MUST support stateful fragment checking to accommodate BYPAS
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4301-7.4-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestIKEBypassIsPortScopedSoSection74Binds`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_fragment_test.go#L133) | unit/verify | revert, verified |
+| positive | [`TestXFRMPortScopedBypassIsNeverStoredOnTheForwardPath`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_fragment_integration_linux_test.go#L69) | unit/verify | unproven |
+| positive | [`TestPortScopedBypassNeverReachesTheForwardPath`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_fragment_test.go#L74) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

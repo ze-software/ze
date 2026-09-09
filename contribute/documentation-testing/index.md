@@ -6,7 +6,7 @@ change.
 
 <!-- source: internal/le/doc/check/actions.go -- Actions -->
 <!-- source: internal/le/doc/wiring/docwiring.go -- Run -->
-<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
+<!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 
 ## Quick start
 
@@ -67,7 +67,7 @@ The full `./le doc check verify` remains the explicit documentation review targe
 command, inventory, and wiring checks for changed files.
 
 <!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
-<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
+<!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 
 ## How to interpret output
 

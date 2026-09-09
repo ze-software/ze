@@ -347,7 +347,7 @@ the stats poll interval only when the defaults do not fit the workload.</p>
 <td><code>vpp.cpu.workers</code></td>
 <td>uint8</td>
 <td>auto</td>
-<td>Number of worker threads. Ze takes the cores from the kernel's isolated set (<code>/sys/devices/system/cpu/isolated</code>), lowest first, <code>main-core</code> excluded, and writes them as <code>corelist-workers</code>. On a host that isolated nothing, the list falls back to <code>main-core+1 .. main-core+workers</code> and <code>ze doctor</code> reports <code>doctor-vpp-cpu-isolation</code>. A count the host cannot satisfy is refused at commit. <!-- source: internal/component/vpp/cpuset.go -- resolveWorkerCores --></td>
+<td>Number of worker threads. Ze takes the cores from the kernel's isolated set (<code>/sys/devices/system/cpu/isolated</code>), lowest first, <code>main-core</code> excluded and any CPU no longer online excluded, and writes them as <code>corelist-workers</code>. On a host that isolated nothing, the list falls back to <code>main-core+1 .. main-core+workers</code> and <code>ze doctor</code> reports <code>doctor-vpp-cpu-isolation</code>. A count the host cannot satisfy is refused at commit. <!-- source: internal/component/vpp/cpuset.go -- resolveWorkerCores --></td>
 </tr>
 <tr>
 <td><code>vpp.cpu.worker-cores</code></td>
@@ -692,7 +692,7 @@ and converging sub-second on a full table.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
                 </div>
             </div>
         </footer>

@@ -73,7 +73,7 @@ change.</p>
 </ol></nav>
 <!-- source: internal/le/doc/check/actions.go -- Actions -->
 <!-- source: internal/le/doc/wiring/docwiring.go -- Run -->
-<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
+<!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 <h2 id="quick-start">Quick start</h2>
 <pre><code class="language-sh">./le doc check verify              # Run all documentation tests
 ./le doc wiring    # Run changed-file-aware wiring/doc/inventory gate
@@ -198,7 +198,7 @@ pre-commit gate.</p>
 <code>./le verify current mode full</code> runs <code>./le doc wiring</code>, which invokes the relevant doc,
 command, inventory, and wiring checks for changed files.</p>
 <!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
-<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
+<!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 <h2 id="how-to-interpret-output">How to interpret output</h2>
 <h3 id="le-docvalid-doc-drift"><code>./le docvalid doc-drift</code></h3>
 <pre><code>  Documentation drift detected (N issues)
@@ -617,7 +617,7 @@ command validation, and changed-file wiring</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
                 </div>
             </div>
         </footer>

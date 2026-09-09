@@ -6,8 +6,8 @@ Ze is Go, and Go code leans on packages. 48 direct dependencies, read straight f
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
-| `charm.land/bubbletea/v2` | `v2.0.8` | The Elm-style TUI framework driving Ze's interactive CLI: config editor, dashboard, monitor, ping and traceroute views, run per SSH session. |
-| `charm.land/bubbles/v2` | `v2.1.1` | Pre-built TUI widgets (text input, viewport) for the CLI's interactive screens. |
+| `charm.land/bubbletea/v2` | `v2.0.9` | The Elm-style TUI framework driving Ze's interactive CLI: config editor, dashboard, monitor, ping and traceroute views, run per SSH session. |
+| `charm.land/bubbles/v2` | `v2.2.1` | Pre-built TUI widgets (text input, viewport) for the CLI's interactive screens. |
 | `charm.land/lipgloss/v2` | `v2.0.6` | Styling and layout for the CLI's colors, borders, and widths. |
 | `charm.land/wish/v2` | `v2.0.3` | SSH server middleware that wires each incoming session to run the CLI's Bubbletea program. |
 | `charm.land/ssh` | `v0.4.3` | SSH session and public-key types that the wish server and the CLI's key-based auth build on. |
@@ -20,7 +20,7 @@ Ze is Go, and Go code leans on packages. 48 direct dependencies, read straight f
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
-| `github.com/miekg/dns` | `v1.1.72` | DNS message parsing and serving underneath Ze's DNS server engine, the AS112 blackhole plugin, and GeoDNS. It's the library underpinning CoreDNS. |
+| `github.com/miekg/dns` | `v1.1.73` | DNS message parsing and serving underneath Ze's DNS server engine, the AS112 blackhole plugin, and GeoDNS. It's the library underpinning CoreDNS. |
 | `github.com/insomniacslk/dhcp` | `v0.0.0-20260719225207-c76316d4aa82` | DHCPv4/DHCPv6 client used for interface lease handling and the installer's disk-provisioning DHCP client. |
 | `github.com/beevik/ntp` | `v1.5.0` | NTP client queries used by the ntp plugin. |
 | `golang.zx2c4.com/wireguard/wgctrl` | `v0.0.0-20241231184526-a9ab2273dd10` | Creates and configures WireGuard interfaces and peers from the interface netlink backend. |
@@ -52,7 +52,7 @@ Ze is Go, and Go code leans on packages. 48 direct dependencies, read straight f
 | --- | --- | --- |
 | `github.com/openconfig/goyang` | `v1.6.3` | Parses and validates the YANG module definitions behind Ze's config schema, CLI completion, and validation engine. |
 | `github.com/openconfig/gnmi` | `v0.14.1` | Generated gNMI protobuf/gRPC types that Ze's gNMI server implements for Get/Set/Subscribe/Capabilities. |
-| `google.golang.org/grpc` | `v1.83.1` | Backs Ze's gRPC servers: gNMI and Ze's own management API. |
+| `google.golang.org/grpc` | `v1.83.2` | Backs Ze's gRPC servers: gNMI and Ze's own management API. |
 | `google.golang.org/protobuf` | `v1.36.12` | Runtime support for the generated protobuf message types behind Ze's gRPC API. |
 | `google.golang.org/grpc/cmd/protoc-gen-go-grpc` | `v1.6.2` | Build-time only: the protoc plugin used to regenerate the gRPC API's Go bindings from ze.proto. |
 
@@ -61,8 +61,8 @@ Ze is Go, and Go code leans on packages. 48 direct dependencies, read straight f
 | Module | Version | Why we use it |
 | --- | --- | --- |
 | `github.com/prometheus/client_golang` | `v1.24.1` | Ze's internal metrics backend: counters, gauges, and histograms against a private registry. |
-| `github.com/prometheus/procfs` | `v0.21.1` | Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet. |
-| `github.com/sirupsen/logrus` | `v1.10.1` | Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger. |
+| `github.com/prometheus/procfs` | `v0.22.0` | Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet. |
+| `github.com/sirupsen/logrus` | `v1.10.2` | Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger. |
 
 ## Standard Library Extensions (golang.org/x) (7)
 
@@ -74,7 +74,7 @@ Ze is Go, and Go code leans on packages. 48 direct dependencies, read straight f
 | `golang.org/x/sys` | `v0.47.0` | Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components. |
 | `golang.org/x/term` | `v0.45.0` | Reads passwords without echo and detects an interactive terminal during CLI login. |
 | `golang.org/x/tools` | `v0.49.0` | Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries. |
-| `golang.org/x/vuln` | `v1.6.0` | Build-time only: govulncheck, pinned through the tools.go tracking file, which reports known vulnerabilities in the modules Ze vendors. |
+| `golang.org/x/vuln` | `v1.7.0` | Build-time only: govulncheck, pinned through the tools.go tracking file, which reports known vulnerabilities in the modules Ze vendors. |
 
 ## Testing & Build Tooling (9)
 
@@ -85,7 +85,7 @@ Ze is Go, and Go code leans on packages. 48 direct dependencies, read straight f
 | `github.com/gokrazy/updater` | `v0.0.0-20260620140544-0a84d8ab3878` | Referenced only in a regression test against Ze's own vendored update-push logic, written locally after a bug was found upstream. Not used in production. |
 | `github.com/sivchari/gomu` | `v0.2.1` | Mutation-testing tool, run as a native Go command to advisory-score how well the test suite exercises the code. Not a build or CI gate. |
 | `gopkg.in/yaml.v3` | `v3.0.1` | Parses GitHub Actions workflow YAML in verification tests so aliases, duplicate keys, and malformed trigger structures fail closed. |
-| `github.com/golangci/golangci-lint/v2` | `v2.13.1` | The linter behind `./le verify lint run`, pinned through the tools.go tracking file so every machine and every CI job lints with one version. |
+| `github.com/golangci/golangci-lint/v2` | `v2.13.2` | The linter behind `./le verify lint run`, pinned through the tools.go tracking file so every machine and every CI job lints with one version. |
 | `honnef.co/go/tools` | `v0.8.1` | Staticcheck, run beside golangci-lint from the same tools.go pin, for the analyses golangci-lint does not carry. |
 | `github.com/yuin/goldmark` | `v1.8.5` | Renders the Markdown of `docs/` and the website into the published HTML pages, in the Go site build that replaced the retired Python renderers. |
 | `github.com/anmitsu/go-shlex` | `v0.0.0-20200514113438-38f4b401e2be` | Splits an operator-typed command line into words for the stress-reproduction runner, so a quoted argument survives. |

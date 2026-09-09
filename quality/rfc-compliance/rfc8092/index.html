@@ -310,7 +310,7 @@ No tracked gap in current source anchors.
 <td>MUST NOT</td>
 <td>5 - Canonical Representation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8092-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/text_append_test.go#L39" title="internal/core/bgp/attribute/text_append_test.go" target="_blank" rel="noopener"><code>TestAppendText_LargeCommunityElement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/text_append_test.go#L41" title="internal/core/bgp/attribute/text_append_test.go" target="_blank" rel="noopener"><code>TestAppendText_LargeCommunityElement</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the canonical rendering LargeCommunity.AppendText (internal/core/bgp/attribute/community.go:316) uses strconv.AppendUint, which never emits leading zeros and renders 0 as a single &#34;0&#34;, so every value is canonical and there is no non-canonical rendering to assert as a negative</p></td>
 </tr>
@@ -443,7 +443,7 @@ No tracked gap in current source anchors.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/text_append_test.go#L39" title="internal/core/bgp/attribute/text_append_test.go" target="_blank" rel="noopener"><code>TestAppendText_LargeCommunityElement</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/text_append_test.go#L41" title="internal/core/bgp/attribute/text_append_test.go" target="_blank" rel="noopener"><code>TestAppendText_LargeCommunityElement</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -674,7 +674,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 9 September 2026 09:59 UTC</span>
                 </div>
             </div>
         </footer>

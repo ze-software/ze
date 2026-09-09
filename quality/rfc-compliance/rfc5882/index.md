@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 3 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 3 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | No test at all | 0.0% | 0 of 3 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 2 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 66.7% | 4 of 6 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -58,10 +58,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 2 |
-| Tagged units | 2 |
+| Test tags | 6 |
+| Tagged units | 6 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 4 |
 | Summary | `rfc/short/rfc5882.md` |
 | Requirement shard | `rfc/requirements/rfc5882.md` |
 | RFC text | `rfc/full/rfc5882.txt` |
@@ -102,7 +102,7 @@ Same BFD partial status.
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC5882-4.1-1` | If local or remote session state is AdminDown, establishment of a control protocol adjacency must be allowed (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze never conditions control-protocol adjacency establishment on BFD session state. The BFD client is attached only AFTER the adjacency is already up -- BGP starts it on StateEstablished (internal/component/bgp/reactor/peer_bfd.go:51-52,61-73) and OSPF opens the session only when a neighbor reaches Full (internal/plugins/ospf/bfd_client.go:124-138, onNeighborFull -> bfdNeighborFull) -- and it is strictly additive: a failure detector, never a bring-up gate (peer_bfd.go:59-60, bfd_client.go:12-13). With no BFD-gated establishment path anywhere in Ze, a session in AdminDown (or any state) cannot block establishment, so this AdminDown carve-out to establishment-blocking has no applicable code path |
-| `RFC5882-4.4-1` | If multiple control protocols want a BFD session to the same remote system for the same data protocol, all must share a single BFD session (§4.4) | MUST | 4.4 | **positive:** `unit/verify` [`TestBFDSharedSessionSameKey`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_shared_session_test.go#L18). **negative:** `unit/verify` [`TestBFDDistinctSessionsDifferentKey`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_shared_session_test.go#L72) |
+| `RFC5882-4.4-1` | If multiple control protocols want a BFD session to the same remote system for the same data protocol, all must share a single BFD session (§4.4) | MUST | 4.4 | **positive:** `unit/verify` [`TestBFDSharedSessionSameKey`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_shared_session_test.go#L18). **positive:** `unit/verify` [`TestCanonicalCollapsesEveryClientShapeOntoOneKey`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/api/session_identity_test.go#L57). **positive:** `unit/verify` [`TestOSPFNeighborRequestReachesTheSharedKey`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5882_shared_key_test.go#L16). **positive:** `unit/verify` [`TestPinnedSessionReachesTheSharedKey`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session_identity_test.go#L17). **positive:** `unit/verify` [`TestStrictPeerRequestReachesTheSharedKey`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L205). **negative:** `unit/verify` [`TestBFDDistinctSessionsDifferentKey`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_shared_session_test.go#L73) |
 | `RFC5882-10.1.3-1` | OSPF Virtual Links: the multihop mechanism (RFC 5883) must be used (§10.1.3) | MUST | 10.1.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not run BFD on OSPF virtual links. The BFD-for-OSPF client opens a session only for a neighbor whose interface carries an explicit per-interface BFD config (internal/plugins/ospf/bfd_client.go:136-148, interfaceBFDConfig(snap.Interface) must be present and Enabled) and requests a single-hop session (bfd_client.go:132). A virtual link is a synthetic backbone link keyed by (transit area, neighbor) (internal/plugins/ospf/instance.go:62-67), not a configured interface, so a virtual-link neighbor never matches an interfaceBFDConfig entry and never gets a BFD session. With no OSPF-vlink BFD session to originate, the "must use the RFC 5883 multihop mechanism" requirement has no applicable code path in Ze |
 | `RFC5882-2-1` | Only a single BFD session should be established per data protocol path, regardless of number of applications (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5882-3.1-1` | If BFD session does not recover within the hysteresis window, the client must be notified (§3.1) | SHOULD | 3.1 | **positive:** no positive test. **negative:** no negative test |
@@ -156,8 +156,12 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestBFDDistinctSessionsDifferentKey`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_shared_session_test.go#L72) | unit/verify | unproven |
+| negative | [`TestBFDDistinctSessionsDifferentKey`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_shared_session_test.go#L73) | unit/verify | unproven |
+| positive | [`TestCanonicalCollapsesEveryClientShapeOntoOneKey`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/api/session_identity_test.go#L57) | unit/verify | revert, verified |
 | positive | [`TestBFDSharedSessionSameKey`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_shared_session_test.go#L18) | unit/verify | unproven |
+| positive | [`TestPinnedSessionReachesTheSharedKey`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session_identity_test.go#L17) | unit/verify | revert, verified |
+| positive | [`TestStrictPeerRequestReachesTheSharedKey`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L205) | unit/verify | revert, verified |
+| positive | [`TestOSPFNeighborRequestReachesTheSharedKey`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5882_shared_key_test.go#L16) | unit/verify | revert, verified |
 
 ### [`RFC5882-10.1.3-1`](#rfc5882-10.1.3-1)
 

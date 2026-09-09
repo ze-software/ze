@@ -19,7 +19,7 @@ Expected initial release: Q4 2026.
 
 ### [Reference stays attached to code](https://ze-software.net/blog/reference-from-the-system/)
 
-Generated references stay tied to code, registries and RFC evidence.
+How Ze builds its command reference from the binary, and why generated pages still need human judgement.
 
  Recently shipped
 
@@ -37,25 +37,25 @@ One page per RFC, naming each requirement, the test evidence behind it, and the 
 
 Every homepage number links to the page where you can inspect the test layer, transcript, peer list, RFC gate, or generated source evidence behind it.
 
- [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**28,900+ unit tests**
+ [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**29,400+ unit tests**
 
 - Wire encoding, parsing
 - Config, FSM, plugins
 - gomu mutates code to check assertions
 
- Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**1,817 of 3,041 gated MUSTs proven by test (59.8%)**
+ Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**1,834 of 3,047 RFC MUSTs**
 
-- 145 RFCs Ze implements, 180 inspected
-- 3,303 gated MUSTs across everything inspected
-- Gaps disclosed before claims
+- 60.2% tested
+- 146 RFCs Ze claims support for
+- 181 RFCs with requirements extracted
 
- RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**1,900+ end to end tests**
+ RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**2,000+ end to end tests**
 
 - Peering, sessions, updates
 - Editor, commits, reloads
 - Commands checked as operators run them
 
- Functional transcript format and rerun path.](https://ze-software.net/quality/functional-ci/) [**82 fuzz targets**
+ Functional transcript format and rerun path.](https://ze-software.net/quality/functional-ci/) [**83 fuzz targets**
 
 - Parsers, external inputs
 - Wire formats, config files
@@ -63,11 +63,11 @@ Every homepage number links to the page where you can inspect the test layer, tr
 
  Fuzz crashes kept as regression cases.](https://ze-software.net/quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests) [**9 interop targets**
 
-- Real third-party daemons
-- BGP sessions in Docker
-- Routes checked by peer CLIs
+- BGP, OSPF, IS-IS, BFD, BMP, RPKI, VRRP
+- IPsec, L2TP, PPPoE, RADIUS
+- Real daemons in Docker, checked by peer CLIs
 
- Docker interop peer list.](https://ze-software.net/quality/qemu-interop-release/#docker-interop) Tested against routing stacks [FRR](https://ze-software.net/quality/qemu-interop-release/#docker-interop) [BIRD](https://ze-software.net/quality/qemu-interop-release/#docker-interop) [GoBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop) [OpenBGPd](https://ze-software.net/quality/qemu-interop-release/#docker-interop) [FreeRtr](https://ze-software.net/quality/qemu-interop-release/#docker-interop) [RustyBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop) [rustbgpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop) [ExaBGP migration path](https://ze-software.net/features/exabgp-compatibility/)
+ Docker interop peer list.](https://ze-software.net/quality/qemu-interop-release/#docker-interop) Tested against **BGP**[FRR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[BIRD](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[GoBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[OpenBGPd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRtr](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[RustyBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[rustbgpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[ExaBGP](https://ze-software.net/features/exabgp-compatibility/) **BGP support**[StayRTR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[pmacct](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **VPN**[strongSwan](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Access**[accel-ppp](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[xl2tpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRADIUS](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Redundancy**[keepalived](https://ze-software.net/quality/qemu-interop-release/#docker-interop)
 
 ## [Why Ze?](https://ze-software.net/project/why-ze/)
 

@@ -116,6 +116,10 @@ remediation guidance.</p>
 <td>Plugin binary on PATH</td>
 </tr>
 <tr>
+<td><code>doctor-plugin-shell-missing</code></td>
+<td>The shell an external plugin is started with. Ze runs the <code>run</code> string as <code>/bin/sh -c &lt;run&gt;</code>, so a host with no shell, such as a gokrazy appliance image, starts none of them <!-- source: internal/component/plugin/doctor/check_shell.go -- diagnosePluginShell --></td>
+</tr>
+<tr>
 <td><code>doctor-hub-managed-collision</code></td>
 <td>A <code>plugin/hub/server</code> block declares managed clients on the address the plugin acceptor binds, so its managed listener cannot bind and its clients are refused <!-- source: internal/component/plugin/doctor/check_managed_listener.go -- diagnoseManagedListener --></td>
 </tr>
@@ -509,7 +513,7 @@ is present and emits the registered code.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
                 </div>
             </div>
         </footer>

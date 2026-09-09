@@ -64,10 +64,17 @@ plugin {
 | List | Setting | Description |
 |------|---------|-------------|
 | `internal` | `use` | Name of a built-in plugin to run in-process |
-| `external` | `run` | Command to start an external plugin process |
+| `external` | `run` | Command to start an external plugin process. Ze runs it as `/bin/sh -c <run>`, so quoting, pipes and variable expansion work |
 | `external` | `encoder` | Wire encoding: `json` (default) or `text` |
 | `external` | `respawn` | What you expect when the process exits. Read the section below before you write it |
 | `external` | `timeout` | Startup stall timeout for this plugin |
+
+An `external` plugin needs a shell on the host, because the `run` string is
+given to `/bin/sh -c`. A gokrazy appliance image carries none, so an appliance
+runs its plugins from `internal` blocks. `ze doctor` reports the missing shell
+under `doctor-plugin-shell-missing`, and a start that meets it names the shell
+rather than the plugin.
+<!-- source: internal/component/plugin/shell.go -- Shell, ShellAvailable -->
 
 ## When a Plugin Fails
 
@@ -358,17 +365,17 @@ Internal mode (`use pluginname`) runs a compiled-in plugin as a goroutine within
 List available plugins:
 
 ```
-ze show plugins
+ze show plugin list
 ```
 
 ## Reporting a Setup Outcome
 
 A plugin that sets something up in its own `init()` records what happened, so
 an operator can ask why a feature is absent. The `outcome` and `reason` columns
-of `show plugins` carry it:
+of `show plugin list` carry it:
 
 ```
-ze show plugins
+ze show plugin list
 ```
 
 The record is one call, made from the plugin's `init()` beside its

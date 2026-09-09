@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 75.2% | 76 of 101 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 3.0% | 3 of 101 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 101 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.9% | 2 of 232 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 0.9% | 2 of 233 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -65,8 +65,8 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps | 15 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 232 |
-| Tagged units | 232 |
+| Test tags | 233 |
+| Tagged units | 233 |
 | Recorded audit verdicts | 0 |
 | Discrimination records | 2 |
 | Summary | `rfc/short/rfc4271.md` |
@@ -134,7 +134,7 @@ Fifteen MUST/SHALL-level gaps, each annotated in [`rfc/short/rfc4271.md`](https:
 | `RFC4271-4.4-1` | KEEPALIVE messages MUST NOT be sent more frequently than one per second (§4.4) | MUST NOT | 4.4 | **positive:** `unit/verify` [`TestRFC4271KeepaliveNotFasterThanOnePerSecond`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_test.go#L18). **negative:** `unit/verify` [`TestRFC4271KeepaliveIntervalNeverSubSecond`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_test.go#L50) |
 | `RFC4271-4.4-2` | If the negotiated Hold Time is zero, periodic KEEPALIVE messages MUST NOT be sent (§4.4) | MUST NOT | 4.4 | **positive:** `unit/verify` [`TestTimersKeepaliveTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/timer_test.go#L144). **negative:** `unit/verify` [`TestKeepaliveWithZeroHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/timer_test.go#L411) |
 | `RFC4271-6-1` | If no Error Subcode is specified, a zero MUST be used (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC4271NotificationUnspecifiedSubcodeIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L353). **negative:** `unit/verify` [`TestRFC4271NotificationSpecifiedSubcodePreserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L376) |
-| `RFC4271-4.2-1` | Hold Time MUST be either zero or at least three seconds (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestOpenValidateHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L339). **negative:** `unit/verify` [`TestOpenValidateHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L341) |
+| `RFC4271-4.2-1` | Hold Time MUST be either zero or at least three seconds (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestOpenValidateHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L339). **negative:** `unit/verify` [`TestOpenValidateHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L341). **positive:** `functional/verify` [`open-hold-time-peer-lower-wins.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/open-hold-time-peer-lower-wins.ci#L3) |
 | `RFC4271-4.2-2` | BGP speaker MUST calculate Hold Timer by using the smaller of its configured Hold Time and the received Hold Time (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestNegotiateWith_HoldTimeMinOfBoth`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L43). **negative:** `unit/verify` [`TestNegotiateWith_HoldTimeZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L72) |
 | `RFC4271-6.2-1` | An implementation MUST reject Hold Time values of one or two seconds (§6.2) | MUST | 6.2 | **positive:** `unit/verify` [`TestOpenValidateHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L343). **negative:** `unit/verify` [`TestOpenValidateHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L345) |
 | `RFC4271-6.2-2` | An implementation that accepts a Hold Time MUST use the negotiated value (§6.2) | MUST | 6.2 | **positive:** `unit/verify` [`TestRFC4271NegotiatedHoldTimeDrivesTimers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L171). **negative:** `unit/verify` [`TestRFC4271LocalHoldTimeNotUsedWhenPeerProposesSmaller`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L192) |
@@ -412,6 +412,7 @@ Audit verdict: not audited: no reader has judged these tests
 |---|---|---|---|
 | negative | [`TestOpenValidateHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L341) | unit/verify | unproven |
 | positive | [`TestOpenValidateHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L339) | unit/verify | unproven |
+| positive | [`open-hold-time-peer-lower-wins.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/open-hold-time-peer-lower-wins.ci#L3) | functional/verify | unproven |
 
 ### [`RFC4271-4.2-2`](#rfc4271-4.2-2)
 

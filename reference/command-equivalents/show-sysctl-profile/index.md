@@ -1,25 +1,24 @@
-# `show plugins`
+# `show sysctl profile`
 
-Every plugin compiled into this binary, with its setup outcome.
+Show detail for one sysctl profile
 
 ## Ze command
 
-- Registry path: `show plugins`
-- Mode: Offline
+- Registry path: `show sysctl profile`
+- Usage: `show sysctl profile <name>`
+- Mode: Read-only
 - Wire method: `not listed`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
-- Pipes, always: none
-- Pipes, when the answer has rows: none
-- Pipes, while streaming: none
-- Pipes, local process only: none
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
-
-One row is written for each plugin the binary links. The row names the families it registers, the RFCs it implements and the capability codes it negotiates, beside the outcome its own init() recorded and the reason for it.
 
 ## Arguments
 

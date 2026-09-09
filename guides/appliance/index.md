@@ -313,6 +313,9 @@ For full image rebuilds (when you also want to update the kernel or partition la
 Gokrazy has no shell and no PATH. Ze's external plugin mechanism (which uses `/bin/sh -c` to fork processes) does not work. All Ze plugins (bgp-rib, bgp-gr, bgp-adj-rib-in, etc.) are compiled into the ze binary as internal plugins and run as goroutines. This is the default and covers all standard BGP functionality.
 <!-- source: internal/component/plugin/process/process.go -- startExternal uses /bin/sh -->
 
+A config that names an `external` plugin anyway is reported: `ze doctor` raises `doctor-plugin-shell-missing`, naming the absent shell and the plugins that depend on it, and a start that reaches the fork names the shell rather than the plugin.
+<!-- source: internal/component/plugin/doctor/check_shell.go -- diagnosePluginShell -->
+
 ### Process supervision
 
 Gokrazy's init restarts Ze if it exits with a non-zero status (except 125, which means "don't restart"). Ze handles SIGTERM for graceful shutdown. Logs (stdout/stderr) are captured in ring buffers visible through the gokrazy web UI.

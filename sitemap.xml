@@ -595,6 +595,9 @@
     <loc>https://ze-software.net/quality/rfc-compliance/draft-ietf-bess-mup-safi/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/draft-ietf-idr-bgp-bfd-strict-mode/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/rfc-compliance/draft-ietf-idr-linklocal-capability/</loc>
   </url>
   <url>
@@ -1198,6 +1201,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-bgp-healthcheck/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-bgp-rib-in/</loc>
   </url>
   <url>
@@ -1399,10 +1405,58 @@
     <loc>https://ze-software.net/reference/command-equivalents/request-as112-healthcheck/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-adj-rib-in-accept-routes/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-adj-rib-in-batch-validate/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-adj-rib-in-enable-validation/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-adj-rib-in-reject-routes/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-adj-rib-in-replay/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-adj-rib-in-revalidate/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-fastpath/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-inject/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-mark-stale/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-purge-stale/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-release-routes/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-retain-routes/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-withdraw-protocol/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-withdraw-router/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-withdraw/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rpki-validate/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-watchdog-announce/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-watchdog-withdraw/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-cache-expire/</loc>
@@ -1442,6 +1496,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-log-level/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-mrt-dump-rib/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-ospf-graceful-restart/</loc>
@@ -1564,6 +1621,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/set-debug-timeout/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/set-sysctl/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/set-system-file-descriptors/</loc>
   </url>
   <url>
@@ -1603,6 +1663,12 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-bfd-sessions/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-adj-rib-in-status/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-adj-rib-in/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-bgp-decode/</loc>
   </url>
   <url>
@@ -1610,6 +1676,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-bgp-health/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-healthcheck/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-bgp-irr-check/</loc>
@@ -1654,6 +1723,18 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-bgp-rib-best/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-rib-commands/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-rib-events/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-rib-help/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-rib-protocol/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-bgp-rib-rpf/</loc>
   </url>
   <url>
@@ -1661,6 +1742,33 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-bgp-rib/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-rpki-aspa/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-rpki-cache/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-rpki-roa/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-rpki-status/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-rpki-summary/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-rpki/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-rs-peers/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-rs-status/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-update-delay/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-bgp/</loc>
@@ -1688,6 +1796,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-capture/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-class-of-service/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-command-complete/</loc>
@@ -1765,6 +1876,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-doctor/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-ecmp-groups/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-env-get/</loc>
   </url>
   <url>
@@ -1787,6 +1901,15 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-event-recent/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-fib-kernel/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-fib-p4/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-fib-vpp/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-firewall-domain-group/</loc>
@@ -1915,6 +2038,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-l2tp-observer/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-l2tp-pool/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-l2tp-reliable/</loc>
   </url>
   <url>
@@ -1928,6 +2054,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-l2tp-sessions/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-l2tp-shaper/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-l2tp-statistics/</loc>
@@ -1973,6 +2102,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-neighbor/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-nexthop-table/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-ospf-border-routers/</loc>
@@ -2143,7 +2275,13 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-pki-local-ca-pem/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/show-plugins/</loc>
+    <loc>https://ze-software.net/reference/command-equivalents/show-plugin-declarations-config/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-plugin-declarations/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-plugin-list/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-policy-chain-peer/</loc>
@@ -2182,6 +2320,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-resolve-rir/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-rib/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-route-lookup/</loc>
   </url>
   <url>
@@ -2201,6 +2342,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-rsvp-te-lsp/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-rsvp-te-session/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-rsvp-te-tunnel/</loc>
@@ -2237,6 +2381,21 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-subscriber/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-sysctl-key/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-sysctl-keys/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-sysctl-profile/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-sysctl-profiles/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-sysctl/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-system-conntrack/</loc>
@@ -2339,6 +2498,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-vrrp-interface-name/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-vrrp-interface/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-vrrp-statistics/</loc>

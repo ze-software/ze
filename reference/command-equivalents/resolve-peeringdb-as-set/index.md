@@ -26,7 +26,7 @@ Feed the result into 'resolve irr expand' to get the full member list.
 
 | Name | Type | Required | Values |
 | --- | --- | --- | --- |
-| `asn` | uint | yes | any value of this type |
+| `asn` | union | yes | any value of this type |
 
 ## Mapping intents
 

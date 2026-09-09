@@ -26,7 +26,7 @@ Reads the RIR delegation table that ships with the binary, or the newer copy an 
 
 | Name | Type | Required | Values |
 | --- | --- | --- | --- |
-| `asn` | uint | yes | any value of this type |
+| `asn` | union | yes | any value of this type |
 
 ## Mapping intents
 

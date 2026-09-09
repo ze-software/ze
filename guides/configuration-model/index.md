@@ -448,6 +448,139 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `blackhole { }` | Honor RFC 7999's BLACKHOLE community from this peer. See [Blackhole Honoring](#blackhole-honoring-rfc-7999) | No (default: off) |
 <!-- source: internal/component/bgp/config/peers.go -- PeersFromTree; internal/component/bgp/yang/ze-bgp-conf.yang -- peer settings, container timer -->
 
+## Startup Convergence Hold (`update-delay`)
+
+A speaker that has just started advertises to each peer as soon as that session
+reaches Established, before the RIB has learned what the other neighbors are
+going to send. The neighbor sees an initial route set and then a rapid sequence
+of additions and withdrawals while the local best path settles.
+
+`update-delay` holds the first advertisement until the RIB settles, so the
+neighbor receives one set:
+
+```
+bgp {
+    update-delay {
+        max-delay 30
+        establish-wait 10
+    }
+}
+```
+
+| Leaf | Meaning | Required |
+|------|---------|----------|
+| `max-delay` | Seconds to hold the first advertisement. 0, the default, disables the hold | No |
+| `establish-wait` | Seconds after which the peers that ARE up end the hold. Must not be more than `max-delay` | No |
+
+The hold ends on the first of three conditions. Every configured peer finishes
+its initial routing update to Ze. Or `establish-wait` elapses with one or more
+peers established. Or `max-delay` elapses. A peer that never comes up cannot
+extend the wait past `max-delay`.
+
+**Ze waits for the End-of-RIB marker, not for Established.** Established says the
+neighbor answered; the marker says it has finished sending (RFC 4724 Section 2).
+Releasing on Established would advertise before Ze had learned anything, which is
+the churn the feature exists to remove.
+
+Two kinds of peer are excluded from that wait, and RFC 4724 Section 4.1 names
+both: a peer that advertised no graceful-restart capability has promised no
+marker, and a peer whose capability carries the Restart State bit is deferring
+its own initial update. Ze counts each of them as finished when its session
+reaches Established.
+
+A dynamic-group member is held like every other peer, and is never counted toward
+the release. The peers Ze waits for are the ones its configuration names.
+
+`establish-wait` alone does nothing: it can only end early a hold that
+`max-delay` armed. When `establish-wait` elapses and NO peer is established, Ze
+keeps waiting until `max-delay`, because there is no peer to advertise to yet. Ze
+refuses a configuration whose `establish-wait` is more than its `max-delay`, at
+`ze config validate` as well as at startup.
+
+`show bgp update-delay` reports whether Ze is holding, which condition ended a
+hold that has finished, and how many of the expected peers have converged. Read
+it when a speaker has come up and advertised nothing: it separates a hold that is
+working from a daemon that is wedged. The engine logs the same facts at the INFO
+level, which the WARN default suppresses.
+
+**The hold is a STARTUP hold, so a changed `update-delay` takes effect at the
+next restart.** A reload validates the new values and Ze keeps running with the
+hold it already armed, or with none. Ze never re-arms a hold on a speaker that is
+already advertising, because that would withhold routes a neighbor has.
+
+A long hold has a cost. While Ze holds, a route a plugin pushes toward a peer is
+queued rather than sent, and that queue is bounded (`bgp peer behavior
+op-queue-size`, 10000 entries by default). Past the cap Ze DROPS the operation
+and raises the `op-queue-full` warning naming the peer. Raise the queue, or lower
+`max-delay`, on a speaker that takes a full table from a plugin during the hold.
+
+While Ze holds, sessions negotiate, reach Established and receive UPDATE
+messages as usual. Ze sends no UPDATE and no End-of-RIB marker until the hold
+ends. RFC 4724 Section 4.1 prescribes the same deferral for a speaker that has
+restarted, and requires the configurable upper bound `max-delay` supplies.
+
+Keep `max-delay` below the Restart Time Ze advertises in its graceful-restart
+capability. A neighbor whose own restart timer expires first discards the routes
+it was holding for Ze, which is the outcome the hold exists to avoid.
+
+<!-- source: internal/component/bgp/config/update_delay.go -- ParseUpdateDelay -->
+<!-- source: internal/component/bgp/reactor/update_delay.go -- updateDelayHold -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- container update-delay -->
+
+## AS Number Notation
+
+RFC 5396 Section 2 names three ways to write an AS number. Ze accepts all three
+wherever an AS number is configured, whatever `as-notation` says:
+
+```
+bgp {
+    session { asn { local 1.10; } }     // asdot, the same AS as 65546
+    peer transit-a {
+        session { asn { remote 65546; } }   // asplain
+    }
+}
+```
+
+The tree stores the decimal value, so a config written in one notation and read
+back in another names the same AS.
+
+`bgp { as-notation }` selects how Ze WRITES an AS number:
+
+| Value | AS 100 | AS 65546 |
+|-------|--------|----------|
+| `asplain` (default) | `100` | `65546` |
+| `asdot` | `100` | `1.10` |
+| `asdot+` | `0.100` | `1.10` |
+
+The leaf changes the text alone. The wire value is the same 4-octet number
+(RFC 6793). asplain is the default, because RFC 5396 Section 3 recommends it.
+
+The notation reaches every AS number an operator reads:
+
+- `show bgp rib`
+- `show bgp` and `show bgp peer detail`
+- `show bgp rpki roa` and `show bgp rpki aspa`
+- `show bgp irr`
+- the CLI dashboard
+- the looking glass
+- the web BGP pages
+
+Under `asdot` or `asdot+` those values are JSON strings. They are not JSON
+numbers, because `1.10` is not one.
+
+Five surfaces stay asplain whatever the leaf says:
+
+- the filter text a filter plugin matches
+- the `update text` command Ze replays to itself
+- the AS path of the plugin event stream
+- the text form of the plugin process protocol
+- the `as_path` of the birdwatcher-compatible looking glass API
+
+Their spelling is a contract rather than a display preference. The ExaBGP
+bridge writes ExaBGP's own text format, and that program fixes its spelling.
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- as-notation leaf -->
+<!-- source: internal/core/bgp/asn/asn.go -- Parse, Append -->
+
 ## AS Migration (`local-as`)
 
 A router that moves into a new AS keeps its old AS on the sessions that are not
@@ -768,7 +901,7 @@ family {
 }
 ```
 
-Use `ze show plugins` to see available families from registered plugins.
+Use `ze show plugin list` to see available families from registered plugins.
 <!-- source: internal/component/bgp/plugins/nlri/ -- NLRI plugin Families registration -->
 
 ### A Peer That Declares No Family
@@ -1589,6 +1722,57 @@ in the route satisfies the condition.
 <!-- source: internal/component/bgp/reactor/forward_med.go -- applyFactsMED -->
 <!-- source: internal/component/bgp/plugins/filter_modify/match.go -- matchCond, matches -->
 
+## FIB Programming
+
+The system RIB selects one route for each prefix, then publishes it to the FIB.
+The `fib-withhold` leaf-list names the protocols whose selected routes ze does
+NOT write:
+
+```
+rib {
+    distance {
+        ebgp 20;
+    }
+    fib-withhold [ bgp isis ];
+}
+```
+
+The list is empty by default, so a config that omits it programs every protocol.
+It takes protocol names, and it accepts a name only when a protocol registered
+it. A commit that names anything else is refused, and the message lists the
+names ze accepts. A protocol that registers later needs no schema edit: it is
+permitted, and the CLI completes it.
+
+The accepted names are the protocols the running build contains. A build that
+compiles out a protocol does not accept its name, because that build carries no
+routes from it to withhold. The shipped daemon contains all of them. A config
+written for the shipped daemon can therefore be refused by a reduced build, and
+the error names what that build accepts.
+
+**A withheld route is not a dropped route.** Ze declines the FIB write and
+changes nothing else. The route stays in the Loc-RIB, whichever protocol
+produced it, and `show rib` and `show ecmp-groups` still report it with the
+equal-cost paths that competed for the prefix. It still competes on
+administrative distance, and it still wins when its distance is the lower one.
+`redistribute` still moves it into another protocol, and every reader of the
+Loc-RIB still sees it. Only `system-rib/best-change`, the stream the FIB writers
+read, drops it. Selection and programming are two stages, and `fib-withhold`
+acts on the second one.
+
+**The setting covers every FIB writer.** Ze can run more than one writer at the
+same time. They all read one publish stream, so a withheld protocol reaches none
+of them. `fib-withhold` cannot write BGP into VPP and withhold it from the
+kernel.
+
+The deployment this exists for is a controller or a route collector. Such a box
+holds every peer's routes in the RIB and serves them on the plugin API. It
+forwards no traffic, so a kernel route for each prefix is work with no reader.
+`fib-withhold [ bgp ]` programs none of them. The RIB is untouched, and so is
+`bgp-rib/best-change`, the stream the plugin API serves those routes on.
+<!-- source: internal/component/sysrib/yang/ze-rib-conf.yang -- fib-withhold leaf-list -->
+<!-- source: internal/component/sysrib/fibimport.go -- recordWithheldWinner, applyFIBImport -->
+<!-- source: internal/component/sysrib/sysrib.go -- recomputeBest, cascadeRecompute -->
+
 ## Static Routes
 
 Routes can be configured directly per peer:
@@ -2181,6 +2365,10 @@ naming the replacement. It is also the administrative distance a Cisco IOS DHCP 
 gives the default route it learns, which is the same ranking decision on another
 vendor. That distance is not a Linux metric, and ze does not read it: 254 is the
 metric ze writes to the kernel.
+
+Beside `distance`, the `rib` block takes a `fib-withhold` leaf-list. It names
+the protocols ze withholds from the FIB, which is a later stage. See
+[FIB Programming](#fib-programming).
 The `pppoe-client` list carries its own `route-priority` leaf with the same default,
 which ranks the route a PPPoE session installs when IPCP completes.
 
@@ -3467,12 +3655,14 @@ pppoe {
     auth-method chap-md5;
     cookie-timeout 5;
     max-sessions 65535;
+    max-sessions-per-mac 8;
     padi-rate-limit 100;
     interface eth0 {
     }
     interface eth0.100 {
         service-name "vlan100-service";
         max-sessions 1000;
+        max-sessions-per-mac 2;
     }
 }
 ```
@@ -3487,10 +3677,12 @@ pppoe {
 | `allow-no-auth` | boolean | `false` | Accept a subscriber whose LCP ends with no Auth-Protocol. Required beside `auth-method none`, which is otherwise refused at startup. |
 | `cookie-timeout` | uint16 | 5 | AC-Cookie validity in seconds (1-300). Older cookies rejected in PADR. |
 | `max-sessions` | uint16 | 65535 | Maximum concurrent PPPoE sessions per interface. |
+| `max-sessions-per-mac` | uint16 | 8 | Maximum concurrent PPPoE sessions one subscriber MAC address may hold (1-65535). A PADR over the cap is refused with a PADS AC-System-Error and SESSION_ID `0x0000`; no session is allocated. |
 | `padi-rate-limit` | uint16 | 100 | Maximum PADI packets per second per source MAC (1-10000). |
 | `interface <name>` | list | (none) | Access interfaces for PPPoE discovery. Each gets independent SID space. |
 | `interface / service-name` | leaf-list | (global) | Per-interface Service-Name filter, overrides global list. |
 | `interface / max-sessions` | uint16 | (global) | Per-interface session limit, defaults to global max-sessions. |
+| `interface / max-sessions-per-mac` | uint16 | (global) | Per-interface override for max-sessions-per-mac. |
 
 <!-- source: internal/component/l2tp/pppoe/config.go -- ExtractParameters -->
 <!-- source: internal/component/l2tp/pppoe/subsystem.go -- PPPoE subsystem lifecycle -->

@@ -59,7 +59,7 @@ The command uses the same registered dispatcher through CLI, REST, gRPC, and
 MCP. Confirm the remote router installed the rule, then withdraw the exact NLRI:
 
 ```console
-ze cli -c "send bgp flowspec-client update text nlri ipv4/flow del destination 203.0.113.0/24 protocol tcp destination-port =443"
+ze cli -c "send bgp flowspec-client update text nlri ipv4/flow del destination-ipv4 203.0.113.0/24 protocol tcp destination-port =443"
 ```
 
 ## Use an atomic window

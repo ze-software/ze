@@ -56,7 +56,11 @@ reactor lifecycle, and the Stage 4 operator surface (<code>show bfd sessions</co
 <code>ze_bfd_*</code> metrics) is available. Adding <code>bfd { ... }</code> inside a
 <code>bgp peer connection</code> block opens a per-peer BFD session on
 Established and tears the BGP session down with RFC 9384 Cease
-subcode 10 ("BFD Down") when BFD reports the forwarding path lost.</p>
+subcode 10 ("BFD Down") when BFD reports the forwarding path lost.
+Adding <code>strict true</code> to that block runs
+<code>draft-ietf-idr-bgp-bfd-strict-mode</code> instead: capability 74 is
+negotiated, the BFD session opens before the BGP FSM starts, and the
+BGP session is held out of Established until BFD is Up.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#when-to-use-it">When to use it</a></li>
@@ -67,6 +71,7 @@ subcode 10 ("BFD Down") when BFD reports the forwarding path lost.</p>
 <li><a href="#authentication">Authentication</a></li>
 <li><a href="#enabling-bfd-on-a-bgp-peer">Enabling BFD on a BGP peer</a></li>
 <li><a href="#multi-hop">Multi-hop</a></li>
+<li><a href="#strict-mode">Strict mode</a></li>
 </ol></li>
 <li><a href="#standalone-sessions">Standalone sessions</a></li>
 <li><a href="#administrative-shutdown">Administrative shutdown</a></li>
@@ -368,6 +373,91 @@ TTL below the configured value are discarded. Choose <code>min-ttl</code> to be
 <code>256 - max-hops</code>; for example, <code>min-ttl 250</code> allows the packet to
 cross up to 5 hops. <code>min-ttl</code> must be non-zero for multi-hop; the
 parser rejects zero at config-validate time.</p>
+<h3 id="strict-mode">Strict mode</h3>
+<p>Plain BFD is a failure detector. It opens after the BGP session is up, so a
+peer whose control plane answers while its forwarding path is broken still
+establishes BGP and blackholes traffic until something else notices.</p>
+<p>Strict mode closes that window. It is
+<code>draft-ietf-idr-bgp-bfd-strict-mode</code>, and it holds the BGP session out of
+Established until the BFD session to that neighbour is Up.</p>
+<pre><code>bgp {
+    peer peer1 {
+        connection {
+            local  { ip 192.0.2.1 }
+            remote { ip 192.0.2.2 }
+            bfd {
+                enabled   true
+                mode      single-hop
+                profile   fast-link
+                strict    true
+                hold-time 30
+            }
+        }
+    }
+}
+</code></pre>
+<p><code>strict true</code> does three things.</p>
+<table>
+<thead>
+<tr>
+<th>What</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Advertises capability 74</td>
+<td>The BFD Strict-Mode Capability, code 74, length 0, in every OPEN. Draft Section 6 makes this a MUST for a speaker with strict mode enabled</td>
+</tr>
+<tr>
+<td>Opens the BFD session early</td>
+<td>Before the BGP FSM starts, and keeps it open while BGP is down. Draft Section 7 asks for both, so the BFD handshake is not serialized behind the BGP one</td>
+</tr>
+<tr>
+<td>Holds the session in OpenSent</td>
+<td>When the peer's OPEN arrives and BFD is not yet Up, Ze withholds its KEEPALIVE and waits. <code>show bgp peer list</code> and <code>show bgp peer detail</code> carry a <code>bfd-sub-state</code> field while it does</td>
+</tr>
+</tbody>
+</table>
+<p>A fourth leaf, <code>hold-down</code>, is optional and described below.</p>
+<p><strong>Both speakers must advertise it.</strong> Against a peer whose OPEN carries no
+capability 74, Ze establishes on the normal path and BFD stays a failure
+detector. That is deliberate: a one-sided strict mode is a session that never
+comes up.</p>
+<p><code>hold-time</code> bounds the wait, and only when the negotiated BGP hold time is
+zero. A non-zero BGP hold time already bounds it, so the timer does not run.
+On expiry Ze sends a NOTIFICATION with Cease and subcode 10 ("BFD Down"), and
+the peer returns to Idle and retries. The default is 30 seconds, which is the
+draft's own.</p>
+<p><strong>Nothing waits forever.</strong> Where the negotiated BGP hold time is non-zero, the
+ordinary RFC 4271 hold timer is what ends a wait for a BFD session that never
+comes up: Ze arms it at the negotiated value on the way into the wait, and its
+expiry sends NOTIFICATION code 4 (Hold Timer Expired) and returns the peer to
+Idle. That is why the draft arms its own BfdHoldTimer only for a negotiated
+hold time of zero.</p>
+<p><code>hold-down</code> damps a flapping link. It is how long the BFD session must stay Up
+before Ze lets the BGP session establish, in milliseconds, and it is zero by
+default: without it Ze establishes on the first BFD Up, which is what a peer
+did before the leaf existed. A BFD session that goes down again inside the
+interval never completes it, so a link that flaps carries no BGP session.
+draft-ietf-idr-bgp-bfd-strict-mode Section 10 recommends the BFD hold-down and
+BGP hold time "use similar values"; set the BGP hold time long enough to cover
+the interval, or the far end times out waiting for you.</p>
+<p>Two operational notes, both from the draft.</p>
+<ul>
+<li><strong>Give the BGP hold time room</strong> (Section 10). It has to cover the time
+between OpenConfirm, the BFD hold-down interval, and the delay before the
+BFD session starts. Too short and the speaker that reached Established
+first times out waiting for the other to follow.</li>
+<li><strong>Authenticate BFD</strong> (Section 12). A BGP session now depends on a BFD
+session, so anything that can stop BFD coming Up can stop BGP. The <code>auth</code>
+block above is the answer.</li>
+</ul>
+<p><strong>The BFD plugin must be loaded.</strong> A strict peer with no BFD plugin is held
+down rather than run without the check: establishing would deliver the
+opposite of what was configured. Ze logs an error naming the peer.</p>
+<!-- source: internal/component/bgp/reactor/session_bfd_strict.go — advanceAfterOpen, bfdStrictHolds, handleBFDEvent -->
+<!-- source: internal/component/bgp/fsm/state.go — BfdSubState, EventBfdUp -->
 <h2 id="standalone-sessions">Standalone sessions</h2>
 <p>Some paths have no protocol client. For those, pin the session explicitly
 in the top-level <code>bfd</code> block. It exists for the lifetime of the config.</p>
@@ -777,7 +867,7 @@ document for the full gap list and the intended follow-up order.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
                 </div>
             </div>
         </footer>

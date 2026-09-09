@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5216 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5216: The EAP-TLS Authentication Protocol. 21 gated MUST-level requirements, 3 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5216: The EAP-TLS Authentication Protocol. 21 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 5216 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5216: The EAP-TLS Authentication Protocol. 21 gated MUST-level requirements, 3 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5216: The EAP-TLS Authentication Protocol. 21 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5216 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5216: The EAP-TLS Authentication Protocol. 21 gated MUST-level requirements, 3 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5216: The EAP-TLS Authentication Protocol. 21 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -115,10 +115,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>57.1%</strong><b>12 of 21 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>66.7%</strong><b>14 of 21 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>28.6%</strong><b>6 of 21 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 21 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 34 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>15.0%</strong><b>6 of 40 tagged units, 0 escaped and 2 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -132,7 +132,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>14.3%</strong><b>3 of 21 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>4.8%</strong><b>1 of 21 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 21 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -211,7 +211,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>3</td>
+<td>1</td>
 </tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
@@ -220,16 +220,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>34</td>
+<td>40</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>34</td>
+<td>40</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>8</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5216.md</code></td>
@@ -257,7 +257,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5216.md" target="_blank" rel="noopener"><code>rfc/short/rfc5216.md</code></a>: <a href="#rfc5216-5.4-1"><code>RFC5216-5.4-1</code></a>/5.4-2 no CRL/OCSP/post-auth revocation checking (crypto/tls performs none, no VerifyPeerCertificate callback); <a href="#rfc5216-2.4-5"><code>RFC5216-2.4-5</code></a> the mandatory TLS_RSA_WITH_3DES_EDE_CBC_SHA ciphersuite is not offered (TLS 1.2+ Go defaults exclude insecure 3DES).
+One MUST gap in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5216.md" target="_blank" rel="noopener"><code>rfc/short/rfc5216.md</code></a>. <a href="#rfc5216-2.4-5"><code>RFC5216-2.4-5</code></a> the mandatory TLS_RSA_WITH_3DES_EDE_CBC_SHA ciphersuite is not offered (TLS 1.2+ Go defaults exclude insecure 3DES). <a href="#rfc5216-5.4-2"><code>RFC5216-5.4-2</code></a> is no longer among them: the peer re-checks the revocation status of the authenticator certificate once the CHILD_SA gives it a network, over https, and closes the SA when the responder reports it revoked (startServerCertRecheck, <a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/postauth_revocation.go" target="_blank" rel="noopener"><code>internal/component/ike/engine/postauth_revocation.go</code></a>, reached from runEstablished). It runs whichever TLS version the exchange negotiated, which is what this RFC asks for, and the chain it re-reads is the one the peer accepted (eap.PeerSession.ServerChains). <a href="#rfc5216-5.4-1"><code>RFC5216-5.4-1</code></a> is no longer among them either: checkChainRevocation (<a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/revocation.go" target="_blank" rel="noopener"><code>internal/core/eap/revocation.go</code></a>) checks every certificate on each verified chain except the trust anchor against the crl leaf-list its CA publishes, on the authenticator through tls.Config.VerifyConnection and on the peer through serverChainCheck.verifyConnection, and it is proven in both polarities on TLS 1.2, which is the version this RFC governs.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -266,11 +266,11 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>12</strong></td>
+<td><strong>14</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>9</strong></td>
+<td><strong>7</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -289,8 +289,8 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (12):</strong> <a href="#rfc5216-3-1"><code>RFC5216-3-1</code></a>, <a href="#rfc5216-2.1.1-1"><code>RFC5216-2.1.1-1</code></a>, <a href="#rfc5216-2.1.1-2"><code>RFC5216-2.1.1-2</code></a>, <a href="#rfc5216-2.1.5-1"><code>RFC5216-2.1.5-1</code></a>, <a href="#rfc5216-5.3-1"><code>RFC5216-5.3-1</code></a>, <a href="#rfc5216-2.1.3-1"><code>RFC5216-2.1.3-1</code></a>, <a href="#rfc5216-2.1.3-3"><code>RFC5216-2.1.3-3</code></a>, <a href="#rfc5216-2.1.3-4"><code>RFC5216-2.1.3-4</code></a>, <a href="#rfc5216-2.1.3-5"><code>RFC5216-2.1.3-5</code></a>, <a href="#rfc5216-2.1.3-6"><code>RFC5216-2.1.3-6</code></a>, <a href="#rfc5216-2.1.3-7"><code>RFC5216-2.1.3-7</code></a>, <a href="#rfc5216-2.1.3-8"><code>RFC5216-2.1.3-8</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (9):</strong> <a href="#rfc5216-3-2"><code>RFC5216-3-2</code></a>, <a href="#rfc5216-2.4-1"><code>RFC5216-2.4-1</code></a>, <a href="#rfc5216-2.4-2"><code>RFC5216-2.4-2</code></a>, <a href="#rfc5216-2.4-3"><code>RFC5216-2.4-3</code></a>, <a href="#rfc5216-2.4-4"><code>RFC5216-2.4-4</code></a>, <a href="#rfc5216-2.4-5"><code>RFC5216-2.4-5</code></a>, <a href="#rfc5216-5.4-1"><code>RFC5216-5.4-1</code></a>, <a href="#rfc5216-5.4-2"><code>RFC5216-5.4-2</code></a>, <a href="#rfc5216-2.3-1"><code>RFC5216-2.3-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (14):</strong> <a href="#rfc5216-3-1"><code>RFC5216-3-1</code></a>, <a href="#rfc5216-2.1.1-1"><code>RFC5216-2.1.1-1</code></a>, <a href="#rfc5216-2.1.1-2"><code>RFC5216-2.1.1-2</code></a>, <a href="#rfc5216-2.1.5-1"><code>RFC5216-2.1.5-1</code></a>, <a href="#rfc5216-5.3-1"><code>RFC5216-5.3-1</code></a>, <a href="#rfc5216-5.4-1"><code>RFC5216-5.4-1</code></a>, <a href="#rfc5216-5.4-2"><code>RFC5216-5.4-2</code></a>, <a href="#rfc5216-2.1.3-1"><code>RFC5216-2.1.3-1</code></a>, <a href="#rfc5216-2.1.3-3"><code>RFC5216-2.1.3-3</code></a>, <a href="#rfc5216-2.1.3-4"><code>RFC5216-2.1.3-4</code></a>, <a href="#rfc5216-2.1.3-5"><code>RFC5216-2.1.3-5</code></a>, <a href="#rfc5216-2.1.3-6"><code>RFC5216-2.1.3-6</code></a>, <a href="#rfc5216-2.1.3-7"><code>RFC5216-2.1.3-7</code></a>, <a href="#rfc5216-2.1.3-8"><code>RFC5216-2.1.3-8</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (7):</strong> <a href="#rfc5216-3-2"><code>RFC5216-3-2</code></a>, <a href="#rfc5216-2.4-1"><code>RFC5216-2.4-1</code></a>, <a href="#rfc5216-2.4-2"><code>RFC5216-2.4-2</code></a>, <a href="#rfc5216-2.4-3"><code>RFC5216-2.4-3</code></a>, <a href="#rfc5216-2.4-4"><code>RFC5216-2.4-4</code></a>, <a href="#rfc5216-2.4-5"><code>RFC5216-2.4-5</code></a>, <a href="#rfc5216-2.3-1"><code>RFC5216-2.3-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -303,7 +303,7 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L395" title="internal/core/eap/peer_test.go" target="_blank" rel="noopener"><code>TestTLSFragmenterFirstFragmentHasLength</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L469" title="internal/core/eap/peer_test.go" target="_blank" rel="noopener"><code>TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L475" title="internal/core/eap/peer_test.go" target="_blank" rel="noopener"><code>TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-3-2">RFC5216-3-2</code></td><td colspan="3"><span class="rfc-subject">Reserved flag bits (3-7) must be zero on send (§3, Flags)</span></td></tr>
@@ -311,7 +311,7 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L488" title="internal/core/eap/peer_test.go" target="_blank" rel="noopener"><code>TestTLSFragmentReservedFlagBitsAreZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L494" title="internal/core/eap/peer_test.go" target="_blank" rel="noopener"><code>TestTLSFragmentReservedFlagBitsAreZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the flags byte is assembled only from L/M in nextFragment (and S alone in Start), so no code path can set reserved bits 3-7 and only the positive assertion is reachable (internal/core/eap/eap_tls.go:106, :190)</p></td>
 </tr>
@@ -320,7 +320,7 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <td>MUST</td>
 <td>2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L315" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L364" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the peer&#39;s tls.Config forces MinVersion TLS 1.2, so its ClientHello always offers at least TLS 1.0 and no path can offer lower (internal/core/eap/peer.go:334)</p></td>
 </tr>
@@ -329,7 +329,7 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <td>MUST</td>
 <td>2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L318" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L367" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the server&#39;s tls.Config forces MinVersion TLS 1.2, so any ServerHello it emits is at least TLS 1.0 and it never negotiates lower (internal/core/eap/eap_tls.go:167)</p></td>
 </tr>
@@ -338,7 +338,7 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <td>MUST NOT</td>
 <td>2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L321" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L370" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> both tls.Config values delegate to Go crypto/tls, which implements no TLS compression and always sends null compression, so the prohibition holds structurally with no knob to falsify (internal/core/eap/eap_tls.go:163, peer.go:330)</p></td>
 </tr>
@@ -347,7 +347,7 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <td>MUST NOT</td>
 <td>2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.4-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L326" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L375" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the only value ze extracts from the TLS session is the 64-octet MSK fed to the IKEv2 AUTH payload; the ESP/data-plane ciphers come from independent IKE SA proposal negotiation, never from the TLS ciphersuite (internal/core/eap/eap_tls.go:268)</p></td>
 </tr>
@@ -365,8 +365,8 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <td>MUST</td>
 <td>2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L300" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L395" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorRequiresClientCert</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L349" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L444" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorRequiresClientCert</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-2">RFC5216-2.1.1-2</code></td><td colspan="3"><span class="rfc-subject">&#34;The EAP-TLS conversation will then begin, with the peer sending an EAP-Response packet with EAP-Type=EAP-TLS. The data field of that packet will encapsulate one or more TLS records in TLS record layer format, containing a TLS client_hello handshake message&#34; -- stated in the indicative register, so the obligation on the peer&#39;s answer to the Start carries no RFC 2119 keyword (§2.1.1)</span></td></tr>
@@ -384,7 +384,7 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <td>2.1.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L348" title="internal/core/eap/peer_test.go" target="_blank" rel="noopener"><code>TestTLSFragmenterRoundTrip</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L438" title="internal/core/eap/peer_test.go" target="_blank" rel="noopener"><code>TestTLSReassemblyRejectsOversized</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L444" title="internal/core/eap/peer_test.go" target="_blank" rel="noopener"><code>TestTLSReassemblyRejectsOversized</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.3-1">RFC5216-5.3-1</code></td><td colspan="3"><span class="rfc-subject">Both sides MUST perform certificate path validation per RFC 3280 (§5.3)</span></td></tr>
@@ -392,10 +392,10 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <td>MUST</td>
 <td>5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-5.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L306" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L448" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerRejectsUntrustedServerChain</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L482" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerWithoutCARefusesToStart</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L419" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSServerRejectsUntrustedClientChain</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L355" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L497" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerRejectsUntrustedServerChain</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L532" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerWithoutCARefusesToStart</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L468" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSServerRejectsUntrustedClientChain</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.4-1">RFC5216-5.4-1</code></td><td colspan="3"><span class="rfc-subject">CRL checking MUST be supported (§5.4)</span></td></tr>
@@ -403,26 +403,28 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <td>MUST</td>
 <td>5.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-5.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> no CRL logic exists anywhere in the EAP-TLS path; crypto/tls performs no CRL checking and neither tls.Config installs a VerifyPeerCertificate callback to add it (internal/core/eap/eap_tls.go:163, peer.go:330)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L353" title="internal/core/eap/rfc9190_revocation_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12RefusesARevokedClientCertificate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L384" title="internal/core/eap/rfc9190_revocation_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12CompletesWithAnUnrevokedChain</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.4-2">RFC5216-5.4-2</code></td><td colspan="3"><span class="rfc-subject">Post-authentication revocation checking MUST be supported (§5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-5.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze performs no revocation checking of any kind (CRL, OCSP, or post-authentication), so a revoked peer or server certificate is accepted (internal/core/eap/eap_tls.go:163, peer.go:330)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L396" title="internal/core/eap/rfc9190_ocsp_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12PeerKeepsTheChainItAcceptedForTheLaterCheck</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc9190_postauth_test.go#L253" title="internal/component/ike/engine/rfc9190_postauth_test.go" target="_blank" rel="noopener"><code>TestPostAuthenticationCheckClosesTheSAWhenTheResponderReportsRevoked</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L416" title="internal/core/eap/rfc9190_ocsp_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerPublishesNoChainWhenTheHandshakeRefusedIt</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc9190_postauth_test.go#L283" title="internal/component/ike/engine/rfc9190_postauth_test.go" target="_blank" rel="noopener"><code>TestPostAuthenticationCheckLeavesTheSAUpWhenTheResponderReportsGood</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.3-1">RFC5216-2.1.3-1</code></td><td colspan="3"><span class="rfc-subject">&#34;The EAP Server MUST reply with an EAP-Failure packet since server authentication failure is a terminal condition&#34; (§2.1.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L118" title="internal/core/eap/rfc5216_termination_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerRepliesEAPFailureToPeerAlert</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L200" title="internal/core/eap/rfc5216_termination_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L119" title="internal/core/eap/rfc5216_termination_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerRepliesEAPFailureToPeerAlert</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L202" title="internal/core/eap/rfc5216_termination_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.3-3">RFC5216-2.1.3-3</code></td><td colspan="3"><span class="rfc-subject">&#34;To ensure that the peer receives the TLS alert message, the EAP server MUST wait for the peer to reply with an EAP-Response packet&#34; (§2.1.3)</span></td></tr>
@@ -430,8 +432,8 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <td>MUST</td>
 <td>2.1.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L93" title="internal/core/eap/eap_tls_alert_flight_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L329" title="internal/core/eap/eap_tls_alert_flight_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorReportsTheFailureWithNoAlertToSend</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L95" title="internal/core/eap/eap_tls_alert_flight_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L361" title="internal/core/eap/eap_tls_alert_flight_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorReportsTheFailureWithNoAlertToSend</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.3-4">RFC5216-2.1.3-4</code></td><td colspan="3"><span class="rfc-subject">On a reply with EAP-Type=EAP-TLS and no data, &#34;the EAP-Server MUST send an EAP-Failure packet and terminate the conversation&#34; (§2.1.3)</span></td></tr>
@@ -439,9 +441,9 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <td>MUST</td>
 <td>2.1.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L99" title="internal/core/eap/eap_tls_alert_flight_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L187" title="internal/core/eap/eap_tls_alert_flight_test.go" target="_blank" rel="noopener"><code>TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L205" title="internal/core/eap/rfc5216_termination_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L101" title="internal/core/eap/eap_tls_alert_flight_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L208" title="internal/core/eap/eap_tls_alert_flight_test.go" target="_blank" rel="noopener"><code>TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L207" title="internal/core/eap/rfc5216_termination_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.3-5">RFC5216-2.1.3-5</code></td><td colspan="3"><span class="rfc-subject">&#34;If the peer authenticates successfully, the EAP server MUST respond with an EAP-Request packet with EAP-Type=EAP-TLS, which includes, in the case of a new TLS session, one or more TLS records containing TLS change_cipher_spec and finished handshake messages&#34; (§2.1.3)</span></td></tr>
@@ -449,8 +451,8 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <td>MUST</td>
 <td>2.1.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.3-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L185" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L289" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L229" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L333" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.3-6">RFC5216-2.1.3-6</code></td><td colspan="3"><span class="rfc-subject">&#34;To ensure that the EAP Server receives the TLS alert message, the peer MUST wait for the EAP Server to reply before terminating the conversation&#34; (§2.1.3)</span></td></tr>
@@ -458,8 +460,8 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <td>MUST</td>
 <td>2.1.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.3-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_peer_wait_test.go#L40" title="internal/core/eap/rfc5216_peer_wait_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerRepliesBeforeItTerminates</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_peer_wait_test.go#L166" title="internal/core/eap/rfc5216_peer_wait_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerDoesNotWaitWhenItSentNothing</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_peer_wait_test.go#L41" title="internal/core/eap/rfc5216_peer_wait_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerRepliesBeforeItTerminates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_peer_wait_test.go#L168" title="internal/core/eap/rfc5216_peer_wait_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerDoesNotWaitWhenItSentNothing</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.3-7">RFC5216-2.1.3-7</code></td><td colspan="3"><span class="rfc-subject">&#34;If the EAP server authenticates successfully, the peer MUST send an EAP-Response packet of EAP-Type=EAP-TLS, and no data&#34; (§2.1.3)</span></td></tr>
@@ -467,8 +469,8 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <td>MUST</td>
 <td>2.1.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.3-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L193" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L342" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L237" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L386" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.3-8">RFC5216-2.1.3-8</code></td><td colspan="3"><span class="rfc-subject">After that no-data EAP-Response, &#34;The EAP Server then MUST respond with an EAP-Success message&#34; (§2.1.3)</span></td></tr>
@@ -476,8 +478,8 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <td>MUST</td>
 <td>2.1.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.3-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L198" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L295" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L242" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L339" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.3-1">RFC5216-2.3-1</code></td><td colspan="3"><span class="rfc-subject">MSK and EMSK are derived from TLS master_secret using the label &#34;client EAP encryption&#34; (§2.3)</span></td></tr>
@@ -485,7 +487,7 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <td>MUST</td>
 <td>2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L311" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L360" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L112" title="internal/core/eap/rfc5216_msk_label_test.go" target="_blank" rel="noopener"><code>TestRFC5216MSKIsTheExportUnderTheRFCLabel</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> both server and peer export the 64-octet MSK via ExportKeyingMaterial with the exact RFC label &#39;client EAP encryption&#39;, the only key the IKEv2 lower layer consumes (internal/core/eap/eap_tls.go:268, peer.go:381)</p></td>
@@ -539,14 +541,6 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <td>{gap}, no test</td>
 <td>the server sets no CipherSuites and requires TLS 1.2+, so it inherits Go&#39;s secure defaults which classify 3DES as insecure and do not enable TLS_RSA_WITH_3DES_EDE_CBC_SHA, leaving the RFC&#39;s mandatory-to-implement ciphersuite unavailable (internal/core/eap/eap_tls.go:163, peer.go:330)</td>
 </tr>
-<tr><td><a href="#rfc5216-5.4-1"><code>RFC5216-5.4-1</code></a> CRL checking MUST be supported (§5.4)</td>
-<td>{gap}, no test</td>
-<td>no CRL logic exists anywhere in the EAP-TLS path; crypto/tls performs no CRL checking and neither tls.Config installs a VerifyPeerCertificate callback to add it (internal/core/eap/eap_tls.go:163, peer.go:330)</td>
-</tr>
-<tr><td><a href="#rfc5216-5.4-2"><code>RFC5216-5.4-2</code></a> Post-authentication revocation checking MUST be supported (§5.4)</td>
-<td>{gap}, no test</td>
-<td>ze performs no revocation checking of any kind (CRL, OCSP, or post-authentication), so a revoked peer or server certificate is accepted (internal/core/eap/eap_tls.go:163, peer.go:330)</td>
-</tr>
 </tbody>
 </table>
 </div>
@@ -561,7 +555,7 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L469" title="internal/core/eap/peer_test.go" target="_blank" rel="noopener"><code>TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L475" title="internal/core/eap/peer_test.go" target="_blank" rel="noopener"><code>TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -581,7 +575,7 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L488" title="internal/core/eap/peer_test.go" target="_blank" rel="noopener"><code>TestTLSFragmentReservedFlagBitsAreZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L494" title="internal/core/eap/peer_test.go" target="_blank" rel="noopener"><code>TestTLSFragmentReservedFlagBitsAreZero</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -596,7 +590,7 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L315" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L364" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -611,7 +605,7 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L318" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L367" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -626,7 +620,7 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L321" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L370" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -641,7 +635,7 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L326" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L375" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -660,12 +654,12 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L395" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorRequiresClientCert</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L444" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorRequiresClientCert</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L300" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L349" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -700,7 +694,7 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L438" title="internal/core/eap/peer_test.go" target="_blank" rel="noopener"><code>TestTLSReassemblyRejectsOversized</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L444" title="internal/core/eap/peer_test.go" target="_blank" rel="noopener"><code>TestTLSReassemblyRejectsOversized</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -720,22 +714,22 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L448" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerRejectsUntrustedServerChain</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L497" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerRejectsUntrustedServerChain</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L482" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerWithoutCARefusesToStart</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L532" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerWithoutCARefusesToStart</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L419" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSServerRejectsUntrustedClientChain</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L468" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSServerRejectsUntrustedClientChain</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L306" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L355" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -745,11 +739,53 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <h3><a href="#rfc5216-5.4-1"><code>RFC5216-5.4-1</code></a></h3>
 <p>CRL checking MUST be supported (§5.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-5.4-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L384" title="internal/core/eap/rfc9190_revocation_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12CompletesWithAnUnrevokedChain</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L353" title="internal/core/eap/rfc9190_revocation_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12RefusesARevokedClientCertificate</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-5.4-2"><code>RFC5216-5.4-2</code></a></h3>
 <p>Post-authentication revocation checking MUST be supported (§5.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-5.4-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc9190_postauth_test.go#L283" title="internal/component/ike/engine/rfc9190_postauth_test.go" target="_blank" rel="noopener"><code>TestPostAuthenticationCheckLeavesTheSAUpWhenTheResponderReportsGood</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L416" title="internal/core/eap/rfc9190_ocsp_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerPublishesNoChainWhenTheHandshakeRefusedIt</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc9190_postauth_test.go#L253" title="internal/component/ike/engine/rfc9190_postauth_test.go" target="_blank" rel="noopener"><code>TestPostAuthenticationCheckClosesTheSAWhenTheResponderReportsRevoked</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L396" title="internal/core/eap/rfc9190_ocsp_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12PeerKeepsTheChainItAcceptedForTheLaterCheck</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-2.1.3-1"><code>RFC5216-2.1.3-1</code></a></h3>
 <p>&#34;The EAP Server MUST reply with an EAP-Failure packet since server authentication failure is a terminal condition&#34; (§2.1.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -758,12 +794,12 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L200" title="internal/core/eap/rfc5216_termination_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L202" title="internal/core/eap/rfc5216_termination_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L118" title="internal/core/eap/rfc5216_termination_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerRepliesEAPFailureToPeerAlert</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L119" title="internal/core/eap/rfc5216_termination_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerRepliesEAPFailureToPeerAlert</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -778,14 +814,14 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L329" title="internal/core/eap/eap_tls_alert_flight_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorReportsTheFailureWithNoAlertToSend</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L361" title="internal/core/eap/eap_tls_alert_flight_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorReportsTheFailureWithNoAlertToSend</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L93" title="internal/core/eap/eap_tls_alert_flight_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L95" title="internal/core/eap/eap_tls_alert_flight_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
@@ -798,17 +834,17 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L205" title="internal/core/eap/rfc5216_termination_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L207" title="internal/core/eap/rfc5216_termination_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L99" title="internal/core/eap/eap_tls_alert_flight_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L101" title="internal/core/eap/eap_tls_alert_flight_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L187" title="internal/core/eap/eap_tls_alert_flight_test.go" target="_blank" rel="noopener"><code>TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L208" title="internal/core/eap/eap_tls_alert_flight_test.go" target="_blank" rel="noopener"><code>TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -823,12 +859,12 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L289" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L333" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L185" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L229" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -843,12 +879,12 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_peer_wait_test.go#L166" title="internal/core/eap/rfc5216_peer_wait_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerDoesNotWaitWhenItSentNothing</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_peer_wait_test.go#L168" title="internal/core/eap/rfc5216_peer_wait_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerDoesNotWaitWhenItSentNothing</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_peer_wait_test.go#L40" title="internal/core/eap/rfc5216_peer_wait_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerRepliesBeforeItTerminates</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_peer_wait_test.go#L41" title="internal/core/eap/rfc5216_peer_wait_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerRepliesBeforeItTerminates</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -863,12 +899,12 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L342" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L386" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L193" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L237" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -883,12 +919,12 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L295" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L339" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L198" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L242" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -903,7 +939,7 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L311" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L360" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -951,7 +987,7 @@ Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/shor
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 8 September 2026 15:44 UTC</span>
                 </div>
             </div>
         </footer>

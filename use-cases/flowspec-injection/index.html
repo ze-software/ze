@@ -100,7 +100,7 @@ ze cli -c "show bgp peer flowspec-client capabilities"
 </code></pre>
 <p>The command uses the same registered dispatcher through CLI, REST, gRPC, and
 MCP. Confirm the remote router installed the rule, then withdraw the exact NLRI:</p>
-<pre><code class="language-console">ze cli -c "send bgp flowspec-client update text nlri ipv4/flow del destination 203.0.113.0/24 protocol tcp destination-port =443"
+<pre><code class="language-console">ze cli -c "send bgp flowspec-client update text nlri ipv4/flow del destination-ipv4 203.0.113.0/24 protocol tcp destination-port =443"
 </code></pre>
 <h2 id="use-an-atomic-window">Use an atomic window</h2>
 <p>When several rules form one mitigation, stage and inspect them before release:</p>
@@ -182,7 +182,7 @@ ze cli -c "show errors"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
                 </div>
             </div>
         </footer>

@@ -126,8 +126,15 @@ configuration, lifecycle, and state in the same folder.</li>
 </ul>
 <p>Both shapes can own user commands. Removing either folder removes all surfaces
 that belong to that owner.</p>
+<p>A full-subsystem plugin declares the commands it owns in one <code>commandDecls()</code>
+function in its own package. Two readers call it and neither copies it: the
+<code>registry.Registration</code> its <code>init()</code> builds, which a catalog generator reads
+from the linked composition root, and the <code>sdk.Registration</code> its runner passes
+to <code>p.Run</code>, which a running daemon reads over Stage 1. <code>./le plugin declarations check</code> fails with the package and the command when the two
+disagree.</p>
 <!-- source: internal/plugins/host-cmd/cmd/register.go -- init -->
-<!-- source: internal/plugins/ospf/register.go -- runOSPFEngine -->
+<!-- source: internal/plugins/ospf/register.go -- runOSPFEngine, commandDecls -->
+<!-- source: internal/le/plugin/declarations/plugindeclarations.go -- Check -->
 <h2 id="plugin-directory-layout">Plugin Directory Layout</h2>
 <pre><code>internal/plugins/&lt;name&gt;/
     register.go            # lifecycle or offline CLI registration, when needed
@@ -477,7 +484,7 @@ package holds the matching presence test, such as
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
+                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
                 </div>
             </div>
         </footer>

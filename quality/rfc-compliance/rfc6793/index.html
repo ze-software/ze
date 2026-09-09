@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 6793 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 6793: BGP Support for Four-Octet Autonomous System (AS) Number Space. 30 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 6793: BGP Support for Four-Octet Autonomous System (AS) Number Space. 30 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 6793 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 6793: BGP Support for Four-Octet Autonomous System (AS) Number Space. 30 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 6793: BGP Support for Four-Octet Autonomous System (AS) Number Space. 30 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 6793 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 6793: BGP Support for Four-Octet Autonomous System (AS) Number Space. 30 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 6793: BGP Support for Four-Octet Autonomous System (AS) Number Space. 30 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -115,10 +115,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>83.3%</strong><b>25 of 30 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>93.3%</strong><b>28 of 30 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>3.3%</strong><b>1 of 30 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 30 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>23.3%</strong><b>14 of 60 tagged units, 0 escaped and 3 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>6.0%</strong><b>4 of 67 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -132,7 +132,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>13.3%</strong><b>4 of 30 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>3.3%</strong><b>1 of 30 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 30 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -211,7 +211,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>4</td>
+<td>1</td>
 </tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
@@ -220,16 +220,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>60</td>
+<td>67</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>60</td>
+<td>67</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>17</td>
+<td>4</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc6793.md</code></td>
@@ -251,14 +251,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Status:</strong> Partial</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
 <ul class="rfc-prose">
-<li>ASN4 capability advertisement and negotiation, 4-octet AS_PATH/AGGREGATOR between NEW speakers, 2-octet AS_PATH with AS_TRANS toward OLD speakers, AS4_PATH and AS4_AGGREGATOR construction (confederation segments excluded), the whole receive-side procedure of Section 4.2.3 (the AGGREGATOR versus AS4_AGGREGATOR choice, the AS-number-count comparison, the leading-segment prepend and its confederation adjacency rule), AS4_PATH/AS4_AGGREGATOR malformed-attribute validation, AS_TRANS in the OPEN My AS field</li>
+<li>ASN4 capability advertisement and negotiation, 4-octet AS_PATH/AGGREGATOR between NEW speakers, 2-octet AS_PATH with AS_TRANS toward OLD speakers, AS4_PATH and AS4_AGGREGATOR construction (confederation segments excluded), the whole receive-side procedure of Section 4.2.3 (the AGGREGATOR versus AS4_AGGREGATOR choice, the AS-number-count comparison, the leading-segment prepend and its confederation adjacency rule), the Section 4.1 and Section 6 discard of an AS4_PATH or AS4_AGGREGATOR received from a NEW speaker, AS4_PATH/AS4_AGGREGATOR malformed-attribute validation, AS_TRANS in the OPEN My AS field</li>
 <li>tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc6793.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc6793.md</code></a>.</li>
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-<p>Four MUST/SHALL-level gaps, each annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc6793.md" target="_blank" rel="noopener"><code>rfc/short/rfc6793.md</code></a>.</p>
+<p>One MUST-level gap, annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc6793.md" target="_blank" rel="noopener"><code>rfc/short/rfc6793.md</code></a>.</p>
 <p class="rfc-prose"><strong>Peer identity:</strong> <a href="#rfc6793-4.1-3"><code>RFC6793-4.1-3</code></a> -- <code>UnpackOpen</code> never populates <code>Open.ASN4</code> from the code-65 capability (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open.go" target="_blank" rel="noopener"><code>internal/component/bgp/message/open.go</code></a>), so the session&#39;s OPEN-derived peer AS falls back to the two-octet My AS field (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_dynamic.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/reactor_dynamic.go</code></a>).</p>
-<p class="rfc-prose"><strong>Error handling:</strong> <a href="#rfc6793-4.1-6"><code>RFC6793-4.1-6</code></a> and <a href="#rfc6793-4.1-7"><code>RFC6793-4.1-7</code></a> -- an AS4_PATH or AS4_AGGREGATOR received from a NEW speaker is used and forwarded rather than discarded, so the attribute is carried in an UPDATE between NEW speakers (the NEW-to-NEW fast path copies the attribute section verbatim, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/aspath_rewrite.go" target="_blank" rel="noopener"><code>internal/component/bgp/wireu/aspath_rewrite.go</code></a>,:341,:363, and the full rewrite copies it through at <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/aspath_rewrite.go" target="_blank" rel="noopener"><code>internal/component/bgp/wireu/aspath_rewrite.go</code></a>,:521-524); ze itself originates neither attribute toward a NEW peer; <a href="#rfc6793-6-5"><code>RFC6793-6-5</code></a> -- a malformed AS4_AGGREGATOR is not discarded on every path: the RIB ingest path length-checks it before promoting it to the aggregating node (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/attrparse.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/rib/storage/attrparse.go</code></a>, selectAggregator), but no RFC 7606 validator is registered for type code 18 and the wireu egress paths copy it through untouched.</p>
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -267,11 +266,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>25</strong></td>
+<td><strong>28</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>5</strong></td>
+<td><strong>2</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -290,8 +289,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (25):</strong> <a href="#rfc6793-4.1-1"><code>RFC6793-4.1-1</code></a>, <a href="#rfc6793-4.1-2"><code>RFC6793-4.1-2</code></a>, <a href="#rfc6793-4.1-4"><code>RFC6793-4.1-4</code></a>, <a href="#rfc6793-4.1-5"><code>RFC6793-4.1-5</code></a>, <a href="#rfc6793-4.2.1-1"><code>RFC6793-4.2.1-1</code></a>, <a href="#rfc6793-4.2.2-1"><code>RFC6793-4.2.2-1</code></a>, <a href="#rfc6793-4.2.2-2"><code>RFC6793-4.2.2-2</code></a>, <a href="#rfc6793-4.2.2-3"><code>RFC6793-4.2.2-3</code></a>, <a href="#rfc6793-4.2.2-4"><code>RFC6793-4.2.2-4</code></a>, <a href="#rfc6793-3-1"><code>RFC6793-3-1</code></a>, <a href="#rfc6793-4.2.2-5"><code>RFC6793-4.2.2-5</code></a>, <a href="#rfc6793-4.2.2-6"><code>RFC6793-4.2.2-6</code></a>, <a href="#rfc6793-4.2.3-1"><code>RFC6793-4.2.3-1</code></a>, <a href="#rfc6793-4.2.3-3"><code>RFC6793-4.2.3-3</code></a>, <a href="#rfc6793-4.2.3-4"><code>RFC6793-4.2.3-4</code></a>, <a href="#rfc6793-4.2.3-5"><code>RFC6793-4.2.3-5</code></a>, <a href="#rfc6793-4.2.3-6"><code>RFC6793-4.2.3-6</code></a>, <a href="#rfc6793-4.2.3-7"><code>RFC6793-4.2.3-7</code></a>, <a href="#rfc6793-4.2.3-8"><code>RFC6793-4.2.3-8</code></a>, <a href="#rfc6793-4.2.3-9"><code>RFC6793-4.2.3-9</code></a>, <a href="#rfc6793-4.2.3-10"><code>RFC6793-4.2.3-10</code></a>, <a href="#rfc6793-6-1"><code>RFC6793-6-1</code></a>, <a href="#rfc6793-6-2"><code>RFC6793-6-2</code></a>, <a href="#rfc6793-6-3"><code>RFC6793-6-3</code></a>, <a href="#rfc6793-6-4"><code>RFC6793-6-4</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (5):</strong> <a href="#rfc6793-4.1-3"><code>RFC6793-4.1-3</code></a>, <a href="#rfc6793-4.1-6"><code>RFC6793-4.1-6</code></a>, <a href="#rfc6793-4.1-7"><code>RFC6793-4.1-7</code></a>, <a href="#rfc6793-4.2.3-2"><code>RFC6793-4.2.3-2</code></a>, <a href="#rfc6793-6-5"><code>RFC6793-6-5</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (28):</strong> <a href="#rfc6793-4.1-1"><code>RFC6793-4.1-1</code></a>, <a href="#rfc6793-4.1-2"><code>RFC6793-4.1-2</code></a>, <a href="#rfc6793-4.1-4"><code>RFC6793-4.1-4</code></a>, <a href="#rfc6793-4.1-5"><code>RFC6793-4.1-5</code></a>, <a href="#rfc6793-4.1-6"><code>RFC6793-4.1-6</code></a>, <a href="#rfc6793-4.1-7"><code>RFC6793-4.1-7</code></a>, <a href="#rfc6793-4.2.1-1"><code>RFC6793-4.2.1-1</code></a>, <a href="#rfc6793-4.2.2-1"><code>RFC6793-4.2.2-1</code></a>, <a href="#rfc6793-4.2.2-2"><code>RFC6793-4.2.2-2</code></a>, <a href="#rfc6793-4.2.2-3"><code>RFC6793-4.2.2-3</code></a>, <a href="#rfc6793-4.2.2-4"><code>RFC6793-4.2.2-4</code></a>, <a href="#rfc6793-3-1"><code>RFC6793-3-1</code></a>, <a href="#rfc6793-4.2.2-5"><code>RFC6793-4.2.2-5</code></a>, <a href="#rfc6793-4.2.2-6"><code>RFC6793-4.2.2-6</code></a>, <a href="#rfc6793-4.2.3-1"><code>RFC6793-4.2.3-1</code></a>, <a href="#rfc6793-4.2.3-3"><code>RFC6793-4.2.3-3</code></a>, <a href="#rfc6793-4.2.3-4"><code>RFC6793-4.2.3-4</code></a>, <a href="#rfc6793-4.2.3-5"><code>RFC6793-4.2.3-5</code></a>, <a href="#rfc6793-4.2.3-6"><code>RFC6793-4.2.3-6</code></a>, <a href="#rfc6793-4.2.3-7"><code>RFC6793-4.2.3-7</code></a>, <a href="#rfc6793-4.2.3-8"><code>RFC6793-4.2.3-8</code></a>, <a href="#rfc6793-4.2.3-9"><code>RFC6793-4.2.3-9</code></a>, <a href="#rfc6793-4.2.3-10"><code>RFC6793-4.2.3-10</code></a>, <a href="#rfc6793-6-1"><code>RFC6793-6-1</code></a>, <a href="#rfc6793-6-2"><code>RFC6793-6-2</code></a>, <a href="#rfc6793-6-3"><code>RFC6793-6-3</code></a>, <a href="#rfc6793-6-4"><code>RFC6793-6-4</code></a>, <a href="#rfc6793-6-5"><code>RFC6793-6-5</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (2):</strong> <a href="#rfc6793-4.1-3"><code>RFC6793-4.1-3</code></a>, <a href="#rfc6793-4.2.3-2"><code>RFC6793-4.2.3-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -348,18 +347,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6793-4.1-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze never ORIGINATES either attribute toward a NEW peer, but it forwards a received one verbatim, so an UPDATE between NEW speakers does carry them. tryDirectPrepend is entered exactly when srcASN4 == dstASN4 (internal/component/bgp/wireu/aspath_rewrite.go:292) and copies payload[:aspAttrOff] (internal/component/bgp/wireu/aspath_rewrite.go:341) and payload[aspAttrEnd:] (internal/component/bgp/wireu/aspath_rewrite.go:363) unchanged, so a received AS4_PATH or AS4_AGGREGATOR passes straight through to the NEW peer. The full rewrite does the same: as4PathForRewrite returns nil whenever dstASN4 is true (internal/component/bgp/wireu/aspath_as4.go:81-86) and the AttrAS4Path branch then copies the received attribute through (internal/component/bgp/wireu/aspath_rewrite.go:490-493), while AGGREGATOR transcoding runs only when srcASN4 != dstASN4 (internal/component/bgp/wireu/aspath_rewrite.go:429) so newAggValueLen stays 0 on a NEW-to-NEW session and the AttrAS4Aggregator branch copies through too (internal/component/bgp/wireu/aspath_rewrite.go:521-524). Same code fact as the receive-side half recorded at RFC6793-4.1-7. Disclosed in docs/features/rfc-status.md</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4path-from-new-speaker.ci#L29" title="test/plugin/rfc6793-no-as4path-from-new-speaker.ci" target="_blank" rel="noopener"><code>rfc6793-no-as4path-from-new-speaker.ci</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-narrow-to-old-speaker.ci#L25" title="test/plugin/rfc6793-narrow-to-old-speaker.ci" target="_blank" rel="noopener"><code>rfc6793-narrow-to-old-speaker.ci</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6793-4.1-7">RFC6793-4.1-7</code></td><td colspan="3"><span class="rfc-subject">A NEW speaker receiving AS4_PATH or AS4_AGGREGATOR from another NEW speaker MUST discard the path attribute and continue processing the UPDATE (Section 4.1, Section 6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6793-4.1-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the discard is never conditioned on the negotiated capability. The receive-side procedure of Section 4.2.3 now runs on ingest, and it runs whatever the session negotiated: canonicalizeASPath merges a present AS4_PATH into the AS path information without consulting the asn4 flag it is given (internal/component/bgp/plugins/rib/storage/attrparse.go, canonicalizeASPath and reconstructASPath), and selectAggregator promotes an AS4_AGGREGATOR received from a NEW speaker whenever the AGGREGATOR beside it carries AS_TRANS (internal/component/bgp/plugins/rib/storage/attrparse.go, selectAggregator), where a NEW speaker owes a discard instead. On the forward path a NEW-to-NEW session takes the same-encoding fast path, which copies the whole attribute section verbatim and therefore propagates the attribute too (internal/component/bgp/wireu/aspath_rewrite.go:136-139, tryDirectPrepend at :289-369)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L531" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793NewSpeakerAS4AttributesAreDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L205" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4path-from-new-speaker.ci#L34" title="test/plugin/rfc6793-no-as4path-from-new-speaker.ci" target="_blank" rel="noopener"><code>rfc6793-no-as4path-from-new-speaker.ci</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6793-4.2.1-1">RFC6793-4.2.1-1</code></td><td colspan="3"><span class="rfc-subject">AS_TRANS MUST be used in the OPEN &#34;My Autonomous System&#34; field when the NEW speaker does not have a two-octet AS number (Section 4.2.1)</span></td></tr>
 <tr><td></td>
@@ -442,8 +442,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4.2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6793-4.2.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_as4_test.go#L50" title="internal/component/bgp/plugins/rib/storage/rfc6793_as4_test.go" target="_blank" rel="noopener"><code>TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_as4_test.go#L75" title="internal/component/bgp/plugins/rib/storage/rfc6793_as4_test.go" target="_blank" rel="noopener"><code>TestRFC6793ASPathAloneNotInventedIntoFourOctet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L202" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L222" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793ASPathAloneNotInventedIntoFourOctet</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6793-4.2.3-2">RFC6793-4.2.3-2</code></td><td colspan="3"><span class="rfc-subject">MUST be prepared to receive AS4_AGGREGATOR along with AGGREGATOR from an OLD speaker (Section 4.2.3)</span></td></tr>
@@ -451,7 +451,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4.2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6793-4.2.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_as4_test.go#L97" title="internal/component/bgp/plugins/rib/storage/rfc6793_as4_test.go" target="_blank" rel="noopener"><code>TestRFC6793ReceivedAS4AggregatorAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L237" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793ReceivedAS4AggregatorAccepted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the obligation is to accept the pair, and ParseAttributes has no rejection path to drive negatively: AGGREGATOR is interned and AS4_AGGREGATOR falls through the default branch into OtherAttrs, so every AGGREGATOR plus AS4_AGGREGATOR combination is accepted (internal/component/bgp/plugins/rib/storage/attrparse.go:96-102, :138-140). What ze does with the pair afterwards is governed by RFC6793-4.2.3-3 through -7, which are recorded as gaps</p></td>
 </tr>
@@ -460,9 +460,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHALL</td>
 <td>4.2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6793-4.2.3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L191" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L474" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorOfTheWrongWidthIsNotRead</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L251" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L337" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L483" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorOfTheWrongWidthIsNotRead</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L383" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6793-4.2.3-4">RFC6793-4.2.3-4</code></td><td colspan="3"><span class="rfc-subject">When both AGGREGATOR and AS4_AGGREGATOR are received and AGGREGATOR.AS != AS_TRANS, AGGREGATOR SHALL be taken as the aggregator info (Section 4.2.3)</span></td></tr>
@@ -470,8 +470,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHALL</td>
 <td>4.2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6793-4.2.3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L195" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L255" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L341" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L387" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6793-4.2.3-5">RFC6793-4.2.3-5</code></td><td colspan="3"><span class="rfc-subject">When both AGGREGATOR and AS4_AGGREGATOR are received and AGGREGATOR.AS != AS_TRANS, AS_PATH SHALL be taken as the AS path info (Section 4.2.3)</span></td></tr>
@@ -479,8 +479,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHALL</td>
 <td>4.2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6793-4.2.3-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L199" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L258" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L345" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L390" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6793-4.2.3-6">RFC6793-4.2.3-6</code></td><td colspan="3"><span class="rfc-subject">When AGGREGATOR.AS == AS_TRANS, AGGREGATOR SHALL be ignored (Section 4.2.3)</span></td></tr>
@@ -488,8 +488,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHALL</td>
 <td>4.2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6793-4.2.3-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L244" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L203" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L376" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L349" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6793-4.2.3-7">RFC6793-4.2.3-7</code></td><td colspan="3"><span class="rfc-subject">When AGGREGATOR.AS == AS_TRANS, AS4_AGGREGATOR SHALL be taken as the aggregator info (Section 4.2.3)</span></td></tr>
@@ -497,9 +497,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHALL</td>
 <td>4.2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6793-4.2.3-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L247" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L206" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L499" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793LoneAS4AggregatorIsKeptUninterpreted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L379" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L352" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L511" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793LoneAS4AggregatorIsDropped</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6793-4.2.3-8">RFC6793-4.2.3-8</code></td><td colspan="3"><span class="rfc-subject">If AS_PATH AS count &lt; AS4_PATH AS count, AS4_PATH SHALL be ignored and AS_PATH SHALL be taken as AS path info (Section 4.2.3)</span></td></tr>
@@ -507,8 +507,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHALL</td>
 <td>4.2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6793-4.2.3-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L119" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793LongerAS4PathIsIgnored</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L98" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793LongerASPathPrependsLeadingHops</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L277" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793LongerAS4PathIsIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L260" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793LongerASPathPrependsLeadingHops</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6793-4.2.3-9">RFC6793-4.2.3-9</code></td><td colspan="3"><span class="rfc-subject">If AS_PATH AS count &gt;= AS4_PATH AS count, AS path info SHALL be constructed by prepending leading AS_PATH entries to AS4_PATH (Section 4.2.3)</span></td></tr>
@@ -516,10 +516,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHALL</td>
 <td>4.2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6793-4.2.3-9">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L401" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793EqualCountsPrependNothing</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L425" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793LeadingASSetIsTakenWhole</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L93" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793LongerASPathPrependsLeadingHops</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L124" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793LongerAS4PathIsIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L418" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793EqualCountsPrependNothing</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L438" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793LeadingASSetIsTakenWhole</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L255" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793LongerASPathPrependsLeadingHops</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L282" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793LongerAS4PathIsIgnored</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6793-4.2.3-10">RFC6793-4.2.3-10</code></td><td colspan="3"><span class="rfc-subject">A valid AS_CONFED_SEQUENCE or AS_CONFED_SET path segment SHALL be prepended if it is the leading segment or adjacent to a prepended segment (Section 4.2.3)</span></td></tr>
@@ -527,8 +527,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHALL</td>
 <td>4.2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6793-4.2.3-10">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L145" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793LeadingConfedSegmentIsPrepended</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L169" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793UnadjacentConfedSegmentIsNotPrepended</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L299" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793LeadingConfedSegmentIsPrepended</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L319" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793UnadjacentConfedSegmentIsNotPrepended</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6793-6-1">RFC6793-6-1</code></td><td colspan="3"><span class="rfc-subject">AS4_PATH in an UPDATE SHALL be considered malformed if attribute length is not a multiple of two, is too small, segment length is zero or inconsistent, or segment type is undefined (Section 6)</span></td></tr>
@@ -537,7 +537,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6793-6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L164" title="internal/core/bgp/attribute/rfc6793_as4_test.go" target="_blank" rel="noopener"><code>TestRFC6793AS4PathWellFormedAccepted</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L450" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793MalformedAS4PathIsDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L459" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793MalformedAS4PathIsDiscarded</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L188" title="internal/core/bgp/attribute/rfc6793_as4_test.go" target="_blank" rel="noopener"><code>TestRFC6793AS4PathMalformedRejected</code></a></span></div>
 </div></td>
 </tr>
@@ -573,9 +573,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6793-6-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the discard is partial. selectAggregator does length-check the attribute before the RFC 6793 Section 4.2.3 choice reads it, so a malformed AS4_AGGREGATOR never becomes the route&#39;s aggregating node (internal/component/bgp/plugins/rib/storage/attrparse.go, selectAggregator and aggregatorASIsTrans), but an unpaired one is still copied into OtherAttrs by length alone (same file, appendOtherAttr); the wireu egress paths locate it by offset and copy it through untouched (internal/component/bgp/wireu/aspath_transcode.go:113-117 and :252-256); and RFC 7606 structural validation registers no validator for type code 18 (internal/component/bgp/message/rfc7606.go:415-429). ParseAS4Aggregator does reject a length other than 8 (internal/core/bgp/attribute/as4.go, ParseAS4Aggregator), but its only production reachability is parseAtLocked, which returns the error to the caller rather than discarding the attribute and continuing (internal/core/bgp/attribute/wire.go:346-349)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/aspath_collapse_test.go#L482" title="internal/component/bgp/wireu/aspath_collapse_test.go" target="_blank" rel="noopener"><code>TestCollapseAS4DiscardsMalformedAS4Aggregator</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/aspath_collapse_test.go#L350" title="internal/component/bgp/wireu/aspath_collapse_test.go" target="_blank" rel="noopener"><code>TestCollapseAS4SelectsAggregatorPerSection423</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6793-6-6">RFC6793-6-6</code></td><td colspan="3"><span class="rfc-subject">When AS4_PATH or AS4_AGGREGATOR is received from a NEW speaker, SHOULD log locally for analysis (Section 6)</span></td></tr>
 <tr><td></td>
@@ -643,18 +643,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><a href="#rfc6793-4.1-3"><code>RFC6793-4.1-3</code></a> When processing an OPEN from another NEW speaker, MUST use the AS number from the Capability Value field in lieu of the &#34;My Autonomous System&#34; field (Section 4.1)</td>
 <td>{gap}, no test</td>
 <td>UnpackOpen never populates Open.ASN4 from the code-65 capability -- it sets only Version, MyAS, HoldTime and BGPIdentifier (internal/component/bgp/message/open.go:171-180) -- so the reactor&#39;s only OPEN-derived peer AS falls back to the two-octet header field: resolveDynamicPeerSettings reads the always-zero open.ASN4 and keeps uint32(open.MyAS), i.e. AS_TRANS for a non-mappable peer (internal/component/bgp/reactor/reactor_dynamic.go:311-316), and negotiateWith passes that same zero as the peer ASN into Negotiate (internal/component/bgp/reactor/session_negotiate.go:27-32). The route-server plugin does read the capability value for its event view (internal/component/bgp/plugins/rs/server.go:647-649), but that is a reporting path, not the session&#39;s peer AS</td>
-</tr>
-<tr><td><a href="#rfc6793-4.1-6"><code>RFC6793-4.1-6</code></a> AS4_PATH and AS4_AGGREGATOR MUST NOT be carried in an UPDATE between NEW BGP speakers (Section 4.1, Section 6)</td>
-<td>{gap}, no test</td>
-<td>ze never ORIGINATES either attribute toward a NEW peer, but it forwards a received one verbatim, so an UPDATE between NEW speakers does carry them. tryDirectPrepend is entered exactly when srcASN4 == dstASN4 (internal/component/bgp/wireu/aspath_rewrite.go:292) and copies payload[:aspAttrOff] (internal/component/bgp/wireu/aspath_rewrite.go:341) and payload[aspAttrEnd:] (internal/component/bgp/wireu/aspath_rewrite.go:363) unchanged, so a received AS4_PATH or AS4_AGGREGATOR passes straight through to the NEW peer. The full rewrite does the same: as4PathForRewrite returns nil whenever dstASN4 is true (internal/component/bgp/wireu/aspath_as4.go:81-86) and the AttrAS4Path branch then copies the received attribute through (internal/component/bgp/wireu/aspath_rewrite.go:490-493), while AGGREGATOR transcoding runs only when srcASN4 != dstASN4 (internal/component/bgp/wireu/aspath_rewrite.go:429) so newAggValueLen stays 0 on a NEW-to-NEW session and the AttrAS4Aggregator branch copies through too (internal/component/bgp/wireu/aspath_rewrite.go:521-524). Same code fact as the receive-side half recorded at RFC6793-4.1-7. Disclosed in docs/features/rfc-status.md</td>
-</tr>
-<tr><td><a href="#rfc6793-4.1-7"><code>RFC6793-4.1-7</code></a> A NEW speaker receiving AS4_PATH or AS4_AGGREGATOR from another NEW speaker MUST discard the path attribute and continue processing the UPDATE (Section 4.1, Section 6)</td>
-<td>{gap}, no test</td>
-<td>the discard is never conditioned on the negotiated capability. The receive-side procedure of Section 4.2.3 now runs on ingest, and it runs whatever the session negotiated: canonicalizeASPath merges a present AS4_PATH into the AS path information without consulting the asn4 flag it is given (internal/component/bgp/plugins/rib/storage/attrparse.go, canonicalizeASPath and reconstructASPath), and selectAggregator promotes an AS4_AGGREGATOR received from a NEW speaker whenever the AGGREGATOR beside it carries AS_TRANS (internal/component/bgp/plugins/rib/storage/attrparse.go, selectAggregator), where a NEW speaker owes a discard instead. On the forward path a NEW-to-NEW session takes the same-encoding fast path, which copies the whole attribute section verbatim and therefore propagates the attribute too (internal/component/bgp/wireu/aspath_rewrite.go:136-139, tryDirectPrepend at :289-369)</td>
-</tr>
-<tr><td><a href="#rfc6793-6-5"><code>RFC6793-6-5</code></a> On receiving malformed AS4_AGGREGATOR from an OLD speaker, MUST discard the attribute and continue processing the UPDATE (Section 6)</td>
-<td>{gap}, no test</td>
-<td>the discard is partial. selectAggregator does length-check the attribute before the RFC 6793 Section 4.2.3 choice reads it, so a malformed AS4_AGGREGATOR never becomes the route&#39;s aggregating node (internal/component/bgp/plugins/rib/storage/attrparse.go, selectAggregator and aggregatorASIsTrans), but an unpaired one is still copied into OtherAttrs by length alone (same file, appendOtherAttr); the wireu egress paths locate it by offset and copy it through untouched (internal/component/bgp/wireu/aspath_transcode.go:113-117 and :252-256); and RFC 7606 structural validation registers no validator for type code 18 (internal/component/bgp/message/rfc7606.go:415-429). ParseAS4Aggregator does reject a length other than 8 (internal/core/bgp/attribute/as4.go, ParseAS4Aggregator), but its only production reachability is parseAtLocked, which returns the error to the caller rather than discarding the attribute and continuing (internal/core/bgp/attribute/wire.go:346-349)</td>
 </tr>
 </tbody>
 </table>
@@ -749,11 +737,48 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc6793-4.1-6"><code>RFC6793-4.1-6</code></a></h3>
 <p>AS4_PATH and AS4_AGGREGATOR MUST NOT be carried in an UPDATE between NEW BGP speakers (Section 4.1, Section 6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC6793-4.1-6, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-narrow-to-old-speaker.ci#L25" title="test/plugin/rfc6793-narrow-to-old-speaker.ci" target="_blank" rel="noopener"><code>rfc6793-narrow-to-old-speaker.ci</code></a></td>
+<td>functional/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4path-from-new-speaker.ci#L29" title="test/plugin/rfc6793-no-as4path-from-new-speaker.ci" target="_blank" rel="noopener"><code>rfc6793-no-as4path-from-new-speaker.ci</code></a></td>
+<td>functional/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc6793-4.1-7"><code>RFC6793-4.1-7</code></a></h3>
 <p>A NEW speaker receiving AS4_PATH or AS4_AGGREGATOR from another NEW speaker MUST discard the path attribute and continue processing the UPDATE (Section 4.1, Section 6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC6793-4.1-7, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L205" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L531" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793NewSpeakerAS4AttributesAreDiscarded</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4path-from-new-speaker.ci#L34" title="test/plugin/rfc6793-no-as4path-from-new-speaker.ci" target="_blank" rel="noopener"><code>rfc6793-no-as4path-from-new-speaker.ci</code></a></td>
+<td>functional/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc6793-4.2.1-1"><code>RFC6793-4.2.1-1</code></a></h3>
 <p>AS_TRANS MUST be used in the OPEN &#34;My Autonomous System&#34; field when the NEW speaker does not have a two-octet AS number (Section 4.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -942,12 +967,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_as4_test.go#L75" title="internal/component/bgp/plugins/rib/storage/rfc6793_as4_test.go" target="_blank" rel="noopener"><code>TestRFC6793ASPathAloneNotInventedIntoFourOctet</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L222" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793ASPathAloneNotInventedIntoFourOctet</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_as4_test.go#L50" title="internal/component/bgp/plugins/rib/storage/rfc6793_as4_test.go" target="_blank" rel="noopener"><code>TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L202" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -962,9 +987,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_as4_test.go#L97" title="internal/component/bgp/plugins/rib/storage/rfc6793_as4_test.go" target="_blank" rel="noopener"><code>TestRFC6793ReceivedAS4AggregatorAccepted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L237" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793ReceivedAS4AggregatorAccepted</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>unproven</td>
 </tr>
 </tbody>
 </table>
@@ -977,19 +1002,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L474" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorOfTheWrongWidthIsNotRead</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L483" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorOfTheWrongWidthIsNotRead</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L251" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L383" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L191" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L337" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>unproven</td>
 </tr>
 </tbody>
 </table>
@@ -1002,14 +1027,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L255" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L387" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L195" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L341" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>unproven</td>
 </tr>
 </tbody>
 </table>
@@ -1022,14 +1047,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L258" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L390" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L199" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L345" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>unproven</td>
 </tr>
 </tbody>
 </table>
@@ -1042,14 +1067,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L203" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L349" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L244" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L376" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>unproven</td>
 </tr>
 </tbody>
 </table>
@@ -1062,19 +1087,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L206" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L352" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithRealASIgnoresAS4Attributes</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L499" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793LoneAS4AggregatorIsKeptUninterpreted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L511" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793LoneAS4AggregatorIsDropped</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L247" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L379" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793AggregatorWithASTransPromotesAS4Aggregator</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>unproven</td>
 </tr>
 </tbody>
 </table>
@@ -1087,14 +1112,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L98" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793LongerASPathPrependsLeadingHops</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L260" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793LongerASPathPrependsLeadingHops</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L119" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793LongerAS4PathIsIgnored</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L277" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793LongerAS4PathIsIgnored</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>unproven</td>
 </tr>
 </tbody>
 </table>
@@ -1107,24 +1132,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L124" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793LongerAS4PathIsIgnored</code></a></td>
-<td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L401" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793EqualCountsPrependNothing</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L282" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793LongerAS4PathIsIgnored</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L425" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793LeadingASSetIsTakenWhole</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L418" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793EqualCountsPrependNothing</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L93" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793LongerASPathPrependsLeadingHops</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L438" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793LeadingASSetIsTakenWhole</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L255" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793LongerASPathPrependsLeadingHops</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
 </tr>
 </tbody>
 </table>
@@ -1137,14 +1162,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L169" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793UnadjacentConfedSegmentIsNotPrepended</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L319" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793UnadjacentConfedSegmentIsNotPrepended</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L145" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793LeadingConfedSegmentIsPrepended</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L299" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793LeadingConfedSegmentIsPrepended</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>unproven</td>
 </tr>
 </tbody>
 </table>
@@ -1162,12 +1187,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L450" title="internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go" target="_blank" rel="noopener"><code>TestRFC6793MalformedAS4PathIsDiscarded</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L164" title="internal/core/bgp/attribute/rfc6793_as4_test.go" target="_blank" rel="noopener"><code>TestRFC6793AS4PathWellFormedAccepted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L164" title="internal/core/bgp/attribute/rfc6793_as4_test.go" target="_blank" rel="noopener"><code>TestRFC6793AS4PathWellFormedAccepted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L459" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6793MalformedAS4PathIsDiscarded</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1237,7 +1262,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc6793-6-5"><code>RFC6793-6-5</code></a></h3>
 <p>On receiving malformed AS4_AGGREGATOR from an OLD speaker, MUST discard the attribute and continue processing the UPDATE (Section 6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC6793-6-5, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/aspath_collapse_test.go#L350" title="internal/component/bgp/wireu/aspath_collapse_test.go" target="_blank" rel="noopener"><code>TestCollapseAS4SelectsAggregatorPerSection423</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/aspath_collapse_test.go#L482" title="internal/component/bgp/wireu/aspath_collapse_test.go" target="_blank" rel="noopener"><code>TestCollapseAS4DiscardsMalformedAS4Aggregator</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Extraction sign-off</h2>
 <p>No extraction sign-off exists for RFC 6793, so no reviewer has walked its text sentence by sentence.</p>
@@ -1274,7 +1315,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 9 September 2026 13:12 UTC</span>
                 </div>
             </div>
         </footer>

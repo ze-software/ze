@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 83.3% | 25 of 30 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 93.3% | 28 of 30 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 3.3% | 1 of 30 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 30 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 23.3% | 14 of 60 tagged units, 0 escaped and 3 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 6.0% | 4 of 67 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -33,7 +33,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 13.3% | 4 of 30 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 3.3% | 1 of 30 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 7 shares marked as a part above are the whole of the 30 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -62,13 +62,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 36 |
 | Gated MUST-level | 30 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 4 |
+| Declared gaps | 1 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 60 |
-| Tagged units | 60 |
+| Test tags | 67 |
+| Tagged units | 67 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 17 |
+| Discrimination records | 4 |
 | Summary | `rfc/short/rfc6793.md` |
 | Requirement shard | `rfc/requirements/rfc6793.md` |
 | RFC text | `rfc/full/rfc6793.txt` |
@@ -83,31 +83,30 @@ Enrolled: BGP Support for Four-Octet AS Number Space
 
 **What the ledger says is covered**
 
-- ASN4 capability advertisement and negotiation, 4-octet AS_PATH/AGGREGATOR between NEW speakers, 2-octet AS_PATH with AS_TRANS toward OLD speakers, AS4_PATH and AS4_AGGREGATOR construction (confederation segments excluded), the whole receive-side procedure of Section 4.2.3 (the AGGREGATOR versus AS4_AGGREGATOR choice, the AS-number-count comparison, the leading-segment prepend and its confederation adjacency rule), AS4_PATH/AS4_AGGREGATOR malformed-attribute validation, AS_TRANS in the OPEN My AS field
+- ASN4 capability advertisement and negotiation, 4-octet AS_PATH/AGGREGATOR between NEW speakers, 2-octet AS_PATH with AS_TRANS toward OLD speakers, AS4_PATH and AS4_AGGREGATOR construction (confederation segments excluded), the whole receive-side procedure of Section 4.2.3 (the AGGREGATOR versus AS4_AGGREGATOR choice, the AS-number-count comparison, the leading-segment prepend and its confederation adjacency rule), the Section 4.1 and Section 6 discard of an AS4_PATH or AS4_AGGREGATOR received from a NEW speaker, AS4_PATH/AS4_AGGREGATOR malformed-attribute validation, AS_TRANS in the OPEN My AS field
 - tests bound per requirement in [`rfc/requirements/rfc6793.md`](https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc6793.md).
 
 
 **What the ledger says remains**
 
-Four MUST/SHALL-level gaps, each annotated in [`rfc/short/rfc6793.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc6793.md).
+One MUST-level gap, annotated in [`rfc/short/rfc6793.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc6793.md).
 
 - **Peer identity:** [`RFC6793-4.1-3`](#rfc6793-4.1-3) -- `UnpackOpen` never populates `Open.ASN4` from the code-65 capability ([`internal/component/bgp/message/open.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open.go)), so the session's OPEN-derived peer AS falls back to the two-octet My AS field ([`internal/component/bgp/reactor/reactor_dynamic.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_dynamic.go)).
-- **Error handling:** [`RFC6793-4.1-6`](#rfc6793-4.1-6) and [`RFC6793-4.1-7`](#rfc6793-4.1-7) -- an AS4_PATH or AS4_AGGREGATOR received from a NEW speaker is used and forwarded rather than discarded, so the attribute is carried in an UPDATE between NEW speakers (the NEW-to-NEW fast path copies the attribute section verbatim, [`internal/component/bgp/wireu/aspath_rewrite.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/aspath_rewrite.go),:341,:363, and the full rewrite copies it through at [`internal/component/bgp/wireu/aspath_rewrite.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/aspath_rewrite.go),:521-524); ze itself originates neither attribute toward a NEW peer; [`RFC6793-6-5`](#rfc6793-6-5) -- a malformed AS4_AGGREGATOR is not discarded on every path: the RIB ingest path length-checks it before promoting it to the aggregating node ([`internal/component/bgp/plugins/rib/storage/attrparse.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/attrparse.go), selectAggregator), but no RFC 7606 validator is registered for type code 18 and the wireu egress paths copy it through untouched.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 25 | one part of the gated population |
-| Annotated instead of tested | 5 | one part of the gated population |
+| Positive and negative tests | 28 | one part of the gated population |
+| Annotated instead of tested | 2 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | **Gated MUST-level requirements** | **30** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (25):** [`RFC6793-4.1-1`](#rfc6793-4.1-1), [`RFC6793-4.1-2`](#rfc6793-4.1-2), [`RFC6793-4.1-4`](#rfc6793-4.1-4), [`RFC6793-4.1-5`](#rfc6793-4.1-5), [`RFC6793-4.2.1-1`](#rfc6793-4.2.1-1), [`RFC6793-4.2.2-1`](#rfc6793-4.2.2-1), [`RFC6793-4.2.2-2`](#rfc6793-4.2.2-2), [`RFC6793-4.2.2-3`](#rfc6793-4.2.2-3), [`RFC6793-4.2.2-4`](#rfc6793-4.2.2-4), [`RFC6793-3-1`](#rfc6793-3-1), [`RFC6793-4.2.2-5`](#rfc6793-4.2.2-5), [`RFC6793-4.2.2-6`](#rfc6793-4.2.2-6), [`RFC6793-4.2.3-1`](#rfc6793-4.2.3-1), [`RFC6793-4.2.3-3`](#rfc6793-4.2.3-3), [`RFC6793-4.2.3-4`](#rfc6793-4.2.3-4), [`RFC6793-4.2.3-5`](#rfc6793-4.2.3-5), [`RFC6793-4.2.3-6`](#rfc6793-4.2.3-6), [`RFC6793-4.2.3-7`](#rfc6793-4.2.3-7), [`RFC6793-4.2.3-8`](#rfc6793-4.2.3-8), [`RFC6793-4.2.3-9`](#rfc6793-4.2.3-9), [`RFC6793-4.2.3-10`](#rfc6793-4.2.3-10), [`RFC6793-6-1`](#rfc6793-6-1), [`RFC6793-6-2`](#rfc6793-6-2), [`RFC6793-6-3`](#rfc6793-6-3), [`RFC6793-6-4`](#rfc6793-6-4)
+**Positive and negative tests (28):** [`RFC6793-4.1-1`](#rfc6793-4.1-1), [`RFC6793-4.1-2`](#rfc6793-4.1-2), [`RFC6793-4.1-4`](#rfc6793-4.1-4), [`RFC6793-4.1-5`](#rfc6793-4.1-5), [`RFC6793-4.1-6`](#rfc6793-4.1-6), [`RFC6793-4.1-7`](#rfc6793-4.1-7), [`RFC6793-4.2.1-1`](#rfc6793-4.2.1-1), [`RFC6793-4.2.2-1`](#rfc6793-4.2.2-1), [`RFC6793-4.2.2-2`](#rfc6793-4.2.2-2), [`RFC6793-4.2.2-3`](#rfc6793-4.2.2-3), [`RFC6793-4.2.2-4`](#rfc6793-4.2.2-4), [`RFC6793-3-1`](#rfc6793-3-1), [`RFC6793-4.2.2-5`](#rfc6793-4.2.2-5), [`RFC6793-4.2.2-6`](#rfc6793-4.2.2-6), [`RFC6793-4.2.3-1`](#rfc6793-4.2.3-1), [`RFC6793-4.2.3-3`](#rfc6793-4.2.3-3), [`RFC6793-4.2.3-4`](#rfc6793-4.2.3-4), [`RFC6793-4.2.3-5`](#rfc6793-4.2.3-5), [`RFC6793-4.2.3-6`](#rfc6793-4.2.3-6), [`RFC6793-4.2.3-7`](#rfc6793-4.2.3-7), [`RFC6793-4.2.3-8`](#rfc6793-4.2.3-8), [`RFC6793-4.2.3-9`](#rfc6793-4.2.3-9), [`RFC6793-4.2.3-10`](#rfc6793-4.2.3-10), [`RFC6793-6-1`](#rfc6793-6-1), [`RFC6793-6-2`](#rfc6793-6-2), [`RFC6793-6-3`](#rfc6793-6-3), [`RFC6793-6-4`](#rfc6793-6-4), [`RFC6793-6-5`](#rfc6793-6-5)
 
-**Annotated instead of tested (5):** [`RFC6793-4.1-3`](#rfc6793-4.1-3), [`RFC6793-4.1-6`](#rfc6793-4.1-6), [`RFC6793-4.1-7`](#rfc6793-4.1-7), [`RFC6793-4.2.3-2`](#rfc6793-4.2.3-2), [`RFC6793-6-5`](#rfc6793-6-5)
+**Annotated instead of tested (2):** [`RFC6793-4.1-3`](#rfc6793-4.1-3), [`RFC6793-4.2.3-2`](#rfc6793-4.2.3-2)
 
 ## Requirements
 
@@ -118,8 +117,8 @@ Four MUST/SHALL-level gaps, each annotated in [`rfc/short/rfc6793.md`](https://g
 | `RFC6793-4.1-3` | When processing an OPEN from another NEW speaker, MUST use the AS number from the Capability Value field in lieu of the "My Autonomous System" field (Section 4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** UnpackOpen never populates Open.ASN4 from the code-65 capability -- it sets only Version, MyAS, HoldTime and BGPIdentifier (internal/component/bgp/message/open.go:171-180) -- so the reactor's only OPEN-derived peer AS falls back to the two-octet header field: resolveDynamicPeerSettings reads the always-zero open.ASN4 and keeps uint32(open.MyAS), i.e. AS_TRANS for a non-mappable peer (internal/component/bgp/reactor/reactor_dynamic.go:311-316), and negotiateWith passes that same zero as the peer ASN into Negotiate (internal/component/bgp/reactor/session_negotiate.go:27-32). The route-server plugin does read the capability value for its event view (internal/component/bgp/plugins/rs/server.go:647-649), but that is a reporting path, not the session's peer AS |
 | `RFC6793-4.1-4` | When both peers support four-octet AS, MUST encode AS numbers as four-octet entities in both AS_PATH and AGGREGATOR attributes (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC6793EncodeFourOctetToNewSpeaker`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L33). **negative:** `unit/verify` [`TestRFC6793EncodeTwoOctetToOldSpeaker`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L65) |
 | `RFC6793-4.1-5` | When both peers support four-octet AS, MUST assume received AS_PATH and AGGREGATOR encode AS numbers as four-octet entities (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC6793DecodeFourOctetWhenNegotiated`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L113). **negative:** `unit/verify` [`TestRFC6793DecodeTwoOctetWhenNotNegotiated`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L137) |
-| `RFC6793-4.1-6` | AS4_PATH and AS4_AGGREGATOR MUST NOT be carried in an UPDATE between NEW BGP speakers (Section 4.1, Section 6) | MUST NOT | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze never ORIGINATES either attribute toward a NEW peer, but it forwards a received one verbatim, so an UPDATE between NEW speakers does carry them. tryDirectPrepend is entered exactly when srcASN4 == dstASN4 (internal/component/bgp/wireu/aspath_rewrite.go:292) and copies payload[:aspAttrOff] (internal/component/bgp/wireu/aspath_rewrite.go:341) and payload[aspAttrEnd:] (internal/component/bgp/wireu/aspath_rewrite.go:363) unchanged, so a received AS4_PATH or AS4_AGGREGATOR passes straight through to the NEW peer. The full rewrite does the same: as4PathForRewrite returns nil whenever dstASN4 is true (internal/component/bgp/wireu/aspath_as4.go:81-86) and the AttrAS4Path branch then copies the received attribute through (internal/component/bgp/wireu/aspath_rewrite.go:490-493), while AGGREGATOR transcoding runs only when srcASN4 != dstASN4 (internal/component/bgp/wireu/aspath_rewrite.go:429) so newAggValueLen stays 0 on a NEW-to-NEW session and the AttrAS4Aggregator branch copies through too (internal/component/bgp/wireu/aspath_rewrite.go:521-524). Same code fact as the receive-side half recorded at RFC6793-4.1-7. Disclosed in docs/features/rfc-status.md |
-| `RFC6793-4.1-7` | A NEW speaker receiving AS4_PATH or AS4_AGGREGATOR from another NEW speaker MUST discard the path attribute and continue processing the UPDATE (Section 4.1, Section 6) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the discard is never conditioned on the negotiated capability. The receive-side procedure of Section 4.2.3 now runs on ingest, and it runs whatever the session negotiated: canonicalizeASPath merges a present AS4_PATH into the AS path information without consulting the asn4 flag it is given (internal/component/bgp/plugins/rib/storage/attrparse.go, canonicalizeASPath and reconstructASPath), and selectAggregator promotes an AS4_AGGREGATOR received from a NEW speaker whenever the AGGREGATOR beside it carries AS_TRANS (internal/component/bgp/plugins/rib/storage/attrparse.go, selectAggregator), where a NEW speaker owes a discard instead. On the forward path a NEW-to-NEW session takes the same-encoding fast path, which copies the whole attribute section verbatim and therefore propagates the attribute too (internal/component/bgp/wireu/aspath_rewrite.go:136-139, tryDirectPrepend at :289-369) |
+| `RFC6793-4.1-6` | AS4_PATH and AS4_AGGREGATOR MUST NOT be carried in an UPDATE between NEW BGP speakers (Section 4.1, Section 6) | MUST NOT | 4.1 | **positive:** `functional/verify` [`rfc6793-no-as4path-from-new-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4path-from-new-speaker.ci#L29). **negative:** `functional/verify` [`rfc6793-narrow-to-old-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-narrow-to-old-speaker.ci#L25) |
+| `RFC6793-4.1-7` | A NEW speaker receiving AS4_PATH or AS4_AGGREGATOR from another NEW speaker MUST discard the path attribute and continue processing the UPDATE (Section 4.1, Section 6) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC6793NewSpeakerAS4AttributesAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L531). **negative:** `unit/verify` [`TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L205). **positive:** `functional/verify` [`rfc6793-no-as4path-from-new-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4path-from-new-speaker.ci#L34) |
 | `RFC6793-4.2.1-1` | AS_TRANS MUST be used in the OPEN "My Autonomous System" field when the NEW speaker does not have a two-octet AS number (Section 4.2.1) | MUST | 4.2.1 | **positive:** `unit/verify` [`TestRFC6793OpenMyASIsASTransWithoutTwoOctetAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6793_as4_open_test.go#L88). **negative:** `unit/verify` [`TestRFC6793OpenMyASIsRealASWhenMappable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6793_as4_open_test.go#L104) |
 | `RFC6793-4.2.2-1` | When sending to an OLD speaker, MUST send AS path information in AS_PATH encoded with two-octet AS numbers (Section 4.2.2) | MUST | 4.2.2 | **positive:** `unit/verify` [`TestRFC6793EncodeTwoOctetToOldSpeaker`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L68). **negative:** `unit/verify` [`TestRFC6793TwoOctetASPathKeepsMappableASNs`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L93) |
 | `RFC6793-4.2.2-2` | When sending to an OLD speaker with non-mappable ASes, MUST also send AS4_PATH encoded with four-octet AS numbers (Section 4.2.2) | MUST | 4.2.2 | **positive:** `unit/verify` [`TestRFC6793TranscodeEmitsAS4PathForNonMappable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_as4_test.go#L49). **negative:** `unit/verify` [`TestRFC6793TranscodeOmitsAS4PathWhenAllMappable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_as4_test.go#L84) |
@@ -128,21 +127,21 @@ Four MUST/SHALL-level gaps, each annotated in [`rfc/short/rfc6793.md`](https://g
 | `RFC6793-3-1` | AS_CONFED_SEQUENCE and AS_CONFED_SET MUST NOT be carried in the AS4_PATH attribute of an UPDATE message (Section 3, Section 6) | MUST NOT | 3 | **positive:** `unit/verify` [`TestRFC6793AS4PathWireExcludesConfed`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L248). **negative:** `unit/verify` [`TestRFC6793AS4PathWireExcludesConfed`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L251) |
 | `RFC6793-4.2.2-5` | When aggregator AS is non-mappable, MUST use AS4_AGGREGATOR and set AGGREGATOR AS field to AS_TRANS (Section 4.2.2) | MUST | 4.2.2 | **positive:** `unit/verify` [`TestForwardedAggregatorIsDowngradedWithItsCompanion`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/rfc6793_aggregator_test.go#L70). **positive:** `unit/verify` [`TestRFC6793AS4AggregatorForNonMappableAggregator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_as4_test.go#L154). **negative:** `unit/verify` [`TestAMappableAggregatorGetsNoCompanion`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/rfc6793_aggregator_test.go#L107). **negative:** `unit/verify` [`TestRFC6793NoAS4AggregatorForMappableAggregator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_as4_test.go#L191) |
 | `RFC6793-4.2.2-6` | If aggregator AS is mappable, AS4_AGGREGATOR MUST NOT be sent (Section 4.2.2) | MUST NOT | 4.2.2 | **positive:** `unit/verify` [`TestAMappableAggregatorGetsNoCompanion`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/rfc6793_aggregator_test.go#L105). **positive:** `unit/verify` [`TestRFC6793NoAS4AggregatorForMappableAggregator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_as4_test.go#L189). **negative:** `unit/verify` [`TestForwardedAggregatorIsDowngradedWithItsCompanion`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/rfc6793_aggregator_test.go#L73). **negative:** `unit/verify` [`TestRFC6793AS4AggregatorForNonMappableAggregator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_as4_test.go#L157) |
-| `RFC6793-4.2.3-1` | When receiving from an OLD speaker, MUST be prepared to receive AS4_PATH along with AS_PATH (Section 4.2.3) | MUST | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_as4_test.go#L50). **negative:** `unit/verify` [`TestRFC6793ASPathAloneNotInventedIntoFourOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_as4_test.go#L75) |
-| `RFC6793-4.2.3-2` | MUST be prepared to receive AS4_AGGREGATOR along with AGGREGATOR from an OLD speaker (Section 4.2.3) | MUST | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793ReceivedAS4AggregatorAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_as4_test.go#L97). **negative:** no negative test. **{single-polarity}:** the obligation is to accept the pair, and ParseAttributes has no rejection path to drive negatively: AGGREGATOR is interned and AS4_AGGREGATOR falls through the default branch into OtherAttrs, so every AGGREGATOR plus AS4_AGGREGATOR combination is accepted (internal/component/bgp/plugins/rib/storage/attrparse.go:96-102, :138-140). What ze does with the pair afterwards is governed by RFC6793-4.2.3-3 through -7, which are recorded as gaps |
-| `RFC6793-4.2.3-3` | When both AGGREGATOR and AS4_AGGREGATOR are received and AGGREGATOR.AS != AS_TRANS, AS4_AGGREGATOR and AS4_PATH SHALL be ignored (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L191). **negative:** `unit/verify` [`TestRFC6793AggregatorOfTheWrongWidthIsNotRead`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L474). **negative:** `unit/verify` [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L251) |
-| `RFC6793-4.2.3-4` | When both AGGREGATOR and AS4_AGGREGATOR are received and AGGREGATOR.AS != AS_TRANS, AGGREGATOR SHALL be taken as the aggregator info (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L195). **negative:** `unit/verify` [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L255) |
-| `RFC6793-4.2.3-5` | When both AGGREGATOR and AS4_AGGREGATOR are received and AGGREGATOR.AS != AS_TRANS, AS_PATH SHALL be taken as the AS path info (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L199). **negative:** `unit/verify` [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L258) |
-| `RFC6793-4.2.3-6` | When AGGREGATOR.AS == AS_TRANS, AGGREGATOR SHALL be ignored (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L244). **negative:** `unit/verify` [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L203) |
-| `RFC6793-4.2.3-7` | When AGGREGATOR.AS == AS_TRANS, AS4_AGGREGATOR SHALL be taken as the aggregator info (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L247). **negative:** `unit/verify` [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L206). **negative:** `unit/verify` [`TestRFC6793LoneAS4AggregatorIsKeptUninterpreted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L499) |
-| `RFC6793-4.2.3-8` | If AS_PATH AS count < AS4_PATH AS count, AS4_PATH SHALL be ignored and AS_PATH SHALL be taken as AS path info (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793LongerAS4PathIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L119). **negative:** `unit/verify` [`TestRFC6793LongerASPathPrependsLeadingHops`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L98) |
-| `RFC6793-4.2.3-9` | If AS_PATH AS count >= AS4_PATH AS count, AS path info SHALL be constructed by prepending leading AS_PATH entries to AS4_PATH (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793EqualCountsPrependNothing`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L401). **positive:** `unit/verify` [`TestRFC6793LeadingASSetIsTakenWhole`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L425). **positive:** `unit/verify` [`TestRFC6793LongerASPathPrependsLeadingHops`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L93). **negative:** `unit/verify` [`TestRFC6793LongerAS4PathIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L124) |
-| `RFC6793-4.2.3-10` | A valid AS_CONFED_SEQUENCE or AS_CONFED_SET path segment SHALL be prepended if it is the leading segment or adjacent to a prepended segment (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793LeadingConfedSegmentIsPrepended`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L145). **negative:** `unit/verify` [`TestRFC6793UnadjacentConfedSegmentIsNotPrepended`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L169) |
-| `RFC6793-6-1` | AS4_PATH in an UPDATE SHALL be considered malformed if attribute length is not a multiple of two, is too small, segment length is zero or inconsistent, or segment type is undefined (Section 6) | SHALL | 6 | **positive:** `unit/verify` [`TestRFC6793AS4PathWellFormedAccepted`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L164). **positive:** `unit/verify` [`TestRFC6793MalformedAS4PathIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L450). **negative:** `unit/verify` [`TestRFC6793AS4PathMalformedRejected`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L188) |
+| `RFC6793-4.2.3-1` | When receiving from an OLD speaker, MUST be prepared to receive AS4_PATH along with AS_PATH (Section 4.2.3) | MUST | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L202). **negative:** `unit/verify` [`TestRFC6793ASPathAloneNotInventedIntoFourOctet`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L222) |
+| `RFC6793-4.2.3-2` | MUST be prepared to receive AS4_AGGREGATOR along with AGGREGATOR from an OLD speaker (Section 4.2.3) | MUST | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793ReceivedAS4AggregatorAccepted`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L237). **negative:** no negative test. **{single-polarity}:** the obligation is to accept the pair, and ParseAttributes has no rejection path to drive negatively: AGGREGATOR is interned and AS4_AGGREGATOR falls through the default branch into OtherAttrs, so every AGGREGATOR plus AS4_AGGREGATOR combination is accepted (internal/component/bgp/plugins/rib/storage/attrparse.go:96-102, :138-140). What ze does with the pair afterwards is governed by RFC6793-4.2.3-3 through -7, which are recorded as gaps |
+| `RFC6793-4.2.3-3` | When both AGGREGATOR and AS4_AGGREGATOR are received and AGGREGATOR.AS != AS_TRANS, AS4_AGGREGATOR and AS4_PATH SHALL be ignored (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L337). **negative:** `unit/verify` [`TestRFC6793AggregatorOfTheWrongWidthIsNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L483). **negative:** `unit/verify` [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L383) |
+| `RFC6793-4.2.3-4` | When both AGGREGATOR and AS4_AGGREGATOR are received and AGGREGATOR.AS != AS_TRANS, AGGREGATOR SHALL be taken as the aggregator info (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L341). **negative:** `unit/verify` [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L387) |
+| `RFC6793-4.2.3-5` | When both AGGREGATOR and AS4_AGGREGATOR are received and AGGREGATOR.AS != AS_TRANS, AS_PATH SHALL be taken as the AS path info (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L345). **negative:** `unit/verify` [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L390) |
+| `RFC6793-4.2.3-6` | When AGGREGATOR.AS == AS_TRANS, AGGREGATOR SHALL be ignored (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L376). **negative:** `unit/verify` [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L349) |
+| `RFC6793-4.2.3-7` | When AGGREGATOR.AS == AS_TRANS, AS4_AGGREGATOR SHALL be taken as the aggregator info (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L379). **negative:** `unit/verify` [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L352). **negative:** `unit/verify` [`TestRFC6793LoneAS4AggregatorIsDropped`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L511) |
+| `RFC6793-4.2.3-8` | If AS_PATH AS count < AS4_PATH AS count, AS4_PATH SHALL be ignored and AS_PATH SHALL be taken as AS path info (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793LongerAS4PathIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L277). **negative:** `unit/verify` [`TestRFC6793LongerASPathPrependsLeadingHops`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L260) |
+| `RFC6793-4.2.3-9` | If AS_PATH AS count >= AS4_PATH AS count, AS path info SHALL be constructed by prepending leading AS_PATH entries to AS4_PATH (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793EqualCountsPrependNothing`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L418). **positive:** `unit/verify` [`TestRFC6793LeadingASSetIsTakenWhole`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L438). **positive:** `unit/verify` [`TestRFC6793LongerASPathPrependsLeadingHops`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L255). **negative:** `unit/verify` [`TestRFC6793LongerAS4PathIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L282) |
+| `RFC6793-4.2.3-10` | A valid AS_CONFED_SEQUENCE or AS_CONFED_SET path segment SHALL be prepended if it is the leading segment or adjacent to a prepended segment (Section 4.2.3) | SHALL | 4.2.3 | **positive:** `unit/verify` [`TestRFC6793LeadingConfedSegmentIsPrepended`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L299). **negative:** `unit/verify` [`TestRFC6793UnadjacentConfedSegmentIsNotPrepended`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L319) |
+| `RFC6793-6-1` | AS4_PATH in an UPDATE SHALL be considered malformed if attribute length is not a multiple of two, is too small, segment length is zero or inconsistent, or segment type is undefined (Section 6) | SHALL | 6 | **positive:** `unit/verify` [`TestRFC6793AS4PathWellFormedAccepted`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L164). **positive:** `unit/verify` [`TestRFC6793MalformedAS4PathIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L459). **negative:** `unit/verify` [`TestRFC6793AS4PathMalformedRejected`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L188) |
 | `RFC6793-6-2` | AS4_AGGREGATOR in an UPDATE SHALL be considered malformed if the attribute length is not 8 (Section 6) | SHALL | 6 | **positive:** `unit/verify` [`TestRFC6793AS4AggregatorLengthEight`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L217). **negative:** `unit/verify` [`TestRFC6793AS4AggregatorLengthEight`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L219) |
 | `RFC6793-6-3` | On receiving AS_CONFED_* segments in AS4_PATH from an OLD speaker, MUST discard those segments, adjust fields, and continue processing (Section 6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC6793ReceivedConfedInAS4PathDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_as4_test.go#L328). **negative:** `unit/verify` [`TestRFC6793ReceivedConfedInAS4PathDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_as4_test.go#L331) |
 | `RFC6793-6-4` | On receiving malformed AS4_PATH from an OLD speaker, MUST discard the attribute and continue processing the UPDATE (Section 6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC6793MalformedAS4PathDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_as4_test.go#L262). **negative:** `unit/verify` [`TestRFC6793WellFormedAS4PathNotDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_as4_test.go#L297) |
-| `RFC6793-6-5` | On receiving malformed AS4_AGGREGATOR from an OLD speaker, MUST discard the attribute and continue processing the UPDATE (Section 6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the discard is partial. selectAggregator does length-check the attribute before the RFC 6793 Section 4.2.3 choice reads it, so a malformed AS4_AGGREGATOR never becomes the route's aggregating node (internal/component/bgp/plugins/rib/storage/attrparse.go, selectAggregator and aggregatorASIsTrans), but an unpaired one is still copied into OtherAttrs by length alone (same file, appendOtherAttr); the wireu egress paths locate it by offset and copy it through untouched (internal/component/bgp/wireu/aspath_transcode.go:113-117 and :252-256); and RFC 7606 structural validation registers no validator for type code 18 (internal/component/bgp/message/rfc7606.go:415-429). ParseAS4Aggregator does reject a length other than 8 (internal/core/bgp/attribute/as4.go, ParseAS4Aggregator), but its only production reachability is parseAtLocked, which returns the error to the caller rather than discarding the attribute and continuing (internal/core/bgp/attribute/wire.go:346-349) |
+| `RFC6793-6-5` | On receiving malformed AS4_AGGREGATOR from an OLD speaker, MUST discard the attribute and continue processing the UPDATE (Section 6) | MUST | 6 | **positive:** `unit/verify` [`TestCollapseAS4DiscardsMalformedAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/aspath_collapse_test.go#L482). **negative:** `unit/verify` [`TestCollapseAS4SelectsAggregatorPerSection423`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/aspath_collapse_test.go#L350) |
 | `RFC6793-6-6` | When AS4_PATH or AS4_AGGREGATOR is received from a NEW speaker, SHOULD log locally for analysis (Section 6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
 | `RFC6793-6-7` | When AS_CONFED_* segments are found in AS4_PATH, SHOULD log locally for analysis (Section 6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
 | `RFC6793-6-8` | When malformed AS4_PATH is received, the error SHOULD be logged locally for analysis (Section 6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
@@ -155,9 +154,6 @@ Four MUST/SHALL-level gaps, each annotated in [`rfc/short/rfc6793.md`](https://g
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC6793-4.1-3`](#rfc6793-4.1-3) When processing an OPEN from another NEW speaker, MUST use the AS number from the Capability Value field in lieu of the "My Autonomous System" field (Section 4.1) | {gap}, no test | UnpackOpen never populates Open.ASN4 from the code-65 capability -- it sets only Version, MyAS, HoldTime and BGPIdentifier (internal/component/bgp/message/open.go:171-180) -- so the reactor's only OPEN-derived peer AS falls back to the two-octet header field: resolveDynamicPeerSettings reads the always-zero open.ASN4 and keeps uint32(open.MyAS), i.e. AS_TRANS for a non-mappable peer (internal/component/bgp/reactor/reactor_dynamic.go:311-316), and negotiateWith passes that same zero as the peer ASN into Negotiate (internal/component/bgp/reactor/session_negotiate.go:27-32). The route-server plugin does read the capability value for its event view (internal/component/bgp/plugins/rs/server.go:647-649), but that is a reporting path, not the session's peer AS |
-| [`RFC6793-4.1-6`](#rfc6793-4.1-6) AS4_PATH and AS4_AGGREGATOR MUST NOT be carried in an UPDATE between NEW BGP speakers (Section 4.1, Section 6) | {gap}, no test | ze never ORIGINATES either attribute toward a NEW peer, but it forwards a received one verbatim, so an UPDATE between NEW speakers does carry them. tryDirectPrepend is entered exactly when srcASN4 == dstASN4 (internal/component/bgp/wireu/aspath_rewrite.go:292) and copies payload[:aspAttrOff] (internal/component/bgp/wireu/aspath_rewrite.go:341) and payload[aspAttrEnd:] (internal/component/bgp/wireu/aspath_rewrite.go:363) unchanged, so a received AS4_PATH or AS4_AGGREGATOR passes straight through to the NEW peer. The full rewrite does the same: as4PathForRewrite returns nil whenever dstASN4 is true (internal/component/bgp/wireu/aspath_as4.go:81-86) and the AttrAS4Path branch then copies the received attribute through (internal/component/bgp/wireu/aspath_rewrite.go:490-493), while AGGREGATOR transcoding runs only when srcASN4 != dstASN4 (internal/component/bgp/wireu/aspath_rewrite.go:429) so newAggValueLen stays 0 on a NEW-to-NEW session and the AttrAS4Aggregator branch copies through too (internal/component/bgp/wireu/aspath_rewrite.go:521-524). Same code fact as the receive-side half recorded at RFC6793-4.1-7. Disclosed in docs/features/rfc-status.md |
-| [`RFC6793-4.1-7`](#rfc6793-4.1-7) A NEW speaker receiving AS4_PATH or AS4_AGGREGATOR from another NEW speaker MUST discard the path attribute and continue processing the UPDATE (Section 4.1, Section 6) | {gap}, no test | the discard is never conditioned on the negotiated capability. The receive-side procedure of Section 4.2.3 now runs on ingest, and it runs whatever the session negotiated: canonicalizeASPath merges a present AS4_PATH into the AS path information without consulting the asn4 flag it is given (internal/component/bgp/plugins/rib/storage/attrparse.go, canonicalizeASPath and reconstructASPath), and selectAggregator promotes an AS4_AGGREGATOR received from a NEW speaker whenever the AGGREGATOR beside it carries AS_TRANS (internal/component/bgp/plugins/rib/storage/attrparse.go, selectAggregator), where a NEW speaker owes a discard instead. On the forward path a NEW-to-NEW session takes the same-encoding fast path, which copies the whole attribute section verbatim and therefore propagates the attribute too (internal/component/bgp/wireu/aspath_rewrite.go:136-139, tryDirectPrepend at :289-369) |
-| [`RFC6793-6-5`](#rfc6793-6-5) On receiving malformed AS4_AGGREGATOR from an OLD speaker, MUST discard the attribute and continue processing the UPDATE (Section 6) | {gap}, no test | the discard is partial. selectAggregator does length-check the attribute before the RFC 6793 Section 4.2.3 choice reads it, so a malformed AS4_AGGREGATOR never becomes the route's aggregating node (internal/component/bgp/plugins/rib/storage/attrparse.go, selectAggregator and aggregatorASIsTrans), but an unpaired one is still copied into OtherAttrs by length alone (same file, appendOtherAttr); the wireu egress paths locate it by offset and copy it through untouched (internal/component/bgp/wireu/aspath_transcode.go:113-117 and :252-256); and RFC 7606 structural validation registers no validator for type code 18 (internal/component/bgp/message/rfc7606.go:415-429). ParseAS4Aggregator does reject a length other than 8 (internal/core/bgp/attribute/as4.go, ParseAS4Aggregator), but its only production reachability is parseAtLocked, which returns the error to the caller rather than discarding the attribute and continuing (internal/core/bgp/attribute/wire.go:346-349) |
 
 ## Proof state
 
@@ -221,7 +217,10 @@ AS4_PATH and AS4_AGGREGATOR MUST NOT be carried in an UPDATE between NEW BGP spe
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC6793-4.1-6, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`rfc6793-narrow-to-old-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-narrow-to-old-speaker.ci#L25) | functional/verify | revert, verified |
+| positive | [`rfc6793-no-as4path-from-new-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4path-from-new-speaker.ci#L29) | functional/verify | revert, verified |
 
 ### [`RFC6793-4.1-7`](#rfc6793-4.1-7)
 
@@ -229,7 +228,11 @@ A NEW speaker receiving AS4_PATH or AS4_AGGREGATOR from another NEW speaker MUST
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC6793-4.1-7, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L205) | unit/verify | unproven |
+| positive | [`TestRFC6793NewSpeakerAS4AttributesAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L531) | unit/verify | unproven |
+| positive | [`rfc6793-no-as4path-from-new-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4path-from-new-speaker.ci#L34) | functional/verify | revert, verified |
 
 ### [`RFC6793-4.2.1-1`](#rfc6793-4.2.1-1)
 
@@ -331,8 +334,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC6793ASPathAloneNotInventedIntoFourOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_as4_test.go#L75) | unit/verify | unproven |
-| positive | [`TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_as4_test.go#L50) | unit/verify | unproven |
+| negative | [`TestRFC6793ASPathAloneNotInventedIntoFourOctet`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L222) | unit/verify | unproven |
+| positive | [`TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L202) | unit/verify | unproven |
 
 ### [`RFC6793-4.2.3-2`](#rfc6793-4.2.3-2)
 
@@ -342,7 +345,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC6793ReceivedAS4AggregatorAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_as4_test.go#L97) | unit/verify | revert, verified |
+| positive | [`TestRFC6793ReceivedAS4AggregatorAccepted`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L237) | unit/verify | unproven |
 
 ### [`RFC6793-4.2.3-3`](#rfc6793-4.2.3-3)
 
@@ -352,9 +355,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC6793AggregatorOfTheWrongWidthIsNotRead`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L474) | unit/verify | unproven |
-| negative | [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L251) | unit/verify | revert, verified |
-| positive | [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L191) | unit/verify | revert, verified |
+| negative | [`TestRFC6793AggregatorOfTheWrongWidthIsNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L483) | unit/verify | unproven |
+| negative | [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L383) | unit/verify | unproven |
+| positive | [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L337) | unit/verify | unproven |
 
 ### [`RFC6793-4.2.3-4`](#rfc6793-4.2.3-4)
 
@@ -364,8 +367,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L255) | unit/verify | revert, verified |
-| positive | [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L195) | unit/verify | revert, verified |
+| negative | [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L387) | unit/verify | unproven |
+| positive | [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L341) | unit/verify | unproven |
 
 ### [`RFC6793-4.2.3-5`](#rfc6793-4.2.3-5)
 
@@ -375,8 +378,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L258) | unit/verify | revert, verified |
-| positive | [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L199) | unit/verify | revert, verified |
+| negative | [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L390) | unit/verify | unproven |
+| positive | [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L345) | unit/verify | unproven |
 
 ### [`RFC6793-4.2.3-6`](#rfc6793-4.2.3-6)
 
@@ -386,8 +389,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L203) | unit/verify | revert, verified |
-| positive | [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L244) | unit/verify | revert, verified |
+| negative | [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L349) | unit/verify | unproven |
+| positive | [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L376) | unit/verify | unproven |
 
 ### [`RFC6793-4.2.3-7`](#rfc6793-4.2.3-7)
 
@@ -397,9 +400,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L206) | unit/verify | revert, verified |
-| negative | [`TestRFC6793LoneAS4AggregatorIsKeptUninterpreted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L499) | unit/verify | unproven |
-| positive | [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L247) | unit/verify | revert, verified |
+| negative | [`TestRFC6793AggregatorWithRealASIgnoresAS4Attributes`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L352) | unit/verify | unproven |
+| negative | [`TestRFC6793LoneAS4AggregatorIsDropped`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L511) | unit/verify | unproven |
+| positive | [`TestRFC6793AggregatorWithASTransPromotesAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L379) | unit/verify | unproven |
 
 ### [`RFC6793-4.2.3-8`](#rfc6793-4.2.3-8)
 
@@ -409,8 +412,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC6793LongerASPathPrependsLeadingHops`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L98) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC6793LongerAS4PathIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L119) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC6793LongerASPathPrependsLeadingHops`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L260) | unit/verify | unproven |
+| positive | [`TestRFC6793LongerAS4PathIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L277) | unit/verify | unproven |
 
 ### [`RFC6793-4.2.3-9`](#rfc6793-4.2.3-9)
 
@@ -420,10 +423,10 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC6793LongerAS4PathIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L124) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC6793EqualCountsPrependNothing`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L401) | unit/verify | unproven |
-| positive | [`TestRFC6793LeadingASSetIsTakenWhole`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L425) | unit/verify | unproven |
-| positive | [`TestRFC6793LongerASPathPrependsLeadingHops`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L93) | unit/verify | revert, verified |
+| negative | [`TestRFC6793LongerAS4PathIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L282) | unit/verify | unproven |
+| positive | [`TestRFC6793EqualCountsPrependNothing`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L418) | unit/verify | unproven |
+| positive | [`TestRFC6793LeadingASSetIsTakenWhole`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L438) | unit/verify | unproven |
+| positive | [`TestRFC6793LongerASPathPrependsLeadingHops`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L255) | unit/verify | unproven |
 
 ### [`RFC6793-4.2.3-10`](#rfc6793-4.2.3-10)
 
@@ -433,8 +436,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC6793UnadjacentConfedSegmentIsNotPrepended`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L169) | unit/verify | revert, verified |
-| positive | [`TestRFC6793LeadingConfedSegmentIsPrepended`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L145) | unit/verify | revert, verified |
+| negative | [`TestRFC6793UnadjacentConfedSegmentIsNotPrepended`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L319) | unit/verify | unproven |
+| positive | [`TestRFC6793LeadingConfedSegmentIsPrepended`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L299) | unit/verify | unproven |
 
 ### [`RFC6793-6-1`](#rfc6793-6-1)
 
@@ -445,8 +448,8 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC6793AS4PathMalformedRejected`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L188) | unit/verify | unproven |
-| positive | [`TestRFC6793MalformedAS4PathIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go#L450) | unit/verify | unproven |
 | positive | [`TestRFC6793AS4PathWellFormedAccepted`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_as4_test.go#L164) | unit/verify | unproven |
+| positive | [`TestRFC6793MalformedAS4PathIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L459) | unit/verify | unproven |
 
 ### [`RFC6793-6-2`](#rfc6793-6-2)
 
@@ -487,7 +490,10 @@ On receiving malformed AS4_AGGREGATOR from an OLD speaker, MUST discard the attr
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC6793-6-5, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestCollapseAS4SelectsAggregatorPerSection423`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/aspath_collapse_test.go#L350) | unit/verify | unproven |
+| positive | [`TestCollapseAS4DiscardsMalformedAS4Aggregator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/aspath_collapse_test.go#L482) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

@@ -87,7 +87,7 @@ runtime cannot disagree. `| resolve` and `| origin` are listed only where the
 command declares a field that holds an address.
 
 Every `show bgp` command declares one. Go compiled into the daemon declares
-nineteen paths. A plugin process declares the other eleven in its startup
+twenty paths. A plugin process declares the other eleven in its startup
 message: six under `show bgp rpki`, two under `show bgp rs`, two under
 `show bgp adj-rib-in`, and `show bgp healthcheck`. An undeclared command still
 refuses what it cannot support, from the answer it has in hand, after it runs.
@@ -223,7 +223,7 @@ The dashboard polls three local BGP sessions. Press "s" to sort by the next colu
 | `ze exabgp plugin` | Run ExaBGP plugin with ze bridge |
 | `ze exabgp migrate` | Convert ExaBGP config to ze |
 | `ze completion bash/zsh/fish/nushell` | Generate shell completion scripts |
-| `ze show plugins` | List the plugins compiled into this binary |
+| `ze show plugin list` | List the plugins compiled into this binary |
 
 <!-- source: internal/plugins/completion/main.go -- completion subcommand -->
 <!-- source: internal/component/plugin/cli/main.go -- plugin subcommand -->

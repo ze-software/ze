@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4301 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4301: Security Architecture for the Internet Protocol. 20 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 4301: Security Architecture for the Internet Protocol. 20 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 4301 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4301: Security Architecture for the Internet Protocol. 20 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 4301: Security Architecture for the Internet Protocol. 20 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4301 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4301: Security Architecture for the Internet Protocol. 20 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 4301: Security Architecture for the Internet Protocol. 20 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -115,10 +115,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>25.0%</strong><b>5 of 20 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>30.0%</strong><b>6 of 20 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>35.0%</strong><b>7 of 20 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 20 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>30.3%</strong><b>10 of 33 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>33.3%</strong><b>12 of 36 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -132,7 +132,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>10.0%</strong><b>2 of 20 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>5.0%</strong><b>1 of 20 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 20 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -211,7 +211,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>6</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>2</td>
+<td>1</td>
 </tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
@@ -220,16 +220,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>33</td>
+<td>36</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>33</td>
+<td>36</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>10</td>
+<td>12</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4301.md</code></td>
@@ -254,7 +254,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
 <p>Lowered from <code>Supported</code> on 2026-08-30, after an extraction walk of <a href="https://github.com/ze-software/ze/blob/main/rfc/full/rfc4301.txt" target="_blank" rel="noopener"><code>rfc/full/rfc4301.txt</code></a> found architecture obligations Ze does not meet. The implementation work is <a href="https://github.com/ze-software/ze/blob/main/plan/immediate/spec-rfc4301-architecture-gaps.md" target="_blank" rel="noopener"><code>plan/immediate/spec-rfc4301-architecture-gaps.md</code></a>, one phase per block.</p>
-<p class="rfc-prose"><strong>Section 6, ICMP processing:</strong> no control lets an administrator accept or reject unauthenticated ICMP error messages per ICMP type, and no check compares a protected transit ICMP error message payload header against the traffic selectors of the SA that carried it. Section 7.4, stateful fragment checking: Ze holds no fragment state, so a forged non-initial fragment matching the port-scoped IKE bypass policies (<code>ikeBypassPolicies</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/bypass.go" target="_blank" rel="noopener"><code>internal/component/ike/engine/bypass.go</code></a>) is not classified on its ports. The DISCARD half of that section is now met: <code>SPAction</code> carries <code>SPActionDiscard</code> and <code>vpn ipsec policy &lt;name&gt; action discard</code> installs it (<a href="#rfc4301-7.4-1"><code>RFC4301-7.4-1</code></a>).</p>
+<p class="rfc-prose"><strong>Section 6, ICMP processing:</strong> no control lets an administrator accept or reject unauthenticated ICMP error messages per ICMP type, and no check compares a protected transit ICMP error message payload header against the traffic selectors of the SA that carried it.</p>
 <p class="rfc-prose"><strong>Section 8, DF bit and PMTU:</strong> the DF treatment of a tunnel-mode SA is not configurable, and no per-SA PMTU value is held or aged. Section 4.4.2.1, SAD lifetimes: <code>newLifetimeState</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rekey.go" target="_blank" rel="noopener"><code>internal/component/ike/engine/rekey.go</code></a>) assigns a time lifetime only, <code>softBytes</code> is never assigned, and the byte-count arm of <code>softExpired</code> is unreachable in a running daemon; <a href="https://github.com/ze-software/ze/blob/main/plan/spec-ipsec-lifetime-volume.md" target="_blank" rel="noopener"><code>plan/spec-ipsec-lifetime-volume.md</code></a> designs the byte-count lifetime. Section 5.1.2.1, outer header: the DSCP value of the outer tunnel header is not mapped for the domain the packet enters. Section 4.4.1.1, selectors: a port selector holds any port or one exact port rather than the range the section defines, and <code>SPParams</code> carries no ICMP type or code field. Only that last item is gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc4301.md" target="_blank" rel="noopener"><code>rfc/short/rfc4301.md</code></a>, as <a href="#rfc4301-4.4.1.1-1"><code>RFC4301-4.4.1.1-1</code></a>, and its reason text is stale about ports.</p>
 </details>
 </section>
@@ -264,11 +264,11 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>5</strong></td>
+<td><strong>6</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>15</strong></td>
+<td><strong>14</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -287,8 +287,8 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc4301-4.2-1"><code>RFC4301-4.2-1</code></a>, <a href="#rfc4301-4.4.3.1-1"><code>RFC4301-4.4.3.1-1</code></a>, <a href="#rfc4301-4.4.3.1-2"><code>RFC4301-4.4.3.1-2</code></a>, <a href="#rfc4301-4.4.1-4"><code>RFC4301-4.4.1-4</code></a>, <a href="#rfc4301-7.4-1"><code>RFC4301-7.4-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (15):</strong> <a href="#rfc4301-4.1-1"><code>RFC4301-4.1-1</code></a>, <a href="#rfc4301-4.1-2"><code>RFC4301-4.1-2</code></a>, <a href="#rfc4301-4.1-3"><code>RFC4301-4.1-3</code></a>, <a href="#rfc4301-4.1-4"><code>RFC4301-4.1-4</code></a>, <a href="#rfc4301-4.1-5"><code>RFC4301-4.1-5</code></a>, <a href="#rfc4301-4.4.1-1"><code>RFC4301-4.4.1-1</code></a>, <a href="#rfc4301-4.4.1-2"><code>RFC4301-4.4.1-2</code></a>, <a href="#rfc4301-4.4.1.1-1"><code>RFC4301-4.4.1.1-1</code></a>, <a href="#rfc4301-4.4.2-1"><code>RFC4301-4.4.2-1</code></a>, <a href="#rfc4301-4.5-1"><code>RFC4301-4.5-1</code></a>, <a href="#rfc4301-5.2-1"><code>RFC4301-5.2-1</code></a>, <a href="#rfc4301-5.2-2"><code>RFC4301-5.2-2</code></a>, <a href="#rfc4301-4.1-6"><code>RFC4301-4.1-6</code></a>, <a href="#rfc4301-7-1"><code>RFC4301-7-1</code></a>, <a href="#rfc4301-7.4-2"><code>RFC4301-7.4-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (6):</strong> <a href="#rfc4301-4.2-1"><code>RFC4301-4.2-1</code></a>, <a href="#rfc4301-4.4.3.1-1"><code>RFC4301-4.4.3.1-1</code></a>, <a href="#rfc4301-4.4.3.1-2"><code>RFC4301-4.4.3.1-2</code></a>, <a href="#rfc4301-4.4.1-4"><code>RFC4301-4.4.1-4</code></a>, <a href="#rfc4301-7.4-1"><code>RFC4301-7.4-1</code></a>, <a href="#rfc4301-7.4-2"><code>RFC4301-7.4-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (14):</strong> <a href="#rfc4301-4.1-1"><code>RFC4301-4.1-1</code></a>, <a href="#rfc4301-4.1-2"><code>RFC4301-4.1-2</code></a>, <a href="#rfc4301-4.1-3"><code>RFC4301-4.1-3</code></a>, <a href="#rfc4301-4.1-4"><code>RFC4301-4.1-4</code></a>, <a href="#rfc4301-4.1-5"><code>RFC4301-4.1-5</code></a>, <a href="#rfc4301-4.4.1-1"><code>RFC4301-4.4.1-1</code></a>, <a href="#rfc4301-4.4.1-2"><code>RFC4301-4.4.1-2</code></a>, <a href="#rfc4301-4.4.1.1-1"><code>RFC4301-4.4.1.1-1</code></a>, <a href="#rfc4301-4.4.2-1"><code>RFC4301-4.4.2-1</code></a>, <a href="#rfc4301-4.5-1"><code>RFC4301-4.5-1</code></a>, <a href="#rfc4301-5.2-1"><code>RFC4301-5.2-1</code></a>, <a href="#rfc4301-5.2-2"><code>RFC4301-5.2-2</code></a>, <a href="#rfc4301-4.1-6"><code>RFC4301-4.1-6</code></a>, <a href="#rfc4301-7-1"><code>RFC4301-7-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -514,9 +514,10 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>MUST</td>
 <td>7.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-7.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze holds no fragment state, and the check cannot be an XFRM policy: XfrmSelector (vendor/github.com/vishvananda/netlink/nl/xfrm_linux.go) carries Daddr, Saddr, Dport, DportMask, Sport, SportMask, Family, PrefixlenD, PrefixlenS, Proto, Ifindex and User, and no fragment flag, so a policy cannot match &#34;is a non-initial fragment&#34;. ikeBypassPolicies (internal/component/ike/engine/bypass.go) installs four port-scoped BYPASS entries on UDP 500 and 4500, which is the non-trivial port range this requirement binds. WHICH LAYER discharges it is an open design question for the owner: kernel reassembly ahead of the policy check, a netfilter rule, or refusing a port-scoped BYPASS the check does not cover. plan/immediate/spec-rfc4301-architecture-gaps.md phase 2 owns it</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_fragment_test.go#L74" title="internal/component/ike/engine/rfc4301_fragment_test.go" target="_blank" rel="noopener"><code>TestPortScopedBypassNeverReachesTheForwardPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_fragment_integration_linux_test.go#L69" title="internal/component/ike/dataplane/rfc4301_fragment_integration_linux_test.go" target="_blank" rel="noopener"><code>TestXFRMPortScopedBypassIsNeverStoredOnTheForwardPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_fragment_test.go#L133" title="internal/component/ike/engine/rfc4301_fragment_test.go" target="_blank" rel="noopener"><code>TestIKEBypassIsPortScopedSoSection74Binds</code></a></span></div>
+</div></td>
 </tr>
 </tbody>
 </table>
@@ -554,10 +555,6 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <tr><td><a href="#rfc4301-7-1"><code>RFC4301-7-1</code></a> AH/ESP MUST NOT be applied in transport mode to IPv4 fragments; use tunnel mode (§7)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze applies transport mode only to IPv6 OSPFv3 traffic (IPv4-family IPsec is rejected at config), so transport-mode IPsec on an IPv4 fragment structurally cannot arise, and per-packet fragment handling is kernel-delegated (internal/plugins/ospf/config_ipsec.go:21-22)</td>
-</tr>
-<tr><td><a href="#rfc4301-7.4-2"><code>RFC4301-7.4-2</code></a> All implementations MUST support stateful fragment checking to accommodate BYPASS traffic for which a non-trivial port range is specified (§7.4; Appendix D.4 restates it as &#34;implementations MUST support fragment reassembly for BYPASS/DISCARD traffic when port fields are specified&#34;)</td>
-<td>{gap}, no test</td>
-<td>ze holds no fragment state, and the check cannot be an XFRM policy: XfrmSelector (vendor/github.com/vishvananda/netlink/nl/xfrm_linux.go) carries Daddr, Saddr, Dport, DportMask, Sport, SportMask, Family, PrefixlenD, PrefixlenS, Proto, Ifindex and User, and no fragment flag, so a policy cannot match &#34;is a non-initial fragment&#34;. ikeBypassPolicies (internal/component/ike/engine/bypass.go) installs four port-scoped BYPASS entries on UDP 500 and 4500, which is the non-trivial port range this requirement binds. WHICH LAYER discharges it is an open design question for the owner: kernel reassembly ahead of the policy check, a netfilter rule, or refusing a port-scoped BYPASS the check does not cover. plan/immediate/spec-rfc4301-architecture-gaps.md phase 2 owns it</td>
 </tr>
 </tbody>
 </table>
@@ -881,7 +878,28 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <h3><a href="#rfc4301-7.4-2"><code>RFC4301-7.4-2</code></a></h3>
 <p>All implementations MUST support stateful fragment checking to accommodate BYPASS traffic for which a non-trivial port range is specified (§7.4; Appendix D.4 restates it as &#34;implementations MUST support fragment reassembly for BYPASS/DISCARD traffic when port fields are specified&#34;)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4301-7.4-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_fragment_test.go#L133" title="internal/component/ike/engine/rfc4301_fragment_test.go" target="_blank" rel="noopener"><code>TestIKEBypassIsPortScopedSoSection74Binds</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_fragment_integration_linux_test.go#L69" title="internal/component/ike/dataplane/rfc4301_fragment_integration_linux_test.go" target="_blank" rel="noopener"><code>TestXFRMPortScopedBypassIsNeverStoredOnTheForwardPath</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_fragment_test.go#L74" title="internal/component/ike/engine/rfc4301_fragment_test.go" target="_blank" rel="noopener"><code>TestPortScopedBypassNeverReachesTheForwardPath</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Extraction sign-off</h2>
 <p>No extraction sign-off exists for RFC 4301, so no reviewer has walked its text sentence by sentence.</p>
@@ -918,7 +936,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 8 September 2026 15:44 UTC</span>
                 </div>
             </div>
         </footer>

@@ -65,7 +65,8 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#ze-show-warnings-ze-show-errors">ze show warnings / ze show errors</a></li>
 <li><a href="#ze-show-audit-ze-show-aaa-accounting">ze show audit / ze show aaa accounting</a></li>
 <li><a href="#ze-show-system">ze show system</a></li>
-<li><a href="#show-plugins">show plugins</a></li>
+<li><a href="#show-plugin-list">show plugin list</a></li>
+<li><a href="#show-plugin-declarations">show plugin declarations</a></li>
 <li><a href="#show-host">show host</a></li>
 <li><a href="#show-storage-smart">show storage smart</a></li>
 <li><a href="#ze-support">ze support</a></li>
@@ -104,6 +105,7 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#clear-dns-cache-stats-record">clear dns cache / stats / record</a></li>
 <li><a href="#show-resolve-rir">show resolve rir</a></li>
 <li><a href="#update-resolve-rir">update resolve rir</a></li>
+<li><a href="#show-vpn-ipsec-dataplane">show vpn ipsec dataplane</a></li>
 <li><a href="#clear-vpn-ipsec-sa">clear vpn ipsec sa</a></li>
 <li><a href="#show-system-profile">show system profile</a></li>
 <li><a href="#show-system-memory">show system memory</a></li>
@@ -807,17 +809,17 @@ returned by <code>show host memory</code> / <code>show host cpu</code>. Both pat
 correct; pick <code>show system *</code> when you want runtime-first with hardware
 as context, <code>show host *</code> when you want hardware-first.</p>
 <!-- source: internal/component/cmd/show/system.go -- handleShowSystemMemory/CPU/Date -->
-<h3 id="show-plugins">show plugins</h3>
+<h3 id="show-plugin-list">show plugin list</h3>
 <p>The plugins compiled into this binary, and what each one's own <code>init()</code>
 recorded when it set itself up. Answered in the operator's own process from the
 plugin registry, so it needs no daemon and no configuration. A plugin that this
 build compiles out is absent from the answer.</p>
-<pre><code>ze show plugins                          # every plugin, one row each
-ze show plugins | ze pipe match rpki     # narrow the list from a shell
-ze show plugins | ze pipe match memlock  # one plugin and its setup outcome
+<pre><code>ze show plugin list                          # every plugin, one row each
+ze show plugin list | ze pipe match rpki     # narrow the list from a shell
+ze show plugin list | ze pipe match memlock  # one plugin and its setup outcome
 </code></pre>
 <p>In the interactive CLI and through <code>ze cli -c</code>, the whole operator language
-applies to the answer: <code>show plugins | json</code>, <code>| yaml</code>, <code>| table</code>, <code>| count</code>,
+applies to the answer: <code>show plugin list | json</code>, <code>| yaml</code>, <code>| table</code>, <code>| count</code>,
 <code>| match &lt;text&gt;</code>, <code>| first &lt;n&gt;</code>. The rows carry these keys:</p>
 <table>
 <thead>
@@ -871,8 +873,100 @@ record written once, before <code>main()</code>, which is why it can answer for 
 that failed before it had anything to probe.</p>
 <p><code>| resolve</code> and <code>| origin</code> are refused by name: no field of this answer holds an
 IP address.</p>
-<!-- source: internal/component/plugin/register.go -- dataPlugins, pluginRows, show plugins registration -->
+<!-- source: internal/component/plugin/register.go -- dataPlugins, pluginRows, show plugin list registration -->
 <!-- source: internal/component/plugin/registry/setup.go -- SetupResults, the outcome each row carries -->
+<h3 id="show-plugin-declarations">show plugin declarations</h3>
+<p>What each plugin declares: the commands it serves and the pipe aliases it puts
+on them. <code>show plugin list</code> answers which plugins the binary carries; this
+command answers what they declare. Answered in the operator's own process, so
+it needs no daemon.</p>
+<pre><code>ze show plugin declarations                             # the plugins this binary carries
+ze show plugin declarations config /etc/ze/ze.conf      # plus the plugins that file names
+</code></pre>
+<p>The bare form answers from the compiled-in registration and starts no process.
+The <code>config &lt;path&gt;</code> form adds one row for each plugin the file declares, and
+the config block decides where that row's declaration comes from. An <code>internal</code>
+block names code this binary carries, so the row is answered from the
+registration. An <code>external</code> block names another program, so the row is answered
+by starting that program with <code>ZE_PLUGIN_MODE=declare</code> in its environment, with
+every <code>ze.plugin.</code> variable removed, and reading the one framed declaration line
+it writes to stdout. Anything else the child writes is ignored, so a banner or a
+log line cannot corrupt the answer.</p>
+<p>Every pipe operator applies: <code>| json</code>, <code>| yaml</code>, <code>| table</code>, <code>| count</code>,
+<code>| match &lt;text&gt;</code>, <code>| first &lt;n&gt;</code>. The rows carry these keys:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>The plugin name, as the registry or the config block spells it</td>
+</tr>
+<tr>
+<td><code>kind</code></td>
+<td><code>internal</code> for code this binary carries, <code>external</code> for another program</td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td>One of the five below</td>
+</tr>
+<tr>
+<td><code>commands</code></td>
+<td>The commands the plugin declares. Absent when it declares none</td>
+</tr>
+<tr>
+<td><code>pipes</code></td>
+<td>The pipe aliases the plugin declares. Absent when it declares none</td>
+</tr>
+<tr>
+<td><code>reason</code></td>
+<td>Why a row carries no declaration. Absent when one was read</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>declared</code></td>
+<td>an answer arrived carrying declarations</td>
+</tr>
+<tr>
+<td><code>declared-none</code></td>
+<td>an answer arrived carrying an empty declaration</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td>the process ran and wrote no declaration, which is what a plugin with no query mode in it does</td>
+</tr>
+<tr>
+<td><code>unstartable</code></td>
+<td>the process could not be started</td>
+</tr>
+<tr>
+<td><code>timeout</code></td>
+<td>the process started, wrote no declaration inside the budget, and was stopped</td>
+</tr>
+</tbody>
+</table>
+<p>No plugin is ever omitted: a plugin that could not answer keeps its row and says
+why. <code>declared-none</code> and <code>no-answer</code> stay apart, because a plugin with nothing
+to declare and a plugin that answered nothing are different facts.</p>
+<p>The budget is 5 seconds per plugin, the same wait a startup stage gets, and
+<code>ze.plugin.query.timeout</code> sets it. Zero or less is refused rather than read as
+"wait no time". A plugin that runs out of it is stopped with everything it
+started.</p>
+<!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, queriedDeclarationRow -->
+<!-- source: internal/component/plugin/register.go -- the two show plugin declarations registrations -->
 <h3 id="show-host">show host</h3>
 <p>Host hardware inventory. Read-only. Walks sysfs/procfs (and issues best-effort
 <code>ethtool</code> ioctls for NIC firmware/rings) to produce a structured JSON description
@@ -1620,6 +1714,33 @@ after the daemon started needs no restart, and the stored table's <code>Source:<
 name the URLs that run actually read.</p>
 <!-- source: internal/component/resolve/cmd/rir.go -- handleRIRRefresh, configuredDelegationSources -->
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system/rir/delegation-source -->
+<h3 id="show-vpn-ipsec-dataplane">show vpn ipsec dataplane</h3>
+<pre><code>show vpn ipsec dataplane sa                  # The Security Association Database the kernel holds
+show vpn ipsec dataplane sa spi &lt;spi&gt;        # One SA, by SPI (1-4294967295)
+show vpn ipsec dataplane policy              # The Security Policy Database the kernel holds
+show vpn ipsec dataplane drift               # Where engine belief and kernel state disagree
+</code></pre>
+<p>Every other <code>show vpn ipsec</code> command reports what the IKE engine believes it
+installed. These three read the kernel back, so a kernel expiry, an external
+flush, or a policy a rekey stranded becomes visible.</p>
+<p><code>sa</code> lists each installed ESP SA with its SPI, addresses, if_id, mode, reqid,
+encryption and integrity algorithm names, replay window, byte and packet
+counters, and the add and use timestamps. It never renders key material.
+<code>policy</code> lists each policy with its selector prefixes and ports, direction,
+priority, upper-layer protocol, if_id, tunnel endpoints, and the peer that
+installed it. A policy Ze did not install reports its owner as unknown.</p>
+<p><code>drift</code> names each Child SA the engine counts as installed whose SPI the kernel
+does not hold, and exits non-zero when it finds one. It exits zero when the two
+agree. A rekey window is not drift: RFC 7296 Section 2.8 keeps the old and the
+new Child SA alive together.</p>
+<p>A backend that cannot enumerate the dataplane, VPP and the noop backend among
+them, reports that it cannot rather than rendering an empty table. So does a
+process without CAP_NET_ADMIN. An empty table would answer "nothing is
+installed" to a question nobody asked the kernel.</p>
+<p>RFC 4303 Section 2.1 reserves SPI 0, so the <code>spi</code> selector refuses it rather
+than reading it as "every SPI".</p>
+<!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneSA, handleShowVPNIPsecDataplanePolicy, handleShowVPNIPsecDataplaneDrift -->
+<!-- source: internal/component/ike/yang/ze-ipsec-cmd.yang -- show/vpn/ipsec/dataplane -->
 <h3 id="clear-vpn-ipsec-sa">clear vpn ipsec sa</h3>
 <pre><code>clear vpn ipsec sa                          # Terminate all IPsec SAs
 clear vpn ipsec sa peer &lt;name&gt;              # Terminate SAs for one peer (1-255 chars)
@@ -1711,8 +1832,8 @@ inherits a declaration from its own path or an ancestor of it. Each branch under
 every command in that branch: <code>show bgp peer</code> covers <code>show bgp peer 192.0.2.1 detail</code>, and <code>show bgp rib</code> covers <code>show bgp rib best</code>. So no command under
 <code>show bgp</code> inherits <code>| summary</code> or <code>| peers</code>.</p>
 <p>That empty declaration at a branch root is a floor rather than a claim. A
-command deeper in the branch declares its own order and keeps it. Sixteen
-commands under <code>show bgp</code> declare one, and each of the sixteen also declares
+command deeper in the branch declares its own order and keeps it. Twenty
+commands under <code>show bgp</code> declare one, and each of the twenty also declares
 whether its answer holds rows. <code>ze help command "&lt;path&gt;" --json</code> answers what one
 of them declares.</p>
 <!-- source: internal/component/command/column_order.go -- declarationRegistry.declare -->
@@ -1721,13 +1842,14 @@ of them declares.</p>
 <code>show bgp rpki | summary</code> answers the RPKI counters and not the peer aggregates.</p>
 <p>That bare command answers the seven validation counters and one row for each
 cache server, as siblings. That shape is what leaves <code>| summary</code> a half to
-select. The RPKI plugin declares the alias over the plugin Stage 1 channel
-rather than in Go. So <code>ze help command --json</code> and <code>./le command list</code> do not
-list it: both read the compiled tree in their own process and start no plugin.
-Each row they DO list carries the command's summary under <code>description</code> and its
-long explanation under <code>long-help</code>. The full RPKI command list is in
-<code>docs/guide/rpki.md</code>.</p>
+select. The RPKI plugin declares the alias on its <code>registry.Registration</code>, which
+every reader that links the composition root sees, so <code>ze help command --json</code>
+and <code>./le command list</code> both list <code>summary</code> on the command. Each row carries the
+command's summary under <code>description</code> and its long explanation under
+<code>long-help</code>. The full RPKI command list is in <code>docs/guide/rpki.md</code>.</p>
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
+<!-- source: cmd/ze/help_command.go -- appendPluginCommands -->
+<!-- source: internal/le/command/list/commandlist.go -- aliasesFor -->
 <!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
 <p><code>show bgp summary</code> was a second spelling of this command until 2026-08. It is
 removed, not aliased, so it answers an unknown-command error. <code>show bgp</code> gives
@@ -2878,6 +3000,11 @@ format is rendered in the configured default, the <code>environment cli format d
 <td><code>show bgp</code></td>
 <td>read-only</td>
 <td>BGP summary table (all peers)</td>
+</tr>
+<tr>
+<td><code>show bgp update-delay</code></td>
+<td>read-only</td>
+<td>The startup convergence hold: whether this speaker is withholding its first advertisement, which condition ended a hold that has finished (<code>converged</code>, <code>establish-wait</code>, <code>max-delay</code>), and how many of the expected peers have converged. Read it when a speaker has come up and advertised nothing: it separates a working hold from a wedged daemon <!-- source: internal/component/bgp/plugins/cmd/peer/update_delay.go -- handleBgpUpdateDelay --></td>
 </tr>
 <tr>
 <td><code>show bgp &lt;afi/safi&gt;</code></td>
@@ -4190,7 +4317,7 @@ ze-chaos --ai-help                           # Print tool schemas
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
                 </div>
             </div>
         </footer>

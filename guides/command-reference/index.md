@@ -413,7 +413,7 @@ as context, `show host *` when you want hardware-first.
 
 <!-- source: internal/component/cmd/show/system.go -- handleShowSystemMemory/CPU/Date -->
 
-### show plugins
+### show plugin list
 
 The plugins compiled into this binary, and what each one's own `init()`
 recorded when it set itself up. Answered in the operator's own process from the
@@ -421,13 +421,13 @@ plugin registry, so it needs no daemon and no configuration. A plugin that this
 build compiles out is absent from the answer.
 
 ```
-ze show plugins                          # every plugin, one row each
-ze show plugins | ze pipe match rpki     # narrow the list from a shell
-ze show plugins | ze pipe match memlock  # one plugin and its setup outcome
+ze show plugin list                          # every plugin, one row each
+ze show plugin list | ze pipe match rpki     # narrow the list from a shell
+ze show plugin list | ze pipe match memlock  # one plugin and its setup outcome
 ```
 
 In the interactive CLI and through `ze cli -c`, the whole operator language
-applies to the answer: `show plugins | json`, `| yaml`, `| table`, `| count`,
+applies to the answer: `show plugin list | json`, `| yaml`, `| table`, `| count`,
 `| match <text>`, `| first <n>`. The rows carry these keys:
 
 | Key | Value |
@@ -458,8 +458,62 @@ that failed before it had anything to probe.
 `| resolve` and `| origin` are refused by name: no field of this answer holds an
 IP address.
 
-<!-- source: internal/component/plugin/register.go -- dataPlugins, pluginRows, show plugins registration -->
+<!-- source: internal/component/plugin/register.go -- dataPlugins, pluginRows, show plugin list registration -->
 <!-- source: internal/component/plugin/registry/setup.go -- SetupResults, the outcome each row carries -->
+
+### show plugin declarations
+
+What each plugin declares: the commands it serves and the pipe aliases it puts
+on them. `show plugin list` answers which plugins the binary carries; this
+command answers what they declare. Answered in the operator's own process, so
+it needs no daemon.
+
+```
+ze show plugin declarations                             # the plugins this binary carries
+ze show plugin declarations config /etc/ze/ze.conf      # plus the plugins that file names
+```
+
+The bare form answers from the compiled-in registration and starts no process.
+The `config <path>` form adds one row for each plugin the file declares, and
+the config block decides where that row's declaration comes from. An `internal`
+block names code this binary carries, so the row is answered from the
+registration. An `external` block names another program, so the row is answered
+by starting that program with `ZE_PLUGIN_MODE=declare` in its environment, with
+every `ze.plugin.` variable removed, and reading the one framed declaration line
+it writes to stdout. Anything else the child writes is ignored, so a banner or a
+log line cannot corrupt the answer.
+
+Every pipe operator applies: `| json`, `| yaml`, `| table`, `| count`,
+`| match <text>`, `| first <n>`. The rows carry these keys:
+
+| Key | Value |
+|-----|-------|
+| `name` | The plugin name, as the registry or the config block spells it |
+| `kind` | `internal` for code this binary carries, `external` for another program |
+| `state` | One of the five below |
+| `commands` | The commands the plugin declares. Absent when it declares none |
+| `pipes` | The pipe aliases the plugin declares. Absent when it declares none |
+| `reason` | Why a row carries no declaration. Absent when one was read |
+
+| State | What it means |
+|-------|---------------|
+| `declared` | an answer arrived carrying declarations |
+| `declared-none` | an answer arrived carrying an empty declaration |
+| `no-answer` | the process ran and wrote no declaration, which is what a plugin with no query mode in it does |
+| `unstartable` | the process could not be started |
+| `timeout` | the process started, wrote no declaration inside the budget, and was stopped |
+
+No plugin is ever omitted: a plugin that could not answer keeps its row and says
+why. `declared-none` and `no-answer` stay apart, because a plugin with nothing
+to declare and a plugin that answered nothing are different facts.
+
+The budget is 5 seconds per plugin, the same wait a startup stage gets, and
+`ze.plugin.query.timeout` sets it. Zero or less is refused rather than read as
+"wait no time". A plugin that runs out of it is stopped with everything it
+started.
+
+<!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, queriedDeclarationRow -->
+<!-- source: internal/component/plugin/register.go -- the two show plugin declarations registrations -->
 
 ### show host
 
@@ -1336,6 +1390,42 @@ name the URLs that run actually read.
 <!-- source: internal/component/resolve/cmd/rir.go -- handleRIRRefresh, configuredDelegationSources -->
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system/rir/delegation-source -->
 
+### show vpn ipsec dataplane
+
+```
+show vpn ipsec dataplane sa                  # The Security Association Database the kernel holds
+show vpn ipsec dataplane sa spi <spi>        # One SA, by SPI (1-4294967295)
+show vpn ipsec dataplane policy              # The Security Policy Database the kernel holds
+show vpn ipsec dataplane drift               # Where engine belief and kernel state disagree
+```
+
+Every other `show vpn ipsec` command reports what the IKE engine believes it
+installed. These three read the kernel back, so a kernel expiry, an external
+flush, or a policy a rekey stranded becomes visible.
+
+`sa` lists each installed ESP SA with its SPI, addresses, if_id, mode, reqid,
+encryption and integrity algorithm names, replay window, byte and packet
+counters, and the add and use timestamps. It never renders key material.
+`policy` lists each policy with its selector prefixes and ports, direction,
+priority, upper-layer protocol, if_id, tunnel endpoints, and the peer that
+installed it. A policy Ze did not install reports its owner as unknown.
+
+`drift` names each Child SA the engine counts as installed whose SPI the kernel
+does not hold, and exits non-zero when it finds one. It exits zero when the two
+agree. A rekey window is not drift: RFC 7296 Section 2.8 keeps the old and the
+new Child SA alive together.
+
+A backend that cannot enumerate the dataplane, VPP and the noop backend among
+them, reports that it cannot rather than rendering an empty table. So does a
+process without CAP_NET_ADMIN. An empty table would answer "nothing is
+installed" to a question nobody asked the kernel.
+
+RFC 4303 Section 2.1 reserves SPI 0, so the `spi` selector refuses it rather
+than reading it as "every SPI".
+
+<!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneSA, handleShowVPNIPsecDataplanePolicy, handleShowVPNIPsecDataplaneDrift -->
+<!-- source: internal/component/ike/yang/ze-ipsec-cmd.yang -- show/vpn/ipsec/dataplane -->
+
 ### clear vpn ipsec sa
 
 ```
@@ -1475,8 +1565,8 @@ detail`, and `show bgp rib` covers `show bgp rib best`. So no command under
 `show bgp` inherits `| summary` or `| peers`.
 
 That empty declaration at a branch root is a floor rather than a claim. A
-command deeper in the branch declares its own order and keeps it. Sixteen
-commands under `show bgp` declare one, and each of the sixteen also declares
+command deeper in the branch declares its own order and keeps it. Twenty
+commands under `show bgp` declare one, and each of the twenty also declares
 whether its answer holds rows. `ze help command "<path>" --json` answers what one
 of them declares.
 <!-- source: internal/component/command/column_order.go -- declarationRegistry.declare -->
@@ -1487,13 +1577,14 @@ of them declares.
 
 That bare command answers the seven validation counters and one row for each
 cache server, as siblings. That shape is what leaves `| summary` a half to
-select. The RPKI plugin declares the alias over the plugin Stage 1 channel
-rather than in Go. So `ze help command --json` and `./le command list` do not
-list it: both read the compiled tree in their own process and start no plugin.
-Each row they DO list carries the command's summary under `description` and its
-long explanation under `long-help`. The full RPKI command list is in
-`docs/guide/rpki.md`.
+select. The RPKI plugin declares the alias on its `registry.Registration`, which
+every reader that links the composition root sees, so `ze help command --json`
+and `./le command list` both list `summary` on the command. Each row carries the
+command's summary under `description` and its long explanation under
+`long-help`. The full RPKI command list is in `docs/guide/rpki.md`.
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
+<!-- source: cmd/ze/help_command.go -- appendPluginCommands -->
+<!-- source: internal/le/command/list/commandlist.go -- aliasesFor -->
 <!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
 
 `show bgp summary` was a second spelling of this command until 2026-08. It is
@@ -2227,6 +2318,7 @@ Many commands take a `peer <selector>` argument:
 | `show bgp peer <sel> statistics` | read-only | Per-peer update statistics with rates |
 | `show bgp peer <sel> history` | read-only | FSM transition history |
 | `show bgp` | read-only | BGP summary table (all peers) |
+| `show bgp update-delay` | read-only | The startup convergence hold: whether this speaker is withholding its first advertisement, which condition ended a hold that has finished (`converged`, `establish-wait`, `max-delay`), and how many of the expected peers have converged. Read it when a speaker has come up and advertised nothing: it separates a working hold from a wedged daemon <!-- source: internal/component/bgp/plugins/cmd/peer/update_delay.go -- handleBgpUpdateDelay --> |
 | `show bgp <afi/safi>` | read-only | Per-family summary: filter to peers that negotiated this AFI/SAFI. Shorthands `ipv4`, `ipv6`, `l2vpn` expand to `ipv4/unicast`, `ipv6/unicast`, `l2vpn/evpn`. Unknown or un-negotiated families reject with the list of families currently negotiated on this daemon. Response adds `family` + `peers-in-family`; `peers-established` is the filtered count |
 | `request peer <sel> pause` | write | Pause read loop (flow control) |
 | `request peer <sel> resume` | write | Resume read loop |

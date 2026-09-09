@@ -373,7 +373,8 @@ The EAP peer validates the authenticator's certificate chain against that trust
 anchor. EAP-TLS has no server hostname, so the check validates the chain without
 DNS-name matching.
 
-<!-- source: internal/core/eap/peer.go -- verifyServerChain, startTLSClient -->
+<!-- source: internal/core/eap/peer.go -- startTLSClient -->
+<!-- source: internal/core/eap/peer_chain.go -- serverChainCheck.verifyPeerCertificate -->
 
 ## EAP method negotiation
 
@@ -394,6 +395,13 @@ packet, so read it as a claim.
 When Ze is the EAP server and the client refuses the offered method, the
 `ike: EAP authentication failed` line names the types the client asked for and
 the type Ze offered.
+
+When Ze is the EAP-TLS client on TLS 1.3, it requires the RFC 9190 Section 2.5
+protected success result indication before it accepts the EAP-Success. An
+authenticator that does not send it fails the peering, and the message names the
+authenticator, the negotiated version and two remedies: an authenticator that
+follows Section 2.5, or a peering on TLS 1.2, which RFC 5216 governs and where
+no indication exists. TLS 1.2 peerings are unaffected.
 
 <!-- source: internal/core/eap/peer.go -- handleRequest, nakResponse, notificationResponse -->
 <!-- source: internal/component/ike/engine/fsm.go -- handleEAPResponse -->
@@ -442,11 +450,51 @@ it, so the AUTH payload of RFC 7296 Section 2.16 cannot be computed and the SA n
 establishes. A TLS 1.2 exchange concludes with the bare EAP-Success it concluded with
 before, because the version test reads the negotiated version.
 
-Ze issues no TLS session ticket. It builds one TLS configuration for each EAP session, and
-Go keys ticket encryption on that instance. No other session can redeem a ticket minted in
-one. EAP-TLS session resumption is therefore not available.
+Ze issues a TLS session ticket on every EAP-TLS 1.3 authentication, because RFC 9190
+Section 2.1.2 makes that a MUST with no condition on it. The ticket key belongs to the
+peering rather than to the session, so a later authentication with the same peer can redeem
+it. Whether Ze USES a ticket is the `session-resumption` leaf, which defaults to `true` and
+covers both roles; with it `false` every authentication runs a full handshake and the ticket
+still goes out. A resumed authentication re-checks the cached chain against the current
+`ca-certificate` and `crl`, so a certificate that was revoked or expired since the first
+handshake is refused.
+
+Ze caps the TLS version at 1.3 on both EAP-TLS roles. RFC 9190 Section 1 requires that
+cap, because EAP-TLS couples the TLS state machine to the EAP one and a version nobody
+integrated into the EAP half breaks the pair. Ze offers no setting that raises the cap.
+TLS 1.2 stays reachable under it, and an EAP-TLS peer that speaks only TLS 1.2 still
+authenticates with the RFC 5216 key derivation.
+
+Ze puts the four-octet TLS Message Length only on the first fragment of a message it had
+to fragment. RFC 9190 Section 2.1.9 forbids the L bit on a message that fits in one
+EAP-TLS packet, so in a packet capture the TLS data of such a message starts one octet
+after the EAP Type, not five. Ze accepts an unfragmented message from the far end with
+the L bit or without it, which the same sentence requires.
+
+## Ze does not send `local-id` as the EAP-TLS identity
+
+RFC 9190 Section 2.1.8 says that "a client supporting TLS 1.3 MUST NOT send its username (or
+any other permanent identifiers) in cleartext in the Identity Response". So for
+`mode eap-tls` Ze does not put `local-id` in the EAP-Response/Identity. It sends an anonymous
+Network Access Identifier derived from it:
+
+| `local-id` | EAP identity Ze sends | Why |
+|------------|----------------------|-----|
+| `alice@example.com` | `@example.com` | the username is omitted and the realm is kept, which is the form Section 2.1.8 recommends |
+| `@example.com` | `@example.com` | already anonymous |
+| `ze-test-client` | `anonymous` | no realm to route on, so the fixed username Section 2.1.8 allows |
+| `alice@localhost` | `anonymous` | `localhost` is not a realm the RFC 7542 Section 2.2 grammar accepts |
+
+The realm survives because it is what routes an EAP exchange to a home domain, and because
+RFC 9190 Section 2.1.3 asks for the same realm again when a session resumes. Give `local-id`
+a realm when the exchange has to route: an identity with none tells the far end nothing.
+
+`local-id` is unchanged everywhere else. It is still IDi in IKE_AUTH, and the EAP-MSCHAPv2
+and EAP MD5-Challenge methods still send it as their identity, because RFC 9190 governs
+EAP-TLS alone and those methods carry their username inside the method exchange.
 
 <!-- source: internal/core/eap/eap_tls.go -- indicateSuccess, newTLSMethod -->
+<!-- source: internal/core/eap/nai.go -- anonymousNAI -->
 
 ## EAP-TLS 1.3 needs a certificate revocation list
 
@@ -477,17 +525,108 @@ decides whether a session establishes:
 | A current list, and the chain is not on it | The session establishes | The session establishes |
 | A current list naming a certificate on the chain | Ze refuses, naming the certificate, its serial number and the CA that withdrew it | The same |
 | No list at all | Ze refuses: nothing can answer the question Section 5.4 makes mandatory | The session establishes |
-| A list whose `nextUpdate` has passed | Ze refuses: an expired list says nothing about the present | The session establishes |
+| A list whose `nextUpdate` has passed | Ze refuses: an expired list says nothing about the present | The same |
 
-TLS 1.2 is governed by RFC 5216 Section 5.4 instead, which asks only that an implementation
-"MUST support the use of Certificate Revocation Lists (CRLs)". So a TLS 1.2 peer with no
-list configured still authenticates, and the same peer on TLS 1.3 does not.
+The "no list at all" row is the only one where the two versions differ. TLS 1.2 is governed by
+RFC 5216 Section 5.4 instead, which asks only that an implementation "MUST support the use of
+Certificate Revocation Lists (CRLs)". Nothing there obliges a session the operator configured
+no list for, so a TLS 1.2 peer with no list still authenticates while the same peer on TLS 1.3
+does not.
+
+Every other row holds on both versions, because a list that IS configured is checked whatever
+was negotiated. An expired list is not a usable one, so it refuses on TLS 1.2 too: the
+operator asked for the check, and the source can no longer perform it.
 
 Publish a fresh list before the `nextUpdate` of the one in the config passes. An expired
 list refuses the same peers a missing one does.
 
 <!-- source: internal/core/eap/revocation.go -- checkChainRevocation, crlSet.currentListFrom -->
 <!-- source: internal/component/pki/store.go -- CACertEntry.CRLPEM -->
+
+## EAP-TLS 1.3 staples the OCSP response you give it
+
+RFC 9190 Section 5.4 says that "EAP-TLS servers supporting TLS 1.3 MUST implement
+Certificate Status Requests (OCSP stapling)". Ze answers one with the response configured on
+the certificate it presents, in an `ocsp-response` leaf beside that certificate:
+
+```text
+pki {
+    certificate vpn-server {
+        certificate "-----BEGIN CERTIFICATE-----...";
+        ocsp-response "MIIBxAoBAKCB...";
+        private { key "..."; }
+    }
+}
+```
+
+Fetch the value from the responder your CA publishes, with `openssl ocsp -respout`. Give it as
+base64-encoded DER or as an `OCSP RESPONSE` PEM document. A response about another certificate
+is refused at commit. A certificate with no response answers a Certificate Status Request with
+no status, which RFC 6066 Section 8 permits, and the peer then falls back to the `crl` of the
+CA that issued it.
+
+An OCSP response carries a `nextUpdate`, and a peer that checks the status refuses the
+certificate once that time passes. Replace the value before it does, the same discipline a
+`crl` needs.
+
+## An EAP-TLS peer can require the stapled status
+
+RFC 9190 Section 5.4 puts a MUST on a peer that uses Certificate Status Requests to check a
+chain: "it MUST treat a CertificateEntry (but not the trust anchor) without a valid
+CertificateStatus extension as invalid and abort the handshake with an appropriate alert". The
+`certificate-status-request` leaf makes Ze such a peer, and it is `false` by default:
+
+```text
+ipsec {
+    peer headquarters {
+        authentication {
+            mode eap-tls;
+            certificate-status-request true;
+        }
+    }
+}
+```
+
+| What the authenticator staples | `certificate-status-request true` | `certificate-status-request false` |
+|--------------------------------|-----------------------------------|------------------------------------|
+| A current response saying the certificate is good | The session establishes | The session establishes |
+| Nothing | Ze refuses, naming the missing CertificateStatus | The session establishes |
+| A response reporting the certificate revoked or unknown | Ze refuses, naming what the responder said | The session establishes |
+| A response whose `nextUpdate` has passed, or one about another certificate | Ze refuses, naming which | The session establishes |
+
+With the leaf `false` the chain is still checked against the `crl` of its CA, which Section 5.4
+requires on TLS 1.3 either way.
+
+One deployment limit comes with the leaf. Ze reads the stapled status of the LEAF certificate
+and of no other, because Go's TLS stack parses the status extension of the first
+CertificateEntry alone. Section 5.4 makes an entry whose status is not valid invalid, and an
+entry Ze cannot read the status of is one it cannot call valid, so a chain carrying an
+intermediate CA below the trust anchor is refused while the leaf is on. Give the authenticator
+a certificate its trust anchor signed directly, or leave the leaf off and check by `crl`.
+
+## An EAP-TLS peer re-checks the server certificate once the tunnel is up
+
+RFC 9190 Section 5.4 asks an EAP-TLS peer to "support checking for certificate revocation
+after authentication completes and network connectivity is available", and to "use a secure
+transport" for it. RFC 5216 Section 5.4 asks for the same with no TLS version attached.
+
+Ze runs that check as soon as the Child SA is installed, which is the moment the tunnel it
+just authenticated gives it a network. It asks the OCSP responder named by the authenticator's
+own certificate, over https, and it needs no configuration: the responder URL comes from the
+certificate's authority information access extension.
+
+| What the responder says | What Ze does |
+|-------------------------|--------------|
+| The certificate is revoked | Closes the SA and logs the revocation. The reconnect that follows runs a fresh authentication, which the same certificate fails inside the handshake |
+| The certificate is good | Logs it and leaves the SA up |
+| Nothing, because it cannot be reached | Logs a warning and leaves the SA up. A responder outage is not evidence of a revocation |
+| Nothing, because the certificate names an http responder or none at all | The same warning. Section 5.4 requires a secure transport, so an http responder is refused before any connection opens |
+
+The check runs once per authentication rather than on a timer, and it never delays the tunnel:
+the Child SA is up before it starts.
+
+<!-- source: internal/core/eap/ocsp.go -- CheckCertificateStatus, checkStapledChainStatus -->
+<!-- source: internal/component/ike/engine/postauth_revocation.go -- startServerCertRecheck, checkServerChainStatus -->
 
 ## EAP-TLS with TLS 1.2 needs RFC 7627
 
@@ -973,6 +1112,20 @@ notify type and by whether the carrying message was encrypted.
 name of that guard.
 
 Three more counters report the COOKIE challenge described under [Denial-of-service protection](#denial-of-service-protection). `ze_ipsec_cookie_challenges_total{peer}` counts the challenges Ze issues, `ze_ipsec_cookie_verify_failures_total{peer}` counts inbound cookies that did not verify, and `ze_ipsec_sa_init_retries_total{peer,cause}` counts the IKE_SA_INIT retries Ze sends, labeled `cookie` or `invalid-ke-payload`. A rising verify-failure count is either an attacker probing the half-open slot or a secret rotation catching an in-flight challenge. A rising retry count on the `cookie` cause is the signature of the forged-notify flood RFC 7296 Section 2.6 describes.
+
+Two more gauges report the KERNEL, not what the engine believes it installed.
+`ze_ipsec_dataplane_sa_count{if_id}` reports how many SAs the kernel SAD holds
+under each XFRM if_id, and `ze_ipsec_dataplane_drift{peer}` reads 1 when the
+kernel does not hold a Child SA SPI the engine counts as installed. A kernel
+expiry, an external flush, or a rekey that stranded a policy each show up here
+while `ze_ipsec_tunnel_up` still reads 1, because that gauge reports the install
+call, not the kernel.
+
+Neither dataplane gauge publishes a series when the kernel cannot be read: no
+backend loaded, a backend that cannot enumerate, or netlink refusing the dump
+without CAP_NET_ADMIN. A series an earlier scrape carried is deleted. Alert on
+the drift gauge being 1, never on it being absent, because absence says the
+question was not answered rather than answered no.
 
 `ze_ipsec_tunnel_up` reads 1 only when the IKE SA is established and the Child SA is
 installed in the dataplane. A tunnel whose ESP install the kernel refused reads

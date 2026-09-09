@@ -157,7 +157,9 @@ rule above is a rule.
 
 ## Stdin Blocks
 
-Stdin blocks embed content that will be piped to a process's stdin.
+A stdin block embeds content the runner pipes to a process's standard input.
+Two commands take it as a FILE instead, and the table under "Where the block
+goes" says which, why, and what the `.ci` writes to select each route.
 
 ### Syntax
 
@@ -202,20 +204,52 @@ peer test-peer {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze bgp server -:stdin=ze
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp
 ```
+
+The block goes to a file and the daemon runs as `ze start <file>`. The example
+said `exec=ze bgp server -:stdin=ze` until 2026-09-07, naming a command the CLI
+does not have and a block the file does not declare.
 
 **Single-line hex (decode test):**
 ```
 stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C020000001C...
-cmd=foreground:seq=1:exec=ze-test decode --family ipv4/unicast -:stdin=payload
+cmd=foreground:seq=1:exec=ze bgp decode --json --family ipv4/unicast -:stdin=payload
 expect=json:json={ "type": "update", ... }
 ```
+
+The block is PIPED: the `-` belongs to `decode`, not to the daemon.
 
 **Single-line text:**
 ```
 stdin=cmd:text=update text nhop set 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24
 ```
+
+### Where the block goes
+
+The runner pipes the block, with two exceptions. Each one exists because the
+child needs a path it can open, and each is selected by what the `exec=` line
+already writes: no new directive chooses between them.
+
+| The `exec=` line | Where the block goes | Why |
+|------------------|----------------------|-----|
+| `ze -`, and its flagged forms `ze -d -`, `ze --plugin <p> -`, `ze --mcp <port> -`, `ze --web <port> --insecure-web -` | a FILE in the work directory, and argv becomes `ze [flags] start <file>` | the daemon re-reads its config on SIGHUP, a restart reuses it, `action=rewrite:dest=ze-bgp.conf` addresses it by bare name, and a rollback assertion reads the directory beside it |
+| `ze-peer ...` with NO `-` in argv | a temporary FILE appended to argv | `ze-test peer` takes its expect script as a path argument |
+| `ze-peer ... -` | PIPED | `LoadExpectFile` opens its argument through `cliio`, so `-` is standard input there |
+| every other line, `ze bgp decode -`, `ze config validate -`, `ze-test replay -`, `sh -c ...` included | PIPED | `-` is the `cliio` stdin token (`ai/rules/cli.md`), and the command reads standard input |
+
+The daemon `-` is recognized by POSITION, not by a list of verbs: the runner
+asks `zeDaemonConfigArgIndex` which argument is the config, and substitutes only
+when that argument is the `-`. A `-` belonging to a verb is left in argv and the
+block is piped, so `ze config validate -` and `ze bgp decode pcap -` test the
+form the operator types.
+<!-- source: internal/test/runner/runner_exec_util.go -- routeStdinBlock -->
+
+Until 2026-09-07 the runner took the FIRST `-` in argv whatever it meant, so
+every verb form ran against a file path the author never wrote. A test that
+named a stdin block on a verb was testing the path form under a `-` that said
+otherwise, and `test/ui/bgp-decode-stdin-hex.ci` failed with
+`invalid hex: encoding/hex: invalid byte: U+002F '/'` for that reason.
 
 ### What a ze-peer block may carry
 
@@ -340,7 +374,7 @@ option=<type>:key=value[:key=value...]
 | Type | Keys | Description |
 |------|------|-------------|
 | `file` | `path=<name>` | Config file to use |
-| `asn` | `value=<N>` | Override peer ASN |
+| `asn` | `value=<N>[:peer=<ip>]` | The AS ze-peer opens with. It reaches BOTH carriers RFC 6793 defines: the two-octet My Autonomous System field, narrowed to AS_TRANS (23456) above 65535, and the Capability Value of capability 65. The range is 1 to 4294967295 and a value outside it fails the file when it is read, naming the option and the value. `peer=<ip>` binds the declaration to one of ze's endpoint addresses, for a peer process that serves several of ze's peers at once (`option=conn_map`). With no `option=asn` line at all the runner derives one from the `session { asn { remote N } }` leaf of the ze configuration the `.ci` names. It reads a `tmpfs=` block, a `stdin=` block and the file an `option=file:path=` points at, and it follows the inheritance chain: the router's own `bgp { session { asn { ... } } }`, then a `group` or `template`, then the peer, each level overriding the one above. Three things fail the file at read time rather than being guessed: two peers ze dials at ONE address expecting different ASNs, a declared AS the reader cannot read, and an eBGP peer the derivation reached with nothing. **That last refusal knows only what the reader knows.** A peer is judged eBGP by comparing the local and remote AS, so a peer for which NO local AS is declared at any level of the chain is not judged eBGP and is not refused; it inherits ze's own AS from the mirror, which is right for an iBGP session and wrong for an eBGP one. The derivation reaches no peer at all when a compiled fixture under `internal/test/fixture` writes the configuration and launches `ze-test peer` itself, because no `.ci` block is involved; such a fixture passes `--asn` (`cliWirePeerAS`, `internal/test/fixture/ui_fixture_send_bgp.go`). |
 | `bind` | `value=ipv6` | Bind to IPv6 |
 | `timeout` | `value=<duration>` | Test timeout (e.g., `30s`). Overrides auto-timeout. |
 | `tcp_connections` | `value=<N>` | Number of TCP connections |
@@ -406,7 +440,63 @@ wearing a skip's clothing.
 | `drop-capability` | Remove a capability from ze-peer's OPEN response |
 | `add-capability` | Add a capability to ze-peer's OPEN response |
 | `router-id` | Send an explicit BGP Identifier instead of the mirrored one |
-<!-- source: internal/test/peer/checker.go -- OPEN behavior handling -->
+| `hold-time` | State the Hold Time of the OPEN body (`seconds=<N>`) |
+| `graceful-restart` | State ze-peer's own Graceful Restart capability (`restart-time=<N>`, `family=`, `forward-state=`) |
+| `llgr` | State ze-peer's own Long-Lived Graceful Restart capability (`stale-time=<N>`, `family=`, `forward-state=`) |
+| `paths-limit` | State ze-peer's own PATHS-LIMIT entries (`family=`, `limit=<N>`) |
+<!-- source: internal/test/peer/expect.go -- parseOptionConfig; internal/test/peer/open.go -- buildOpen -->
+
+### Sender Facts (hold-time, graceful-restart, llgr, paths-limit)
+
+Each of these four values states a fact about ZE-PEER that a receiver acts on.
+They exist because a mirror asserts sameness: mirrored, each one made ze read its
+own configuration back out of the peer's OPEN and believe the peer had said it.
+
+```
+option=open:value=hold-time:seconds=<N>
+option=open:value=graceful-restart:restart-time=<N>[:family=<f>[,<f>]][:forward-state=true|false]
+option=open:value=llgr:stale-time=<N>[:family=<f>[,<f>]][:forward-state=true|false]
+option=open:value=paths-limit:family=<f>[,<f>]:limit=<N>
+```
+
+| Key | Range | What reads it |
+|-----|-------|---------------|
+| `seconds` | 0, or 3 to 65535 | `session_negotiate` takes the smaller of this and ze's `receive-hold-time`, then calls `timers.SetHoldTime`. RFC 4271 Section 4.2. 1 and 2 fail the file |
+| `restart-time` | 0 to 4095 | `grStateManager.onSessionDown` arms the restart timer on it, `runPeer` gives it to `startEORTimer`, and `show bgp peer` prints it. RFC 4724 Section 3 gives the field 12 bits |
+| `stale-time` | 0 to 16777215 | `enterLLGRLocked` arms one timer per family on it. RFC 9494 Section 3 gives the field 24 bits |
+| `limit` | 0 to 65535 | `CommitService.enforcePathsLimit` drops paths past it, so ze sends this peer no more than `limit` paths for one prefix |
+| `family` | a family name, or a comma-separated list | The `<AFI, SAFI, Flags>` tuples of code 64, the 7-octet tuples of code 71, and the entries of code 76 |
+| `forward-state` | `true` (default) or `false` | The F bit of every tuple. `onSessionReestablished` purges the stale routes of a family whose F bit is clear |
+
+**The families are what make graceful restart act at all.** RFC 4724 Section 3
+pairs the Restart Time with a tuple list, and `onSessionDown` builds its stale
+family set from that list and returns without dispatching anything when the set is
+empty. Ze's own code 64 carries the time and no tuples (`parseGRCapValue`), so
+until ze-peer owned the value, `retain-routes`, `mark-stale` and `purge-stale`
+were never dispatched in any test.
+
+**A file that states none of them gets the harness's own defaults, never ze's.**
+
+| Fact | Default |
+|------|---------|
+| Hold Time | 65535, the largest the two-octet field states. RFC 4271 Section 4.2 takes the smaller of the two, so the negotiated value stays ze's own and no existing test changes cadence. Only a `.ci` stating a smaller one opts in |
+| Restart Time | 300 seconds, longer than any functional test runs |
+| Long-Lived Stale Time | 600 seconds |
+| Max Paths | 65535, which bounds nothing |
+| Software version (code 75) | `ze-peer`. It has no option, because no session decision turns on it: `capability.Parse` holds no code-75 arm and the only reader is the offline `ze bgp decode` |
+| Families, for all three capabilities | the families ze-peer's own OPEN advertises, read from its Multiprotocol capabilities. An OPEN carrying none is an `ipv4/unicast` speaker (RFC 4760 Section 8) |
+
+Two refusals fail the file rather than dropping a line in silence:
+
+- Stating a fact AND `add-capability` or `drop-capability` for the same code. The
+  stated octets would win, and the typed line would be read, validated and then
+  lost.
+- Stating a fact for a capability **ze does not offer**. The capability SET
+  ze-peer sends mirrors ze's, so the value would have no place to go. Configure
+  ze to offer the capability, or drop the option.
+
+<!-- source: internal/test/peer/expect.go -- parseOpenHoldTime, parseGracefulRestartDecl, parseLLGRDecl, parsePathsLimitDecl -->
+<!-- source: internal/test/peer/open_capability.go -- ownedCapabilities, refuseUnofferedDeclarations -->
 
 ### BGP Identifier Control (router-id)
 
@@ -414,13 +504,19 @@ wearing a skip's clothing.
 option=open:value=router-id:id=<a.b.c.d>
 ```
 
-Ze-peer's default OPEN carries ze's own BGP Identifier with the last octet incremented, which is always a distinct, valid identifier. This option replaces it outright, so a test can present an identifier the default can never produce: `0.0.0.0`, or ze's own router-id (RFC 6286 Section 2.2 rejects both, the second only from an internal peer). A malformed or IPv6 value is ignored and the default mirror stands.
+Ze-peer's default OPEN carries ze's own BGP Identifier with the last octet incremented, which is always a distinct, valid identifier. This option replaces it outright, so a test can present an identifier the default can never produce: `0.0.0.0`, or ze's own router-id (RFC 6286 Section 2.2 rejects both, the second only from an internal peer). A malformed or IPv6 value fails the file when it is read. It was ignored until 2026-09-08, which sent the DEFAULT identifier from a test that asked for an invalid one: the file then tested the valid identifier and passed.
 
-<!-- source: internal/test/peer/expect.go -- parseOptionConfig "router-id"; internal/test/peer/peer.go -- generateOpen -->
+<!-- source: internal/test/peer/expect.go -- parseOptionConfig "router-id"; internal/test/peer/open.go -- openIdentity -->
 
 ### Capability Control (drop-capability / add-capability)
 
-Ze-peer mirrors the peer's OPEN message back (with a modified router-id). The `drop-capability` and `add-capability` options modify this mirrored OPEN at wire level, allowing tests to control exactly which capabilities ze-peer advertises.
+Ze-peer mirrors the capability SET of ze's OPEN, so a `.ci` that says nothing about capabilities still negotiates whatever ze offers. It does NOT mirror the values that describe the SENDER. The AS, the BGP Identifier, the Hold Time, the Role (code 9), the Graceful Restart time, families and flags (code 64), the ADD-PATH directions (code 69), the Long-Lived Graceful Restart stale time and flags (code 71), the FQDN (code 73), the software version (code 75) and the PATHS-LIMIT entries (code 76) are each resolved from the test's own configuration and written into ze-peer's OPEN, because a mirror asserts sameness and every one of those facts is about the speaker rather than about the session. `ownedCapabilities` (`internal/test/peer/open_capability.go`) is the list: a code absent from it is mirrored by construction.
+
+The `drop-capability` and `add-capability` options act on that reconciled OPEN at wire level, allowing tests to control exactly which capabilities ze-peer advertises.
+
+**A capability the `.ci` states REPLACES the one ze-peer would have resolved.** An `add-capability` naming any resolved code -- 9, 64, 65, 69, 71, 73, 75 or 76 -- is sent as written and ze-peer adds no second capability of that code, so a file that drops a code and adds it back gets exactly what it asked for. Dropping code 65 removes the four-octet AS capability, which leaves the two-octet My Autonomous System field as the only carrier of the peer's AS: above 65535 that field can carry AS_TRANS alone, which is what RFC 6793 Section 3 defines for a speaker with no two-octet AS.
+
+**An `add-capability:code=65` carrying four octets IS the AS declaration, and the My Autonomous System field follows it.** It outranks `option=asn` and the derivation, because it names the octets that reach the wire and RFC 6793 Section 4.1 makes those the octets a receiver reads. Letting the header field come from anywhere else would put two ASNs in one OPEN, which is the disagreement ze answers with NOTIFICATION 2/2 Bad Peer AS. A stated code 65 of any OTHER length declares no AS: it is a malformed capability the test is driving on purpose, so it is sent as written and the header field keeps the AS the rest of the configuration resolved. That is the one case where the two carriers differ, and they differ because the `.ci` asked.
 
 **Drop a capability:**
 
@@ -548,7 +644,27 @@ cmd=stop:seq=<N>:name=<handle>[:signal=kill|term]
 | `name` | Handle for a background process, so a later `cmd=stop` can target it. |
 | `signal` | `cmd=stop` only: `kill` (SIGKILL, default) or `term` (SIGTERM). |
 
-Markers may appear in any order; each value runs to the next known marker.
+Markers may appear in any order; each value runs to the next key in the table
+above, whichever key that is.
+
+**The table is the whole vocabulary. Any other `:<word>=` on a `cmd=` line fails
+the file**, naming the key, the accepted set and the line. The scan reads the
+whole line, `exec=` included, because that is exactly where a key the parser
+does not read ends up: a value runs to the next KNOWN key, so an unknown one is
+swallowed into the value before it rather than dropped.
+`cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s:env=ZE_FWD_WRITE_DEADLINE=10s`
+parsed with `timeout="15s:env=ZE_FWD_WRITE_DEADLINE=10s"`, so the line got
+neither the timeout it declared nor the variable, and every assertion still
+passed. Set an environment variable with `option=env:var=<name>:value=<value>`.
+
+One consequence: a command carrying a `:<word>=` span of its own cannot be
+written on a `cmd=` line. Put it in a `tmpfs=` script and run the script.
+
+`timeout=` must be a Go duration (`10s`, `1m30s`). Both readers of the value
+keep their own default when it does not parse, so it is refused here instead.
+<!-- source: internal/test/runner/record_parse_cmd.go -- cmdExecKeys, cmdStopKeys, parseCmdExec -->
+<!-- source: internal/test/runner/record_parse_keys.go -- checkMarkerKeys -->
+<!-- test: internal/test/runner/record_parse_cmd_test.go TestCmdUnknownKeyRefused, TestCmdUnknownKeyNotSwallowedIntoExec -->
 
 **Background:** Starts and keeps running until test ends.
 **Foreground:** Starts and waits for completion.
@@ -670,7 +786,7 @@ meaningful.
 <!-- source: internal/test/runner/runner_exec.go -- rec.ClientOutput = clientStdout.String() + clientStderr.String() -->
 <!-- source: internal/test/runner/runner_output_assert.go -- checkOutputAssertions -->
 <!-- source: internal/test/runner/runner_exec.go -- quickZe branch, per-command exit assertion -->
-<!-- source: internal/test/runner/record_parse_cmd.go -- parseCmdExec, exitMarker -->
+<!-- source: internal/test/runner/record_parse_cmd.go -- parseCmdExec, markerExit -->
 <!-- source: internal/test/runner/record.go -- RunCommand.ExitCode -->
 
 <!-- test: internal/test/runner/record_newformat_test.go TestParseCmdExec -- exit= parsing, marker order, 0..255 bounds -->
@@ -882,11 +998,27 @@ Validates the foreground process exit code. A test whose ONLY assertion is
 `expect=exit:code=0` is **accept-only** (weak) and is gated by a lint; see
 [Assertion Strength](#assertion-strength-accept-only-tests-and-readback).
 
-### Unknown Keys Are a Parse Error
+### An Unknown Directive or Key Is a Parse Error
 
-Every `expect=` and `reject=` arm declares the keys it reads, and a key outside
-that set fails the file at discovery, naming the key, the accepted keys, and the
-line. Nothing is dropped in silence.
+Every directive the runner reads is declared: the `action=` word, the type after
+it, and the keys inside it. A word or a key outside its declared set fails the
+file at discovery, naming what was written, the accepted set, and the line.
+Nothing is dropped in silence, and nothing is guessed.
+
+```
+line 12: unknown action "exepct" (accepts action, await, cmd, command, expect, http, option, reject, stream)
+line 12: unknown expect type "stdoutt" (accepts bgp, command-error, event, exit, file, json, output, stderr, stdout, stream, syslog)
+line 12: cmd=foreground: unknown key "env" (accepts exec, exit, name, seq, stdin, timeout)
+```
+
+The accepted set in each message is the list the parser gates on, so it cannot
+describe a vocabulary the runner does not have. The line number is the line in
+the FILE: comments, blank lines and whole `stdin=` and `tmpfs=` blocks are
+consumed before the directives are parsed, and the refusal used to count only
+the directives that survived, which named line 2 for a line that was number 69.
+<!-- source: internal/test/runner/record_parse_vocabulary.go -- recordActions and the type lists each switch gates on -->
+<!-- source: internal/test/tmpfs/tmpfs.go -- Line, the directive text with its file line number -->
+<!-- test: internal/test/runner/record_parse_test.go TestUnknownDirectiveNamesLineAndAccepted, TestDirectiveVocabularyIsLive -->
 
 The rule exists because a dropped key takes the whole assertion with it. An
 `expect=stdout:not-contains=X` line recorded NO assertion and then passed
@@ -1359,6 +1491,27 @@ replaces a `time.Sleep` followed by a one-shot assertion.
 failed, so the daemon's exit code does not prove the observer's assertion. A
 failing observer returns an error, which `fixture.Run` hands to
 `fixture.ReportFailure`.
+
+**A fixture-driven `.ci` needs no `bgp` block and no `ze-peer` to get a daemon
+that stops.** `request shutdown` reaches a reactorless daemon through the
+shutdown callback the daemon wires beside its plugin server, before any plugin
+can dispatch, so a BFD-only or DHCP-only configuration stops on the fixture's
+request like a BGP one. Adding a BGP peer only to make the daemon stoppable adds
+a second protocol to the test's failure surface: `test/bfd/bfd-detection-interval.ci`
+was red for exactly that reason until 2026-09-07.
+<!-- source: cmd/ze/hub/main.go -- apiServer.SetShutdownFunc; internal/component/plugin/server/system.go -- handleDaemonShutdown -->
+
+**`option=asn` moves both AS numbers.** The AS is resolved once and written into
+the two-octet My Autonomous System field AND the four-octet AS capability, so the
+two disagree only where a `.ci` states a malformed capability 65 itself (see
+"Capability Control" above). RFC 6793 Section 4.1 states the precedence a receiver
+applies: it "MUST use the AS number encoded in the Capability Value field of the
+'support for four-octet AS number capability' in lieu of the 'My Autonomous
+System' field of the OPEN message". So a half-applied option leaves the
+capability carrying ze's own AS, ze reads THAT, finds an AS the session is not
+configured for, and answers OPEN Message Error / Bad Peer AS under RFC 4271
+Section 6.2. The refusal is RFC 4271's; RFC 6793 decides which field ze read.
+<!-- source: internal/test/peer/open.go -- buildOpen; internal/component/bgp/reactor/peer.go -- openAdvertisedAS -->
 
 **The sentinel is written where the scenario fails, BEFORE `request shutdown`.**
 The runner reads it out of the DAEMON's stderr, and the daemon relays a plugin's

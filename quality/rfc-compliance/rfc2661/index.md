@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 80.0% | 16 of 20 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 15.0% | 3 of 20 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 20 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 14.3% | 7 of 49 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 20.4% | 10 of 49 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -68,7 +68,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 49 |
 | Tagged units | 49 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 7 |
+| Discrimination records | 10 |
 | Summary | `rfc/short/rfc2661.md` |
 | Requirement shard | `rfc/requirements/rfc2661.md` |
 | RFC text | `rfc/full/rfc2661.txt` |
@@ -157,7 +157,7 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestWriteControlHeader`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/header_test.go#L230) | unit/verify | unproven |
-| positive | [`rfc2661-emitted-control-shape.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L27) | functional/verify | unproven |
+| positive | [`rfc2661-emitted-control-shape.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L27) | functional/verify | revert, verified |
 
 ### [`RFC2661-4.1-1`](#rfc2661-4.1-1)
 
@@ -169,7 +169,7 @@ Audit verdict: not audited: no reader has judged these tests
 |---|---|---|---|
 | negative | [`TestAVPIteratorReservedBits`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/avp_test.go#L107) | unit/verify | unproven |
 | positive | [`TestAVPCatalogRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/avp_test.go#L180) | unit/verify | unproven |
-| positive | [`rfc2661-emitted-control-shape.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L29) | functional/verify | unproven |
+| positive | [`rfc2661-emitted-control-shape.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L29) | functional/verify | revert, verified |
 
 ### [`RFC2661-4.1-2`](#rfc2661-4.1-2)
 
@@ -181,7 +181,7 @@ Audit verdict: not audited: no reader has judged these tests
 |---|---|---|---|
 | negative | [`TestReactor_MalformedSCCRQCreatesNoTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_test.go#L256) | unit/verify | unproven |
 | positive | [`TestWriteICRPBody`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L940) | unit/verify | unproven |
-| positive | [`rfc2661-emitted-control-shape.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L24) | functional/verify | unproven |
+| positive | [`rfc2661-emitted-control-shape.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L24) | functional/verify | revert, verified |
 
 ### [`RFC2661-4.1-3`](#rfc2661-4.1-3)
 

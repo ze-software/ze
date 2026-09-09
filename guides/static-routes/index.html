@@ -283,11 +283,18 @@ old and new routes and applies only the changes.</p>
 <p>Kernel ECMP uses <code>RTA_MULTIPATH</code> with per-next-hop weight mapped from
 the <code>weight</code> field (kernel weight = weight - 1). The kernel carries that share in
 one octet, so a <code>weight</code> above 255 is capped at 255.</p>
-<p><strong>A main-table route needs a FIB plugin.</strong> Add <code>fib { kernel { } }</code> for the Linux
-data plane, or <code>fib { vpp { } }</code> for VPP. Without one, the system RIB selects the
-route and nothing writes it, so <code>ze doctor</code> reports <code>doctor-static-no-fib-writer</code>
-at error severity and the daemon refuses to start. A configuration whose static
-routes are all in named tables does not need it.</p>
+<p><strong>A main-table route needs a FIB plugin, and Ze loads one for you.</strong> The system
+RIB selects the winner and a FIB plugin writes it. Write no <code>fib { ... }</code> block
+and Ze loads the plugin for the data plane your config already selects at
+<code>interface { backend }</code>: <code>fib-kernel</code> for <code>netlink</code>, which is the default, and
+<code>fib-vpp</code> for <code>vpp</code>.</p>
+<p>Write <code>fib { kernel { } }</code> or <code>fib { vpp { } }</code> when you want to set one of that
+plugin's own leaves, or to pick a plugin other than the one Ze would load. Your
+block always wins. A configuration whose static routes are all in named tables
+needs no FIB plugin at all, because static programs those routes itself.</p>
+<p><code>ze doctor</code> reports <code>doctor-static-no-fib-writer</code> at error severity when your
+config selects a data plane no plugin programs. The routes then reach the system
+RIB and stop there.</p>
 <h2 id="administrative-distance">Administrative distance</h2>
 <p><code>rib { distance { static N } }</code> decides which route the kernel forwards on when a
 static route and a dynamic protocol both offer one prefix. Lower wins. The default
@@ -354,7 +361,7 @@ framework. BGP redistribute can import static routes:</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
                 </div>
             </div>
         </footer>
