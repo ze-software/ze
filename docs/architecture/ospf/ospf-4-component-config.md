@@ -30,6 +30,16 @@ lifecycle callbacks, transport enrolment and config validation.
   speed and an unset reference bandwidth), so four copies would have been four
   chances to price a link differently from the LSA that advertises it.
   <!-- source: internal/plugins/ospf/interface_cost.go -- interfaceCost -->
+- **The auto-cost numerator is one router-wide number, inherited by every
+  address family.** `reference-bandwidth` is declared in the top-level container
+  and the RFC 5838 `ospf-af-topology` grouping carries no leaf of its own, so an
+  address-family sub-config holds the seeded default until `parseOSPFConfig`
+  inherits the parent value into it, beside the Router ID, the Router
+  Information, Graceful Restart and Fast Reroute. The inheritance is
+  unconditional because no sub-config can state one. Without it the OSPFv2 and
+  OSPFv3 Router-LSAs advertise two different costs for the same physical link,
+  and no configuration makes them agree.
+  <!-- source: internal/plugins/ospf/config.go -- parseOSPFConfig -->
 - **The link speed is read on each origination pass, not cached.** A link
   renegotiates while OSPF runs, and a cached speed needs an invalidation path
   from the iface component into the plugin that nothing else in the plugin
@@ -67,11 +77,19 @@ lifecycle callbacks, transport enrolment and config validation.
 - A `reference-bandwidth` change re-prices an interface that configures no
   `cost`, so `interfaceGlobalParamsChanged` must restart it the way a Router ID
   or area-type change does. It takes the whole `interfaceConfig` rather than the
-  Area ID alone for that reason: an interface with an explicit `cost` keeps its
-  cost and must NOT be bounced.
+  Area ID alone for that reason. What it compares is the derived COST on each
+  side, never the numerator: a restart drops the adjacencies of the interface,
+  and 100000 to 105000 over a 10 Gbit/s link advertises the same 10 either way.
+  Comparing the numerator bounces every adjacency on a VPP dataplane and on a
+  non-Linux host, where no interface is priced at any reference bandwidth.
   <!-- source: internal/plugins/ospf/instance.go -- interfaceGlobalParamsChanged -->
-- No synthetic device reports a link speed. A veth, a dummy and a bond each
-  expose no `speed` file in sysfs, so a test that wants a speed replaces
-  `interfaceLinkSpeedMbps` and a test that forgets to silently exercises the
+- Which synthetic device reports a link speed is the kernel's decision, and it
+  is not "none of them". A veth reports 10000 because its driver declares 10
+  Gbit/s, which is what lets a Docker container observe auto-cost at all and is
+  why the `ospf-auto-cost-frr` interop scenario exists; a loopback and a dummy
+  report nothing and a bridge reports -1, which `parseLinkSpeedDuplex` maps to
+  0. A unit test that wants a speed therefore replaces `interfaceLinkSpeedMbps`,
+  because a test that forgets to depends on the host and usually exercises the
   unknown-speed branch instead.
   <!-- source: internal/plugins/ospf/interface_cost_test.go -- stubLinkSpeed -->
+  <!-- source: internal/plugins/iface/netlink/show_linux.go -- parseLinkSpeedDuplex -->

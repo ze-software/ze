@@ -24,7 +24,11 @@ BDR election, passive and loopback records, interface snapshots and OSPF events.
 
 - A config reload that changes the router id or an area type recreates or
   refreshes the runtimes. Otherwise Hellos advertise a stale E-bit, N-bit or
-  identity.
+  identity. A `reference-bandwidth` change joins that set for each interface
+  whose derived cost changes, and for no other: a recreated runtime drops the
+  neighbors, the DR and the BDR of the interface, so an interface that would
+  re-form at the cost it already advertises keeps its adjacency instead.
+  <!-- source: internal/plugins/ospf/instance.go -- interfaceGlobalParamsChanged -->
 - BackupSeen requires a 2-Way Hello before it shortens the Wait timer. A one-way
   Hello otherwise triggers a premature DR election.
 - Neighbour inactivity scheduling uses the exact next `LastSeen` plus

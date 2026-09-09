@@ -1201,8 +1201,11 @@ func interfaceParamsEqual(a, b interfaceConfig) bool {
 // interfaceGlobalParamsChanged reports whether a config change outside an interface's own
 // block changes what that interface advertises, so reconcile restarts it. The Router ID and
 // the area type are stamped into every packet it originates. The reference bandwidth is the
-// auto-cost numerator, so it re-prices an interface that configures no cost of its own; an
-// interface with an explicit `cost` keeps that cost and is left alone rather than bounced.
+// auto-cost numerator, so what decides the restart is the COST it derives rather than the
+// numerator itself: a restart drops the adjacencies of the interface, and an interface
+// whose cost is unchanged has nothing to re-advertise. Three interfaces keep their cost
+// across a numerator change: one with an explicit `cost`, one whose new quotient truncates
+// to the old one, and one whose link speed the kernel does not report.
 func interfaceGlobalParamsChanged(oldCfg, newCfg ospfConfig, ic interfaceConfig) bool {
 	if oldCfg.RouterID != newCfg.RouterID {
 		return true
@@ -1210,7 +1213,7 @@ func interfaceGlobalParamsChanged(oldCfg, newCfg ospfConfig, ic interfaceConfig)
 	if areaTypeFor(oldCfg, ic.AreaID) != areaTypeFor(newCfg, ic.AreaID) {
 		return true
 	}
-	return !ic.HasCost && oldCfg.ReferenceBandwidth != newCfg.ReferenceBandwidth
+	return interfaceCost(ic, oldCfg.ReferenceBandwidth) != interfaceCost(ic, newCfg.ReferenceBandwidth)
 }
 
 func areaTypeFor(cfg ospfConfig, areaID types.AreaID) areaType {

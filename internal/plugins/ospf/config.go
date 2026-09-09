@@ -728,6 +728,19 @@ func parseOSPFConfig(sections []configSection, source routerIDSource) (ospfConfi
 			}
 		}
 	}
+	// The auto-cost numerator is one instance-wide number, so every RFC 5838 address family
+	// prices a link exactly as the OSPFv2 family does. The inheritance is unconditional
+	// because a sub-config cannot state one: `reference-bandwidth` sits in the top-level
+	// container and the `ospf-af-topology` grouping declares no leaf of its own, so an
+	// address family carries the seeded default until it inherits. Without this, one
+	// physical link is advertised at two costs, 470000/10000 in the OSPFv2 Router-LSA and
+	// 100000/10000 in the OSPFv3 Router-LSA, with no configuration that makes them agree.
+	if cfg.V6 != nil {
+		cfg.V6.ReferenceBandwidth = cfg.ReferenceBandwidth
+	}
+	for i := range cfg.V6Extra {
+		cfg.V6Extra[i].cfg.ReferenceBandwidth = cfg.ReferenceBandwidth
+	}
 	return cfg, nil
 }
 
