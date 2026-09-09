@@ -1,9 +1,12 @@
 package ppp
 
 import (
+	"log/slog"
 	"net/netip"
+	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func newTestIPv6Service() (*IPv6Service, *fakeBackend) {
@@ -383,5 +386,63 @@ func TestDUIDEqual(t *testing.T) {
 	}
 	if !duidEqual(nil, nil) {
 		t.Error("two nils should be equal")
+	}
+}
+
+// TestIPv6ServiceRefusesUnnegotiatedIdentifier pins the AC-7 guard at
+// afterLCPOpenIPv6Service (internal/component/l2tp/ppp/session_run.go): when
+// IPv6CP reaches Opened without ever negotiating the peer's
+// Interface-Identifier -- the peer never sends an Interface-Identifier
+// option, evalIPv6CPRequest Naks the first such Configure-Request and
+// Acks the second (AC-10's one-shot rule), so IPv6CP reaches Opened
+// with peerInterfaceIDNegotiated (session.go) still false --
+// startIPv6Service MUST NOT run, no EventSessionIPAssigned{ipv6} may
+// be emitted (it would carry the all-zero identifier peerLinkLocal
+// turns into fe80::), and the session stays up: EventSessionUp still
+// fires because IPv6CP is an independent NCP (RFC 5072; RFC 1661
+// Section 2).
+//
+// VALIDATES: AC-7. completeIPv6CPMissingOption plays a peer that never
+// sends the option through both rounds of the one-shot exchange, so
+// IPv6CP reaches Opened with no negotiated identifier by the RFC's own
+// missing-option path rather than by an unfixed Ack-on-first-request
+// bug. What this test checks is what a session with no negotiated
+// identifier is allowed to do once Opened; the verdict itself is
+// TestIPv6CPMissingOptionIsNakedOnce (ncp_test.go).
+// PREVENTS: a zero peerInterfaceID reaching peerLinkLocal /
+// installRoute / the session-up event as if it were the peer's real
+// address (ai/rules/principles.md).
+func TestIPv6ServiceRefusesUnnegotiatedIdentifier(t *testing.T) {
+	const startAttemptLog = "IPv6 service start failed"
+
+	w := &captureWriter{}
+	logger := slog.New(slog.NewTextHandler(w, nil))
+	td := newNCPTestDriverIPLogged(t, &StartSession{DisableIPCP: true}, autoAcceptIP, logger)
+	defer td.cleanup()
+
+	td.completeIPv6CPMissingOption(t)
+
+	// onNCPOpened (ncp.go) runs, and would send EventSessionIPAssigned,
+	// strictly before afterLCPOpen (session_run.go) sends EventSessionUp
+	// -- both write to the same eventsOut channel -- so the FIRST event
+	// tells us whether the guard fired. EventSessionUp is the driver's
+	// only enabled NCP completing (DisableIPCP), so it is also the only
+	// event expected at all.
+	ev := td.waitForEvent(t, 2*time.Second)
+	if _, ok := ev.(EventSessionUp); !ok {
+		t.Fatalf("first event after IPv6CP opened without a negotiated identifier = %#v, want EventSessionUp", ev)
+	}
+
+	// Confirm no EventSessionIPAssigned{ipv6} trails it either.
+	if _, ok := waitForEventOfType[EventSessionIPAssigned](t, td.driver.EventsOut(), 200*time.Millisecond); ok {
+		t.Fatal("EventSessionIPAssigned emitted for an unnegotiated peer identifier")
+	}
+
+	got := w.String()
+	if strings.Contains(got, startAttemptLog) {
+		t.Errorf("IPv6 service was started for an unnegotiated peer identifier; log = %q", got)
+	}
+	if !strings.Contains(got, "without a negotiated peer interface identifier") {
+		t.Errorf("the refusal was not logged with its reason; log = %q", got)
 	}
 }

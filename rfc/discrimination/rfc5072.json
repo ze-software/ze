@@ -1,0 +1,82 @@
+{
+  "rfc": "rfc5072",
+  "records": [
+    {
+      "rid": "RFC5072-4.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPDuplicateIdentifierOptionIsNotAcked",
+      "unit-sha": "35f19aaaf05e598d",
+      "claim-sha": "e5d96f54a3fcb67a",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ipv6cp.go::parseIPv6CPOptions",
+      "producer-sha": "507914f2ad7c6f00",
+      "break": "body of parseIPv6CPOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5072-4.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPRequestWithoutIdentifierIsNotAcked",
+      "unit-sha": "81a2e3cf120db32b",
+      "claim-sha": "6f56e8fdd58d620c",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ncp.go::evalIPv6CPRequest",
+      "producer-sha": "da25c9d89fcc6bc3",
+      "break": "body of evalIPv6CPRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5072-4.1-19",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPMissingOptionIsNakedOnce",
+      "unit-sha": "af2a974ac45e6ed7",
+      "claim-sha": "fcc81a90bbf6008a",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ncp.go::evalIPv6CPRequest",
+      "producer-sha": "da25c9d89fcc6bc3",
+      "break": "body of evalIPv6CPRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5072-4.1-4",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakOnEqualNonZeroIdentifiers",
+      "unit-sha": "fc0fc93a1e67f867",
+      "claim-sha": "9c1bc0863b78cebf",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ncp.go::buildNakOrReject",
+      "producer-sha": "92791b85db6c64dd",
+      "break": "body of buildNakOrReject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5072-4.1-5",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPSuggestionDiffersFromLocalIdentifier",
+      "unit-sha": "65bbd700f36489c8",
+      "claim-sha": "591cf515ed2fc72c",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ipv6cp.go::suggestIPv6CPInterfaceID",
+      "producer-sha": "cd185ab66793e8a9",
+      "break": "body of suggestIPv6CPInterfaceID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5072-4.1-6",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPBothZeroIsRejected",
+      "unit-sha": "07b3e3f0ec0b8256",
+      "claim-sha": "cf8e15e33c2616a7",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ncp.go::buildNakOrReject",
+      "producer-sha": "92791b85db6c64dd",
+      "break": "body of buildNakOrReject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5072-4.1-9",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/ipv6cp_test.go::TestIPv6CPSuggestionHasUniversalBitClear",
+      "unit-sha": "e29e29aacbd7d946",
+      "claim-sha": "21309395caa5c181",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ipv6cp.go::suggestIPv6CPInterfaceID",
+      "producer-sha": "cd185ab66793e8a9",
+      "break": "body of suggestIPv6CPInterfaceID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

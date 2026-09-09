@@ -32,6 +32,8 @@ test/interop-pppoe/
     02-ze-ac-pppd-client/       Ze concentrator, pppd client
     pppoe-empty-service-name/  Ze concentrator, pppd client, no service-name configured
     pppoe-padr-replay/         Ze concentrator, pppd client, max-sessions-per-mac 1
+    ipv6cp-zero-identifier/    Ze concentrator, pppd client offering a zero IPv6CP identifier
+    ipv6cp-missing-option/     Ze concentrator, pppd client whose IPv6CP request carries no identifier option
 internal/le/interoplab/pppoe/
   pppoe.go             Native images, preflight, selection, and lifecycle
   scenarios.go         Role-selected container plans and mounts
@@ -39,6 +41,9 @@ internal/le/interoplab/pppoe/
   check_ac.go          Ze access-concentrator assertions
   check_service_name.go  pppoe-empty-service-name: wire-level Service-Name proof
   check_padr_replay.go   pppoe-padr-replay: wire-level replay and per-MAC cap proof
+  check_ipv6cp.go        ipv6cp-zero-identifier, ipv6cp-missing-option: wire-level
+                         IPv6CP proof, BLOCKED until plan/spec-l2tp-ipv6-subscriber.md
+                         lands (see the file's own header comment)
 ```
 
 The Dockerfiles keep their small amount of peer initialisation in the image
@@ -65,6 +70,8 @@ ZE_PPPOE_INTEROP_SCENARIO=01-pppoe-chap-ipv4 ./le deployment docker-pppoe-accel-
 ZE_PPPOE_INTEROP_SCENARIO=02-ze-ac-pppd-client ./le deployment docker-pppoe-accel-test
 ZE_PPPOE_INTEROP_SCENARIO=pppoe-empty-service-name ./le deployment docker-pppoe-accel-test
 ZE_PPPOE_INTEROP_SCENARIO=pppoe-padr-replay ./le deployment docker-pppoe-accel-test
+ZE_PPPOE_INTEROP_SCENARIO=ipv6cp-zero-identifier ./le deployment docker-pppoe-accel-test
+ZE_PPPOE_INTEROP_SCENARIO=ipv6cp-missing-option ./le deployment docker-pppoe-accel-test
 ```
 
 `01-pppoe-chap-ipv4` and `02-ze-ac-pppd-client` predate the naming rule and keep
@@ -130,6 +137,22 @@ provokes to carry session id `0x0000` and an AC-System-Error tag, read off the
 captured frame -- a session count that stayed at one is not enough evidence on
 its own for either claim (`ai/rules/interop-and-goal-validation.md`, "Prove a
 scenario discriminates"). `spec-pppoe-padr-replay-allocates-unbounded-sessions`.
+
+### ipv6cp-zero-identifier and ipv6cp-missing-option
+
+Written and registered against RFC 5072 Section 4.1's zero-identifier Nak
+and its missing-option one-shot Nak, driven by a real pppd 2.5.1 client and
+read off the wire (`check_ipv6cp.go`), the same shape `pppoe-padr-replay`
+established. **Neither can pass today.** `poolPlugin.handle`
+(`internal/component/l2tp/plugins/pool/register.go`) answers every
+`EventIPRequest` whose family is not IPv4 with `Accept: false`, and
+`runNCPPhase` (`internal/component/l2tp/ppp/ncp.go`) reads that decline
+before the session reads a single client frame, so Ze's IPv6CP FSM never
+starts, on any configuration. Both scenarios run against pppd 2.5.1 only: this
+lab's client image carries pppd and rp-pppoe, and accel-ppp-as-client is not a
+role its images support. Both checkers return a citing error at the first
+missing wire evidence rather than passing vacuously.
+`plan/spec-l2tp-ipv6-subscriber.md` is what switches them on.
 
 ## Relationship to other evidence
 

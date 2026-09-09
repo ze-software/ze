@@ -76,7 +76,10 @@ func (EventSessionUp) isPPPEvent() {}
 // For family=ipv6: InterfaceID holds the 8-byte EUI-64 interface
 // identifier negotiated with the peer; Local / Peer / DNSPrimary /
 // DNSSecondary are zero-valued. Ze does not assign a /64 via IPv6CP
-// (DHCPv6-PD and SLAAC are out of umbrella scope).
+// (DHCPv6-PD and SLAAC are out of umbrella scope). onNCPOpened (ncp.go)
+// does not emit this event at all for family=ipv6 when the peer's
+// identifier was never negotiated (session.go:
+// peerInterfaceIDNegotiated): there is no identifier to carry.
 type EventSessionIPAssigned struct {
 	TunnelID     uint16
 	SessionID    uint16

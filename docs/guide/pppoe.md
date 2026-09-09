@@ -161,6 +161,11 @@ Ze's runtime kernel. The stock Alpine kernel has no `CONFIG_PPPOE`.
 | `session-id-exhausted` | The interface's session ID space (1 to 65535) is full |
 | `per-mac-cap-reached` | The PADR's source MAC already holds `max-sessions-per-mac` sessions |
 
+- `ze_ppp_ipv6cp_identifier_refusals_total` -- IPv6CP negotiations refused for
+  want of a usable interface identifier, labelled by `reason`. Emitted by the
+  shared PPP driver, so it counts L2TP and PPPoE subscribers alike; the three
+  reasons are listed under "PPP negotiation counters" in `l2tp.md`.
+
 ## Concurrent Operation
 
 PPPoE and L2TP run concurrently on the same daemon. Both share the same
@@ -172,3 +177,4 @@ ID for L2TP) and SessionID.
 <!-- source: internal/component/l2tp/pppoe/server.go -->
 <!-- source: internal/component/l2tp/pppoe/discovery.go -->
 <!-- source: internal/component/l2tp/pppoe/metrics.go -->
+<!-- source: internal/component/l2tp/ppp/metrics.go -- initPPPMetrics, countIdentifierRefusal -->

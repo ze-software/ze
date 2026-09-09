@@ -210,7 +210,11 @@ func (s *pppSession) requestIPv6CPInterfaceID() (ok, declined bool) {
 		return true, true
 	}
 	if msg.hasPeerInterface {
+		// The address handler is asserting the peer's identifier, not
+		// IPv6CP negotiating it, but it is an equally trustworthy
+		// origin for the value (session.go: peerInterfaceIDNegotiated).
 		s.peerInterfaceID = msg.peerInterfaceID
+		s.peerInterfaceIDNegotiated = true
 	}
 	return true, false
 }
@@ -535,10 +539,9 @@ func (s *pppSession) absorbIPCPReject(pkt LCPPacket) bool {
 	return false
 }
 
-// evalIPv6CPRequest judges the peer's IPv6CP Configure-Request. The
-// only option is Interface-Identifier; an all-zero value is always
-// rejected (RFC 5072 §3.2), a collision with ze's own identifier
-// triggers a Nak so the peer picks a different value.
+// evalIPv6CPRequest judges the peer's IPv6CP Configure-Request against
+// each of the comparison outcomes RFC 5072 Section 4.1 defines for the
+// Interface-Identifier option.
 //
 // RFC 5072 Section 4: "IPV6CP uses the same Configuration Option
 // format defined for LCP", so the RFC 1661 Section 6 framing rules
@@ -561,19 +564,61 @@ func (s *pppSession) evalIPv6CPRequest(pkt LCPPacket) ncpRequestVerdict {
 		// received in a Configure-Request, but with an invalid or
 		// unrecognized Length, a Configure-Nak SHOULD be transmitted
 		// which includes the desired Configuration Option with an
-		// appropriate Length and Data."
+		// appropriate Length and Data." A second Interface-Identifier
+		// option reaches here too: RFC 5072 Section 4.1's "exactly one
+		// instance" rule (parseIPv6CPOptions, ipv6cp.go) makes a
+		// duplicate as malformed as a bad Length.
 		return ncpRequestUnacceptable
 	}
+
 	if !opts.HasInterfaceID {
-		return ncpRequestAcceptable
+		// RFC 5072 Section 4.1: "If negotiation of the interface
+		// identifier is required, and the peer did not provide the
+		// option in its Configure-Request, the option SHOULD be
+		// appended to a Configure-Nak. ... If the next Configure-
+		// Request does not include this option, the peer MUST NOT
+		// send another Configure-Nak with this option included. It
+		// should assume that the peer's implementation does not
+		// support this option." Naked once; Acked from then on so a
+		// peer that never sends the option converges instead of being
+		// asked forever.
+		if s.ipv6cpMissingIdentifierNaked {
+			return ncpRequestAcceptable
+		}
+		s.ipv6cpMissingIdentifierNaked = true
+		return ncpRequestUnacceptable
 	}
+
 	if !isValidIPv6CPInterfaceID(opts.InterfaceID) {
+		// RFC 5072 Section 4.1: "If the two interface identifiers are
+		// different but the received interface identifier is zero, a
+		// Configure-Nak is sent with a non-zero interface-identifier
+		// value suggested for use by the remote peer." and: "If the
+		// two interface identifiers are equal to zero, the interface
+		// identifier's negotiation MUST be terminated by transmitting
+		// the Configure-Reject with the interface-identifier value
+		// set to zero." Both land here as unacceptable;
+		// buildNakOrReject (below) tells the equal-zero shape apart
+		// from the rest to choose Reject over Nak.
 		return ncpRequestUnacceptable
 	}
+
 	if opts.InterfaceID == s.localInterfaceID {
+		// RFC 5072 Section 4.1: "If the two interface identifiers are
+		// equal and are not zero, Configure-Nak MUST be sent
+		// specifying a different non-zero interface-identifier value
+		// suggested for use by the remote peer."
 		return ncpRequestUnacceptable
 	}
+
+	// RFC 5072 Section 4.1: "If the two interface identifiers are
+	// different and the received interface identifier is not zero,
+	// the interface identifier MUST be acknowledged, i.e., a
+	// Configure-Ack is sent with the requested interface identifier,
+	// meaning that the responding peer agrees with the interface
+	// identifier requested."
 	s.peerInterfaceID = opts.InterfaceID
+	s.peerInterfaceIDNegotiated = true
 	return ncpRequestAcceptable
 }
 
@@ -726,13 +771,72 @@ func (s *pppSession) buildNakOrReject(family AddressFamily, req LCPPacket, buf [
 			dataLen := copyUnknownOptions(req.Data, isKnownIPv6CPOption, buf, off)
 			return LCPConfigureReject, dataLen
 		}
+		// RFC 5072 Section 4.1: "If the two interface identifiers are
+		// equal to zero, the interface identifier's negotiation MUST
+		// be terminated by transmitting the Configure-Reject with the
+		// interface-identifier value set to zero." s.localInterfaceID
+		// is drawn from generateIPv6CPInterfaceID, which never yields
+		// zero, so this fires only when the peer's own request already
+		// carries zero and Ze's stored local identifier is also zero
+		// (a defensive case: see the doc comment on
+		// pppSession.localInterfaceID for how it is normally seeded).
+		// RFC 1661 Section 5.4: a Configure-Reject's options "MUST NOT
+		// be reordered or modified in any way", so req.Data -- already
+		// known (the unknown-type check above passed) to hold exactly
+		// this one option -- is echoed verbatim rather than rebuilt.
+		if reqOpts, err := parseIPv6CPOptions(req.Data); err == nil &&
+			reqOpts.HasInterfaceID &&
+			reqOpts.InterfaceID == zeroInterfaceID &&
+			s.localInterfaceID == zeroInterfaceID {
+			return LCPConfigureReject, copy(buf[off:], req.Data)
+		}
 		// RFC 1661 Section 6: "If a negotiable Configuration Option is
 		// received in a Configure-Request, but with an invalid or
 		// unrecognized Length, a Configure-Nak SHOULD be transmitted
 		// which includes the desired Configuration Option with an
 		// appropriate Length and Data."
+		//
+		// RFC 5072 Section 4.1: "If the two interface identifiers are
+		// different but the received interface identifier is zero, a
+		// Configure-Nak is sent with a non-zero interface-identifier
+		// value suggested for use by the remote peer." s.peerInterfaceID
+		// is the value that just failed evalIPv6CPRequest's checks --
+		// zero, or equal to s.localInterfaceID, or stale from a prior
+		// negotiation -- so it is never what this Nak proposes.
+		// suggestIPv6CPInterfaceID (ipv6cp.go) draws the replacement:
+		// non-zero, distinct from s.localInterfaceID, "u" bit clear, and
+		// valid by the same isValidIPv6CPInterfaceID receive applies
+		// (AC-9).
+		suggestion, err := suggestIPv6CPInterfaceID(s.localInterfaceID)
+		if err != nil {
+			// RFC 5072 Section 4.1: "If the two interface identifiers
+			// are equal to zero, the interface identifier's
+			// negotiation MUST be terminated by transmitting the
+			// Configure-Reject with the interface-identifier value
+			// set to zero. In this case, a unique interface
+			// identifier cannot be negotiated." A
+			// suggestIPv6CPInterfaceID failure (the RNG exhausted
+			// every retry) IS that case: ze cannot produce ANY
+			// identifier it could stand behind, so this returns the
+			// RFC's own terminal state for "no unique identifier is
+			// negotiable" rather than inventing a new one -- and,
+			// unlike the equal-zero branch above, builds the option
+			// fresh (zeroInterfaceID) instead of echoing req.Data,
+			// because req.Data here can hold a missing, colliding, or
+			// otherwise non-zero option that RFC 1661 Section 5.4's
+			// "MUST NOT be reordered or modified" duty was never about.
+			// A stale or zero fallback here would transmit the exact
+			// packet AC-9 and this RFC forbid: a Configure-Nak (or a
+			// Nak-shaped value) ze's own isValidIPv6CPInterfaceID
+			// would refuse on receive.
+			s.logger.Warn("ipv6cp: failed to draw a Nak suggestion, terminating identifier negotiation with a Configure-Reject",
+				"error", err, "reason", reasonSuggestionDrawFailed)
+			countIdentifierRefusal(reasonSuggestionDrawFailed)
+			reject := iPv6CPOptions{InterfaceID: zeroInterfaceID, HasInterfaceID: true}
+			return LCPConfigureReject, writeIPv6CPOptions(buf, off, reject)
+		}
 		nak := iPv6CPOptions{
-			InterfaceID:    s.peerInterfaceID,
+			InterfaceID:    suggestion,
 			HasInterfaceID: true,
 		}
 		return LCPConfigureNak, writeIPv6CPOptions(buf, off, nak)
@@ -912,7 +1016,9 @@ func ncpSetLength(body []byte, length uint16) {
 // onNCPOpened runs per-family post-Opened side effects. For IPv4 this
 // programs pppN with the assigned address and peer route. For IPv6 no
 // backend call is made (kernel auto-derives link-local). Both emit
-// EventSessionIPAssigned.
+// EventSessionIPAssigned, except IPv6 skips it when peerInterfaceID was
+// never negotiated (session.go: peerInterfaceIDNegotiated): the event
+// exists to carry the peer's identifier, and there is none to carry.
 func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 	ifname := textbuf.StrInt("ppp", int64(s.unitNum))
 	switch family {
@@ -934,6 +1040,15 @@ func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 			DNSSecondary: s.dnsSecondary,
 		})
 	case AddressFamilyIPv6:
+		if !s.peerInterfaceIDNegotiated {
+			// ai/rules/principles.md: a zero peerInterfaceID must never
+			// reach an event as if it were the peer's address. Fail
+			// closed: no event, session stays up IPv4-only.
+			s.logger.Warn("ppp: IPv6CP opened without a negotiated peer interface identifier, not publishing an address",
+				"tunnel_id", s.tunnelID, "session_id", s.sessionID, "reason", reasonEventUnnegotiated)
+			countIdentifierRefusal(reasonEventUnnegotiated)
+			return true
+		}
 		s.sendEvent(EventSessionIPAssigned{
 			TunnelID:    s.tunnelID,
 			SessionID:   s.sessionID,

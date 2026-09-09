@@ -73,9 +73,12 @@ func TestIPv6CPParseRejects(t *testing.T) {
 	}
 }
 
-// VALIDATES: isValidIPv6CPInterfaceID rejects all-zero and all-ones per
+// VALIDATES: isValidIPv6CPInterfaceID rejects all-zero and all-ones.
 //
-//	RFC 5072 §3.2 (all-zero forbidden; all-ones is meaningless).
+//	All-zero is RFC 5072 §4.1's own case: every comparison outcome it
+//	defines answers a received zero with a Configure-Nak or a
+//	Configure-Reject, never an Ack. All-ones is ze's own exclusion and
+//	rests on no sentence of that RFC.
 func TestIPv6CPInterfaceIDValidity(t *testing.T) {
 	var zero, ones [8]byte
 	for i := range ones {
@@ -166,4 +169,36 @@ func TestIPv6CPProposesInterfaceID(t *testing.T) {
 	// Keep time referenced so the linter does not flag it unused on
 	// platforms where every other time usage goes through the helper.
 	_ = time.Now
+}
+
+// TestIPv6CPSuggestionHasUniversalBitClear drives
+// suggestIPv6CPInterfaceID across many draws, proving the "u" bit
+// (canonical bit 6, the low-order bit of ipv6cpUniversalLocalBitMask
+// within octet 0) is clear on every value ze suggests. Neither
+// accel-ppp nor pppd clears this bit; ze does, since it never derives
+// a suggestion from a globally unique EUI-48/EUI-64 identifier loaned
+// to the peer, which is the only case the RFC exempts.
+//
+// VALIDATES: the "u" bit rule -- a suggested identifier's "u" bit is
+// always zero.
+// PREVENTS: a regression that suggests a value with the bit set,
+// wrongly claiming a globally unique source.
+//
+// RFC requirement: RFC5072-4.1-9 positive -- "The 'u' (universal/local)
+// bit of the suggested identifier MUST be set to zero (0) regardless
+// of its source unless the globally unique EUI-48/EUI-64 derived
+// identifier is provided for the exclusive use by the remote peer"
+// (§4.1). Ze never takes that exception, so only the positive case is
+// reachable.
+func TestIPv6CPSuggestionHasUniversalBitClear(t *testing.T) {
+	var local [8]byte // the Go zero value; suggestIPv6CPInterfaceID never legitimately draws it
+	for i := range 64 {
+		suggestion, err := suggestIPv6CPInterfaceID(local)
+		if err != nil {
+			t.Fatalf("draw %d: %v", i, err)
+		}
+		if suggestion[0]&ipv6cpUniversalLocalBitMask != 0 {
+			t.Errorf("draw %d: suggestion %x has the \"u\" bit set", i, suggestion)
+		}
+	}
 }

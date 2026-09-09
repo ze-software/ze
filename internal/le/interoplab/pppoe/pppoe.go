@@ -120,6 +120,8 @@ func checkers() map[string]interoplab.Checker {
 		"02-ze-ac-pppd-client":     checkZeAccessConcentrator,
 		"pppoe-empty-service-name": checkZeAccessConcentratorEmptyServiceName,
 		"pppoe-padr-replay":        checkZeAccessConcentratorPADRReplay,
+		"ipv6cp-zero-identifier":   checkZeAccessConcentratorIPv6CPZeroIdentifier,
+		"ipv6cp-missing-option":    checkZeAccessConcentratorIPv6CPMissingOption,
 	}
 }
 

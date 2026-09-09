@@ -698,6 +698,44 @@ IPv6 addressing for PPP subscribers involves two separate protocols:
    Does NOT assign addresses or prefixes. After IPv6CP completes, the pppN
    interface has a link-local address derived from the negotiated identifier.
 
+   IPv6CP can reach Opened without ever learning the peer's identifier (the
+   peer's Configure-Request carried no Interface-Identifier option). ze
+   tracks that fact separately from the identifier value itself
+   (`pppSession.peerInterfaceIDNegotiated`, `internal/component/l2tp/ppp/session.go`):
+   an all-zero identifier is both the Go zero value and the one value RFC
+   5072 Section 4.1 never lets stand as the negotiated result, so the value
+   alone cannot tell "never negotiated" from "negotiated to a value ze would
+   refuse". When the fact
+   is false, ze starts no IPv6 service, installs no route, and publishes no
+   session-up address for that family; the session stays up IPv4-only
+   (`afterLCPOpen`, `internal/component/l2tp/ppp/session_run.go`).
+
+   RFC 5072 Section 4.1 also states what ze answers for each comparison
+   outcome, evaluated in `evalIPv6CPRequest`
+   (`internal/component/l2tp/ppp/ncp.go`). A request naming no
+   Interface-Identifier option draws a Configure-Nak with a suggestion the
+   FIRST time; every later request that still omits it is Acked instead, so a
+   peer whose implementation does not support the option converges rather than
+   being asked forever. A request naming the option twice is refused the same
+   as any other malformed option list (`parseIPv6CPOptions`, `ipv6cp.go`). A
+   request whose identifier equals ze's own AND is zero draws a
+   Configure-Reject carrying a zero identifier, which ends that identifier's
+   negotiation. ze's own local identifier is never legitimately zero
+   (`generateIPv6CPInterfaceID` retries until it draws a valid one), so the
+   last case is a defensive branch rather than one a conformant peer reaches
+   in practice.
+
+   Every Configure-Nak's suggestion is drawn by `suggestIPv6CPInterfaceID`
+   (`internal/component/l2tp/ppp/ipv6cp.go`), never read raw from
+   `peerInterfaceID`: it retries `generateIPv6CPInterfaceID`'s draw until the
+   value differs from ze's own `localInterfaceID` (the identifier of ze's
+   last-sent Configure-Request, which RFC 5072 Section 4.1's comparison is
+   against) and clears the "u" (universal/local) bit -- canonical bit 6,
+   `octet[0] & 0x02` -- which the RFC requires of a suggested identifier ze
+   never derives from a globally unique EUI-48/EUI-64 source. The result
+   passes `isValidIPv6CPInterfaceID`, the same validator ze applies to a
+   received identifier, so ze never proposes a value it would itself refuse.
+
 2. **DHCPv6-PD** (RFC 3633): runs over the established PPP link to delegate
    an IPv6 prefix (e.g., /48 or /56) to the subscriber. This is a separate
    protocol from IPv6CP, requiring a DHCPv6 server or relay.

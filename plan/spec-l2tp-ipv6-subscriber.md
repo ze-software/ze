@@ -65,6 +65,19 @@ server that the RA's M and O flags point subscribers at can delegate nothing.
   a functional `.ci` proving a teardown emits the final zero-lifetime Router
   Advertisement, and an interop scenario proving a real client kernel drops its
   default route on it.
+- Write the `ppp-ipv6cp-negotiation` functional test, handed here at the closure
+  of `spec-ipv6cp-accepts-and-proposes-a-zero-interface-identifier` on
+  2026-09-09. It drives a subscriber session to IPv6CP Opened inside the QEMU
+  guest and asserts the kernel holds no route whose next hop is `fe80::`. It
+  belongs here rather than there because a subscriber session cannot negotiate
+  IPv6CP at all while `poolPlugin.handle` declines the family, so the test can
+  neither pass nor fail meaningfully until this spec runs.
+- Run the two interop scenarios that spec left registered and blocked,
+  `ipv6cp-zero-identifier` and `ipv6cp-missing-option`
+  (`test/interop-pppoe/scenarios/`, checkers in
+  `internal/le/interoplab/pppoe/check_ipv6cp.go`). They are written against the
+  real target wire behavior and fail today with `errIPv6CPNeverEngaged`; this
+  spec is what turns them from a documented block into a proof.
 
 ## What already exists and must not be rebuilt
 

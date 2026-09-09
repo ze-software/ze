@@ -1,4 +1,5 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- per-session PPP state ownership
+// RFC: rfc/short/rfc5072.md -- RFC 5072 Section 4.1 (Interface-Identifier comparison outcomes, referenced by peerInterfaceIDNegotiated)
 // Related: manager.go -- Driver owns pppSession values in sessions map
 // Related: session_run.go -- per-session goroutine main loop
 // Related: auth_events.go -- authEventsOut + authRespCh fields on pppSession
@@ -162,8 +163,47 @@ type pppSession struct {
 	peerIPv4         netip.Addr
 	dnsPrimary       netip.Addr
 	dnsSecondary     netip.Addr
+	// localInterfaceID is Ze's own IPv6CP Interface-Identifier, seeded
+	// once by requestIPv6CPInterfaceID (ncp.go) from
+	// generateIPv6CPInterfaceID (ipv6cp.go), which retries until the
+	// draw passes isValidIPv6CPInterfaceID -- so this field is never
+	// legitimately the zero value. buildNakOrReject's equal-zero
+	// Configure-Reject branch (ncp.go) is unreachable in production
+	// for that reason; it exists for a peer that could otherwise force
+	// the comparison RFC 5072 Section 4.1 still defines.
 	localInterfaceID [8]byte
 	peerInterfaceID  [8]byte
+
+	// peerInterfaceIDNegotiated is the companion fact peerInterfaceID
+	// needs and does not carry on its own: an all-zero identifier is
+	// both the Go zero value and the one value RFC 5072 Section 4.1
+	// never lets stand as the negotiated result, so the field alone
+	// cannot tell "never set" from "set to a value ze would refuse".
+	// True once peerInterfaceID holds a
+	// value ze can trust, on either of its two legitimate paths:
+	// evalIPv6CPRequest (ncp.go) accepted a Configure-Request that
+	// carried the option, or requestIPv6CPInterfaceID (ncp.go) took an
+	// explicit override from the address handler's IPResponse
+	// (HasPeerInterface). The second path is not IPv6CP negotiation --
+	// it is the operator's own assignment -- but it is an equally
+	// trustworthy origin for the value, so it sets this fact too
+	// (ai/rules/principles.md: a zero must never be a valid-looking
+	// answer). Consulted by onNCPOpened (ncp.go) and
+	// afterLCPOpenIPv6Service (session_run.go) before either publishes
+	// or acts on peerInterfaceID.
+	peerInterfaceIDNegotiated bool
+
+	// ipv6cpMissingIdentifierNaked is RFC 5072 Section 4.1's one-shot
+	// guard: "If the next Configure-Request does not include this
+	// option, the peer MUST NOT send another Configure-Nak with this
+	// option included." evalIPv6CPRequest (ncp.go) sets this true the
+	// first time a Configure-Request arrives with no
+	// Interface-Identifier option (earning one Configure-Nak
+	// suggesting it), and Acks every later request that still omits
+	// it, so a peer that never sends the option converges instead of
+	// being Naked forever. Per session, and resets with it because a
+	// struct field carries no state across pppSession values.
+	ipv6cpMissingIdentifierNaked bool
 
 	ipv6Svc *IPv6Service
 }

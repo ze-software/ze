@@ -291,6 +291,41 @@ func (td *ncpTestDriver) completeIPv6CP(t *testing.T) {
 	}
 }
 
+// completeIPv6CPMissingOption plays the peer side of an IPv6CP exchange
+// where the peer's Configure-Request never carries an
+// Interface-Identifier option. RFC 5072 Section 4.1's one-shot rule
+// (evalIPv6CPRequest, ncp.go) Naks the FIRST such request, so the peer
+// is played through two rounds: a first tagless Configure-Request that
+// draws a Configure-Nak, and a second, still-tagless one that is
+// finally Acked (AC-10) -- reaching Opened with peerInterfaceID never
+// set and peerInterfaceIDNegotiated left false. Used to drive the
+// downstream refusal (AC-7) without asserting on the verdict itself
+// (TestIPv6CPMissingOptionIsNakedOnce, ncp_test.go, owns that).
+func (td *ncpTestDriver) completeIPv6CPMissingOption(t *testing.T) {
+	t.Helper()
+	// Step 1: driver's CR -> Ack.
+	cr := td.readPeerNCPPacket(t, ProtoIPv6CP)
+	if cr.Code != LCPConfigureRequest {
+		t.Fatalf("IPv6CP step 1: got code %d, want CR", cr.Code)
+	}
+	td.writePeerNCPPacket(t, ProtoIPv6CP, LCPConfigureAck, cr.Identifier, cr.Data)
+
+	// Step 2: first peer CR with no options at all -> Nak (one-shot).
+	td.writePeerNCPPacket(t, ProtoIPv6CP, LCPConfigureRequest, 0x20, []byte{})
+	nak := readIPv6CPUntil(t, td, LCPConfigureNak)
+	if nak.Code != LCPConfigureNak {
+		t.Fatalf("IPv6CP step 2: got code %d, want Nak for the first tagless request", nak.Code)
+	}
+
+	// Step 3: second peer CR, still with no options -> Ack (the
+	// one-shot guard has already fired once).
+	td.writePeerNCPPacket(t, ProtoIPv6CP, LCPConfigureRequest, 0x21, []byte{})
+	ack := readIPv6CPUntil(t, td, LCPConfigureAck)
+	if ack.Code != LCPConfigureAck {
+		t.Fatalf("IPv6CP step 3: got code %d, want Ack for the second tagless request", ack.Code)
+	}
+}
+
 // runParallelNCPPeer plays the peer side of an IPCP + IPv6CP handshake
 // against the driver, dispatching each frame to its family's handler in
 // one loop. Used by tests that enable both NCPs and cannot rely on the

@@ -452,6 +452,42 @@ func (s *pppSession) sendEvent(ev Event) {
 	}
 }
 
+// afterLCPOpenIPv6Service starts the RA sender and DHCPv6 server on
+// ifname once IPv6CP has Opened. Callers MUST check s.ipv6cpState
+// first; this helper decides only whether the peer's identifier may be
+// acted on.
+//
+// It starts nothing when peerInterfaceIDNegotiated (session.go) is
+// false. IPv6CP can reach Opened with peerInterfaceID still all-zero
+// (the peer's Configure-Request carried no Interface-Identifier
+// option), and starting the service on that value would derive fe80::
+// from an identifier that is not the peer's
+// (ai/rules/principles.md). An independent NCP's refusal must not fail
+// the session, so both refusals here are logged and counted, never
+// fatal.
+func (s *pppSession) afterLCPOpenIPv6Service(ifname string) {
+	if !s.peerInterfaceIDNegotiated {
+		s.logger.Warn("ppp: IPv6CP opened without a negotiated peer interface identifier, refusing to start the IPv6 service",
+			"tunnel_id", s.tunnelID, "session_id", s.sessionID, "reason", reasonServiceUnnegotiated)
+		countIdentifierRefusal(reasonServiceUnnegotiated)
+		return
+	}
+
+	svc, err := startIPv6Service(iPv6ServiceConfig{
+		Ifname:           ifname,
+		TunnelID:         s.tunnelID,
+		SessionID:        s.sessionID,
+		LocalInterfaceID: s.localInterfaceID,
+		PeerInterfaceID:  s.peerInterfaceID,
+		Backend:          s.backend,
+	}, DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: append([]byte(nil), s.localInterfaceID[:]...)}, nil, s.logger)
+	if err != nil {
+		s.logger.Warn("ppp: IPv6 service start failed (non-fatal)", "error", err)
+		return
+	}
+	s.ipv6Svc = svc
+}
+
 // afterLCPOpen performs the post-Opened side effects: set MRU on the
 // unit fd, set MTU on pppN via iface backend, bring pppN up, run the
 // auth hook. Returns false (and emits EventSessionDown) on a fatal
@@ -459,6 +495,9 @@ func (s *pppSession) sendEvent(ev Event) {
 //
 // Order matters: set the fd-side MRU BEFORE asking the kernel to
 // bring the interface up, so the first frame is sized correctly.
+//
+// The IPv6 service is started by afterLCPOpenIPv6Service (above), which
+// carries the guard on the peer's negotiated identifier.
 func (s *pppSession) afterLCPOpen() bool {
 	s.mu.Lock()
 	mru := s.negotiatedMRU
@@ -500,19 +539,7 @@ func (s *pppSession) afterLCPOpen() bool {
 	}
 
 	if s.ipv6cpState == LCPStateOpened {
-		svc, err := startIPv6Service(iPv6ServiceConfig{
-			Ifname:           ifname,
-			TunnelID:         s.tunnelID,
-			SessionID:        s.sessionID,
-			LocalInterfaceID: s.localInterfaceID,
-			PeerInterfaceID:  s.peerInterfaceID,
-			Backend:          s.backend,
-		}, DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: append([]byte(nil), s.localInterfaceID[:]...)}, nil, s.logger)
-		if err != nil {
-			s.logger.Warn("ppp: IPv6 service start failed (non-fatal)", "error", err)
-		} else {
-			s.ipv6Svc = svc
-		}
+		s.afterLCPOpenIPv6Service(ifname)
 	}
 
 	s.sendEvent(EventSessionUp{

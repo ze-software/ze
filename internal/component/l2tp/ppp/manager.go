@@ -171,8 +171,9 @@ func newDriver(cfg driverConfig) *Driver {
 	}
 }
 
-// Start launches the dispatch goroutine. Returns ErrAlreadyStarted
-// if called twice (with or without an intervening Stop).
+// Start launches the dispatch goroutine and registers this component's
+// metrics hook (metrics.go). Returns ErrAlreadyStarted if called twice
+// (with or without an intervening Stop).
 //
 // Caller MUST call Stop before discarding the Driver.
 func (d *Driver) Start() error {
@@ -183,6 +184,7 @@ func (d *Driver) Start() error {
 	}
 	d.started = true
 	d.stopCh = make(chan struct{})
+	registerPPPMetrics()
 	go d.dispatch()
 	return nil
 }

@@ -200,7 +200,26 @@ PPP negotiation proceeds through these phases:
    IPv4-only static pool), IPv6CP is dropped and the session stays up
    with IPv4 alone rather than being torn down.
 
-<!-- source: internal/component/l2tp/ppp/ncp.go -- requestIPv6CPInterfaceID declined path -->
+Ze answers each RFC 5072 Section 4.1 comparison outcome for the peer's
+Interface-Identifier option:
+
+| The peer's Configure-Request | Ze answers |
+|------------------------------|------------|
+| A non-zero identifier that differs from Ze's | Configure-Ack, and the identifier is recorded as negotiated |
+| A zero identifier, or one equal to Ze's | Configure-Nak carrying a freshly drawn non-zero identifier with the "u" bit clear |
+| No Interface-Identifier option at all | Configure-Nak carrying a suggestion the FIRST time. Every later request that still omits it is Acked, so a client whose implementation does not support the option converges rather than being asked forever |
+| Two Interface-Identifier options | Refused, the same as any other malformed option list |
+| A zero identifier while Ze's own is also zero | Configure-Reject with the identifier set to zero, which ends that negotiation |
+
+A session can reach IPv6CP Opened without the peer ever supplying an
+identifier, through the missing-option case above. Ze starts no IPv6
+service, installs no route and publishes no IPv6 address for such a
+session: an all-zero identifier would make the peer's link-local address
+`fe80::`, which is not the subscriber's. The session stays up with IPv4
+alone, and the refusal is logged and counted (see Prometheus metrics).
+
+<!-- source: internal/component/l2tp/ppp/ncp.go -- requestIPv6CPInterfaceID declined path, evalIPv6CPRequest, buildNakOrReject -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpenIPv6Service -->
 
 Each phase has a configurable timeout. LCP proxy (RFC 2661 S18) is
 supported: when the LAC provides proxy LCP AVPs, ze validates them
@@ -697,6 +716,23 @@ L2TP exposes metrics under the `ze_l2tp_*` and `ze_radius_*` namespaces.
 | `ze_l2tp_lcp_echo_loss_ratio` | gauge | Current 100s bucket echo loss ratio |
 | `ze_l2tp_bucket_state` | gauge | CQM bucket state (established=0, negotiating=1, down=2) |
 
+### PPP negotiation counters (labels: reason)
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `ze_ppp_ipv6cp_identifier_refusals_total` | counter | IPv6CP negotiations refused for want of a usable interface identifier |
+
+The label set is closed and holds three values. A session or tunnel ID is
+deliberately not a label: a subscriber daemon carries thousands of sessions.
+
+| Reason | Meaning |
+|--------|---------|
+| `service-unnegotiated` | IPv6CP reached Opened with no negotiated peer identifier, so no IPv6 service was started for that session |
+| `event-unnegotiated` | The same session's address was withheld from the session-up event, for the same reason |
+| `suggestion-draw-failed` | Ze could not draw a valid identifier to suggest, and answered with a Configure-Reject rather than a Configure-Nak carrying a value it would refuse on receive |
+
+This counter is shared with PPPoE subscribers, which run the same PPP driver.
+
 ### RADIUS metrics (labels: server)
 
 | Metric | Type | Description |
@@ -711,6 +747,7 @@ Kernel interface stats are polled at `ze.l2tp.metrics.poll-interval`
 
 <!-- source: internal/component/l2tp/metrics.go -->
 <!-- source: internal/component/l2tp/plugins/authradius/metrics.go -->
+<!-- source: internal/component/l2tp/ppp/metrics.go -- initPPPMetrics, countIdentifierRefusal -->
 
 ## Web UI
 

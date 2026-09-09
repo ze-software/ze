@@ -98,34 +98,48 @@ func checkZeAccessConcentratorEmptyServiceName(
 }
 
 // startDiscoveryCapture starts tcpdump in the client container before the dial
-// begins, so the capture carries PADO and PADS from the first attempt. It waits
-// for the process to be running rather than assuming ExecDetached's acceptance
-// means the capture already opened the interface.
+// begins, so the capture carries PADO and PADS from the first attempt.
+// startSessionCapture (check_ipv6cp.go) is the sibling for the PPPoE session
+// (0x8864) ethertype; both call startCapture, which does the waiting.
 func startDiscoveryCapture(ctx context.Context, lab interoplab.CheckerLab) error {
-	shell := "rm -f " + captureFile + "; exec " + captureExecutable +
-		" -i eth0 -w " + captureFile + " ether proto 0x8863"
+	return startCapture(ctx, lab, captureFile, "ether proto 0x8863")
+}
+
+// stopDiscoveryCapture signals tcpdump to flush and exit, waits for it to be
+// gone so the file is complete, then reads captureFile back. stopSessionCapture
+// (check_ipv6cp.go) is the sibling for sessionCaptureFile; both call stopCapture.
+func stopDiscoveryCapture(ctx context.Context, lab interoplab.CheckerLab) ([]byte, error) {
+	return stopCapture(ctx, lab, captureFile)
+}
+
+// startCapture starts tcpdump in the client container filtering on filter,
+// writing to file, and waits for the process to be running rather than
+// assuming ExecDetached's acceptance means the capture already opened the
+// interface.
+func startCapture(ctx context.Context, lab interoplab.CheckerLab, file, filter string) error {
+	shell := "rm -f " + file + "; exec " + captureExecutable + " -i eth0 -w " + file + " " + filter
 	if err := lab.ExecDetached(ctx, clientImageName, []string{"sh", "-c", shell}, nil); err != nil {
-		return fmt.Errorf("start discovery capture: %w", err)
+		return fmt.Errorf("start capture: %w", err)
 	}
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     10 * time.Second,
 		Interval:    200 * time.Millisecond,
-		Description: "tcpdump capturing PPPoE discovery",
+		Description: "tcpdump capturing " + filter,
 	}, func(probeCtx context.Context) (bool, error) {
 		return processRunning(probeCtx, lab, clientImageName, captureExecutable)
 	}, func(running bool) bool { return running })
 	if err != nil {
-		return fmt.Errorf("discovery capture did not start: %w", err)
+		return fmt.Errorf("capture did not start: %w", err)
 	}
 	return nil
 }
 
-// stopDiscoveryCapture signals tcpdump to flush and exit, waits for it to be
-// gone so the file is complete, then reads it back as base64 (Docker exec
-// output is captured as text, so the binary pcap crosses that boundary encoded).
-func stopDiscoveryCapture(ctx context.Context, lab interoplab.CheckerLab) ([]byte, error) {
-	if _, err := exec(ctx, lab, clientImageName, []string{"pkill", "-INT", "-x", captureExecutable}); err != nil {
-		return nil, fmt.Errorf("stop discovery capture: %w", err)
+// stopCapture signals tcpdump to flush and exit, waits for it to be gone so
+// file is complete, then reads it back as base64 (Docker exec output is
+// captured as text, so the binary pcap crosses that boundary encoded).
+func stopCapture(ctx context.Context, lab interoplab.CheckerLab, file string) ([]byte, error) {
+	if _, err := exec(ctx, lab, clientImageName, []string{commandPkill, "-INT", "-x", captureExecutable}); err != nil {
+		return nil, fmt.Errorf("stop capture: %w", err)
 	}
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     10 * time.Second,
@@ -135,15 +149,15 @@ func stopDiscoveryCapture(ctx context.Context, lab interoplab.CheckerLab) ([]byt
 		return processRunning(probeCtx, lab, clientImageName, captureExecutable)
 	}, func(running bool) bool { return !running })
 	if err != nil {
-		return nil, fmt.Errorf("discovery capture did not stop: %w", err)
+		return nil, fmt.Errorf("capture did not stop: %w", err)
 	}
-	encoded, err := query(ctx, lab, clientImageName, []string{"sh", "-c", "base64 " + captureFile})
+	encoded, err := query(ctx, lab, clientImageName, []string{"sh", "-c", "base64 " + file})
 	if err != nil {
-		return nil, fmt.Errorf("read discovery capture: %w", err)
+		return nil, fmt.Errorf("read capture: %w", err)
 	}
 	raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(encoded))
 	if err != nil {
-		return nil, fmt.Errorf("decode discovery capture: %w", err)
+		return nil, fmt.Errorf("decode capture: %w", err)
 	}
 	return raw, nil
 }
