@@ -154,43 +154,12 @@ func TestNotApplicableDischargeDerivesTheClosureStem(t *testing.T) {
 	}
 }
 
-// TestNotApplicableDischargeReadsRFCTagCarriersAtTheCommit runs the
-// owner-approval gate's own reading over the named commit, in both polarities.
-func TestNotApplicableDischargeReadsRFCTagCarriersAtTheCommit(t *testing.T) {
-	const tagged = "pkg/thing_test.go"
-	// The tag sits INSIDE the unit and the second commit moves the unit's
-	// behavior, which is what the gate reads: a comment-only edit changes no
-	// tagged unit, so it would prove nothing here.
-	const body = "package pkg\n\nfunc TestThing(t *testing.T) {\n" +
-		"\t// RFC requirement: rfc9999-1 positive\n\tcheck(1)\n}\n"
-
-	root := newDischargeRepository(t)
-	commitFixture(t, root, "the tagged test lands", map[string]string{tagged: body}, nil)
-	plain := commitFixture(t, root, "a prose edit only",
-		map[string]string{"docs/note.md": "# note\n"}, nil)
-	shard, line := debtRowFor(t, root, "a prose edit only", gateRFCName)
-
-	result, code := discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
-		"kind", kindNotApplicable, "commit", plain)
-	if code != 0 {
-		t.Fatalf("a commit changing no tagged unit exited %d: %#v", code, result)
-	}
-
-	// The refusing polarity: the same file, its tagged function edited.
-	changed := commitFixture(t, root, "the tagged test changes", map[string]string{
-		tagged: "package pkg\n\nfunc TestThing(t *testing.T) {\n" +
-			"\t// RFC requirement: rfc9999-1 positive\n\tcheck(2)\n}\n",
-	}, nil)
-	shard, line = debtRowFor(t, root, "the tagged test changes", gateRFCName)
-	result, code = discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
-		"kind", kindNotApplicable, "commit", changed)
-	if code == 0 {
-		t.Fatalf("a commit changing a tagged unit was discharged: %#v", result)
-	}
-	if !strings.Contains(strings.Join(result.Refused, " "), "TestThing") {
-		t.Fatalf("the refusal %v does not name the unit it found", result.Refused)
-	}
-}
+// AC-4 is proven by TestNotApplicableDischargeReadsTaggedUnitsAtTheCommitParent
+// in discharge_rfc_test.go. The unit that stood here spelled its fixture tag in
+// one string literal, so rfcTagPattern read this file as a tag carrier and the
+// write hook froze the function against its own repair. The replacement
+// assembles the tag, and records its debt row BEFORE the commit that carries
+// the shard, which is the order Create produces and this one inverted.
 
 // TestReviewedDischargeJudgesTheArtifactAgainstTheCommitBytes pins that the
 // hashes are compared against the COMMIT, not the working tree.
