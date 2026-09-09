@@ -486,7 +486,12 @@ ze to drop the one reached through a listed transit ASN, keep the other, and kee
 ADD-PATH re-advertisement (`bgp-addpath-readvertise-collision-frr`
 proves a receiver keeps two paths whose sources both chose one Path Identifier, and
 `bgp-addpath-rail-agreement-speaker` proves the live forward and the peer-up replay emit the same
-bytes for one path), and full IS-IS (auth, convergence, dual-stack, LAN DIS,
+bytes for one path), the RFC 6793 mixed-width relay
+(`as-path-mixed-width-relay-frr` gives ze a route from a two-octet injector whose AS_PATH carries
+AS_TRANS and whose AS4_PATH carries the real four-octet AS number, and requires FRR to report that
+AS number and never 23456; `as-path-prepend-two-octet-peer` turns the direction around, so ze's own
+non-mappable AS is prepended toward an FRR that refused the four-octet AS capability), and full
+IS-IS (auth, convergence, dual-stack, LAN DIS,
 P2P, redistribution) and OSPFv2/OSPFv3 (auth, BFD, TE, LFA/TI-LFA, graceful restart,
 segment routing, opaque LSAs, stub/NSSA, virtual links, and more) interop families.
 

@@ -158,7 +158,7 @@ func speakerMessage(messageType byte, body []byte) []byte {
 	return message
 }
 
-func speakerOpen(asn uint32, holdTime uint16, routerID net.IP, families []bgpFamily, addPath bool) ([]byte, error) {
+func speakerOpen(asn uint32, holdTime uint16, routerID net.IP, families []bgpFamily, addPath, bfdStrict bool) ([]byte, error) {
 	if len(families) == 0 {
 		families = []bgpFamily{{afi: 1, safi: 1}}
 	}
@@ -180,6 +180,16 @@ func speakerOpen(asn uint32, holdTime uint16, routerID net.IP, families []bgpFam
 		for _, family := range families {
 			capabilities = append(capabilities, byte(family.afi>>8), byte(family.afi), family.safi, 1)
 		}
+	}
+	if bfdStrict {
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 5: "Capability code: 74"
+		// and "Capability length: 0 octets". Section 6 makes advertising it a
+		// MUST for a speaker with strict-mode enabled, and Section 6 again is
+		// what makes ze's BfdStrictNegotiated attribute TRUE: "If both the
+		// local and remote BGP speakers include the BFD Strict-Mode
+		// Capability, the BfdStrictNegotiated session attribute ... is set to
+		// TRUE." Written from the draft, not from ze's encoder.
+		capabilities = append(capabilities, 74, 0)
 	}
 	if len(capabilities) > 255 {
 		return nil, errors.New("speaker capability parameter is too large")
@@ -214,6 +224,19 @@ type speakerOptions struct {
 	connectDelay time.Duration
 	families     familyFlags
 	addPath      bool
+	bfdStrict    bool
+	bfdDelay     time.Duration
+}
+
+// peerAddress is the host half of --connect. A single-hop BFD session goes to
+// the same address the BGP session does (RFC 5881 Section 2), so one flag names
+// both.
+func (o speakerOptions) peerAddress() string {
+	host, _, err := net.SplitHostPort(o.connect)
+	if err != nil {
+		return o.connect
+	}
+	return host
 }
 
 func parseSpeakerOptions(args []string) (speakerOptions, error) {
@@ -231,6 +254,10 @@ func parseSpeakerOptions(args []string) (speakerOptions, error) {
 	connectDelay := flags.Float64("connect-delay", 0, "connect delay in seconds")
 	flags.Var(&options.families, "family", "AFI:SAFI")
 	flags.BoolVar(&options.addPath, "add-path", false, "receive ADD-PATH")
+	flags.BoolVar(&options.bfdStrict, "bfd-strict", false,
+		"advertise BGP capability 74 and answer BFD (draft-ietf-idr-bgp-bfd-strict-mode)")
+	bfdDelay := flags.Float64("bfd-delay", 0,
+		"seconds to stay silent before answering BFD, which is the window ze must hold its BGP session for")
 	if err := flags.Parse(args); err != nil {
 		return options, err
 	}
@@ -239,6 +266,7 @@ func parseSpeakerOptions(args []string) (speakerOptions, error) {
 	}
 	options.duration = time.Duration(*duration * float64(time.Second))
 	options.connectDelay = time.Duration(*connectDelay * float64(time.Second))
+	options.bfdDelay = time.Duration(*bfdDelay * float64(time.Second))
 	return options, nil
 }
 
@@ -253,6 +281,8 @@ func runSpeakerHelper(args []string, output io.Writer) error {
 		plugin = speakerOracleNoDuplicateAttribute
 	case speakerOracleNoUnrecognizedEVPNType:
 		plugin = speakerOracleNoUnrecognizedEVPNType
+	case speakerOracleBFDStrictHold:
+		plugin = speakerOracleBFDStrictHold
 	default:
 		return fmt.Errorf("unknown native speaker oracle %q", options.test)
 	}
@@ -288,6 +318,27 @@ func runSpeakerHelper(args []string, output io.Writer) error {
 }
 
 func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
+	// The BFD responder starts BEFORE the TCP dial and outlives the BGP
+	// session, which is what draft-ietf-idr-bgp-bfd-strict-mode Section 7 asks
+	// of both ends: "Implementations SHOULD start the BFD session associated
+	// with the BGP BFD strict-mode session prior to the BGP FSM starting."
+	var responder *bfdResponder
+	stopBFD := make(chan struct{})
+	bfdNotes := make(chan []string, 1)
+	if options.bfdStrict {
+		responder = newBFDResponder(net.ParseIP(options.peerAddress()), options.bfdDelay)
+		go runBFDResponder(responder, stopBFD, bfdNotes)
+		defer func() {
+			close(stopBFD)
+			select {
+			case notes := <-bfdNotes:
+				verdict.notes = append(verdict.notes, notes...)
+			case <-time.After(2 * time.Second):
+				verdict.notes = append(verdict.notes, "bfd-error: responder did not stop")
+			}
+		}()
+	}
+
 	if options.connectDelay > 0 {
 		time.Sleep(options.connectDelay)
 	}
@@ -297,7 +348,7 @@ func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
 		return err
 	}
 	defer func() { _ = connection.Close() }()
-	open, err := speakerOpen(uint32(options.asn), uint16(options.holdTime), net.ParseIP(options.routerID), options.families, options.addPath)
+	open, err := speakerOpen(uint32(options.asn), uint16(options.holdTime), net.ParseIP(options.routerID), options.families, options.addPath, options.bfdStrict)
 	if err != nil {
 		return err
 	}
@@ -307,6 +358,8 @@ func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
 	deadline := time.Now().Add(options.duration)
 	nextKeepalive := time.Now().Add(time.Duration(options.holdTime) * time.Second / 3)
 	established, routes := false, 0
+	sawOpen := false
+	var firstKeepalive time.Time
 	for time.Now().Before(deadline) {
 		if !time.Now().Before(nextKeepalive) {
 			if _, err := connection.Write(speakerKeepalive()); err != nil {
@@ -326,8 +379,27 @@ func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
 		}
 		switch messageType {
 		case bgpOpen:
+			// The speaker answers ze's OPEN with its KEEPALIVE at once, even
+			// under --bfd-strict. draft-ietf-idr-bgp-bfd-strict-mode Section
+			// 8.5.6 is written for exactly that: "the remote BFD speaker's BFD
+			// session can transition to the Up state prior to the local BFD
+			// session making a similar transition. When that occurs, the remote
+			// BGP speaker will send its KEEPALIVE message and transition to the
+			// OpenConfirm state." So this drives ze into the
+			// OpenSentConfirmedBfdUpPending sub-state, which is the harder of
+			// the two release paths and the one no other test reaches.
+			sawOpen = true
 			_, err = connection.Write(speakerKeepalive())
 		case bgpKeepalive:
+			// The FIRST KEEPALIVE ze sends is the whole strict-mode
+			// observable. draft-ietf-idr-bgp-bfd-strict-mode Section 8.5.5
+			// withholds it while the BFD session is neither Up nor AdminDown,
+			// and Section 8.5.1 releases it once BFD comes Up, so WHEN it
+			// arrives, relative to this end's BFD session reaching Up, is what
+			// the oracle judges.
+			if firstKeepalive.IsZero() {
+				firstKeepalive = time.Now()
+			}
 			if !established {
 				established = true
 				_, err = connection.Write(speakerEOR())
@@ -363,6 +435,14 @@ func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
 		verdict.notes = append(verdict.notes, "established: yes")
 	} else {
 		verdict.notes = append(verdict.notes, "established: no")
+	}
+	if sawOpen {
+		verdict.notes = append(verdict.notes, "ze-open: yes")
+	} else {
+		verdict.notes = append(verdict.notes, "ze-open: no")
+	}
+	if responder != nil {
+		applyBFDStrictOracle(responder, firstKeepalive, verdict)
 	}
 	if verdict.plugin == speakerOracleNoUnrecognizedEVPNType {
 		verdict.notes = append(verdict.notes, fmt.Sprintf("evpn-nlri: %d", verdict.evpnNLRI))

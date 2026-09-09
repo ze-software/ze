@@ -97,6 +97,56 @@ var scenarioOperations = map[string][]operation{
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opBIRDSession, argument: birdZeProtocol},
 	},
+	// RFC 6793 Section 4.2.3, judged by FRR rather than by ze's own decoder. A
+	// raw injector holds a session ze pins to two octets and announces
+	// mixedWidthPrefix with AS_TRANS in AS_PATH and 4200000123 in the AS4_PATH
+	// companion. ze reconciles the pair once, at ingest, and relays the route to
+	// an FRR that negotiated four octets. Whether the AS number ze wrote is the
+	// AS number another implementation reads is a question ze cannot answer
+	// about itself.
+	//
+	// THE PAIR AND THE ABSENCE ARE BOTH NEEDED, and neither is the other's
+	// restatement. A relay that dropped the AS4_PATH and widened the AS_PATH
+	// prints "65004 23456": the pair is missing AND 23456 is present. A relay
+	// that merged the wrong way round, or prepended the AS4_PATH to itself,
+	// prints a path holding both, so the pair alone would pass. opFRRNoAS
+	// requires the route to be in FRR's table before it reads an absence out of
+	// the answer, which is what keeps a failed query from passing as a negative.
+	//
+	// FRR IS THE NEW SPEAKER HERE, so neither FRR-side fact
+	// as-path-prepend-two-octet-peer records applies:
+	// dont-capability-negotiate is absent, remote-as carries ze's mappable
+	// 65001, and enforce-first-as stays on because the first AS FRR sees is
+	// ze's own prepend. frr.conf says the same in full.
+	"as-path-mixed-width-relay-frr": {
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opFRRRoute, argument: mixedWidthPrefix, timeout: 90 * time.Second},
+		// THE PEER'S JUDGEMENT COMES FIRST, because it is the evidence. The
+		// absence is asserted before the pair so that a run against a broken
+		// reconciliation says what FRR READ ("AS_PATH contains AS 23456")
+		// rather than only what it failed to read.
+		{kind: opFRRNoAS, argument: mixedWidthPrefix, absent: []string{mixedWidthASTrans}},
+		{
+			kind:     opWaitContains,
+			peer:     peerFRR,
+			command:  []string{cmdVtysh, "-c", frrShowMixedWidthPrefixJSON},
+			contains: []string{mixedWidthRealPair},
+			timeout:  60 * time.Second,
+		},
+		// ZE'S OWN VIEW COMES LAST, and it is not evidence of interop: it
+		// SPLITS a failure. Reached only once FRR's assertions are green, it
+		// says the route ze holds agrees with the route ze relayed, so a reader
+		// of a red above knows whether to look at the ingest reconciliation or
+		// at the relay.
+		{
+			kind:     opWaitContains,
+			peer:     "ze",
+			command:  zeCommand(zeShowBGPRIB),
+			contains: []string{mixedWidthPrefix, mixedWidthRealAS},
+			timeout:  60 * time.Second,
+		},
+		{kind: opFRRSession, argument: zeLabAddress},
+	},
 	// RFC 6793 Section 4.2.2, judged by FRR rather than by ze's own encoder. Ze
 	// prepends its non-mappable local AS twice toward a peer that refused the
 	// four-octet AS capability, so the segment ze splices into the AS_PATH has
@@ -249,6 +299,44 @@ var scenarioOperations = map[string][]operation{
 		{kind: opGoBGPRoute, argument: injectPrefixV6Third, family: frrFamilyIPv6Unicast},
 		{kind: opGoBGPSession, argument: zeLabAddress},
 	},
+	// `bgp update-delay` judged by FRR rather than by ze's own log alone.
+	//
+	// The scenario configures TWO peers and runs ONE, so the hold can never
+	// converge and only max-delay can end it. That makes the middle of the hold
+	// a stable window an assertion can be taken in.
+	//
+	// The order is the proof. FRR reaches Established while ze holds, which is
+	// what says the hold gates ADVERTISEMENT and not negotiation. FRR's own
+	// table then shows the prefix ABSENT, which no unit test over ze can show,
+	// because only the second implementation can say what reached its RIB. The
+	// release line follows, and the prefix arrives after it.
+	//
+	// NON-VACUITY (ai/rules/interop-and-goal-validation.md). The absence row
+	// alone would pass against a ze that advertises nothing at all, so the last
+	// row requires the SAME prefix to arrive on the SAME session. Deleting the
+	// hold reddens the absence row; breaking the release reddens the arrival
+	// row. The `proof` string on the absence row is FRR's own JSON envelope, so
+	// a command that failed to run cannot be read as an empty table.
+	//
+	// Every row reads FRR, and none reads ze's own log. The scenario's ze runs
+	// at the WARN default, and the hold's own lines are INFO, so a log row would
+	// have been a timeout rather than an assertion. It is also the wrong witness
+	// here: what an interop scenario is for is the peer's answer, and the peer
+	// says the prefix is absent while ze holds and present after.
+	//
+	// The absence row is taken immediately after FRR reports Established, and
+	// the wait for that is bounded WELL INSIDE the scenario's `max-delay 90`.
+	// The two numbers are one fact: a session wait longer than max-delay would
+	// let the hold release before the absence row ran, and the test would then
+	// fail for a reason that has nothing to do with the product. 30s against
+	// 90s leaves the row three times the margin it needs.
+	"bgp-update-delay-frr": {
+		{kind: opFRRSession, argument: zeLabAddress, timeout: 30 * time.Second},
+		{kind: opRequireAbsent, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast json"},
+			absent: []string{injectPrefixFirst}, proof: []string{"vrfName"}},
+		{kind: opFRRRoute, argument: injectPrefixFirst, timeout: 240 * time.Second},
+		{kind: opFRRSession, argument: zeLabAddress},
+	},
 	"bgp-max-prefix-cease-frr": {
 		{kind: opWaitLogContains, peer: "ze", contains: []string{"prefix count exceeded maximum"}, timeout: 90 * time.Second},
 		{kind: opWaitAbsent, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp neighbor 172.30.0.2"}, absent: []string{"BGP state = Established"}, proof: []string{"BGP neighbor is"}, timeout: 30 * time.Second},
@@ -340,7 +428,7 @@ var scenarioOperations = map[string][]operation{
 	},
 	"bgp-role-gobgp": {
 		{kind: opGoBGPSession, argument: zeLabAddress},
-		{kind: opDelayRequireContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpNeighbor, zeLabAddress}, contains: []string{"Established"}, delay: 5 * time.Second},
+		{kind: opDelayRequireContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpNeighbor, zeLabAddress}, contains: []string{stateEstablished}, delay: 5 * time.Second},
 	},
 	"bgp-route-reflection-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
@@ -527,6 +615,99 @@ var scenarioOperations = map[string][]operation{
 	},
 	"isis-lan-dis-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowISISNeighbor}, contains: []string{"Up"}, timeout: 90 * time.Second},
+	},
+	// bgp-bfd-strict-frr is the interoperability half of
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 1: "always using 'strict-mode'
+	// would preclude BGP operation in an environment where not all routers
+	// support BFD strict-mode".
+	//
+	// Ze runs strict mode. FRR 10.3.1 does not implement the draft -- its bgpd
+	// binary carries no BFD strict-mode capability, only the RFC 9234
+	// local-role strict-mode of a different feature -- so its OPEN carries no
+	// capability 74 and BfdStrictNegotiated stays FALSE on both sides.
+	//
+	// The scenario's frr.conf configures NO BFD at all, and that is what makes
+	// it DISCRIMINATE rather than merely pass. Ze's own BFD session to FRR
+	// therefore never leaves Down, so the negotiation half of the condition is
+	// the ONLY thing that can let this session establish. Drop that half and
+	// the session hangs in OpenSent forever.
+	//
+	// A first cut configured FRR's bfdd, and it was NOT discriminating: with
+	// BFD genuinely Up, removing the negotiation test changed nothing, because
+	// the bfd.SessionState half of the condition released the session anyway.
+	//
+	// bgp-bfd-strict-speaker is the POSITIVE half of
+	// draft-ietf-idr-bgp-bfd-strict-mode: a peer that DOES implement the draft.
+	//
+	// The lab's own wire-level speaker advertises capability 74 and answers BFD
+	// only after a silent window, so BfdStrictNegotiated is TRUE on both sides
+	// and ze's BFD session cannot leave Down for the length of that window. The
+	// speaker's own oracle judges the ORDERING, which is the only thing the
+	// draft actually changes: ze must send no KEEPALIVE while the BFD session
+	// is down (Section 8.5.5), and must send one once it is up (Section 8.5.1).
+	// A capability byte echoed back would prove neither.
+	//
+	// `result: PASS` is that oracle's verdict; `established: yes` is the second
+	// half of it stated separately, so a run that failed for a reason the
+	// oracle did not name still shows which of the two facts was missing.
+	// bgp-bfd-strict-preup-speaker is the SHARED-SESSION path: a top-level
+	// pinned `single-hop-session` and a strict BGP peer naming the same
+	// neighbor, with matching `local` leaves so api.SessionRequest.Key
+	// collides and the engine holds ONE session serving both, which is what
+	// RFC 5882 Section 4.4 requires of two clients for one neighbor.
+	//
+	// It proves that arrangement establishes. The class of defect it guards
+	// against, an optional leaf that silently participates in an identity, is
+	// plan/journal/absent-value-is-a-distinct-identity.md.
+	//
+	// WHAT IT DOES NOT PROVE, measured rather than assumed: it does not
+	// discriminate the Subscribe snapshot. Removing the snapshot leaves it
+	// GREEN, because the pinned session and the BGP peer are created by one
+	// daemon start, so the peer subscribes BEFORE the session can reach Up and
+	// learns Up from a transition it is already subscribed for. The scenario
+	// that DOES reach the pre-up condition is bgp-bfd-strict-reload-speaker
+	// above, which adds the strict peer by SIGHUP reload once BFD is already
+	// Up.
+	// bgp-bfd-strict-reload-speaker is the PRE-UP path, the one arrangement of
+	// this lab that reaches it. ze starts with the pinned session and no peer to
+	// the speaker, so BFD reaches Up against the speaker's responder while no
+	// BGP peer exists. The checker then replaces the running config and sends
+	// SIGHUP: applyPinned keeps the live handle of the unchanged pinned entry,
+	// so the session stays Up, and the strict peer the reload adds subscribes to
+	// a session that has no further transition to give it.
+	//
+	// Remove the Subscribe snapshot and this goes RED: the peer reads Down
+	// forever, withholds its KEEPALIVE under
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 8.5.5, and never establishes.
+	//
+	// The refcount assertion is RFC 5882 Section 4.4 end to end: one session
+	// serving the pinned entry and the BGP peer, not two sessions on one link.
+	"bgp-bfd-strict-reload-speaker": {
+		{kind: opWaitContains, peer: "ze", command: zeCommand(zeShowBFDSessions), contains: []string{bfdStateUpJSON}, timeout: 90 * time.Second},
+		{kind: opExec, peer: "ze", command: []string{"sh", "-c", "cp " + zeMountedReloadConfig + " " + zeRunningConfig}},
+		{kind: opSignal, peer: "ze", argument: signalHUP},
+		{kind: opWaitContains, peer: "ze", command: zeCommand("show bgp peer list"), contains: []string{peerStateEstablishedJSON}, timeout: 120 * time.Second},
+		{kind: opRequireContains, peer: "ze", command: zeCommand(zeShowBFDSessions), contains: []string{bfdRefcountTwoJSON}},
+		{kind: opWaitLogFields, peer: peerSpeaker, timeout: 150 * time.Second, fields: map[string]string{
+			fieldResult: speakerResultPass, fieldEstablished: logValueYes, fieldBFDUp: logValueYes,
+		}},
+	},
+	"bgp-bfd-strict-preup-speaker": {
+		{kind: opWaitLogFields, peer: peerSpeaker, timeout: 150 * time.Second, fields: map[string]string{
+			fieldResult: speakerResultPass, fieldEstablished: logValueYes, fieldBFDUp: logValueYes,
+		}},
+	},
+	"bgp-bfd-strict-speaker": {
+		{kind: opWaitLogFields, peer: peerSpeaker, timeout: 150 * time.Second, fields: map[string]string{
+			fieldResult: speakerResultPass, fieldEstablished: logValueYes, fieldBFDUp: logValueYes,
+		}},
+	},
+	"bgp-bfd-strict-frr": {
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON}, contains: []string{stateEstablished}, timeout: 90 * time.Second},
+		// Ze's own side of the same fact: a strict-mode peer whose neighbor
+		// never advertised capability 74 must reach ESTABLISHED, not sit in
+		// OPENSENT waiting for a BFD session the far end will never gate on.
+		{kind: opWaitContains, peer: "ze", command: zeCommand("show bgp peer list"), contains: []string{peerStateEstablishedJSON}, timeout: 60 * time.Second},
 	},
 	"isis-redist-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowISISNeighbor}, contains: []string{"Up"}, timeout: 60 * time.Second},

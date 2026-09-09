@@ -24,6 +24,8 @@ func init() {
 	Register("plugin/bfd-sessions-show", observe03("bfd-sessions-show-test", bfdSessionsShow03))
 	Register("plugin/bfd-transport-stage2", bfdTransportStage203)
 	Register("plugin/bgp-bfd-opt-in", bgpBFDOptIn03)
+	Register("plugin/bgp-bfd-strict", bgpBFDStrict03)
+	Register("plugin/bgp-bfd-strict-pinned", bgpBFDStrictPinned03)
 	Register("plugin/bgp-gtsm", observe03("gtsm-show-test", bgpGTSM03))
 	Register("plugin/bgp-health-show", observe03("bgp-health-show-test", bgpHealthShow03))
 	Register("plugin/bgp-monitor-dashboard", observe03("dashboard-test", bgpMonitorDashboard03))
@@ -44,6 +46,9 @@ func init() {
 	Register("plugin/bgp-rs-fastpath", observe03("bgp-rs-fastpath", bgpRSFastpath03))
 	Register("plugin/bgp-rs-mod-copy", observe03("shutdown-after-up", routeServerObserver03(1, false)))
 	Register("plugin/bgp-rs-perf-pprof", observePort03("pprof-probe", bgpRSPprof03))
+	Register("plugin/rfc6793-ingest-collapse", observe03("shutdown-after-up", routeServerObserver03(2, true)))
+	Register("plugin/rfc6793-narrow-to-old-speaker", observe03("shutdown-after-up", routeServerObserver03(2, true)))
+	Register("plugin/rfc6793-no-as4path-from-new-speaker", observe03("shutdown-after-up", routeServerObserver03(2, true)))
 }
 
 func observe03(name string, scenario ObserverScenario) Driver {

@@ -556,6 +556,14 @@ var errAS4FromNewSpeaker = errors.New("RFC 6793 Section 4.1: the attribute MUST 
 // as the information about the aggregating node is dropped.
 var errAS4AggregatorNotChosen = errors.New("RFC 6793 Section 4.2.3: the AS4_AGGREGATOR was not taken as the aggregating node")
 
+// errAS4AggregatorMalformed is the reason an AS4_AGGREGATOR of the wrong length
+// is dropped before the Section 4.2.3 choice can read it.
+var errAS4AggregatorMalformed = errors.New("RFC 6793 Section 6: the AS4_AGGREGATOR value is not 8 octets")
+
+// as4AggregatorValueLen is the octet count RFC 6793 Section 4.2.2 gives the
+// AS4_AGGREGATOR value: a four-octet AS number beside a four-octet address.
+const as4AggregatorValueLen = 8
+
 // ErrASPathUnreadable reports an AS_PATH attribute value that cannot be read at
 // the width its sender negotiated, so no four-octet form of it exists.
 //
@@ -595,12 +603,31 @@ func ReconcileASPathFamily(recv ReceivedASPathFamily) (CanonicalASPathFamily, er
 		return out, nil
 	}
 
+	var out CanonicalASPathFamily
+
+	// RFC 6793 Section 6: "as the AS4_AGGREGATOR is just informational, the
+	// 'attribute discard' approach is chosen to handle a malformed
+	// AS4_AGGREGATOR attribute." A discarded attribute was never received, so
+	// the Section 4.2.3 choice below runs as if the UPDATE had carried the
+	// AGGREGATOR alone: the AGGREGATOR is the aggregating node and the AS path
+	// information is constructed as in all other cases.
+	//
+	// The length is checked HERE and not inside selectAggregator, because the
+	// value promoted by that choice is written straight back into the payload.
+	// A seven-octet AS4_AGGREGATOR promoted into the AGGREGATOR slot is a
+	// malformed AGGREGATOR toward every destination at once, which RFC 7606
+	// Section 7.7 makes an attribute discard at each of them.
+	as4Aggregator := recv.AS4Aggregator
+	if as4Aggregator != nil && len(as4Aggregator) != as4AggregatorValueLen {
+		out.Discards = append(out.Discards, ASPathDiscard{Code: AttrAS4Aggregator, Reason: errAS4AggregatorMalformed})
+		as4Aggregator = nil
+	}
+
 	// RFC 6793 Section 4.2.3: "A NEW BGP speaker MUST also be prepared to
 	// receive the AS4_AGGREGATOR attribute along with the AGGREGATOR attribute
 	// from an OLD BGP speaker."
-	aggregator, fromAS4, useAS4Path := selectAggregator(recv.Aggregator, recv.AS4Aggregator)
+	aggregator, fromAS4, useAS4Path := selectAggregator(recv.Aggregator, as4Aggregator)
 
-	var out CanonicalASPathFamily
 	if aggregator == nil && recv.Aggregator != nil {
 		// The AGGREGATOR could not be read, so nothing chose between the pair.
 		// It is optional transitive, so it travels on exactly as it arrived
@@ -614,7 +641,9 @@ func ReconcileASPathFamily(recv ReceivedASPathFamily) (CanonicalASPathFamily, er
 	// information forward. RFC 6793 Section 4.1 forbids relaying it to a NEW
 	// BGP speaker, and everything downstream of this reconciliation is one, so
 	// it is dropped and the drop is reported rather than performed in silence.
-	if recv.AS4Aggregator != nil && !fromAS4 {
+	// A malformed one is already reported above, so this reads the normalized
+	// value and never reports the same attribute twice.
+	if as4Aggregator != nil && !fromAS4 {
 		out.Discards = append(out.Discards, ASPathDiscard{Code: AttrAS4Aggregator, Reason: errAS4AggregatorNotChosen})
 	}
 

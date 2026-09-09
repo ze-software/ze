@@ -2,6 +2,53 @@
   "rfc": "rfc6793",
   "records": [
     {
+      "rid": "RFC6793-4.1-6",
+      "polarity": "negative",
+      "unit": "test/plugin/rfc6793-narrow-to-old-speaker.ci",
+      "unit-sha": "3a0c4f3435c23b24",
+      "claim-sha": "772fdc3ef5e5df2a",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/aspath_as4.go::AS4PathForRewrite",
+      "producer-sha": "6662cb242a4f468b",
+      "break": "body of AS4PathForRewrite replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00420200000027400101004002080203FDE8FDE95BA040030401010101C0110E02030000FDE80000FDE9FA56EA7B180A0000"
+    },
+    {
+      "rid": "RFC6793-4.1-6",
+      "polarity": "positive",
+      "unit": "test/plugin/rfc6793-no-as4path-from-new-speaker.ci",
+      "unit-sha": "4bb5509232fc522a",
+      "claim-sha": "b550aea0c66f40dd",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/aspath_collapse.go::CollapseAS4Family",
+      "producer-sha": "ab2668a627662c2f",
+      "break": "body of CollapseAS4Family replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE9FA56EA7B40030401010101180A0000"
+    },
+    {
+      "rid": "RFC6793-4.1-7",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath",
+      "unit-sha": "9e6765d56e77eb7f",
+      "claim-sha": "498659a43f4f0a0f",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::canonicalizeASPath",
+      "producer-sha": "b8a50b2bb49e4154",
+      "break": "body of canonicalizeASPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.1-7",
+      "polarity": "positive",
+      "unit": "test/plugin/rfc6793-no-as4path-from-new-speaker.ci",
+      "unit-sha": "4bb5509232fc522a",
+      "claim-sha": "3051dd17aec1e3a3",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/aspath_collapse.go::CollapseAS4Family",
+      "producer-sha": "ab2668a627662c2f",
+      "break": "body of CollapseAS4Family replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE9FA56EA7B40030401010101180A0000"
+    },
+    {
       "rid": "RFC6793-4.2.3-10",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go::TestRFC6793LeadingConfedSegmentIsPrepended",
@@ -187,6 +234,28 @@
       "producer": "internal/core/bgp/attribute/as4.go::appendLeadingSegments",
       "producer-sha": "a0039e164b91371a",
       "break": "body of appendLeadingSegments replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-6-5",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/wireu/aspath_collapse_test.go::TestCollapseAS4DiscardsMalformedAS4Aggregator",
+      "unit-sha": "7c0ea727667bd809",
+      "claim-sha": "8595f308e9450191",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::ReconcileASPathFamily",
+      "producer-sha": "972a1c07729fed4b",
+      "break": "body of ReconcileASPathFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-6-5",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/wireu/aspath_collapse_test.go::TestCollapseAS4SelectsAggregatorPerSection423",
+      "unit-sha": "f6a3fb9e750313a0",
+      "claim-sha": "be6941ee96bd5285",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::selectAggregator",
+      "producer-sha": "f9e5cb99e08585e5",
+      "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

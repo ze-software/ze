@@ -202,6 +202,9 @@ func discardedCodes(family CanonicalASPathFamily) []AttributeCode {
 // RFC requirement: RFC6793-4.2.3-1 positive -- an UPDATE from an OLD speaker carrying an
 // AS4_PATH alongside the existing AS_PATH is accepted, and the four-octet AS numbers from the
 // AS4_PATH become the route's AS path instead of the AS_TRANS-bearing two-octet AS_PATH.
+// RFC requirement: RFC6793-4.1-7 negative -- the discard is conditioned on the SOURCE being a
+// NEW BGP speaker, so an AS4_PATH from an OLD one is not discarded: its four-octet AS numbers
+// are the AS path information the reconciliation answers with.
 func TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath(t *testing.T) {
 	got := reconcileSection(t, concatAttrs(wireOriginIGP, rfc6793WireASPathWithASTrans, rfc6793WireAS4Path), false)
 

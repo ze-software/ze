@@ -158,7 +158,7 @@ func needsIPv6(root string) (bool, error) {
 			returnValue = true
 			return nil
 		}
-		if relative == "ze.conf" &&
+		if relative == zeConfigFile &&
 			strings.Contains(text, "ospf") && strings.Contains(text, "address-family ipv6") {
 			returnValue = true
 		}
@@ -219,7 +219,11 @@ func renderScenario(source, target string, network interoplab.Network) error {
 			if ipv6Token != "" {
 				text = strings.ReplaceAll(text, baseIPv6Prefix, ipv6Token)
 			}
-			if relative == "ze.conf" {
+			// Both ze configs get the CLI block: the reload one replaces the
+			// running config, and a scenario that lost the `interop` user at
+			// SIGHUP would fail every assertion after it for a reason that has
+			// nothing to do with what it tests.
+			if relative == zeConfigFile || relative == zeReloadConfigFile {
 				text = rendered.Reset().Str(strings.TrimRight(text, "\n")).
 					Byte('\n').Str(zeCLIConfig).String()
 			}
@@ -239,7 +243,7 @@ func renderScenario(source, target string, network interoplab.Network) error {
 }
 
 func scenarioPeers(producer, scenario, suffix string, network interoplab.Network) ([]interoplab.PeerConfig, error) {
-	if !regularFile(filepath.Join(scenario, "ze.conf")) {
+	if !regularFile(filepath.Join(scenario, zeConfigFile)) {
 		return nil, fmt.Errorf("missing ze.conf in %s", filepath.Base(scenario))
 	}
 	timeout := interoplab.ReadEnvironment(interoplab.EnvironmentOptions{}).SessionTimeout
@@ -259,7 +263,7 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 	if regularFile(pmacctConfig) {
 		peers = append(peers, interoplab.PeerConfig{Name: peerPMACCT, Container: containerName(peerPMACCT, suffix), Image: peerPMACCT, Host: 13,
 			Mounts: []interoplab.Mount{mount(pmacctConfig, "/etc/pmacct/pmbmpd.conf")}, Command: []string{"-f", "/etc/pmacct/pmbmpd.conf"}})
-	} else if configContains(filepath.Join(scenario, "ze.conf"), "bmp {") {
+	} else if configContains(filepath.Join(scenario, zeConfigFile), "bmp {") {
 		peers = append(peers, interoplab.PeerConfig{Name: peerBMP, Container: containerName(peerBMP, suffix), Image: "ze", Host: 6,
 			Arguments: []string{dockerEntrypointFlag, zeTestBinary}, Command: []string{"interop-bgp", "bmp-collector"}})
 	}
@@ -289,11 +293,25 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 			Arguments: []string{dockerEntrypointFlag, zeTestBinary}, Command: command})
 	}
 
-	zeMounts := []interoplab.Mount{mount(filepath.Join(scenario, "ze.conf"), "/etc/ze/bgp.conf")}
+	zeMounts := []interoplab.Mount{mount(filepath.Join(scenario, zeConfigFile), zeMountedConfig)}
+	zeArguments := ipv6Sysctls()
+	zeCommand := []string{"start", zeMountedConfig}
+	// A scenario carrying ze-reload.conf reloads ze mid-run, so ze must read a
+	// config file the checker can REPLACE. The mounted one is not it: every
+	// lab mount is read-only, and the file behind it is the checkout's own
+	// scenario file. So ze starts from a copy under /run, which lives in the
+	// container alone. `exec` leaves ze as PID 1, so `docker kill --signal HUP`
+	// still reaches it without tini.
+	if path := filepath.Join(scenario, zeReloadConfigFile); regularFile(path) {
+		zeMounts = append(zeMounts, mount(path, zeMountedReloadConfig))
+		zeArguments = append(zeArguments, dockerEntrypointFlag, "/bin/sh")
+		zeCommand = []string{"-c", rendered.Reset().Str("cp ").Str(zeMountedConfig).Byte(' ').Str(zeRunningConfig).
+			Str(" && exec ze start ").Str(zeRunningConfig).String()}
+	}
 	peers = append(peers, interoplab.PeerConfig{Name: "ze", Container: containerName("ze", suffix), Image: "ze", Host: 2,
-		Mounts: zeMounts, Capabilities: []string{capabilityNetAdmin}, Arguments: ipv6Sysctls(),
+		Mounts: zeMounts, Capabilities: []string{capabilityNetAdmin}, Arguments: zeArguments,
 		Environment: []interoplab.EnvironmentVariable{{Name: "SESSION_TIMEOUT", Value: strconv.Itoa(int(timeout / time.Second))}},
-		Command:     []string{"start", "/etc/ze/bgp.conf"}, Ready: ready("true")})
+		Command:     zeCommand, Ready: ready("true")})
 
 	for _, speaker := range []struct {
 		file string

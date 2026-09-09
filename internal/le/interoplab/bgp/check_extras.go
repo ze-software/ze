@@ -24,7 +24,7 @@ var scenarioExtras = map[string][]operation{
 		{kind: opRequireContains, peer: peerBIRD, command: []string{cmdBirdc, "show route for 192.175.48.0/24 all"}, contains: []string{as112DirectDelegationPrefix, "65001", "112"}},
 	},
 	"bgp-4byte-asn-frr": {
-		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON}, contains: []string{"4200000000", "Established"}},
+		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON}, contains: []string{"4200000000", stateEstablished}},
 	},
 	scenarioAddPathFRR: {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast 10.10.0.0/24"}, contains: []string{injectPrefixFirst, "2 paths"}},

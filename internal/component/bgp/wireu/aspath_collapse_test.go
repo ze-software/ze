@@ -346,6 +346,11 @@ func TestCollapseAS4AppliesConfedAdjacencyRule(t *testing.T) {
 // PREVENTS: the two arms being read as one. An AGGREGATOR that is not AS_TRANS
 // silences the AS4_PATH as well as the AS4_AGGREGATOR, and a fix that only
 // chose the aggregating node would still merge a path the RFC says to ignore.
+//
+// RFC requirement: RFC6793-6-5 negative -- the malformed-attribute discard is not a blanket
+// one: this AS4_AGGREGATOR is eight octets, so it is read rather than discarded as malformed,
+// and its four-octet AS number becomes the aggregating node on the arm where the AGGREGATOR
+// beside it carries AS_TRANS (Section 6 against Section 4.2.3).
 func TestCollapseAS4SelectsAggregatorPerSection423(t *testing.T) {
 	as4Path := collapsePathValue(4, collapseSeq(collapseMappableAS, collapseRealAS))
 	asPath2 := collapsePathValue(2, collapseSeq(collapseMappableAS, collapseASTrans))
@@ -454,6 +459,53 @@ func TestCollapseAS4DropsALoneAS4Aggregator(t *testing.T) {
 	assert.False(t, hasAggregator, "the rule that promotes an AS4_AGGREGATOR is written for the pair")
 	_, hasAS4Agg := collapseAttrValue(t, out, attribute.AttrAS4Aggregator)
 	assert.False(t, hasAS4Agg, "RFC 6793 Section 4.1: no AS4_AGGREGATOR survives ingest")
+
+	require.Len(t, discards, 1, "an attribute went, so a line is owed to the operator log")
+	assert.Equal(t, attribute.AttrAS4Aggregator, discards[0].Code)
+	assert.Equal(t, collapseNLRI, collapseTrailer(t, out),
+		"an attribute section that shrank must still leave the NLRI where the length field says it is")
+}
+
+// TestCollapseAS4DiscardsMalformedAS4Aggregator is the AS4_AGGREGATOR half of
+// RFC 6793 Section 6. The attribute length is 7 rather than 8, which is the
+// section's own definition of malformed for this attribute, and the AGGREGATOR
+// beside it carries AS_TRANS, so a reconciliation that read the malformed value
+// would promote it to the aggregating node.
+//
+// VALIDATES: the discard reaches the payload as well as the choice: the
+// collapsed UPDATE carries no AS4_AGGREGATOR at all, so no egress path can
+// relay one.
+// PREVENTS: an aggregating node read out of an attribute ze could not parse,
+// and an unparseable attribute relayed onward because nothing on the forward
+// path re-reads its length.
+//
+// RFC requirement: RFC6793-6-5 positive -- a malformed AS4_AGGREGATOR received from an OLD BGP
+// speaker is discarded and the UPDATE continues to be processed: the collapsed payload carries
+// neither the malformed attribute nor an aggregating node taken from it, the AGGREGATOR keeps
+// the AS_TRANS the peer sent, the NLRI still follows the attribute section, and the drop is
+// reported for the operator log (Section 6).
+func TestCollapseAS4DiscardsMalformedAS4Aggregator(t *testing.T) {
+	// Seven octets: RFC 6793 Section 4.2.2 gives AS4_AGGREGATOR a four-octet AS
+	// number and a four-octet address, so anything but eight is malformed.
+	malformed := []byte{0xFA, 0x56, 0xEA, 0x7B, 192, 0, 2}
+	attrs := collapseWellKnown()
+	attrs = append(attrs, collapseAttrWire(attribute.FlagTransitive, attribute.AttrASPath,
+		collapsePathValue(2, collapseSeq(collapseMappableAS)))...)
+	attrs = append(attrs, collapseAttrWire(attribute.FlagOptional|attribute.FlagTransitive,
+		attribute.AttrAggregator, collapseAggValue(2, collapseASTrans))...)
+	attrs = append(attrs, collapseAttrWire(attribute.FlagOptional|attribute.FlagTransitive,
+		attribute.AttrAS4Aggregator, malformed)...)
+
+	out, discards := collapseRun(t, baseTestBody(attrs, collapseNLRI), false)
+	require.NotNil(t, out, "RFC 6793 Section 6: the UPDATE continues to be processed")
+
+	_, hasAS4Agg := collapseAttrValue(t, out, attribute.AttrAS4Aggregator)
+	assert.False(t, hasAS4Agg, "the malformed attribute is discarded rather than relayed")
+
+	aggregator, ok := collapseAttrValue(t, out, attribute.AttrAggregator)
+	require.True(t, ok, "the AGGREGATOR beside it is not collateral damage")
+	assert.Equal(t, collapseAggValue(4, collapseASTrans), aggregator,
+		"nothing was promoted, so the aggregating node stays the AS_TRANS the peer sent")
 
 	require.Len(t, discards, 1, "an attribute went, so a line is owed to the operator log")
 	assert.Equal(t, attribute.AttrAS4Aggregator, discards[0].Code)

@@ -35,7 +35,12 @@ const (
 // signalTERM is the graceful-shutdown signal an opSignal step sends a peer. It
 // is the signal every ze shutdown path runs under, so a scenario asserting what
 // ze emits on the way down sends this one and never KILL.
-const signalTERM = "TERM"
+const (
+	signalTERM = "TERM"
+	// signalHUP asks ze to re-read its config file, which is how a scenario
+	// changes ze mid-run (prepare.go, ze-reload.conf).
+	signalHUP = "HUP"
+)
 
 // vtysh commands. FRR takes one after each -c flag.
 const (
@@ -107,12 +112,26 @@ const (
 const (
 	capabilityNetAdmin   = "NET_ADMIN"
 	dockerEntrypointFlag = "--entrypoint"
+
+	// zeMountedConfig is where every scenario's ze.conf lands in the ze
+	// container. zeMountedReloadConfig is the optional second config a
+	// reload scenario swaps in, and zeRunningConfig is the writable copy ze
+	// actually reads when a scenario carries one (prepare.go).
+	// zeConfigFile is every scenario's ze config, and zeReloadConfigFile the
+	// optional second one a reload scenario swaps in mid-run.
+	zeConfigFile       = "ze.conf"
+	zeReloadConfigFile = "ze-reload.conf"
+
+	zeMountedConfig       = "/etc/ze/bgp.conf"
+	zeMountedReloadConfig = "/etc/ze/reload.conf"
+	zeRunningConfig       = "/run/ze.conf"
 )
 
 // The ze cli invocation that zeCommand builds, and the command that reads it
 // back out of an operation.
 const (
 	zeCLICommand       = "cli"
+	zeShowBGPRIB       = "show bgp rib"
 	zeShowBGPRIBStatus = "show bgp rib status"
 	zeShowBMPPeers     = "show bmp peers"
 )
@@ -288,13 +307,22 @@ const (
 
 // JSON and log field names the assertions read, and the values they expect.
 const (
-	fieldError       = "error"
+	fieldError = "error"
+	// stateEstablished is how FRR, BIRD and GoBGP all spell the BGP session
+	// state their CLIs print, which is not how ze spells it in JSON
+	// (peerStateEstablishedJSON).
+	stateEstablished = "Established"
+
 	fieldEstablished = "established"
-	fieldRoutesIn    = "routes-in"
-	fieldRPKI        = "rpki"
-	fieldState       = "state"
-	fieldStatus      = "status"
-	fieldTypes       = "types"
+	// fieldResult and fieldBFDUp are the other two log fields the native
+	// speaker's oracle prints, read by every bfd-strict scenario.
+	fieldResult   = "result"
+	fieldBFDUp    = "bfd-up"
+	fieldRoutesIn = "routes-in"
+	fieldRPKI     = "rpki"
+	fieldState    = "state"
+	fieldStatus   = "status"
+	fieldTypes    = "types"
 
 	logValueYes       = "yes"
 	rpkiStateInvalid  = "invalid"
@@ -304,7 +332,21 @@ const (
 
 // The native speaker oracles. Each one names the wire defect it must not find.
 const (
-	speakerOracleNoDuplicateAttribute   = "no-duplicate-attribute"
+	speakerOracleNoDuplicateAttribute = "no-duplicate-attribute"
+	// speakerOracleBFDStrictHold is the draft-ietf-idr-bgp-bfd-strict-mode
+	// oracle: ze must send no KEEPALIVE while the speaker's BFD session is
+	// down, and must send one once it is up.
+	speakerOracleBFDStrictHold = "bfd-strict-hold"
+
+	// peerStateEstablishedJSON is how `show bgp peer list | json` spells the
+	// Established state (peerStateNameEstablished, reactor/peer.go).
+	peerStateEstablishedJSON = `"state": "established"`
+	// bfdStateUpJSON and bfdRefcountTwoJSON read `show bfd sessions`: the
+	// session state, and the two clients sharing one session (RFC 5882
+	// Section 4.4). zeShowBFDSessions is the command that prints both.
+	bfdStateUpJSON                      = `"state": "up"`
+	bfdRefcountTwoJSON                  = `"refcount": 2`
+	zeShowBFDSessions                   = "show bfd sessions"
 	speakerOracleNoUnrecognizedEVPNType = "no-unrecognized-evpn-type"
 )
 
@@ -396,4 +438,29 @@ const (
 	prependTwoOctetLowHalf     = "59905"
 
 	frrShowPrependPrefixJSON = "show bgp ipv4 unicast " + prependTwoOctetPrefix + " json"
+)
+
+// The as-path-mixed-width-relay-frr scenario, where a raw injector announces
+// mixedWidthPrefix to ze over a session ze holds to two octets, carrying
+// AS_TRANS in AS_PATH and 4200000123 in AS4_PATH, and ze relays the route to an
+// FRR that negotiated four octets.
+//
+// mixedWidthRealPair is the ordered pair only the RFC 6793 Section 4.2.3
+// reconstruction can produce: the injector's own AS followed by the four-octet
+// AS number that arrived in the AS4_PATH. A relay that widened the AS_PATH and
+// dropped the companion prints "65004 23456" instead.
+//
+// mixedWidthASTrans is the AS number the reconstruction exists to remove, so it
+// may appear nowhere in FRR's view of the path.
+// mixedWidthRealAS is the same AS number as the tail of mixedWidthRealPair, and
+// it is read out of ze's own `show bgp rib` rather than out of a peer's table,
+// where the AS numbers are a JSON list and no rendering puts a space between
+// them.
+const (
+	mixedWidthPrefix   = "10.0.0.0/24"
+	mixedWidthRealPair = "65004 4200000123"
+	mixedWidthRealAS   = "4200000123"
+	mixedWidthASTrans  = "23456"
+
+	frrShowMixedWidthPrefixJSON = "show bgp ipv4 unicast " + mixedWidthPrefix + " json"
 )

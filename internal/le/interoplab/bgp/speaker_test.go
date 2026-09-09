@@ -106,13 +106,16 @@ func TestDropMEDPreservesExactUpdateSections(t *testing.T) {
 }
 
 func TestSpeakerWireAndIndependentOracles(t *testing.T) {
-	openA, err := speakerOpen(65001, 90, net.ParseIP("1.2.3.4"), nil, false)
+	openA, err := speakerOpen(65001, 90, net.ParseIP("1.2.3.4"), nil, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	openB, err := speakerOpen(65001, 90, net.ParseIP("5.6.7.8"), []bgpFamily{{1, 1}, {25, 70}}, true)
+	openB, err := speakerOpen(65001, 90, net.ParseIP("5.6.7.8"), []bgpFamily{{1, 1}, {25, 70}}, true, false)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if bytes.Contains(openA, []byte{74, 0}) || bytes.Contains(openB, []byte{74, 0}) {
+		t.Fatalf("a speaker that was not asked for BFD strict mode advertised capability 74: %x %x", openA, openB)
 	}
 	if !bytes.Equal(openA[24:28], []byte{1, 2, 3, 4}) || !bytes.Equal(openB[24:28], []byte{5, 6, 7, 8}) {
 		t.Fatalf("OPEN router IDs = %x and %x", openA[24:28], openB[24:28])

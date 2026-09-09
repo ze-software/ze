@@ -420,6 +420,26 @@ Used when:
 <!-- source: internal/core/bgp/attribute/attribute.go -- AttrAS4Path -->
 <!-- source: internal/core/bgp/attribute/as4.go -- AS4 path processing -->
 
+### No received AS4_PATH survives ingest
+
+The attribute is an EGRESS one. Ze reconciles the AS-path family once, when it
+reads the UPDATE, and writes the result back into the payload: AS_PATH carries
+the four-octet path RFC 6793 Section 4.2.3 constructs, AGGREGATOR carries the
+four-octet aggregating node, and neither AS4_PATH nor AS4_AGGREGATOR is written
+out. Every consumer downstream of that point reads one width, so no forward rail
+performs a Section 4.2.3 step of its own and no relay can carry either attribute
+to a peer that negotiated four octets, which Section 4.1 forbids.
+
+An UPDATE that arrives on a four-octet session and carries an AS4 attribute
+anyway is the Section 6 case: the attribute is discarded, the AS_PATH beside it
+is left alone, and processing continues.
+
+FRR and BIRD both place the reconciliation at ingest too, and neither carries
+the pair past it.
+<!-- source: internal/component/bgp/wireu/aspath_collapse.go -- CollapseAS4Family -->
+<!-- source: internal/component/bgp/reactor/session_read.go -- collapseASPathFamily -->
+<!-- source: internal/core/bgp/attribute/as4.go -- ReconcileASPathFamily -->
+
 ### The policy prepend obeys the same two rules
 
 The `as-path-prepend` filter action does not go through the per-destination
@@ -440,14 +460,20 @@ A MAPPABLE local AS records no AS4_PATH operation: RFC 6793 Section 4.2.3
 reconstructs by taking AS numbers from the leading part of AS_PATH, which is
 where a prepend lands, so the receiver recovers them without one.
 
-When the source UPDATE already carried an AS4_PATH, the AS4_PATH ze emits holds
-the WHOLE path rather than the received one with the local AS numbers on top.
-Section 4.2.3 makes the receiver take as many AS numbers from the leading part
-of AS_PATH as make the two counts equal, so prepending to both attributes leaves
-that count unchanged and the receiver reads the AS_TRANS placeholders ze just
-wrote in place of the real local AS. `attribute.MergeAS4Path` is ze's
-declaration of the receiver's rule, and the send path runs the path through it
-so that what ze emits is what the receiver must arrive at.
+The AS4_PATH ze emits is DERIVED from the outgoing path, and it holds the WHOLE
+path. It is never the received one with the local AS numbers on top, because no
+received AS4_PATH survives ingest (see above). Section 4.2.3 makes the receiver
+take as many AS numbers from the leading part of AS_PATH as make the two counts
+equal, so an AS4_PATH shorter than the AS_PATH would have the receiver read the
+AS_TRANS placeholders ze just wrote in place of the real local AS.
+
+`AS4PathForRewrite` still holds a merging branch for the case where the payload
+it is handed already carries an AS4_PATH ze itself wrote. `exportFilterForBody`
+is that caller: it hands the extractor a body already encoded in a two-octet
+destination's send context, so the AS4_PATH beside it is ze's own derivation
+rather than a peer's attribute. `attribute.MergeAS4Path` is ze's declaration of
+the receiver's rule, and running the path through it there emits what the
+receiver must arrive at.
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractASPathPrependOps -->
 <!-- source: internal/component/bgp/wireu/aspath_as4.go -- AS4PathForRewrite -->
 
@@ -467,7 +493,17 @@ RFC 6793 - 4-byte aggregator for non-ASN4 peers.
 
 **Length:** 8 bytes
 **Flags:** 0xC0 (Optional Transitive)
+
+Like AS4_PATH, it is an EGRESS attribute. The ingest reconciliation chooses
+between the AGGREGATOR and the AS4_AGGREGATOR once and writes one four-octet
+AGGREGATOR back into the payload, so no received AS4_AGGREGATOR reaches a
+forward rail. A length other than 8 is malformed (RFC 6793 Section 6): the
+attribute is discarded there, the AGGREGATOR beside it is left as the peer sent
+it, and the UPDATE continues. `appendAS4AggregatorFor` synthesizes the companion
+again for a destination that negotiated two octets.
 <!-- source: internal/core/bgp/attribute/attribute.go -- AttrAS4Aggregator -->
+<!-- source: internal/core/bgp/attribute/as4.go -- selectAggregator -->
+<!-- source: internal/component/bgp/rib/commit.go -- appendAS4AggregatorFor -->
 
 ---
 
