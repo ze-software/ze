@@ -358,3 +358,198 @@ documentation and security steps were done, and the round-4 finding is the only
 open thread. The session claim is still on this spec.
 
 Everything in sections 1 to 7 above is unchanged and still accurate.
+
+---
+
+# Update from session `inspired`, 2026-09-09, after the stop
+
+**This file holds TWO sessions' handovers.** The VyOS-derived subscriber work is
+sections 1 to 7 of the first document; the OSPF and spec-closing work is the
+second, from "## 1. What landed" onward. They do not overlap. Commit `8760c0623`
+carried both because the file was edited by both before it landed, which is worth
+knowing if the attribution in that commit body reads thin.
+
+## What changed after the first document was written
+
+Everything that stood on its own is now COMMITTED. The first document says the
+fourth spec is uncommitted work; that is no longer true.
+
+| Commit | Contents |
+|---|---|
+| `300a7541a` | `internal/core/pacer`, all four receiver loops paced, logged and counted, the client's discovery wait, docs, tests, three journal rows, the spec |
+| `8760c0623` | The two per-subscriber-usage specs, and this file |
+
+**Phase 5 is DONE, not owed.** The first document's "Owed, phases 5 and 6" section
+is stale on both its items. The killed agent had already finished them:
+
+- Item 1 answered the judgement call rather than following the spec blindly.
+  `SO_RCVTIMEO` already blocks the client's discovery read for around 100ms, so
+  `runtime.Gosched()` was a yield sitting on top of a wait that existed. It removed
+  the yield, added `readDiscoveryFrame` as a package variable so a test can swap the
+  read, and documented the reasoning in `docs/architecture/l2tp/cpe-1-pppoe-client.md`.
+- Item 2 exists: `TestReadLoopAllocationsPerPacketUnchanged` in `listener_test.go`,
+  and `TestWaitForPADOBlocksRatherThanSpins` in `dialer_test.go`. Both pass.
+
+## The only outstanding work on that spec
+
+`plan/immediate/spec-subscriber-reader-loops-retry-a-failing-socket-without-backoff.md`
+is `in-progress`, Phase 5/6, and the session claim is still on it. **Release it
+first: `./le spec session release`.**
+
+1. **Phase 6, the functional scenario.** AC-1: a socket held in a persistently
+   failing state leaves CPU low while the log line and the counter show the failure.
+   The spec calls it `subscriber-reader-failing-socket`. `test/qemu/` does not exist,
+   so pick the suite directory from what does, and add the name to `netnsSelections`
+   in `internal/le/qemu/netns_linux.go`. That list is explicit: `validateNetnsSelection`
+   refuses a named test with no file, but never notices a file nobody named, which is
+   how two `netns-link` tests under `test/plugin/` came to run nowhere at all.
+2. **Then `/ze-close`**, on Opus 5 in a context that did not write the code.
+3. The Goal Validation table must record that three `ppp` tests are written and
+   cross-compile-verified but **never executed**: they are `//go:build linux` and this
+   host is darwin. Do not mark them green.
+
+## The two specs to run next
+
+Both are in HEAD at `8760c0623`, both `design`, and Thomas approved the split and
+all four surfaces. Take them in order; the second depends on the first.
+
+1. `plan/immediate/spec-pppoe-subscribers-produce-no-accounting-or-telemetry.md`.
+   The collection already exists and works for L2TP; two consumers simply never moved
+   onto the shared subscriber layer, so a PPPoE subscriber produces no accounting
+   record and no metric. Also repairs a fail-open where a failed stats read sends
+   `Acct-Input-Octets = 0`, indistinguishable from an idle subscriber.
+2. `plan/immediate/spec-subscriber-utilisation-has-no-operator-view.md`. The views.
+
+## Still waiting on Thomas, unchanged
+
+The four decisions in section 4 of the first document all stand. The RFC index one
+is the one that compounds: `docs/features/rfc-status.md` is now three specs stale on
+its PPPoE and IPv6CP rows, and the session that could unblock it is gone.
+
+One correction to that section: the resurrected
+`plan/immediate/spec-ipv6cp-accepts-and-proposes-a-zero-interface-identifier.md` is
+STILL on disk, untracked, still reading `in-progress` Phase 5/5, for a spec closed at
+`3fd87369fb`. It makes the backlog show a closed spec as open. Its content is
+preserved in `fd7cd7b44e`, so deleting it loses nothing, but it needs Thomas's word
+(`ai/rules/never-destroy-work.md`).
+
+## What this session would tell the next one
+
+**Commit each finished chunk when it finishes.** Three specs closed cleanly, then the
+fourth's completed phases sat uncommitted while the session chased the next phase and
+ran out of budget. Thomas had to ask whether the work was committed. `ai/rules/git-safety.md`
+already says this: the question after each chunk is whether it stands on its own, not
+whether the session is finished.
+
+**The Review Gate is where the defects were.** Each of the three closures found a
+product defect that every implementation phase had missed: a counter that reached no
+operator because the registry is created after the component starts, a `Session.State`
+data race from locking two of three accessors, and a fabricated RFC quotation. Budget
+closure as defect-finding.
+
+**Read the other implementations before designing protocol behaviour.** Reading
+accel-ppp's, FreeBSD's and pppd's own source changed two designs before they were
+built: the IPv6CP missing-option case would have Naked forever without pppd's one-shot
+guard, and the PADR dedup would have broken legitimate multi-session CPE without
+accel-ppp's cookie key. It also caught a false comment in Ze claiming its MAC-keyed
+dedup matched accel-ppp's, which is cookie-keyed.
+
+**The IDE diagnostics in this harness are stale about seven times out of seven.**
+Verify with the registered action before acting on one.
+
+---
+
+# spec-forwarded-as-path-obeys-rfc6793-for-every-destination (2026-09-09)
+
+## State
+
+All 8 implementation phases are DONE and COMMITTED. The spec is still
+`in-progress` in `plan/immediate/` and the session claim is still on it. Nothing
+in the product is half-built; what is left is closure bookkeeping.
+
+Why it is not closed: `./le commit create` refuses a closure commit without a
+review artifact recorded `clean`, and the independent review was still running
+when the session ran out of budget.
+
+**The stop hook WILL block on this spec, and its ack file does not travel.** It
+lived at `tmp/session/.closure-ack-...`, which is machine-local and uncommitted,
+so it is absent wherever this resumes. Re-create it in one line rather than
+hunting for the reason:
+
+```
+echo 'Closure blocked on the review artifact: le commit create refuses a closure commit without one recorded clean, and the review had not finished. Every phase is implemented and committed. See continue.md.' \
+  > "tmp/session/.closure-ack-forwarded-as-path-obeys-rfc6793-for-every-destination"
+```
+
+Or simply do step 2 below, which removes the need for it.
+
+## What the change did
+
+Ze reconciles the AS_PATH/AS4_PATH pair ONCE, at ingest, stores four-octet AS
+numbers only, and regenerates the two-octet form at encode time. This is the
+shape Thomas decided on 2026-09-08 after FRR and BIRD were read: both normalise
+at ingest, which is why neither needs an RFC 6793 Section 4.2.3 step on its
+forward path.
+
+- `attribute.ReconcileASPathFamily` (`internal/core/bgp/attribute/as4.go`) holds
+  the rule, moved out of `rib/storage` because the reactor may not import a plugin.
+- `wireu.CollapseAS4Family` (`internal/component/bgp/wireu/aspath_collapse.go`)
+  applies it to the payload. Fast path answers 0 and the caller keeps its slice.
+- `(*Session).collapseASPathFamily` (`internal/component/bgp/reactor/session_read.go`)
+  calls it after `enforceRFC7606`, before the import policy chain, and relabels
+  the encoding context.
+- Four sites take the received width from the encoding context rather than the
+  negotiated capability, including `resolveRelaySource` (`reactor_api_relay.go`).
+- Interop scenario `test/interop/scenarios/as-path-mixed-width-relay-frr` PASSES,
+  with a discrimination walk recorded on distinct images.
+- RFC6793-4.1-6, -4.1-7 and -6-5 closed. Only -4.1-3 remains.
+
+## TO DO, in order
+
+1. **Commit the learned summary.** `plan/learned/016-normalise-once-at-the-edge.md`
+   is written and UNCOMMITTED. It is the only uncommitted file of this work.
+2. **Run the independent review** (`/ze-review` in a subagent, Opus, over the
+   range `c442cb5c8..HEAD`). Spend the effort on whether any row in the spec's
+   closure tables is FALSE against the tree: the sibling spec's last three rounds
+   each found a false record rather than a code defect.
+3. **Record it**: `./le spec session review record spec spec-forwarded-as-path-obeys-rfc6793-for-every-destination verdict clean rounds <n> reviewers <...> file <each reviewed file>`.
+   The gate refuses `findings`; fix what it finds, then re-record.
+4. **Append `plan/TEMPLATE-CLOSURE.md`** and complete every section. Goal
+   Validation must carry the interop evidence, which exists.
+5. **Two commits**: A = spec + learned summary; B = `remove` the spec file.
+6. **Release the claim**: `./le spec session release`.
+
+## Open findings, recorded not fixed. Thomas's to schedule
+
+- `ASPathEdit.recordAggregator` (`internal/component/bgp/wireu/aspath_slot.go`)
+  does NOT tombstone an AGGREGATOR whose length it cannot read. `RewriteASPath`
+  did, so the behaviour vanished when `Record` replaced the rewrite, with no red
+  test. Row in `plan/journal/unwired-feature.md`. The transcode rail still
+  tombstones and keeps its own test.
+- `test/interop/scenarios/bgp-aggregator-as4-downgrade-bird` rests on the claim
+  that `internal rib` alone relays a route to a peer. Measured false twice while
+  building the new scenario: the relay is `bgp-rs` plus `bgp-adj-rib-in`. Row in
+  `plan/journal/test-against-broken-path.md`.
+- No originating encoder emits an AS4_PATH
+  (`internal/component/bgp/message/update_build*.go`), so a route ze ORIGINATES
+  with a non-mappable AS in its configured AS_PATH reaches a two-octet peer as
+  AS_TRANS with the real number nowhere. RFC 6793 Section 4.2.2 requires it. Row
+  in `plan/journal/requirement-met-on-the-rails-the-spec-planned.md`.
+
+## Decisions already taken, do not re-litigate
+
+- A lone AS4_AGGREGATOR (no AGGREGATOR beside it) is DROPPED, the UPDATE
+  continues, and the drop is reported. The RFC does not cover the shape; FRR
+  keeps and fabricates, BIRD drops, ze takes BIRD's answer. Thomas, 2026-09-09.
+  Documented in `as4.go`, `docs/architecture/edge-cases/as4.md` and
+  `rfc/short/rfc6793.md`.
+- Tombstone draft-mangin Section 5.3 support is REMOVED, with `aspath_rewrite.go`.
+  `WriteTombstone` stays: the transcoder calls it. Thomas, 2026-09-09.
+- Attribution in new records is "(Thomas, YYYY-MM-DD)", not "owner ruling".
+
+## Environment note
+
+colima was resized from 2 CPUs / 1.9 GiB to 8 / 24 on 2026-09-08. That is what
+lets the interop lab reach a verdict at all; at the old size the fleet is killed
+before any assertion runs, and `docker info` reports the VM's allocation rather
+than the host's.
