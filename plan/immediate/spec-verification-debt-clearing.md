@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | complete |
 | Scope | tooling |
 | Depends | - |
 | Phase | 7/7 |
@@ -231,7 +231,7 @@ has been DISCHARGED, and the discharge is recoverable.
 | AC-19 | After the discharge pass over the 72 rows | `./le commit debt-status` reports zero open rows naming a gate no command can run; any residue is named with the reason it could not be discharged |
 | AC-20 | `kind closed commit <closure-sha>` where the removed spec's Status at the parent is `skeleton` or `design` | The row is discharged with no Review Gate read, because a spec that carried no implementation owed no review. The Status is read from the spec's own metadata table at the parent, never inferred from an absent gate |
 | AC-21 | Any kind, `owner` included, over a row whose gate `debtGates` declares `Runnable`, or over a gate `debtGates` declares neither as a Name nor as an alias | Refused before the kind's own evidence is read, naming the gate; the runnable one is routed to `debt-clear`, which clears it by RUNNING it. The check is read from the row in `verifyDischarge`, once, so a fifth kind inherits it |
-| AC-22 | A discharge over a row whose subject cell carries `(+N more)` | `commit <sha>` repeats and the row discharges only when N+1 commits are named: each distinct, each running the kind's derivation, and each bound to the row by three conditions together. It writes the row's ledger shard; it WROTE this row, either by adding a ledger row holding this row's GATE under this row's REASON, the merge key `openDebtRowAt` reads, or by appearing in the history of the row's own line, which is read at the line HEAD holds that row on; and at least one of the named commits carries the row's subject. Fewer, a repeat, or a commit any condition refuses is refused, naming the count the row needs or the arms that answered no |
+| AC-22 | A discharge over a row whose subject cell carries `(+N more)` | `commit <sha>` repeats and the row discharges only when N+1 commits are named: each distinct, each running the kind's derivation, and each bound to the row by three conditions together. It writes the row's ledger shard; it WROTE this row, either by adding an OPEN ledger row holding this row's GATE under this row's REASON, the merge key `openDebtRowAt` reads, or by appearing in the history of the row's own line, which is read at the line HEAD holds that row on; and at least one of the named commits carries the row's subject. Fewer, a repeat, or a commit any condition refuses is refused, naming the count the row needs or the arms that answered no |
 | AC-23 | A discharge over a row whose Status is `cleared`, and a hand-written record naming one | Refused; the overlay leaves the row `cleared` and reports the record as invalid, because a cleared row's gate ran green and `debt-status` must not read it as attested (R-3) |
 | AC-24 | `kind closed` or `kind reviewed` over a row naming `owner approval for an RFC-tagged test change` | Refused, naming the gate: both kinds assert that a REVIEW ran, and an owner's approval is an act no reviewer performs |
 | AC-25 | `kind closed` or `kind reviewed` where the Review Gate's artifact cell holds `n/a`, `-`, or any text naming no file | Refused, saying the artifact row names no file. A cell naming a path with a file name on it is the filled reference R-8 asks for |
@@ -279,7 +279,7 @@ has been DISCHARGED, and the discharge is recoverable.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `verify-scope-debt-discharge` | `test/runner/verify-scope-debt-discharge.ci` | An agent discharges a row whose commit closes no spec, sees the ledger stop counting it as open, then tampers with the record and sees the row counted open again | PASS. `./le functional runner` at `60646f7df` ran 11 of 11 scenarios with zero failures, this one among them; log at `tmp/session/2026-09-08-7b9318a0-1b50-4b8d-8276-e5195be7acf3/scratch/functional-runner-4.log` |
-| `verify-scope-debt-clear` | `test/runner/verify-scope-debt-clear.ci` | Existing scenario: a row no gate can re-run is named and left open. Its expectations are re-read against the derived unrunnable set | |
+| `verify-scope-debt-clear` | `test/runner/verify-scope-debt-clear.ci` | Existing scenario: a row no gate can re-run is named and left open. Its expectations are re-read against the derived unrunnable set | PASS, in the 11/11 `./le functional runner` at `60646f7df` |
 
 ### Interop Tests (Scope: protocol)
 - N-A. Scope is tooling: no protocol peer exists for a ledger command.
@@ -350,7 +350,7 @@ has been DISCHARGED, and the discharge is recoverable.
    - Files: `internal/le/commit/discharge.go`, `internal/le/commit/debt.go`
    - Verify: the `owner` kind alone proves the storage and the overlay end to end, with no derivation in the way
 3. **Phase: the derived kinds** -- `not-applicable`, `closed`, `reviewed`
-   - Tests: `TestNotApplicableDischargeDerivesTheClosureStem`, `TestNotApplicableDischargeReadsRFCTagCarriersAtTheCommit`, `TestClosedDischargeRequiresARecordedReviewGate`, `TestSkeletonClosureDischargesAndAnImplementedOneDoesNot`, `TestReviewedDischargeJudgesTheArtifactAgainstTheCommitBytes`, `TestReviewedDischargeFallsBackToTheCommittedReviewGate`, `TestDischargeVerdictIsNeverReadFromTheRecord`
+   - Tests: `TestNotApplicableDischargeDerivesTheClosureStem`, `TestNotApplicableDischargeReadsTaggedUnitsAtTheCommitParent`, `TestClosedDischargeRequiresARecordedReviewGate`, `TestSkeletonClosureDischargesAndAnImplementedOneDoesNot`, `TestReviewedDischargeJudgesTheArtifactAgainstTheCommitBytes`, `TestReviewedDischargeFallsBackToTheCommittedReviewGate`, `TestDischargeVerdictIsNeverReadFromTheRecord`
    - Files: `internal/le/commit/discharge.go`, `internal/le/commit/review.go` (the byte source)
    - Verify: each verifier is tested in both polarities; a verifier that cannot refuse has an untested guard
 4. **Phase: the gate table** -- unrunnable and unrecognized derive from `debtGates`
@@ -443,7 +443,7 @@ has been DISCHARGED, and the discharge is recoverable.
 |------|------------------------|
 | The ledger can reach zero, so a push is reachable | `./le commit debt-status` after the phase-6 pass reports no open row naming a gate no command can run, and `TestPushProceedsWhenEveryRemainingRowIsDischarged` proves the push gate follows the overlay rather than the raw row count |
 | A discharge records HOW the obligation was met, with evidence | AC-9 and `TestOwnerDischargeRecordsTheAuthorisationVerbatim`: the record carries the shard, the line, the row digest, the kind and the evidence, and a row cleared by `debt-clear` is a different state from a row discharged by attestation in `debt-status` |
-| The verb re-verifies what a machine can re-verify | `TestNotApplicableDischargeDerivesTheClosureStem`, `TestNotApplicableDischargeReadsRFCTagCarriersAtTheCommit`, `TestClosedDischargeRequiresARecordedReviewGate`, `TestSkeletonClosureDischargesAndAnImplementedOneDoesNot`, `TestReviewedDischargeJudgesTheArtifactAgainstTheCommitBytes` and `TestReviewedDischargeFallsBackToTheCommittedReviewGate`, each red in its refusing polarity, plus `TestDischargeVerdictIsNeverReadFromTheRecord` for the no-cached-verdict rule |
+| The verb re-verifies what a machine can re-verify | `TestNotApplicableDischargeDerivesTheClosureStem`, `TestNotApplicableDischargeReadsTaggedUnitsAtTheCommitParent`, `TestClosedDischargeRequiresARecordedReviewGate`, `TestSkeletonClosureDischargesAndAnImplementedOneDoesNot`, `TestReviewedDischargeJudgesTheArtifactAgainstTheCommitBytes` and `TestReviewedDischargeFallsBackToTheCommittedReviewGate`, each red in its refusing polarity, plus `TestDischargeVerdictIsNeverReadFromTheRecord` for the no-cached-verdict rule |
 | An unverifiable discharge is distinguishable from a verified one | `TestDebtStatusSplitsDischargedByKind`: the discharged count is split by kind, and the kind alone says whether a machine derived it |
 | A tampered or stale record cannot un-refuse a push | `TestATamperedDischargeRecordLeavesTheRowOpen`, driven from `ListDebt` so every consumer inherits the fail-closed reading |
 | The documented behavior matches the code | AC-18 and its Deliverables row: the page's two wrong sentences are replaced, and `TestEveryLedgerGateNameIsDeclared` keeps the alias claim honest as the ledger grows |
@@ -489,3 +489,183 @@ has been DISCHARGED, and the discharge is recoverable.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `./le commit debt-discharge` with four kinds, in `internal/le/commit/discharge.go` and `internal/le/commit/dischargerecord.go`. `not-applicable`, `closed` and `reviewed` re-derive from git; `owner` is an attestation and is marked as one.
+- The record stores the kind and the evidence and never a verdict, so `applyDischarges` re-runs the derivation on every `ListDebt`.
+- `debtGates` gained `Runnable` and `Aliases`; the two gate-name literals in `clearDebtWith` are deleted. An unrecognized gate name is no longer cleared by a green verify.
+- `debt-clear` exits non-zero on a red verification, so the exit code and the ledger agree.
+- One debt row holds at most one discharge record: `replaceDischargeRow` supersedes in place, and `applyDischarges` judges every record before overlaying any row.
+- The phase-6 pass: 67 of 67 unclearable rows discharged, 57 by derivation and 10 on the owner's authorisation.
+
+### Bugs Found/Fixed
+- Three of four kinds never read the row's gate, so one `kind owner` sentence discharged any open row, the 274 `discovery-index freshness` rows included. Fixed above the kind switch. `TestADischargeAnswersOnlyAGateNoVerificationRuns`.
+- A row covering N commits discharged on evidence about one. `TestADischargeOverSeveralCommitsAnswersForEachOfThem`.
+- A superseded discharge record printed `INVALID DISCHARGE` for ever, and that line is the whole tamper signal. `TestADischargeReplacesTheRecordItSupersedes`.
+- A `cleared` row was reclassified `discharged`, blurring a gate that ran green with an attestation.
+- The commit-to-row binding admitted strangers: a subject of `test` bound 1353 of 8387 commits, and any bookkeeping commit touching the shard bound too. `TestARowBindsOnlyACommitThatAddedItsOwnGateAndReason`.
+- `rowLineHistory` resolved a working-tree line NUMBER against HEAD, so an uncommitted insertion made a row discharge on the history of the row below it. `TestTheLineHistoryArmReadsTheRowAtHEADRatherThanALineNumber`.
+- `commitAddedRow` bound on a row `parseDebtRow` accepted as `cleared`, though its comment said "added". `TestARowBindsNoCommitThatOnlyClearedTheSamePair`.
+- Two ledger rows over-counted their commits, because the 2026-09-07 dedup merged two recordings of ONE commit. Repaired in the subject cell, confirmed at `de31341fd7^`.
+- `95a19451:44` was discharged against the wrong commit; the tightened binding caught it.
+
+### Documentation Updates
+- `docs/architecture/testing/verify-freshness-scope.md` (declared by `debt.go`): the debt section states one verification per pass, the discharge verb and its kinds, the multi-commit rule and the runnable-gate refusal.
+- `docs/contributing/committing.md`: the push refusal gains the discharge route.
+- `docs/functional-tests.md`, `ai/INDEX.md`, `ai/rules/points/completion/directives/verification-debt-is-not-defect-debt.md`.
+- `./le spec citation anchors` exits 0.
+
+### Deviations from Plan
+- The spec proposed one `commit` keyword; the delivered verb repeats it, because a row carrying `(+N more)` covers several commits and the spec had no AC for that. AC-22.
+- The spec's discharge record was append-only; it replaces, because a superseded record is a permanent false alarm on the tamper signal.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-4 said the ledger holds four legacy gate spellings | Five. `./le verify current mode full structural gates (red)` covers 157 rows | `TestEveryLedgerGateNameIsDeclared` read the live ledger | Declared as an alias; the test now reads the live ledger so a sixth cannot hide |
+| assumption | A-5 predicted 17 owner-attested rows | 10. The derivation reached far more rows than the spec expected | The phase-6 pass | Recorded; the owner was asked for one sentence covering the rows only he could close |
+| approach | A-2 named a subject search as the route from a row to its commit | Subject matching leaves 3 of 67 unresolved and 1 ambiguous; the commit that INTRODUCED the row resolves all 67 | The mapping pass | The binding is built on the introducing commit, not on the subject |
+| escalation | Three review rounds each found the code admitting more than the prose beside it claimed | The comment is not the predicate | Rounds 3, 4 and 5 | Recorded in the learned summary: a comment that describes a guard must be falsified against the guard |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Every row has a route to a non-open state | Done | `internal/le/commit/discharge.go` | 67 of 67 discharged; zero open rows name an unrunnable gate |
+| The route RE-DERIVES what a machine can re-derive | Done | `applyDischarges`, `verifyDischarge` | 57 of 67 derived; the derivation re-runs on every read |
+| A discharge nobody can re-derive is distinguishable | Done | `summarizeDebt` | `debt-status` splits the discharged count by kind |
+| The two documentation defects are corrected | Done | `docs/architecture/testing/verify-freshness-scope.md` | AC-18 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `parseDischarge`, `checkDischargeEvidence` | 12 refusal shapes |
+| AC-2, AC-3 | Done | `verifyKindNotApplicable` via `closedSpecStem` | both polarities |
+| AC-4 | Done | `changedTaggedUnits` | `TestNotApplicableDischargeReadsTaggedUnitsAtTheCommitParent`, both polarities forced red separately |
+| AC-5, AC-6, AC-6b | Done | `verifyKindReviewed`, `judgeReviewCoverage` | |
+| AC-7, AC-7b, AC-20 | Done | `verifyKindClosed`, `specStatus`, `reviewGateRecorded` | both era spellings; the skeleton branch is entered from Status |
+| AC-8, AC-9 | Done | `writeDischargeRecords`, `replaceDischargeRow` | |
+| AC-10 to AC-13 | Done | `applyDischarges`, `readDebt` | no verdict on disk |
+| AC-14 to AC-16 | Done | `debtGateAt`, `clearDebtWith` | |
+| AC-17, AC-18 | Done | `summarizeDebt`, the page | |
+| AC-19 | Done | `./le commit debt-status` | zero open rows name a gate no command runs |
+| AC-21 to AC-26 | Done | `verifyDischarge`, `dischargeCommits`, `commitAddedRow`, `rowLineHistory` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every test in the Unit Tests table | Done | `internal/le/commit/`, `internal/le/hookruntime/` | one exception below |
+| `TestNotApplicableDischargeReadsRFCTagCarriersAtTheCommit` | Superseded, RED | `internal/le/commit/discharge_test.go` | its fixture commits before recording its debt row, so it never reaches the half it was written for. AC-4 is proven by `discharge_rfc_test.go`. Deleting it is refused as an RFC-tagged test change needing an owner row |
+| `verify-scope-debt-discharge` | Done | `test/runner/verify-scope-debt-discharge.ci` | 11/11 at `60646f7df` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every file in Files to Modify and Files to Create | Done | plus `internal/le/commit/dischargerecord.go` and `internal/le/commit/discharge_rfc_test.go`, neither foreseen |
+
+### Audit Summary
+- **Total items:** 26 ACs, 24 tests, 15 files
+- **Done:** all ACs, all files, all tests but one
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** two, in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The ledger can reach zero, so a push is reachable | functional | `./le commit debt-status`: `1064 open, 192 cleared, 67 discharged (not-applicable 57, owner 10)`, no INVALID line, and every one of the 1064 open rows names a runnable gate. Independently re-derived from git by the round-four and round-five reviewers |
+| A discharge records HOW the obligation was met | functional | `plan/verification-debt/discharged/cf1378ad.md`: 67 rows carrying the date, shard, line, row digest, kind and evidence |
+| The verb re-verifies what a machine can re-verify | functional | 57 of 67 derived; each verifier tested in both polarities, each forced red before its green was accepted |
+| An unverifiable discharge is distinguishable | functional | `debt-status` splits `not-applicable 57, owner 10` |
+| A tampered or stale record cannot un-refuse a push | functional | `TestATamperedDischargeRecordLeavesTheRowOpen`, driven from `ListDebt`; and the live proof that the guard bites, when the multi-commit rule invalidated five of this session's own records unprompted |
+| The documented behavior matches the code | functional | Rounds 3, 4 and 5 each falsified the prose against the producer; the last found no remaining disagreement |
+| The clearing path stops reporting success over a red run | functional | `TestDebtClearingReportsRedVerificationAsFailure` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Deleting the superseded red test | The write hook reads it as an RFC-tagged test losing assertions and asks for an owner row in `test/rfc-changed/cf1378ad.md`, which an author must not write for himself | Needs one line from the owner; recorded in `plan/journal/guard-blocks-its-own-authors-repair.md` |
+| Three `cleared` rows naming an unrunnable gate (`5dfa0c47:27`, `66fc17ca:16`, `95a19451:60`) | Pre-fix residue from 2026-08-18/19; no current path produces it, because AC-14 derives the unrunnable set from `debtGates`. AC-19 speaks of OPEN rows | Recorded here; no spec, no defect in the delivered code |
+| The dedup can still write a wrong cover count | `recordDebt` runs inside `Create`, before the script commits, so a re-run extends a row whose count then names more commits than exist | `plan/journal/record-written-before-the-operation-succeeds.md` |
+| Normalizing the five legacy gate spellings in the rows that carry them | Declared as aliases instead; rewriting historical rows edits evidence for cosmetic gain | Named in Known Limitations |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/verification-debt-clearing-7b9318a0-1b50-4b8d-8276-e5195be7acf3.md` (9 files pinned by hash, verdict clean) |
+| `review check` | OK, clean, hashes match |
+| Rounds | 5 |
+| Reviewer lenses used | guard shape and fail-closed; commit-to-row binding; code-versus-prose agreement; AC coverage and both-polarity proof; closure readiness |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | Three of four kinds never read the row's gate, so one attestation discharged any open row | `verifyDischarge` | `e378d5ef1` |
+| 2 | BLOCKER | A row covering N commits discharged on evidence about one | `commitCoversRow` | `e378d5ef1` |
+| 3 | ISSUE | A `cleared` row was reclassified `discharged` | `dischargeDebt` | `e378d5ef1` |
+| 4 | ISSUE | The subject binding arm had no length floor; `test` bound 1353 of 8387 commits | `commitCarriesSubject` | `682c2068b` |
+| 5 | ISSUE | The shard arm accepted bookkeeping commits | `dischargeCommits` | `682c2068b` |
+| 6 | ISSUE | The reason arm bound on a substring and never compared the gate, contradicting its own comment and the page | `commitAddedRowReason` | `60646f7df` |
+| 7 | ISSUE | AC-4 had no running proof in either polarity | `discharge_test.go` fixture order | `fb0f144e5` |
+| 8 | ISSUE | Two spec cells cited a test that never reaches its refusing polarity, and AC-22 was one word wider than the code | the spec | this commit |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/commit/discharge.go` | Yes | 42K |
+| `internal/le/commit/dischargerecord.go` | Yes | 9.7K |
+| `internal/le/commit/discharge_test.go` | Yes | 70K |
+| `internal/le/commit/discharge_rfc_test.go` | Yes | 6.5K |
+| `test/runner/verify-scope-debt-discharge.ci` | Yes | 1.2K |
+| `plan/verification-debt/discharged/cf1378ad.md` | Yes | 12K |
+| `plan/learned/010-a-record-that-re-derives.md` | Yes | 5.2K |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | the verb is listed and its kinds closed | `./le commit` prints `debt-discharge`; one match |
+| AC-14 | the two gate literals are gone from non-test code | `grep "independent critical review" internal/le/commit/*.go` outside tests returns one line, `debt.go:49`, the `debtGates` declaration itself |
+| AC-19 | no open row names a gate no command can run | `./le commit debt-status`: 67 discharged, no INVALID line; every open row's gate is `Runnable` |
+| AC-4 | both polarities run | `TestNotApplicableDischargeReadsTaggedUnitsAtTheCommitParent` passes; each half forced red separately |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le commit debt-discharge` typed at the shell | `test/runner/verify-scope-debt-discharge.ci` | Yes, 11/11 in `./le functional runner` at `60646f7df` |
+| `./le commit create ... push` | none; unit at `TestPushProceedsWhenEveryRemainingRowIsDischarged` | Yes |
+| session-start hook | none; unit at `TestSessionHookCountsNoDischargedRowAsOwed` | Yes |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | 58 rows derived with no closure found where the rows said none |
+| A-2 | confirmed, by another route | the introducing commit resolves all 67; subject matching leaves 3 unresolved and 1 ambiguous |
+| A-3 | confirmed | no `tmp/review/` artifact was needed by any row |
+| A-4 | broken | five legacy spellings, not four |
+| A-5 | broken | 10 owner-attested rows, not 17 |
+| A-6 | confirmed | both era spellings accepted; the predicate reads the section's rows |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| the debt section describes one verification per pass and the discharge verb | `docs/architecture/testing/verify-freshness-scope.md` | Yes, falsified against the producer in rounds 3, 4 and 5 |
+| the push refusal names the discharge route | `docs/contributing/committing.md`, `refusePushWithDebt` | Yes |
+| the new scenario is listed | `docs/functional-tests.md` | Yes |
+| citations resolve | `./le spec citation anchors` | Yes, exit 0 |
+
+## Core Insight
+
+A ledger row cannot be closed by a fact nobody can recompute. Storing the evidence and re-deriving the verdict on every read is what makes the record safe to commit, because a reader who trusts a stored verdict trusts whoever last edited the file, and a file that gates a push is exactly the file worth editing.
+
+The evidence was in git the whole time. `recordDebt` runs inside `Create`, which appends the shard to the commit's own paths, so a debt row rides in the commit it describes and never needed a SHA column. Before adding a field to carry a fact, ask what already witnesses it.
