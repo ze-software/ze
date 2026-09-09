@@ -105,9 +105,11 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// empty (InsertForward then dispatches Forward == nil).
 	forward := newForwardHandle(msg.RawBytes)
 
-	// Get encoding context for add-path flags and ASN4 capability.
+	// Get encoding context for add-path flags. The AS number width is no
+	// longer read here: every received UPDATE reaches this handler with its
+	// AS-path family already reconciled to four octets at ingest
+	// (attribute.ReconcileASPathFamily, reached from Session.processMessage).
 	ctx := bgpctx.Registry.Get(wu.SourceCtxID())
-	asn4 := ctx == nil || ctx.ASN4()
 
 	// Track affected prefixes for best-path change detection.
 	// Pooled to amortize the per-UPDATE allocation across calls.
@@ -230,7 +232,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	var haveParsed bool
 	if len(attrBytes) > 0 {
 		var parseErr error
-		parsed, fp, attrLen, parseErr = storage.ParseRouteEntry(attrBytes, asn4)
+		parsed, fp, attrLen, parseErr = storage.ParseRouteEntry(attrBytes)
 		if parseErr == nil {
 			haveParsed = true
 			defer parsed.Release()
@@ -254,7 +256,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 				if haveParsed {
 					peerRIB.InsertEntry(ipv4Family, parsed, fp, attrLen, wirePrefix)
 				} else {
-					peerRIB.Insert(ipv4Family, attrBytes, wirePrefix, asn4)
+					peerRIB.Insert(ipv4Family, attrBytes, wirePrefix)
 				}
 				affected = append(affected, affectedPrefix{fam: ipv4Family, nlriBytes: wirePrefix, addPath: addPath})
 			}
@@ -281,13 +283,13 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 						if haveParsed {
 							r.insertLabeledEntry(peerRIB, fam, parsed, fp, attrLen, wirePrefix, addPath, &affected)
 						} else {
-							r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, asn4, &affected)
+							r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, &affected)
 						}
 					} else {
 						if haveParsed {
 							peerRIB.InsertEntry(fam, parsed, fp, attrLen, wirePrefix)
 						} else {
-							peerRIB.Insert(fam, attrBytes, wirePrefix, asn4)
+							peerRIB.Insert(fam, attrBytes, wirePrefix)
 						}
 						affected = append(affected, affectedPrefix{fam: fam, nlriBytes: wirePrefix, addPath: addPath})
 					}
@@ -559,12 +561,12 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 // insertLabeled handles a single labeled unicast NLRI announce. It strips
 // MPLS labels from the wire entry, stores the route under CIDR bytes (same
 // as FRR's SAFI remap), and stores labels as side-data on the FamilyRIB.
-func (r *RIBManager) insertLabeled(peerRIB *storage.PeerRIB, fam family.Family, attrBytes, wireEntry []byte, addPath, asn4 bool, affected *[]affectedPrefix) {
+func (r *RIBManager) insertLabeled(peerRIB *storage.PeerRIB, fam family.Family, attrBytes, wireEntry []byte, addPath bool, affected *[]affectedPrefix) {
 	labels, cidrBytes, err := nlrisplit.ExtractLabels(wireEntry, addPath)
 	if err != nil || len(cidrBytes) == 0 {
 		return
 	}
-	peerRIB.Insert(fam, attrBytes, cidrBytes, asn4)
+	peerRIB.Insert(fam, attrBytes, cidrBytes)
 	labelHandle := pool.InternLabels(labels)
 	if !peerRIB.SetLabelsIfRouteExists(fam, cidrBytes, labelHandle) {
 		if labelHandle.IsValid() {

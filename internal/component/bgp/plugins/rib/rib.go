@@ -31,6 +31,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
 	"github.com/ze-software/ze/internal/component/bgp/attrpool"
@@ -691,8 +692,17 @@ func runRIBPlugin(conn net.Conn) int {
 				return err
 			}
 			r.blackholeCfg.Store(&blackholeCfg)
+
+			// The notation an operator reads an AS number in. A bad token
+			// REFUSES the configuration, for the reason the blackhole map
+			// does. Running on with the previous answer tells the operator
+			// their edit took effect when it did not.
+			if err := configureASNotation(bgpCfg); err != nil {
+				return err
+			}
 		}
 		logger().Debug("rib configured",
+			"as-notation", asn.Configured().String(),
 			"maximum-paths", r.maximumPaths.Load(),
 			"relax-as-path", r.relaxASPath.Load(),
 			"blackhole-honor-rules", r.blackholeHonorRuleCount(),
@@ -1009,7 +1019,7 @@ func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family
 		logger().Warn("pool: split error, inserting parsed prefix", "peer", peerRIB.PeerAddr(), "family", famStr, "error", err, "parsed", len(prefixes))
 	}
 	for _, wirePrefix := range prefixes {
-		peerRIB.Insert(fam, attrBytes, wirePrefix, true)
+		peerRIB.Insert(fam, attrBytes, wirePrefix)
 	}
 	if m := metricsPtr.Load(); m != nil {
 		m.routeInserts.With(peerRIB.PeerAddr(), famStr).Add(float64(len(prefixes)))

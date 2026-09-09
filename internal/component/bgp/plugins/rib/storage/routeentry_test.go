@@ -111,7 +111,7 @@ func TestRouteEntry_Clone(t *testing.T) {
 // TestRouteEntry_ClonePreservesFingerprint verifies Clone copies AttrFingerprint and AttrLen.
 func TestRouteEntry_ClonePreservesFingerprint(t *testing.T) {
 	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop)
-	entry, fp, attrLen, err := ParseRouteEntry(attrs, true)
+	entry, fp, attrLen, err := ParseRouteEntry(attrs)
 	require.NoError(t, err)
 
 	clone := entry.Clone()
@@ -198,14 +198,14 @@ func TestRouteEntry_WireRoundTrip(t *testing.T) {
 
 	original := concat(wireOrigin, wireASPath, wireNextHop, wireLocalPref, wireMED)
 
-	entry, err := ParseAttributes(original, true)
+	entry, err := ParseAttributes(original)
 	require.NoError(t, err)
 	defer entry.Release()
 
 	reconstructed, err := entry.ToWireBytes()
 	require.NoError(t, err)
 
-	entry2, err := ParseAttributes(reconstructed, true)
+	entry2, err := ParseAttributes(reconstructed)
 	require.NoError(t, err)
 	defer entry2.Release()
 

@@ -122,7 +122,7 @@ func (r *RIBManager) handleInjectWireRoute(protocol, peerKey string, updateBody 
 	if err == nil && len(nlriData) > 0 && nlrisplit.Supported(ipv4Family) {
 		prefixes, _ := nlrisplit.Split(ipv4Family, nlriData, false)
 		for _, wirePrefix := range prefixes {
-			peerRIB.Insert(ipv4Family, attrBytes, wirePrefix, true)
+			peerRIB.Insert(ipv4Family, attrBytes, wirePrefix)
 		}
 	}
 
@@ -134,7 +134,7 @@ func (r *RIBManager) handleInjectWireRoute(protocol, peerKey string, updateBody 
 			if len(nlriBytes) > 0 {
 				prefixes, _ := nlrisplit.Split(fam, nlriBytes, false)
 				for _, wirePrefix := range prefixes {
-					peerRIB.Insert(fam, attrBytes, wirePrefix, true)
+					peerRIB.Insert(fam, attrBytes, wirePrefix)
 				}
 			}
 		}

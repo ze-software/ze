@@ -56,7 +56,7 @@ func TestRFC4271PartialBitClearedOnReadvertisedWellKnown(t *testing.T) {
 		0x60, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64, // LOCAL_PREF with Partial set
 		0xA0, 0x04, 0x04, 0x00, 0x00, 0x00, 0x0a, // MED with Partial set (0x80|0x20)
 	}
-	entry, err := ParseAttributes(raw, true)
+	entry, err := ParseAttributes(raw)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -90,7 +90,7 @@ func TestRFC4271PartialBitPreservedOnUnknownTransitive(t *testing.T) {
 		0x40, 0x01, 0x01, 0x00, // ORIGIN
 		0xE0, unknownCode, 0x03, 0x01, 0x02, 0x03, // unknown optional transitive, Partial set
 	}
-	entry, err := ParseAttributes(raw, true)
+	entry, err := ParseAttributes(raw)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -125,7 +125,7 @@ func TestRFC4271PartialBitSurvivesLengthReframing(t *testing.T) {
 	raw = append(raw, 0xF0, unknownCode, byte(len(value)>>8), byte(len(value))) // 0x80|0x40|0x20|0x10
 	raw = append(raw, value...)
 
-	entry, err := ParseAttributes(raw, true)
+	entry, err := ParseAttributes(raw)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -158,8 +158,8 @@ func TestRFC4271OverlappingRoutesBothInstalled(t *testing.T) {
 	less := []byte{8, 10}
 	more := []byte{24, 10, 0, 0}
 
-	rib.Insert(concat(wireOriginIGP, wireLocalPref100), less, true)
-	rib.Insert(concat(wireOriginIGP, wireMED100), more, true)
+	rib.Insert(concat(wireOriginIGP, wireLocalPref100), less)
+	rib.Insert(concat(wireOriginIGP, wireMED100), more)
 
 	assert.Equal(t, 2, rib.Len(), "both the covering and the more specific route are held")
 
@@ -194,10 +194,10 @@ func TestRFC4271SamePrefixReplacesRatherThanAccumulates(t *testing.T) {
 	defer rib.Release()
 
 	nlriBytes := []byte{24, 10, 0, 0}
-	rib.Insert(concat(wireOriginIGP, wireLocalPref100), nlriBytes, true)
+	rib.Insert(concat(wireOriginIGP, wireLocalPref100), nlriBytes)
 	require.Equal(t, 1, rib.Len())
 
-	rib.Insert(concat(wireOriginIGP, wireMED100), nlriBytes, true)
+	rib.Insert(concat(wireOriginIGP, wireMED100), nlriBytes)
 	assert.Equal(t, 1, rib.Len(), "identical NLRI replaces, it does not accumulate")
 
 	entry, ok := rib.lookupEntry(nlriBytes)
@@ -227,8 +227,8 @@ func TestRFC4271WithdrawRemovesFromAdjRIBIn(t *testing.T) {
 
 	kept := []byte{24, 10, 0, 1}
 	gone := []byte{24, 10, 0, 0}
-	rib.Insert(concat(wireOriginIGP, wireLocalPref100), kept, true)
-	rib.Insert(concat(wireOriginIGP, wireLocalPref100), gone, true)
+	rib.Insert(concat(wireOriginIGP, wireLocalPref100), kept)
+	rib.Insert(concat(wireOriginIGP, wireLocalPref100), gone)
 	require.Equal(t, 2, rib.Len())
 
 	rib.Remove(gone)

@@ -51,8 +51,8 @@ func TestRFC7752DifferentIdentifierIsDifferentRoutingUniverse(t *testing.T) {
 	universe0 := bgpLSNodeNLRI(0, 65001)
 	universe1 := bgpLSNodeNLRI(1, 65001)
 
-	rib.Insert(attrs, universe0, true)
-	rib.Insert(attrs, universe1, true)
+	rib.Insert(attrs, universe0)
+	rib.Insert(attrs, universe1)
 
 	assert.Equal(t, 2, rib.Len(), "distinct Identifier values yield distinct routes")
 	_, ok := rib.lookupEntry(universe0)
@@ -83,13 +83,13 @@ func TestRFC7752SameIdentifierIsOneRoutingUniverse(t *testing.T) {
 	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop)
 	nlri := bgpLSNodeNLRI(7, 65001)
 
-	rib.Insert(attrs, nlri, true)
-	rib.Insert(attrs, nlri, true)
+	rib.Insert(attrs, nlri)
+	rib.Insert(attrs, nlri)
 
 	assert.Equal(t, 1, rib.Len(), "the same Identifier is one routing universe")
 
 	// A descriptor change with the same Identifier is still a different node in
 	// that same universe, so it is a different route.
-	rib.Insert(attrs, bgpLSNodeNLRI(7, 65002), true)
+	rib.Insert(attrs, bgpLSNodeNLRI(7, 65002))
 	assert.Equal(t, 2, rib.Len(), "same universe, different node descriptor")
 }

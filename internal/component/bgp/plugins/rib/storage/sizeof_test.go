@@ -39,7 +39,7 @@ func TestHeapBytesPerPluginRIBRoute(t *testing.T) {
 			netip.AddrFrom4([4]byte{byte(10 + i>>16), byte(i >> 8), byte(i), 0}), 24,
 		)
 		nlriBytes := store.PrefixToNLRI(pfx)
-		rib.Insert(attrs, nlriBytes, true)
+		rib.Insert(attrs, nlriBytes)
 	}
 
 	runtime.GC()

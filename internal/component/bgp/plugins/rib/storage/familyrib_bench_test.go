@@ -19,7 +19,7 @@ func benchSetupRIB(b *testing.B, n int) (*FamilyRIB, [][]byte) {
 			netip.AddrFrom4([4]byte{byte(10 + i>>16), byte(i >> 8), byte(i), 0}), 24,
 		)
 		nlris[i] = store.PrefixToNLRI(pfx)
-		rib.Insert(attrs, nlris[i], true)
+		rib.Insert(attrs, nlris[i])
 	}
 	return rib, nlris
 }
@@ -88,7 +88,7 @@ func BenchmarkRIBInsertNoOp(b *testing.B) {
 	b.ResetTimer()
 	for range b.N {
 		for _, nlri := range nlris {
-			rib.Insert(attrs, nlri, true)
+			rib.Insert(attrs, nlri)
 		}
 	}
 }
@@ -109,7 +109,7 @@ func BenchmarkRIBInsertUnique(b *testing.B) {
 	for range b.N {
 		rib := newFamilyRIB(family.IPv4Unicast, false)
 		for _, nlri := range nlris {
-			rib.Insert(attrs, nlri, true)
+			rib.Insert(attrs, nlri)
 		}
 		rib.Release()
 	}
@@ -129,7 +129,7 @@ func BenchmarkRIBInsertReplace(b *testing.B) {
 	for i := range b.N {
 		attrs := attrSets[i&1]
 		for _, nlri := range nlris {
-			rib.Insert(attrs, nlri, true)
+			rib.Insert(attrs, nlri)
 		}
 	}
 }
@@ -151,7 +151,7 @@ func BenchmarkRIBInsertUniqueSharedAttrs(b *testing.B) {
 	b.ResetTimer()
 	for range b.N {
 		rib := newFamilyRIB(family.IPv4Unicast, false)
-		entry, fp, attrLen, err := ParseRouteEntry(attrs, true)
+		entry, fp, attrLen, err := ParseRouteEntry(attrs)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -182,7 +182,7 @@ func BenchmarkRIBInsertReplaceSharedAttrs(b *testing.B) {
 		nlris[i] = store.PrefixToNLRI(pfx)
 	}
 	// Seed with attrsA.
-	entryA, fpA, alA, _ := ParseRouteEntry(attrsA, true)
+	entryA, fpA, alA, _ := ParseRouteEntry(attrsA)
 	for _, nlri := range nlris {
 		rib.InsertEntry(nlri, entryA, fpA, alA)
 	}
@@ -192,7 +192,7 @@ func BenchmarkRIBInsertReplaceSharedAttrs(b *testing.B) {
 	b.ResetTimer()
 	for i := range b.N {
 		raw := attrSets[i&1]
-		entry, fp, attrLen, err := ParseRouteEntry(raw, true)
+		entry, fp, attrLen, err := ParseRouteEntry(raw)
 		if err != nil {
 			b.Fatal(err)
 		}

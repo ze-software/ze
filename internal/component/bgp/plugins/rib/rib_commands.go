@@ -23,6 +23,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
@@ -372,7 +373,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 		// and metric labels, which must match netip.Addr.String() everywhere.
 		r.bgpPeers[peer] = storage.NewPeerRIB(peer.String())
 	}
-	r.bgpPeers[peer].Insert(fam, attrBytes, nlriBytes, true)
+	r.bgpPeers[peer].Insert(fam, attrBytes, nlriBytes)
 	r.peerMu.Unlock()
 
 	r.reconcileBestPath(fam, nlriBytes)
@@ -520,11 +521,13 @@ func parseASNList(s string) ([]uint32, error) {
 		if p == "" {
 			continue
 		}
-		n, err := strconv.ParseUint(p, 10, 32)
+		// asn.Parse reads the asdot spellings beside the decimal one, so an
+		// operator injecting a route types the AS path the way they read it.
+		number, err := asn.Parse(p)
 		if err != nil {
 			return nil, fmt.Errorf("invalid ASN %q: %w", p, err)
 		}
-		asns = append(asns, uint32(n))
+		asns = append(asns, number)
 	}
 	return asns, nil
 }

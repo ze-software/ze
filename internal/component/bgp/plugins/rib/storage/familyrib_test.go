@@ -32,8 +32,8 @@ func TestFamilyRIB_OpaqueNonCIDR(t *testing.T) {
 	nlri1 := []byte{0x02, 0x19, 0x01, 0x02, 0x03}
 	nlri2 := []byte{0x02, 0x19, 0x01, 0x02, 0x04}
 
-	rib.Insert(attrs, nlri1, true)
-	rib.Insert(attrs, nlri2, true)
+	rib.Insert(attrs, nlri1)
+	rib.Insert(attrs, nlri2)
 	assert.Equal(t, 2, rib.Len(), "two distinct opaque NLRIs stored")
 
 	_, ok := rib.lookupEntry(nlri1)
@@ -72,14 +72,14 @@ func TestFamilyRIB_OpaqueImplicitWithdraw(t *testing.T) {
 	attrs1 := concat(wireOriginIGP, wireASPath65001, wireNextHop)
 	nlri := []byte{0x02, 0x19, 0x01, 0x02, 0x03}
 
-	rib.Insert(attrs1, nlri, true)
+	rib.Insert(attrs1, nlri)
 	entry1, _ := rib.lookupEntry(nlri)
 	originSlot := entry1.GetBundle().Origin.Slot()
 
 	// Mark stale, then re-insert with identical attrs -- stale flag clears,
 	// handles stay the same.
 	rib.MarkStale(1)
-	rib.Insert(attrs1, nlri, true)
+	rib.Insert(attrs1, nlri)
 	entry2, ok := rib.lookupEntry(nlri)
 	require.True(t, ok)
 	assert.Equal(t, StaleLevelFresh, entry2.StaleLevel, "stale flag cleared on re-insert")
@@ -105,8 +105,8 @@ func TestFamilyRIB_PerAttrDedup(t *testing.T) {
 	nlri1 := []byte{24, 10, 0, 0} // 10.0.0.0/24
 	nlri2 := []byte{24, 10, 0, 1} // 10.0.1.0/24
 
-	rib.Insert(attrs1, nlri1, true)
-	rib.Insert(attrs2, nlri2, true)
+	rib.Insert(attrs1, nlri1)
+	rib.Insert(attrs2, nlri2)
 
 	// Lookup both routes.
 	entry1, ok := rib.lookupEntry(nlri1)
@@ -137,7 +137,7 @@ func TestFamilyRIB_Insert(t *testing.T) {
 	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop)
 	nlriBytes := []byte{24, 192, 168, 1} // 192.168.1.0/24
 
-	rib.Insert(attrs, nlriBytes, true)
+	rib.Insert(attrs, nlriBytes)
 
 	assert.Equal(t, 1, rib.Len(), "should have 1 route")
 
@@ -159,7 +159,7 @@ func TestFamilyRIB_InsertRejectsMalformedAttributes(t *testing.T) {
 	attrs := []byte{0x40, 0x01, 0x64, 0x00, 0x00} // ORIGIN length says 100, only 2 bytes present.
 	nlriBytes := []byte{24, 192, 168, 1}
 
-	rib.Insert(attrs, nlriBytes, true)
+	rib.Insert(attrs, nlriBytes)
 
 	assert.Equal(t, 0, rib.Len())
 	_, ok := rib.lookupEntry(nlriBytes)
@@ -178,7 +178,7 @@ func TestFamilyRIB_ImplicitWithdraw(t *testing.T) {
 
 	// First insert with MED=10.
 	attrs1 := concat(wireOriginIGP, wireMED100)
-	rib.Insert(attrs1, nlriBytes, true)
+	rib.Insert(attrs1, nlriBytes)
 
 	entry1, ok := rib.lookupEntry(nlriBytes)
 	require.True(t, ok)
@@ -189,7 +189,7 @@ func TestFamilyRIB_ImplicitWithdraw(t *testing.T) {
 	// Second insert with MED=20 (implicit withdraw).
 	wireMED20 := []byte{0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x14}
 	attrs2 := concat(wireOriginIGP, wireMED20)
-	rib.Insert(attrs2, nlriBytes, true)
+	rib.Insert(attrs2, nlriBytes)
 
 	entry2, ok := rib.lookupEntry(nlriBytes)
 	require.True(t, ok)
@@ -217,7 +217,7 @@ func TestFamilyRIB_Remove(t *testing.T) {
 	attrs := concat(wireOriginIGP, wireLocalPref100)
 	nlriBytes := []byte{24, 10, 0, 0}
 
-	rib.Insert(attrs, nlriBytes, true)
+	rib.Insert(attrs, nlriBytes)
 	assert.Equal(t, 1, rib.Len())
 
 	removed := rib.Remove(nlriBytes)
@@ -240,8 +240,8 @@ func TestFamilyRIB_IterateEntry(t *testing.T) {
 	nlri1 := []byte{24, 10, 0, 0}
 	nlri2 := []byte{24, 10, 0, 1}
 
-	rib.Insert(attrs, nlri1, true)
-	rib.Insert(attrs, nlri2, true)
+	rib.Insert(attrs, nlri1)
+	rib.Insert(attrs, nlri2)
 
 	var count int
 	rib.IterateEntry(func(nlriBytes []byte, entry RouteEntry) bool {
@@ -266,11 +266,11 @@ func TestFamilyRIB_NoOpUpdate(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 
 	// Insert twice with same data.
-	rib.Insert(attrs, nlriBytes, true)
+	rib.Insert(attrs, nlriBytes)
 	entry1, _ := rib.lookupEntry(nlriBytes)
 	originSlot1 := entry1.GetBundle().Origin.Slot()
 
-	rib.Insert(attrs, nlriBytes, true)
+	rib.Insert(attrs, nlriBytes)
 	entry2, _ := rib.lookupEntry(nlriBytes)
 
 	// Should be same entry (or at least same slots).
@@ -290,7 +290,7 @@ func TestFamilyRIB_ToWireBytes(t *testing.T) {
 	attrs := concat(wireOriginIGP, wireLocalPref100, wireMED100)
 	nlriBytes := []byte{24, 10, 0, 0}
 
-	rib.Insert(attrs, nlriBytes, true)
+	rib.Insert(attrs, nlriBytes)
 
 	entry, ok := rib.lookupEntry(nlriBytes)
 	require.True(t, ok)
@@ -301,7 +301,7 @@ func TestFamilyRIB_ToWireBytes(t *testing.T) {
 
 	// Should contain ORIGIN, LOCAL_PREF, MED.
 	// Parse reconstructed to verify.
-	entry2, err := ParseAttributes(reconstructed, true)
+	entry2, err := ParseAttributes(reconstructed)
 	require.NoError(t, err)
 	defer entry2.Release()
 
@@ -330,14 +330,14 @@ func TestFamilyRIB_InsertEntry_CIDR(t *testing.T) {
 	// Insert via old path.
 	ribOld := newFamilyRIB(family.IPv4Unicast, false)
 	defer ribOld.Release()
-	ribOld.Insert(attrs, nlri1, true)
-	ribOld.Insert(attrs, nlri2, true)
-	ribOld.Insert(attrs, nlri3, true)
+	ribOld.Insert(attrs, nlri1)
+	ribOld.Insert(attrs, nlri2)
+	ribOld.Insert(attrs, nlri3)
 
 	// Insert via new parse-once path.
 	ribNew := newFamilyRIB(family.IPv4Unicast, false)
 	defer ribNew.Release()
-	entry, fp, attrLen, err := ParseRouteEntry(attrs, true)
+	entry, fp, attrLen, err := ParseRouteEntry(attrs)
 	require.NoError(t, err)
 	ribNew.InsertEntry(nlri1, entry, fp, attrLen)
 	ribNew.InsertEntry(nlri2, entry, fp, attrLen)
@@ -367,7 +367,7 @@ func TestFamilyRIB_InsertEntry_NoOpFingerprint(t *testing.T) {
 	defer rib.Release()
 
 	// First insert.
-	entry1, fp1, al1, err := ParseRouteEntry(attrs, true)
+	entry1, fp1, al1, err := ParseRouteEntry(attrs)
 	require.NoError(t, err)
 	rib.InsertEntry(nlri, entry1, fp1, al1)
 	entry1.Release()
@@ -377,7 +377,7 @@ func TestFamilyRIB_InsertEntry_NoOpFingerprint(t *testing.T) {
 	bundle1 := e1.Bundle
 
 	// Second insert with same attrs should be a no-op.
-	entry2, fp2, al2, err := ParseRouteEntry(attrs, true)
+	entry2, fp2, al2, err := ParseRouteEntry(attrs)
 	require.NoError(t, err)
 	rib.InsertEntry(nlri, entry2, fp2, al2)
 	entry2.Release()
@@ -397,7 +397,7 @@ func TestFamilyRIB_InsertEntry_Replace(t *testing.T) {
 	rib := newFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
-	entryA, fpA, alA, err := ParseRouteEntry(attrsA, true)
+	entryA, fpA, alA, err := ParseRouteEntry(attrsA)
 	require.NoError(t, err)
 	rib.InsertEntry(nlri, entryA, fpA, alA)
 	entryA.Release()
@@ -405,7 +405,7 @@ func TestFamilyRIB_InsertEntry_Replace(t *testing.T) {
 	e1, _ := rib.lookupEntry(nlri)
 	bundleA := e1.Bundle
 
-	entryB, fpB, alB, err := ParseRouteEntry(attrsB, true)
+	entryB, fpB, alB, err := ParseRouteEntry(attrsB)
 	require.NoError(t, err)
 	rib.InsertEntry(nlri, entryB, fpB, alB)
 	entryB.Release()
@@ -425,7 +425,7 @@ func TestFamilyRIB_InsertEntry_Opaque(t *testing.T) {
 	nlri1 := []byte{0x02, 0x19, 0x01, 0x02, 0x03}
 	nlri2 := []byte{0x02, 0x19, 0x01, 0x02, 0x04}
 
-	entry, fp, attrLen, err := ParseRouteEntry(attrs, true)
+	entry, fp, attrLen, err := ParseRouteEntry(attrs)
 	require.NoError(t, err)
 	rib.InsertEntry(nlri1, entry, fp, attrLen)
 	rib.InsertEntry(nlri2, entry, fp, attrLen)

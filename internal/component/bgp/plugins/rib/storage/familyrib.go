@@ -141,21 +141,19 @@ func (r *FamilyRIB) buildNLRIBytes(pathID uint32, pfx netip.Prefix, buf []byte) 
 // old entry) unless the new attributes are bit-identical, in which case the
 // new handles are released and the old entry is retained with its stale
 // flag cleared.
-// asn4 indicates whether the source uses 4-byte ASN encoding.
-//
 // Fast path: when the existing route has a fingerprint matching the raw
 // attribute bytes, ParseAttributes is skipped entirely. This eliminates
 // 95%+ of allocation in no-op re-announcement scenarios (route refresh,
 // peer churn replay, duplicate UPDATE storms).
-func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte, asn4 bool) {
-	fp := attrFingerprint(attrBytes, asn4)
+func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
+	fp := attrFingerprint(attrBytes)
 	attrLen := uint32(len(attrBytes))
 
 	if !r.cidr {
 		if r.insertOpaqueNoOp(nlriBytes, fp, attrLen) {
 			return
 		}
-		newEntry, err := ParseAttributes(attrBytes, asn4)
+		newEntry, err := ParseAttributes(attrBytes)
 		if err != nil {
 			return
 		}
@@ -174,7 +172,7 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte, asn4 bool) {
 		if r.insertMultiNoOp(pfx, pathID, fp, attrLen) {
 			return
 		}
-		newEntry, err := ParseAttributes(attrBytes, asn4)
+		newEntry, err := ParseAttributes(attrBytes)
 		if err != nil {
 			return
 		}
@@ -194,7 +192,7 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte, asn4 bool) {
 		}
 	}
 
-	newEntry, err := ParseAttributes(attrBytes, asn4)
+	newEntry, err := ParseAttributes(attrBytes)
 	if err != nil {
 		return
 	}
@@ -715,19 +713,19 @@ func entriesEqual(a, b RouteEntry) bool {
 	return a.Bundle == b.Bundle && a.ASPath == b.ASPath
 }
 
-// attrFingerprint computes an FNV-1a 64-bit hash of raw attribute bytes and
-// ASN4 flag. Used with AttrLen as a composite guard for fast no-op detection.
+// attrFingerprint computes an FNV-1a 64-bit hash of raw attribute bytes. Used
+// with AttrLen as a composite guard for fast no-op detection.
 // Never returns 0 (FNV offset basis is non-zero). The zero sentinel on
 // RouteEntry.AttrFingerprint catches entries inserted before fingerprinting.
-func attrFingerprint(attrBytes []byte, asn4 bool) uint64 {
+//
+// The bytes alone identify the entry: every caller hands over attributes that
+// are already four-octet, so two identical byte strings can no longer mean two
+// different AS paths.
+func attrFingerprint(attrBytes []byte) uint64 {
 	h := uint64(14695981039346656037) // FNV offset basis
 	for _, b := range attrBytes {
 		h ^= uint64(b)
 		h *= 1099511628211 // FNV prime
-	}
-	if asn4 {
-		h ^= 1
-		h *= 1099511628211
 	}
 	return h
 }
