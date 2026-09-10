@@ -170,7 +170,7 @@ func needsIPv6(root string) (bool, error) {
 func prepareScenario(root, producer, suffix string, prepare interoplab.PrepareContext) (interoplab.PreparedScenario, error) {
 	var name textbuf.Buffer
 	renderedName := name.Str(prepare.Source.Name).Byte('-').Str(suffix).String()
-	rendered := filepath.Join(root, "tmp", "interop-rendered", renderedName)
+	rendered := filepath.Join(root, "tmp", interoplab.RenderedConfigDirectory, renderedName)
 	if err := os.RemoveAll(rendered); err != nil {
 		return interoplab.PreparedScenario{}, err
 	}

@@ -12,6 +12,9 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// RenderedConfigDirectory holds Docker-bound files under the checkout's tmp directory.
+const RenderedConfigDirectory = "interop-rendered"
+
 // Preparer renders configuration after Docker selects the network. If Cleanup
 // is non-nil, the core always calls it, including when Preparer returns an error.
 type Preparer func(context.Context, PrepareContext) (PreparedScenario, error)

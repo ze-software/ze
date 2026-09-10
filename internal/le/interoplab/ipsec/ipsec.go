@@ -22,7 +22,6 @@ import (
 	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/test/sessionpath"
 )
 
 const (
@@ -215,7 +214,10 @@ func scenarioPlan(root string, environment interoplab.Environment, source intero
 }
 
 func prepareScenario(root string, source interoplab.ScenarioSource, state *scenarioState, zeContainer, swanContainer, frrContainer, natContainer string) (interoplab.PreparedScenario, error) {
-	scratchRoot := sessionpath.EnsureScratchRoot(root)
+	scratchRoot := filepath.Join(root, "tmp", interoplab.RenderedConfigDirectory)
+	if err := os.MkdirAll(scratchRoot, 0o750); err != nil {
+		return interoplab.PreparedScenario{}, fmt.Errorf("create rendered config directory: %w", err)
+	}
 	var tb textbuf.Buffer
 	pattern := tb.Str("ze-ipsec-").Str(source.Name).Byte('-').String()
 	workDir, err := os.MkdirTemp(scratchRoot, pattern)

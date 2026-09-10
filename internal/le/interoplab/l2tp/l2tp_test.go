@@ -238,6 +238,13 @@ func TestPlanPeerCommandsAndConfigBytes(t *testing.T) {
 	scenario03 := filepath.Join(root, "test", "interop-l2tp", "scenarios", scenarioInitiator)
 	initiator := peerByName(t, prepared[2].Peers, peerZe)
 	renderedPath := mountSource(t, initiator, "/etc/ze/ze.conf")
+	relativePath, err := filepath.Rel(root, renderedPath)
+	if err != nil {
+		t.Fatalf("resolve rendered initiator config relative to checkout: %v", err)
+	}
+	if !filepath.IsLocal(relativePath) {
+		t.Fatalf("rendered initiator config is outside the Docker-shared checkout: %s", renderedPath)
+	}
 	rendered, err := os.ReadFile(renderedPath)
 	if err != nil {
 		t.Fatalf("read rendered initiator config: %v", err)

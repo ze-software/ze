@@ -161,7 +161,7 @@ func prepareScenario(_ context.Context, root string, source interoplab.ScenarioS
 	zeConfig := filepath.Join(directory, "ze.conf")
 	var cleanup func() error
 	if source.Name == scenarioInitiator {
-		rendered, remove, err := renderInitiatorConfig(directory, network)
+		rendered, remove, err := renderInitiatorConfig(root, directory, network)
 		if err != nil {
 			return interoplab.PreparedScenario{}, err
 		}
@@ -385,7 +385,7 @@ func parsePreflight(output string) map[string]string {
 	return checks
 }
 
-func renderInitiatorConfig(directory string, network interoplab.Network) (string, func() error, error) {
+func renderInitiatorConfig(root, directory string, network interoplab.Network) (string, func() error, error) {
 	configPath := filepath.Join(directory, "ze.conf")
 	config, err := os.ReadFile(configPath) // #nosec G304 -- configPath is inside the discovered, repository-owned L2TP scenario fixture.
 	if err != nil {
@@ -402,7 +402,11 @@ func renderInitiatorConfig(directory string, network interoplab.Network) (string
 		return "", nil, errors.New("initiator config must contain exactly one xl2tpd address")
 	}
 	rendered := []byte(strings.Replace(string(config), oldLine, newLine, 1))
-	directoryRendered, err := os.MkdirTemp("", "ze-l2tp-03-")
+	scratchRoot := filepath.Join(root, "tmp", interoplab.RenderedConfigDirectory)
+	if err := os.MkdirAll(scratchRoot, 0o750); err != nil {
+		return "", nil, fmt.Errorf("create rendered config directory: %w", err)
+	}
+	directoryRendered, err := os.MkdirTemp(scratchRoot, "ze-l2tp-03-")
 	if err != nil {
 		return "", nil, fmt.Errorf("create initiator config directory: %w", err)
 	}

@@ -409,6 +409,14 @@ every `ze.conf` (`renderScenario`), so no scenario carries the boilerplate and
 none can forget it. The native IPsec plan appends the same blocks in
 `renderZeConfig` (`internal/le/interoplab/ipsec/ipsec.go`).
 
+Rendered configurations stay under `tmp/interop-rendered` in the checkout.
+Docker must share the checkout with its Linux VM. An unshared system-temp path
+gives the container a directory instead of the configuration file.
+IPsec and L2TP create private directories there even without an AI session ID.
+<!-- source: internal/le/interoplab/lab.go -- RenderedConfigDirectory -->
+<!-- source: internal/le/interoplab/ipsec/ipsec.go -- prepareScenario -->
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- renderInitiatorConfig -->
+
 **A Ze helper never converts a failed query into a plausible number.**
 `Ze.rib_count` raises when the command fails or answers without a `routes-in`
 field, because 0 is a legitimate RIB size and a failed query is not
