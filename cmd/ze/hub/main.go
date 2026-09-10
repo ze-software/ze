@@ -891,6 +891,14 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		webPortalServices = append(webPortalServices, portals...)
 	}
 
+	_, hasBGPBlock := configTree["bgp"]
+	// Install the registry before plugins construct their metric handles.
+	if _, hasTelemetry := configTree["telemetry"]; hasTelemetry && !hasBGPBlock {
+		if st := startStandaloneTelemetry(loadResult.Tree); st != nil {
+			defer st.Close()
+		}
+	}
+
 	startCtx := context.Background()
 	if err := eng.Start(startCtx); err != nil {
 		fmt.Fprintf(os.Stderr, "error starting engine: %v\n", err)
@@ -993,7 +1001,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// Without BGP, main owns the AAA bundle for every management surface. Build
 	// and install it before standalone SSH, MCP, REST, or gRPC can bind. The BGP
 	// path remains owned by infraSetup through the reactor hook.
-	_, hasBGPBlock := configTree["bgp"]
 	var noBGPAuthenticator aaa.Authenticator
 	var noBGPAuthorizer aaa.Authorizer
 	if !hasBGPBlock {
@@ -1016,12 +1023,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		if d := apiServer.Dispatcher(); d != nil {
 			installNoBGPAAADispatch(d)
 			aaaLog.Info("authorization and accounting configured", "source", "live aaa bundle", "path", "no-bgp")
-		}
-	}
-
-	if _, hasTelemetry := configTree["telemetry"]; hasTelemetry && !hasBGPBlock {
-		if st := startStandaloneTelemetry(loadResult.Tree); st != nil {
-			defer st.Close()
 		}
 	}
 

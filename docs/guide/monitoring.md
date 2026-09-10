@@ -138,6 +138,10 @@ The plugin receives events through its `OnEvent` callback. See [Plugins guide](p
 
 Ze exposes Prometheus metrics when `telemetry { prometheus { ... } }` is configured. BGP metrics are refreshed every 10 seconds. By default the HTTP listener binds to `127.0.0.1:9273`; configure an explicit server address to expose it to remote scrapers.
 
+Without BGP, Ze installs the metrics registry before plugins start. Their
+startup counters then use the same registry that the exporter serves.
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig; cmd/ze/hub/main_system.go -- startStandaloneTelemetry -->
+
 The `netdata` block only controls Netdata-compatible OS collector metrics. It does not rename Ze-native metrics such as `ze_bgp_*`, `ze_bfd_*`, or `ze_l2tp_*`.
 
 ```
