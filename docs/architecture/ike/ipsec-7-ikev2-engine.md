@@ -16,8 +16,32 @@ the SA lifecycle events.
 **The engine registers as a named plugin, it is not wired directly.** It
 registers as `ike` over the SDK protocol and claims the `vpn` and `pki` config
 roots, so it receives config through the standard plugin pipeline instead of a
-bespoke hook. It runs as a plugin subprocess, which is why it holds no interface
-backend and takes the XFRM interface id from config.
+bespoke hook. Config-path auto-loading runs it as an internal plugin goroutine
+in the daemon, with a `DirectBridge` after the SDK handshake. The command
+handlers read the same `ActiveTable`, peer map and dataplane backend that this
+engine updates. The XFRM interface id comes from peer config.
+
+<!-- source: internal/component/plugin/server/startup_autoload.go -- getConfigPathPlugins -->
+<!-- source: internal/component/plugin/process/process.go -- startInternal -->
+
+**Startup opens the sockets before it starts peers.** `OnConfigure` applies the
+configuration and starts the IKE and NAT-T receive loops, then stages the peer
+configuration for `OnAllPluginsReady`. On successful startup, that callback runs
+after the startup phases finish and their subscriptions are registered.
+A failed phase also triggers the callback, so it does not prove that every
+configured plugin became ready. It starts peer goroutines without waiting for
+an exchange.
+
+`ike engine configured` therefore proves config delivery, and `ike peers started`
+proves the startup reconciliation ran. Neither line proves an SA established.
+An initiator inserts its SA before sending IKE_SA_INIT. A responder inserts one
+only when `tryResponderSAInit` admits a received request from a configured peer.
+The establishment lines come from `runInitiator` and `runResponder` after the
+handshake reaches `StateEstablished`.
+
+<!-- source: internal/component/ike/engine/register.go -- runEngine, tryResponderSAInit -->
+<!-- source: internal/component/ike/engine/fsm.go -- runInitiator, runResponder -->
+<!-- source: internal/component/plugin/server/startup.go -- runPluginStartup, signalStartupComplete -->
 
 **Config arrives as JSON and is stored as both container and list.** The SDK
 delivers JSON, and `ParseIPsecConfig` expects a `config.Tree`. `treeFromMap`
