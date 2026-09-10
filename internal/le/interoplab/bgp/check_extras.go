@@ -8,6 +8,14 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+var ospfAdjacencyContinuity = operation{
+	kind:    opRequireAbsent,
+	peer:    "ze",
+	command: zeCommand("show metrics values"),
+	absent:  []string{"ll-down"},
+	proof:   []string{"ze_ospf_nsm_events_total", "exchange-done"},
+}
+
 var scenarioExtras = map[string][]operation{
 	scenarioAS112OriginASFRR: {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowAS112PrefixJSON}, contains: []string{as112DirectDelegationPrefix, "112"}},
@@ -207,9 +215,28 @@ var scenarioExtras = map[string][]operation{
 	// kernel reports 10000 and the derived cost is 47. Ze advertised 1 for every
 	// interface with no `cost` before auto-cost existed, so the peer's view of 47 is
 	// what discriminates the feature from its absence.
+	// The native reload fixture supplies an explicit cost after Full. Restoring
+	// the initial config removes that leaf. Each reload must reach FRR's LSDB.
+	// InterfaceDown records ll-down in the persistent NSM event counter, so its
+	// absence catches even a reset that has already re-established Full.
 	"ospf-auto-cost-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFDatabaseRouter}, contains: []string{zeLabAddress, "Metric: 47"}, timeout: 60 * time.Second},
 		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf interface"), contains: []string{"\"cost\": 47"}},
+		ospfAdjacencyContinuity,
+		{kind: opExec, peer: "ze", command: []string{"sh", "-c", "cp " + zeMountedReloadConfig + " " + zeRunningConfig}},
+		{kind: opSignal, peer: "ze", argument: signalHUP},
+		{kind: opWaitContains, peer: "ze", command: zeCommand("show ospf interface"), contains: []string{"\"cost\": 17"}, timeout: 30 * time.Second},
+		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf neighbor"), contains: []string{"\"state\": \"full\""}},
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFDatabaseRouter}, contains: []string{zeLabAddress, "Metric: 17"}, timeout: 30 * time.Second},
+		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}},
+		ospfAdjacencyContinuity,
+		{kind: opExec, peer: "ze", command: []string{"sh", "-c", "cp " + zeMountedConfig + " " + zeRunningConfig}},
+		{kind: opSignal, peer: "ze", argument: signalHUP},
+		{kind: opWaitContains, peer: "ze", command: zeCommand("show ospf interface"), contains: []string{"\"cost\": 47"}, timeout: 30 * time.Second},
+		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf neighbor"), contains: []string{"\"state\": \"full\""}},
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFDatabaseRouter}, contains: []string{zeLabAddress, "Metric: 47"}, timeout: 30 * time.Second},
+		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}},
+		ospfAdjacencyContinuity,
 	},
 	"ospf-p2p-frr": {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ip ospf interface"}, contains: []string{"POINTOPOINT"}},

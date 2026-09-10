@@ -222,9 +222,6 @@ func TestOSPFConfigApplyReconcile(t *testing.T) {
 	if !eng.transport.InterfaceOpen("eth0") || !eng.transport.InterfaceOpen("eth1") {
 		t.Fatalf("metric-only change closed an interface")
 	}
-	if !res.changed["eth1"] || res.changed["eth0"] {
-		t.Fatalf("changed journal = %+v, want only eth1", res)
-	}
 	if len(res.opened) != 0 || len(res.closed) != 0 {
 		t.Fatalf("metric-only reconcile opened=%v closed=%v, want none", res.opened, res.closed)
 	}

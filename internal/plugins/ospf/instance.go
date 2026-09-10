@@ -872,11 +872,8 @@ func (e *engine) reconcile(newCfg ospfConfig) reconcileResult {
 			}
 			res.changed[name] = true
 		default:
-			// Nothing this interface stamps into a packet moved, so it keeps its state
-			// machine, its neighbors and its DR. Its auto-cost quotient can still have
-			// moved, because the reference bandwidth lives outside its block: push the new
-			// cost into the runtime so `show ospf interface` reports what the Router-LSA
-			// carries.
+			// Cost-only changes preserve the state machine, neighbors and DR.
+			// Refresh both the origination topology and the CLI runtime cost.
 			e.mu.Lock()
 			e.repriceInterfaceLocked(want)
 			e.mu.Unlock()
@@ -952,12 +949,11 @@ func (e *engine) startInterfaceLocked(ic interfaceConfig) {
 	}
 }
 
-// repriceInterfaceLocked pushes the interface's current output cost into its running
-// runtime. A `reference-bandwidth` change moves the auto-cost quotient of every interface
-// that configures no `cost`, and the Router-LSA takes that quotient from lsdbTopology on
-// the next origination pass, so the runtime's stored copy is the only reader a restart
-// would have refreshed. Callers MUST hold e.mu.
+// repriceInterfaceLocked updates the enrolled config that lsdbTopology reads and
+// the runtime cost shown by the CLI. Explicit cost changes and auto-cost changes
+// preserve the interface state machine. Callers MUST hold e.mu.
 func (e *engine) repriceInterfaceLocked(ic interfaceConfig) {
+	e.running[ic.Name] = ic
 	rt := e.interfaces[ic.Name]
 	if rt == nil {
 		return
@@ -1244,13 +1240,13 @@ func (e *engine) startInterfaceUpLocked(name string) bool {
 	return false
 }
 
+// interfaceParamsEqual compares interface restart boundaries. Cost is applied
+// in place by repriceInterfaceLocked, including addition and removal of the leaf.
 func interfaceParamsEqual(a, b interfaceConfig) bool {
 	return a.Enabled == b.Enabled &&
 		a.Passive == b.Passive &&
 		a.AreaID == b.AreaID &&
 		a.NetworkType == b.NetworkType &&
-		a.Cost == b.Cost &&
-		a.HasCost == b.HasCost &&
 		a.HelloInterval == b.HelloInterval &&
 		a.DeadInterval == b.DeadInterval &&
 		a.Priority == b.Priority &&

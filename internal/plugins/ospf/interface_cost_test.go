@@ -9,6 +9,7 @@ package ospf
 import (
 	"slices"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
@@ -209,7 +210,7 @@ func TestReferenceBandwidthReachesEveryAddressFamily(t *testing.T) {
 // VALIDATES: AC-8b and AC-11 on a reload -- an OSPFv3 address family re-prices a link the
 // way the OSPFv2 family does. The numerator reaches the address-family engine through
 // v6Families, which is what v6EngineSet.apply hands to (*engine).reconcile, so the interface
-// restarts and the OSPFv3 origination topology carries the new cost.
+// stays running and the OSPFv3 origination topology carries the new cost.
 // PREVENTS: an OSPFv3 family that keeps the cost it started with after a reload. The two
 // families would then advertise two costs for one link until the daemon restarts, which is
 // the round 1 BLOCKER re-appearing on the reload path rather than on the initial config.
@@ -277,107 +278,325 @@ func TestReferenceBandwidthReloadRepricesEveryAddressFamily(t *testing.T) {
 // ospf-auto-cost-frr is where a peer exists.
 func TestReferenceBandwidthReloadKeepsNeighborAndReprices(t *testing.T) {
 	stubLinkSpeed(t, map[string]uint64{"eth0": 1000})
-	// min-ls-interval-ms 1 lets the reload's origination install inside one test. RFC 2328
-	// Appendix B sets MinLSInterval to 5 seconds, which defers a second origination of one
-	// LSA whatever produced it, so the default would hide the reconcile pass rather than the
-	// rate limit.
-	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","reference-bandwidth":"100000","timers":{"min-ls-interval-ms":"1"},"areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}}}}`), nil)
-	if err != nil {
-		t.Fatalf("parseOSPFConfig: %v", err)
-	}
-	if cfg.Timers.MinLSIntervalMS != 1 {
-		t.Fatalf("min-ls-interval-ms = %d, want 1: the reload origination would be rate-limited", cfg.Timers.MinLSIntervalMS)
-	}
-	eng := newEngine(transport.New(&fakeBackend{}))
-	eng.setConfig(cfg)
-	addressedTopology(eng)
-	if err := eng.openInterfaces(); err != nil {
-		t.Fatalf("openInterfaces: %v", err)
-	}
-	defer eng.shutdown()
+	synctest.Test(t, func(t *testing.T) {
+		// min-ls-interval-ms 1 lets the reload's origination install inside one test. RFC 2328
+		// Appendix B sets MinLSInterval to 5 seconds, which defers a second origination of one
+		// LSA whatever produced it, so the default would hide the reconcile pass rather than the
+		// rate limit.
+		cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","reference-bandwidth":"100000","timers":{"min-ls-interval-ms":"1"},"areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}}}}`), nil)
+		if err != nil {
+			t.Fatalf("parseOSPFConfig: %v", err)
+		}
+		if cfg.Timers.MinLSIntervalMS != 1 {
+			t.Fatalf("min-ls-interval-ms = %d, want 1: the reload origination would be rate-limited", cfg.Timers.MinLSIntervalMS)
+		}
+		eng := newEngine(transport.New(&fakeBackend{}))
+		eng.setConfig(cfg)
+		addressedTopology(eng)
+		if err := eng.openInterfaces(); err != nil {
+			t.Fatalf("openInterfaces: %v", err)
+		}
+		defer eng.shutdown()
 
-	before := eng.interfaces["eth0"]
-	if before == nil {
-		t.Fatal("eth0 has no interface runtime after openInterfaces")
-	}
-	peer := types.RouterID{10, 0, 0, 2}
-	detail := before.Snapshot()
-	// The Hello lists this router, so helloHasNeighbor answers true and the neighbor reaches
-	// 2-Way. A Hello that lists nobody leaves it one-way in Init, and NeighborCount counts a
-	// one-way neighbor the same, so the neighbor state is read out of the neighbor table.
-	hello := types.Hello{
-		HelloInterval: detail.HelloInterval,
-		DeadInterval:  uint32(detail.DeadInterval),
-		Options:       types.OptionE,
-		Priority:      1,
-		Neighbors:     []types.RouterID{cfg.RouterID},
-	}
-	if reason := before.ReceiveHello(peer, hello, time.Now()); reason != "" {
-		t.Fatalf("ReceiveHello: %s", reason)
-	}
-	if snap, ok := eng.neighbors.Lookup("eth0", peer); !ok || snap.State != "2-way" {
-		t.Fatalf("neighbor state before the reload = %q (present %v), want 2-way: the Hello names this router", snap.State, ok)
-	}
-	if got := topologyCost(t, eng, "eth0"); got != 100 {
-		t.Fatalf("eth0 advertised cost = %d, want 100 before the reload", got)
-	}
-	eng.originateSelfLSAs()
-	if got := selfRouterLSAMetric(t, eng, cfg.RouterID); got != 100 {
-		t.Fatalf("Router-LSA link metric = %d, want 100 before the reload", got)
-	}
+		before := eng.interfaces["eth0"]
+		if before == nil {
+			t.Fatal("eth0 has no interface runtime after openInterfaces")
+		}
+		peer := types.RouterID{10, 0, 0, 2}
+		detail := before.Snapshot()
+		// The Hello lists this router, so helloHasNeighbor answers true and the neighbor reaches
+		// 2-Way. A Hello that lists nobody leaves it one-way in Init, and NeighborCount counts a
+		// one-way neighbor the same, so the neighbor state is read out of the neighbor table.
+		hello := types.Hello{
+			HelloInterval: detail.HelloInterval,
+			DeadInterval:  uint32(detail.DeadInterval),
+			Options:       types.OptionE,
+			Priority:      1,
+			Neighbors:     []types.RouterID{cfg.RouterID},
+		}
+		if reason := before.ReceiveHello(peer, hello, time.Now()); reason != "" {
+			t.Fatalf("ReceiveHello: %s", reason)
+		}
+		if snap, ok := eng.neighbors.Lookup("eth0", peer); !ok || snap.State != "2-way" {
+			t.Fatalf("neighbor state before the reload = %q (present %v), want 2-way: the Hello names this router", snap.State, ok)
+		}
+		if got := topologyCost(t, eng, "eth0"); got != 100 {
+			t.Fatalf("eth0 advertised cost = %d, want 100 before the reload", got)
+		}
+		eng.originateSelfLSAs()
+		if got := selfRouterLSAMetric(t, eng, cfg.RouterID); got != 100 {
+			t.Fatalf("Router-LSA link metric = %d, want 100 before the reload", got)
+		}
 
-	lowered, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","reference-bandwidth":"10000","timers":{"min-ls-interval-ms":"1"},"areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}}}}`), nil)
-	if err != nil {
-		t.Fatalf("parseOSPFConfig(lowered): %v", err)
-	}
-	// Past the 1 ms MinLSInterval set above, so the reconcile's origination installs rather
-	// than being deferred by RFC 2328 Appendix B rate limiting.
-	time.Sleep(2 * time.Millisecond)
-	res := eng.reconcile(lowered)
+		lowered, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","reference-bandwidth":"10000","timers":{"min-ls-interval-ms":"1"},"areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}}}}`), nil)
+		if err != nil {
+			t.Fatalf("parseOSPFConfig(lowered): %v", err)
+		}
+		// sleep(protocol): cross the configured MinLSInterval in virtual time so
+		// reconcile can publish immediately rather than waiting for maintenance.
+		time.Sleep(2 * time.Millisecond)
+		res := eng.reconcile(lowered)
 
-	if res.changed["eth0"] {
-		t.Errorf("reconcile journal = %+v, want eth0 untouched: a re-pricing must not restart the interface", res)
-	}
-	if eng.interfaces["eth0"] != before {
-		t.Fatal("reconcile replaced the interface runtime it re-priced, so it dropped the adjacency")
-	}
-	if snap, ok := eng.neighbors.Lookup("eth0", peer); !ok || snap.State != "2-way" {
-		t.Errorf("neighbor state after the re-pricing reload = %q (present %v), want 2-way: the neighbor must survive it", snap.State, ok)
-	}
-	if got := before.Snapshot().NeighborCount; got != 1 {
-		t.Errorf("the re-priced runtime holds %d neighbors, want 1", got)
-	}
-	if got := topologyCost(t, eng, "eth0"); got != 10 {
-		t.Errorf("eth0 advertised cost = %d after the reload, want the re-priced 10", got)
-	}
-	if got := snapshotByName(t, eng.interfaceSnapshot(), "eth0").Cost; got != 10 {
-		t.Errorf("eth0 `show ospf interface` cost = %d after the reload, want the re-priced 10", got)
-	}
-	// The Router-LSA an OSPFv2 peer reads. reconcile originates before it returns, so the
-	// commit publishes the new metric rather than waiting for an unrelated event: no
-	// interface restarted, so no neighbor transition drives an origination pass.
-	if got := selfRouterLSAMetric(t, eng, cfg.RouterID); got != 10 {
-		t.Errorf("Router-LSA link metric = %d after the reload, want the re-priced 10", got)
-	}
+		if res.changed["eth0"] {
+			t.Errorf("reconcile journal = %+v, want eth0 untouched: a re-pricing must not restart the interface", res)
+		}
+		if eng.interfaces["eth0"] != before {
+			t.Fatal("reconcile replaced the interface runtime it re-priced, so it dropped the adjacency")
+		}
+		if snap, ok := eng.neighbors.Lookup("eth0", peer); !ok || snap.State != "2-way" {
+			t.Errorf("neighbor state after the re-pricing reload = %q (present %v), want 2-way: the neighbor must survive it", snap.State, ok)
+		}
+		if got := before.Snapshot().NeighborCount; got != 1 {
+			t.Errorf("the re-priced runtime holds %d neighbors, want 1", got)
+		}
+		if got := topologyCost(t, eng, "eth0"); got != 10 {
+			t.Errorf("eth0 advertised cost = %d after the reload, want the re-priced 10", got)
+		}
+		if got := snapshotByName(t, eng.interfaceSnapshot(), "eth0").Cost; got != 10 {
+			t.Errorf("eth0 `show ospf interface` cost = %d after the reload, want the re-priced 10", got)
+		}
+		// The Router-LSA an OSPFv2 peer reads. reconcile originates before it returns, so the
+		// commit publishes the new metric rather than waiting for an unrelated event: no
+		// interface restarted, so no neighbor transition drives an origination pass.
+		if got := selfRouterLSAMetric(t, eng, cfg.RouterID); got != 10 {
+			t.Errorf("Router-LSA link metric = %d after the reload, want the re-priced 10", got)
+		}
 
-	// A Router ID change is stamped into every Hello the interface sends, so it still
-	// recreates the runtime and drops the neighbor. Without this arm the assertions above
-	// would also pass against a reconcile that never restarts anything.
-	renamed, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.9","reference-bandwidth":"10000","timers":{"min-ls-interval-ms":"1"},"areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}}}}`), nil)
-	if err != nil {
-		t.Fatalf("parseOSPFConfig(renamed): %v", err)
+		// A Router ID change is stamped into every Hello the interface sends, so it still
+		// recreates the runtime and drops the neighbor. Without this arm the assertions above
+		// would also pass against a reconcile that never restarts anything.
+		renamed, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.9","reference-bandwidth":"10000","timers":{"min-ls-interval-ms":"1"},"areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}}}}`), nil)
+		if err != nil {
+			t.Fatalf("parseOSPFConfig(renamed): %v", err)
+		}
+		if res := eng.reconcile(renamed); !res.changed["eth0"] {
+			t.Fatalf("reconcile journal = %+v, want eth0 restarted by a Router ID change", res)
+		}
+		if eng.interfaces["eth0"] == before {
+			t.Error("a Router ID change kept the interface runtime, so the Hellos carry the old identity")
+		}
+		// InterfaceDown keeps the table entry and drops it to Down (RFC 2328 sec 10.2 KillNbr),
+		// so the 2-Way the Hello reached is gone rather than the row.
+		if held, ok := eng.neighbors.Lookup("eth0", peer); !ok || held.State != "down" {
+			t.Errorf("eth0 neighbor after the Router ID restart = %q (present %v), want down", held.State, ok)
+		}
+	})
+}
+
+// TestExplicitCostReloadKeepsNeighborAndReprices reads the CLI snapshot and the
+// originated Router-LSA across explicit cost addition, replacement, and removal.
+// Passive and loopback interfaces must also publish after MinLSInterval without
+// a restart or a test-triggered origination retry.
+func TestExplicitCostReloadKeepsNeighborAndReprices(t *testing.T) {
+	stubLinkSpeed(t, map[string]uint64{"eth0": 1000})
+	for _, mode := range []struct {
+		name    string
+		options string
+	}{
+		{name: "active", options: `"priority":"0"`},
+		{name: "passive", options: `"passive":"true"`},
+		{name: "loopback", options: `"network-type":"loopback"`},
+	} {
+		t.Run(mode.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				configForCost := func(cost string) ospfConfig {
+					t.Helper()
+					cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","reference-bandwidth":"100000","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0",`+mode.options+cost+`}}}}}`), nil)
+					if err != nil {
+						t.Fatalf("parseOSPFConfig: %v", err)
+					}
+					return cfg
+				}
+				cfg := configForCost("")
+				eng := newEngine(transport.New(&fakeBackend{}))
+				defer eng.shutdown()
+				eng.setConfig(cfg)
+				addressedTopology(eng)
+				if err := eng.openInterfaces(); err != nil {
+					t.Fatalf("openInterfaces: %v", err)
+				}
+				before := eng.interfaces["eth0"]
+				peer := types.RouterID{10, 0, 0, 2}
+				if mode.name == "active" {
+					detail := before.Snapshot()
+					hello := types.Hello{
+						HelloInterval: detail.HelloInterval,
+						DeadInterval:  uint32(detail.DeadInterval),
+						Options:       types.OptionE,
+						Neighbors:     []types.RouterID{cfg.RouterID},
+					}
+					if reason := before.ReceiveHello(peer, hello, time.Now()); reason != "" {
+						t.Fatalf("ReceiveHello: %s", reason)
+					}
+					if snap, ok := eng.neighbors.Lookup("eth0", peer); !ok || snap.State != "2-way" {
+						t.Fatalf("initial neighbor = %+v (present %v), want 2-way", snap, ok)
+					}
+				}
+				eng.originateSelfLSAs()
+				synctest.Wait()
+				previous := types.Metric(100)
+				if got := selfRouterLSAMetric(t, eng, cfg.RouterID); got != previous {
+					t.Fatalf("initial Router-LSA cost = %d, want %d", got, previous)
+				}
+				for _, step := range []struct {
+					name string
+					leaf string
+					want types.Metric
+				}{
+					{name: "add", leaf: `,"cost":"17"`, want: 17},
+					{name: "change", leaf: `,"cost":"29"`, want: 29},
+					{name: "remove", want: 100},
+				} {
+					cfg = configForCost(step.leaf)
+					eng.reconcile(cfg)
+					synctest.Wait()
+					if eng.interfaces["eth0"] != before {
+						t.Fatalf("%s replaced the interface runtime", step.name)
+					}
+					if mode.name == "active" {
+						if snap, ok := eng.neighbors.Lookup("eth0", peer); !ok || snap.State != "2-way" {
+							t.Fatalf("%s neighbor = %+v (present %v), want retained 2-way", step.name, snap, ok)
+						}
+					}
+					if got := snapshotByName(t, eng.interfaceSnapshot(), "eth0").Cost; got != uint16(step.want) {
+						t.Errorf("%s CLI cost = %d, want %d", step.name, got, step.want)
+					}
+					if got := selfRouterLSAMetric(t, eng, cfg.RouterID); got != previous {
+						t.Fatalf("%s Router-LSA cost during MinLSInterval = %d, want %d", step.name, got, previous)
+					}
+					// sleep(protocol): cross the five-second MinLSInterval in virtual
+					// time. Only the maintenance worker retries the reload's LSA.
+					time.Sleep(5 * time.Second)
+					synctest.Wait()
+					if got := selfRouterLSAMetric(t, eng, cfg.RouterID); got != step.want {
+						t.Fatalf("%s Router-LSA cost = %d, want %d", step.name, got, step.want)
+					}
+					previous = step.want
+				}
+			})
+		})
 	}
-	if res := eng.reconcile(renamed); !res.changed["eth0"] {
-		t.Fatalf("reconcile journal = %+v, want eth0 restarted by a Router ID change", res)
+}
+
+// TestExplicitCostReloadRepricesEveryAddressFamily drives the family configs
+// delivered by v6EngineSet.apply and checks adjacency retention and the metric
+// consumed by OSPFv3 origination. No family may retain its previous explicit cost.
+func TestExplicitCostReloadRepricesEveryAddressFamily(t *testing.T) {
+	stubLinkSpeed(t, map[string]uint64{"eth0": 1000})
+	for _, family := range []struct {
+		name     string
+		instance string
+	}{
+		{name: "ipv6-unicast", instance: "0"},
+		{name: "ipv6-multicast", instance: "32"},
+		{name: "ipv4-unicast", instance: "64"},
+		{name: "ipv4-multicast", instance: "96"},
+	} {
+		t.Run(family.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				configForCost := func(cost string) ospfConfig {
+					t.Helper()
+					cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","reference-bandwidth":"100000","address-family":{"`+family.name+`":{"instance-id":"`+family.instance+`","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0","priority":"0"`+cost+`}}}}}}}`), nil)
+					if err != nil {
+						t.Fatalf("parseOSPFConfig: %v", err)
+					}
+					return cfg
+				}
+				families := configForCost("").v6Families()
+				if len(families) != 1 {
+					t.Fatalf("parsed families = %d, want one", len(families))
+				}
+				cfg := families[0].cfg
+				eng := newEngineWithCodecAF(ospfv3transport.New(&fakeV6Backend{}), v6Codec{}, families[0].af)
+				defer eng.shutdown()
+				eng.setConfig(cfg)
+				if err := eng.openInterfaces(); err != nil {
+					t.Fatalf("openInterfaces: %v", err)
+				}
+				before := eng.interfaces["eth0"]
+				peer := types.RouterID{10, 0, 0, 2}
+				detail := before.Snapshot()
+				hello := types.Hello{
+					HelloInterval: detail.HelloInterval,
+					DeadInterval:  uint32(detail.DeadInterval),
+					Options:       types.OptionE,
+					Neighbors:     []types.RouterID{cfg.RouterID},
+				}
+				if reason := before.ReceiveHello(peer, hello, time.Now()); reason != "" {
+					t.Fatalf("ReceiveHello: %s", reason)
+				}
+				for _, step := range []struct {
+					leaf string
+					want uint16
+				}{
+					{leaf: `,"cost":"17"`, want: 17},
+					{leaf: `,"cost":"29"`, want: 29},
+					{want: 100},
+				} {
+					eng.reconcile(configForCost(step.leaf).v6Families()[0].cfg)
+					if eng.interfaces["eth0"] != before {
+						t.Fatal("cost-only reload replaced the interface runtime")
+					}
+					if snap, ok := eng.neighbors.Lookup("eth0", peer); !ok || snap.State != "2-way" {
+						t.Fatalf("neighbor = %+v (present %v), want retained 2-way", snap, ok)
+					}
+					if got := topologyCost(t, eng, "eth0"); got != step.want {
+						t.Errorf("OSPFv3 origination cost = %d, want %d", got, step.want)
+					}
+					if got := snapshotByName(t, eng.interfaceSnapshot(), "eth0").Cost; got != step.want {
+						t.Errorf("CLI cost = %d, want %d", got, step.want)
+					}
+				}
+			})
+		})
 	}
-	if eng.interfaces["eth0"] == before {
-		t.Error("a Router ID change kept the interface runtime, so the Hellos carry the old identity")
-	}
-	// InterfaceDown keeps the table entry and drops it to Down (RFC 2328 sec 10.2 KillNbr),
-	// so the 2-Way the Hello reached is gone rather than the row.
-	if held, ok := eng.neighbors.Lookup("eth0", peer); !ok || held.State != "down" {
-		t.Errorf("eth0 neighbor after the Router ID restart = %q (present %v), want down", held.State, ok)
-	}
+}
+
+// TestExplicitCostReloadPublishesV3RouterLSA keeps a Full OSPFv3 neighbor through
+// each cost transition and decodes the self-originated wire LSA after the
+// maintenance worker crosses MinLSInterval.
+func TestExplicitCostReloadPublishesV3RouterLSA(t *testing.T) {
+	stubLinkSpeed(t, map[string]uint64{"eth0": 1000})
+	synctest.Test(t, func(t *testing.T) {
+		eng, _, peer, _, area := bringV6NeighborFull(t)
+		router := types.RouterID{10, 0, 0, 1}
+		before := eng.interfaces["eth0"]
+		eng.lsdb.SetTimers(ospflsdb.TimerConfig{MinLSInterval: 5 * time.Second})
+		for _, step := range []struct {
+			leaf string
+			want uint16
+		}{
+			{leaf: `,"cost":"17"`, want: 17},
+			{leaf: `,"cost":"29"`, want: 29},
+			{want: 100},
+		} {
+			cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","reference-bandwidth":"100000","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0","network-type":"point-to-point"`+step.leaf+`}}}}}`), nil)
+			if err != nil {
+				t.Fatalf("parseOSPFConfig: %v", err)
+			}
+			eng.reconcile(cfg)
+			if eng.interfaces["eth0"] != before {
+				t.Fatal("cost-only reload replaced the OSPFv3 interface")
+			}
+			if snap, ok := eng.neighbors.Lookup("eth0", peer); !ok || snap.State != "full" {
+				t.Fatalf("neighbor = %+v (present %v), want retained Full", snap, ok)
+			}
+			if got := snapshotByName(t, eng.interfaceSnapshot(), "eth0").Cost; got != step.want {
+				t.Errorf("CLI cost = %d, want %d", got, step.want)
+			}
+			// sleep(protocol): advance virtual time through MinLSInterval so the
+			// maintenance worker, without a test origination, publishes the cost.
+			time.Sleep(5 * time.Second)
+			synctest.Wait()
+			body := v6DecodeBackboneRouter(t, eng, area, router)
+			if len(body.Links) != 1 {
+				t.Fatalf("Router-LSA links = %+v, want one retained adjacency", body.Links)
+			}
+			if body.Links[0].Metric != step.want {
+				t.Errorf("Router-LSA metric = %d, want %d", body.Links[0].Metric, step.want)
+			}
+		}
+	})
 }
 
 // teMetricForLocalAddress returns the TE metric of the originated TE Link LSA whose local

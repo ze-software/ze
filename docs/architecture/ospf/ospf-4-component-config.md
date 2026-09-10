@@ -74,19 +74,17 @@ lifecycle callbacks, transport enrollment and config validation.
 - A slow `HandleLinkUp` races `DisableInterface`. Recheck `enabled` under the
   transport lock before publishing the socket, or the interface stays joined
   after removal.
-- A `reference-bandwidth` change re-prices an interface that configures no
-  `cost`, and it MUST NOT restart it (owner decision, 2026-09-09). The restart
-  is not what publishes the metric: `lsdbTopology` derives the cost from
-  `e.cfg.ReferenceBandwidth` on every origination pass and `reconcile` replaces
-  `e.cfg` before it reaches an interface, so the new cost is advertised whether
-  or not the runtime is recreated. A carrier flap already re-prices a link with
-  no restart at all. Recreating the runtime empties its neighbor map and clears
-  its DR, so on a router with forty auto-costed links the numerator change cost
-  forty adjacencies to publish a number the wire was going to carry anyway.
-  `interfaceGlobalParamsChanged` therefore covers only what the runtime stamps
-  into a packet, the Router ID and the area type, and `reconcile` re-prices
-  every other interface in place through `repriceInterfaceLocked`.
-  <!-- source: internal/plugins/ospf/instance.go -- interfaceGlobalParamsChanged, repriceInterfaceLocked, lsdbTopology -->
+- A `reference-bandwidth` change or an interface `cost` leaf change MUST NOT
+  restart the interface. This includes adding an explicit cost and removing it
+  to restore auto-cost, in every address family (owner decision, 2026-09-10).
+  `interfaceParamsEqual` excludes cost from its restart comparison.
+  `repriceInterfaceLocked` replaces the enrolled config in `e.running` and
+  updates the runtime cost without clearing neighbors or DR state.
+  `lsdbTopology` reads that enrolled config on every origination pass, so both
+  explicit and automatic costs reach the self-LSAs, including passive and
+  loopback topology. Router ID, area type, and the other interface restart
+  boundaries remain unchanged.
+  <!-- source: internal/plugins/ospf/instance.go -- interfaceParamsEqual, interfaceGlobalParamsChanged, repriceInterfaceLocked, lsdbTopology -->
 - `reconcile` attempts self-LSA origination before it returns. RFC 2328 Section
   12.4 requires a new instance when the described contents change, but
   MinLSInterval can defer publication. The one-second maintenance worker retries
@@ -108,3 +106,11 @@ lifecycle callbacks, transport enrollment and config validation.
   unknown-speed branch instead.
   <!-- source: internal/plugins/ospf/interface_cost_test.go -- stubLinkSpeed -->
   <!-- source: internal/plugins/iface/netlink/show_linux.go -- parseLinkSpeedDuplex -->
+
+The `ospf-auto-cost-frr` checker also reloads an explicit cost of 17 after Full
+and then removes it to restore auto-cost 47. It reads both metrics from FRR's
+LSDB and rejects Ze's `ll-down` event counter, which records interface resets
+even if the adjacency has already recovered. Both configurations enable
+Prometheus so the command can read those counters.
+<!-- source: internal/le/interoplab/bgp/check_extras.go -- scenarioExtras ospf-auto-cost-frr -->
+<!-- source: internal/plugins/ospf/neighbor/table.go -- interfaceDown, recordEventLocked -->

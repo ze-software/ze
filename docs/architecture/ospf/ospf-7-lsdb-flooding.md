@@ -24,6 +24,13 @@ LSRefresh and MaxSequenceNumber restart (RFC 2328 Sections 12 to 14).
   do not flood, and MinLSInterval defers changed bodies until a later pass.
   <!-- source: internal/plugins/ospf/instance.go -- openInterfaces, openConfiguredInterface, startNeighborRetransmitLoop -->
   <!-- source: internal/plugins/ospf/lsdb/origination.go -- OriginateRouter, OriginateNetwork -->
+- **Cost-only reloads preserve adjacency and regenerate self-LSA metrics.**
+  Adding, changing, or removing an explicit interface cost updates the enrolled
+  topology and the CLI runtime cost in place, as a reference-bandwidth reload
+  does. Both address families use that topology, including passive and loopback
+  interfaces. MinLSInterval still bounds publication, and the maintenance
+  worker retries any deferred change.
+  <!-- source: internal/plugins/ospf/instance.go -- reconcile, repriceInterfaceLocked, lsdbTopology, originateSelfLSAs -->
 
 ## Constraints on callers
 
