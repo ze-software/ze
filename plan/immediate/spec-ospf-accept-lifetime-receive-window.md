@@ -181,7 +181,7 @@ Known Limitations.
 |----------|--------|
 | What breaks if this is wrong? | Every OSPF adjacency on an authenticated interface. A gate that refuses too much drops the adjacency; a gate that refuses too little leaves the security defect in place |
 | How is it reverted? | Single commit revert. No config migration: the leaves already parsed and validated before this change |
-| Who else touches this path? | `plan/immediate/spec-ospf-auto-cost-reference-bandwidth.md` ran in the same package at the same time and touches `internal/plugins/ospf/yang/ze-ospf-conf.yang` and `docs/guide/ospf.md`, in different hunks |
+| Who else touches this path? | `spec-ospf-auto-cost-reference-bandwidth` ran in the same package at the same time and touches `internal/plugins/ospf/yang/ze-ospf-conf.yang` and `docs/guide/ospf.md`, in different hunks |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

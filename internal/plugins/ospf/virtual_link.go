@@ -252,7 +252,7 @@ func (e *engine) startVirtualInterface(rt *virtualLinkRuntime) {
 	if e.sink != nil {
 		ifc.SetEventSink(e.sink)
 	}
-	ifc.SetNeighborSink(nsmAdapter{table: e.neighbors, onChange: e.originateSelfLSAs, auth: e.auth})
+	ifc.SetNeighborSink(nsmAdapter{table: e.neighbors, onChange: e.originateSelfLSAs, onChangeDeferred: e.originateSelfLSAsDeferred, auth: e.auth})
 	rt.iface = ifc
 	e.interfaces[rt.name] = ifc
 	if e.neighbors != nil {

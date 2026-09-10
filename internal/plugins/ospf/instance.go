@@ -153,6 +153,9 @@ type engine struct {
 	sink              *eventSink
 	receiveOnce       sync.Once
 	retransmitOnce    sync.Once
+	// originationNotify holds at most one pending topology re-evaluation. A full
+	// channel coalesces requests because the maintenance worker reads current state.
+	originationNotify chan struct{}
 	// defaultInfoOriginated records whether this engine currently originates the
 	// Type 5 default via `default-information originate`. redistDefaultInjected records
 	// whether a `redistribute` rule currently injects 0.0.0.0/0. Both intents share the
@@ -173,6 +176,10 @@ type engine struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
 	wg           sync.WaitGroup
+	// spawnMu orders lazy maintenance registration against shutdown cancellation.
+	// Nested locking MUST take mu before spawnMu. shutdown MUST release spawnMu
+	// before taking mu or waiting for workers.
+	spawnMu sync.Mutex
 	// BFD (RFC 5880 / RFC 5881) client state. bfdClients maps a Full neighbor to its
 	// single-hop BFD session; guarded by bfdMu (a dedicated lock, never nested inside mu, so
 	// the subscriber can drive NeighborDown without lock-order inversion). bfdMetrics is the
@@ -226,6 +233,7 @@ func newEngineWithCodecAF(t Transport, codec Codec, af addressFamily) *engine {
 		bfdMetrics:        nopBFDMetrics(),
 		ctx:               ctx,
 		cancel:            cancel,
+		originationNotify: make(chan struct{}, 1),
 	}
 	// RFC 5443 / RFC 6138 LDP-IGP sync: per-interface machines that re-originate this
 	// engine's self-LSAs on every sync-state change. Nil-safe, so an engine with no
@@ -662,7 +670,7 @@ func (e *engine) openInterfaces() error {
 	if activeCount > 0 && e.transport != nil {
 		e.startReceiveLoop()
 	}
-	if activeCount > 0 {
+	if len(enrolled) > 0 {
 		e.startNeighborRetransmitLoop()
 	}
 	for _, ic := range enrolled {
@@ -689,6 +697,7 @@ func (e *engine) openInterfaces() error {
 }
 
 func (e *engine) openConfiguredInterface(ic interfaceConfig) error {
+	e.startNeighborRetransmitLoop()
 	if ic.Passive || ic.NetworkType == networkLoopback {
 		e.mu.Lock()
 		e.running[ic.Name] = ic
@@ -732,7 +741,16 @@ func (e *engine) startReceiveLoop() {
 	})
 }
 
+// startNeighborRetransmitLoop starts the engine-owned maintenance worker once.
+// Callers that enroll an interface MUST start it even without active neighbors,
+// because RFC 2328 Section 12.4 MinLSInterval needs a later origination attempt.
+// shutdown MUST cancel and join this worker before releasing the engine.
 func (e *engine) startNeighborRetransmitLoop() {
+	e.spawnMu.Lock()
+	defer e.spawnMu.Unlock()
+	if e.ctx.Err() != nil {
+		return
+	}
 	if e.neighbors == nil {
 		return
 	}
@@ -740,17 +758,33 @@ func (e *engine) startNeighborRetransmitLoop() {
 		ticker := time.NewTicker(time.Second)
 		e.wg.Go(func() {
 			defer ticker.Stop()
+			// The worker runs until engine cancellation. Requests use one pending
+			// slot, and the ticker retries changes deferred by MinLSInterval.
 			for {
 				select {
 				case <-e.ctx.Done():
 					return
+				case <-e.originationNotify:
+					if e.ctx.Err() != nil {
+						return
+					}
+					e.originateSelfLSAs()
 				case now := <-ticker.C:
+					if e.ctx.Err() != nil {
+						return
+					}
 					e.neighbors.Retransmit(now)
 					if e.lsdb != nil {
 						e.lsdb.RetransmitTick(now)
 						e.lsdb.Tick(now)
+						if e.ctx.Err() != nil {
+							return
+						}
 						e.lsdb.RefreshSelf(now)
 						e.originateSelfLSAs()
+						if e.ctx.Err() != nil {
+							return
+						}
 						// Re-evaluate the per-NSSA Type 7 default: reconcile runs this once, but a
 						// transport interface joins the NSSA asynchronously (link-up after reconcile),
 						// so an ABR that became attached later would otherwise never originate the
@@ -868,10 +902,10 @@ func (e *engine) reconcile(newCfg ospfConfig) reconcileResult {
 	// Reconcile the per-interface LDP-sync machines to the new config (create/remove/
 	// update); re-originates if the managed set changed.
 	e.updateLDPSyncMachines()
-	// Publish the reloaded config. A re-priced interface is not restarted, so no neighbor
-	// event drives origination for it, and the Router-LSA link metric lsdbTopology derives
-	// from e.cfg would otherwise wait for an unrelated pass. The LSDB floods on a diff, so a
-	// reload that changed nothing the wire carries emits nothing.
+	// RFC 2328 Section 12.4: "When whatever is being described by an LSA changes,
+	// a new LSA is originated." Attempt publication now. MinLSInterval can defer
+	// it, so the maintenance ticker retries even for passive-only enrollment.
+	// The LSDB skips unchanged bodies.
 	e.originateSelfLSAs()
 	return res
 }
@@ -910,7 +944,7 @@ func (e *engine) startInterfaceLocked(ic interfaceConfig) {
 		rt.SetEventSink(e.sink)
 	}
 	if e.neighbors != nil {
-		rt.SetNeighborSink(nsmAdapter{table: e.neighbors, onChange: e.originateSelfLSAs, auth: e.auth})
+		rt.SetNeighborSink(nsmAdapter{table: e.neighbors, onChange: e.originateSelfLSAs, onChangeDeferred: e.originateSelfLSAsDeferred, auth: e.auth})
 	}
 	e.interfaces[ic.Name] = rt
 	if ic.Passive || ic.NetworkType == networkLoopback || e.transport == nil || e.transport.InterfaceOpen(ic.Name) {
@@ -1074,9 +1108,13 @@ func (s neighborEventSink) NeighborDown(snap ospfneighbor.Snapshot) {
 }
 
 type nsmAdapter struct {
-	table    *ospfneighbor.Table
-	onChange func()
-	auth     *authStore
+	table *ospfneighbor.Table
+	// onChange re-originates the self-LSAs inline. onChangeDeferred does the same on a
+	// goroutine the engine joins, and InterfaceDown MUST use it: that callback arrives from
+	// under the engine's mu, which the origination itself takes.
+	onChange         func()
+	onChangeDeferred func()
+	auth             *authStore
 }
 
 var _ ospfiface.NeighborSink = nsmAdapter{}
@@ -1139,8 +1177,8 @@ func (a nsmAdapter) InterfaceDown(interfaceName string) {
 	if a.auth != nil {
 		a.auth.resetInterface(interfaceName)
 	}
-	if a.onChange != nil {
-		go a.onChange()
+	if a.onChangeDeferred != nil {
+		a.onChangeDeferred()
 	}
 }
 
@@ -1251,6 +1289,8 @@ func areaTypeFor(cfg ospfConfig, areaID types.AreaID) areaType {
 	return areaTypeNormal
 }
 
+// shutdown MUST cancel and join the maintenance worker started by
+// startNeighborRetransmitLoop. Callers MUST NOT hold mu or spawnMu.
 func (e *engine) shutdown() {
 	// RFC 5443 R-7: drop the LDP event subscription and stop every per-interface timer
 	// first so no stale handler reads freed engine state during teardown.
@@ -1276,14 +1316,36 @@ func (e *engine) shutdown() {
 	if e.ipsec != nil {
 		e.ipsec.Close()
 	}
+	// Registration holds spawnMu through wg.Go. Cancel under the same lock so
+	// maintenance cannot register after the Wait below starts. Release spawnMu
+	// before transport callbacks take mu or Wait joins active origination.
+	e.spawnMu.Lock()
 	e.cancel()
+	e.spawnMu.Unlock()
 	if e.transport != nil {
 		e.transport.Close()
 	}
 	e.wg.Wait()
 }
 
+// originateSelfLSAsDeferred queues a coalesced topology re-evaluation. Its caller
+// can hold mu, so it MUST NOT originate inline. The maintenance worker runs the
+// request outside mu, and shutdown MUST cancel and join that worker.
+func (e *engine) originateSelfLSAsDeferred() {
+	e.startNeighborRetransmitLoop()
+	if e.ctx.Err() != nil {
+		return
+	}
+	select {
+	case e.originationNotify <- struct{}{}:
+	default: // A topology re-evaluation is already pending.
+	}
+}
+
 func (e *engine) originateSelfLSAs() {
+	if e.ctx.Err() != nil {
+		return
+	}
 	// RFC 3623 sec 2: while in graceful restart the restarting router MUST NOT originate its
 	// self-LSAs; it relies on its pre-restart LSAs. This is the shared chokepoint, so gating
 	// it here suppresses every self-LSA type for BOTH address families (A-7).
@@ -1291,6 +1353,11 @@ func (e *engine) originateSelfLSAs() {
 		return
 	}
 	e.mu.Lock()
+	// A queued worker can wait for mu while shutdown cancels the engine.
+	if e.ctx.Err() != nil {
+		e.mu.Unlock()
+		return
+	}
 	cfg := e.cfg
 	e.mu.Unlock()
 	if e.lsdb == nil || cfg.RouterID == (types.RouterID{}) {

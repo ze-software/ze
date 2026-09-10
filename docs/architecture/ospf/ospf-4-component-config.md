@@ -1,7 +1,7 @@
 # OSPF plugin registration and config
 
 The config-to-engine backbone: the plugin root, the YANG config tree, the SDK
-lifecycle callbacks, transport enrolment and config validation.
+lifecycle callbacks, transport enrollment and config validation.
 
 ## Decisions
 
@@ -87,15 +87,14 @@ lifecycle callbacks, transport enrolment and config validation.
   into a packet, the Router ID and the area type, and `reconcile` re-prices
   every other interface in place through `repriceInterfaceLocked`.
   <!-- source: internal/plugins/ospf/instance.go -- interfaceGlobalParamsChanged, repriceInterfaceLocked, lsdbTopology -->
-- `reconcile` originates the self-LSAs before it returns, so the commit
-  publishes the reloaded config. A re-priced interface is not restarted, so no
-  neighbor transition drives an origination for it. On a router with one active
-  interface the one-second neighbor retransmit loop would publish the new metric
-  within a second; on a router whose interfaces are all passive or loopback that
-  loop never starts, and this call is the only publisher. The LSDB floods on a
-  diff, so a reload that changed nothing emits nothing, and RFC 2328 Appendix B
-  MinLSInterval still defers a second origination of one LSA.
-  <!-- source: internal/plugins/ospf/instance.go -- reconcile, originateSelfLSAs, startNeighborRetransmitLoop, activeInterfaces -->
+- `reconcile` attempts self-LSA origination before it returns. RFC 2328 Section
+  12.4 requires a new instance when the described contents change, but
+  MinLSInterval can defer publication. The one-second maintenance worker retries
+  from the current topology, including passive-only and loopback-only configs.
+  Initial enrollment and reload-added enrollment both start that worker.
+  Unchanged LSA bodies do not flood.
+  <!-- source: internal/plugins/ospf/instance.go -- reconcile, openInterfaces, openConfiguredInterface, startNeighborRetransmitLoop -->
+  <!-- source: internal/plugins/ospf/lsdb/origination.go -- OriginateRouter, OriginateNetwork -->
 - Which synthetic device reports a link speed is the kernel's decision, and it
   is not "none of them". A veth reports 10000 because its driver declares 10
   Gbit/s, which is what lets a Docker container observe auto-cost at all and is

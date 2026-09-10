@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | 4/4 |
 | Handoff | - |
-| Updated | 2026-09-09 |
+| Updated | 2026-09-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -64,7 +64,7 @@ implemented, and no later reader re-opens it.
 | | What Ze did until 2026-09-09 | What Ze does now |
 |---|------------------------------|------------------|
 | At the commit | Every interface whose derived cost changed was restarted, which dropped its neighbors. A router with 40 auto-costed 10 Gbit/s links dropped all 40, each re-forming over a dead interval plus a database exchange | `reconcile` pushes the new cost into the running interface through `repriceInterfaceLocked` and `(*Interface).SetCost`. No neighbor moves |
-| What reaches the wire | The re-priced metric, on the origination pass that followed the restart | The same metric, on the origination pass `reconcile` now performs before it returns |
+| What reaches the wire | The re-priced metric, on the origination pass that followed the restart | `reconcile` requests origination before it returns. The maintenance timer retries publication after MinLSInterval when the immediate attempt is rate-limited |
 
 The evidence that the restart never published the cost is one line, and it was
 already in this spec: a carrier flap re-prices a link with no restart at all,
@@ -155,7 +155,7 @@ the sections below, and none of them changes the design.
 - [ ] `docs/guide/ospf.md` - the operator-facing description of interface cost
   → Constraint: the guide states the clamp, the unknown-speed fallback and the reload behavior, so each is a published promise
 - [ ] `docs/architecture/ospf/ospf-5-interface-ism.md` - declared by `internal/plugins/ospf/iface/iface.go`, the package this spec's AC-8b proof drives
-  → Constraint: "Constraints on callers" states which config reloads recreate an interface runtime, and it named the Router ID and the area type alone. A reference-bandwidth change that re-prices an interface joins that set, so the page carries it and names the quotient comparison that decides it
+  → Constraint: "Constraints on callers" distinguishes Router ID and area-type changes from changes inside an interface block. A reference-bandwidth-only change preserves the runtime; the interface's own cost leaf still restarts it.
 - [ ] `docs/architecture/ospf/ospf-1-types.md` - declared by `types/metric.go` and `types/metric_test.go`
   → Constraint: "Constraints on callers" gives the leaf package ownership of metrics and forbids a higher OSPF package from redeclaring them, which is the rule the four deleted cost copies broke. "The package has no runtime dependency" keeps `DefaultMetric` a pure arithmetic function, so `interfaceLinkSpeedMbps` reads the link outside `types` and passes the speed in.
 - [ ] `docs/architecture/ospf/ospf-ext-11-ldp-igp-sync.md` - declared by `ldp_sync.go`, whose cost copy this spec deletes
@@ -200,7 +200,7 @@ the sections below, and none of them changes the design.
 **Behavior to change:** (only what the user asked for)
 - An interface with no `cost` on a link the kernel prices is now costed `reference-bandwidth / speed`, clamped to 1..65535. Under the default 100000 a 10 Gbit/s link costs 10 rather than 1.
 - `DefaultMetric` now takes both operands in Mbit/s (it took bits per second) and clamps at `MetricMax` instead of erroring above it. `types.DefaultReferenceBandwidth`, a bits-per-second constant with no non-test user, is deleted; `config.DefaultReferenceBandwidth` (Mbps) is the one declaration.
-- A `reference-bandwidth` change re-prices each interface it moves IN PLACE, through `(*engine).repriceInterfaceLocked` and `(*ospfiface.Interface).SetCost`, and restarts nothing. `interfaceGlobalParamsChanged` keeps only its Router ID and area-type arms, and `reconcile` originates the self-LSAs before it returns so the commit publishes the new metric (owner decision, 2026-09-09).
+- A `reference-bandwidth` change re-prices interfaces through `repriceInterfaceLocked` and `(*ospfiface.Interface).SetCost` without restarting them (Thomas, 2026-09-09). `reconcile` requests self-LSA origination before it returns. The maintenance worker retries rate-limited publication, including with only passive or loopback interfaces.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -296,7 +296,7 @@ the sections below, and none of them changes the design.
 | AC-5 | An interface whose link speed the backend does not report: a loopback, a dummy, a bridge, a tunnel, a link with no carrier, any interface on a VPP dataplane, and every interface when no iface backend is loaded | Cost is 1 |
 | AC-6 | A `reference-bandwidth` of 0 | Cost is 1 |
 | AC-7 | The default config, no `reference-bandwidth` stated | 100000 applies, so a 1 Gbit/s link costs 100 |
-| AC-8 | A reload lowering `reference-bandwidth` | An interface whose derived cost changes is re-priced in place and keeps its adjacency; one with an explicit `cost` is left alone. `reconcile` originates the self-LSAs before it returns, so the new metric is published at the commit |
+| AC-8 | A reload lowering `reference-bandwidth` | An interface whose derived cost changes is re-priced in place and keeps its adjacency. An explicit `cost` remains unchanged. `reconcile` requests origination before it returns. If MinLSInterval prevents publication, the maintenance timer publishes the latest cost after the interval, including with only passive or loopback interfaces |
 | AC-8b | The same reload, on an interface that already holds a 2-Way neighbor and sets no `cost` | The neighbor stays 2-Way, the interface runtime is the same object, and both the Router-LSA link metric and the cost `show ospf interface` reports carry the new number. This is the owner's decision of 2026-09-09: a `reference-bandwidth` commit tears down no adjacency. The neighbor the unit test drives really reaches 2-Way, because its Hello lists this router and that is what `receiveHello` reads for `TwoWay`; the test asserts the state out of the neighbor table on both sides of the reload |
 | AC-8c | A reload that changes the Router ID, or the type of the area an interface sits in | That interface IS recreated and its neighbor drops to Down. Both are stamped into the packets the runtime sends, so a stale runtime would advertise a stale identity or a stale E-bit. These two are the whole set OUTSIDE the interface's own block, which is what `interfaceGlobalParamsChanged` decides; `reconcile` ORs that predicate with `interfaceParamsEqual`, so a change to a field of the interface's own block, `cost` among them, still restarts that interface |
 | AC-9 | The same interface read four ways | The Router-LSA metric, `show ospf interface`, the LDP-sync restore value and the TE metric fallback all carry the same number |
@@ -364,7 +364,7 @@ the sections below, and none of them changes the design.
 - `internal/plugins/ospf/config.go` - `parseOSPFConfig` inherits `ReferenceBandwidth` into `cfg.V6` and every `cfg.V6Extra` entry, beside the four inheritances already there (review BLOCKER)
 - `internal/plugins/ospf/instance.go` - both cost copies deleted; `interfaceGlobalParamsChanged` reduced to its Router ID and area-type arms; `reconcile` gains a default arm that calls the new `repriceInterfaceLocked`, and originates the self-LSAs before it returns (owner decision, 2026-09-09)
 - `internal/plugins/ospf/iface/iface.go` - `(*Interface).SetCost`, the in-place re-price. `Cost` is the one `Config` field no running behavior reads, which is what makes writing it safe and every other field unsafe
-- `docs/architecture/ospf/ospf-5-interface-ism.md` - "Constraints on callers" named the Router ID and the area type as the reloads that recreate a runtime; a re-pricing reference-bandwidth change joins them, and one that derives no new cost does not
+- `docs/architecture/ospf/ospf-5-interface-ism.md` - "Constraints on callers" records the in-place reference-bandwidth re-price and preserves both restart predicates.
 - `internal/plugins/ospf/ldp_sync.go` - third cost copy deleted
 - `internal/plugins/ospf/te_originate.go` - fourth cost copy deleted, the reference bandwidth threaded to the TE metric fallback
 - `internal/plugins/ospf/types/metric.go` - `DefaultMetric` takes Mbit/s and clamps at both ends; the unused bits-per-second constant deleted
@@ -515,7 +515,7 @@ the sections below, and none of them changes the design.
 | Clamp at `MetricMax` rather than erroring | Keep the old `ErrOutOfRange` above 65535 | The old contract made a slow link under a large reference bandwidth an ERROR, and the caller then had to invent a cost. 65535 is the honest answer: the most expensive link the wire field can describe |
 | Re-price the running interface in place | Restart the interface, which is what Ze did until 2026-09-09 | Owner decision, 2026-09-09. The restart never published the cost: `lsdbTopology` derives it from `e.cfg.ReferenceBandwidth` on every origination pass and `reconcile` replaces `e.cfg` first, so a carrier flap already re-prices a link with no restart at all. What the restart refreshed was the `Interface.cfg.Cost` copy `show ospf interface` reads, and `SetCost` refreshes that without stopping the state machine. The machinery is one setter and one engine helper, and it buys back every adjacency on the router |
 | `SetCost` writes one field rather than taking a whole new `Config` | A general `UpdateConfig` on `Interface` | `Cost` is the ONLY `Config` field no running behavior reads, so a general setter would silently accept a `HelloInterval` or a `NetworkType` that the running timers and the ISM would ignore. Naming the one field makes the guarantee checkable: `ai/rules/simplicity.md` puts the burden of proof on the wider surface |
-| `reconcile` originates before it returns | Leave origination to the next event | A re-priced interface is not restarted, so no neighbor transition drives an origination pass for it. On a router with one active interface the one-second neighbor retransmit loop would publish within a second; on a passive-only or loopback-only router `activeInterfaces` is empty, that loop never starts, and this call is the only publisher. The LSDB floods on a diff, so a reload that changed nothing emits nothing |
+| `reconcile` requests origination before it returns | Leave publication entirely to the maintenance tick | The immediate attempt avoids an unnecessary wait. MinLSInterval can defer it, so every enrolled interface starts the existing maintenance worker, including passive and loopback interfaces. The tick retries from current topology and unchanged bodies do not flood |
 
 ## Known Limitations
 <!-- Deliberate scope boundaries. Anything here that is actually outstanding work
@@ -607,6 +607,7 @@ That fallback is unchanged and now carries the derived cost, which
 - This phase wrote no product behavior. It added the two tests the design phase recorded as owed, and the guide clause it recorded as missing.
 - The review-fix phase (2026-09-09) landed two product changes, both defects this spec introduced: the address-family inheritance in `parseOSPFConfig` and the cost comparison in `interfaceGlobalParamsChanged`.
 - The re-price phase (2026-09-09) implemented the owner's answer to round 2's ISSUE 1: `(*ospfiface.Interface).SetCost`, `(*engine).repriceInterfaceLocked`, a `default` arm in `reconcile` that calls it, an `originateSelfLSAs` call at the end of `reconcile`, and `interfaceGlobalParamsChanged` reduced to its Router ID and area-type arms. `interfaceCostAtSpeed` folded back into `interfaceCost` with its last caller. A `reference-bandwidth` commit now tears down no adjacency.
+- The resumed round 4 repair (2026-09-10) starts maintenance for passive-only and loopback-only enrollment at startup and reload, replaces per-callback goroutines with one coalesced notification, and orders worker registration against shutdown cancellation under `spawnMu`. `shutdown` joins admitted work and late callbacks are rejected.
 
 ### Bugs Found/Fixed
 - **Every OSPFv3 address family was pinned to reference bandwidth 100000** (review BLOCKER). `applyAddressFamilies` seeds each RFC 5838 child from `defaultOSPFConfig`, and the `ospf-af-topology` grouping declares no `reference-bandwidth` leaf, so no operator value ever reached the child. One physical link configured in both families advertised 47 in the OSPFv2 Router-LSA and 10 in the OSPFv3 one under `reference-bandwidth 470000`, with no configuration that made them agree. Fixed by inheritance in `parseOSPFConfig`, beside the Router ID, Router Information, Graceful Restart and Fast Reroute inheritances, and unconditional because no sub-config can state a value of its own.
@@ -936,6 +937,8 @@ test's environment rather than the product's:
   here by the fix phase. The `pretool-writeedit` gate refuses a line-number citation in
   prose, so each `file.go:NNN` in it was replaced by the symbol at that line. Nothing else
   in the section was edited.
+- A-2 was broken: a Docker veth reports 10000 Mbit/s, so the implementation added a live FRR cost proof instead of treating container interop as impossible.
+- Round 5 used the available independent `openai-codex/gpt-6-astra` reviewer under Thomas's explicit model override because Opus 5 was unavailable. The closure context ran no new test, gate, formatter, linter or build; it reused the observed resumed-repair evidence under the pre-release rule.
 
 ## Goal Validation (BLOCKING)
 
@@ -951,6 +954,9 @@ test's environment rather than the product's:
 | One reference bandwidth prices a link the same way in both families ACROSS A RELOAD (AC-8b, AC-11) | unit | `TestReferenceBandwidthReloadRepricesEveryAddressFamily`: an OSPFv3 engine started at `reference-bandwidth 470000` reads cost 47, and reconciling it with the `v6Families` entry of a 235000 config keeps eth0's runtime while its origination topology and its interface snapshot both read 23. No default produces 23, so a family that failed to inherit the reload's numerator cannot pass by accident. RED observed twice in the re-price phase: with the re-price call removed (the snapshot stayed 47) and with the reloaded numerator withheld from `e.cfg` (both readings stayed 47) |
 | One reference bandwidth prices a link the same way in both address families (AC-11) | unit | `TestReferenceBandwidthReachesEveryAddressFamily`: `reference-bandwidth 470000` over a 10 Gbit/s link is cost 47 in the OSPFv2 origination topology and 47 in the OSPFv3 engine's, and every `v6Families` entry carries 470000. RED observed against the code the review found: the OSPFv3 family read 10 |
 | The operator reads the cost Ze decided | interop | `ospf-auto-cost-frr`, the `show ospf interface` assertion: Ze's own CLI reports the same 47. Recorded by the implementation phase; not re-run here |
+| Passive-only and loopback-only reloads eventually publish after MinLSInterval | regression | `TestReferenceBandwidthReloadPublishesAfterMinLSInterval` reads installed Router-LSAs: metric 100 before the interval and 10 after it, for both initial and reload-added enrollment. All four cases fail against the saved inherited source and pass in `job-ospf-fixed-tree-3c4f78c3.log` |
+| Deferred origination cannot outlive engine shutdown | regression | `TestDeferredOriginationJoinsTheEngine` blocks a topology read, observes shutdown waiting, releases it and observes the completed metric 10. A later callback performs no topology read. Independent join-removal and late-admission overlays fail; the fixed race suite passes |
+| Existing live-peer auto-cost behavior survives the lifecycle repair | interop regression | Main ran `CGO_ENABLED=0 INTEROP_SCENARIO=ospf-auto-cost-frr ./le --name continue-ospf integration interop`: exit 0, `integration: 1 action(s) passed.` The renderer emitted no detailed JSON or image identifiers. This scenario starts at the configured cost and performs no reload |
 
 ## Checklist
 
@@ -1541,3 +1547,202 @@ producer read: the arm fires where intended, the one field it writes has no live
 consumers that were refreshed by the restart are refreshed without it, and the origination is
 conformant. What remains is a sentence on an operator page and one in an architecture page
 that promise more than `reconcile` delivers, plus four observations that change no behavior.
+
+### Round 4 resumed, 2026-09-10
+
+Scope: the complete feature's AC producers and the resumed repair in
+`instance.go`, `virtual_link.go`, and `origination_lifecycle_test.go`, including
+their shutdown and self-LSA publication paths. Thomas authorized the available
+independent reviewer for this continuation, with no authorization for a sixth
+round. The inherited lifecycle test was moved out of `instance_test.go`; its
+existing RFC6549 test remains unchanged.
+
+#### Findings fixed
+
+| Severity | Producer | Failure | Source repair |
+|----------|----------|---------|---------------|
+| ISSUE | `openInterfaces`, `openConfiguredInterface`, `LSDB.nextOwnSequenceForce` | Passive-only and loopback-only engines never retried a rate-limited re-price | Both enrollment paths start the existing maintenance worker |
+| ISSUE | `nsmAdapter.InterfaceDown`, `originateSelfLSAsDeferred` | Each callback started a separate unjoined goroutine | One pending slot is consumed by the engine-owned worker; `spawnMu` orders registration and cancellation, and `shutdown` joins it |
+| ISSUE | `TestDeferredOriginationJoinsTheEngine` | Removing the sole interface left no area to originate, so the late-callback assertion could not detect illegal work | The test observes topology entry, blocks admitted work while shutdown joins it, and counts reads after teardown |
+
+RFC 2328 Section 12.4 states: "When whatever is being described by an LSA
+changes, a new LSA is originated." The following sentence forbids two instances
+within MinLSInterval. The repair preserves that limit and supplies its missing
+retry source. Bypassing the limit would publish sooner but violate the protocol.
+
+### Round 5, 2026-09-10: CLEAN
+
+Independent closure context: `openai-codex/gpt-6-astra`, with Thomas's model
+override. The native recorder could not identify the running model and reported
+that boundary as UNCHECKED; the reviewer identity and authorization are recorded
+here and in its findings file. No sixth round ran.
+
+| Field | Value |
+|-------|-------|
+| Final result | 0 BLOCKER, 0 ISSUE |
+| Artifact | `tmp/review/ospf-auto-cost-reference-bandwidth-5bc855cc-5761-4012-8d90-7a9823029ab3.md` |
+| `spec session review check` | OK: 3 closure code files, clean, hashes match; native model-detection note retained |
+| Rounds | 5 |
+| Reviewer lenses used | Logic and wiring; security and bounds; lifecycle, publication, tests, RFC behavior, style and documentation |
+| Findings file | `tmp/session/2026-09-09-5bc855cc-5761-4012-8d90-7a9823029ab3/scratch/ospf-round5-review.txt` |
+
+`openInterfaces` and `openConfiguredInterface` cover both enrollment paths.
+`startNeighborRetransmitLoop` retains the one-second retry and owns one pending
+notification; `originateSelfLSAsDeferred` never originates under the caller's
+engine lock. `shutdown` cancels under the registration mutex and waits outside
+it, and `originateSelfLSAs` rejects canceled work before and after acquiring
+`mu`. Physical and virtual interfaces both use that path. The new channel has
+capacity one, the worker has an explicit cancellation lifetime, and the change
+adds no peer-controlled allocation or panic.
+
+`interfaceCost`, `DefaultMetric`, `parseOSPFConfig`, `repriceInterfaceLocked`,
+`updateLDPSyncMachines` and `applyTELinkAttributes` still implement the cost
+contract. `nextOwnSequenceForce` retains MinLSInterval and `OriginateRouter`
+retains unchanged-body suppression. The style pass examined all changed Go,
+including paired lifecycle obligations, bounds and return widths. The guide
+and both changed architecture pages describe those producers accurately.
+
+#### Resumed proof
+
+All log names below are under
+`tmp/session/2026-09-09-5bc855cc-5761-4012-8d90-7a9823029ab3/scratch/`.
+The overlays preserve the inherited and mutated sources without reverting the
+shared checkout.
+
+| Evidence | Observed result |
+|----------|-----------------|
+| `job-ospf-publication-inherited-d0d646e3.log` | RED: all four passive/loopback initial/reload-added cases retain metric 100 instead of 10 against the saved inherited source |
+| `job-ospf-unjoined-red-3587ae2e.log` | RED: shutdown returns while origination holds a topology read |
+| `job-ospf-late-red-020c7074.log` | RED: late callback reads topology 3 times instead of the 2 recorded at shutdown |
+| `job-ospf-fixed-tree-3c4f78c3.log` | GREEN: complete OSPF subtree under the race detector, including all new tests and the existing feature tests |
+| `ospf-fixed.cover` | Statement coverage only; the root OSPF package reports 80.7%, with no claim of full coverage |
+| Native selected FRR interop action | Exit 0, `integration: 1 action(s) passed.` Startup cost regression evidence; no live-peer reload proof |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2 excluded container interop | An up veth reports 10000 Mbit/s | Recorded kernel measurement and FRR cost assertion | Added the discriminating live-peer scenario |
+| approach | An immediate reconcile origination was treated as publication | MinLSInterval can reject the attempt and passive-only engines had no retry worker | Four inherited-source RED cases | Start maintenance for every enrolled interface |
+| approach | Deferred callbacks used independent goroutines | Shutdown could return while topology was still read | Join-removal and late-admission RED overlays | Coalesce callbacks into the joined worker |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Derive interface cost from bandwidth | Done | `interface_cost.go` `interfaceCost`; `types/metric.go` `DefaultMetric` | Explicit cost wins; unknown speed falls back to 1; quotient clamps |
+| Preserve adjacency on reference-bandwidth reload | Done | `instance.go` `reconcile`, `repriceInterfaceLocked`; `iface/iface.go` `SetCost` | Router ID, area type and interface-block restart rules remain |
+| Publish the latest cost after rate limiting | Done | `instance.go` `startNeighborRetransmitLoop` | Passive and loopback enrollment is covered at startup and reload |
+| Bound and join deferred origination | Done | `instance.go` `originateSelfLSAsDeferred`, `shutdown`; `virtual_link.go` `startVirtualInterface` | One pending notification and cancellation-ordered registration |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestInterfaceCostAutoDerivation` | Truncating quotient |
+| AC-2 | Done | `TestDefaultMetric` | Floor at 1 |
+| AC-3 | Done | `TestInterfaceCostAutoDerivation`, `TestDefaultMetric` | Ceiling at 65535 |
+| AC-4 | Done | `TestInterfaceCostAutoDerivation` | Explicit cost with known and unknown speed |
+| AC-5 | Done | `TestInterfaceLinkSpeedMbpsUnknownName`, `TestInterfaceCostAutoDerivation` | Documented backend fallback |
+| AC-6 | Done | `TestInterfaceCostAutoDerivation`, `TestDefaultMetric` | Zero numerator takes the fallback; native YANG rejects zero |
+| AC-7 | Done | `defaultOSPFConfig`, `TestInterfaceCostAutoDerivation` | Default 100000 prices 1 Gbit/s at 100 |
+| AC-8 | Done | `TestOSPFTopologyCostFollowsReferenceBandwidth`, `TestReferenceBandwidthReloadPublishesAfterMinLSInterval` | Every enrollment mode eventually publishes |
+| AC-8b | Done | `TestReferenceBandwidthReloadKeepsNeighborAndReprices` | Runtime retained, 2-Way neighbor retained, v2 installed metric and snapshot move |
+| AC-8c | Done | `TestInterfaceGlobalParamsChangedIgnoresReferenceBandwidth`, `TestReferenceBandwidthReloadKeepsNeighborAndReprices` | Identity/area predicate retained; identity restart exercised |
+| AC-9 | Done | `TestDerivedCostReachesLDPSyncAndTEMetric` | Same interface read through four consumers |
+| AC-10 | Done | `ospf-auto-cost-frr` | FRR reads 47; inherited discrimination recorded above |
+| AC-11 | Done | `TestReferenceBandwidthReachesEveryAddressFamily`, `TestReferenceBandwidthReloadRepricesEveryAddressFamily` | v3 evidence is topology and snapshot, with no decoded v3 reload LSA claim |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| All named cost, family, reload and consumer tests | Done | `internal/plugins/ospf/interface_cost_test.go` | PASS in fixed race-suite log |
+| Arithmetic boundaries | Done | `internal/plugins/ospf/types/metric_test.go` | PASS in fixed race-suite log |
+| Interface stop consequence | Done | `internal/plugins/ospf/iface/iface_test.go` | Existing multicast test retained beside neighbor consequence |
+| Rate-limited publication and shutdown lifecycle | Done | `internal/plugins/ospf/origination_lifecycle_test.go` | Discriminating RED overlays and fixed GREEN |
+| Native config and peer behavior | Done | `test/ospf/ospf-config.ci`, `test/interop/scenarios/ospf-auto-cost-frr/` | Earlier functional evidence retained; fresh interop regression passed |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| Cost implementation and consumer files | Done | `interface_cost.go`, `config.go`, `instance.go`, `iface/iface.go`, `ldp_sync.go`, `te_originate.go`, `types/metric.go` are present; earlier implementation commits preserved |
+| Cost and interface tests | Done | `interface_cost_test.go`, `types/metric_test.go`, `iface/iface_test.go` present |
+| Schema and backend comment | Done | `yang/ze-ospf-conf.yang`, `internal/plugins/iface/netlink/show_linux.go` present |
+| Interop registration and configs | Done | Both checker maps and both `ospf-auto-cost-frr` configs are committed |
+| Operator and architecture pages | Done | Guide, component-config and ISM documentation present; resumed repair also updates LSDB/flooding architecture |
+| Resumed repair additions | Done | `origination_lifecycle_test.go` and `virtual_link.go` callback wiring included in closure commit A |
+
+### Audit Summary
+
+All 13 acceptance rows are implemented. No in-scope product requirement is
+partial or skipped. The earlier implementation commits remain part of the
+feature history; commit A preserves this final audit and the resumed repair.
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None within the settled acceptance criteria | Every AC producer and the resumed repair are complete | Not applicable |
+
+The evidence limits remain explicit: no test holds a live peer Full across a
+reference-bandwidth reload, and the v3 reload proof reads topology and snapshot
+rather than a decoded v3 Router-LSA. The fresh FRR run performs no reload.
+Those limits do not become stronger proof at closure. Per-interface `cost`
+still restarts its interface; Thomas reserved that separate decision until
+after this spec closes. VPP/non-Linux speed fallback remains the documented
+boundary, with no backend-speed feature added here.
+
+## Pre-Commit Verification
+
+Observed product checks were reused under `ai/rules/pre-release.md`; this
+independent closure context did not rerun them solely for a commit.
+
+### Files Exist
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/plugins/ospf/interface_cost.go`, `interface_cost_test.go`, `origination_lifecycle_test.go` | Yes | Source bodies read during round 5 |
+| `test/ospf/ospf-config.ci` and both `test/interop/scenarios/ospf-auto-cost-frr/` configs | Yes | Full config and scenario files read during round 5 |
+
+### AC Verified
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 through AC-7 | Arithmetic, precedence and fallback | Producers read in round 5; named tests PASS in fixed race log |
+| AC-8, AC-8b, AC-8c | Re-price without adjacency teardown, retain real restarts and retry publication | Runtime/LSDB assertions and all four rate-limited cases PASS in fixed race log; inherited-source RED recorded |
+| AC-9 | Cost consumers agree | `TestDerivedCostReachesLDPSyncAndTEMetric` PASS |
+| AC-10 | Live peer sees the derived cost | Selected FRR native action exit 0; startup-only regression |
+| AC-11 | Numerator inheritance and reload | Both named address-family tests PASS |
+
+### Wiring Verified
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Config validation | `test/ospf/ospf-config.ci` | `ze config validate` covers the existing reference-bandwidth leaf |
+| Runtime config/reload and show | `test/interop/scenarios/ospf-auto-cost-frr/` plus engine regression tests | `runOSPFEngine` parses config, routes apply to instance/family reconcile, and returns `interfaceSnapshot` for show; the live scenario checks cost 47 |
+| Physical/virtual interface down | Engine lifecycle regression | Both production sink constructors supply `originateSelfLSAsDeferred`; the admitted-work and late-callback assertions discriminate |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Existing iface-component imports and production `interfaceLinkSpeedMbps` reader |
+| A-2 | broken | Recorded up-veth measurement 10000 and peer cost 47; Mistake Log and Deviations record the change |
+| A-3 | confirmed | `defaultOSPFConfig` seeds 100000; parser retains it when absent |
+| A-4 | confirmed | Earlier scenario search and recorded `ospf-auth-frr` regression; the new selected interop action also passes |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Cost derivation, fallback and family inheritance | `interfaceCost`, `DefaultMetric`, `parseOSPFConfig` | Guide and component-config architecture read against producers |
+| Reload and deferred publication | `reconcile`, `openConfiguredInterface`, `startNeighborRetransmitLoop` | Guide and component-config/LSDB-flooding pages carry updated source anchors |
+| Joined callback lifecycle | `originateSelfLSAsDeferred`, `shutdown`, `startVirtualInterface` | LSDB/flooding constraints describe lock order, coalescing and join |
+| CLI/API/schema/inventory | Existing show handler and existing YANG leaf | No new command, RPC, wire field, plugin, runtime dependency or inventory item |
+| Native documentation gate | Main's `doc check verify`, exit 1 | 3759 drift findings, eight summary-rule failures and unrelated anchors remain red; no repair loop |
+| Other native checks | Main's repository check and commit audit | 24 BGP wiring findings and 16 concurrent changed-test findings remain red, outside this closure |
+| Lint | Main's native lint run remains in flight at closure preparation | No clean result claimed; no rerun started by the closure context |

@@ -18,8 +18,12 @@ LSRefresh and MaxSequenceNumber restart (RFC 2328 Sections 12 to 14).
 - **Type 5 LSAs are stored once in an AS-wide store.** Area scoping is applied
   at the visibility and retransmit edges.
   <!-- source: internal/plugins/ospf/lsdb/lsdb.go -- LSDB, Install -->
-- **Self-origination re-runs from the engine 1-second timer and skips unchanged
-  bodies.** MinLSInterval then DEFERS a change instead of dropping it.
+- **The engine maintenance worker retries self-origination every second.**
+  It starts for any enrolled interface, including passive and loopback
+  interfaces, and reads the current topology on each pass. Unchanged bodies
+  do not flood, and MinLSInterval defers changed bodies until a later pass.
+  <!-- source: internal/plugins/ospf/instance.go -- openInterfaces, openConfiguredInterface, startNeighborRetransmitLoop -->
+  <!-- source: internal/plugins/ospf/lsdb/origination.go -- OriginateRouter, OriginateNetwork -->
 
 ## Constraints on callers
 
@@ -31,6 +35,18 @@ LSRefresh and MaxSequenceNumber restart (RFC 2328 Sections 12 to 14).
 - Stub and NSSA Type 5 filtering runs on receive AND on summary and lookup
   visibility, so the DD and LS Request paths cannot leak AS-external LSAs into
   those areas.
+- Interface-down callbacks MUST enqueue deferred origination because their
+  caller can hold the engine lock. Physical and virtual interfaces share one
+  capacity-one notification channel, and a full channel coalesces the request.
+  The maintenance worker consumes notifications outside that lock.
+  <!-- source: internal/plugins/ospf/instance.go -- originateSelfLSAsDeferred, startNeighborRetransmitLoop, startInterfaceLocked -->
+  <!-- source: internal/plugins/ospf/virtual_link.go -- startVirtualInterface -->
+- Lazy maintenance registration and shutdown cancellation share `spawnMu`.
+  Nested locking MUST take `mu` before `spawnMu`. Shutdown MUST release
+  `spawnMu` before taking `mu` or waiting for the worker. Cancellation prevents
+  new registration, and shutdown joins any origination already active in the
+  worker.
+  <!-- source: internal/plugins/ospf/instance.go -- startNeighborRetransmitLoop, originateSelfLSAs, shutdown -->
 
 ## Traps
 
@@ -43,8 +59,10 @@ LSRefresh and MaxSequenceNumber restart (RFC 2328 Sections 12 to 14).
   `InitialSequenceNumber`.
 - Loss of the DR role flushes stale self Network-LSAs. Stopping origination is
   not enough.
-- MinLSInterval needs a retry source. A change event inside the interval is
-  retried by a timer after the interval expires.
+- An immediate origination attempt does not guarantee publication. RFC 2328
+  Section 12.4 permits MinLSInterval to delay the next instance. The maintenance
+  ticker remains the retry source after a coalesced notification is consumed.
+  <!-- source: internal/plugins/ospf/instance.go -- reconcile, startNeighborRetransmitLoop -->
 - A Type 5 area label on a retransmit entry is TRANSMISSION scope, not database
   scope. Deleting or replacing the AS-wide LSA considers every normal area.
 - Any store that the aging tick walks must also be walked by the self-refresh
