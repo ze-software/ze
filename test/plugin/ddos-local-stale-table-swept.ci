@@ -32,6 +32,10 @@
 # WHY COPP IS IN THIS CONFIG. It keeps the firewall engine's lifetime independent
 # of ddos-local's, so no firewall-engine shutdown can run while the probe reads
 # the kernel back. copp declares firewall as a dependency, as ddos-local does.
+# The probe also reads copp's configured rate and burst from the kernel after
+# the sweep, so deleting another owner's rules cannot pass on an empty table.
+# An explicit firewall section makes its configure callback select the backend
+# before ddos-local's dependency tier starts.
 #
 # WHY THE TABLE AND NOT ONLY THE RULE. The sweep owes both. It claims the table
 # name for one reconcile, which is what makes the backend delete what it finds
@@ -54,6 +58,11 @@ option=env:var=ze.log.ddos.local:value=info
 option=timeout:value=90s
 
 stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft
+	flush-on-shutdown false
+}
+
 ddos {
 	local {
 		response-level enforce
@@ -81,3 +90,4 @@ cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=60s
 expect=exit:code=0
 expect=stdout:contains=STALE-TABLE-PLANTED 127.0.0.13
 expect=stderr:contains=STALE-TABLE-SWEPT 127.0.0.13
+expect=stderr:contains=COPP-RULE-PRESERVED ze_copp 100/second burst 20

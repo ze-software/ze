@@ -575,7 +575,7 @@ func p05DDoSPolicy(ctx context.Context, args []string) error {
 
 // p05DDoSTimingLeaves proves that two DDoS config leaves reach a running worker,
 // in one daemon run over one flood. Both used to be parsed, range-checked and
-// read by nothing (plan/immediate/spec-ddos-timing-leaves-reach-no-worker.md).
+// read by nothing (docs/guide/ddos-mitigation.md).
 //
 //   - ddos detect check-interval: the .ci sets it to 10 with confirm-duration 2,
 //     so the detector needs two evaluations, ten seconds apart, before it opens

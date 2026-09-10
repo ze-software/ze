@@ -139,10 +139,19 @@ A ddos-local drop rule is not persistent state. It is an attack response, and a
 reboot is one of the ways an operator clears state. So it MUST NOT survive the
 process that installed it.
 
-The exit path cannot deliver that, for the reason Rule 3 gives. The guarantee
-moves to the START of the next process, where one actor runs alone and no
-ordering is needed. `clearStaleDropRule` runs before the plugin can be
-configured, and before any event can reach a responder. It does two reconciles:
+The exit path cannot deliver that, for the reason Rule 3 gives. The next engine
+start runs `clearStaleDropRule` at the beginning of ddos-local's `OnConfigure`,
+before responder creation and event subscription. ddos-local declares a firewall
+dependency. `runPluginPhase` starts all engines before their handshakes, then
+completes each dependency tier before the next. Only the configure boundary
+therefore guarantees that the firewall engine has selected and applied its backend.
+A sweep before `sdk.NewWithConn` can autoload the OS default before the operator's
+firewall config arrives. Reload uses verify/apply and does not repeat the sweep.
+<!-- source: internal/component/plugin/server/startup.go -- runPluginPhase -->
+<!-- source: internal/component/firewall/engine.go -- runEngine -->
+<!-- source: internal/plugins/ddos/local/register.go -- runEngine -->
+
+On nft, the sweep does two reconciles:
 
 1. Register a table carrying the name and no chains, then reconcile. The backend
    deletes whatever it finds under that name, and creates the empty table.
@@ -158,6 +167,20 @@ leaves an empty table of ze's own.
 `desiredNames` is keyed by name alone, so one claim reaches the ip table and the
 ip6 table together. That is what a responder which picks its family from the
 victim prefix can leave behind.
+
+The claim is withdrawn even if the first reconcile fails. Failures are logged
+with their stage, and startup continues so the detector can still report attacks.
+If the first reconcile succeeded but the second failed, an empty table can remain
+without the original drop. Both reconciles retain every other owner's desired rules.
+<!-- source: internal/plugins/ddos/local/register.go -- clearStaleDropRule -->
+<!-- source: internal/component/firewall/registry.go -- RegisterTables, ApplyAll -->
+
+VPP has its own startup cleanup in `reconcileWithOps`: `cleanupStartupOrphans`
+deletes `ze/` ACL tags absent from the desired set, and logs and continues on a
+delete failure. The firewall engine's initial apply already reaches that path.
+The nft ownership explanation above does not establish that a VPP drop survives
+an incorrectly ordered ddos-local sweep.
+<!-- source: internal/plugins/firewall/vpp/backend_linux.go -- reconcileWithOps, cleanupStartupOrphans -->
 
 The same shape fits any owner whose table is an automatic RESPONSE rather than
 provisioned config. The FlowSpec bridge and the anomaly-shape responder are the

@@ -969,8 +969,8 @@ func fixture06PlantStaleDropRule(context.Context, []string) error {
 }
 
 // fixture06DDOSStaleTableSwept proves a ddos-local drop rule does not survive a
-// restart. The plugin clears a ze_ddos-local table left by a previous process
-// before it can be configured, whatever `firewall flush-on-shutdown` says.
+// restart. The plugin clears the previous process's table after its firewall
+// dependency selects the configured backend, before any responder subscribes.
 //
 // The rule this test finds in the kernel is owned by NOBODY in the running
 // daemon. No responder claims it, so no clear and no cap can reach it. The
@@ -1002,11 +1002,43 @@ func fixture06DDOSStaleTableSwept(ctx context.Context, args []string) error {
 				"applied map. The victim %s stays blackholed for the life of the daemon:\n%s",
 				fixture06StaleTableName, fixture06StaleTableVictim, summary)
 		}
+		// The configured copp limiter must survive with its rate and burst.
+		// A surviving empty table would not prove the other owner's protection.
+		conn := new(nftables.Conn)
+		chains, err := conn.ListChains()
+		if err != nil {
+			return fmt.Errorf("read copp chains after the sweep: %w", err)
+		}
+		limiter := false
+		for _, chain := range chains {
+			if chain.Table.Name != "ze_copp" || chain.Table.Family != nftables.TableFamilyINet || chain.Name != "input" {
+				continue
+			}
+			rules, err := conn.GetRules(chain.Table, chain)
+			if err != nil {
+				return fmt.Errorf("read copp rules after the sweep: %w", err)
+			}
+			for _, rule := range rules {
+				for _, expression := range rule.Exprs {
+					if limit, ok := expression.(*expr.Limit); ok {
+						if limit.Type == expr.LimitTypePkts && limit.Rate == 100 && limit.Unit == expr.LimitTimeSecond && limit.Burst == 20 {
+							limiter = true
+						}
+					}
+				}
+			}
+		}
+		if !limiter {
+			return errors.New("the copp 100/second burst 20 rule is absent after the ddos-local sweep")
+		}
 		// The markers go to stderr, not stdout: this fixture runs as a plugin of
 		// the daemon, and a plugin's stdout is the JSON protocol channel the
 		// encoder owns.
 		if _, err := fmt.Fprintf(os.Stderr, "STALE-TABLE-SWEPT %s\n", fixture06StaleTableVictim); err != nil {
 			return fmt.Errorf("report the sweep: %w", err)
+		}
+		if _, err := fmt.Fprintln(os.Stderr, "COPP-RULE-PRESERVED ze_copp 100/second burst 20"); err != nil {
+			return fmt.Errorf("report the preserved copp rule: %w", err)
 		}
 		return nil
 	})

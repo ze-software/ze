@@ -235,17 +235,16 @@ func (p *pendingConfig) rollback(string) error {
 	return nil
 }
 
-// clearStaleDropRule removes a ze_ddos-local drop rule a PREVIOUS ze process left
-// in the kernel, so no restart ever inherits a blackhole.
+// clearStaleDropRule removes a previous process's ze_ddos-local response table.
+// Cleanup failures are returned for best-effort startup logging.
 //
 // A ddos drop is an attack response and not provisioned state. It is never saved
 // across a restart, because a reboot can be exactly how an operator clears state,
 // and protection afterwards comes from the attack being DETECTED again
 // (docs/guide/ddos-mitigation.md carries the operator's exposure window).
 //
-// Nothing else clears it. The exit-path withdrawal is best-effort at a daemon
-// stop (stopResponder). A crash runs no exit path at all, and `firewall
-// flush-on-shutdown false` leaves every ze table in place on purpose.
+// The exit-path withdrawal is best-effort at a daemon stop (stopResponder).
+// A crash runs no exit path, and flush-on-shutdown can leave tables installed.
 //
 // The nft backend refuses to delete a ze_ table it did not apply itself.
 // shouldDeleteTable (internal/plugins/firewall/nft/backend_linux.go) sweeps a ze_
@@ -266,8 +265,8 @@ func (p *pendingConfig) rollback(string) error {
 //
 // One reconcile cannot do it. A name in neither the desired set nor the applied
 // map is a name the backend leaves alone, which is what makes the stale table
-// survive in the first place. No other owner's table is touched, for that same
-// reason.
+// survive in the first place. Both reconciles preserve other owners' desired
+// rules through the shared firewall registry.
 //
 // It also carries the one-time removal of the tables an older ze build wrote
 // under a name with no ownership prefix. That removal runs inside Backend.Apply,
@@ -275,8 +274,10 @@ func (p *pendingConfig) rollback(string) error {
 // is loaded. Step 1 always presents a non-empty set, so ddos-local needs no
 // separate trigger for it (internal/component/firewall/legacy_tables.go).
 //
-// Called once, from runEngine, before the plugin can be configured and before any
-// event can reach a responder, so there is no rule of this process's own to lose.
+// The caller MUST run this once at initial OnConfigure, after the firewall
+// dependency configured its backend and before any responder subscribes.
+// Engines start concurrently before dependency-tier handshakes, so calling this
+// before the SDK handshake can reconcile against the wrong, autoloaded backend.
 func clearStaleDropRule() error {
 	// No chains: the table exists for one reconcile, only so the backend counts
 	// the name as one it owns.
@@ -342,11 +343,10 @@ func clearStaleDropRule() error {
 // (internal/component/firewall/registry.go). The same loss happens whenever this
 // path costs more than the manager's stop grace.
 //
-// What guarantees the rule does not survive the daemon is clearStaleDropRule, at
-// the START of the next process. That is the right place for it as well as the
-// only reliable one: an operator who reboots to clear state gets it cleared, and
-// protection comes back from the attack being detected again rather than from a
-// rule that outlived the daemon (docs/guide/ddos-mitigation.md).
+// The next ddos-local engine start attempts clearStaleDropRule after the firewall
+// dependency configures its backend. A failure is logged and startup continues.
+// Protection then comes from fresh detection, with the exposure window described
+// in docs/guide/ddos-mitigation.md.
 func stopResponder(r *responder) {
 	if r == nil {
 		return
@@ -360,15 +360,6 @@ func stopResponder(r *responder) {
 func runEngine(conn net.Conn) int {
 	log := logger()
 	log.Debug("ddos-local plugin starting")
-
-	// A drop rule is an attack response and never persistent state, so one left by
-	// a previous process goes before this one can be configured. Reported and not
-	// returned: a daemon whose firewall backend is unusable must still detect and
-	// report.
-	if err := clearStaleDropRule(); err != nil {
-		log.Warn("ddos-local: could not clear a drop rule left by a previous process",
-			"error", err, "effect", "a victim that process was mitigating stays blackholed until an operator removes the table")
-	}
 
 	p := sdk.NewWithConn(Name, conn)
 	defer func() { _ = p.Close() }()
@@ -432,6 +423,14 @@ func runEngine(conn net.Conn) int {
 	}
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		// The firewall dependency has completed its configure before this tier.
+		// Sweep before any responder can receive events, once per engine start.
+		// Reload uses verify/apply and MUST NOT sweep a live response table.
+		if err := clearStaleDropRule(); err != nil {
+			log.Warn("ddos-local: could not clear a drop rule left by a previous process",
+				"error", err, "action", "inspect the configured firewall backend for stale ddos-local state")
+		}
+
 		cfg, configured, err := parseSections(sections)
 		if err != nil {
 			return err

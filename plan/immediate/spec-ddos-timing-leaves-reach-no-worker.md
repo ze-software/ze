@@ -7,10 +7,13 @@
 | Depends | - |
 | Phase | 8/8 |
 | Handoff | - |
-| Updated | 2026-09-09 |
-| Review rounds | 4 cleared |
+| Updated | 2026-09-10 |
+| Review rounds | 6; CLEAN, owner-authorized final round |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+The Task, Current Behavior and dated progress sections below preserve the original diagnosis.
+The Implementation Audit and final round-six record state the completed result.
 
 ## Task
 
@@ -324,11 +327,11 @@ rather than assumed; this one was checked and failed.
 | `ddosevent.Detected` on the bus | -> | `applyMitigation` -> `setStatus(true, ...)` -> `installedAt` | `TestLocalMaxDurationClockStartsOnTheFirstInstall` |
 | The `ddos local` block deleted and committed | -> | `parseSections` -> `replaceResponder` -> `(*responder).withdrawMitigation` -> the kernel | `test/plugin/ddos-local-config-removed.ci` (CONFIG-REMOVED-WITHDRAWN), `TestLocalRemovingTheSectionRemovesTheDrop` |
 | `ddos local response-level alert` committed while a drop is live | -> | `replaceResponder` -> `(*responder).withdrawMitigation` -> the kernel | `TestLocalLeavingEnforceRemovesTheDrop` |
-| The parent `ddos` block deleted and committed | -> | `runEngine`'s exit defer -> `retireResponder` -> `(*responder).withdrawMitigation` -> the kernel | `test/plugin/ddos-parent-config-removed.ci` (PARENT-REMOVED-WITHDRAWN), `TestLocalEngineStopRemovesTheDrop` |
+| The parent `ddos` block deleted and committed | -> | `runEngine`'s exit defer -> `stopResponder` -> `(*responder).withdrawMitigation` -> the kernel | `test/plugin/ddos-parent-config-removed.ci` (PARENT-REMOVED-WITHDRAWN), `TestLocalEngineStopRemovesTheDrop` |
 | `ddos local forward-mitigation false` committed while a FORWARD drop is live | -> | `replaceResponder` -> `(*responder).withdrawMitigation` -> the kernel | `TestLocalDisablingForwardMitigationRemovesTheForwardDrop`, `TestLocalDisablingForwardMitigationLeavesTheIngressDrop` |
 | An `AttackCharacterized` already dispatched when a config apply retires its responder | -> | `(*responder).applyMitigation` returning on `retired` | `TestLocalRetiredResponderInstallsNothing`, `TestLocalRetiredResponderDoesNotReclaimACarriedRule` |
 | A reload transaction that verifies here and rolls back | -> | `pendingConfig.rollback` -> `clear` -> the next apply failing closed | `TestPendingConfigRollbackUnstagesTheCandidate` |
-| A `ze_ddos-local` drop rule a previous process left in the kernel | -> | `runEngine` -> `clearStaleDropRule` -> claim the name, reconcile, withdraw it, reconcile again | `test/plugin/ddos-local-stale-table-swept.ci` (STALE-TABLE-SWEPT), `TestStaleDropRuleSweepClaimsTheNameThenWithdrawsIt` |
+| A `ze_ddos-local` drop rule a previous process left in the kernel | -> | `runEngine` initial `OnConfigure`, after the firewall dependency -> `clearStaleDropRule` -> claim, reconcile, withdraw, reconcile | `test/plugin/ddos-local-stale-table-swept.ci` (STALE-TABLE-SWEPT, COPP-RULE-PRESERVED), `TestLocalStartupSweepsTheConfiguredBackend` |
 
 ## Acceptance Criteria
 
@@ -343,7 +346,7 @@ rather than assumed; this one was checked and failed.
 | AC-7 | `max-mitigation-duration 0` under `ddos local`, with a drop rule installed and an attack that never clears | The rule stays installed. Zero means no cap, which is what the leaf's own `description` says, and it MUST NOT be read as an expiry of zero seconds |
 | AC-8 | An `AttackCharacterized` that re-installs the rule in place, arriving while the rule is already active | The cap keeps counting from the FIRST install. A refresh MUST NOT restart the clock, or an attack that re-characterizes every minute never expires |
 | AC-9 | `ddos local` configured, no attack, for longer than `max-mitigation-duration` | Nothing is removed and nothing is logged. The worker is a no-op while no rule is installed |
-| AC-10 | A `ze_ddos-local` drop rule in the kernel when ze starts, put there by a previous process and claimed by no owner in this one | The plugin removes it, and the whole table with it, before it can be configured and before any event can reach a responder. It removes it whatever `firewall flush-on-shutdown` says, because a ddos drop is an attack response rather than persistent state, and protection after the restart comes from the attack being detected again (owner directive, 2026-09-09) |
+| AC-10 | A `ze_ddos-local` drop rule in the kernel when ze starts, put there by a previous process and claimed by no owner in this one | The plugin sweeps the rule and table during initial `OnConfigure`, after the configured firewall dependency and before any responder subscribes. The sweep is best-effort with stage-specific error logging, preserves other owners' desired rules, and runs regardless of `firewall flush-on-shutdown`. Reload does not repeat it. Protection after restart comes from fresh detection (owner directive, 2026-09-09) |
 
 ## End-to-End User Stories
 
@@ -593,7 +596,7 @@ Added 2026-09-09, clearing the round 4 review gate:
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | AC-1 `detector.go` `tick`; AC-2 `responder.go` `announce`; AC-3 `observe/register.go` `startStaleSweep`; AC-4 `detector.go` `tick` save block; AC-5 `responder.go` `announce` guard |
-| Feature completeness | AC-2 has no `.ci`; that is the one open item and it is named in Known Limitations rather than closed over |
+| Feature completeness | `test/plugin/ddos-announce-rate-limit.ci` has both QEMU GREEN and rebuilt limiter-cut RED, recorded under the AC-2 functional proof |
 | Correctness | The fold reports the interval PEAK, not the closing sample, and attributes PPS and BPS to their own interfaces; a refused announce consumes no budget and leaves the responder idle |
 | Naming | `evalTicks` is in feed samples and `tickNum` counts them, so the two units cannot be confused; `announceWindow` names the minute the leaf is stated over |
 | Data flow | `check-interval` is read once, in `newDetector`; nothing else in the package reads `cfg.CheckInterval` |
@@ -834,12 +837,10 @@ worker stops reaching the cap, and the kernel readback is what catches it.
   addresses; and `fixture06OpenRemoteFlood`, the dialed flood a REMOTE victim
   needs (`p05OpenFlood` also binds a sink socket on the victim, which answers
   "cannot assign requested address" for an address the box does not hold).
-- `test/plugin/ddos-local-max-duration.ci`: green in the guest, red under the
-  worker cut. `test/plugin/ddos-announce-rate-limit.ci`: written, not yet green.
-  See Work Not Done.
+- The local cap and announce-limit functional scenarios passed in QEMU and failed under their respective production cuts. The dated evidence below records each run.
 
 ### Bugs Found/Fixed
-- None beyond the spec's own defect. No walked-into defect was met in this phase.
+- The dated Review Gate records the reload orphan, retired-responder race, parent-removal withdrawal, startup backend ordering and their regression proofs. Findings 26–30 are resolved by the current implementation and evidence.
 
 ### Documentation Updates
 - `internal/plugins/ddos/local/yang/ze-ddos-local-conf.yang`: the
@@ -857,9 +858,7 @@ worker stops reaching the cap, and the kernel readback is what catches it.
   any file this phase touched. `./le yang glue check`: 154 directories current.
 
 ### Deviations from Plan
-- The spec's Files to Modify names `internal/test/fixture/plugin_fixture_05_ddos.go`
-  and `plan/journal/unwired-feature.md`. Both were out of this agent's write
-  scope, so both are in Work Not Done rather than done.
+- Linux-only fixture implementations live in `internal/test/fixture/plugin_fixture_06_ddos_linux.go`. The earlier write-scope and functional-run limitations are resolved in the dated evidence.
 - `enforceMaxDuration` splits the flowspec twin's single compound guard into two
   guards, one per reason, so the no-cap guard carries its own comment
   (`docs/contributing/ze-go-style.md`, "Control flow a reader can simulate", and
@@ -882,13 +881,17 @@ worker stops reaching the cap, and the kernel readback is what catches it.
 | An operator can stop a transit drop by committing `forward-mitigation false`, without losing an on-host one | functional (unit, kernel-read) | `TestLocalDisablingForwardMitigationRemovesTheForwardDrop` (red without the arm) and `TestLocalDisablingForwardMitigationLeavesTheIngressDrop` (red if the arm is widened) |
 | An operator can stop an on-host drop by committing `response-level alert` | functional (unit, kernel-read) | `TestLocalLeavingEnforceRemovesTheDrop`: the firewall stub reports the withdraw, not the responder's own snapshot. Red before the arm existed |
 | An operator reaches the announce limit end to end | functional `.ci` | `test/plugin/ddos-announce-rate-limit.ci`, RUN in the guest on 2026-09-09: PASS in 55.5s, and FAIL with a second announcement 18s into the window under the rebuilt limiter cut |
+| Detection evaluations honor check-interval and persistence follows the feed | Source and inherited discrimination evidence | `detect/detector.go` `tick` folds `evalTicks`, saves on `tickNum % baselineSaveInterval`, and passes the interval peak to `applyTick`; `interval_test.go` and `ddos-timing-leaves.ci` record the corresponding RED/GREEN |
+| Open incidents reach their configured stale timeout | Source and inherited functional proof | `observe/register.go` `runEngine` starts `startStaleSweep`; `store.go` `sweepStale` finalizes incidents; `ddos-timing-leaves.ci` keeps the flood running while reading an end time |
+| Startup cleanup uses the configured backend and preserves other owners | Current race and Linux proof | `local/register.go` `runEngine` calls `clearStaleDropRule` inside initial `OnConfigure`; configured-backend overlay is RED, fixed local suite is PASS with race, and Linux 7.2 stale-table scenario is PASS 1/1 with both required markers |
+| Restart timing is stated separately for packet and bandwidth detection | Current throwaway smoke proof | `detect/detector.go` `applyTick` and `baseline.go` `Ready`: cold BPS armed/detected at 391/393, full restore 1/3, partial 50-sample restore 341/343; cold PPS at 2x floor detects at 93 and exact 5x at 3 |
 
 ## Work Not Done
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| (closed 2026-09-09) The AC-2 run of `test/plugin/ddos-announce-rate-limit.ci` | The blocker was another session's in-flight refactor of `internal/component/config/transaction` and `internal/component/iface` breaking the tree-wide build, which `ze-test` links. It is gone: `GOOS=linux GOARCH=amd64 go vet ./internal/test/fixture/ ./internal/plugins/ddos/...` exits 0, and the guest binaries cross-compile against a `go -overlay` that presents HEAD for other sessions' files. The test RAN in the guest, green, and red under the cut that stops `announce` consulting the limiter. Both are pasted in the Review Gate | nothing. AC-2 has its `.ci` |
-| The ddos FLOWSPEC half of the config-apply orphan | `p.OnConfigApply` in `internal/plugins/ddos/flowspec/register.go` has the identical shape and orphans a live FlowSpec announcement the same way. It is a different spec's leaf and this spec's goal does not depend on it, so it took one row in `plan/journal/component-rebuilt-during-reload.md` (2026-09-08) and nothing else | `plan/immediate/spec-ddos-direction-allowlist-deferred-flowspec-withdraw.md` owns the flowspec cap; the journal row is what earns the fix |
+| None within AC-1 through AC-10 | Every acceptance criterion has a producing path and recorded proof; this closure adds no product deferral | Not applicable |
+| FlowSpec responder state across config apply, outside this spec's local-cap and startup repair | The previously recorded FlowSpec lifecycle finding remains outside this closure; its source is unchanged | `plan/immediate/spec-ddos-direction-allowlist-deferred-flowspec-withdraw.md` |
 
 ## Review Gate
 
@@ -2154,6 +2157,343 @@ QEMU VM: PASS
 
 The mutations were reverted and
 `grep -rn MUTATION-APPLIED internal/ test/` returns nothing.
+
+### Round 5 report and implementation (2026-09-10)
+
+Thomas authorized round six on 2026-09-10: one further independent review after
+these fixes. The author does not perform that review. No seventh round is
+authorized, and the spec remains OPEN until verification and round six finish.
+The available independent reviewer model override applies to this continuation.
+
+The inherited report follows unchanged. Finding 26's startup boundary is
+confirmed, but its claim that VPP necessarily retains the drop is not established.
+`reconcileWithOps` calls `cleanupStartupOrphans`, and the firewall engine's
+initial `ApplyAll` already reaches that cleanup. It dumps `ze/`-tagged ACLs,
+excludes desired tags, and logs and continues on deletion failures. The repair
+below addresses premature reconciliation without changing VPP cleanup.
+
+### Round 5 (independent, over commit `c23134ce1`)
+
+Scope: the fixes round 4 made and what they newly touched, judged against
+Thomas's 2026-09-09 ruling (no claim on shutdown, the rule is not saved, the
+attack is re-detected on the next start) rather than against the promise that
+ruling replaced. 1 BLOCKER, 1 ISSUE, 3 NOTE. Every finding was read at its
+producing function.
+
+**Round 4 re-check, at the producers.** The two-reconcile reasoning holds.
+`tableNameSet` (`internal/plugins/firewall/nft/backend_linux.go`) keys
+`desiredNames` by NAME with no family, and `shouldDeleteTable` returns true for a
+`ze_` table in that set or in `b.applied`, so step 1 deletes an ip and an ip6
+`ze_ddos-local` together, and `b.applied = desiredNames` at the end of `Apply`
+is what makes step 2's withdraw delete the empty table step 1 created. A claim
+table with no chains survives `dropTablesMissingAProvidedSet`
+(`internal/component/firewall/registry.go`), which examines only `MatchInSet`
+terms. No other owner registers that name, and `reconcileMu` serializes the whole
+snapshot-plus-apply, so no concurrently starting plugin can interleave a
+half-applied set: every hazard I could construct from copp or the flowspec bridge
+reconciling between the two steps converges to the same kernel. The failure arm
+leaves no claim behind (`registerTables(tableName, nil)` before the return), and
+finding 23's fix reads its `r.target` from a `setStatus` call that passes the
+field back to itself, so the error line still names the victim. Finding 22's
+claim about `LegacySweepPending` is TRUE: the one-time removal in `Apply` walks
+`currentTables` independently of the desired set, so any reconcile that reaches a
+backend performs it, and step 1 always presents a non-empty set. The guide's
+`startup-grace` row and its two escapes match `applyTick` exactly
+(`ppsQuiet := maxPps < d.cfg.AbsoluteFloor*5`, and the bps arm gated on
+`BpsTriggerEnable && baselineBps.Ready()`), and `confirm-duration` 3 is three
+evaluations in `stateMachine.Tick` at the default `check-interval` of 1.
+
+#### 26 (BLOCKER). The sweep runs before the firewall engine owns a backend, so on a `backend vpp` box it clears the wrong dataplane
+
+`clearStaleDropRule` is called from `runEngine` before `sdk.NewWithConn`, which
+is earlier than the diff's own comment claims in one respect that matters: it is
+before the FIREWALL engine is configured, not only before ddos-local is.
+
+`Manager.spawnProcesses` (`internal/component/plugin/manager/manager.go`) calls
+`ProcessManager.StartWithContext`, which starts every plugin's process in one
+loop, and `Process.startInternal` (`internal/component/plugin/process/process.go`)
+puts each internal engine straight on a goroutine. Only the 5-stage HANDSHAKE is
+tier-ordered (`runPluginPhase`, `internal/component/plugin/server/startup.go`:
+"All processes are started at once ... the handshake is sequenced by dependency
+tiers"). So ddos-local's sweep runs while the firewall engine's goroutine is
+still parked in `p.Run` waiting for its own stage-4 config, and the firewall
+engine loads the operator's backend only there, in `OnConfigure`
+(`internal/component/firewall/engine.go`, `LoadBackend(cfg.Backend)`).
+
+With no backend loaded, `ApplyAll` autoloads `defaultBackendForAutoload`
+(`internal/component/firewall/registry.go`), which is `defaultBackendName`,
+`"nft"` on Linux (`default_linux.go`). The autoload exists for a box with no
+`firewall {}` block. Here it fires on a box that HAS one and names another
+backend, because the section has not been read yet.
+
+Failure scenario, concrete. Config: `firewall { backend vpp; flush-on-shutdown
+false; }` and `ddos { local { response-level enforce; } }`. An attack on
+192.0.2.10 installs the drop through the VPP backend, which is a supported owner
+of ddos-local's table (`internal/plugins/firewall/vpp/timeout_linux.go` names
+copp, policy-routes and ddos-local by hand). The daemon is restarted. On the next
+start ddos-local's sweep autoloads nft, claims `ze_ddos-local`, reconciles, and
+deletes and re-creates an NFTABLES table that never held the rule; the VPP
+classify state for 192.0.2.10 is untouched. The firewall engine then loads vpp.
+192.0.2.10 stays blackholed for the life of the daemon, which is the exact
+outcome this commit exists to prevent, and `docs/guide/ddos-mitigation.md` states
+the opposite without qualification: "It removes it whatever put it there, and
+whatever `flush-on-shutdown` says." A claim wider than the code is what stops the
+next reader asking (`ai/rules/evidence.md`), and it is the same shape round 4
+raised as finding 21.
+
+The same root cause has a second, smaller consequence on ANY box with a
+`firewall {}` section, including the default `backend nft`. `OnConfigure` calls
+`LoadBackend` unconditionally, and `loadBackendLocked` replaces `activeBackend`
+with a fresh instance whose `applied` map is empty. Landing between the sweep's
+two reconciles, that swap makes step 2 find the name in neither the desired set
+nor `applied`, so the empty `ze_ddos-local` table step 1 created stays in the
+kernel until the next attack registers the name.
+
+Nothing covers this. The unit tests stub `registerTables` and `applyAll`, so no
+backend exists in them, and `test/plugin/ddos-local-stale-table-swept.ci`
+deliberately carries no `firewall {}` section, which is the one configuration
+where the autoload is the correct answer.
+
+Fix shape, not picked here. The sweep needs an actor that owns the configured
+backend. ddos-local declares `Dependencies: []string{"firewall"}`, so
+`TopologicalTiers` puts it in a later tier and the firewall engine's `OnConfigure`
+is complete before ddos-local's begins: moving the call to the first line of
+ddos-local's `OnConfigure`, ahead of `replaceResponder` and `subscribe`, keeps
+every property the doc comment claims (before the plugin is configured in any
+sense that matters, before any event can reach a responder, once per process
+because reloads arrive through `OnConfigVerify`/`OnConfigApply`) and adds the one
+it lacks. The alternative is the firewall engine sweeping response tables itself,
+which is the general repair the journal row already names.
+
+#### 27 (ISSUE). The guide's `baseline-window` row states a cost the producer does not have, and omits the one it does
+
+The row says a box with no saved baseline "re-warms over this window first",
+under a column headed "What it costs after a restart". `baseline.Threshold`
+(`internal/plugins/ddos/detect/baseline.go`) returns
+`max(p99Cache*multiplier, floor)`, and a cold baseline's `p99Cache` is 0, so the
+PPS threshold is the absolute floor from the first evaluation. PPS detection is
+not delayed by the window at all, and `Ready()` gates nothing on that path.
+
+What a cold baseline does cost is the row above's second escape and the whole
+amplification path: `bpsAbove` is computed only when `d.baselineBps.Ready()`
+(`applyTick`), which needs `baseline-window` samples. And those samples do not
+start accumulating at tick 1. The startup-grace branch returns via `drainPending`
+BEFORE `d.baseline.Add`/`d.baselineBps.Add`, so on a quiet box no sample is
+admitted for the first 90 ticks. A box that has never run therefore has no armed
+BPS trigger for about 390 seconds, not 300, and is blind for that whole period to
+the one attack shape the trigger exists to catch, which `applyTick`'s own comment
+states: "Amplification is the one attack shape that is low PPS and high
+bandwidth, so the packet-rate escape alone is blind to exactly the class the BPS
+trigger exists to catch." The table exists to give the operator the exposure
+window after a restart, so it understates it for that class and overstates it for
+the packet path.
+
+#### 28 (NOTE). The sweep-failure warning names a blackhole that the failing arm may have already removed
+
+`runEngine` logs one line for both arms of `clearStaleDropRule`, with
+`"effect", "a victim that process was mitigating stays blackholed until an
+operator removes the table"`. True when step 1 fails. False when step 2 fails:
+step 1 already deleted whatever was under the name and put an empty table in its
+place, so nothing is blackholed and what survives is a chainless table. On a host
+with no firewall backend (`defaultBackendName` is `""` off Linux) the sweep now
+fails on EVERY ddos-local start and prints that sentence where no table can
+exist. Round 4's finding 23 was this class in `removeMitigation`.
+
+#### 29 (NOTE). The `.ci` carries a second firewall owner and does not assert it survives
+
+The copp block's stated reason is sound: `stopOrphanedDependencies` and
+`collectOrphanedDependencies` (`internal/component/plugin/server/startup_autoload.go`)
+do stop a dependency-only plugin once its last dependent goes, so a second
+dependent pins the firewall engine. The block also gives the test a second ze
+table, and the assertion the sweep's design most needs is that `ze_copp` is still
+in the kernel after the sweep: "no other owner's table is touched" is a claim of
+`clearStaleDropRule`'s doc comment that nothing reads back. One more probe over
+`fixture06StaleTableFamilies`'s shape would hold it.
+
+Its red is otherwise sound and its discrimination is real: the plant runs as
+`seq=1` before the daemon and reads itself back, no flood runs, and the recorded
+RED with the sweep cut and the guest binary rebuilt shows the probe seeing the
+planted table ten seconds in. A daemon in a different namespace from the planter
+would have shown that red as a false green, and it did not.
+
+#### 30 (NOTE). Two records still name `retireResponder`
+
+The rename left `plan/immediate/spec-ddos-timing-leaves-reach-no-worker.md`'s
+Data Flow row (the parent-block line) and the 2026-09-09 row in
+`plan/journal/component-rebuilt-during-reload.md` naming a symbol that no longer
+exists. A finding in the record is not a finding in the product
+(`ai/rules/planning.md`), so this re-opens nothing.
+
+
+#### Round 5 diagnosis and disposition
+
+The symptom is cleanup before firewall configuration. `runEngine` called the
+sweep before `sdk.NewWithConn`, while `Server.runPluginPhase` starts every engine
+before tier-ordered handshakes. The owning layer is ddos-local's initial callback.
+[source] Run the sweep at initial `OnConfigure`, before responder creation.
+[workaround] Force a backend or repeat cleanup during reload. That would ignore
+the configured dependency or erase this engine's live response on an ordinary commit.
+
+| Finding | Implementation | Observed proof |
+|---------|----------------|----------------|
+| 26 | `local/register.go` `runEngine` sweeps in initial `OnConfigure` after firewall configuration and before subscriptions; reload has no sweep | `job-ddos-configured-backend-red-4085114d.log`: pre-change register.go overlay leaves the configured backend's stale table and fails. `job-ospf-ddos-fixed-race-d0b752c2.log`: fixed startup/reload test PASS and all local tests PASS with race |
+| 27 | Guide distinguishes PPS floor from BPS readiness and accounts for quiet grace, partial restore and exact-5x escape | `job-ddos-timing-smoke-9ec15378.log`: cold BPS 391/393; full restore 1/3; partial 50 samples 341/343; cold PPS 2x floor detects 93 and exact 5x detects 3 |
+| 28 | Startup warning reports the failed stage and requests backend inspection | Current race log: `TestLocalStartupCleanupFailureStillHandlesDetection` PASS for stages 1 and 2, with each stage-specific warning followed by a fresh installed drop |
+| 29 | Existing no-flood scenario selects nft explicitly with flush-on-shutdown false and reads the copp limiter | `job-ddos-stale-runtime-linux-9c564b10.log`: Linux 7.2, rebuilt private binaries, PASS 1/1. The current .ci requires both STALE-TABLE-SWEPT and COPP-RULE-PRESERVED. The inherited no-sweep RED remains under “The stale-table proof” |
+| 30 | Live wiring and the reload journal name `stopResponder` | Current source and record reads; historical round reports retain the symbols they reviewed |
+
+The three inherited sweep tests now use the real firewall registry and a stateful
+backend, rather than recording helper order or field copies. They retain the
+claim/withdraw, responder-name and failed-reconcile cleanup contracts. The
+configured-backend startup test adds the missing lifecycle boundary. The
+functional test still plants and reads a drop before daemon startup and sends no flood.
+
+Pre-change files are preserved under
+`tmp/session/2026-09-09-5bc855cc-5761-4012-8d90-7a9823029ab3/scratch/ddos-round5-baseline/`.
+`startup-overlay.json` substitutes only pre-change `register.go`, so new tests
+remain present for the RED run. `overlay.json` preserves the wider source fixture.
+The author phase ran no validation. The parent subsequently supplied the current RED,
+race, Linux and timing proofs listed above. Round six read those logs without rerunning them.
+The mixed race command remains RED overall because of the separate OSPF assertion;
+its DDoS local package is PASS. Earlier rounds describe their recorded source versions.
+
+### Round 6 final independent review (2026-09-10)
+
+CLEAN: 0 BLOCKER, 0 ISSUE. The independent reviewer was `DdosClosureSix`, using
+Thomas's available-model override for unavailable Opus 5. Thomas explicitly chose
+round six; no seventh round is authorized. The product reason for the extra round
+was finding 26: `runEngine` reconciled before the configured firewall backend was selected.
+
+The review read the current patch and the implementation paths for AC-1 through AC-10.
+Logic and lifecycle, security and bounds, and test discrimination and documentation were reviewed inline.
+`Server.runPluginPhase` completes each dependency tier before the next.
+Firewall `runEngine` loads and applies its backend in `OnConfigure`; local `runEngine` then sweeps before subscribing.
+`RegisterTables` and `ApplyAll` retain other owners' desired state.
+Nft `shouldDeleteTable` recognizes the claimed name across address families.
+Reload keeps its verify/apply path and carries the live rule through `replaceResponder`.
+
+The current startup regression uses both production engines and the real registry with a stateful test backend.
+It proves backend selection and reload preservation, rather than VPP dataplane behavior.
+VPP `reconcileWithOps` already calls `cleanupStartupOrphans`.
+The inherited assertion that a VPP drop necessarily survives the old ordering is unproven.
+The Linux proof reads nft kernel state; the timing proof drives detector logic through a throwaway overlay.
+AC-7 and AC-8 retain their inherited unit discrimination proofs.
+
+Record-only NOTEs were corrected together: stale implementation summaries, outstanding-proof cells,
+historical citers and absent closure audit sections. These corrections do not reopen the product review.
+
+All current proof logs are under
+`tmp/session/2026-09-09-5bc855cc-5761-4012-8d90-7a9823029ab3/scratch/`.
+No formatter, lint, build, test suite or repository-wide gate ran in this review.
+Settled RED gates remain RED: prior full lint 93 host/104 Linux/2 capability/1 coverage;
+current scoped lint 22 host/22 Linux, with no DDoS source diagnostic;
+repository check 24 BGP findings; commit audit 16 concurrent findings; doc verify 3759 drift/8 summary.
+The pre-release owner rule permits closure with this attribution and forbids repeating unchanged gates.
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/ddos-timing-leaves-reach-no-worker-5bc855cc-5761-4012-8d90-7a9823029ab3.md` |
+| Native review check | Recorded and checked by the closure owner after this metadata edit, before scoped commit execution |
+| Rounds | 6; Thomas authorized the final pass over the pre-configure wrong-backend sweep fix |
+| Reviewer lenses used | Logic and lifecycle; security and bounds; reachability, regression discrimination and documentation |
+| Final verdict | CLEAN, 0 BLOCKER, 0 ISSUE |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Startup sweep ran before the SDK handshake | Engines start together; configuration is dependency-tier ordered | Round-five source trace and current configured-backend RED | Sweep in initial `OnConfigure` |
+| approach | Restart exposure prose treated PPS and BPS warm-up alike | PPS has a cold floor; BPS needs a full admitted window after quiet grace | `applyTick`, `Ready`, and current timing smoke | Corrected the guide and proof record |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Four timing leaves reach running consumers | Done | `detect/detector.go` `tick`; `flowspec/responder.go` `announce`; `observe/register.go` `startStaleSweep`; `local/register.go` `startMaxDurationWorker` | Existing schema and bounds retained |
+| Local mitigation retains its age through reload and leaves on operator withdrawal | Done | `local/register.go` `replaceResponder`, `stopResponder`; `local/responder.go` `adoptMitigation`, `enforceMaxDuration` | Inherited unit and QEMU RED/GREEN |
+| Previous-process response table is swept at configured startup | Done | `local/register.go` `runEngine`, `clearStaleDropRule` | Best-effort stage errors; no shutdown guarantee |
+| Operator restart timing matches detection | Done | `docs/guide/ddos-mitigation.md`; `detect/detector.go` `applyTick` | Current cold/full/partial/PPS smoke proof |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `tick`, `intervalPeak`; `interval_test.go`; `ddos-timing-leaves.ci` | Peak and interface survive the fold |
+| AC-2 | Done | `announce`, `announceLimiter.allow`; `announce_limit_test.go`; `ddos-announce-rate-limit.ci` | Refusal stays idle; window expires at 60 seconds |
+| AC-3 | Done | `startStaleSweep`, `sweepStale`; `sweep_test.go`; `ddos-timing-leaves.ci` | Flood continues while incident finalizes |
+| AC-4 | Done | `tick`; `TestBaselineSaveFollowsTheFeedTickNotTheEvaluation` | Save remains feed-driven |
+| AC-5 | Done | `announce`; `TestAnnounceRefusesAnUnresolvedVictim` | Prefix guard precedes budget consumption |
+| AC-6 | Done | `startMaxDurationWorker`, `enforceMaxDuration`; `ddos-local-max-duration.ci` | Wall-clock removal and idle publication |
+| AC-7 | Done | `enforceMaxDuration`; `TestLocalMaxDurationZeroMeansNoCap` | Explicit zero-cap guard; unit discrimination |
+| AC-8 | Done | `setStatus`, `adoptMitigation`; `TestLocalMaxDurationClockStartsOnTheFirstInstall` | First-install clock retained |
+| AC-9 | Done | `enforceMaxDuration`; `TestLocalMaxDurationIdleWorkerRemovesNothing` | Inactive early return |
+| AC-10 | Done | `runEngine`, `clearStaleDropRule`; current startup and Linux proofs | Backend selected before sweep; fresh events survive both failure stages |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Detector interval and persistence tests | Done | `internal/plugins/ddos/detect/interval_test.go` | Inherited RED/GREEN |
+| FlowSpec announcement limit tests | Done | `internal/plugins/ddos/flowspec/announce_limit_test.go` | Inherited RED/GREEN and functional limiter cut |
+| Observation worker tests | Done | `internal/plugins/ddos/observe/sweep_test.go` | Inherited worker-cut RED/GREEN |
+| Local cap and reload tests | Done | `internal/plugins/ddos/local/max_duration_test.go` | Current package race PASS; inherited discrimination cuts |
+| Startup ownership tests | Done | `internal/plugins/ddos/local/stale_table_test.go` | Current configured-backend RED, fixed race PASS |
+| Daemon scenarios | Done | `test/plugin/ddos-timing-leaves.ci`, `ddos-announce-rate-limit.ci`, `ddos-local-max-duration.ci`, `ddos-local-cap-survives-reload.ci`, `ddos-local-config-removed.ci`, `ddos-parent-config-removed.ci`, `ddos-local-stale-table-swept.ci` | Dated QEMU proofs; current Linux rerun is stale-table only |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/plugins/ddos/detect/`, `observe/`, `flowspec/`, `local/` planned producers and tests | Done | Source consumers and caller paths read |
+| `internal/test/fixture/plugin_fixture_05_ddos.go`, `plugin_fixture_06_ddos_linux.go` | Done | Registered functional drivers; Linux-specific split recorded |
+| `test/plugin/ddos-*.ci` scenarios named in the audit | Done | Existing functional evidence retained |
+| DDoS guide, firewall ownership architecture and reload journal | Done | Current ordering, timing and lifecycle records |
+
+### Audit Summary
+Four task requirements and ten acceptance criteria are Done.
+Six test groups and four file groups are accounted for.
+No in-scope item is Partial or Skipped; the Linux fixture split is the recorded plan change.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| Planned DDoS producer/test files and named .ci scenarios | Yes | Source reads and inherited run output identify the files; current Linux log runs `ddos-local-stale-table-swept.ci` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-4 | Interval peak evaluation and feed-clock save | Current `detect/detector.go` `tick` read; inherited interval discrimination tests |
+| AC-2, AC-5 | Bounded announces and unresolved-victim refusal | Current `flowspec/responder.go` `announce`/`allow` read; inherited limiter QEMU RED/GREEN |
+| AC-3 | Running stale sweep | Current `observe/register.go` worker and `store.go` sweep read; inherited live-flood proof |
+| AC-6, AC-7, AC-8, AC-9 | Local cap, zero, first-install age and idle behavior | Current local package race PASS and producer reads; inherited worker/clock cuts |
+| AC-10 | Configured-backend startup sweep | Current configured-backend RED/GREEN, both cleanup failure stages PASS, Linux 7.2 PASS 1/1 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Detector interval and observe timeout | `test/plugin/ddos-timing-leaves.ci` | Config, live flood and status assertions read |
+| FlowSpec announcement limit | `test/plugin/ddos-announce-rate-limit.ci` | Attached update sender, two generations and refusal assertion read |
+| Local cap and reload/removal | Local max-duration, cap-survives-reload, config-removed and parent-config-removed scenarios | Inherited discriminating QEMU proofs and current lifecycle producers |
+| Process startup with stale table | `test/plugin/ddos-local-stale-table-swept.ci` | Pre-daemon planter, no flood, explicit backend and both marker assertions read; current Linux PASS |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `tick` folds evaluation peaks as the existing baseline comment specifies |
+| A-2 | confirmed | Feed subscriptions and interval producer; timing proof assumes uninterrupted one-second samples |
+| A-3 | confirmed | `announce` refuses and returns before publication; inherited functional refusal proof |
+| A-4 | confirmed | One observation worker calls bounded `sweepStale` and joins at teardown |
+| A-5 | confirmed | Local cap remains a supported leaf and reaches `enforceMaxDuration` |
+| A-6 | confirmed | One-second local worker and current package race PASS |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Startup ordering and cleanup failures | `local/register.go` `runEngine`/`clearStaleDropRule`; firewall `runEngine`; `Server.runPluginPhase` | Guide and firewall ownership page match |
+| PPS/BPS restart exposure and persistence | `applyTick`, `Ready`, `restore`, `saveBaselines`, `loadBaselines` | Current timing smoke matches corrected guide |
+| Local mitigation lifecycle | `replaceResponder`, `stopResponder`, `adoptMitigation`, `enforceMaxDuration` | Current guide names producing paths and limits shutdown claims |
+| Config syntax, CLI/API, plugin inventory, RFC and doctor surfaces | Existing leaf ranges, registrations and dispatch types remain unchanged by round-six repairs; existing source anchors were located | No new syntax, command, wire format or runtime dependency |
+| Repository-wide documentation gate | Parent's settled doc verify reports 3759 drift/8 summary | RED retained; no rerun or green claim |
 
 ## RFC Documentation (Scope: protocol)
 

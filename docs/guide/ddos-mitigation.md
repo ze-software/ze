@@ -235,7 +235,7 @@ server-driven mitigation commands.
 | `baseline-window` | `300` | 10-86400 | Rolling baseline window in samples, one sample per evaluation (~seconds at the default `check-interval`) |
 | `threshold-multiplier` | `3.00` | 1.00-100.00 | Baseline p99 multiplier for the dynamic PPS threshold |
 | `absolute-floor` | `5000` | 1+ PPS | Minimum PPS threshold regardless of baseline |
-| `startup-grace` | `90` | 0-3600 s | Seconds after startup where only an extreme spike (>5x floor) or an armed bandwidth trigger fires |
+| `startup-grace` | `90` | 0-3600 s | Seconds after startup where only a packet rate at least 5x the floor or an armed bandwidth trigger escapes grace |
 | `bps-trigger-enable` | `true` | bool | Enable the bandwidth (BPS) trigger alongside the PPS threshold |
 | `bps-threshold-multiplier` | `3.00` | 1.00-100.00 | Baseline p99 multiplier for the bandwidth trigger |
 | `bps-floor` | `50000000` | 1+ bits/s | Minimum bandwidth (bits/s) below which the BPS trigger is inert (default 50 Mbps) |
@@ -282,12 +282,14 @@ so legitimate high-throughput bursts are not flagged. Set `bps-trigger-enable fa
 to disable just the bandwidth path.
 <!-- source: internal/plugins/ddos/detect/detector.go -- applyTick: bpsAbove = enable && baselineBps.Ready() && maxBps > baselineBps.Threshold() -->
 
-**Baseline persistence:** the detector saves both baselines to
-`<config-dir>/state/ddos-detect-baseline.json` on shutdown/reconfigure and
-periodically, and restores them on startup, so a restart or config change resumes
-detection without re-warming over `baseline-window` (a stale, too-few-sample, or
-corrupt file is rejected and the baseline warms fresh).
-<!-- source: internal/plugins/ddos/detect/persist.go -- saveBaselines/loadBaselines; baseline.restore version + min-sample + sanity guards -->
+**Baseline persistence:** the detector saves both baselines in the shared zefs
+state store on shutdown/reconfigure and periodically, then restores them on startup.
+A full restored bandwidth window arms the BPS trigger at the first evaluation.
+A valid partial snapshot can restore with 50 samples (or the window size when
+smaller), but BPS stays unarmed until the window is full. Missing, malformed, or
+incompatible state starts cold. PPS always has its absolute-floor threshold.
+<!-- source: internal/plugins/ddos/detect/persist.go -- saveBaselines, loadBaselines -->
+<!-- source: internal/plugins/ddos/detect/baseline.go -- restore, Ready, Threshold -->
 
 **Incident confidence:** on characterization the detector computes a 0-100
 confidence from the peak/threshold ratio, family specificity, and source spread.
@@ -449,29 +451,45 @@ while ddos local is still joining its cap worker. A withdrawal that lands after
 that close writes nothing to the kernel. A crash, a power loss and
 `firewall { flush-on-shutdown false; }` each leave the rule as well.
 
-**The rule does not survive the restart, because ddos local clears it at its own
-start.** A ddos drop is not persistent state. It is an attack response, and a
-reboot is one of the ways an operator clears state. So the plugin removes any
-`ze_ddos-local` table it finds in the kernel before it can be configured. It
-removes it whatever put it there, and whatever `flush-on-shutdown` says.
+**ddos local clears its previous drop at startup.** A ddos drop is an attack
+response, and a reboot is one way an operator clears state. The plugin sweeps
+`ze_ddos-local` at its initial configure callback, after the firewall dependency
+has selected its configured backend and before a responder subscribes to events.
+Reload uses the verify/apply callbacks and does not repeat this sweep.
+<!-- source: internal/plugins/ddos/local/register.go -- runEngine, clearStaleDropRule -->
+<!-- source: internal/component/plugin/server/startup.go -- runPluginPhase -->
+<!-- source: internal/component/firewall/engine.go -- runEngine -->
 
-Nothing else can. The nft backend deletes a `ze_` table only when the table is in
-the desired set, or in that backend instance's own applied set. A table a
-previous process wrote is in neither. A sweep that does not reach the kernel logs
-`could not clear a drop rule left by a previous process`.
+On nft, the sweep first claims the name to reach a table this backend instance
+did not install, then withdraws the empty table. Other owners keep their desired
+rules. Cleanup is best-effort: a failure logs
+`could not clear a drop rule left by a previous process`, with the failed stage
+in `error`. A failed final reconcile can leave only an empty table after the
+first reconcile removed the drop. Detection and reporting continue.
+<!-- source: internal/plugins/ddos/local/register.go -- clearStaleDropRule, runEngine -->
+<!-- source: internal/plugins/firewall/nft/backend_linux.go -- shouldDeleteTable -->
 
-**Protection after a restart comes from the attack being detected again**, not
-from a rule that outlived the daemon. The exposure window is therefore the
-detector's and not the responder's. Three things set it:
+Protection after a restart depends on fresh detection. The timing below assumes
+an uninterrupted one-second rate feed and the default `check-interval` of 1.
 
 | What | Default | What it costs after a restart |
 |------|---------|-------------------------------|
-| `startup-grace` | 90 | The opening 90 seconds of the rate feed are discarded, so a cold baseline cannot fire on its own warm-up. Either of two facts escapes the grace at once. One is a packet rate over five times `absolute-floor`. The other is a bandwidth trigger that is enabled, has a ready baseline, and is over its threshold. A flood under both waits the grace out |
-| `confirm-duration` | 3 | Three consecutive above-threshold evaluations before `AttackDetected`, which is about 3 seconds at the default `check-interval` of 1 |
-| `baseline-window` | 300 | Only when there is no saved baseline. ze persists both baselines and restores them at startup, so a restart usually resumes warm. A box that has never run, or whose state store is empty, re-warms over this window first |
+| `startup-grace` | 90 seconds | Quiet evaluations return before either baseline admits a sample. A packet rate at least five times `absolute-floor`, including exactly 5x, escapes grace. An enabled BPS trigger also escapes when its baseline is full and traffic exceeds its threshold. Escaping grace still requires the detection threshold and confirmation |
+| `confirm-duration` | 3 evaluations | Three consecutive above-threshold evaluations before `AttackDetected`, about 3 seconds at the default cadence |
+| `baseline-window` | 300 admitted samples | PPS has no extra window delay: a cold cache gives the absolute-floor threshold. BPS requires a full window. With quiet cold startup, 90 seconds of grace precede 300 admitted evaluations, so BPS first evaluates armed at about 391 seconds, then needs confirmation. A full restored window is armed immediately. A partial restored window still needs its missing samples |
 
 <!-- source: internal/plugins/ddos/detect/detector.go -- applyTick, the startup-grace escape -->
 <!-- source: internal/plugins/ddos/detect/persist.go -- saveBaselines, loadBaselines -->
+<!-- source: internal/plugins/ddos/detect/baseline.go -- Threshold, Ready, restore -->
+
+The cold BPS estimate is about 390 seconds plus confirmation because readiness
+is read before the final sample is admitted. At default settings, an attack
+first above threshold on evaluation 391 confirms on evaluation 393. Attack-marked
+samples are normally excluded, so a sustained PPS attack can extend BPS warm-up.
+Larger `check-interval` values multiply the sample and confirmation periods,
+while startup grace remains in feed seconds.
+<!-- source: internal/plugins/ddos/detect/detector.go -- tick, applyTick -->
+<!-- source: internal/plugins/ddos/detect/baseline.go -- Add, admit -->
 <!-- source: internal/plugins/ddos/local/register.go -- clearStaleDropRule -->
 
 **Going back to `enforce`.** A commit of `response-level alert` removes the rule,
