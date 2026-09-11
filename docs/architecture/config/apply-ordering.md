@@ -48,8 +48,8 @@ transaction.
 **Every participant with a diff is a node, decomposer or not.** A participant
 the planner produced no operation for gets one COARSE node, synthesized by
 `operationNodes`, which the executor applies through that participant's section
-apply. So a root nobody decomposes is ordered relative to the other roots, and
-applied by the `config-apply` callback every plugin implements.
+apply. So a root nobody decomposes is ordered against the operations the other
+roots emit, and applied by the `config-apply` callback every plugin implements.
 
 Coverage is what makes the ordering unconditional. Until 2026-09-08 the
 orchestrator abandoned the operation path for the WHOLE transaction as soon as
@@ -61,11 +61,23 @@ what replaced it.
 <!-- source: internal/component/config/transaction/orchestrator.go -- operationNodes -->
 <!-- source: internal/component/config/transaction/executor.go -- applySection -->
 
-**A coarse node's position is a tie-break, never an ordering claim.** It sits
-after the decomposed operations, because an unconstrained node keeps its slice
-position through the sort and a root that declares no operations consumes the
-resources the decomposed roots produce more often than it produces them. An
-edge decides the order wherever one exists.
+**A coarse node is placed after the last create and modify, so it runs before
+the destructions.** That is the design's own sequence: create the address,
+update the services that bind it, destroy the old address last. A root nobody
+decomposes is one of those services, and the core knows nothing more about it
+than that.
+
+The position is a placement rather than an edge, and `placeSectionNodes` takes
+it once the sort is done. An edge from every create and to every destroy would
+close a cycle with `iface-remove-address-before-add-same-address`, which orders
+a destroy BEFORE a create. Moving one address between two interfaces, while any
+uncovered root has a diff, would then abort a reload that works today. A coarse
+node carries no edge at all, so moving it constrains nothing and no other
+operation changes place.
+
+Where a destroy is forced ahead of a create the two halves cannot both hold,
+and the creations win. The section applies the config's end state.
+<!-- source: internal/component/config/transaction/solver.go -- placeSectionNodes -->
 <!-- source: internal/component/iface/operation.go -- iface-owned decomposition -->
 <!-- source: internal/component/bgp/plugin/operation.go -- BGP-owned decomposition -->
 <!-- source: internal/component/bgp/reactor/operation.go -- peer add, remove and modify primitives -->

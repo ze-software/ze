@@ -116,15 +116,11 @@ func validateResourceRefs(op *ConfigOperation, refs []ResourceRef, declaration s
 }
 
 const (
-	ResourceInterface    = rpc.ResourceInterface
-	ResourceAddress      = rpc.ResourceAddress
-	ResourcePeer         = rpc.ResourcePeer
-	ResourceListener     = rpc.ResourceListener
-	ResourceBridgeMember = rpc.ResourceBridgeMember
-	ResourceStaticRoute  = rpc.ResourceStaticRoute
-	ResourceSysctl       = rpc.ResourceSysctl
-	ResourceDHCP         = rpc.ResourceDHCP
-	ResourceTunnel       = rpc.ResourceTunnel
+	ResourceInterface   = rpc.ResourceInterface
+	ResourceAddress     = rpc.ResourceAddress
+	ResourcePeer        = rpc.ResourcePeer
+	ResourceListener    = rpc.ResourceListener
+	ResourceStaticRoute = rpc.ResourceStaticRoute
 )
 
 var errOperationRegistryInvalidInput = errors.New("operation registry invalid input")
@@ -157,12 +153,12 @@ type OperationSelector struct {
 // That fact is DECLARED by the operations themselves, in Produces and Consumes,
 // and the graph derives its edge from the pair (BuildOperationGraph). A rule
 // carries what a pair cannot: a fact about two operations over DIFFERENT
-// resources.
+// resources. That is why the two relations left are the two the surviving
+// iface rules select.
 type ResourceRelation string
 
 const (
 	ResourceRelationAny           ResourceRelation = ""
-	ResourceRelationSameResource  ResourceRelation = "same-resource"
 	ResourceRelationSameInterface ResourceRelation = "same-interface"
 	ResourceRelationSameAddress   ResourceRelation = "same-address"
 )

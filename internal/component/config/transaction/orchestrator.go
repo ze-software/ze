@@ -495,16 +495,16 @@ func emitSectionApply(gateway EventGateway, txID, name string, diffs []DiffSecti
 // and never applied, and its config change would be discarded while the
 // transaction reported success.
 //
-// The coarse nodes come last. An unconstrained node keeps its slice position
-// through the sort (kahnSort seeds its queue in slice order), and a root that
-// declares no operations consumes the resources the decomposed roots produce
-// more often than it produces them. The position is a tie-break and nothing
-// more: an edge decides the order wherever one exists.
-//
 // A coarse node carries no Root and no Target on purpose. It stands for one
 // PARTICIPANT, which receives one section apply carrying every root it
 // declared, so no single root names it; and it has no resource identity to
 // order by, so no constraint rule matches it and the graph gives it no edge.
+//
+// Its position is therefore not decided here. The solver places it after the
+// last operation that creates or modifies a resource, because a root with no
+// operations binds what the decomposed roots own (placeSectionNodes in
+// solver.go). The order this function appends them in decides only the order
+// of two coarse nodes against each other.
 func (o *TxCoordinator) operationNodes(ops []ConfigOperation, diffs map[string][]DiffSection) []ConfigOperation {
 	uncovered := o.participantsWithoutOperations(ops, diffs)
 	nodes := make([]ConfigOperation, 0, len(ops)+len(uncovered))
@@ -622,6 +622,12 @@ func (o *TxCoordinator) filterDiffs(allDiffs map[string][]DiffSection, p Partici
 // instead emitted operations covering only PART of its root's diff would make
 // its participant look covered, and the remainder would reach nothing: that is
 // a defect in the decomposer, and this is the contract it must meet.
+//
+// The names come back in PARTICIPANT order, which sortParticipantsBGPLast
+// decided. The bgp participant applies after the others, because peer
+// reconciliation reads the state they commit. Sorting the names alphabetically
+// here is deterministic and wrong: "bgp" sorts first, and the coarse nodes
+// keep this order to the executor (TestReloadTxApplyBGPLast).
 func (o *TxCoordinator) participantsWithoutOperations(ops []ConfigOperation, diffs map[string][]DiffSection) []string {
 	owners := make(map[string]struct{}, len(ops))
 	for i := range ops {
@@ -638,7 +644,6 @@ func (o *TxCoordinator) participantsWithoutOperations(ops []ConfigOperation, dif
 			uncovered = append(uncovered, p.Name)
 		}
 	}
-	slices.Sort(uncovered)
 	return uncovered
 }
 

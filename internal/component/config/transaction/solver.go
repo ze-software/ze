@@ -18,13 +18,16 @@ var ErrOperationCycle = errors.New("operation dependency cycle")
 // "Address operation" is a verb and a resource kind, not a label: an operation
 // whose verb creates or destroys a resource of kind ResourceAddress. No root
 // and no operation label is named here.
+//
+// The last step places the coarse section-apply nodes, which carry no edge and
+// which the graph therefore orders against nothing.
 func TopologicalSort(graph *OperationGraph) ([]ConfigOperation, error) {
 	if graph == nil {
 		return nil, nil
 	}
 	sorted, remaining := kahnSort(graph, graph.edges)
 	if len(remaining) == 0 {
-		return sorted, nil
+		return placeSectionNodes(sorted), nil
 	}
 	relaxed, cycleMembers, err := tryRelaxCycle(graph, remaining)
 	if err != nil {
@@ -34,7 +37,77 @@ func TopologicalSort(graph *OperationGraph) ([]ConfigOperation, error) {
 	if len(finalRemaining) > 0 {
 		return nil, ErrOperationCycle
 	}
-	return markDualPresence(finalSorted, cycleMembers), nil
+	return placeSectionNodes(markDualPresence(finalSorted, cycleMembers)), nil
+}
+
+// placeSectionNodes moves every coarse section-apply node to the one position
+// the core can state for it. That position is immediately after the last
+// operation that creates or modifies a resource. A node placed there runs
+// after every creation the sort put before it, and before the destructions.
+//
+// It is the sequence the design states: create the address, update the
+// services that bind it, destroy the old address last. A root nobody
+// decomposes is one of those services
+// (docs/architecture/config/apply-ordering.md).
+//
+// The position is a placement rather than an edge, and that is the whole
+// reason this function exists. An edge from every create and to every destroy
+// closes a cycle with iface-remove-address-before-add-same-address, which
+// orders a destroy BEFORE a create. An operator moving one address between two
+// interfaces, with any diff in an uncovered root, would then meet
+// ErrOperationCycle on a reload that works today. A coarse node carries no
+// edge at all, so moving it constrains nothing and no other operation moves.
+//
+// Where a destroy is forced before a create, the two halves cannot both hold
+// and the creations win. The section applies the config's END state, so it
+// reads the resources as the transaction leaves them.
+func placeSectionNodes(sorted []ConfigOperation) []ConfigOperation {
+	last := -1
+	sections := 0
+	for i := range sorted {
+		if IsSectionApply(&sorted[i]) {
+			sections++
+			continue
+		}
+		switch sorted[i].Verb {
+		case VerbCreate, VerbModify:
+			last = i
+		case VerbDestroy:
+			// A destroy is what the coarse node runs BEFORE, so it never
+			// moves the insertion point.
+		}
+	}
+	if sections == 0 {
+		return sorted
+	}
+
+	result := make([]ConfigOperation, 0, len(sorted))
+	if last < 0 {
+		result = appendSectionNodes(result, sorted)
+	}
+	for i := range sorted {
+		if IsSectionApply(&sorted[i]) {
+			continue
+		}
+		result = append(result, sorted[i])
+		if i == last {
+			result = appendSectionNodes(result, sorted)
+		}
+	}
+	return result
+}
+
+// appendSectionNodes appends the coarse nodes of sorted, in the order the sort
+// left them, so two uncovered participants keep the order the planner gave
+// them.
+func appendSectionNodes(result, sorted []ConfigOperation) []ConfigOperation {
+	for i := range sorted {
+		if !IsSectionApply(&sorted[i]) {
+			continue
+		}
+		result = append(result, sorted[i])
+	}
+	return result
 }
 
 func kahnSort(graph *OperationGraph, edges []OperationEdge) (sorted []ConfigOperation, remainingIDs []string) {

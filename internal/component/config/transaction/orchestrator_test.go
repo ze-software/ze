@@ -1718,3 +1718,83 @@ func TestExecuteRefusesOperationWithNoVerb(t *testing.T) {
 		t.Errorf("the refused transaction applied %d operations, want 0", len(applies))
 	}
 }
+
+// TestExecuteAppliesCoarseNodeAfterTheResourcesItBinds drives the coarse
+// node's position from the door an operator reaches. The reload adds an
+// interface, adds an address on it, and changes one root nothing decomposes.
+// The uncovered root binds the address, so its section apply must arrive after
+// the address exists.
+//
+// The order is read from the events themselves, which is what the plugins
+// receive and act on, rather than from the sorted slice.
+//
+// VALIDATES: AC-1 through Execute, for a root with no decomposer.
+// PREVENTS: the static route reaching the kernel before its address, which
+// answers "network is unreachable" while the transaction reports committed.
+func TestExecuteAppliesCoarseNodeAfterTheResourcesItBinds(t *testing.T) {
+	gw := newTestGateway()
+	participants := []testParticipant{
+		{name: "iface", configRoots: []string{"interface"}},
+		{name: "static", configRoots: []string{"static"}},
+	}
+	orch := newTestOrchestrator(t, gw, participants)
+	orch.SetOperationPlanner(func(_ context.Context, _ OperationPlanRequest) ([]ConfigOperation, error) {
+		return []ConfigOperation{
+			{ID: "iface-add-zx", Root: "interface", Owner: "iface", Type: testOpAddInterface, Verb: VerbCreate,
+				Target:   ResourceRef{Kind: ResourceInterface, Name: "zx"},
+				Produces: []ResourceRef{{Kind: ResourceInterface, Name: "zx"}}},
+			{ID: "iface-add-address-zx", Root: "interface", Owner: "iface", Type: testOpAddAddress, Verb: VerbCreate,
+				Target:   ResourceRef{Kind: ResourceAddress, Interface: "zx", Address: "10.93.0.1/24"},
+				Produces: []ResourceRef{{Kind: ResourceAddress, Address: "10.93.0.1/24"}},
+				Consumes: []ResourceRef{{Kind: ResourceInterface, Name: "zx"}}},
+		}, nil
+	})
+	diffs := map[string][]DiffSection{
+		"interface": {{Root: "interface", Added: `{"interface/dummy/zx":{}}`}},
+		"static":    {{Root: "static", Added: `{"static/route/172.30.0.0-24":{}}`}},
+	}
+
+	var applied []string
+	var operationEvents []string
+	gw.SubscribeConfigEvent(EventOperationApplyFor("iface"), func(payload []byte) {
+		var ev ConfigOperationApplyEvent
+		if err := json.Unmarshal(payload, &ev); err != nil {
+			return
+		}
+		applied = append(applied, ev.Operation.ID)
+	})
+	autoAckOperations(gw, "iface", &operationEvents)
+	gw.SubscribeConfigEvent(EventApplyFor("static"), func(payload []byte) {
+		var ev ApplyEvent
+		if err := json.Unmarshal(payload, &ev); err != nil {
+			return
+		}
+		applied = append(applied, "section-apply-static")
+	})
+	var sectionApplies []string
+	autoAckSectionApply(gw, "static", &sectionApplies)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	resultCh := make(chan *TxResult, 1)
+	go func() { resultCh <- orch.Execute(ctx, diffs) }()
+
+	for i := range participants {
+		waitForEmit(t, gw, EventVerifyFor(participants[i].name))
+		participants[i].respondVerify(gw, orch.TransactionID())
+	}
+
+	select {
+	case result := <-resultCh:
+		if result.State != StateCommitted {
+			t.Fatalf("state = %s (err %v), want %s", result.State, result.Err, StateCommitted)
+		}
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for the transaction to commit")
+	}
+
+	want := []string{"iface-add-zx", "iface-add-address-zx", "section-apply-static"}
+	if !reflect.DeepEqual(applied, want) {
+		t.Fatalf("applied in the order %v, want %v", applied, want)
+	}
+}

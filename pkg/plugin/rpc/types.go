@@ -1161,18 +1161,21 @@ const (
 // ResourceKind identifies the resource an operation targets. It is deliberately
 // coarse: component-owned decomposers keep detailed semantics in Params while
 // the generic solver uses resource keys for ordering.
+//
+// The kind is free text on the wire. The four constants below are the kinds a
+// first-party decomposer emits today, and a root declaring a kind none of them
+// names is ordered by identity like every other (resourceIdentity in
+// internal/component/config/transaction/depgraph.go). A constant nothing emits
+// is a central enumeration written for a root that never arrived, so it is not
+// kept here (ai/rules/principles.md).
 type ResourceKind string
 
 const (
-	ResourceInterface    ResourceKind = "interface"
-	ResourceAddress      ResourceKind = "address"
-	ResourcePeer         ResourceKind = "peer"
-	ResourceListener     ResourceKind = "listener"
-	ResourceBridgeMember ResourceKind = "bridge-member"
-	ResourceStaticRoute  ResourceKind = "static-route"
-	ResourceSysctl       ResourceKind = "sysctl"
-	ResourceDHCP         ResourceKind = "dhcp"
-	ResourceTunnel       ResourceKind = "tunnel"
+	ResourceInterface   ResourceKind = "interface"
+	ResourceAddress     ResourceKind = "address"
+	ResourcePeer        ResourceKind = "peer"
+	ResourceListener    ResourceKind = "listener"
+	ResourceStaticRoute ResourceKind = "static-route"
 )
 
 // ConfigOperationDecl declares operation callback support during Stage 1.

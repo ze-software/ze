@@ -31,6 +31,11 @@ const (
 	testOpSetProperty rpc.ConfigOperationType = "set-property"
 )
 
+// testResourceSysctl is the resource kind the operation-path tests below
+// target. The kind is free text on the wire, and the core names only the five
+// its own decomposers emit. A test that needs another one spells it here.
+const testResourceSysctl rpc.ResourceKind = "sysctl"
+
 // mockReloadReactor implements the GetConfigTree/SetConfigTree subset of ReactorLifecycle.
 // Embeds mockReactor (from handler_test.go) for all other interface methods.
 type mockReloadReactor struct {
@@ -1384,7 +1389,7 @@ func TestReloadUsesRegisteredOperationDecomposer(t *testing.T) {
 		assert.Equal(t, root, req.Root)
 		assert.Contains(t, req.ActiveRoot, "old")
 		assert.Contains(t, req.CandidateRoot, "new")
-		return []transaction.ConfigOperation{{ID: "op-reload-1", Root: root, Owner: owner, Type: testOpSetProperty, Verb: transaction.VerbModify, Target: transaction.ResourceRef{Kind: transaction.ResourceSysctl, Name: "test"}}}, nil
+		return []transaction.ConfigOperation{{ID: "op-reload-1", Root: root, Owner: owner, Type: testOpSetProperty, Verb: transaction.VerbModify, Target: transaction.ResourceRef{Kind: testResourceSysctl, Name: "test"}}}, nil
 	}))
 
 	oldTree := map[string]any{root: map[string]any{"value": "old"}}
@@ -1419,7 +1424,7 @@ func TestReloadRejectsUndeclaredConfigOperation(t *testing.T) {
 	root := fmt.Sprintf("oproot-undeclared-operation-%d", time.Now().UnixNano())
 	owner := "opowner-undeclared"
 	require.NoError(t, transaction.RegisterOperationDecomposer(root, func(context.Context, transaction.DecomposeRequest) ([]transaction.ConfigOperation, error) {
-		return []transaction.ConfigOperation{{ID: "op-undeclared-1", Root: root, Owner: owner, Type: testOpSetProperty, Verb: transaction.VerbModify, Target: transaction.ResourceRef{Kind: transaction.ResourceSysctl, Name: "test"}}}, nil
+		return []transaction.ConfigOperation{{ID: "op-undeclared-1", Root: root, Owner: owner, Type: testOpSetProperty, Verb: transaction.VerbModify, Target: transaction.ResourceRef{Kind: testResourceSysctl, Name: "test"}}}, nil
 	}))
 
 	oldTree := map[string]any{root: map[string]any{"value": "old"}}
@@ -1443,7 +1448,7 @@ func TestReloadRejectsUndeclaredConfigOperation(t *testing.T) {
 func TestReloadUsesExternalOperationDecompose(t *testing.T) {
 	root := fmt.Sprintf("oproot-external-decompose-%d", time.Now().UnixNano())
 	owner := "opowner-external"
-	op := transaction.ConfigOperation{ID: "op-external-1", Root: root, Owner: owner, Type: testOpSetProperty, Verb: transaction.VerbModify, Target: transaction.ResourceRef{Kind: transaction.ResourceSysctl, Name: "test"}}
+	op := transaction.ConfigOperation{ID: "op-external-1", Root: root, Owner: owner, Type: testOpSetProperty, Verb: transaction.VerbModify, Target: transaction.ResourceRef{Kind: testResourceSysctl, Name: "test"}}
 
 	oldTree := map[string]any{root: map[string]any{"value": "old"}}
 	newTree := map[string]any{root: map[string]any{"value": "new"}}
@@ -1745,4 +1750,95 @@ func TestConfigTxBridgeDispatchesOperationVerifyAndCommit(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for operation commit ack")
 	}
+}
+
+// TestReloadRefusesAPluginOperationCarryingTheReservedSectionApplyLabel drives
+// the reserved-label refusal from the door a plugin's payload arrives through.
+// That door is a reload: its planner asks the plugin to decompose its own
+// root, and reads the operations it answers with.
+//
+// The label belongs to the coarse node the orchestrator synthesizes. The
+// executor sends a node carrying it to the participant's whole section apply.
+// A plugin that emitted one would have its entire section applied under an
+// operation's name, and with no per-operation verify. The plugin below
+// declares the label as well, so the
+// declaration check is not what refuses it.
+//
+// VALIDATES: validateOperationDeclarations refuses a plugin-supplied section-apply label at the planner.
+// PREVENTS: a plugin reaching the section apply through an operation, which is
+// the one route into the transaction that answers no per-operation callback.
+func TestReloadRefusesAPluginOperationCarryingTheReservedSectionApplyLabel(t *testing.T) {
+	root := fmt.Sprintf("oproot-reserved-section-apply-%d", time.Now().UnixNano())
+	owner := "opowner-reserved"
+	op := transaction.ConfigOperation{
+		ID: "op-reserved-1", Root: root, Owner: owner,
+		Type: transaction.OperationSectionApply, Verb: transaction.VerbModify,
+		Target: transaction.ResourceRef{Kind: testResourceSysctl, Name: "test"},
+	}
+
+	oldTree := map[string]any{root: map[string]any{"value": "old"}}
+	newTree := map[string]any{root: map[string]any{"value": "new"}}
+	reactor := &mockReloadReactor{tree: oldTree}
+	plugins := []pluginDef{{
+		name:  owner,
+		roots: []string{root},
+		configOps: []rpc.ConfigOperationDecl{{
+			Root:       root,
+			Decompose:  true,
+			Operations: []rpc.ConfigOperationType{transaction.OperationSectionApply},
+		}},
+	}}
+	s := newTestReloadServer(t, reactor, plugins)
+	plugins[0].responder.mu.Lock()
+	plugins[0].responder.opDecomposeResp = &rpc.ConfigOperationDecomposeOutput{Status: rpc.StatusOK, Operations: []rpc.ConfigOperation{op}}
+	plugins[0].responder.mu.Unlock()
+
+	err := s.ReloadConfig(context.Background(), newTree)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "reserved type")
+	assert.Equal(t, 0, plugins[0].responder.getApplyCalls(), "the refused operation must reach no section apply")
+	assert.Equal(t, 0, plugins[0].responder.getOperationApplyCalls(), "the refused operation must reach no operation apply")
+}
+
+// TestReloadRefusesAPluginOperationDeclaringAResourceWithNoIdentity drives the
+// blank-resource refusal from the same door. A Produces or Consumes entry is a
+// claim about what the operation needs, and the graph matches those claims by
+// identity. An entry with no identity would be read as every resource, which
+// is how a hostile plugin would order itself against a whole transaction
+// (ai/rules/principles.md).
+//
+// VALIDATES: ErrOperationBlankResource refuses a plugin's payload at the planner, not only at the helper.
+// PREVENTS: an unidentified resource entry reaching BuildOperationGraph.
+func TestReloadRefusesAPluginOperationDeclaringAResourceWithNoIdentity(t *testing.T) {
+	root := fmt.Sprintf("oproot-blank-resource-%d", time.Now().UnixNano())
+	owner := "opowner-blank"
+	op := transaction.ConfigOperation{
+		ID: "op-blank-1", Root: root, Owner: owner,
+		Type: testOpSetProperty, Verb: transaction.VerbModify,
+		Target:   transaction.ResourceRef{Kind: testResourceSysctl, Name: "test"},
+		Consumes: []transaction.ResourceRef{{Kind: transaction.ResourceAddress}},
+	}
+
+	oldTree := map[string]any{root: map[string]any{"value": "old"}}
+	newTree := map[string]any{root: map[string]any{"value": "new"}}
+	reactor := &mockReloadReactor{tree: oldTree}
+	plugins := []pluginDef{{
+		name:  owner,
+		roots: []string{root},
+		configOps: []rpc.ConfigOperationDecl{{
+			Root:       root,
+			Decompose:  true,
+			Operations: []rpc.ConfigOperationType{testOpSetProperty},
+		}},
+	}}
+	s := newTestReloadServer(t, reactor, plugins)
+	plugins[0].responder.mu.Lock()
+	plugins[0].responder.opDecomposeResp = &rpc.ConfigOperationDecomposeOutput{Status: rpc.StatusOK, Operations: []rpc.ConfigOperation{op}}
+	plugins[0].responder.mu.Unlock()
+
+	err := s.ReloadConfig(context.Background(), newTree)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, transaction.ErrOperationBlankResource)
+	assert.Equal(t, 0, plugins[0].responder.getApplyCalls(), "the refused operation must reach no section apply")
+	assert.Equal(t, 0, plugins[0].responder.getOperationApplyCalls(), "the refused operation must reach no operation apply")
 }

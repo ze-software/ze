@@ -119,15 +119,11 @@ const (
 
 // Resource kind values.
 const (
-	ResourceInterface    = rpc.ResourceInterface
-	ResourceAddress      = rpc.ResourceAddress
-	ResourcePeer         = rpc.ResourcePeer
-	ResourceListener     = rpc.ResourceListener
-	ResourceBridgeMember = rpc.ResourceBridgeMember
-	ResourceStaticRoute  = rpc.ResourceStaticRoute
-	ResourceSysctl       = rpc.ResourceSysctl
-	ResourceDHCP         = rpc.ResourceDHCP
-	ResourceTunnel       = rpc.ResourceTunnel
+	ResourceInterface   = rpc.ResourceInterface
+	ResourceAddress     = rpc.ResourceAddress
+	ResourcePeer        = rpc.ResourcePeer
+	ResourceListener    = rpc.ResourceListener
+	ResourceStaticRoute = rpc.ResourceStaticRoute
 )
 
 // ConfigOperationDecomposeInput is the input for config-operation-decompose.

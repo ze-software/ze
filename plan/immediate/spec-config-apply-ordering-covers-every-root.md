@@ -216,8 +216,13 @@ ordering, and the plugin RPC contract is Ze's own.
 | `TestOperationPathCarriesUnknownLabel` | `internal/component/config/transaction/executor_test.go` | AC-5, the label reaches the owner unchanged | PASS, and observed RED with the executor comparing the label to a core list |
 | `TestExecuteRollsBackMixedTransaction` | `internal/component/config/transaction/executor_test.go` | AC-7 across both node kinds | PASS |
 | `TestIfaceOperationsDeclareProduceAndConsume` | `internal/component/iface/operation_test.go` | The iface decomposer declares the sets the deleted rules used to state | PASS, and observed RED with the declarations removed |
-| `TestBGPOperationsDeclareConsumeAddress` | `internal/component/bgp/plugin/operation_test.go` | The bgp decomposer declares address consumption for peers and listeners | PASS, and observed RED with the derivation removed |
+| `TestBGPOperationsDeclareConsumeAddress` | `internal/component/bgp/plugin/operation_test.go` | The bgp decomposer declares address consumption for its peer operations. It emits no listener operation, so no listener declaration exists to assert (corrected at review round 1, I-4) | PASS, and observed RED with the derivation removed |
 | `TestSDKPluginWithoutOperationCallbacksAnswersUnknownMethod` | `pkg/plugin/sdk/sdk_test.go` | A-3, the reason a coarse node takes the section route | PASS |
+| `TestTopologicalSortPlacesSectionNodeBetweenCreatesAndDestroys` | `internal/component/config/transaction/solver_test.go` | B-1. A coarse node runs after the creations and before the destructions | PASS, and observed RED before the placement: two of its three cases put the coarse node first or in the middle of the creations |
+| `TestTopologicalSortSectionNodeJoinsAnAddressSwapWithoutACycle` | `internal/component/config/transaction/solver_test.go` | R-2. A swap plus one uncovered root still sorts, which an edge-shaped position would not | PASS before and after. It fences the shape of the answer, not a change of behavior |
+| `TestExecuteAppliesCoarseNodeAfterTheResourcesItBinds` | `internal/component/config/transaction/orchestrator_test.go` | B-1 through `Execute`, the door an operator reaches | PASS, and observed RED at `[iface-add-zx section-apply-static iface-add-address-zx]` |
+| `TestReloadRefusesAPluginOperationCarryingTheReservedSectionApplyLabel` | `internal/component/plugin/server/reload_test.go` | B-2. `ReloadConfig` refuses a plugin-supplied `section-apply` label | PASS, and observed RED with the reserved-type refusal deleted |
+| `TestReloadRefusesAPluginOperationDeclaringAResourceWithNoIdentity` | `internal/component/plugin/server/reload_test.go` | B-2. `ReloadConfig` refuses a blank resource entry, from the door rather than the helper | PASS, and observed RED with `validateResourceRefs` unwired |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -487,7 +492,7 @@ This spec does not answer them from memory.
 ## Known Limitations
 - The 10000 operation warning and the 100 cycle-depth rejection named in the design stay unenforced. Config is operator supplied and bounded, so neither is a security boundary. Not this spec's work.
 - The step-3 owner state check in `armSettlementWaiters` stays unimplemented. Total coverage does not change that path.
-- This spec makes every root ORDERABLE. It does not make every root DECOMPOSED: firewall, dhcp, ike, l2tp, static and ntp still apply as one coarse node each, so each gets ordering relative to other roots and none within itself. Per-root decomposition is separate work, one spec per root, each a feature rather than a defect. None is written yet.
+- This spec makes every root ORDERABLE. It does not make every root DECOMPOSED: firewall, dhcp, ike, l2tp, static and ntp still apply as one coarse node each. A coarse node is placed after the last operation that creates or modifies a resource and therefore before the destructions (`placeSectionNodes`, `solver.go`), which is ordering against the operations the other roots emit and none within itself. Where a destroy is forced ahead of a create by a surviving rule, the two halves cannot both hold and the creations win. Per-root decomposition is separate work, one spec per root, each a feature rather than a defect. None is written yet.
 - `Params.AllowDual` keeps no reader outside the solver. Whether an applier should act on it, for example to suppress a make-before-break check, belongs to the per-root decomposition work above.
 
 ## RFC Documentation (Scope: protocol)
@@ -538,3 +543,59 @@ enforcing code.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Review Gate
+
+Round 1, independent reader, 2026-09-11. Findings artifact:
+`tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/review-findings-cao.md`.
+Verdict: **findings** -- 2 BLOCKER, 6 ISSUE, 3 NOTE. The gate is NOT clean.
+
+| # | Severity | File / symbol | Finding |
+|---|----------|---------------|---------|
+| B-1 | BLOCKER | `internal/component/config/transaction/orchestrator.go` `operationNodes`, `depgraph.go` `addDerivedEdges`, `solver.go` `kahnSort` | A coarse node carries no verb, no target and no produce/consume set, and `RegisterConstraintRule` refuses an empty selector, so it can earn NO edge from either mechanism. Its position is the slice tie-break alone. Reproduced: `add-interface` + `add-address` + one coarse node sorts to add-interface, coarse node, add-address, so a static route installs before its address exists. AC-1 holds only for the renumber case the `.ci` picks, and `docs/architecture/config/apply-ordering.md` claims "a root nobody decomposes is ordered relative to the other roots", which is false |
+| B-2 | BLOCKER | `internal/component/plugin/server/reload_tx.go` `validateOperationDeclarations` | The reserved `section-apply` label refusal has no test at any level. `ErrOperationBlankResource` is driven only from `ValidateOperations` itself, never from an entry point, which the spec's own Security Review Checklist forbids |
+| I-1 | ISSUE | `internal/component/config/transaction/orchestrator.go` `computeTieredDeadline`, `runOperationPath` | The deadline is the per-tier MAX because a tier applied concurrently. The ordered path applies one node at a time under one absolute deadline, and every reload now takes it, so N participants cost up to N x budget. The comment is stale and R-1's "measure the reload suite before and after" is recorded nowhere |
+| I-2 | ISSUE | `internal/component/config/transaction/orchestrator.go` `participantsWithoutOperations` | Coverage is per participant, so a participant that decomposes root A and has a diff on root B it does not decompose gets no coarse node and B reaches nothing while the transaction commits. Unreachable today (iface and bgp each declare one root) and unguarded |
+| I-3 | ISSUE | `test/reload/config-apply-ordering-mixed-rollback.ci`, `executor_test.go` `TestExecuteRollsBackMixedTransaction` | No test rolls back an APPLIED coarse node. The `.ci` fails before the observer's node runs; the unit test asserts only that an applied coarse node receives NO per-operation rollback |
+| I-4 | ISSUE | `test/weakened/4c26aef3.md`, this spec's TDD table | Both claim the bgp decomposer declares a LISTENER's address consumption. `internal/core/bgp/configop/configop.go` carries three peer labels and `decomposeBGPOperations` emits no listener operation |
+| I-5 | ISSUE | `pkg/plugin/rpc/types.go`, `transaction/operation.go`, `depgraph.go` | `ResourceBridgeMember`, `ResourceSysctl`, `ResourceDHCP`, `ResourceTunnel` have no user outside their declaration and the two alias files, which is D3's shape. `ResourceRelationSameResource` has no rule. `resourceIdentity` and `resourceKey` keep listener and static-route branches no producer emits |
+| I-6 | ISSUE | `internal/component/bgp/reactor/operation.go` `swapPeerForOperation` | New product behavior in a file Files to Modify does not name, covered by no AC, and by no test in which the swap returns true |
+| N-1 | NOTE | `solver.go` `markDualPresence`, `pkg/plugin/rpc/types.go` `ConfigOperationParams.AllowDual` | Written and never read; dead weight on the plugin ABI |
+| N-2 | NOTE | `orchestrator.go` `subscribeAcks` | Section-apply acks land in `o.applyOKCh` on the ordered path and nothing drains it, so a coarse node's budget refresh is lost |
+| N-3 | NOTE | Deliverables Checklist | `./le doc check verify` does not pass on this tree. Every named cause is another session's work, so nothing here is this spec's to repair; the row is untrue as written |
+
+**Round 1 disposition, 2026-09-11.** Four findings are repaired in this tree and
+the rest are still open.
+
+| # | Disposition |
+|---|-------------|
+| B-1 | FIXED. `placeSectionNodes` (`solver.go`) puts a coarse node after the last operation that creates or modifies a resource, so it runs before the destructions. The position is a placement and not an edge, because an edge from every create and to every destroy closes a cycle with `iface-remove-address-before-add-same-address` and would abort an address move that works today. Evidence: `.../scratch/cao-b1-solver-red.log`, `.../scratch/cao-b1-orchestrator-red.log`, `.../scratch/cao-b1-green.log` |
+| B-2 | FIXED. Both guards are driven from `Server.ReloadConfig`, through the plugin's own decompose RPC. Evidence: `.../scratch/cao-b2-red-reserved.log`, `.../scratch/cao-b2-red-blank.log`, `.../scratch/cao-b2-green-restored.log` |
+| I-4 | FIXED. `test/weakened/4c26aef3.md` and the TDD row above now say what the code does: the decomposer emits no listener operation, so the two listener rules ordered nothing and their coverage is LOST rather than replaced |
+| I-5 | FIXED. `ResourceBridgeMember`, `ResourceSysctl`, `ResourceDHCP` and `ResourceTunnel` are deleted from `pkg/plugin/rpc/types.go` and both alias files. `ResourceRelationSameResource` is deleted, and `resourceKey`, `opAddrIface` and `firstNonZeroUint16`, which had no other user, go with it. The tests that used them now spell their own kind and use `ResourceRelationAny`, which builds the same two-node cycles |
+| I-1, I-2, I-3, I-6, N-1, N-2, N-3 | Open. Not routed |
+
+**Found while fixing B-1, fixed here, and journalled in
+`plan/journal/refactor-removes-feature.md`:** `TestReloadTxApplyBGPLast` was RED
+on this tree. `participantsWithoutOperations` sorted the uncovered names
+alphabetically, so `bgp` took its coarse node FIRST and lost what
+`sortParticipantsBGPLast` exists to give it. The names now come back in
+participant order, which `buildTxInputs` already makes deterministic.
+
+**The QEMU evidence still describes the code.** `placeSectionNodes` moves coarse
+nodes only, and the relative order of every other operation is unchanged by
+construction, so `address-swap` sorts as it did. In `mixed-root` the coarse node
+lands where it landed before, between the address create and the address
+destroy, by decision rather than by tie-break. What did change is the order of
+two coarse nodes AGAINST EACH OTHER, which neither test asserts. Both tests skip
+on darwin and were not re-run: this is a reading of the change, not a fresh
+walk. The native reload suite is 44 of 44 with 19 skipped
+(`.../scratch/cao-functional-reload.log`).
+
+Verified at the producer and found sound: A-1 (one `emitSectionApply` for both
+routes), A-2 (phase-1 verify precedes the planner, `Verify` skips a coarse node),
+A-3 (`initCallbackDefaults` registers no operation default), rollback reach for
+both node kinds, `runningPeerSettings` reading the reactor's own peer, the two
+gained derived edges with none lost, the blank-entry refusal, every deliverable
+grep, and the QEMU discrimination walk. R-2 was walked over four config shapes
+and NOT reproduced.

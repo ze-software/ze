@@ -887,9 +887,13 @@ Resource relations:
 | Relation | Meaning |
 |----------|---------|
 | (empty) | Any pair of matching operations |
-| `same-resource` | Both target the same resource (same kind + key) |
 | `same-interface` | Both operations act on the same interface |
 | `same-address` | Both operations target the same IP address |
+
+A relation saying "both target the same resource" is not here. One operation
+produces what another consumes, and the two operations DECLARE that themselves.
+The graph derives that edge, so the relations left are the two the surviving
+rules select.
 
 Rules are registered via `RegisterConstraintRule` in component `init()` functions.
 The two in the codebase:
@@ -926,9 +930,12 @@ operation for is carried by one coarse `section-apply` node, so it takes the
 ordered path with everything else and is applied through the `config-apply`
 callback it already implements.
 
-Components that do not register a decomposer (DNS, telemetry, DHCP) are each one
-coarse node. They are ordered relative to the other roots and not within
-themselves. No code change is needed in those components.
+Components that do not register a decomposer (DNS, telemetry, DHCP) are each
+one coarse node. The node is placed after the last operation that creates or
+modifies a resource, and therefore before the destructions. Each is ordered
+against the operations the other roots emit, and not within itself. No code
+change is needed in those components.
+<!-- source: internal/component/config/transaction/solver.go -- placeSectionNodes -->
 
 ### Graph construction and topological sort
 

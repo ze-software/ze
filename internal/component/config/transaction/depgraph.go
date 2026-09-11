@@ -204,10 +204,6 @@ func operationsRelated(before, after *ConfigOperation, relation ResourceRelation
 	switch relation {
 	case ResourceRelationAny:
 		return true
-	case ResourceRelationSameResource:
-		left := resourceKey(before)
-		right := resourceKey(after)
-		return left != "" && left == right
 	case ResourceRelationSameInterface:
 		iface := opInterface(before)
 		return iface != "" && iface == opInterface(after)
@@ -270,30 +266,8 @@ func identityKey(tb *textbuf.Buffer, kind ResourceKind, value string) string {
 	return tb.Str(string(kind)).Byte(':').Str(value).String()
 }
 
-func resourceKey(op *ConfigOperation) string {
-	var tb textbuf.Buffer
-	switch op.Target.Kind {
-	case ResourceInterface:
-		return tb.Str(string(ResourceInterface)).Byte(':').Str(opIfaceName(op)).String()
-	case ResourceAddress:
-		return tb.Str(string(ResourceAddress)).Byte(':').Str(opAddrIface(op)).Byte(':').Str(opAddr(op)).String()
-	case ResourcePeer:
-		return tb.Str(string(ResourcePeer)).Byte(':').Str(firstNonEmpty(op.Target.Peer, op.Params.Peer)).String()
-	case ResourceListener:
-		return tb.Str(string(ResourceListener)).Byte(':').Str(normalizeAddress(firstNonEmpty(op.Target.Address, op.Params.Address))).Byte(':').Uint16(firstNonZeroUint16(op.Target.Port, op.Params.Port)).String()
-	case ResourceStaticRoute:
-		return tb.Str(string(ResourceStaticRoute)).Byte(':').Str(firstNonEmpty(op.Target.Prefix, op.Params.Prefix)).Byte(':').Str(normalizeAddress(firstNonEmpty(op.Target.NextHop, op.Params.NextHop))).String()
-	default:
-		return tb.Str(string(op.Target.Kind)).Byte(':').Str(firstNonEmpty(op.Target.Name, op.Params.Name, op.Target.Address, op.Params.Address)).String()
-	}
-}
-
 func opIfaceName(op *ConfigOperation) string {
 	return firstNonEmpty(op.Target.Name, op.Target.Interface, op.Params.Name, op.Params.Interface)
-}
-
-func opAddrIface(op *ConfigOperation) string {
-	return firstNonEmpty(op.Target.Interface, op.Params.Interface)
 }
 
 func opAddr(op *ConfigOperation) string {
@@ -312,13 +286,4 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
-}
-
-func firstNonZeroUint16(values ...uint16) uint16 {
-	for _, value := range values {
-		if value != 0 {
-			return value
-		}
-	}
-	return 0
 }

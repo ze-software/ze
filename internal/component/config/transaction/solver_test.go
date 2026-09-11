@@ -45,8 +45,8 @@ func TestTopologicalSortCycle(t *testing.T) {
 		{ID: "addr-add", Type: testOpAddAddress, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceAddress, Interface: "eth0", Address: "192.0.2.1"}},
 		{ID: "addr-remove", Type: testOpRemoveAddress, Verb: VerbDestroy, Target: ResourceRef{Kind: ResourceAddress, Interface: "eth0", Address: "192.0.2.1"}},
 	}, []ConstraintRule{
-		{ID: "test-add-before-remove", Before: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameResource},
-		{ID: "test-remove-before-add", Before: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameResource},
+		{ID: "test-add-before-remove", Before: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationAny},
+		{ID: "test-remove-before-add", Before: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationAny},
 	})
 	require.NoError(t, err)
 
@@ -146,8 +146,8 @@ func TestTopologicalSortNonAddressCycleFails(t *testing.T) {
 		{ID: "remove-peer", Type: testOpRemovePeer, Verb: VerbDestroy, Target: ResourceRef{Kind: ResourcePeer, Peer: "edge"}},
 	}
 	rules := []ConstraintRule{
-		{ID: "add-before-remove", Before: OperationSelector{Type: testOpAddPeer, ResourceKind: ResourcePeer}, After: OperationSelector{Type: testOpRemovePeer, ResourceKind: ResourcePeer}, Relation: ResourceRelationSameResource},
-		{ID: "remove-before-add", Before: OperationSelector{Type: testOpRemovePeer, ResourceKind: ResourcePeer}, After: OperationSelector{Type: testOpAddPeer, ResourceKind: ResourcePeer}, Relation: ResourceRelationSameResource},
+		{ID: "add-before-remove", Before: OperationSelector{Type: testOpAddPeer, ResourceKind: ResourcePeer}, After: OperationSelector{Type: testOpRemovePeer, ResourceKind: ResourcePeer}, Relation: ResourceRelationAny},
+		{ID: "remove-before-add", Before: OperationSelector{Type: testOpRemovePeer, ResourceKind: ResourcePeer}, After: OperationSelector{Type: testOpAddPeer, ResourceKind: ResourcePeer}, Relation: ResourceRelationAny},
 	}
 
 	graph, err := BuildOperationGraph(ops, rules)
@@ -198,7 +198,7 @@ func TestTopologicalSortRelaxesCycleByVerbAndKind(t *testing.T) {
 	require.NoError(t, err)
 
 	sorted, err := TopologicalSort(graph)
-	require.NoError(t, err, "a swap of addresses relaxes whatever the operations are labelled")
+	require.NoError(t, err, "a swap of addresses relaxes whatever the operations are labeled")
 	require.Len(t, sorted, 4)
 
 	dual := make([]string, 0, 2)
@@ -267,4 +267,119 @@ func TestTopologicalSortRejectsNonAddressCycle(t *testing.T) {
 			require.ErrorIs(t, err, ErrOperationCycle)
 		})
 	}
+}
+
+// TestTopologicalSortPlacesSectionNodeBetweenCreatesAndDestroys reads the
+// position the solver gives a coarse section-apply node. The node carries no
+// verb, no target and no produce or consume set, so it earns no edge from
+// either mechanism. Its place in the order is a decision the solver takes,
+// rather than a constraint the graph states.
+//
+// The decision is the design's own sequence: create the resource, update the
+// services that bind it, destroy the old resource last. A root nobody
+// decomposes is one of those services.
+//
+// VALIDATES: AC-1. A coarse node runs after the creations and before the destructions.
+// PREVENTS: a static route installed before the address it binds exists, which
+// is what the slice tie-break produced: the kernel answers "network is
+// unreachable" and the route is lost while the transaction reports committed.
+func TestTopologicalSortPlacesSectionNodeBetweenCreatesAndDestroys(t *testing.T) {
+	t.Parallel()
+
+	section := ConfigOperation{ID: "section-apply-static", Owner: "static", Type: OperationSectionApply}
+
+	cases := []struct {
+		name  string
+		ops   []ConfigOperation
+		rules []ConstraintRule
+		want  []string
+	}{
+		{
+			name: "after every create",
+			ops: []ConfigOperation{
+				{ID: "iface-add-zx", Type: testOpAddInterface, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceInterface, Name: "zx"},
+					Produces: []ResourceRef{{Kind: ResourceInterface, Name: "zx"}}},
+				{ID: "iface-add-address-zx", Type: testOpAddAddress, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceAddress, Interface: "zx", Address: "10.93.0.1/24"},
+					Produces: []ResourceRef{{Kind: ResourceAddress, Address: "10.93.0.1/24"}},
+					Consumes: []ResourceRef{{Kind: ResourceInterface, Name: "zx"}}},
+				section,
+			},
+			want: []string{"iface-add-zx", "iface-add-address-zx", "section-apply-static"},
+		},
+		{
+			name: "before every destroy",
+			ops: []ConfigOperation{
+				{ID: "iface-remove-zold", Type: testOpRemoveInterface, Verb: VerbDestroy, Target: ResourceRef{Kind: ResourceInterface, Name: "zold"},
+					Produces: []ResourceRef{{Kind: ResourceInterface, Name: "zold"}}},
+				section,
+			},
+			want: []string{"section-apply-static", "iface-remove-zold"},
+		},
+		{
+			name: "between the create and the destroy of one renumber",
+			ops: []ConfigOperation{
+				{ID: "iface-add-address-new", Type: testOpAddAddress, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceAddress, Interface: "zmix0", Address: "10.93.1.1/24"},
+					Produces: []ResourceRef{{Kind: ResourceAddress, Address: "10.93.1.1/24"}}},
+				{ID: "iface-remove-address-old", Type: testOpRemoveAddress, Verb: VerbDestroy, Target: ResourceRef{Kind: ResourceAddress, Interface: "zmix0", Address: "10.93.0.1/24"},
+					Produces: []ResourceRef{{Kind: ResourceAddress, Address: "10.93.0.1/24"}}},
+				section,
+			},
+			rules: []ConstraintRule{
+				{ID: "add-address-before-remove-same-interface", Before: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameInterface},
+			},
+			want: []string{"iface-add-address-new", "section-apply-static", "iface-remove-address-old"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			graph, err := BuildOperationGraph(tc.ops, tc.rules)
+			require.NoError(t, err)
+
+			sorted, err := TopologicalSort(graph)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, operationIDs(sorted))
+		})
+	}
+}
+
+// TestTopologicalSortSectionNodeJoinsAnAddressSwapWithoutACycle holds the
+// coarse node's position to a placement and away from an edge. An edge from
+// every create and to every destroy closes a cycle with the surviving
+// address-uniqueness rule, which orders a destroy before a create. The
+// relaxation then refuses the cycle, because one member is not an address
+// operation. The reload below is ordinary: two interfaces swap addresses
+// while one uncovered root has a diff.
+//
+// The order below is what the graph produces with the coarse node carrying no
+// edge. This test therefore passes before the placement lands and after it. It
+// fences the shape of the answer rather than a change of behavior, and goes
+// red the moment the position is stated as an edge.
+//
+// VALIDATES: R-2. Total coverage aborts no reload that worked before it.
+// PREVENTS: a swap reload answering "operation dependency cycle" because the
+// core's own synthesized node joined a cycle the operator never wrote.
+func TestTopologicalSortSectionNodeJoinsAnAddressSwapWithoutACycle(t *testing.T) {
+	t.Parallel()
+
+	ops := []ConfigOperation{
+		{ID: "add-A-2", Type: testOpAddAddress, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceAddress, Interface: "ethA", Address: "10.0.0.2/32"}},
+		{ID: "add-B-1", Type: testOpAddAddress, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceAddress, Interface: "ethB", Address: "10.0.0.1/32"}},
+		{ID: "remove-B-2", Type: testOpRemoveAddress, Verb: VerbDestroy, Target: ResourceRef{Kind: ResourceAddress, Interface: "ethB", Address: "10.0.0.2/32"}},
+		{ID: "remove-A-1", Type: testOpRemoveAddress, Verb: VerbDestroy, Target: ResourceRef{Kind: ResourceAddress, Interface: "ethA", Address: "10.0.0.1/32"}},
+		{ID: "section-apply-firewall", Owner: "firewall", Type: OperationSectionApply},
+	}
+	rules := []ConstraintRule{
+		{ID: "remove-address-before-add-same-address", Before: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameAddress},
+		{ID: "add-address-before-remove-same-interface", Before: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameInterface},
+	}
+
+	graph, err := BuildOperationGraph(ops, rules)
+	require.NoError(t, err)
+
+	sorted, err := TopologicalSort(graph)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"add-A-2", "add-B-1", "section-apply-firewall", "remove-A-1", "remove-B-2"}, operationIDs(sorted))
 }
