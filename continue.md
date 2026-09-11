@@ -1107,3 +1107,74 @@ closure commit.
 true and are the part worth keeping: the two owner rulings, what five review
 rounds bought, the three tests that passed for the wrong reason, and the seven
 journal rows recording defects found and deliberately not chased.
+
+## Update, 2026-09-11: update-delay is ALSO parked, and HEAD does not build
+
+### The second entanglement was a cycle, not a queue
+
+After the BFD half was parked, the paths-limit session found the same problem in
+a second file and asked who owned the other half. Checking both files showed a
+cycle rather than an ordering problem:
+
+- `reactor/reactor_api.go` carries the paths-limit session's `pathsLimitSend` and
+  `pathsLimitReceive`, update-delay's `UpdateDelayStatus`, and as-notation's
+  `recordASNotation`.
+- `cmd/peer/peer.go` carries update-delay's command registration and the
+  paths-limit display for `show bgp peer <sel> detail`.
+
+Neither session could commit either file alone, so no ordering existed. Landing
+update-delay was not available either: its review is complete and its artifact
+verifies clean, but it needs the paths-limit symbols to compile.
+
+So update-delay was parked too. Finished, four rounds, artifact verifying, out of
+history until the other session lands. That is a real cost and it was taken
+deliberately, because the alternative was one session committing another's
+unreviewed code.
+
+| Where | What |
+|---|---|
+| `backups/parked-bgp-update-delay-20260911/` | Seven `.parked` Go files plus `RESTORE.md` |
+| `backups/bgp-update-delay-tracked-20260911-0115.patch` | Every tracked-file hunk, taken before the sweep |
+
+24 tracked files were swept hunk by hunk, including nine mocks, both YANG
+modules, `wire-methods.snapshot`, the interop checkers and three doc counts
+returned to nineteen. Grep for `UpdateDelayStatus`, `updateDelayPeerDown`,
+`startInitialRoutes`, `UpdateDelayReasonNotReleased`, `updateDelayEndOfRIB`,
+`ParseUpdateDelay` and the `fieldUpdateDelay*` constants returns zero hits across
+`internal/` and `cmd/`. The review artifact was re-checked after the sweep and
+still verifies; it was not spent and not re-recorded.
+
+### HEAD does not build, and the working tree holds the repair
+
+Two update-delay hunks had already leaked into HEAD under the LANDING
+presumption. `git grep updateDelayEndOfRIB HEAD` returns the call in
+`reactor/reactor_notify.go`, and nothing in HEAD declares it: the declaration was
+in the file now parked. So `internal/component/bgp/reactor` has not compiled from
+a clean checkout since `3dbcd23716`.
+
+Removing that call is part of the parking, so the working tree is now a DELETION
+against HEAD there, and the same applies to the `bgp-update-delay-frr` key in
+`interoplab/bgp/checkers.go`. **Whoever next commits those two files lands the
+repair.** It was not committed here because the file is being actively edited by
+another session and a scoped commit should not carry an unrelated fix.
+
+Row in `plan/journal/committed-tree-does-not-build.md`, which now holds two. The
+transferable point: the landing presumption is sound and was applied correctly,
+but it is paired with a test that was skipped, that a carried hunk must not name
+a symbol HEAD does not hold. Grep the symbols against HEAD, not against the tree
+in front of you.
+
+### Two near-misses during the sweep, both recovered
+
+Reverting a whole file twice destroyed the paths-limit session's hunks:
+`pathsLimitCommitSender` in `reactor_api_batch.go`, and its `bgp-paths-limit-frr`
+scenario in `checkers.go`. Both were restored from the patch and only this
+session's hunks removed by hand, and the other session was asked to verify rather
+than take our word. **Revert by hunk, never by file, in a shared checkout.**
+
+### Also settled
+
+`TestDeclaredShapesReachTheRegistry` and `TestChildCommandsDoNotInheritTheSummaryOrder`
+were reported as failing on update-delay's hunks. They are not: they fail under a
+bare `go test` on `show bgp irr` and `show bgp rib`, and pass with
+`-tags ze_core,ze_bgp`. A missing build tag, not a defect.
