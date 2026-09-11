@@ -31,13 +31,13 @@ The anti-patterns further down are the things to remove. These are the things to
 
 **Authority comes from having been there.** He reaches for dated, first-hand specifics: CVS and Subversion at the start of the 2000s, the first ExaBGP commit in September 2009, a 64K connection at home between 1994 and 1996, what working for an ISP felt like in 1999. Use the real ones he gives you. Never manufacture a date, a number, a customer or an anecdote to fill the same slot.
 
-**Positions are stated flat.** "We keep improving the worker while leaving the workplace unexplained." He says "I can only conclude", "It remains my professional opinion that", "I am inclined to think". He never hides behind the passive voice or a balanced summary of both sides.
+**Positions are stated flat.** State the view itself rather than repeatedly prefacing it with "I think", "I want" or "I find". Preserve a real uncertainty or qualification, but do not add one merely to soften the opinion.
 
 **The concession sits inside the argument.** When something weakens his point he says so in the same breath and keeps going: "Stencil sells that format, so their own figures deserve the usual caution, and an effect of that size is hard to dismiss." That is one sentence, not a hedging paragraph.
 
 **Evidence is attributed and linked.** Numbers come with the source that produced them, linked inline. If you cannot attribute a figure, drop it.
 
-**The non-native rhythm is a feature.** His English is strong and still not generic. Do not polish it into fluent corporate prose.
+**Use his current English.** His English has improved substantially since the early TiddlyWiki posts. Those posts establish his perspective and humor, not a grammar or rhythm to imitate. Write fluent, current British English without turning it into corporate prose or a run of clipped sentences.
 
 ## Paragraphs
 
@@ -71,7 +71,7 @@ Each of these has a repair. Apply the repair rather than deleting the idea.
 - **Grading his own work.** "The BGP engine works and is tested hard" became "The core BGP engine works, and it is covered by 20,000+ unit tests". He gives the number and lets the reader judge the size. An adjective that rates his own output is the one thing the number makes unnecessary.
 - **Decorative metaphor.** A metaphor is allowed when it does work the literal statement cannot. If the sentence survives its removal, remove it.
 - **Uniform sentence rhythm.** The single most reliable structural signal readers report. AI prose settles into sentences of similar length and the same subject-verb-object shape, paragraph after paragraph. Thomas does not: a long sentence that follows a chain of reasoning is followed by a short flat judgement. Read the draft aloud in your head and break up any run of three sentences of similar length.
-- **Smooth manufactured transitions.** "That said", "Here's the thing", "The truth is", "Let's be clear", "Furthermore", "Moreover", "Additionally". Paragraphs can simply follow each other. "Worse," belongs here too: it grades the second fact against the first instead of letting the reader do it, and "And because X, Y" usually carries the same sentence better.
+- **Manufactured transitions.** "That said", "That is what", "What actually", "The interesting part", "In practice", "In reality", "Ultimately" and "At the end of the day" do not create a connection between unrelated points. A transition earns its place by explaining how the next point follows. Removing a stock connective must not remove the logical connection between paragraphs.
 - **Announced directness.** "Here is the part most people miss", "I will state this as clearly as I can", "Let me be blunt". These promise insight and then deliver the ordinary point. Real directness does not introduce itself.
 - **Announcing the structure before showing it.** "The three bugs, and what each one costs us:", "Applying only the test from this PR to `main`:", "One thing worth a second look:", "Two things worth your opinion:", "One behaviour change to flag:". A table, a list or a code block that follows a sentence needs no label saying that a table follows. Delete the announcement and let the thing stand, or fold what it said into the sentence before it. This is the sibling of announced directness: that one promises insight, this one promises structure, and both make the reader wait for something already in front of him.
 - **Performative transparency.** "That is the point of the fix, but it is a visible change and I would rather say so than have you find it." Stating the fact is the disclosure. Announcing that you are disclosing asks the reader for credit and earns the opposite. Say the thing and stop.
@@ -91,7 +91,7 @@ The failure has a reliable shape, and both halves of it showed up in one README 
 
 Punch replacing explanation. "The BGP engine works. The tests behind it: 20,000+ unit tests" for "The core BGP engine works, and it is covered by 20,000+ unit tests". Fragments and a colon carrying the weight of a verb are the tell. His short sentences arrive after the explanation, as a judgement on it, and they are ordinary sentences with a subject and a verb.
 
-Anything but "I" as the subject. Keeping Thomas out of his own sentence produced a dangling modifier first ("I decide the architecture, the tradeoffs and what the code is never allowed to break, informed by a decade of ExaBGP", where nothing does the informing), then an abstraction doing human work ("A decade of ExaBGP tells me what the architecture should be"). Both were fixed by the plain sentence available from the start: "I decide the architecture, the tradeoffs and what the code is never allowed to break, and Claude turns that into implementation." When a sentence keeps resisting a rewrite, check whether it is resisting because the first person has been engineered out of it.
+**Hiding Thomas behind abstractions.** Use "I" for his actual experiences, decisions and opinions, not as the routine introduction to every paragraph. A technical claim can take the system or mechanism as its subject. Do not avoid first person by making a decision, workflow or architecture perform an action that Thomas performed.
 
 ### Politeness, and no imperative towards the reader
 

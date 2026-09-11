@@ -27,7 +27,17 @@ The hook must not be a list of what the article covers ("What follows is X, why 
 - Links go inline to their source, without ceremony.
 - Examples earn their length. Cut an illustration down to the one detail that carries the point.
 
-## Blog register (thomas.mangin.com, his own writing)
+## Current voice (approved 11 September 2026)
+
+Use `website/blog/posts/ai-coding-has-not-had-its-rails-moment.md` as the current voice reference, with the fluency, first-person and paragraph guidance in `ze-author`.
+
+Preserve the central argument Thomas gives you. Develop it through his problem, decisions and their consequences. Anecdotes and technical details support that argument; they must not replace it with a familiar AI story or a sequence of disconnected personal statements.
+
+Voice approval is not permission to commit or publish a draft. Keep requested prose revisions uncommitted until Thomas explicitly asks for a commit.
+
+## Historical source material
+
+Use original TiddlyWiki posts for perspective, opinions and humor. Do not imitate their older grammar or clipped passages. Do not use the AI-written Aikido pages as voice sources. The observations below describe the historical posts, not the current prose style to reproduce.
 
 Short technical commentary (2007 to 2008 era: Cogent, Comcast, Phorm series):
 - Short, direct posts. Gets to the point fast.
@@ -46,10 +56,8 @@ Short technical commentary (2007 to 2008 era: Cogent, Comcast, Phorm series):
 - Industry insider perspective stated frankly.
 
 Across all his blog posts:
-- Personal voice: "I can only conclude", "I am inclined to think".
 - Calls his own posts "rants" or "ramblings".
 - Technical authority delivered conversationally.
-- Older posts have non-native speaker grammar; current English is much stronger.
 
 The old posts contain rhetorical questions ("But how can 2737504257 be in the AS-PATH ! ? !"). Do not copy that. The `ze-author` rule against rhetorical questions applies to blog articles too. Questions belong in a post only when they are genuine and answered, as in the practical checklists in "The proof is the expensive part".
 
