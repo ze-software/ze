@@ -401,8 +401,8 @@ func TestPeerOpQueueOrdering(t *testing.T) {
 	route1 := testRoute("10.0.0.0/8")
 	route2 := testRoute("20.0.0.0/8")
 
-	peer.QueueAnnounce(route1)
-	peer.QueueAnnounce(route2)
+	require.NoError(t, peer.QueueAnnounce(route1))
+	require.NoError(t, peer.QueueAnnounce(route2))
 
 	// Verify queue order
 	peer.mu.RLock()
@@ -442,7 +442,7 @@ func TestPeerShouldQueue(t *testing.T) {
 
 	// Queue has items → should queue (preserves insertion order)
 	route := testRoute("10.0.0.0/8")
-	peer.QueueAnnounce(route)
+	require.NoError(t, peer.QueueAnnounce(route))
 	require.True(t, peer.shouldQueue(), "should queue when opQueue non-empty")
 
 	// Clear queue, still established → should not queue
@@ -500,9 +500,9 @@ func TestPeerOpQueueMixedOperations(t *testing.T) {
 	route1 := testRoute("10.0.0.0/8")
 	route2 := testRoute("20.0.0.0/8")
 
-	peer.QueueAnnounce(route1)
+	require.NoError(t, peer.QueueAnnounce(route1))
 	require.NoError(t, peer.Teardown(4, ""))
-	peer.QueueAnnounce(route2)
+	require.NoError(t, peer.QueueAnnounce(route2))
 
 	peer.mu.RLock()
 	require.Len(t, peer.opQueue, 3, "queue should have 3 items")
@@ -558,15 +558,15 @@ func TestPeerOpQueueOverflow(t *testing.T) {
 	// Fill queue to capacity with valid routes
 	route := testRoute("10.0.0.0/8")
 	for range DefaultOpQueueSize {
-		peer.QueueAnnounce(route)
+		require.NoError(t, peer.QueueAnnounce(route))
 	}
 
 	peer.mu.RLock()
 	require.Len(t, peer.opQueue, DefaultOpQueueSize, "queue should be at max capacity")
 	peer.mu.RUnlock()
 
-	// Additional operations should be dropped
-	peer.QueueAnnounce(route)
+	// Past the cap the route is DROPPED, not delayed, and the caller is told.
+	require.ErrorIs(t, peer.QueueAnnounce(route), ErrOpQueueFull)
 	require.ErrorIs(t, peer.Teardown(4, ""), ErrOpQueueFull)
 
 	peer.mu.RLock()

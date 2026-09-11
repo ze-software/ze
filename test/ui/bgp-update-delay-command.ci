@@ -1,0 +1,31 @@
+# Test: an operator can type `show bgp update-delay` and read the hold out of it
+# Spec: spec-bgp-update-delay (closed 2026-09-11)
+# accept-only: the registered native fixture enforces this scenario's behavioral contract
+#
+# VALIDATES: the command is reachable from the entry point a person's keystrokes
+#            take, and its answer carries the fields the documentation tells them
+#            to read. The daemon is configured with two peers that never answer
+#            and `max-delay 300`, so it is still holding when the command runs.
+#
+# PREVENTS:  the defect this file was written for. The command node was declared
+#            in a module whose name ends -api, BuildCommandTree walks -cmd
+#            modules alone, so no CLI path existed. Both dispatchers took their
+#            "no path" branch and CONTINUED IN SILENCE while three documentation
+#            pages told an operator to run it. The handler had unit tests and
+#            they all passed: they called the handler directly, which is the half
+#            that worked.
+#
+# The companion is TestShowBgpUpdateDelayIsRegistered
+# (internal/component/bgp/plugins/cmd/peer/update_delay_registration_test.go),
+# which asserts the PATH exists in the YANG command tree. This file asserts a
+# daemon answers it. Neither one alone would have caught the defect: the tree
+# test cannot see a broken handler, and this one cannot run without a daemon.
+#
+# The timeout is DECLARED because this file starts a daemon and launches `ze`
+# twice, which a cold run or a loaded host can take past the runner's derived
+# bound while every assertion still holds.
+option=timeout:value=60s
+
+cmd=foreground:seq=1:exec=ze-test fixture ui/bgp-update-delay
+expect=exit:code=0
+expect=stdout:contains=OK

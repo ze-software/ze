@@ -1223,7 +1223,12 @@ func (m *mockReactorBatch) WithdrawNLRIBatch(sel *selector.Selector, batch bgpty
 }
 
 // Stub implementations for other ReactorLifecycle methods.
-func (m *mockReactorBatch) Peers() []plugin.PeerInfo                               { return nil }
+func (m *mockReactorBatch) Peers() []plugin.PeerInfo { return nil }
+
+func (m *mockReactorBatch) UpdateDelayStatus() plugin.UpdateDelayStatus {
+	return plugin.UpdateDelayStatus{}
+}
+
 func (m *mockReactorBatch) Stats() plugin.ReactorStats                             { return plugin.ReactorStats{} }
 func (m *mockReactorBatch) Stop()                                                  {}
 func (m *mockReactorBatch) Reload() error                                          { return nil }

@@ -87,7 +87,7 @@ runtime cannot disagree. `| resolve` and `| origin` are listed only where the
 command declares a field that holds an address.
 
 Every `show bgp` command declares one. Go compiled into the daemon declares
-nineteen paths. A plugin process declares the other eleven in its startup
+twenty paths. A plugin process declares the other eleven in its startup
 message: six under `show bgp rpki`, two under `show bgp rs`, two under
 `show bgp adj-rib-in`, and `show bgp healthcheck`. An undeclared command still
 refuses what it cannot support, from the answer it has in hand, after it runs.

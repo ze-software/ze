@@ -177,6 +177,12 @@ type Config struct {
 	// Hub holds TLS transport config for external plugins (nil = no TLS listener).
 	Hub *plugin.HubConfig
 
+	// UpdateDelay is the startup convergence hold (`bgp update-delay`). The
+	// zero value disables it, which is what an absent config leaf produces, so
+	// every peer takes the path it took before the feature existed. See the
+	// UpdateDelay type (update_delay.go).
+	UpdateDelay UpdateDelay
+
 	// RestartUntil is the deadline until which this speaker advertises R=1
 	// (Restart State) in GR capabilities. Set from a zefs marker on startup.
 	// Zero value means cold start (R=0).
@@ -415,6 +421,11 @@ type Reactor struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
+
+	// updateDelay holds the initial routing update of every peer that reaches
+	// Established during startup convergence. Inert until StartPeers arms it,
+	// and armed only when Config.UpdateDelay names a max-delay (update_delay.go).
+	updateDelay updateDelayHold
 
 	mu sync.RWMutex
 
@@ -726,10 +737,29 @@ func (r *Reactor) StartPeers() error {
 		return err
 	}
 
+	// Arm the startup convergence hold BEFORE the first peer starts, so no peer
+	// can reach Established through the unheld path while the hold is being set
+	// up. These peers are the expected set BY IDENTITY: a dynamic-group member
+	// that establishes later is held like any other peer and never counted
+	// toward convergence, and a peer a later config reload adds is not part of
+	// this startup's convergence either (updateDelayHold.arm).
+	r.updateDelay.arm(r.ctx, r.clock, r.config.UpdateDelay, peerSlice(peersToStart))
+
 	for _, peer := range peersToStart {
 		peer.StartWithContext(r.ctx)
 	}
 	return nil
+}
+
+// peerSlice is the peers of a start map, as the expected set the startup
+// convergence hold records by identity. Both start paths build it the same way,
+// so neither can hand the hold a different population from the one it starts.
+func peerSlice(peers map[netip.AddrPort]*Peer) []*Peer {
+	out := make([]*Peer, 0, len(peers))
+	for _, peer := range peers {
+		out = append(out, peer)
+	}
+	return out
 }
 
 // ConfiguredAutoLoad returns the BGP-specific auto-load configuration
@@ -1272,6 +1302,14 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 				return r.ctx.Err()
 			}
 		}
+
+		// Arm the startup convergence hold here too. This is the SELF-HOSTING
+		// start (ze-chaos, the integration harness), which never reaches
+		// StartPeers, so arming only there left `bgp update-delay` accepted by
+		// the config and silently doing nothing on this path. arm is idempotent
+		// and refuses a second call, so the two sites cannot both arm one
+		// reactor (update_delay.go).
+		r.updateDelay.arm(r.ctx, r.clock, r.config.UpdateDelay, peerSlice(peersToStart))
 
 		// Start all peers (passive peers wait for incoming connections).
 		for _, peer := range peersToStart {

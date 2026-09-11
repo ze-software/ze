@@ -203,8 +203,58 @@ take additional locks safely.
    delivery and routes do not bypass the queue).
 9. Notify the reactor via `reactor.notifyPeerEstablished(p)` and
    `reactor.notifyPeerNegotiated(p, neg)`.
-10. Spawn `sendInitialRoutes()` in its own goroutine (per-session
-    lifecycle, not per-event).
+10. Call `startInitialRoutes()`. It spawns `sendInitialRoutes()` in its
+    own goroutine (per-session lifecycle, not per-event), unless the
+    startup convergence hold owns this peer's initial routing update.
+
+### The startup convergence hold
+
+`bgp update-delay max-delay <seconds>` arms a hold when the daemon starts
+its peers. While the hold is armed, `startInitialRoutes` registers the
+peer with the hold and spawns nothing. The hold runs
+`sendInitialRoutes()` for every peer it registered when it releases.
+
+The hold releases on the first of three conditions: every EXPECTED peer
+finishes its initial routing update, the optional `establish-wait`
+deadline expires with at least one peer held, or `max-delay` expires. The
+reactor logs the condition it released on, and `show bgp update-delay`
+reports it.
+
+The expected set is recorded BY IDENTITY when the hold is armed: the peers
+`StartPeers` had in hand. A dynamic-group member reaches this same FSM
+callback through `createDynamicPeer`, so it is HELD like any other peer
+and is never COUNTED, because a count taken over the configured peers
+would otherwise be satisfied by an inbound dynamic session.
+
+"Finishes its initial routing update" means the peer's End-of-RIB marker
+has arrived, counted per negotiated family where the reactor decodes the
+inbound marker (`reactor_notify.go`). RFC 4724 Section 4.1 excludes two
+kinds of peer from that wait by name, and `trackLocked` excludes the same
+two: a peer that advertised no graceful-restart capability, and a peer
+whose capability carries the Restart State bit. Each is settled at
+Established.
+
+A peer that leaves Established is dropped from both sets by
+`updateDelayPeerDown`, so the condition reads "is Established and has
+finished" rather than "has been Established".
+
+Best-path selection is NOT deferred. The hold defers the initial routing
+update and the End-of-RIB marker that closes it (owner decision,
+2026-09-08).
+
+Nothing else on the outbound path changes, and that is the design. Step
+8 above already closed the initial-sync gate, so a held peer keeps the
+three behaviors establishment gave it: `shouldQueue()` queues a route
+operation, `forwardOrderHold()` parks a forwarded UPDATE in the
+destination worker's overflow buffer, and no End-of-RIB is sent, because
+the initial routing update has not completed. RFC 4724 Section 4.1
+requires the marker once that update completes, so a marker sent from
+under the hold would claim a completion that had not happened.
+
+An absent `max-delay`, or `max-delay 0`, arms nothing and leaves this
+sequence exactly as it reads above.
+
+<!-- source: internal/component/bgp/reactor/update_delay.go — updateDelayHold, Peer.startInitialRoutes -->
 
 **On transition *out of* `StateEstablished`:**
 

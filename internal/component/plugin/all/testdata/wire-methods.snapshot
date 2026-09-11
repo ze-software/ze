@@ -47,6 +47,7 @@ ze-bgp:pool-stats
 ze-bgp:show-announcements
 ze-bgp:subscribe
 ze-bgp:unsubscribe
+ze-bgp:update-delay
 ze-bgp:withdraw-all
 ze-bgp:withdraw-id
 ze-bgp:withdraw-tag

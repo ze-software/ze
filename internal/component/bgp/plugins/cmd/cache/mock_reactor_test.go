@@ -37,7 +37,10 @@ type mockReactor struct {
 
 // --- ReactorIntrospector ---
 
-func (m *mockReactor) Peers() []plugin.PeerInfo   { return nil }
+func (m *mockReactor) Peers() []plugin.PeerInfo { return nil }
+
+func (m *mockReactor) UpdateDelayStatus() plugin.UpdateDelayStatus { return plugin.UpdateDelayStatus{} }
+
 func (m *mockReactor) Stats() plugin.ReactorStats { return plugin.ReactorStats{} }
 func (m *mockReactor) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapabilitiesInfo {
 	return nil

@@ -1152,6 +1152,15 @@ func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 		{command: "show bgp rib", orders: []command.ColumnOrder{ribRoutes}},
 		{command: "show bgp rpki"},
 		{command: "show bgp rs"},
+		// The one branch this package ANSWERS. It declares an order of its own
+		// rather than the nothing the plugin-answered branches declare, so the
+		// row carries that order (cmdBgpUpdateDelayColumns, peer.go).
+		{command: "show bgp update-delay", orders: []command.ColumnOrder{{
+			"configured", "holding", "released",
+			"reason",
+			"expected-peers", "peers-held", "peers-converged",
+			"max-delay-seconds", "establish-wait-seconds",
+		}}},
 	}
 	// The table is the population, so it MUST name every branch the
 	// registrations block. A path added to cmdBgpChildren and not here would go

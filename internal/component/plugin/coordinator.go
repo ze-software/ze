@@ -223,6 +223,22 @@ func (c *Coordinator) Stats() ReactorStats {
 	return ReactorStats{}
 }
 
+// UpdateDelayStatus reports the startup convergence hold.
+//
+// With no reactor the answer says "not configured", which is the honest one: a
+// coordinator that holds no reactor has no hold to report, and Configured false
+// beside zero counts cannot be read as "holding".
+func (c *Coordinator) UpdateDelayStatus() UpdateDelayStatus {
+	if r := c.getReactor(); r != nil {
+		return r.UpdateDelayStatus()
+	}
+	// Reason is NAMED rather than left empty. FullReactor answers the
+	// Coordinator itself when no BGP reactor has registered, so the handler's
+	// fail-closed guard does not fire in the window before registration, and an
+	// empty Reason would be the one answer that carries no word for its state.
+	return UpdateDelayStatus{Reason: UpdateDelayReasonNotReleased}
+}
+
 // PeerNegotiatedCapabilities returns negotiated capabilities for a peer.
 func (c *Coordinator) PeerNegotiatedCapabilities(addr netip.Addr) *PeerCapabilitiesInfo {
 	if r := c.getReactor(); r != nil {

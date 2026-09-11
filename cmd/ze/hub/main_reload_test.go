@@ -51,6 +51,11 @@ func (f *failingReconfigurable) Reconfigure(context.Context, []string) error {
 }
 
 func (r *reloadTestReactor) Peers() []plugin.PeerInfo { return nil }
+
+func (r *reloadTestReactor) UpdateDelayStatus() plugin.UpdateDelayStatus {
+	return plugin.UpdateDelayStatus{}
+}
+
 func (r *reloadTestReactor) Stats() plugin.ReactorStats {
 	return plugin.ReactorStats{}
 }

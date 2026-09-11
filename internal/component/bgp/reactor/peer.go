@@ -38,9 +38,11 @@ import (
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/source"
 	"github.com/ze-software/ze/internal/core/syncutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // peerLogger is the peer subsystem logger (lazy initialization).
@@ -1838,27 +1840,65 @@ func (p *Peer) pendingSync() bool {
 // QueueAnnounce queues a route announcement for when session establishes.
 // Used when session is not established to maintain operation order.
 // If queue is full, the operation is dropped with a warning.
-func (p *Peer) QueueAnnounce(route *rib.Route) {
+// Returns ErrOpQueueFull when the queue is at its cap and the route was NOT
+// queued. The error is the point: past the cap this route reaches the peer
+// NEVER, because the queue is the only path while the gate is closed, and a
+// caller that cannot tell a queued route from a dropped one reports success for
+// a RIB the peer will never receive (ai/rules/principles.md).
+func (p *Peer) QueueAnnounce(route *rib.Route) error {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	if len(p.opQueue) >= p.opQueueMax {
-		routesLogger().Warn("opQueue full, dropping announce", "peer", p.settings.Address, "queueSize", len(p.opQueue), "nlri", route.NLRI())
-		return
+		size := len(p.opQueue)
+		p.mu.Unlock()
+		routesLogger().Warn("opQueue full, dropping announce", "peer", p.settings.Address, "queueSize", size, "nlri", route.NLRI())
+		p.raiseOpQueueFull(size)
+		return ErrOpQueueFull
 	}
 	p.opQueue = append(p.opQueue, peerOp{Type: PeerOpAnnounce, Route: route})
+	p.mu.Unlock()
+	return nil
+}
+
+// raiseOpQueueFull puts the drop in front of the operator rather than in a log
+// line nobody reads.
+//
+// The startup convergence hold is what made this reachable in normal operation.
+// Before it, the gate that fills this queue was open within milliseconds of
+// establishment; `bgp update-delay max-delay 3600` holds it closed for up to an
+// hour, and a full-table feed arriving in that window overruns a 10000-entry
+// queue and loses routes silently. The report names the cap, because raising it
+// (`bgp peer behavior op-queue-size`) is the operator's remedy.
+//
+// The caller MUST NOT hold p.mu: report.RaiseWarning takes its own locks and
+// runs the subscriber chain.
+func (p *Peer) raiseOpQueueFull(size int) {
+	report.RaiseWarning(
+		reportSourceBGP,
+		reportCodeOpQueueFull,
+		p.settings.Address.String(),
+		"route operation queue full at "+textbuf.StringInt(int64(size))+" entries: routes for this peer are being DROPPED, not delayed",
+		map[string]any{"queue-size": size, "queue-max": p.opQueueMax},
+	)
 }
 
 // QueueWithdraw queues a route withdrawal for when session establishes.
 // Used when session is not established to maintain operation order.
 // If queue is full, the operation is dropped with a warning.
-func (p *Peer) QueueWithdraw(n nlri.NLRI) {
+// Returns ErrOpQueueFull when the queue is at its cap and the withdrawal was
+// NOT queued. A dropped withdrawal is worse than a dropped announce: the peer
+// keeps forwarding to a prefix this speaker has taken back.
+func (p *Peer) QueueWithdraw(n nlri.NLRI) error {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	if len(p.opQueue) >= p.opQueueMax {
-		routesLogger().Warn("opQueue full, dropping withdraw", "peer", p.settings.Address, "queueSize", len(p.opQueue), "nlri", n)
-		return
+		size := len(p.opQueue)
+		p.mu.Unlock()
+		routesLogger().Warn("opQueue full, dropping withdraw", "peer", p.settings.Address, "queueSize", size, "nlri", n)
+		p.raiseOpQueueFull(size)
+		return ErrOpQueueFull
 	}
 	p.opQueue = append(p.opQueue, peerOp{Type: PeerOpWithdraw, NLRI: n})
+	p.mu.Unlock()
+	return nil
 }
 
 // Wait waits for the peer to stop.

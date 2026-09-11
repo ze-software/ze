@@ -88,6 +88,16 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		}
 	}
 
+	// Startup convergence hold (`bgp update-delay`). Read from the tree here for
+	// the same reason router-id and local-as are: it is a global BGP setting, so
+	// no template inheritance applies to it. peersAndDynamicGroups below runs
+	// the same parser as a validation gate, which is what makes `ze config
+	// validate` refuse what this line would refuse.
+	updateDelay, err := ParseUpdateDelay(tree)
+	if err != nil {
+		return nil, err
+	}
+
 	// Parse and install redistribution import rules. It runs ahead of the peer
 	// walk because that walk derives process bindings from the same rules
 	// (wireRedistributeDelivery, redistribute_binding.go). A redistribution
@@ -190,6 +200,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		RouterID:            routerID,
 		LocalAS:             localAS,
 		AllowSharedRouterID: allowSharedRouterID,
+		UpdateDelay:         updateDelay,
 		ConfigDir:           configDir,
 		// ToPluginMap, not ToMap: ConfigTree is what deliverConfigRPC and the
 		// reload path hand to every plugin, so it owes the entry order of a

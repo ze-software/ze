@@ -284,8 +284,24 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 				peer.incrUpdatesReceived()
 				// Additionally count EOR as a subset of updates.
 				if wireUpdate != nil {
-					if _, isEOR := wireUpdate.IsEOR(); isEOR {
+					if eorFamily, isEOR := wireUpdate.IsEOR(); isEOR {
 						peer.incrEORReceived()
+						// RFC 4724 Section 4.1 defers the initial routing
+						// update until the End-of-RIB marker has arrived from
+						// every peer it waits for. The reactor decodes the
+						// inbound marker here, beside the peer's own EOR
+						// counter, so the startup convergence hold learns about
+						// it from that decode rather than keeping one of its own
+						// (update_delay.go). The plugin server decodes the
+						// marker again for its `eor` event (server/events.go,
+						// onMessageReceived and onMessageBatchReceived); that
+						// path feeds subscribers and never reaches the hold.
+						//
+						// It is the ONLY production caller. Without it the hold
+						// releases on establish-wait or max-delay alone and can
+						// never converge, and no unit test sees that: they call
+						// Peer.updateDelayEndOfRIB directly.
+						peer.updateDelayEndOfRIB(eorFamily)
 						// Cancel EOR timeout warning (AC-11).
 						if peer.health != nil {
 							peer.health.onEORReceived()

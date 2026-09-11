@@ -79,6 +79,17 @@ var cmdBgpChildren = []string{
 	"show bgp rib",
 	"show bgp rpki",
 	"show bgp rs",
+	cmdBgpUpdateDelay,
+}
+
+// cmdBgpUpdateDelayColumns is the order an operator reads the hold in: is the
+// feature on, is it holding, and if not why did it stop; then what it is still
+// waiting for; then the two bounds that decide when it gives up.
+var cmdBgpUpdateDelayColumns = command.ColumnOrder{
+	fieldUpdateDelayConfigured, fieldUpdateDelayHolding, fieldUpdateDelayReleased,
+	fieldUpdateDelayReason,
+	fieldUpdateDelayExpectedPeers, fieldUpdateDelayPeersHeld, fieldUpdateDelayPeersConverged,
+	fieldUpdateDelayMaxDelay, fieldUpdateDelayEstablishWait,
 }
 
 var (
@@ -135,6 +146,9 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-add", Handler: handleBgpPeerAdd, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-delete:bgp-peer", Handler: handleBgpPeerRemove, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-update:bgp-peer-prefix", Handler: handleBgpPeerPrefixUpdate, RequiresSelector: true},
+		// The startup convergence hold. No selector: the hold is a property of
+		// the speaker, not of a peer (update_delay.go).
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:update-delay", Handler: handleBgpUpdateDelay},
 	)
 }
 
@@ -206,6 +220,12 @@ func registerColumns() {
 	// declares its own order above on a LONGER path, and the longest registered
 	// prefix is what resolves.
 	for _, child := range cmdBgpChildren {
+		if child == cmdBgpUpdateDelay {
+			// The one child that answers a record of its own rather than a
+			// branch's, so it declares an order instead of declaring none.
+			command.RegisterColumns([]string{child}, cmdBgpUpdateDelayColumns)
+			continue
+		}
 		command.RegisterColumns([]string{child})
 	}
 }
@@ -220,7 +240,9 @@ func registerColumns() {
 // Every branch under `show bgp` declares NONE, for the same reason it declares
 // no column order: `show bgp rpki` and its siblings answer their own shapes,
 // and inheriting `tab` from `show bgp` would publish row operators over an
-// answer that carries no rows.
+// answer that carries no rows. `show bgp update-delay` is the exception, and it
+// is the exception for the same reason it declares an order: this package
+// answers it, so this package knows its shape.
 func registerShapes() {
 	command.RegisterShape([]string{cmdBgp}, command.ShapeTab)
 	command.RegisterShape([]string{cmdBgpPeerList}, command.ShapeTab)
@@ -266,6 +288,18 @@ func registerShapes() {
 	command.RegisterAddressFields([]string{cmdBgpPeerHistory})
 
 	for _, child := range cmdBgpChildren {
+		if child == cmdBgpUpdateDelay {
+			// The one child this package ANSWERS rather than routes to a
+			// plugin, so it is the one child whose shape is known here.
+			// `show bgp update-delay` answers one record of nine scalars and
+			// no rows (handleBgpUpdateDelay), which is `doc`. Declaring none
+			// would publish every row operator over it and refuse none of
+			// them before dispatch, because validateDeclaredShape skips its
+			// shape test on an undeclared command (pipe.go).
+			command.RegisterShape([]string{child}, command.ShapeDoc)
+			command.RegisterAddressFields([]string{child})
+			continue
+		}
 		command.RegisterShape([]string{child})
 		command.RegisterAddressFields([]string{child})
 	}

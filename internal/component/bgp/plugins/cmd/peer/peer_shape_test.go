@@ -46,6 +46,11 @@ var childOwnDeclarations = map[string]struct {
 	// addresses only inside an array, which neither transform decorates, so it
 	// declares a shape and no address field.
 	cmdBgpIRR: {command.ShapeTab, nil, "the IRR filter plugin"},
+	// update_delay.go, in this package: `show bgp update-delay` answers ONE
+	// record of nine scalars and no rows, so it declares `doc` rather than the
+	// nothing every plugin-answered branch declares. No field of it holds an
+	// address, so it declares an empty address-field list beside the shape.
+	cmdBgpUpdateDelay: {command.ShapeDoc, nil, "update_delay.go, in this package"},
 }
 
 // TestDeclaredShapesReachTheRegistry proves the declaration is wired: the

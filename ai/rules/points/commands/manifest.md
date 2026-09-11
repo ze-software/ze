@@ -5,6 +5,7 @@ severity: blocking
 ---
 directives ## Directives
   run-commands-through-native-actions-and-never-poll
+  a-run-that-selected-nothing-exits-zero-so-read-what-ran
   heavy-jobs-are-admitted-by-native-actions-never-typed-raw
   bash-must-not-edit-a-governed-document
   never-hardcode-bin-ze-ask-for-the-path

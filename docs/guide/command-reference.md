@@ -1529,8 +1529,8 @@ detail`, and `show bgp rib` covers `show bgp rib best`. So no command under
 `show bgp` inherits `| summary` or `| peers`.
 
 That empty declaration at a branch root is a floor rather than a claim. A
-command deeper in the branch declares its own order and keeps it. Nineteen
-commands under `show bgp` declare one, and each of the nineteen also declares
+command deeper in the branch declares its own order and keeps it. Twenty
+commands under `show bgp` declare one, and each of the twenty also declares
 whether its answer holds rows. `ze help command "<path>" --json` answers what one
 of them declares.
 <!-- source: internal/component/command/column_order.go -- declarationRegistry.declare -->

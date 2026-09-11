@@ -1390,7 +1390,12 @@ type mockIntrospector struct {
 	peers []plugin.PeerInfo
 }
 
-func (m *mockIntrospector) Peers() []plugin.PeerInfo   { return m.peers }
+func (m *mockIntrospector) Peers() []plugin.PeerInfo { return m.peers }
+
+func (m *mockIntrospector) UpdateDelayStatus() plugin.UpdateDelayStatus {
+	return plugin.UpdateDelayStatus{}
+}
+
 func (m *mockIntrospector) Stats() plugin.ReactorStats { return plugin.ReactorStats{} }
 func (m *mockIntrospector) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapabilitiesInfo {
 	return nil

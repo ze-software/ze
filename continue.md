@@ -511,7 +511,7 @@ completed.
 |------|-----------|--------|
 | `plan/spec-bgp-as-notation.md` | `c3b6433ba8`, 140 files | `in-progress`. Commit A only, commit B not run |
 | `plan/spec-bgp-bfd-strict.md` | nothing | `in-progress`. Three round-6 issues open |
-| `plan/immediate/spec-bgp-update-delay.md` | nothing | `in-progress`. Reviewed clean, closure done, commit blocked |
+| `spec-bgp-update-delay` | closed 2026-09-11 | Closed by an independent closure context: commit A carries the code, the spec and the journal row, commit B removes the spec. The spec file is gone from the tree, so this row names the stem rather than a path |
 
 `c3b6433ba8` is the only commit of this session at the time this block was
 written. See the update at the end for what landed after it.

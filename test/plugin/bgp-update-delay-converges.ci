@@ -1,0 +1,153 @@
+# Test: `bgp update-delay` releases on CONVERGENCE, driven through the daemon
+# Spec: spec-bgp-update-delay -- AC-2, user story 1 (closed 2026-09-11)
+#
+# VALIDATES: the release condition the feature exists for. One configured peer
+#            negotiates graceful restart, so RFC 4724 Section 4.1 does NOT
+#            exclude it and the hold waits for its End-of-RIB marker. The peer
+#            sends that marker, the hold converges, and ze's route and its own
+#            marker follow. `max-delay 60` is far longer than this test lives,
+#            so a timer release cannot be mistaken for a convergence release.
+#
+# PREVENTS:  the defect this file was written for. `Peer.updateDelayEndOfRIB` is
+#            called from exactly one production site, the inbound marker decode
+#            in reactor_notify.go. That call was lost in a park-and-restore
+#            cycle and NOTHING went red: seven test functions in
+#            update_delay_test.go call the hook directly, at fourteen call
+#            sites, so they prove the hold converges when told and say nothing
+#            about whether the wire ever tells it. The sibling
+#            `bgp-update-delay.ci` could not see it either,
+#            because it asserts `reason=max-delay` and REJECTS
+#            `reason=converged`. With the call cut, this file's peer sends its
+#            marker into a hold that is not listening, `reason=converged` never
+#            appears, and the two wire expectations time out.
+#
+# WHY ONE PEER. The expected set is the peers StartPeers had in hand, so one
+# configured peer makes convergence reachable by that peer alone. The sibling
+# file uses TWO for the opposite reason: to make convergence UNreachable so only
+# max-delay can end the hold. Between them the two release conditions in AC-2
+# and AC-3 each have a functional test that drives it through a daemon.
+#
+# WHY GRACEFUL RESTART. trackLocked settles a peer at once when it advertised no
+# graceful-restart capability, because RFC 4724 Section 4.1 excludes such a peer
+# from the wait by name. A peer without it would converge the hold the instant it
+# established, which is correct and proves nothing about the marker path. This
+# peer advertises the capability, so it owes a marker for ipv4/unicast and the
+# hold waits for the one this file sends.
+#
+# ze declares the capability too, and MUST: ze-peer mirrors ze's capability set
+# and refuses to state one ze does not offer. Declaring it drags in one more
+# requirement, an attached process permitted to put a route on the wire:
+# validatePeerProcessCaps (internal/component/bgp/config/peers.go) reads
+# ProcessBinding.MayPushRoutes, so `send [ update ]` and `send [ raw ]` each
+# satisfy it. The peer block below attaches bgp-rib with `send [ update ]`.
+# Neither is decoration: without capability 64 on both
+# sides there is no negotiated GracefulRestart for trackLocked to read, and the
+# peer would be excluded from the wait by RFC 4724 Section 4.1 rather than
+# waited for.
+option=env:var=ze.log.bgp.reactor:value=info
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=60s
+# The capability that puts this peer inside the wait rather than outside it.
+option=open:value=graceful-restart:restart-time=120:family=ipv4/unicast
+
+# Phase 1: this peer completes its own initial routing update. RFC 4724
+# Section 2: the End-of-RIB marker is an UPDATE with no reachable NLRI and no
+# withdrawn routes.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Phase 2: the hold has converged, so ze advertises. The static route first,
+# then the marker that closes ze's own initial routing update.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+bgp {
+	router-id 1.2.3.4
+
+	session {
+		asn {
+			local 1
+		}
+	}
+
+	update-delay {
+		max-delay 60
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart {
+					restart-time 120
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		timer { connect-retry 5; }
+
+		# ze-peer MIRRORS ze's capability set, so ze has to offer capability 64
+		# before the peer block above can state graceful-restart at all. And a
+		# graceful-restart peer must attach a process permitted to put a route
+		# on the wire, either `send [ update ]` or `send [ raw ]`, which is why
+		# bgp-rib is attached rather than merely declared.
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=60s
+
+# The hold was armed, and for this one configured peer.
+expect=stderr:pattern=update-delay armed.*expected-peers=1
+# It ended because the peer finished, not because a timer fired. The reject is
+# the discriminating half: max-delay is 60s and this run is shorter, so a
+# release naming it would mean the convergence path answered nothing and the
+# wire assertions above passed for the wrong reason.
+expect=stderr:pattern=update-delay released.*reason=converged
+reject=stderr:pattern=update-delay released.*reason=max-delay
+reject=stderr:pattern=update-delay released.*reason=establish-wait

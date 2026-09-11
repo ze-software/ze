@@ -299,6 +299,44 @@ var scenarioOperations = map[string][]operation{
 		{kind: opGoBGPRoute, argument: injectPrefixV6Third, family: frrFamilyIPv6Unicast},
 		{kind: opGoBGPSession, argument: zeLabAddress},
 	},
+	// `bgp update-delay` judged by FRR rather than by ze's own log alone.
+	//
+	// The scenario configures TWO peers and runs ONE, so the hold can never
+	// converge and only max-delay can end it. That makes the middle of the hold
+	// a stable window an assertion can be taken in.
+	//
+	// The order is the proof. FRR reaches Established while ze holds, which is
+	// what says the hold gates ADVERTISEMENT and not negotiation. FRR's own
+	// table then shows the prefix ABSENT, which no unit test over ze can show,
+	// because only the second implementation can say what reached its RIB. The
+	// release line follows, and the prefix arrives after it.
+	//
+	// NON-VACUITY (ai/rules/interop-and-goal-validation.md). The absence row
+	// alone would pass against a ze that advertises nothing at all, so the last
+	// row requires the SAME prefix to arrive on the SAME session. Deleting the
+	// hold reddens the absence row; breaking the release reddens the arrival
+	// row. The `proof` string on the absence row is FRR's own JSON envelope, so
+	// a command that failed to run cannot be read as an empty table.
+	//
+	// Every row reads FRR, and none reads ze's own log. The scenario's ze runs
+	// at the WARN default, and the hold's own lines are INFO, so a log row would
+	// have been a timeout rather than an assertion. It is also the wrong witness
+	// here: what an interop scenario is for is the peer's answer, and the peer
+	// says the prefix is absent while ze holds and present after.
+	//
+	// The absence row is taken immediately after FRR reports Established, and
+	// the wait for that is bounded WELL INSIDE the scenario's `max-delay 90`.
+	// The two numbers are one fact: a session wait longer than max-delay would
+	// let the hold release before the absence row ran, and the test would then
+	// fail for a reason that has nothing to do with the product. 30s against
+	// 90s leaves the row three times the margin it needs.
+	"bgp-update-delay-frr": {
+		{kind: opFRRSession, argument: zeLabAddress, timeout: 30 * time.Second},
+		{kind: opRequireAbsent, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast json"},
+			absent: []string{injectPrefixFirst}, proof: []string{"vrfName"}},
+		{kind: opFRRRoute, argument: injectPrefixFirst, timeout: 240 * time.Second},
+		{kind: opFRRSession, argument: zeLabAddress},
+	},
 	"bgp-paths-limit-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: injectPrefixFirst},

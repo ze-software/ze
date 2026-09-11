@@ -425,6 +425,13 @@ func recordASNotation(tree map[string]any) {
 	}
 }
 
+// UpdateDelayStatus reports the startup convergence hold across the plugin
+// boundary. The Reactor owns the state; this adapter is what the CLI reaches
+// (Reactor.UpdateDelayStatus, update_delay.go).
+func (a *reactorAPIAdapter) UpdateDelayStatus() plugin.UpdateDelayStatus {
+	return a.r.UpdateDelayStatus()
+}
+
 // Stats returns reactor statistics for the API.
 func (a *reactorAPIAdapter) Stats() plugin.ReactorStats {
 	stats := a.r.Stats()

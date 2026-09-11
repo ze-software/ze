@@ -358,6 +358,8 @@ func (m *mockReactor) Peers() []PeerInfo {
 	m.peersCalled = true
 	return nil
 }
+func (m *mockReactor) UpdateDelayStatus() UpdateDelayStatus { return UpdateDelayStatus{} }
+
 func (m *mockReactor) Stats() ReactorStats { return ReactorStats{} }
 func (m *mockReactor) PeerNegotiatedCapabilities(netip.Addr) *PeerCapabilitiesInfo {
 	return nil

@@ -60,6 +60,8 @@ func (m *mockReactor) Peers() []plugin.PeerInfo {
 	return m.peers
 }
 
+func (m *mockReactor) UpdateDelayStatus() plugin.UpdateDelayStatus { return plugin.UpdateDelayStatus{} }
+
 func (m *mockReactor) Stats() plugin.ReactorStats {
 	return m.stats
 }

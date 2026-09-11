@@ -1,0 +1,65 @@
+# Test: `bgp update-delay` refuses an establish-wait larger than its max-delay
+# Spec: spec-bgp-update-delay -- AC-4, user story 2 (closed 2026-09-11)
+#
+# VALIDATES: the cross-leaf rule is enforced at the door the operator uses to
+#            check a file before they deploy it, not only when the daemon starts.
+#            establish-wait ends the hold EARLY, so a value above max-delay can
+#            never fire: max-delay always releases first.
+# PREVENTS:  `ze config validate` passing a file the daemon then refuses. BGP is
+#            excluded from the generic custom-validator walk
+#            (internal/component/config/validate_sections.go, validatedSections),
+#            so a leaf validator would never have run here. The check sits in the
+#            walk validate DOES reach (peersAndDynamicGroups), and this test is
+#            what says so.
+
+tmpfs=update-delay-bad.conf:terminator=EOF_CONF
+bgp {
+    router-id 10.0.0.1
+    session { asn { local 65000 } }
+    update-delay {
+        max-delay 30
+        establish-wait 40
+    }
+    peer upstream {
+        connection {
+            remote { ip 10.0.0.2 }
+            local  { ip 10.0.0.1; accept false }
+        }
+        session { asn { local 65000; remote 65001 } }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate update-delay-bad.conf
+expect=stdout:contains=configuration invalid: update-delay-bad.conf
+expect=stdout:contains=establish-wait 40 must not be more than max-delay 30
+
+tmpfs=update-delay-good.conf:terminator=EOF_OK
+bgp {
+    router-id 10.0.0.1
+    session { asn { local 65000 } }
+    update-delay {
+        max-delay 30
+        establish-wait 30
+    }
+    peer upstream {
+        connection {
+            remote { ip 10.0.0.2 }
+            local  { ip 10.0.0.1; accept false }
+        }
+        session { asn { local 65000; remote 65001 } }
+    }
+}
+EOF_OK
+
+# The positive half. Without it the test would pass against a rule that refuses
+# every update-delay container, which is the vacuity trap an absence-only
+# assertion falls into (ai/rules/interop-and-goal-validation.md). Equal is the
+# boundary the rule allows, so this file pins both sides of the same edge.
+#
+# The assertions read the ACCEPT and REFUSE verdict lines rather than an exit
+# code: the runner accumulates the output of every command in the file into one
+# stream and checks one exit code for the run, so a per-command exit assertion
+# would not say which command it judged.
+cmd=foreground:seq=2:exec=ze config validate update-delay-good.conf
+expect=stdout:contains=configuration valid: update-delay-good.conf

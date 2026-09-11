@@ -307,8 +307,64 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 		return nil, nil, err
 	}
 	warnPeersWithoutRole(rolelessPeers(roles))
+	// Step 0a: Refuse a `bgp update-delay` container the reactor could not honor.
+	// The VALUE is read in CreateReactorFromTree; this call is here for the
+	// ERROR alone, because this walk is the door `ze config validate` and `ze
+	// doctor` reach (register.go, validatePeersFromTree) and BGP is excluded
+	// from the generic custom-validator walk. Without it an operator's verify
+	// accepts a config the daemon refuses at startup.
+	if _, err := ParseUpdateDelay(tree); err != nil {
+		return nil, nil, err
+	}
+
+	warnStrictPeersWithoutEngine(peers, tree)
 
 	return peers, groups, nil
+}
+
+// warnStrictPeersWithoutEngine logs ONE line naming every peer that asks for
+// BFD strict mode where the configuration declares no BFD engine.
+//
+// It is the config-load half of what bfd_strict_doctor.go reports, so the two
+// enumerate one set, and it exists because the consequence is invisible on the
+// peer's own surface: draft-ietf-idr-bgp-bfd-strict-mode Section 8.5.5 holds
+// such a peer in OpenSent for the life of the process, and an operator reading
+// `show bgp peer list` sees only a session that will not come up.
+//
+// It WARNS rather than refuses. A configuration whose BFD block arrives in a
+// later commit is a real operator sequence, and refusing the file would make
+// the order of two edits load-bearing.
+func warnStrictPeersWithoutEngine(peers []*reactor.PeerSettings, tree *config.Tree) {
+	if len(peers) == 0 || tree == nil {
+		return
+	}
+	// The BFD engine is a TOP-LEVEL block, so the bgp subtree cannot answer for
+	// it and the whole tree is read instead.
+	if tree.GetContainer("bfd") != nil {
+		return
+	}
+	names := make([]string, 0, len(peers))
+	for _, ps := range peers {
+		if ps.BFD == nil || !ps.BFD.Enabled || !ps.BFD.Strict {
+			continue
+		}
+		name := ps.Name
+		if name == "" {
+			name = ps.Address.String()
+		}
+		names = append(names, name)
+	}
+	if len(names) == 0 {
+		return
+	}
+	shown := names
+	if len(shown) > rolelessPeersNamed {
+		shown = shown[:rolelessPeersNamed]
+	}
+	configLogger().Warn("peers ask for BFD strict mode and no BFD engine is configured, so they will never establish",
+		"peers", len(names),
+		"first", textbuf.Join(shown, ", "),
+		"action", "add a top-level bfd { enabled true; ... } block, or remove strict true from the peer")
 }
 
 // dynamicGroupsFromTree extracts dynamic group configs from the resolved BGP tree.

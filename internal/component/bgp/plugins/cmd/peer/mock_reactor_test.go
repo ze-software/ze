@@ -29,6 +29,11 @@ type mockReactor struct {
 	peerCaps *plugin.PeerCapabilitiesInfo
 	history  map[string][]plugin.FSMTransitionRecord
 
+	// updateDelay is what `show bgp update-delay` reads. Left unset it means an
+	// UNCONFIGURED daemon, which UpdateDelayStatus below completes into the
+	// record a producer would answer for that state.
+	updateDelay plugin.UpdateDelayStatus
+
 	rawMessages []struct {
 		addr    netip.Addr
 		msgType uint8
@@ -77,7 +82,23 @@ type mockReactor struct {
 	}
 }
 
-func (m *mockReactor) Peers() []plugin.PeerInfo              { return m.peers }
+func (m *mockReactor) Peers() []plugin.PeerInfo { return m.peers }
+
+// UpdateDelayStatus answers what a real producer answers, not the Go zero value.
+//
+// An unconfigured daemon carries Reason UpdateDelayReasonNotReleased, and BOTH
+// producers write it: updateDelayHold.report through Reactor.UpdateDelayStatus,
+// and the Coordinator's no-reactor branch. An empty Reason is a record no daemon
+// emits, so a mock returning one would let a test pin a state that cannot happen
+// and would hide the day a producer stopped naming it (ai/rules/principles.md).
+func (m *mockReactor) UpdateDelayStatus() plugin.UpdateDelayStatus {
+	status := m.updateDelay
+	if status.Reason == "" {
+		status.Reason = plugin.UpdateDelayReasonNotReleased
+	}
+	return status
+}
+
 func (m *mockReactor) Stats() plugin.ReactorStats            { return m.stats }
 func (m *mockReactor) Stop()                                 {}
 func (m *mockReactor) Reload() error                         { return nil }

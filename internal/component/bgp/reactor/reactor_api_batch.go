@@ -411,11 +411,24 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 			// Build AS_PATH only for queue path (iBGP vs eBGP); the established
 			// path builds AS_PATH inside the UPDATE wire bytes directly.
 			asPath := a.buildBatchASPathAttr(userASPath, batch.OriginAS, isIBGP, peer.Settings().RSClient, localASPrependFor(peer.Settings()))
+			// A queue that is full DROPS the route rather than delaying it, and
+			// the caller is told: past the cap this route never reaches the
+			// peer, so counting it as accepted would report success for a RIB
+			// the peer will never receive. The startup convergence hold is what
+			// made this reachable in normal operation, because it keeps the
+			// queueing gate closed for up to `max-delay` (update_delay.go).
+			queued := true
 			for _, n := range batch.NLRIs {
 				ribRoute := rib.NewRouteWithASPath(n, nextHop, attrs, asPath)
-				peer.QueueAnnounce(ribRoute)
+				if err := peer.QueueAnnounce(ribRoute); err != nil {
+					lastErr = err
+					queued = false
+					break
+				}
 			}
-			acceptedCount++ // Queued counts as accepted
+			if queued {
+				acceptedCount++ // Queued counts as accepted
+			}
 		}
 	}
 
@@ -719,10 +732,20 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgpt
 			}
 		} else {
 			// Session not established or queue draining: queue to preserve order
+			// A dropped withdrawal is worse than a dropped announce: the peer
+			// keeps forwarding to a prefix this speaker has taken back. Same
+			// contract as the announce rail above.
+			queued := true
 			for _, n := range batch.NLRIs {
-				peer.QueueWithdraw(n)
+				if err := peer.QueueWithdraw(n); err != nil {
+					lastErr = err
+					queued = false
+					break
+				}
 			}
-			acceptedCount++ // Queued counts as accepted
+			if queued {
+				acceptedCount++ // Queued counts as accepted
+			}
 		}
 	}
 

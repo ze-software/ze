@@ -494,9 +494,11 @@ func (p *Peer) runOnce() error {
 			// during initial flood should still tear the peer.
 			p.startBFDClient()
 
-			// Send static routes from config (one-time per-session lifecycle goroutine).
+			// Send static routes from config (one-time per-session lifecycle goroutine),
+			// unless the startup convergence hold owns this peer's initial routing
+			// update and will run it when it releases (update_delay.go).
 			peerLogger().Debug("spawning sendInitialRoutes", "peer", addr)
-			go p.sendInitialRoutes() //nolint:goroutine-lifecycle // per-session lifecycle, not per-event
+			p.startInitialRoutes()
 			transitionReason = "established"
 		} else if from == fsm.StateEstablished {
 			// Release any BFD session opened on Established. Runs
@@ -504,6 +506,12 @@ func (p *Peer) runOnce() error {
 			// goroutine has observed the final StateChange
 			// (closed channel) before the handle is released.
 			p.stopBFDClient()
+
+			// Drop this peer out of the startup convergence hold. Without it
+			// the hold's release condition would read "has been Established",
+			// and a peer that came up and dropped again would keep counting
+			// toward convergence while its wire is gone (update_delay.go).
+			p.updateDelayPeerDown()
 
 			// Determine reason based on target state
 			reason := "session closed"

@@ -44,7 +44,10 @@ type rawCall struct {
 	sender  plugin.Sender
 }
 
-func (m *mockReactor) Peers() []plugin.PeerInfo                                        { return nil }
+func (m *mockReactor) Peers() []plugin.PeerInfo { return nil }
+
+func (m *mockReactor) UpdateDelayStatus() plugin.UpdateDelayStatus { return plugin.UpdateDelayStatus{} }
+
 func (m *mockReactor) Stats() plugin.ReactorStats                                      { return plugin.ReactorStats{} }
 func (m *mockReactor) Stop()                                                           {}
 func (m *mockReactor) Reload() error                                                   { return nil }

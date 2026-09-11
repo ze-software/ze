@@ -36,7 +36,10 @@ type mockReactor struct {
 	softClearCalls []string // peer selectors
 }
 
-func (m *mockReactor) Peers() []plugin.PeerInfo                                        { return m.peers }
+func (m *mockReactor) Peers() []plugin.PeerInfo { return m.peers }
+
+func (m *mockReactor) UpdateDelayStatus() plugin.UpdateDelayStatus { return plugin.UpdateDelayStatus{} }
+
 func (m *mockReactor) Stats() plugin.ReactorStats                                      { return m.stats }
 func (m *mockReactor) Stop()                                                           {}
 func (m *mockReactor) Reload() error                                                   { return nil }

@@ -9,7 +9,11 @@ A feature comparison of open-source routing daemon implementations. Most tables 
 > project's own documentation before making decisions. Corrections and updates are welcome
 > via the [issue tracker](https://github.com/ze-software/ze/issues).
 
-Last updated: 2026-09-06
+A cell reads `?` when nobody has checked that daemon for that row. It is not a
+`No`: it says the answer is unknown, and it is written rather than left out so a
+reader can see which cells the table has not been verified for.
+
+Last updated: 2026-09-08
 
 ## Overview
 
@@ -62,6 +66,7 @@ Last updated: 2026-09-06
 | Graceful Restart (RFC 4724) | Yes | Yes | Yes | Yes | Yes | Yes | No | Partial | No | Yes | Yes |
 | Long-Lived GR (RFC 9494) | Yes | Yes | Yes | Partial | No | Yes | No | No | No | Yes | Yes |
 | Notification GR (RFC 8538) | No | No | No | No | Yes | Yes | No | No | No | Yes | No |
+| Startup convergence hold (`update-delay`) | Yes | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? |
 | Add-Path (RFC 7911) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Rx only | Yes | Yes |
 | Paths-Limit (draft-abraitis) | Yes | No | No | Yes | No | No | No | Yes | No | No | No |
 | Extended Messages (RFC 8654) | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | No | Yes | Yes |
@@ -649,7 +654,7 @@ After the detail tables above: the gaps, stated plainly, not buried in a
 - **OSPFv3 Extended LSAs (RFC 8362) do not interoperate** -- Ze builds 3 of the 7 LSA types and sets the U-bit wrong on all of them. They stop at the first OSPFv3 router that does not support them. Neither FRR nor BIRD implements RFC 8362 at all.
 - **No BGP confederations (RFC 5065)** — BIRD 3, bio-rd (partial), FRR, GoBGP, BIRD 2, and freeRtr all support it.
 - **No privilege separation** — a signature feature of at least one other implementation in this table.
-- **BFD integration is "Partial"** — several other implementations here have full support.
+- **BFD integration is "Partial"** — several other implementations here have full support. Ze does carry BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode, capability 74), which holds a BGP session out of Established until the BFD session is Up; Junos, IOS-XR and Nokia are the other implementations the draft's Appendix A lists.
 - **No embeddable library mode** — at least two other implementations in this table offer one.
 - **No custom filter language** — several implementations here have their own filter DSL; Ze relies on plugin chains instead.- **No Confederation, no Multi-Topology IS-IS (RFC 5120)** — Ze's IS-IS matches the single-topology default other implementations ship, but not their optional multi-topology extension.
 - **Pre-release, first release 2026** — sitting in the same table as implementations with years to decades of production hardening (one dates to 1998).

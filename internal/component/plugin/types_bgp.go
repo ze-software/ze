@@ -247,6 +247,51 @@ type PeerCapabilitiesInfo struct {
 	PathsLimitReceive    map[string]uint16 // Locally advertised receive request, not inbound policing
 }
 
+// UpdateDelayReasonNotReleased is what the Reason field carries while the hold
+// is still running, and what a daemon with no BGP reactor answers.
+//
+// Declared HERE, in the package the report crosses into, because two producers
+// write it: updateDelayReleaseReason.String() in the reactor, and the
+// Coordinator's no-reactor branch below. A second literal in either would let a
+// reader meet an empty Reason on one path and this word on the other, for one
+// state (ai/rules/principles.md).
+const UpdateDelayReasonNotReleased = "not-released"
+
+// UpdateDelayStatus is the startup convergence hold (`bgp update-delay`) as an
+// operator reads it, and it is the ONLY way to tell a holding daemon from a
+// broken one: the engine logs the same facts at INFO, which the WARN default
+// suppresses, so a silent speaker looks identical either way.
+//
+// A value type with no pointer field, because it crosses the plugin boundary
+// (ai/rules/plugins.md). JSON keys are kebab-case, so `| json` renders what the
+// CLI renders.
+type UpdateDelayStatus struct {
+	// Configured says the operator set a max-delay. When false the daemon
+	// never held anything: every count is zero, Holding and Released are
+	// false, and Reason is UpdateDelayReasonNotReleased. Reason is the one
+	// field that is NOT the Go zero value, because a state with no word for
+	// it is what that constant exists to prevent.
+	Configured bool `json:"configured"`
+	// MaxDelaySeconds and EstablishWaitSeconds are the two configured bounds.
+	MaxDelaySeconds      int `json:"max-delay-seconds"`
+	EstablishWaitSeconds int `json:"establish-wait-seconds"`
+	// Holding says the hold is armed and has not released: this speaker is
+	// withholding its initial routing update right now.
+	Holding bool `json:"holding"`
+	// Released says the hold has ended. Configured without Holding and without
+	// Released means the daemon has not started its peers yet.
+	Released bool `json:"released"`
+	// Reason names the condition that ended the hold: converged,
+	// establish-wait, max-delay, or not-released while it still runs.
+	Reason string `json:"reason"`
+	// ExpectedPeers is how many peers the hold waits for, PeersHeld how many
+	// are held right now, and PeersConverged how many expected peers have
+	// finished their initial routing update to this speaker.
+	ExpectedPeers  int `json:"expected-peers"`
+	PeersHeld      int `json:"peers-held"`
+	PeersConverged int `json:"peers-converged"`
+}
+
 // ReactorIntrospector provides read-only access to BGP peer and reactor state.
 type ReactorIntrospector interface {
 	// Peers returns information about all configured peers.
@@ -254,6 +299,11 @@ type ReactorIntrospector interface {
 
 	// Stats returns reactor-level statistics.
 	Stats() ReactorStats
+
+	// UpdateDelayStatus reports the startup convergence hold. A daemon that
+	// never configured `bgp update-delay` answers Configured false, every
+	// count zero, and Reason UpdateDelayReasonNotReleased.
+	UpdateDelayStatus() UpdateDelayStatus
 
 	// PeerNegotiatedCapabilities returns negotiated capabilities for a peer.
 	// Returns nil if peer not found or negotiation not complete.

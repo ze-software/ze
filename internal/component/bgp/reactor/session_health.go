@@ -17,6 +17,10 @@ const reportCodeSessionStuck = "session-stuck"
 const reportCodeSessionFlap = "session-flap"
 const reportCodeEORTimeout = "eor-timeout"
 
+// reportCodeOpQueueFull says a peer's route operation queue reached its cap and
+// routes are being dropped rather than delayed (Peer.raiseOpQueueFull, peer.go).
+const reportCodeOpQueueFull = "op-queue-full"
+
 const (
 	sessionStuckTimeout = 5 * time.Minute
 	flapWindow          = 5 * time.Minute
