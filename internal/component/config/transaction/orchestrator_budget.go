@@ -24,6 +24,22 @@ func (o *TxCoordinator) computeApplyDeadline() time.Duration {
 // reaches its participants one at a time and the deadline covers the whole
 // phase.
 //
+// Every participant is in the sum, including one that joined the transaction
+// with no diff. A plugin that declares a decomposition joins every reload
+// (appendDecomposingPlugins, internal/component/plugin/server/reload.go), and
+// it receives no verify and no section apply; what it does receive is one
+// per-operation apply for each operation it emits, carrying the same absolute
+// instant this duration produced. The binder the requirement is about is
+// exactly that participant: its own config did not change and it still stops
+// and starts a session. Dropping the diffless from the sum would therefore
+// shorten the deadline for work the transaction really does.
+//
+// What the sum over-counts is a decomposing plugin that emits nothing this
+// time, and no reading of the participants can tell that before the planner
+// has run. The cost is one budget's worth of extra wait for a plugin that has
+// hung, never a false abort of a reload that is applying correctly, which is
+// the direction this function is written to err in.
+//
 // Nothing in a transaction phase runs concurrently, on either path. An engine
 // handler fires inside the emitter's goroutine (Server.dispatchEngineEvent),
 // and the bridge performs the plugin RPC inside that handler, so a publish

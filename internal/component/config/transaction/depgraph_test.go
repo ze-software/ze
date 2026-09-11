@@ -243,7 +243,7 @@ func TestBuildOperationGraphBlankResourceMatchesNothing(t *testing.T) {
 // these same operations, and the pairs it printed are recorded here. The
 // evidence is in the phase's scratch log, `probe-raw.log`.
 //
-// The `derived` column is the two edges the derivation adds. Neither replaces a
+// The `derived` column is the edges the derivation adds. None replaces a
 // measured edge, and each one is an edge a deleted rule's own ID promised and
 // its body never produced. They are the whole difference between the two edge
 // sets:
@@ -255,6 +255,10 @@ func TestBuildOperationGraphBlankResourceMatchesNothing(t *testing.T) {
 //   - `bgp-add-address-before-peer` selected the `add-peer` label, so a
 //     modify-peer binding the same address got no edge, though it binds the
 //     address exactly as a create does.
+//   - A destroy holds back every create and modify that consumes what it takes
+//     away. The deleted rules had no such pair either, and without it a peer
+//     restarted by phase 2 sorted ahead of the removal of the address it binds
+//     whenever nothing put that address back.
 //
 // VALIDATES: no edge the deleted rules produced is lost, and every edge gained is named.
 // PREVENTS: the derivation being taken for a simplification while it silently drops an ordering.
@@ -322,6 +326,26 @@ func TestBuildOperationGraphDerivedEdgesMatchDeletedRules(t *testing.T) {
 			},
 			derived: []string{
 				"interface-add-address-dum1-192.0.2.1/32 -> bgp-modify-peer-edge",
+				"interface-remove-address-dum0-192.0.2.1/32 -> bgp-modify-peer-edge",
+			},
+		},
+		{
+			// The commit DELETES the address and puts it back nowhere, so no
+			// create can hold the restart back and only the destroy can. The
+			// stop edge is the pair the measured case above already records,
+			// over the same two operation shapes; the start edge is the one
+			// this case exists for.
+			name: "bgp-peer-whose-address-the-commit-deletes",
+			ops: []ConfigOperation{
+				fixtureRemoveAddress("dum0", "192.0.2.1/32"),
+				fixturePeer("bgp-remove-peer-edge", testOpRemovePeer, VerbDestroy, "edge", "192.0.2.1"),
+				fixturePeer("bgp-add-peer-edge", testOpAddPeer, VerbCreate, "edge", "192.0.2.1"),
+			},
+			rules: []string{
+				"bgp-remove-peer-edge -> interface-remove-address-dum0-192.0.2.1/32",
+			},
+			derived: []string{
+				"interface-remove-address-dum0-192.0.2.1/32 -> bgp-add-peer-edge",
 			},
 		},
 	}

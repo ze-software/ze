@@ -631,6 +631,15 @@ func (o *TxCoordinator) filterDiffs(allDiffs map[string][]DiffSection, p Partici
 // diffs to apply but own none of ops, sorted so the synthesized nodes are the
 // same on every run.
 //
+// The sort is what makes the coarse order a decision. The participant order it
+// is given comes from a walk of the process manager's map
+// (ProcessManager.AllProcesses, read by the reload's affected loop), so two
+// runs of one commit applied two coarse sections in two different orders, and
+// the test that fences the placement failed 2 runs in 20. Nothing orders one
+// uncovered participant against another -- each stands for a whole section on
+// a root the core knows nothing about -- so any stable order is correct and an
+// unstable one is not.
+//
 // It is the input to coarse-node synthesis (operationNodes). runVerify,
 // runApply and this function all decide "does this participant take part" with
 // the same filterDiffs predicate, so a participant can never be verified by
@@ -654,13 +663,14 @@ func (o *TxCoordinator) filterDiffs(allDiffs map[string][]DiffSection, p Partici
 // no address operation, so the core read no disturbance and every binder bound
 // to that address stayed up while the section apply moved it.
 //
-// The names come back in PARTICIPANT order, which buildTxInputs
-// (internal/component/plugin/server/reload_tx.go) already makes deterministic.
-// It decides only how two coarse nodes sit against each other: where they sit
-// against the decomposed operations is placeSectionNodes (solver.go), which
-// puts them after the addresses this commit adds and before the starts that
-// bind them. Sorting the names here would be deterministic and would say
-// nothing, because the order this function returns is not the applied order.
+// The order decides only how two coarse nodes sit against each other: where
+// they sit against the decomposed operations is placeSectionNodes (solver.go),
+// which puts them after the addresses this commit adds and before the starts
+// that bind them. This function sorted its names until 2026-09-11, when the
+// sort was removed so that a sort of the PARTICIPANTS, which moved the one
+// named "bgp" to the tail, could decide it. That sort is deleted, and no
+// participant's position is pinned by name any more (buildTxInputs,
+// internal/component/plugin/server/reload_tx.go).
 func (o *TxCoordinator) participantsWithoutOperations(ops []ConfigOperation, diffs map[string][]DiffSection) []string {
 	owners := make(map[string]struct{}, len(ops))
 	for i := range ops {
@@ -677,6 +687,7 @@ func (o *TxCoordinator) participantsWithoutOperations(ops []ConfigOperation, dif
 			uncovered = append(uncovered, p.Name)
 		}
 	}
+	slices.Sort(uncovered)
 	return uncovered
 }
 

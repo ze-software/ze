@@ -111,11 +111,19 @@ func sectionNodePosition(ops []ConfigOperation) int {
 // addsAddressing reports whether op is one of the requirement's phase 4
 // additions: an address this commit adds or moves, or the interface that
 // carries one.
+//
+// A modify counts. `interface` applies the whole of its root with one modify
+// that creates the device types it has no create primitive for, a tunnel, a
+// wireguard device or an xfrm device, and the addresses that arrive on one
+// (ifaceConfigureOperation, internal/component/iface/operation.go). A coarse
+// node placed before it would be applied before the address it binds exists.
 func addsAddressing(op *ConfigOperation) bool {
-	if op.Verb != VerbCreate {
+	switch op.Verb {
+	case VerbCreate, VerbModify:
+		return providesAddressing(op.Target.Kind)
+	default:
 		return false
 	}
-	return isAddressingKind(op.Target.Kind)
 }
 
 // startsABinder reports whether op is one of the requirement's phase 5 starts:
@@ -127,13 +135,13 @@ func addsAddressing(op *ConfigOperation) bool {
 func startsABinder(op *ConfigOperation) bool {
 	switch op.Verb {
 	case VerbCreate, VerbModify:
-		return !isAddressingKind(op.Target.Kind)
+		return !providesAddressing(op.Target.Kind)
 	default:
 		return false
 	}
 }
 
-// isAddressingKind reports whether kind names a resource of the ADDRESSING
+// providesAddressing reports whether kind names a resource of the ADDRESSING
 // layer: the local addresses a commit moves, and the interfaces that carry
 // them. It is the line the requirement's phases draw. Phases 3 and 4 remove and
 // add the addressing, and phase 5 starts what binds it.
@@ -143,9 +151,20 @@ func startsABinder(op *ConfigOperation) bool {
 // which is what `interface` does today. A root that BINDS addressing declares
 // its own kind and lands on the phase 5 side with no edit here, which is what
 // `bgp` does with ResourcePeer.
-func isAddressingKind(kind ResourceKind) bool {
+//
+// An operation that declares NO kind at all is read as PROVIDING, because the
+// engine cannot establish what it does and the requirement answers that with
+// "If it is not easy to establish what action will lead to what, be safe and
+// deconf/reconf" (docs/architecture/config/apply-ordering.md, "The fail-safe
+// default"). The two errors cost different things. Reading a provider as a
+// binder puts every coarse section BEFORE the addresses it binds, which is the
+// failure the requirement exists to prevent; reading a binder as a provider
+// puts those sections after it, which costs one session restart. The same
+// default on the same absence is what peerBindingDisturbed takes when a peer
+// declares no local address (internal/component/bgp/plugin/operation.go).
+func providesAddressing(kind ResourceKind) bool {
 	switch kind {
-	case ResourceAddress, ResourceInterface:
+	case ResourceAddress, ResourceInterface, "":
 		return true
 	default:
 		return false

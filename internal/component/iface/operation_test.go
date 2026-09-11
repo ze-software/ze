@@ -401,3 +401,29 @@ func TestIfaceConstraintRulesStateOnlyWhatNoPairCan(t *testing.T) {
 	assert.False(t, graph.HasEdge(configure, configure),
 		"it orders nothing after itself, which is what keeps it out of every cycle")
 }
+
+// TestIfaceOperationDecomposerRefusesADiffItCannotParse verifies that a diff
+// section which will not unmarshal aborts the decomposition instead of reading
+// as a root that changed nothing.
+//
+// The two answers are the same value and mean opposite things. "Nothing
+// changed" drops every address operation this root owns, so the core reads the
+// commit as quiet, no binder stops, and the section apply moves the address
+// under a running session -- the failure the decomposer was rewritten to
+// prevent. No first-party producer can emit one, which is why the shape is
+// what this test fences (ai/rules/principles.md).
+//
+// VALIDATES: a parse failure is answered as a failure.
+// PREVENTS: a malformed diff spelled exactly like a quiet commit.
+func TestIfaceOperationDecomposerRefusesADiffItCannotParse(t *testing.T) {
+	ops, err := decomposeIfaceOperations(context.Background(), tx.DecomposeRequest{
+		TransactionID: "tx-iface-bad-diff",
+		Root:          configRootInterface,
+		ActiveRoot:    `{"interface":{"backend":"test","dummy":{"dum0":{"unit":{"default":{"ipv4":{"address":"10.0.0.1/24"}}}}}}}`,
+		CandidateRoot: `{"interface":{"backend":"test"}}`,
+		Diff:          tx.DiffSection{Root: configRootInterface, Changed: `{"interface/dummy/dum0"`},
+	})
+	require.Error(t, err, "a diff section that will not parse must not be answered as no change")
+	assert.Contains(t, err.Error(), "decompose diff")
+	assert.Nil(t, ops)
+}

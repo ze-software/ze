@@ -30,6 +30,7 @@ type OperationGraph struct {
 const (
 	edgeProduceBeforeConsume = "derived-produce-before-consume"
 	edgeConsumeBeforeDestroy = "derived-consume-before-destroy"
+	edgeDestroyBeforeConsume = "derived-destroy-before-consume"
 )
 
 // BuildOperationGraph orders operations two ways and returns the dependency
@@ -111,6 +112,13 @@ func (g *OperationGraph) addEdge(fromID, toID, ruleID string, seenEdge map[strin
 //   - A destroy takes the resource away, so every destroy that consumes the
 //     resource runs BEFORE it. That keeps an address alive until the last peer
 //     bound to it is gone.
+//   - A destroy also runs BEFORE every operation that creates or changes a
+//     consumer of the resource. The consumer starts in the world the destroy
+//     leaves behind, never in the one it is about to take away. Without this
+//     edge a binder the requirement stops in phase 2 earns nothing to hold its
+//     phase 5 start back whenever no create produces the address again, so it
+//     starts, binds the address, and the address is removed under it
+//     (docs/architecture/config/apply-ordering.md, "The five phases").
 //
 // A modify neither creates nor destroys, so it produces no edge of its own. It
 // still consumes, which is what puts a modification after the create of what it
@@ -145,6 +153,15 @@ func (g *OperationGraph) addDerivedEdges(ops []ConfigOperation, seenEdge map[str
 						continue
 					}
 					g.addEdge(from.ID, ops[j].ID, edgeConsumeBeforeDestroy, seenEdge)
+				}
+			}
+			for k := range from.Produces {
+				identity := resourceIdentity(&from.Produces[k])
+				for _, j := range consumers[identity] {
+					if j == i || ops[j].Verb == VerbDestroy {
+						continue
+					}
+					g.addEdge(from.ID, ops[j].ID, edgeDestroyBeforeConsume, seenEdge)
 				}
 			}
 		case VerbModify:

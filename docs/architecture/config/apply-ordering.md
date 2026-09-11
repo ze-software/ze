@@ -224,6 +224,14 @@ remove-peer therefore runs before the destroy that produces that address, and
 the add-peer after the create that produces it. Those are the two derived edges
 a peer with a changed address has always earned, so phase 2 added no rule.
 
+A commit that DELETES an address has no create to hold the start back, and the
+start is owed all the same: the peer is still configured, so it is started
+again and it binds what the host has. A third derived edge carries it. A
+destroy runs before every create and modify that consumes what it takes away,
+so the restart happens in the world the removal leaves. Without it the start
+earned no edge at all, sorted first, and the session came up on an address the
+same commit was about to remove.
+
 **A peer whose source address the kernel picks is stopped too.** A peer with
 `connection.local.ip` absent or `auto` binds an address Ze did not choose. Ze
 cannot say whether this commit takes that address away. The fail-safe default
@@ -341,10 +349,25 @@ configured: the `bgp` root's peers start after the plugins that configure the
 RIB, the graceful-restart state and the filters have applied their sections.
 
 That order is derived from the verb and the resource kind every operation
-already declares. `isAddressingKind` is the only place the engine reads a kind
+already declares. `providesAddressing` is the only place the engine reads a kind
 for anything but identity: a root that PROVIDES addressing declares `address` or
 `interface`, and a root that BINDS it declares its own kind and lands on the
 phase 5 side with no edit to the engine.
+
+An operation that declares NO kind is read as PROVIDING addressing, which is
+the fail-safe default applied to the engine's own reading. `interface` applies
+everything it has no create primitive for with one such operation, and a
+tunnel, a wireguard device, an xfrm device and the addresses that arrive on one
+are created by it, so a coarse node placed before it would be applied before
+the addressing it binds exists. The two errors cost what "The fail-safe
+default" above says they cost: reading a provider as a binder puts every coarse
+section before the addresses, which is the failure the requirement exists to
+prevent, and reading a binder as a provider costs one session restart.
+
+Two coarse nodes are ordered against each other by participant name. Nothing in
+the requirement orders one uncovered participant against another, and the order
+the orchestrator is handed comes from a map walk, so the name is what makes one
+commit apply its sections the same way twice.
 
 One node still cannot carry phases 2 and 5 both, so a coarse binder is started
 against the new addresses and never stopped before the old ones go. That is the

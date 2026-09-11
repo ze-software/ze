@@ -122,7 +122,7 @@ ordering, and the plugin RPC contract is Ze's own.
 - The rule `iface-remove-address-before-add-same-address` widens to `iface-remove-address-before-add-address`, which states phases 3 and 4 directly. Without the widening a renumber would be unordered, because the old address and the new one are two different addresses and the planner emits its additions first.
 - The core computes which addresses a commit disturbs (`DisturbedAddresses`), the planner carries the set to every root that registers a decomposer even when that root has no diff (`operationPlannerFromTrees`, `bindingRoots`, `appendDecomposingPlugins`), and the owning component decides what stopping means (`decomposeBGPOperations`, `peerBindingDisturbed`). That is phases 2 and 5.
 - The iface decomposer covers its whole root on every call. An address and an interface of a type it can create become one operation each, and every other key rides one `configure-interfaces` operation that applies the interface config as a whole (`decomposeIfaceOperations`, `ifaceConfigureOperation`). It used to produce NO operation whenever one key in its diff had no primitive, so a commit that edited an MTU and moved an address read as a commit that disturbed nothing.
-- A coarse node is placed at the phase 4 to phase 5 boundary, after the addressing the commit adds and before the first operation that binds it (`placeSectionNodes`, `sectionNodePosition`, `isAddressingKind`). `sortParticipantsBGPLast` and `bgpParticipantName` are deleted, so no core package names a root to decide the order.
+- A coarse node is placed at the phase 4 to phase 5 boundary, after the addressing the commit adds and before the first operation that binds it (`placeSectionNodes`, `sectionNodePosition`, `providesAddressing`). `sortParticipantsBGPLast` and `bgpParticipantName` are deleted, so no core package names a root to decide the order.
 - A rolled-back peer returns as the reactor was running it, not as the operation's config subtree describes it (`runningPeerSettings`), and a modify-peer the running session can take swaps its settings in place (`swapPeerForOperation`, `peerSettingsSwapPlan`).
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -359,7 +359,7 @@ cross-process peer this spec owes.
 ## Files to Modify
 - `internal/component/config/transaction/operation.go` - add the verb type and the produce/consume declaration to the registry surface, delete the two `ResourceRelation` values that state produce/consume facts, delete the seven unused operation constant aliases. Add `DisturbedAddresses`, which reads the planned operations and returns every address a destroy produces, and `OperationDecomposerRoots`, which names the roots the planner asks on its second pass. Delete the relations `same-interface` and `same-address` with make-before-break. Doc: `docs/architecture/config/apply-ordering.md`
 - `internal/component/config/transaction/depgraph.go` - derive edges from produce and consume sets over resource identity, beside the surviving rule-driven edges. Doc: `docs/architecture/config/apply-ordering.md`
-- `internal/component/config/transaction/solver.go` - delete `tryRelaxCycle`, `markDualPresence`, `isAddressOperation` and `opInterface` with make-before-break, so `TopologicalSort` answers `ErrOperationCycle` for every graph it cannot order. `placeSectionNodes` and `sectionNodePosition` put a coarse node at the phase 4 to phase 5 boundary, reading the verb and `isAddressingKind` and no operation label. Doc: `docs/architecture/config/apply-ordering.md`
+- `internal/component/config/transaction/solver.go` - delete `tryRelaxCycle`, `markDualPresence`, `isAddressOperation` and `opInterface` with make-before-break, so `TopologicalSort` answers `ErrOperationCycle` for every graph it cannot order. `placeSectionNodes` and `sectionNodePosition` put a coarse node at the phase 4 to phase 5 boundary, reading the verb and `providesAddressing` and no operation label. Doc: `docs/architecture/config/apply-ordering.md`
 - `internal/component/config/transaction/executor.go` - route a coarse root node to the section apply event and the section rollback, keep the per-operation route for everything else. Doc: `docs/architecture/config/apply-ordering.md`
 - `internal/component/config/transaction/orchestrator.go` - synthesize one coarse node per uncovered participant, delete the section-apply fallback and its log line, keep `participantsWithoutOperations` as the synthesis input. Doc: `docs/architecture/config/transaction-protocol.md`
 - `internal/component/config/transaction/orchestrator_budget.go` - NEW at review round 2. The deadline and budget concern, moved out of `orchestrator.go` when the file crossed 1000 lines. The deadline is the sum of the participants' budgets. Doc: `docs/architecture/config/transaction-protocol.md`
@@ -783,10 +783,12 @@ anything else. That is the gap between phase 4 and phase 5, stated in the verb
 and resource-kind vocabulary the engine already orders by, with no root, no
 participant and no operation label named.
 
-Both round-2 blockers are answered:
+Every round-2 finding is answered:
 
 | Finding | Disposition |
 |---------|-------------|
+| R2-I-1 | FIXED (round 3). `docs/architecture/config/transaction-protocol.md` said the engine enforces a dependency-graph-aware critical path and knows the graph for deadline computation. Both now say what `computeSequentialDeadline` does: a flat sum over the participants, with tiers deciding only the order rollback acks are drained in |
+| R2-N-1 | FIXED (round 3). The same page's deadline section now states that the rollback deadline is three times the apply deadline, so it grew with the sum |
 | R2-B-1 | MOOT. Its premise was that a coarse node must precede the destructions, which was the inherited sequence. The requirement removes before it adds, so a coarse node runs after the destructions by design, and the page and the function comment now say so |
 | R2-B-2 | FIXED. The coarse nodes of the `bgp` root's siblings sort before `bgp`'s own peer create or modify, because a peer operation targets `ResourcePeer` and is therefore a phase 5 start. Fenced end to end by `TestReloadTxAppliesCoarseSectionsBeforeBinderStarts`, which registers the decomposing participant FIRST so neither a name check nor the slice order can produce the answer, and at the solver by two new cases of `TestTopologicalSortPlacesSectionNodeBetweenAddressingAndBinders` |
 
@@ -823,3 +825,70 @@ signals the daemon, so the reload finishes. And `action=rewrite` answers
 completion like the other action arms, so the daemon's shutdown NOTIFICATION is
 no longer matched against an empty expectation list. The file's DISCRIMINATION
 header carries both reds, the green and their log paths.
+
+---
+
+Round 3, independent reader, 2026-09-11. Findings artifact:
+`tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/review-findings-cao-round3.md`.
+Verdict: **findings** -- 5 BLOCKER, 6 ISSUE, 2 NIT. The gate is NOT clean.
+
+The contract read first is `docs/architecture/config/apply-ordering.md`,
+"The requirement". Where this spec and that page disagree, the page wins and
+the spec is wrong, which is R3-B-5.
+
+| # | Severity | File / symbol | Finding |
+|---|----------|---------------|---------|
+| R3-B-1 | BLOCKER | `internal/component/bgp/plugin/operation.go` `peerAddressConsumes`, with `transaction/depgraph.go` `addDerivedEdges` | The phase 5 START earns no edge whenever no CREATE produces the disturbed address, so it sorts ahead of the phase 3 removal. Reproduced: `[bgp-remove-peer-p1, bgp-add-peer-p1, iface-remove-address-eth0-10.0.0.1/24, iface-configure]` sorts in that order, so the session restarts, binds the address, and the address is removed under it. Reachable when an operator deletes an address a peer still names, and on any `auto`-source peer when a commit deletes an address. The page and the function comment both state the opposite as a guarantee |
+| R3-B-2 | BLOCKER | `transaction/solver.go` `isAddressingKind`, `addsAddressing`, `startsABinder` | The fail-safe falls the wrong way for an operation whose target kind the engine cannot read: an unknown or EMPTY kind is read as a phase 5 binder, so the coarse nodes are inserted BEFORE it. `ifaceConfigureOperation` is that shape, and it is what creates a tunnel, wireguard or xfrm interface and the addresses on one. Reproduced: an address arriving on a configure-created device sorts to `[iface-remove-address, section-apply-static, iface-configure]`, so the uncovered root applies before the device and its address exist |
+| R3-B-3 | BLOCKER | `internal/component/plugin/server/reload.go` (the `affected` loop over `pm.AllProcesses()`), `orchestrator.go` `participantsWithoutOperations` | The applied order of two coarse sections is non-deterministic, because `AllProcesses` ranges a map and nothing re-orders it. `TestReloadTxAppliesCoarseSectionsBeforeBinderStarts` fails 2 runs in 20 at HEAD. The `participantsWithoutOperations` comment and the round-1 B-1 disposition both claim `buildTxInputs` makes this deterministic |
+| R3-B-4 | BLOCKER | this spec's TDD Test Plan and Boundary Tests tables | Four rows claim evidence that does not exist: `TestTopologicalSortRelaxesCycleByVerbAndKind`, `TestTopologicalSortRejectsNonAddressCycle`, `TestTopologicalSortPlacesSectionNodeBetweenCreatesAndDestroys`, `TestTopologicalSortThreeWayRotation`. Each was renamed or replaced in `test/weakened/4c26aef3.md` and the spec's tables were not carried forward |
+| R3-B-5 | BLOCKER | this spec's Task, Required Reading, Current Behavior, Data Flow, Risks, Wiring Test, Acceptance Criteria, User Stories, Boundary Tests, Documentation checklist, Key Design Decisions, Known Limitations | Fourteen places state the superseded make-before-break policy. AC-4 demands the opposite of what the code and `config-apply-ordering-address-swap.ci` now assert. The findings artifact lists all fourteen |
+| R3-I-1 | ISSUE | `docs/architecture/config/transaction-protocol.md` | R2-I-1 is not fixed: lines 22 and 518 still credit the engine with a dependency-graph-aware deadline that `computeSequentialDeadline` does not compute. Beside them the page now contradicts itself, line 973 saying the solver attempts relaxation and line 993 saying nothing relaxes a cycle, under a heading still named "dual-presence fallback" |
+| R3-I-2 | ISSUE | this spec's `## Review Gate` | Round 2's R2-I-1 and R2-N-1 have no disposition row. The Phase 5 section answers only the two BLOCKERs |
+| R3-I-3 | ISSUE | `orchestrator.go` `participantsWithoutOperations` | Its first sentence says the names are "sorted so the synthesized nodes are the same on every run". The body neither sorts nor is deterministic, and the same comment later says sorting would say nothing |
+| R3-I-4 | ISSUE | `test/weakened/4c26aef3.md` | The file contradicts itself: its prose leaves `TestIfaceSameSubnetSwapOrdersAddBeforeRemove` RED and out of the table, and a table row in the same file says that test was renamed and inverted. The renamed test exists and passes; the old name does not exist. Every other claimed replacement was verified present |
+| R3-I-5 | ISSUE | `reload.go` `appendDecomposingPlugins`, `orchestrator_budget.go` `computeSequentialDeadline` | Every decomposing plugin joins the transaction on every reload, and the deadline sums the budgets of participants no phase reaches |
+| R3-I-6 | ISSUE | `iface/operation.go` `ifaceDiffHasChanges`, `bgp/plugin/operation.go` `bgpDiffTouchesPeer` | Both answer `false` on a JSON parse error, which the caller reads as "this root changed nothing". Unreachable from the first-party producer, and a parse error must still not be spelled the same way as no change |
+| R3-N-1 | NIT | this spec's Critical Review Checklist | The row requiring `solver.go` to contain none of `bgp`, `interface`, `peer`, `address` is unmeetable by design: `isAddressingKind` reads two resource kinds, which `apply-ordering.md` justifies |
+| R3-N-2 | NIT | `continue.md` | Stale: four commits, and reverts named against `tryRelaxCycle` and the uncovered-participant condition, neither of which exists |
+
+**What round 3 checked and found sound.** `DisturbedAddresses` matches the
+owner's definition on all three disturbances and on the MTU exclusion. The
+second planner pass fails closed through `checkDisturbanceSettled`. A commit
+that disturbs nothing sends a decomposing plugin no event. No cycle is
+constructible from the first-party declarations, so R-2 is not reproduced. The
+interface decomposer drops no key. A root that both provides and binds
+addressing is handled, because the phase line is read per operation. And the
+`internal/test/peer` linger claim is TRUE:
+`test/reload/config-apply-ordering-address-swap.ci` is the only peer block in
+any `.ci`, `.et` or `.msg` under `test/` that carries `option=linger`, carries
+no `option=conn_map`, and is owed a connection past the first.
+
+**Round 3 disposition, 2026-09-11.** The two spec BLOCKERs were repaired first,
+in `d4f54da586`. The three product defects and the six issues follow, each with
+the test that fences it.
+
+| # | Disposition |
+|---|-------------|
+| R3-B-1 | FIXED, in the ORDERING and not in the emission. The start is owed: the peer is still configured, and suppressing it would leave the reactor without a peer the config declares, with nothing able to bring it back -- `handleAddrAddedPayload` starts a LISTENER for a peer the reactor still holds, and a later commit that re-adds the address disturbs nothing, so the decomposer is never asked. `addDerivedEdges` gains a third direction: a destroy runs before every create and modify that consumes what it takes away. Fenced by `TestBGPStartsThePeerAfterTheAddressItBindsIsRemoved` and `TestBGPStartsTheAutoSourcePeerAfterTheRemovals` (`internal/component/bgp/plugin/operation_disturbed_test.go`), which drive the real `interface` and `bgp` decomposers, and by a case of `TestBuildOperationGraphDerivedEdgesMatchDeletedRules` |
+| R3-B-2 | FIXED. `providesAddressing` (`solver.go`, renamed from `isAddressingKind`) reads an operation that declares NO kind as providing addressing, so the coarse nodes wait for it. `addsAddressing` now accepts a modify, which is the verb `ifaceConfigureOperation` carries. A declared kind still decides the side it is on, so a binder joins phase 5 by declaring its own kind and no enumeration of binder kinds enters the engine. Fenced by the "after an operation whose kind the engine cannot read" case of `TestTopologicalSortPlacesSectionNodeBetweenAddressingAndBinders` |
+| R3-B-3 | FIXED. `participantsWithoutOperations` sorts the uncovered names again. The sort was removed in round 1 so that `sortParticipantsBGPLast` could decide the order; that function is deleted, and nothing pinned it since. Fenced by `TestParticipantsWithoutOperationsSortsTheCoarseNodes`, and `TestReloadTxAppliesCoarseSectionsBeforeBinderStarts` now passes 50 runs of 50 |
+| R3-I-1 | FIXED. See the R2-I-1 row above: both sentences now describe the flat sum, the "cycle relaxation" sentence and heading are gone, and the `solver.go` source anchor names the placement |
+| R3-I-2 | FIXED. R2-I-1 and R2-N-1 have disposition rows in the round-2 table above |
+| R3-I-3 | FIXED with R3-B-3. The comment says what the function does and why the order is arbitrary but stable |
+| R3-I-4 | FIXED. The false paragraph is deleted from `test/weakened/4c26aef3.md`. The table row is the true statement: the test was renamed to `TestIfaceSameSubnetSwapOrdersRemoveBeforeAdd`, its assertion inverted, and it passes |
+| R3-I-5 | NOT A DEFECT, and the comment that gave a false reason is corrected. The sum must include a diffless decomposing participant, because that participant receives one per-operation apply for each operation it emits under the same absolute instant, and the binder the requirement is about is exactly that participant. What the sum over-counts is a decomposer that emits nothing this time, which nothing can know before the planner has run, and the over-count only lengthens the wait for a plugin that has hung |
+| R3-I-6 | FIXED. `ifaceDiffHasChanges` and `bgpDiffTouchesPeer` answer `(bool, error)`, and each decomposer aborts the transaction on a diff section that will not parse. Fenced at both entry points by `TestIfaceOperationDecomposerRefusesADiffItCannotParse` and `TestBGPOperationDecomposerRefusesADiffItCannotParse` |
+
+**The QEMU evidence still describes what the two tests assert, and one applied
+order moved.** `address-swap` moves two addresses that are both re-created, so
+every peer operation keeps the edges it had and the new destroy-before-consume
+edge adds one the create already implied. In `mixed-root` the coarse static
+section now applies AFTER `interface-configure` rather than before it, because
+that operation declares no kind and the fail-safe reads it as addressing. What
+the file asserts is unchanged and still holds: the old address leaves, the new
+one arrives, and only then is the route that binds it installed. Its RED, making
+`sectionNodePosition` answer 0, still puts the section before both addresses.
+Each test has one uncovered participant, so the coarse sort orders nothing
+either of them can see. Both tests skip on darwin and were not re-run: this is a
+reading of the change, not a fresh walk.

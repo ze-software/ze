@@ -62,10 +62,14 @@ func decomposeBGPOperations(_ context.Context, req configtx.DecomposeRequest) ([
 	if req.Root != configRootBGP {
 		return nil, nil
 	}
+	touchesPeer, err := bgpDiffTouchesPeer(req.Diff)
+	if err != nil {
+		return nil, fmt.Errorf("bgp operation decompose diff: %w", err)
+	}
 	// A commit that disturbs an address reaches this root with no diff at all,
 	// and the sessions bound to that address still have to stop and start
 	// (docs/architecture/config/apply-ordering.md, phase 2).
-	if !bgpDiffTouchesPeer(req.Diff) && len(req.DisturbedAddresses) == 0 {
+	if !touchesPeer && len(req.DisturbedAddresses) == 0 {
 		return nil, nil
 	}
 	disturbed := req.DisturbedAddresses
@@ -361,22 +365,32 @@ func bgpModifyPeerOperation(name, localAddress string, config, oldConfig json.Ra
 	}
 }
 
-func bgpDiffTouchesPeer(diff configtx.DiffSection) bool {
+// bgpDiffTouchesPeer reports whether this diff names a peer key, and answers
+// the parse error rather than a verdict when a section will not unmarshal.
+//
+// "No peer key" is what stops this root from emitting any operation, so a
+// section read that way would leave every peer change of the commit unapplied,
+// spelled exactly as a commit that changes no peer (ai/rules/principles.md).
+// The first-party producer marshals a map and cannot emit one
+// (buildDiffSections, internal/component/plugin/server/reload_tx.go), so this
+// aborts the transaction rather than guessing on behalf of a plugin that sent
+// something else.
+func bgpDiffTouchesPeer(diff configtx.DiffSection) (bool, error) {
 	for _, raw := range []string{diff.Added, diff.Removed, diff.Changed} {
 		if raw == "" {
 			continue
 		}
 		var entries map[string]any
 		if err := json.Unmarshal([]byte(raw), &entries); err != nil {
-			return false
+			return false, err
 		}
 		for key := range entries {
 			if key == "bgp/peer" || strings.HasPrefix(key, "bgp/peer/") || key == "peer" || strings.HasPrefix(key, "peer/") {
-				return true
+				return true, nil
 			}
 		}
 	}
-	return false
+	return false, nil
 }
 
 func peerRouterIDRotation(changes []bgpPeerChange) bool {

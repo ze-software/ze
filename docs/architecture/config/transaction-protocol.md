@@ -19,7 +19,7 @@ individual plugins beyond publishing events.
 |-----------|-----------|
 | Stream-native | Config transactions use the same `(namespace, event-type)` pub/sub backbone as all other cross-component coordination (interface events, RIB changes, BGP events). No separate RPC path, no separate bus. |
 | Plugin autonomy | Plugins decide what they need. A plugin that depends on an interface being created waits for both the apply event and the interface event. The engine does not manage per-plugin dependency graphs at runtime. |
-| Plugin-estimated timeouts | Plugins declare verify and apply budgets at registration, update them after each transaction. Engine enforces the dependency-graph-aware critical path. No mid-transaction negotiation. |
+| Plugin-estimated timeouts | Plugins declare verify and apply budgets at registration, update them after each transaction. The engine bounds a phase with the SUM of those budgets, because nothing in a phase runs concurrently. No mid-transaction negotiation. |
 | Rollback is an event | The engine emits a single rollback event when any plugin's apply fails or times out. All plugins that already applied undo via their journals. The engine drains rollback acks in reverse dependency-tier order. |
 | Runtime is authoritative | A candidate config is promoted to the active pointer only after runtime reload succeeds. Persistence failure after apply is a warning, not a plugin rollback trigger. |
 
@@ -225,7 +225,19 @@ fib-kernel was still applying correctly.
 
 The cost of the sum is the time a hung plugin takes to be noticed, and it grows
 with the participant count. That is the trade the engine takes: a late abort of
-a broken reload, against a false abort of a working one.
+a broken reload, against a false abort of a working one. The rollback deadline
+is three times the apply deadline, so it grew with the sum
+(`computeRollbackDeadline`).
+
+Every participant is in the sum, including one that joined with no diff. A
+plugin that declares a decomposition joins every reload
+(`appendDecomposingPlugins`), receives no verify and no section apply, and
+still receives one per-operation apply for each operation it emits, under the
+same absolute instant. The binder the apply order is written for is that
+participant: its own config did not change and it stops and starts a session
+anyway. What the sum over-counts is a decomposing plugin that emits nothing
+this time, which no reading of the participants can tell before the planner has
+run, and the over-count only lengthens the wait for a plugin that has hung.
 
 Until 2026-09-11 the engine took the max budget within each dependency tier
 from `registry.TopologicalTiers` and summed the tiers, on the premise that a
@@ -515,9 +527,11 @@ The engine emits `committed` first (participants finalize), then `applied`
 ## 9. Dependency Waiting
 
 Plugins that depend on side effects from other plugins handle this internally
-during the apply phase. The engine knows the dependency graph for deadline
-computation, but it does not coordinate inter-plugin dependencies during apply
-itself; plugins subscribe to whatever side-effect events they need.
+during the apply phase. The engine reads no dependency graph for the deadline,
+which is a flat sum over the participants (section 4), and it does not
+coordinate inter-plugin dependencies during apply itself; plugins subscribe to
+whatever side-effect events they need. Dependency TIERS still decide the order
+rollback acks are drained in, which is a different question.
 
 **Pattern:** A plugin subscribes to both its own `(config, apply-<self>)` event
 and the side-effect events it depends on. It only finishes its apply when both
@@ -735,7 +749,7 @@ converges to that active config by applying its roots from scratch during Stage
 
 <!-- source: internal/component/config/transaction/operation.go -- operation types, registries -->
 <!-- source: internal/component/config/transaction/depgraph.go -- graph construction from constraint rules -->
-<!-- source: internal/component/config/transaction/solver.go -- topological sort with cycle relaxation -->
+<!-- source: internal/component/config/transaction/solver.go -- topological sort and coarse-node placement -->
 <!-- source: internal/component/config/transaction/executor.go -- ordered execution with settlement -->
 <!-- source: internal/component/iface/operation.go -- iface decomposer and constraint/settlement rules -->
 <!-- source: internal/component/bgp/plugin/operation.go -- BGP decomposer and constraint rules -->
@@ -862,7 +876,7 @@ identity.
 | Verb of the operation | Edge it earns |
 |-----------------------|---------------|
 | `create` | It runs BEFORE every operation that consumes what it produces, excluding a `destroy` consumer, which needs the resource to still exist rather than to have just been created |
-| `destroy` | Every `destroy` that consumes the resource runs BEFORE it |
+| `destroy` | Every `destroy` that consumes the resource runs BEFORE it, and it runs BEFORE every `create` and `modify` that consumes the resource, so a consumer starts in the world the destroy leaves rather than the one it is taking away |
 | `modify` | None of its own. It consumes, so it lands after the create of what it binds |
 
 Two entries name one resource when their identities are equal. A resource is
@@ -953,7 +967,12 @@ Components that do not register a decomposer (DNS, telemetry, DHCP) are each
 one coarse node. The node is placed after the addresses and interfaces the
 commit adds, and before the first operation that creates or modifies something
 which binds them, which is the gap between phase 4 and phase 5 of the
-requirement (`apply-ordering.md`). Each is ordered against the operations the
+requirement (`apply-ordering.md`). An operation that declares no resource kind
+counts as addressing, so the coarse nodes wait for it: the engine cannot
+establish what such an operation does, and the requirement's fail-safe stops
+and restarts rather than guesses. Two coarse nodes are ordered against each
+other by participant name, because nothing else orders them and the applied
+order must be the same on every run. Each is ordered against the operations the
 other roots emit, and not within itself. No code change is needed in those
 components.
 <!-- source: internal/component/config/transaction/solver.go -- placeSectionNodes, sectionNodePosition -->
@@ -969,14 +988,14 @@ for. Duplicate edges (same from/to pair) are suppressed, whichever way produced
 them.
 
 `TopologicalSort` (in `solver.go`) runs Kahn's algorithm on the graph. If all
-operations are emitted, the sort is complete. If some operations remain (a cycle
-exists), the solver attempts cycle relaxation.
+operations are emitted, the sort is complete. If some operations remain, the
+graph holds a cycle and the transaction aborts with `ErrOperationCycle`.
 
-#### Cycle detection and dual-presence fallback
+#### Cycle detection
 
-This section describes what the solver does today. The owner's requirement asks
-for a different policy, and `docs/architecture/config/apply-ordering.md` carries
-it under "What is not built".
+The owner's requirement is `docs/architecture/config/apply-ordering.md`, and
+the solver implements it: the addresses a commit disturbs are removed with the
+binder stopped and added again before it starts.
 
 Address operations formed cycles until 2026-09-11. An IP swap (eth0 and eth1
 trade 10.0.0.1 and 10.0.0.2) drew two rule edges for each address, one from the

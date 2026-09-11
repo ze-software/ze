@@ -156,7 +156,14 @@ func ifaceConfigOperationDecls() []sdk.ConfigOperationDecl {
 // the address operations say so, and where it does not they are absent, which
 // is the same answer the two cases gave before.
 func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.ConfigOperation, error) {
-	if req.Root != configRootInterface || !ifaceDiffHasChanges(req.Diff) {
+	if req.Root != configRootInterface {
+		return nil, nil
+	}
+	changed, err := ifaceDiffHasChanges(req.Diff)
+	if err != nil {
+		return nil, fmt.Errorf("iface operation decompose diff: %w", err)
+	}
+	if !changed {
 		return nil, nil
 	}
 	active, err := parseIfaceSections([]sdk.ConfigSection{{Root: configRootInterface, Data: req.ActiveRoot}})
@@ -318,7 +325,9 @@ func ifaceInterfaceOperation(opType tx.ConfigOperationType, ifaceName, ifaceType
 	}
 }
 
-// ifaceDiffHasChanges reports whether this diff names any key at all.
+// ifaceDiffHasChanges reports whether this diff names any key at all, and
+// answers the parse error rather than a verdict when a section will not
+// unmarshal.
 //
 // A root asked with no diff is the binder case: the planner asks every root
 // that decomposes a second time once an address is disturbed, and this one is
@@ -329,7 +338,16 @@ func ifaceInterfaceOperation(opType tx.ConfigOperationType, ifaceName, ifaceType
 // It replaced a predicate that asked whether EVERY key was one this package
 // had a primitive for, and refused the whole root otherwise. No key is
 // classified now, because the configure operation applies them all.
-func ifaceDiffHasChanges(diff tx.DiffSection) bool {
+//
+// A section that will not parse is answered with the error. "No change" is the
+// answer that drops every address operation this root owns, so the core reads
+// the commit as quiet and every binder stays up while the section apply moves
+// the address under it: a value that is silently wrong must not be reachable
+// (ai/rules/principles.md). The first-party producer marshals a map and cannot
+// emit one (buildDiffSections, internal/component/plugin/server/reload_tx.go),
+// so this aborts the transaction rather than guessing on behalf of a plugin
+// that sent something else.
+func ifaceDiffHasChanges(diff tx.DiffSection) (bool, error) {
 	seen := false
 	for _, raw := range []string{diff.Added, diff.Removed, diff.Changed} {
 		if raw == "" {
@@ -337,13 +355,13 @@ func ifaceDiffHasChanges(diff tx.DiffSection) bool {
 		}
 		var entries map[string]any
 		if err := json.Unmarshal([]byte(raw), &entries); err != nil {
-			return false
+			return false, err
 		}
 		if len(entries) > 0 {
 			seen = true
 		}
 	}
-	return seen
+	return seen, nil
 }
 
 func sortedManagedNames(managed map[string]bool) []string {

@@ -233,3 +233,27 @@ func TestBGPSettlementRulesWaitForListenerReady(t *testing.T) {
 		Timeout:      10 * time.Second,
 	})
 }
+
+// TestBGPOperationDecomposerRefusesADiffItCannotParse verifies that a diff
+// section which will not unmarshal aborts the decomposition instead of reading
+// as a diff that touches no peer.
+//
+// "No peer key" is what makes this root emit nothing, so a parse failure read
+// that way leaves every peer change of the commit unapplied while the
+// transaction reports success. No first-party producer can emit one, so the
+// shape is what this test fences (ai/rules/principles.md).
+//
+// VALIDATES: a parse failure is answered as a failure.
+// PREVENTS: a malformed diff spelled exactly like a commit with no peer change.
+func TestBGPOperationDecomposerRefusesADiffItCannotParse(t *testing.T) {
+	ops, err := decomposeBGPOperations(context.Background(), tx.DecomposeRequest{
+		TransactionID: "tx-bgp-bad-diff",
+		Root:          configRootBGP,
+		ActiveRoot:    `{"bgp":{"peer":{"edge":{"connection":{"local":{"ip":"192.0.2.1"}}}}}}`,
+		CandidateRoot: `{"bgp":{"peer":{}}}`,
+		Diff:          tx.DiffSection{Root: configRootBGP, Changed: `{"bgp/peer/edge"`},
+	})
+	require.Error(t, err, "a diff section that will not parse must not be answered as no peer change")
+	assert.Contains(t, err.Error(), "decompose diff")
+	assert.Nil(t, ops)
+}

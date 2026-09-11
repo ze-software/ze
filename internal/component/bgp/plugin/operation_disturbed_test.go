@@ -186,3 +186,84 @@ func TestBGPStopsThePeerWhoseSourceAddressTheKernelPicks(t *testing.T) {
 		"bgp-add-peer-edge",
 	}, order, "the five phases in order: the session stops, the address leaves, the address arrives, the interface section lands, the session starts")
 }
+
+// The two trees for a commit that DELETES an address rather than moving it.
+// Nothing puts 10.90.0.1 back, so no create produces it anywhere in the plan.
+const (
+	ifaceRootAddressDeleted = `{"interface":{"backend":"netlink","dummy":{` +
+		`"zdiag0":{"unit":{"0":{"ipv4":{"address":["10.80.0.1/24"]}}}},` +
+		`"zdiag1":{"unit":{"0":{"ipv4":{"address":["10.91.0.1/24"]}}}}}}}`
+	ifaceAddressDeleteDiff = `{"interface/dummy/zdiag0/unit/0/ipv4/address/1":{"old":"10.90.0.1/24","new":null}}`
+)
+
+// TestBGPStartsThePeerAfterTheAddressItBindsIsRemoved drives the commit that
+// takes an address away and puts it back nowhere. The peer still names it, so
+// the requirement's phase 2 stops the session and its phase 5 starts it again,
+// and the start MUST follow the removal.
+//
+// The start declares the address in Consumes exactly as the stop does, and
+// until 2026-09-11 only a CREATE of that address could hold it back. A commit
+// that deletes an address emits one destroy and no create, so the start earned
+// no edge at all: it sorted first, the session came up, it bound the address,
+// and the address was then removed under it. That is the failure the
+// requirement exists to prevent, reached by an operator deleting an address a
+// peer still names.
+//
+// VALIDATES: phase 5 follows phase 3 when no create produces the address again.
+// PREVENTS: a session restarted onto an address the same commit is about to remove.
+func TestBGPStartsThePeerAfterTheAddressItBindsIsRemoved(t *testing.T) {
+	ifaceOps := decomposeIfaceRoot(t, ifaceRootAddressOnZdiag0, ifaceRootAddressDeleted, ifaceAddressDeleteDiff)
+	disturbed := tx.DisturbedAddresses(ifaceOps)
+	require.Equal(t, []string{"10.90.0.1"}, disturbed,
+		"the address the commit deletes is disturbed, and the two that stay put are not")
+
+	bgpOps, err := decomposeBGPOperations(context.Background(), tx.DecomposeRequest{
+		TransactionID:      "tx-phase2-delete",
+		Root:               configRootBGP,
+		ActiveRoot:         bgpRootPeerOn109001,
+		CandidateRoot:      bgpRootPeerOn109001,
+		DisturbedAddresses: disturbed,
+	})
+	require.NoError(t, err)
+	require.Len(t, bgpOps, 2, "the session bound to the deleted address stops and starts; got %v", bgpOps)
+
+	order := sortOperations(t, append(slices.Clone(ifaceOps), bgpOps...))
+	require.Equal(t, []string{
+		"bgp-remove-peer-edge",
+		"interface-remove-address-zdiag0-10.90.0.1_24",
+		"interface-configure",
+		"bgp-add-peer-edge",
+	}, order, "the session stops, the address leaves, and only then does the session start again")
+}
+
+// TestBGPStartsTheAutoSourcePeerAfterTheRemovals drives the same delete for a
+// peer whose source address the kernel picks. It declares every disturbed
+// address rather than one, which is the fail-safe default, and each of those
+// declarations must hold its start back the same way.
+//
+// VALIDATES: the fail-safe peer's start follows every removal the commit makes.
+// PREVENTS: the widest case of the same defect, where the peer names no address
+// of its own and the only thing ordering it is the disturbed set.
+func TestBGPStartsTheAutoSourcePeerAfterTheRemovals(t *testing.T) {
+	ifaceOps := decomposeIfaceRoot(t, ifaceRootAddressOnZdiag0, ifaceRootAddressDeleted, ifaceAddressDeleteDiff)
+	disturbed := tx.DisturbedAddresses(ifaceOps)
+	require.Equal(t, []string{"10.90.0.1"}, disturbed)
+
+	bgpOps, err := decomposeBGPOperations(context.Background(), tx.DecomposeRequest{
+		TransactionID:      "tx-phase2-delete-auto",
+		Root:               configRootBGP,
+		ActiveRoot:         bgpRootPeerOnAutoSource,
+		CandidateRoot:      bgpRootPeerOnAutoSource,
+		DisturbedAddresses: disturbed,
+	})
+	require.NoError(t, err)
+	require.Len(t, bgpOps, 2, "Ze cannot establish which address the kernel picked, so the session stops; got %v", bgpOps)
+
+	order := sortOperations(t, append(slices.Clone(ifaceOps), bgpOps...))
+	require.Equal(t, []string{
+		"bgp-remove-peer-edge",
+		"interface-remove-address-zdiag0-10.90.0.1_24",
+		"interface-configure",
+		"bgp-add-peer-edge",
+	}, order, "the start follows the removal it could have been sourced from")
+}

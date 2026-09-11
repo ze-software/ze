@@ -351,6 +351,22 @@ func TestTopologicalSortPlacesSectionNodeBetweenAddressingAndBinders(t *testing.
 			want: []string{"iface-add-address", "section-apply-static", "bgp-add-peer"},
 		},
 		{
+			// `interface` applies everything it has no create primitive for
+			// with one modify that declares no target resource, and a tunnel,
+			// a wireguard device or an xfrm device and the addresses on it
+			// arrive through it (ifaceConfigureOperation). The engine cannot
+			// read what it does, so the fail-safe reads it as addressing and
+			// the coarse sections wait for it.
+			name: "after an operation whose kind the engine cannot read",
+			ops: []ConfigOperation{
+				{ID: "iface-remove-address-old", Type: testOpRemoveAddress, Verb: VerbDestroy, Target: ResourceRef{Kind: ResourceAddress, Interface: "zmix0", Address: "10.93.0.1/24"},
+					Produces: []ResourceRef{{Kind: ResourceAddress, Address: "10.93.0.1/24"}}},
+				{ID: "iface-configure", Type: testOpSetProperty, Verb: VerbModify},
+				section,
+			},
+			want: []string{"iface-remove-address-old", "iface-configure", "section-apply-static"},
+		},
+		{
 			name: "before a peer whose address this commit does not touch",
 			ops: []ConfigOperation{
 				{ID: "bgp-modify-peer", Type: testOpAddPeer, Verb: VerbModify, Target: ResourceRef{Kind: ResourcePeer, Peer: "edge"},

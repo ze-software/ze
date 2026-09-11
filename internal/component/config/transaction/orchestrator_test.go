@@ -1571,6 +1571,43 @@ func TestExecuteCoarseNodeEmitsNoOperationVerify(t *testing.T) {
 	}
 }
 
+// TestParticipantsWithoutOperationsSortsTheCoarseNodes verifies that two
+// participants nobody decomposes get their coarse nodes in one order, whatever
+// order the transaction was handed them in.
+//
+// The order this function is GIVEN comes from a walk of the process manager's
+// map, so a commit that applied section A then section B applied them the
+// other way round on the next run, and the test that fences the placement
+// failed 2 runs in 20. Nothing in the graph orders one uncovered participant
+// against another, so the choice is arbitrary and the stability is not.
+//
+// VALIDATES: the coarse section order is the same on every run of one commit.
+// PREVENTS: a reload whose applied order depends on a map walk, which no test
+// can fence and no operator can reproduce.
+func TestParticipantsWithoutOperationsSortsTheCoarseNodes(t *testing.T) {
+	gw := newTestGateway()
+	orch := newTestOrchestrator(t, gw, []testParticipant{
+		{name: "zebra", configRoots: []string{"shared"}},
+		{name: "alpha", configRoots: []string{"shared"}},
+	})
+	diffs := map[string][]DiffSection{
+		"shared": {{Root: "shared", Changed: `{"shared/value":{"old":"a","new":"b"}}`}},
+	}
+
+	if uncovered := orch.participantsWithoutOperations(nil, diffs); !slices.Equal(uncovered, []string{"alpha", "zebra"}) {
+		t.Fatalf("uncovered participants = %v, want them sorted", uncovered)
+	}
+
+	nodes := orch.operationNodes(nil, diffs)
+	owners := make([]string, 0, len(nodes))
+	for i := range nodes {
+		owners = append(owners, nodes[i].Owner)
+	}
+	if !slices.Equal(owners, []string{"alpha", "zebra"}) {
+		t.Fatalf("coarse node owners = %v, want them sorted", owners)
+	}
+}
+
 // TestParticipantsWithoutOperationsEmptyAfterSynthesis states the property the
 // deleted fallback tested for: after synthesis no participant with diffs is
 // left without a node. The fallback branch is unreachable because coverage is
