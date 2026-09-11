@@ -106,7 +106,7 @@ is darwin. Do not record them as green.
 
 | Decision | Why it is blocked |
 |---|---|
-| **The four generated RFC index files, third deferral** | `rfc/enrolled.txt`, `rfc/not-enrolled.txt`, `ai/RFC-REQUIREMENTS.md`, `docs/features/rfc-status.md` are held back across three closures. `./le rfc index-update` is whole-tree, so this session's real corrections are mixed with a `Supported` row for `draft-ietf-idr-bgp-bfd-strict-mode`, whose producer is NOT in HEAD. Publishing it would claim conformance for absent code. `plan/spec-bgp-bfd-strict.md` is `in-progress` and **no live session holds it**, so nothing schedules the refresh. Landing this session's half needs one `./le rfc index-update` in the same commit as that untracked summary, which only that abandoned spec's closure can do |
+| **The four generated RFC index files, third deferral** | `rfc/enrolled.txt`, `rfc/not-enrolled.txt`, `ai/RFC-REQUIREMENTS.md`, `docs/features/rfc-status.md` are held back across three closures. `./le rfc index-update` is whole-tree, so this session's real corrections are mixed with a `Supported` row for `draft-ietf-idr-bgp-bfd-strict-mode`, whose producer is NOT in HEAD. Publishing it would claim conformance for absent code. `spec-bgp-bfd-strict` is `in-progress` and **no live session holds it**, so nothing schedules the refresh. Landing this session's half needs one `./le rfc index-update` in the same commit as that untracked summary, which only that abandoned spec's closure can do |
 | **A closed spec came back** | `plan/immediate/spec-ipv6cp-accepts-and-proposes-a-zero-interface-identifier.md` was correctly removed by `3fd87369fb`, then rewritten to disk at 12:22 still reading `in-progress` Phase 5/5. Content is preserved in `fd7cd7b44e`, so nothing is lost, but the backlog now shows a closed spec as open and `/ze-status` counts it. NOT deleted: `ai/rules/never-destroy-work.md` needs your word first |
 | **The fabricated-citation class** | `plan/journal/claim-outlives-the-evidence-it-cites.md` holds 47 rows, three of them fabricated RFC quotations or non-existent section numbers. This session's own agents attributed "MUST NOT be all zeros or all ones" to RFC 5072 Section 4.1 (that sentence is not in the document) and cited "RFC 5072 Section 3.2" eight times (that section does not exist). All corrected, none remain. The class has earned a deliberate pass, plausibly a gate: a citation naming a section number is mechanically checkable against the RFC text, which would have caught all eight |
 | **`RFC5072-4.1-11`** | Ze's own tentative interface identifier does not clear the "u" bit, so Ze sends in its own Configure-Request a value it now refuses to suggest to a peer. Honestly recorded as a `{gap}`. Roughly two lines now that `suggestIPv6CPInterfaceID` owns the machinery, but it changes what Ze puts on the wire and owes a tagged test plus a discrimination record. Wants its own spec |
@@ -511,7 +511,7 @@ completed.
 | Spec | Committed | Status |
 |------|-----------|--------|
 | `spec-bgp-as-notation` | `c3b6433ba8`, 140 files | closed 2026-09-11. Commit B removed the spec, so this row names the stem rather than a path |
-| `plan/spec-bgp-bfd-strict.md` | nothing | `in-progress`. Three round-6 issues open |
+| `spec-bgp-bfd-strict` | nothing | `in-progress`. Three round-6 issues open |
 | `spec-bgp-update-delay` | closed 2026-09-11 | Closed by an independent closure context: commit A carries the code, the spec and the journal row, commit B removes the spec. The spec file is gone from the tree, so this row names the stem rather than a path |
 
 `c3b6433ba8` is the only commit of this session at the time this block was
@@ -646,7 +646,7 @@ changed since, so read this before acting on the TO DO list above.
 | `c3b6433ba8` | as-notation, 140 files. `asn.Of` and `applyASNotation` are in HEAD |
 | `a8f7323f64` | BFD strict mode, 51 files, the self-contained half only |
 
-`a8f7323f64` is NOT a closure commit. `plan/spec-bgp-bfd-strict.md` stays
+`a8f7323f64` is NOT a closure commit. `spec-bgp-bfd-strict` stays
 `in-progress` and its three round-6 issues stay open. They are listed in the
 commit body verbatim, so `git show a8f7323f64` is the authority rather than this
 file.
@@ -1216,3 +1216,68 @@ than take our word. **Revert by hunk, never by file, in a shared checkout.**
 were reported as failing on update-delay's hunks. They are not: they fail under a
 bare `go test` on `show bgp irr` and `show bgp rib`, and pass with
 `-tags ze_core,ze_bgp`. A missing build tag, not a defect.
+
+## Update, 2026-09-11: two of the three specs are CLOSED
+
+The entanglement resolved. The paths-limit session landed `29102e14f8`, both
+parked halves were restored, and two specs closed properly.
+
+| Spec | Commits | State |
+|---|---|---|
+| `spec-bgp-update-delay` | `d62292c405` + `e600d76fc1` | CLOSED, out of `plan/` |
+| `spec-bgp-as-notation` | `c3b6433ba8`, `2f32b5e44c`, `bdf1f23db4` + `b8b847f587` | CLOSED, out of `plan/` |
+| `spec-bgp-bfd-strict` | none yet | open, round 9 running |
+
+Also landed: `83dae81234` repairing a tracked build our own BFD commit broke, and
+`1d59f494b5` recording a selector test that asserts an order nobody promises.
+
+### What the park cost, so nobody repeats it blind
+
+Parking worked, and it was the only way out of a genuine cycle where two sessions
+each held half of two files. But it cost two real defects in the restore, both in
+update-delay, and both invisible to the obvious check:
+
+**Content lost INTO HEAD leaves a ZERO working-tree diff.** While the half was
+parked, another session committed two of its hunks. The restore then had nothing
+to diff against, so `git status` and a HEAD comparison both read those files as
+clean while the feature's only production caller and its interop registration
+were simply gone. The hold could never converge; it released on a timer alone,
+and every unit test stayed green because they called the orphaned function
+directly.
+
+The method that works, and that found no third loss when it was finally used:
+rebuild the pre-park tree from the patch's own pre-image blobs and diff every
+line, or parse the patch and check each added line is present in the tree. Never
+verify a restore against HEAD.
+
+### BFD strict mode: where it stands
+
+Rounds 1 to 8 are done; round 9 is running. Rounds 6 to 9 were each authorised by
+Thomas individually. The work is restored, verified line by line against the
+parked patch (645 added lines, 0 missing), and every parked symbol traced to a
+production caller in a non-test file.
+
+Round 7 and 8 found three things worth knowing if you pick this up:
+
+1. **The first-packet index could never match a real packet.** The transport
+   stamped the wildcard bind address as the inbound local and never set the
+   interface, while the index keyed on the session's real values, so a packet
+   with `Your Discriminator == 0` was dropped for every canonicalized session,
+   against RFC 5880 Section 6.8.6. Its test passed because it fabricated both
+   fields. Fixed at the TRANSPORT with `IP_PKTINFO` and `IPV6_RECVPKTINFO` rather
+   than by dropping `Local` from the key, because two sessions to one peer on two
+   links are distinguishable by nothing else. `docs/architecture/bfd.md` had said
+   the key must exclude `Local`; the page was the wrong half and now says why.
+2. **A QEMU case proves the kernel-facing half**, `test/bfd/bfd-first-packet-pktinfo.ci`,
+   run in an Alpine guest and forced RED in the guest by restoring the wildcard.
+   The IPv6 offsets are still proven by reading alone: the run was IPv4, one
+   architecture, one guest.
+3. **A round-6 test was pinning a defect.** `TestLoopForKeepsTheFirstCallersDevice`
+   asserted the first caller's device wins, which is the bug. No runtime client
+   may bind the shared socket now; that belongs to the pinned path, where
+   `resolveLoopDevices` sees every sharer before any session exists.
+
+The spec carries a seven-row table naming the configurations where a refusal
+leaves two BFD sessions and RFC 5882 Section 4.4 is consequently unmet. That
+table is the honest half of the conformance claim and must not be dropped when
+the spec closes: route it to `rfc/short/rfc5882.md` or a journal row first.

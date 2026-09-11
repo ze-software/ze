@@ -84,6 +84,14 @@ So from the outside, a single incoming connection with a pre-buffered
 OPEN can drive the FSM from Active through OpenSent to OpenConfirm in
 one synchronous sequence.
 
+Steps 2 and 3 are one call, `Session.advanceAfterOpen`, and under BFD
+strict mode it does neither: the KEEPALIVE is withheld, no `EventBGPOpen`
+is fired, and the session waits in OpenSent carrying a sub-state until the
+BFD session is Up (draft-ietf-idr-bgp-bfd-strict-mode Section 8.5.5). The
+collision winner gets the same wait as any other connection, because the
+draft draws no distinction between them. The OpenSent runbook has the
+whole fork.
+
 <!-- source: internal/component/bgp/reactor/session_connection.go — AcceptWithOpen -->
 <!-- source: internal/component/bgp/reactor/session_connection.go — processOpen -->
 

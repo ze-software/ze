@@ -12,6 +12,10 @@ import (
 func init() {
 	Register("bfd/bfd-detection-interval",
 		bfdObserver("bfd-detection-interval-test", bfdDetectionIntervalScenario))
+	Register("bfd/bfd-first-packet-pktinfo",
+		bfdObserver("bfd-first-packet-pktinfo-test", bfdFirstPacketPktinfoScenario))
+	Register("bfd/bfd-first-packet-pktinfo-v6",
+		bfdObserver("bfd-first-packet-pktinfo-v6-test", bfdFirstPacketPktinfoV6Scenario))
 }
 
 // bfdObserver builds the driver a test/bfd `.ci` names in its

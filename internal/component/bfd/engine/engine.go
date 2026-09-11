@@ -23,8 +23,10 @@ package engine
 
 import (
 	"errors"
+	"math/bits"
 	"math/rand/v2"
 	"net/netip"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -207,6 +209,92 @@ func firstPacketIndex(k api.Key) firstPacketKey {
 		iface: k.Interface,
 		mode:  k.Mode,
 	}
+}
+
+// THE MATCHING RULE, and it is one sentence: a key field the session left UNSET
+// does not participate in the match.
+//
+// A session's key is what its client could say about it.
+// api.SessionRequest.Canonical completes what a client left out where it can,
+// and where it cannot -- a link-local peer on several links, an off-link peer,
+// no route, no interface backend -- it returns the request UNCHANGED, so the
+// key carries a zero in every field the client never filled. The received
+// packet, meanwhile, carries a real value in every field the kernel reports. An
+// exact struct match between the two can never hit, and the session stays Down
+// for as long as the daemon runs.
+//
+// Three repairs each fixed ONE field of this key and each missed the next: the
+// local address (round 8), the interface for multi-hop (round 10), the
+// interface for single-hop (round 11). Each was correct in the half it was
+// looking at. So this is not a list of fields to special-case: it is a property
+// of the lookup. optionalKeyFields names every field a session may leave unset,
+// keyRelaxations is every combination of them ordered most-specific first, and
+// handleInbound walks that order. A sixth optional dimension is covered by
+// naming it here, with no branch to remember at the lookup.
+//
+// WHAT IT COSTS, and TestFirstPacketRelaxedMatchCosts pins it: a session that
+// left a field unset is matched by a packet carrying ANY value in that field.
+// That costs something with no second session involved -- one such session
+// alone takes the first packet from every link and every local address in its
+// remaining tuple. Where a more specific session does exist, it wins for the
+// values it names, and a packet carrying any other value still reaches the
+// unspecific one rather than being dropped.
+type keyRelaxation uint8
+
+const (
+	// relaxLocal and relaxIface are the fields a session may leave unset. Add a
+	// constant here, clear it in without() below, and the lookup covers it.
+	relaxLocal keyRelaxation = 1 << iota
+	relaxIface
+
+	// optionalKeyFields is every relaxable field, ORed. Deriving the walk from
+	// it is what stops the next optional dimension being forgotten.
+	optionalKeyFields = relaxLocal | relaxIface
+)
+
+// without returns the key with every named field cleared, which is how a probe
+// is built for a session that did not set them.
+func (k firstPacketKey) without(drop keyRelaxation) firstPacketKey {
+	if drop&relaxLocal != 0 {
+		k.local = netip.Addr{}
+	}
+	if drop&relaxIface != 0 {
+		k.iface = ""
+	}
+	return k
+}
+
+// keyRelaxations is every subset of optionalKeyFields, ordered by how much it
+// drops: the exact key first, then one field, then two. Most specific wins,
+// which is what keeps a session that NAMED a link ahead of one that did not.
+//
+// Inside a tier the order is the declaration order of the flags above, and it
+// decides a real case: one session naming only the link and another naming only
+// the local address, on the same peer, are both one relaxation away from a
+// packet that carries both. relaxLocal is declared first, so the packet is
+// offered to the session that named the LINK before the one that named the
+// address -- the interface is the more specific statement, because a local
+// address can be shared across links while a link cannot be shared across
+// packets. Reorder the constants and that answer changes, which is why the
+// order is stated here rather than left to be read out of the iota.
+var keyRelaxations = buildKeyRelaxations()
+
+func buildKeyRelaxations() []keyRelaxation {
+	// Counting to optionalKeyFields enumerates every subset while the flags are
+	// contiguous from bit 0, which they are: they are declared with one iota
+	// run. A gap would make some values of drop name a bit no field owns, and
+	// without() would silently ignore it, so the walk would probe the same key
+	// twice rather than cover a subset. The parity test is what catches a new
+	// field that is not wired in; this comment is what stops the next author
+	// leaving a hole in the middle.
+	all := make([]keyRelaxation, 0, int(optionalKeyFields)+1)
+	for drop := keyRelaxation(0); drop <= optionalKeyFields; drop++ {
+		all = append(all, drop)
+	}
+	slices.SortStableFunc(all, func(a, b keyRelaxation) int {
+		return bits.OnesCount8(uint8(a)) - bits.OnesCount8(uint8(b))
+	})
+	return all
 }
 
 // NewLoop creates a Loop bound to t. clk supplies the time source; pass

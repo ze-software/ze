@@ -15,6 +15,17 @@
     {
       "rid": "RFC5882-4.4-1",
       "polarity": "positive",
+      "unit": "internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesMultiHopShapesOntoOneKey",
+      "unit-sha": "be4a28ee1e3af26f",
+      "claim-sha": "8e8a2f6db7f43ce6",
+      "route": "revert",
+      "producer": "internal/component/bfd/api/session_identity.go::canonicalMultiHop",
+      "producer-sha": "2efec09c9c4710b9",
+      "break": "body of canonicalMultiHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5882-4.4-1",
+      "polarity": "positive",
       "unit": "internal/component/bfd/session_identity_test.go::TestPinnedSessionReachesTheSharedKey",
       "unit-sha": "1033ea422fcf764f",
       "claim-sha": "8a326ef203433f79",

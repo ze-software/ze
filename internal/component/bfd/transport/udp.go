@@ -29,8 +29,10 @@ import (
 	"net/netip"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -61,6 +63,22 @@ const (
 // signal under the noise.
 type UDP struct {
 	oobTruncOnce sync.Once
+
+	// ifNames caches the ingress ifindex-to-name mapping readLoop stamps on a
+	// single-hop Inbound. net.InterfaceByIndex is a netlink round trip, and the
+	// index set of a box is small and near-static, so it is resolved once per
+	// index rather than once per packet. Only successful lookups are stored: a
+	// failure is a moment and must not be remembered as an answer. Each entry
+	// expires, because an ifindex is REUSED after a veth or VLAN is deleted and
+	// recreated, and a cached name for a reused index is wrong in the direction
+	// that drops every packet on that link.
+	ifNamesMu sync.RWMutex
+	ifNames   map[int]ifName
+
+	// Clock is the time source the ifindex cache ages entries against. Nil
+	// means clock.RealClock{}, which is what every production caller wants; a
+	// test sets it to drive expiry without sleeping.
+	Clock clock.Clock
 
 	// Bind is the local address to bind. Use netip.AddrPort with the
 	// desired IP and the correct port (3784 or 4784). Pass an unspecified
@@ -287,11 +305,12 @@ func (u *UDP) readLoop() {
 		}
 		// MSG_CTRUNC (recvmsg flag bit 0x8) means the kernel
 		// truncated the control-message blob because oobBufLen was
-		// too small. With Stage 2's single IP_TTL cmsg requirement
-		// the 64-byte oob slot has ample headroom, but a future
-		// addition (IP_PKTINFO, SCM_TIMESTAMP) could hit the limit
-		// silently and lose the TTL. Log once per transport so the
-		// operator sees the truncation without flooding the log.
+		// too small. Two messages are enabled and both arrive on
+		// every packet: measured in CMSG_SPACE they take 56 bytes on
+		// IPv4 and 64 on IPv6 (udp_linux.go, oobBufLen). Truncation
+		// loses the TTL and the local address, which is the RFC 5880
+		// Section 6.8.6 demux input, so log once per transport --
+		// enough for the operator to see it, not enough to flood.
 		if flags&syscall.MSG_CTRUNC != 0 {
 			u.oobTruncOnce.Do(func() {
 				transportLog().Warn("bfd transport oob buffer truncated by kernel (MSG_CTRUNC); increase oobBufLen",
@@ -300,14 +319,23 @@ func (u *UDP) readLoop() {
 			})
 		}
 		ttl := parseReceivedTTL(oob[:oobn])
+		// RFC 5880 Section 6.8.6: "If the Your Discriminator field is zero, the
+		// session MUST be selected based on some combination of other fields."
+		// Ze selects on (peer, local, interface, vrf, mode), so the receiver has
+		// to know which of its own addresses the packet reached and on which
+		// interface. Both come from IP_PKTINFO. u.Bind.Addr() cannot answer: the
+		// socket binds the wildcard, so it reads 0.0.0.0 for every packet, and a
+		// session whose key carries a real local address never matched.
+		local, ifindex := parseReceivedPktinfo(oob[:oobn])
 		in := Inbound{
-			From:    raddr.Addr().Unmap(),
-			Local:   u.Bind.Addr(),
-			VRF:     u.VRF,
-			Mode:    u.Mode,
-			TTL:     ttl,
-			Bytes:   buf[:n],
-			release: releases[idx], // pre-built once; no per-packet alloc
+			From:      raddr.Addr().Unmap(),
+			Local:     local.Unmap(),
+			Interface: u.ingressInterface(ifindex),
+			VRF:       u.VRF,
+			Mode:      u.Mode,
+			TTL:       ttl,
+			Bytes:     buf[:n],
+			release:   releases[idx], // pre-built once; no per-packet alloc
 		}
 		select {
 		case u.rx <- in:
@@ -316,4 +344,75 @@ func (u *UDP) readLoop() {
 			return
 		}
 	}
+}
+
+// now reads the transport's time source, defaulting to the real clock so a
+// zero-value UDP behaves as production does.
+func (u *UDP) now() time.Time {
+	if u.Clock == nil {
+		return clock.RealClock{}.Now()
+	}
+	return u.Clock.Now()
+}
+
+// ifName is one cached ifindex-to-name answer and the moment it was resolved.
+type ifName struct {
+	name string
+	at   time.Time
+}
+
+// ifNameTTL bounds how long a cached ifindex-to-name answer is trusted.
+//
+// An ifindex is reused: delete a veth or a VLAN and create another, and the new
+// device can take the old index. A cached name then answers for a device that
+// no longer exists, the first-packet key stops matching, and every packet whose
+// Your Discriminator is zero is dropped on that link. The alternative to a TTL
+// is a netlink round trip per packet, which is a syscall on the receive path of
+// a protocol that runs at 300 packets a second per session.
+//
+// Thirty seconds is chosen against BFD's own numbers rather than arbitrarily: a
+// session whose detection time is under a second is Down long before this
+// expires, so the window costs a session that is already down a little more
+// down, and never costs a live session anything.
+const ifNameTTL = 30 * time.Second
+
+// ingressInterface answers the name of the interface a packet arrived on, from
+// the ifindex IP_PKTINFO carried, and ONLY for a single-hop socket.
+//
+// A multi-hop session is routed, so api.SessionRequest.Canonical clears its
+// interface and its key carries none. Inbound.Interface documents itself as
+// single-hop only; this is where that holds.
+//
+// The empty answer, here and for an index nothing resolves, is not a fallback
+// to a guess: it says the interface is unknown, and the engine matches such a
+// packet against a session that named no interface rather than inventing one.
+func (u *UDP) ingressInterface(ifindex int) string {
+	if u.Mode != api.SingleHop || ifindex <= 0 {
+		return ""
+	}
+	now := u.now()
+	u.ifNamesMu.RLock()
+	cached, ok := u.ifNames[ifindex]
+	u.ifNamesMu.RUnlock()
+	if ok && now.Sub(cached.at) < ifNameTTL {
+		return cached.name
+	}
+	link, err := net.InterfaceByIndex(ifindex)
+	if err != nil {
+		// NOT cached. A netlink error is a moment, not a fact: caching the
+		// empty answer would drop every zero-discriminator packet on that link
+		// for the life of the daemon, which is the silently-wrong value this
+		// whole path was repaired for (ai/rules/principles.md). Retrying costs
+		// one netlink round trip on a packet that would otherwise be lost.
+		transportLog().Debug("bfd transport could not name the ingress interface; this packet cannot match a session keyed on one",
+			"ifindex", ifindex, "err", err)
+		return ""
+	}
+	u.ifNamesMu.Lock()
+	if u.ifNames == nil {
+		u.ifNames = make(map[int]ifName, 4)
+	}
+	u.ifNames[ifindex] = ifName{name: link.Name, at: now}
+	u.ifNamesMu.Unlock()
+	return link.Name
 }

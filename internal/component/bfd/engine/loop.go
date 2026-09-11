@@ -93,13 +93,25 @@ func (l *Loop) handleInbound(in transport.Inbound) {
 		// source addressing information and the ingress interface.
 		// It keys the byKey index, so the first packet costs one
 		// O(1) lookup.
-		entry = l.byKey[firstPacketKey{
+		index := firstPacketKey{
 			peer:  in.From,
 			local: in.Local,
 			vrf:   in.VRF,
 			iface: in.Interface,
 			mode:  in.Mode,
-		}]
+		}
+		// A key field the session left UNSET does not participate in the match
+		// (engine.go, keyRelaxation). The walk is ordered most-specific first,
+		// so the exact key is tried before any relaxation and a session that
+		// named a link always beats one that did not for packets on that link.
+		// One such session needs no sibling to show the cost: alone, it takes
+		// the first packet from every link and every local address in its
+		// remaining tuple.
+		for _, drop := range keyRelaxations {
+			if entry = l.byKey[index.without(drop)]; entry != nil {
+				break
+			}
+		}
 	}
 	if entry == nil {
 		return

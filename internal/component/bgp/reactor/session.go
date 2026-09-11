@@ -239,6 +239,27 @@ type Session struct {
 	bufWriter  *bufio.Writer // Wraps conn to batch kernel write syscalls
 	negotiated *capability.Negotiated
 
+	// bfdState reads the draft-ietf-idr-bgp-bfd-strict-mode Section 3
+	// bfd.SessionState attribute for this peer. nil for a peer with no BFD
+	// session, which is every peer that configured none. See
+	// session_bfd_strict.go.
+	bfdState bfdStateReader
+
+	// bfdHoldDownKeepalive says a KEEPALIVE arrived in OpenConfirm while the
+	// Section 10 hold-down interval was still being served, so the transition
+	// to Established is owed once the interval ends. Without it the interval's
+	// expiry would have nothing to complete and the session would sit in
+	// OpenConfirm until its hold timer expired.
+	bfdHoldDownKeepalive atomic.Bool
+
+	// bfdHoldDownObserved says the Section 10 hold-down interval has elapsed
+	// with the BFD session Up, so the next release does not wait again. It is
+	// per CONNECTION, because the Session is: a new connection cycle builds a
+	// new Session and owes a fresh interval. Atomic rather than under mu
+	// because the hold-down timer goroutine writes it while the read loop
+	// reads it.
+	bfdHoldDownObserved atomic.Bool
+
 	// localOpen stores our OPEN for reference during negotiation.
 	localOpen *message.Open
 
@@ -592,6 +613,31 @@ func NewSession(settings *PeerSettings) *Session {
 					"peer", s.settings.Address, "error", err,
 				)
 			}
+		}
+
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 10: "A BGP speaker SHOULD
+		// log a message if it closes its session due to hold timer expiration
+		// while waiting for the BFD hold-down interval." This is that close, and
+		// it is also the close that ends a strict-mode wait for a BFD session
+		// that never came up: the sub-state says which, and without this line an
+		// operator reads code 4 and learns only that the peer went quiet.
+		// The hold-down case is tested FIRST. A session serving the interval
+		// from the OpenSentConfirmedBfdUpPending branch still carries that
+		// sub-state, so a sub-state-first order sent every hold-down expiry
+		// down the wrong arm and the wording Section 10 asks for was
+		// unreachable. IsBfdHoldDownTimerRunning is the fact that separates
+		// them, and it is true for both hold-down rails and neither wait rail.
+		switch {
+		case s.timers.IsBfdHoldDownTimerRunning() || s.bfdHoldDownKeepalive.Load():
+			sessionLogger().Warn("bfd strict-mode: the BGP hold timer expired while observing the BFD hold-down interval",
+				"peer", s.settings.Address,
+				"hold-down", s.timers.BfdHoldDown(),
+				"hold-time", s.timers.HoldTime())
+		case s.fsm.BfdSubState() != fsm.SubStateNone:
+			sessionLogger().Warn("bfd strict-mode: the BGP hold timer expired while waiting for BFD",
+				"peer", s.settings.Address,
+				"bfd-sub-state", s.fsm.BfdSubState().String(),
+				"hold-time", s.timers.HoldTime())
 		}
 
 		s.mu.Lock()

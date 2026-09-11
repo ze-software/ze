@@ -72,7 +72,13 @@ type loopKey struct {
 // (verify/configure/apply run sequentially per the SDK contract) so the
 // fields do not need their own lock.
 type runtimeState struct {
-	loops          map[loopKey]*engine.Loop
+	loops map[loopKey]*engine.Loop
+	// loopDevices records the SO_BINDTODEVICE name each live loop was created
+	// with. A socket cannot be re-bound, so a later apply that wants a
+	// different device on an existing loop does not get one, and this is what
+	// lets loopFor say so instead of returning a loop that transmits from
+	// somewhere else in silence.
+	loopDevices    map[loopKey]string
 	pinned         map[api.Key]api.SessionHandle
 	cfg            *pluginConfig
 	captureEnabled bool
@@ -80,8 +86,9 @@ type runtimeState struct {
 
 func newRuntimeState() *runtimeState {
 	return &runtimeState{
-		loops:  make(map[loopKey]*engine.Loop),
-		pinned: make(map[api.Key]api.SessionHandle),
+		loops:       make(map[loopKey]*engine.Loop),
+		loopDevices: make(map[loopKey]string),
+		pinned:      make(map[api.Key]api.SessionHandle),
 	}
 }
 
@@ -94,6 +101,27 @@ func newRuntimeState() *runtimeState {
 // and logs a warning so the operator notices the reduced GTSM depth.
 func (r *runtimeState) loopFor(key loopKey, device string) (*engine.Loop, error) {
 	if l, ok := r.loops[key]; ok {
+		// The socket is already bound, and SO_BINDTODEVICE cannot be changed on
+		// a live one. A reload that asks for a different device therefore does
+		// NOT get it: every session on this loop keeps transmitting from the
+		// device the loop was created with. Saying so is the whole repair --
+		// silently handing back the loop is how a pinned session moved to
+		// another interface stopped coming up with nothing in the log to say
+		// why. resolveLoopDevices only sees the sessions of ONE apply, so it
+		// cannot answer this on its own.
+		// Only a request that NAMES a device can go unapplied. A runtime
+		// client asks for none (loopDeviceFor), so comparing every
+		// EnsureSession against the loop's binding would warn on the healthy
+		// path, on every BGP peer, for a loop applyPinned bound correctly.
+		if bound := r.loopDevices[key]; device != "" && bound != device {
+			logger().Warn("bfd loop is already bound and cannot be rebound; the new interface is not applied",
+				"vrf", key.vrf,
+				"mode", key.mode.String(),
+				"bound-device", bound,
+				"requested-device", device,
+				"effect", "every session on this loop transmits from the bound device",
+				"action", "restart ze to rebind, or keep one interface per VRF for single-hop sessions")
+		}
 		return l, nil
 	}
 
@@ -120,6 +148,7 @@ func (r *runtimeState) loopFor(key loopKey, device string) (*engine.Loop, error)
 		loop.EnableRawCapture()
 	}
 	r.loops[key] = loop
+	r.loopDevices[key] = device
 	logger().Info("bfd loop started",
 		"vrf", key.vrf,
 		"mode", key.mode.String(),
@@ -139,6 +168,7 @@ func (r *runtimeState) stopAll() {
 		}
 	}
 	r.loops = map[loopKey]*engine.Loop{}
+	r.loopDevices = map[loopKey]string{}
 	r.pinned = map[api.Key]api.SessionHandle{}
 }
 
@@ -161,7 +191,8 @@ func (r *runtimeState) applyPinned(cfg *pluginConfig) error {
 	wanted := make(map[api.Key]sessionConfig, len(cfg.sessions))
 	requests := make(map[api.Key]api.SessionRequest, len(cfg.sessions))
 	for _, s := range cfg.sessions {
-		req := s.toSessionRequest(cfg.profiles).Canonical(links)
+		req := s.toSessionRequest(cfg.profiles)
+		req = req.Canonical(topologyFor(req, links))
 		wanted[req.Key()] = s
 		requests[req.Key()] = req
 	}
@@ -428,14 +459,14 @@ var runtimeStateGuard sync.Mutex
 // / ReleaseSession do not race a config reload. The runtimeState itself
 // is not safe for concurrent use -- the lock is the contract.
 //
-// Device selection for a BGP-driven loop mirrors resolveLoopDevices's
-// per-request rules without the multi-session conflict detection:
-// non-default VRF wins (socket binds to VRF device), otherwise a
-// single-hop session's Interface leaf is used, otherwise the loop runs
-// without SO_BINDTODEVICE and the engine TTL gate is the only
-// protection. The FIRST caller to create a loop locks in the device --
-// later callers share the socket regardless of their own Interface
-// because one UDP socket can only bind to one device.
+// A runtime client does NOT choose the loop's device. One socket serves every
+// session of a (vrf, mode) pair and cannot be rebound, so a device picked for
+// one request would decide where every later session in that VRF transmits
+// from: loopDeviceFor answers the VRF name in a non-default VRF, where every
+// session wants the VRF master, and nothing at all in the default VRF. A
+// session's own `interface` leaf stays part of its key and its per-session TTL
+// gate. The only SO_BINDTODEVICE binding comes from the pinned path, which
+// resolves it across a whole apply (resolveLoopDevices).
 type pluginService struct {
 	state *runtimeState
 }
@@ -452,19 +483,44 @@ func (s *pluginService) EnsureSession(req api.SessionRequest) (api.SessionHandle
 	// through this method, so Canonical here is what makes the OSPF request
 	// and the BGP request for one neighbor land on one key, and so on one
 	// session (api/session_identity.go).
-	normalized := req.Canonical(connectedLinks())
-	device := ""
-	if normalized.VRF != api.DefaultVRF {
-		device = normalized.VRF
-	} else if normalized.Mode == api.SingleHop {
-		device = normalized.Interface
-	}
+	normalized := req.Canonical(topologyFor(req, connectedLinks()))
 	lk := loopKey{vrf: normalized.VRF, mode: normalized.Mode}
-	loop, err := s.state.loopFor(lk, device)
+	loop, err := s.state.loopFor(lk, loopDeviceFor(normalized))
 	if err != nil {
 		return nil, err
 	}
 	return loop.EnsureSession(normalized)
+}
+
+// loopDeviceFor answers the SO_BINDTODEVICE name for the loop this request
+// lands on. In the default VRF the answer is always none.
+//
+// A loop owns ONE socket and serves every session of its (vrf, mode) pair, and
+// loopFor returns an existing loop with the device the FIRST caller gave it. A
+// device chosen per request therefore decides where every later session in that
+// VRF transmits from: a peer on eth1 joining a loop some earlier peer bound to
+// eth0 sends out of eth0, its BFD session never comes up, and a strict-mode BGP
+// peer then sits in OpenSent for as long as the daemon runs.
+//
+// So a runtime client does not get to bind the socket at all, and no request's
+// `interface` leaf reaches this decision -- neither one the operator wrote nor
+// one Canonical derived. The leaf keeps its real jobs: it is part of the
+// session key (api.SessionRequest.Canonical) and the engine applies the
+// RFC 5881 Section 5 TTL gate per session either way.
+//
+// The pinned path is where a device binding still comes from, computed over the
+// whole pinned set of ONE apply (resolveLoopDevices). That is the only vantage
+// point from which one socket's device can be chosen for the sessions created
+// with it -- and it does not extend to a later apply, because loops outlive
+// applyPinned: loopFor reports a rebind it cannot perform rather than pretending
+// it did. A non-default VRF
+// is the one case decided per request, because Linux binds the socket to the
+// VRF master device and every session in that VRF wants exactly that.
+func loopDeviceFor(normalized api.SessionRequest) string {
+	if normalized.VRF != api.DefaultVRF {
+		return normalized.VRF
+	}
+	return ""
 }
 
 // ReleaseSession hands the handle back to the owning loop. If the loop

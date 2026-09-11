@@ -8,7 +8,9 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 )
 
 // fakeBFDHandle is a minimal SessionHandle implementation used by the
@@ -212,44 +214,81 @@ func TestBFDClient_EnsureSessionMultiHop(t *testing.T) {
 	}
 }
 
-// VALIDATES: a BFD Down StateChange results in exactly one
-// Peer.Teardown call with RFC 9384 Cease subcode 10.
-// PREVENTS: regression where the subscriber drops events, uses the
-// wrong subcode, or fails to bridge to BGP teardown.
+// VALIDATES: a BFD Down StateChange on a peer with a live Established session
+// closes that session with RFC 9384 Cease subcode 10.
+//
+// PREVENTS: regression where the subscriber drops events, uses the wrong
+// subcode, or fails to bridge to BGP teardown.
+//
+// It asserts the wire rather than the opQueue, which is what the case used to
+// read. draft-ietf-idr-bgp-bfd-strict-mode Section 8.2 makes every BFD event
+// IGNORED in Idle, and a peer with no session is Idle, so the queued teardown
+// the old assertion looked for is now a teardown of nothing: it would fire the
+// NOTIFICATION at whichever session established next.
 func TestBFDClient_TeardownOnDown(t *testing.T) {
 	svc := &fakeBFDService{}
 	p, cleanup := newBFDTestPeer(t, &BFDSettings{Enabled: true}, svc)
 	defer cleanup()
 
-	// Install a test hook that replaces Teardown's session-invoking
-	// path: the minimal peer has no session, so Teardown's queued
-	// branch runs and records the subcode on the opQueue. We read
-	// the queue directly after emitting the BFD Down.
+	session, messages := newEstablishedSessionForPeer(t, p)
+
 	p.startBFDClient()
 	defer p.stopBFDClient()
 
 	svc.handle.emit(t, packet.StateDown, packet.DiagControlDetectExpired)
 
-	// Give the subscriber goroutine time to process. Poll the
-	// opQueue up to 1 s.
-	deadline := time.Now().Add(time.Second)
-	var sawTeardown bool
-	for time.Now().Before(deadline) {
-		p.mu.RLock()
-		for _, op := range p.opQueue {
-			if op.Type == PeerOpTeardown && op.Subcode == message.NotifyCeaseBFDDown {
-				sawTeardown = true
-				break
-			}
+	select {
+	case msg := <-messages:
+		if msg[18] != byte(msgtype.TypeNOTIFICATION) {
+			t.Fatalf("message type = %d, want NOTIFICATION", msg[18])
 		}
-		p.mu.RUnlock()
-		if sawTeardown {
-			break
+		if msg[19] != byte(message.NotifyCease) || msg[20] != message.NotifyCeaseBFDDown {
+			t.Fatalf("code/subcode = %d/%d, want Cease/BFD Down", msg[19], msg[20])
 		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected a Cease / BFD Down NOTIFICATION after the BFD Down event")
+	}
+
+	// Session.teardown writes the NOTIFICATION before it fires the FSM event, so
+	// the state follows the wire rather than leading it. Poll rather than read
+	// once (internal/component/bgp/reactor/session_connection.go, teardown).
+	deadline := time.Now().Add(2 * time.Second)
+	for session.State() != fsm.StateIdle && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 	}
-	if !sawTeardown {
-		t.Fatal("expected Teardown with subcode NotifyCeaseBFDDown after BFD Down event")
+	if state := session.State(); state != fsm.StateIdle {
+		t.Fatalf("session state = %s, want IDLE", state)
+	}
+}
+
+// VALIDATES: a BFD AdminDown StateChange leaves an Established session alone.
+//
+// PREVENTS: an operator disabling BFD for maintenance dropping every BGP
+// session that used it. draft-ietf-idr-bgp-bfd-strict-mode Section 8.7.1: "The
+// BfdAdminDown, BfdDisabled, and BfdUp events are ignored in the Established
+// state", which restates RFC 5882 Section 4.2: "If a BFD session transitions
+// from Up state to AdminDown ... clients SHOULD NOT take any control protocol
+// action." Ze tore the session down on AdminDown until this test existed.
+func TestBFDClientAdminDownDoesNotTeardown(t *testing.T) {
+	svc := &fakeBFDService{}
+	p, cleanup := newBFDTestPeer(t, &BFDSettings{Enabled: true}, svc)
+	defer cleanup()
+
+	session, messages := newEstablishedSessionForPeer(t, p)
+
+	p.startBFDClient()
+	defer p.stopBFDClient()
+
+	svc.handle.emit(t, packet.StateAdminDown, packet.DiagAdminDown)
+
+	select {
+	case msg := <-messages:
+		t.Fatalf("AdminDown owes the peer no message, got % x", msg)
+	case <-time.After(300 * time.Millisecond):
+	}
+
+	if state := session.State(); state != fsm.StateEstablished {
+		t.Fatalf("session state = %s, want ESTABLISHED", state)
 	}
 }
 
@@ -288,4 +327,74 @@ func TestBFDClient_StopIdempotent(t *testing.T) {
 	if svc.release.Load() != 1 {
 		t.Fatalf("ReleaseSession calls = %d, want 1 after double stop", svc.release.Load())
 	}
+}
+
+// VALIDATES: runBFDSubscriber re-stamps the BFD entry time only on a state
+// CHANGE, so an Up, Down, Up sequence leaves the entry time at the SECOND Up
+// and the draft-ietf-idr-bgp-bfd-strict-mode Section 10 hold-down interval is
+// owed again in full.
+//
+// PREVENTS: a flapping link establishing early by accumulating credit across
+// its own outages, which would make the damping report success on exactly the
+// link it exists to refuse. This drives the real producer: an earlier version
+// of this case set the entry time by hand and asserted what it had just
+// written, so the re-stamp never executed and the claim was unproven.
+func TestBFDClientReStampsTheEntryTimeOnlyOnAChange(t *testing.T) {
+	svc := &fakeBFDService{}
+	p, cleanup := newBFDTestPeer(t, &BFDSettings{Enabled: true, Strict: true, HoldDown: 400}, svc)
+	defer cleanup()
+
+	p.startBFDClient()
+	defer p.stopBFDClient()
+
+	read := func() (api.State, time.Time) {
+		t.Helper()
+		state, since, live := p.bfdSessionState()
+		if !live {
+			t.Fatal("the BFD session is not live")
+		}
+		return state, since
+	}
+
+	waitFor := func(want api.State) time.Time {
+		t.Helper()
+		deadline := time.Now().Add(2 * time.Second)
+		for time.Now().Before(deadline) {
+			if state, since := read(); state == want {
+				return since
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		state, _ := read()
+		t.Fatalf("BFD state = %v, want %v", state, want)
+		return time.Time{}
+	}
+
+	svc.handle.emit(t, packet.StateUp, packet.DiagNone)
+	firstUp := waitFor(api.StateUp)
+
+	// The SAME state again must not move the entry time: Section 10 measures
+	// how long the session has been Up, and a repeated report is not a new Up.
+	svc.handle.emit(t, packet.StateUp, packet.DiagNone)
+	time.Sleep(20 * time.Millisecond)
+	if _, since := read(); !since.Equal(firstUp) {
+		t.Fatalf("a repeated Up moved the entry time from %v to %v", firstUp, since)
+	}
+
+	// The flap. Down, then Up again: the interval restarts at the second Up.
+	svc.handle.emit(t, packet.StateDown, packet.DiagControlDetectExpired)
+	waitFor(api.StateDown)
+	svc.handle.emit(t, packet.StateUp, packet.DiagNone)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		state, since := read()
+		if state == api.StateUp && since.After(firstUp) {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	_, since := read()
+	t.Fatalf("after a flap the entry time is still %v (first Up was %v), so the interval would count time the session spent down",
+		since, firstUp)
 }

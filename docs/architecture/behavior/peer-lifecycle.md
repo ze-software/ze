@@ -161,6 +161,13 @@ down. Step-by-step:
    `sendingInitialRoutes` flag, and null out `p.session`.
 5. **Set initial peer state** to `PeerStateConnecting` or
    `PeerStateActive` based on connection mode.
+5a. **Open the BFD session, for a strict peer only.** `startBFDClient`
+   runs one statement before the start event, because
+   draft-ietf-idr-bgp-bfd-strict-mode Section 7 asks for the BFD session
+   to exist before the BGP FSM starts. It is idempotent, and only
+   `Peer.cleanup` releases it, so the session survives every retry. A
+   peer with BFD but no `strict` keeps the old lifetime: opened by the
+   state-change callback on Established, released on the way out of it.
 6. **Start the FSM:** `session.Start()` fires `EventManualStart`.
 7. **Dial if active:** `session.Connect(p.ctx)` which is blocking.
    Dial failure returns immediately with the dial error.

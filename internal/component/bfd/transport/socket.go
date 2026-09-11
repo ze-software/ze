@@ -39,8 +39,10 @@ type Inbound struct {
 	// VRF is the routing instance the packet arrived in.
 	VRF string
 
-	// Interface is the ingress interface name (single-hop only). Empty
-	// for multi-hop.
+	// Interface is the ingress interface name, and single-hop ONLY: it is
+	// empty for every multi-hop packet, because a routed session's key carries
+	// no interface and the engine's first-packet index is an exact match.
+	// (*UDP).ingressInterface is where that holds; udp_ingress_test.go pins it.
 	Interface string
 
 	// Mode records whether the packet arrived on the single-hop or

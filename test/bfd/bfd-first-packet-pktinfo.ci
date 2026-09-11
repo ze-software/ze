@@ -1,0 +1,69 @@
+# Test: a BFD Control packet whose Your Discriminator is ZERO selects the
+# session its DESTINATION ADDRESS belongs to.
+#
+# VALIDATES: RFC 5880 Section 6.8.6 -- "If the Your Discriminator field is zero,
+#            the session MUST be selected based on some combination of other
+#            fields." Ze selects on (peer, local, interface, vrf, mode), and the
+#            socket binds the wildcard, so the local address and the ingress
+#            interface come from the kernel's IP_PKTINFO control message
+#            (applySocketOptions and parseReceivedPktinfo,
+#            internal/component/bfd/transport/udp_linux.go; readLoop, udp.go).
+# PREVENTS:  the round-7 defect returning. readLoop stamped u.Bind.Addr() as
+#            Inbound.Local, which is 0.0.0.0 for every packet, while
+#            firstPacketIndex keys on the session's real local address. No
+#            session could be selected for any first packet, and nothing said
+#            so: the packet was simply dropped.
+#
+# Why this is a needs-linux test and not a unit test. IP_PKTINFO is a kernel
+# control message. A unit test can synthesize the bytes it BELIEVES the kernel
+# emits -- udp_pktinfo_linux_test.go does exactly that for the parser -- but the
+# struct offsets, the socket options that make the kernel send it at all, and
+# the ifindex lookup are only proven by a real packet through a real kernel.
+# ai/rules/platform-linux.md requires this test for that reason.
+#
+# The fixture sends from 127.0.0.2 to 127.0.0.1, both terminated by the loopback
+# device, so no interface has to be created. The session below is keyed on local
+# 127.0.0.1, so ipi_addr must report 127.0.0.1 for the lookup to hit. It repeats
+# the packet every 200ms because the daemon's session may not exist when the
+# first one lands.
+option=needs-linux
+option=env:var=ze.bfd.test-parallel:value=true
+# BFD binds the RFC 5881 fixed port, so this shares the group every other BFD
+# test uses; see bfd-detection-interval.ci for why a unique address cannot
+# partition a fixed port number.
+option=exclusive:group=bfd-ports
+
+stdin=ze-bfd:terminator=EOF_CONF
+plugin {
+	external bfd-first-packet-pktinfo-test {
+		run "ze-test fixture bfd/bfd-first-packet-pktinfo"
+		encoder json
+	}
+}
+
+environment {
+	log {
+		bfd debug
+	}
+}
+
+bfd {
+	enabled true;
+	profile fast {
+		detect-multiplier 3
+		desired-min-tx-us 300000
+		required-min-rx-us 300000
+	}
+	single-hop-session 127.0.0.2 {
+		# The address the injected packet is sent TO. It is what the engine
+		# keys the session on and what IP_PKTINFO has to report for the
+		# zero-discriminator lookup to find this session.
+		local 127.0.0.1;
+		profile fast;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bfd:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: the first packet was selected by its destination address

@@ -219,6 +219,9 @@ func (s *Session) processOpen(open *message.Open) error {
 
 	// Negotiate capabilities.
 	s.negotiateWith(localCaps, peerCaps)
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 6: the BfdStrictNegotiated
+	// attribute is settled by this exchange, and every clause below reads it.
+	s.applyBFDStrictNegotiation()
 
 	// Validate required families and capabilities.
 	s.mu.RLock()
@@ -253,20 +256,12 @@ func (s *Session) processOpen(open *message.Open) error {
 		return err
 	}
 
-	// Update FSM
-	if err := s.fsm.Event(fsm.EventBGPOpen); err != nil {
-		return err
-	}
-
-	// Send KEEPALIVE
-	if err := s.sendKeepalive(conn); err != nil {
-		return err
-	}
-
-	// Reset hold timer
-	s.timers.ResetHoldTimer()
-
-	return nil
+	// Update the FSM, send the KEEPALIVE and reset the hold timer to the
+	// negotiated value -- unless draft-ietf-idr-bgp-bfd-strict-mode Section
+	// 8.5.5 says to withhold the KEEPALIVE and wait for BFD. This rail is the
+	// collision winner, and the draft draws no distinction between the two:
+	// the wait belongs to the connection that survived (session_bfd_strict.go).
+	return s.advanceAfterOpen(conn)
 }
 
 func (s *Session) tuneTCPConnection(tcp *net.TCPConn) error {

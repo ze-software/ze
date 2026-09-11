@@ -1,0 +1,16 @@
+{
+  "rfc": "rfc5880",
+  "records": [
+    {
+      "rid": "RFC5880-6.8.6-18",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5881_test.go::TestFirstPacketMatchesWhatTheTransportSurfaces",
+      "unit-sha": "29cac481ebb80b01",
+      "claim-sha": "8f7acd1b0f338fa6",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/loop.go::handleInbound",
+      "producer-sha": "77807c1e69f0f499",
+      "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

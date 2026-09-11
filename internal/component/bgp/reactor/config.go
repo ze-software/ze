@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/netip"
 	"slices"
 	"strconv"
@@ -432,6 +433,24 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 				return nil, bfdErr
 			}
 			ps.BFD = bs
+			if err := validateBFDHoldDown(name, bs, ps.ReceiveHoldTime); err != nil {
+				return nil, err
+			}
+			// draft-ietf-idr-bgp-bfd-strict-mode Section 6 MUST: "A BGP
+			// speaker which supports capabilities advertisement and has BFD
+			// strict-mode enabled MUST include the BFD Strict-Mode Capability
+			// in its OPEN message."
+			//
+			// The capability is derived from the bfd block rather than
+			// configured under `capability`, because it is not an independent
+			// choice: advertising it commits this speaker to the Section 8
+			// procedures, and those only exist when BFD is enabled for the
+			// peer. A disabled bfd block advertises nothing, which is what the
+			// Section 3 attribute 17 note says: "If BfdEnabled is not TRUE for
+			// this BGP session, this attribute has no impact."
+			if bs.Strict && bs.Enabled {
+				ps.Capabilities = append(ps.Capabilities, &capability.BFDStrictMode{})
+			}
 		}
 	}
 
@@ -553,7 +572,60 @@ func parseBFDSettings(peerName string, bfdMap map[string]any) (*BFDSettings, err
 	if v, ok := mapString(bfdMap, "interface"); ok {
 		bs.Interface = v
 	}
+	if v, ok := mapBool(bfdMap, "strict"); ok {
+		bs.Strict = v
+	}
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 3, attribute 18: BfdHoldTime
+	// "default value for this attribute is 30 seconds and is user
+	// configurable". The range is enforced here as well as in YANG, because a
+	// PeerSettings built by a caller that did not go through the schema (a
+	// test, a dynamic-group template) reaches this function too.
+	if v, ok := mapUint32(bfdMap, "hold-time"); ok {
+		if v == 0 || v > math.MaxUint16 {
+			return nil, fmt.Errorf("peer %s: bfd hold-time %d out of range (1-65535 seconds)", peerName, v)
+		}
+		bs.HoldTime = uint16(v)
+	}
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 10: "the locally configured
+	// BFD hold-down interval". The draft names no default and no range, so the
+	// leaf takes the whole uint32 and zero means no hold-down at all.
+	if v, ok := mapUint32(bfdMap, "hold-down"); ok {
+		bs.HoldDown = v
+	}
 	return bs, nil
+}
+
+// validateBFDHoldDown refuses a hold-down interval the peer's own hold time
+// cannot cover.
+//
+// While the interval is served the session sits in OpenConfirm sending nothing,
+// so the far end's hold timer is what runs out. draft-ietf-idr-bgp-bfd-strict-mode
+// Section 10 states the requirement and leaves it to the operator: "the
+// negotiated BGP holdtime SHOULD be long enough to account for the time between
+// the BGP FSM reaching the OpenConfirm state, the BFD hold-down interval, and
+// any delay for the BFD session being initiated. Failure to do so can result in
+// the BGP speaker that has transitioned to the Established state expiring its
+// BGP holdtime and closing the connection."
+//
+// The NEGOTIATED hold time is not knowable at config time, and the configured
+// one is its ceiling: the negotiated value is the smaller of the two ends (RFC
+// 4271 Section 4.2), so an interval that already exceeds the local configured
+// value cannot fit whatever is negotiated. That makes this a decidable half,
+// and it refuses only a configuration that is certainly starved.
+//
+// A hold time of zero is not a ceiling at all -- RFC 4271 Section 4.2 makes it
+// "never expire" -- so it bounds nothing and is accepted.
+func validateBFDHoldDown(peerName string, bfd *BFDSettings, holdTime time.Duration) error {
+	if bfd == nil || !bfd.Enabled || !bfd.Strict || bfd.HoldDown == 0 || holdTime == 0 {
+		return nil
+	}
+	holdDown := time.Duration(bfd.HoldDown) * time.Millisecond
+	if holdDown < holdTime {
+		return nil
+	}
+	return fmt.Errorf(
+		"peer %s: bfd hold-down %s is not shorter than the hold time %s, so the peer sends nothing for the whole interval and the far end times out",
+		peerName, holdDown, holdTime)
 }
 
 // PeersFromTree parses all peer settings from a bgp subtree (map[string]any).

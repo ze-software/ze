@@ -20,6 +20,7 @@ package transport
 import (
 	"errors"
 	"fmt"
+	"net/netip"
 	"syscall"
 
 	"github.com/ze-software/ze/internal/core/env"
@@ -109,6 +110,20 @@ func applySocketOptionsV6(c syscall.RawConn, device string) error {
 // sessions drop packets whose MinTTL is not 0 (never, since the default
 // is 254).
 func parseReceivedTTL(_ []byte) uint8 { return 0 }
+
+// parseReceivedPktinfo returns nothing on non-Linux builds: IP_PKTINFO is a
+// Linux control message, so the receiver cannot learn which of its own
+// addresses a packet was sent to or which interface it arrived on.
+//
+// The consequence is stated rather than hidden. RFC 5880 Section 6.8.6 selects
+// a session for a packet whose Your Discriminator is zero by "some combination
+// of other fields", and ze uses (peer, local, interface, vrf, mode). Here the
+// last two of those are unknown, so a first packet matches only a session whose
+// own key carries neither, and an established session, which carries the peer's
+// discriminator, is unaffected. This mirrors parseReceivedTTL above, where the
+// RFC 5881 Section 5 TTL check is likewise unavailable off Linux
+// (ai/rules/platform-linux.md).
+func parseReceivedPktinfo(_ []byte) (netip.Addr, int) { return netip.Addr{}, 0 }
 
 // oobBufLen sizes the per-slot oob backing buffer; kept as a constant so
 // the portable readLoop code allocates the same slice shape on every

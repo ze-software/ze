@@ -22,6 +22,15 @@ Entered from OpenConfirm on `EventKeepaliveMsg`, fired inside
 change callback registered by the peer run loop fires as part of the
 transition.
 
+One thing delays that entry. A peer running BFD strict mode with a
+`hold-down` interval stays in OpenConfirm until the BFD session has been Up
+for the whole interval (draft-ietf-idr-bgp-bfd-strict-mode Section 10):
+`handleKeepalive` arms the timer, resets the HoldTimer, and returns without
+firing the event, and the timer's expiry re-enters the transition. The
+second rail into Established is the strict-mode release itself, from the
+`OpenSentConfirmedBfdUpPending` sub-state, where the peer's KEEPALIVE
+already arrived and the BFD session comes Up afterwards.
+
 <!-- source: internal/component/bgp/fsm/fsm.go — handleOpenConfirm case EventKeepaliveMsg -->
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleKeepalive -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — SetCallback block at "if to == fsm.StateEstablished" -->

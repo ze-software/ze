@@ -89,23 +89,43 @@ local address only when the peer has one. A pinned `single-hop-session` entry
 can leave both out.
 
 `api.SessionRequest.Canonical` reduces those shapes to one key before the
-engine sees them. It defaults the VRF, and for a single-hop request it derives
-the missing interface and local address from the link the peer is on: the link
-that holds the request's local address, or the one link whose connected prefix
-contains the peer. Every client passes through it, `pluginService.EnsureSession`
+engine sees them. Every client passes through it, `pluginService.EnsureSession`
 for the protocol clients and `applyPinned` for the configured ones, so BGP and
-OSPF to one neighbor land on one session and one packet stream.
+OSPF to one neighbor land on one session and one packet stream. It defaults the
+VRF, and then completes what the client left out, differently for the two hop
+modes:
 
-The derivation refuses to guess. No matching link, or more than one, leaves the
-request exactly as the client wrote it, and the under-specified request gets
-its own session rather than being merged onto a link it may not be on. An IPv6
-link-local peer is the standing example: every link carries `fe80::/64`. Both
-OSPF families name their interface, so they never reach the derivation. With no
-interface backend loaded, the link table is empty and every key stays as its
-client wrote it.
+| Mode | Interface | Local address |
+|------|-----------|---------------|
+| Single-hop | the link holding the request's local address, or the one link whose connected prefix contains the peer | that link's address in the prefix that contains the peer |
+| Multi-hop | cleared: a routed session is on no link, and `SessionRequest.Interface` is documented single-hop only. The transport holds the other half of that invariant, stamping no ingress interface on a multi-hop packet: the first-packet index is an exact match, so one stamped there would make every RFC 5880 §6.8.6 lookup miss | the address on the interface the route to the peer leaves by, which is the source the stack would have chosen |
 
-<!-- source: internal/component/bfd/api/session_identity.go -- Canonical -->
-<!-- source: internal/component/bfd/session_identity.go -- connectedLinks -->
+A link belongs to a routing instance, and a request is only ever given a link
+from the VRF it names. `connectedLinks` resolves each link's VRF by walking
+`MasterIndex` up to a device of type `vrf`, so a member under a bridge under a
+VRF reads as that VRF. The same prefix in two VRFs reaches two different
+systems, so crossing them would merge two sessions that are not one.
+
+The derivation refuses to guess, and every refusal leaves the request exactly as
+the client wrote it. Single-hop refuses when no link matches or more than one
+does; an IPv6 link-local peer is the standing example, because every link
+carries `fe80::/64`. Multi-hop refuses when there is no route, when the egress
+interface carries no address of the peer's family, and when it carries more than
+one. A multi-hop request in a VRF is refused at the source: `ifcomp.RouteLookup`
+reads the default routing table, so `topologyFor` does not call it there. With
+no interface backend loaded the link table is empty and every key stays as its
+client wrote it. Both OSPF families name their own interface and address, so
+they never reach the derivation at all.
+
+A refusal is safe but not free: the under-specified request gets its own
+session, so those are exactly the configurations where §4.4's single session is
+not achieved. The seven of them are listed in `rfc/short/rfc5882.md`, under
+"Multiple Control Protocols (Section 4.4)", where the conformance ledger reads
+them.
+
+<!-- source: internal/component/bfd/api/session_identity.go -- Canonical, canonicalMultiHop -->
+<!-- source: internal/component/bfd/transport/udp.go -- ingressInterface -->
+<!-- source: internal/component/bfd/session_identity.go -- connectedLinks, topologyFor, vrfMembership -->
 
 ### Discriminator allocation
 
@@ -269,7 +289,7 @@ deliberate:
 | `type Loop struct` instead of `type Engine struct` in `engine/` | `Loop` names the scheduled express loop and distinguishes it from `internal/component/engine.Engine`. |
 | `trySendStateChange` uses a `len/cap` precheck instead of `select { case ch <- ...: default: }` | The precheck is race-free because the express loop is the only writer, and the invariant is documented on `Loop`. If a future refactor adds a second writer, use an explicit non-blocking send and document how a full channel is handled. |
 | `packet.Buf` wraps `*[]byte` in a struct instead of using raw `[]byte` | `sync.Pool.Put(&buf)` escapes a fresh 24-byte slice header per call if you pass `[]byte`. Wrapping in a struct carried as a value lets the same `*[]byte` round-trip through the pool. The benchmark `BenchmarkRoundTrip` measures 0 B/op; any refactor that returns to raw `[]byte` will regress it. |
-| `firstPacketKey` excludes `Local` from the tuple | Per RFC 5880 §6.8.6, the receiver cannot reliably observe the peer's chosen source address; it learns it from the packet. The first-packet index key MUST match what the transport actually surfaces on `Inbound`, which is `(peer=src_addr, vrf, iface, mode)`. |
+| `firstPacketKey` includes `Local` and `Interface` | Per RFC 5880 §6.8.6 the session is selected on "some combination of other fields", and the fields have to be ones the receiver can observe. It cannot observe the peer's chosen SOURCE address, but the destination address and the ingress interface are its own, and the kernel reports both in `IP_PKTINFO`. Two sessions to one peer address on two links, which is what an IPv6 link-local peer looks like, are distinguishable only by those two fields. The socket binds the wildcard, so `readLoop` takes them from the control message and never from `Bind`. |
 | `allocateDiscriminatorLocked` walks the counter instead of using a random value | Deterministic for tests and trivially debuggable. Swap to CSPRNG seeding only if a deployment asks for it. |
 
 ## Testing

@@ -107,8 +107,12 @@ transition.
 
 ## Wire side effects
 
-- **On entry (from `handleOpen` or `processOpen`):** KEEPALIVE is sent via
-  `sendKeepalive(conn)`. This is our response to the peer's OPEN.
+- **On entry (from `handleOpen` or `processOpen`, both through
+  `advanceAfterOpen`):** KEEPALIVE is sent via `sendKeepalive(conn)`. This is
+  our response to the peer's OPEN. Under BFD strict mode that entry is deferred
+  until BFD reports Up, and the KEEPALIVE goes out from
+  `Session.handleBFDEvent` instead (draft-ietf-idr-bgp-bfd-strict-mode Section
+  8.5.1; see the OpenSent runbook).
 - **On `EventKeepaliveMsg` exit to Established:** no additional wire
   output from the FSM layer itself. Downstream, the outer peer run loop
   reacts to the state change (see Established runbook).
@@ -122,7 +126,8 @@ transition.
 - **On `EventKeepaliveTimerExpires`:** the callback in `newSession`
   fires the FSM event first, then calls `sendKeepalive(conn)`.
 
-<!-- source: internal/component/bgp/reactor/session_handlers.go — sendKeepalive, handleKeepalive, handleNotification -->
+<!-- source: internal/component/bgp/reactor/session_handlers.go — handleKeepalive, handleNotification -->
+<!-- source: internal/component/bgp/reactor/session_bfd_strict.go — advanceAfterOpen, handleBFDEvent -->
 <!-- source: internal/component/bgp/reactor/session.go — OnHoldTimerExpires, OnKeepaliveTimerExpires callbacks -->
 
 ## Code map
@@ -130,7 +135,7 @@ transition.
 | Concern | File | Symbol |
 |---------|------|--------|
 | State transitions | `internal/component/bgp/fsm/fsm.go` | `handleOpenConfirm` |
-| Entry wiring (KEEPALIVE + hold reset) | `internal/component/bgp/reactor/session_handlers.go` | `handleOpen` tail |
+| Entry wiring (KEEPALIVE + hold reset) | `internal/component/bgp/reactor/session_bfd_strict.go` | `advanceAfterOpen`, reached from the `handleOpen` tail |
 | Alternate entry (`AcceptWithOpen`) | `internal/component/bgp/reactor/session_connection.go` | `processOpen` |
 | KEEPALIVE reception + timer start + exit | `internal/component/bgp/reactor/session_handlers.go` | `handleKeepalive` |
 | NOTIFICATION handling | `internal/component/bgp/reactor/session_handlers.go` | `handleNotification` |

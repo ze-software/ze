@@ -48,7 +48,7 @@ as long as it takes the process to cross the two function boundaries.
 |-------|-------------|--------------|------------------|------------|
 | `EventManualStop` | `Session.Stop` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION from `Session.Teardown` when a conn exists; `Session.Stop` sends nothing | `Idle` |
 | `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.TeardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
-| `EventBGPOpen` | `handleOpen` after version + hold-time validation + capability negotiation | log transition | KEEPALIVE sent immediately after transition, hold timer reset to negotiated value | `OpenConfirm` |
+| `EventBGPOpen` | `handleOpen` after version + hold-time validation + capability negotiation, through `advanceAfterOpen` | log transition | KEEPALIVE sent immediately after transition, hold timer reset to negotiated value. Not fired at all while BFD strict mode holds the session (see below) | `OpenConfirm` |
 | `EventHoldTimerExpires` | hold-timer callback in `Session.newSession` | log transition; **increments ConnectRetryCounter** | NOTIFICATION (HoldTimerExpired) in caller | `Idle` |
 | `EventBGPHeaderErr` | `session_read.readAndProcessMessage` on header parse / length error | log transition; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
 | `EventBGPOpenMsgErr` | `handleOpen` on version, hold-time, or capability validation failure | log transition; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
@@ -90,10 +90,28 @@ In order:
    `RefusedCapabilities`. Failure returns an error; it does not
    explicitly fire an event, so the read loop exits and the session
    tears down.
-8. Finally, `fsm.Event(EventBGPOpen)` is fired. On success, `sendKeepalive`
-   writes our KEEPALIVE and `timers.ResetHoldTimer` restarts the hold
-   timer with the negotiated value.
+8. Finally `advanceAfterOpen` runs, and it forks. In the ordinary case it
+   fires `fsm.Event(EventBGPOpen)`, `sendKeepalive` writes our KEEPALIVE and
+   `timers.ResetHoldTimer` restarts the hold timer with the negotiated value.
+   Under BFD strict mode it does none of that: see the section below.
 
+### The BFD strict-mode fork
+
+When `bfd { strict true }` is configured AND the peer advertised capability 74
+AND the BFD session is neither Up nor AdminDown, draft-ietf-idr-bgp-bfd-strict-mode
+Section 8.5.5 withholds the KEEPALIVE. `advanceAfterOpen` then calls
+`FSM.EnterBfdUpPending` instead of firing Event 19, so the session STAYS in
+OpenSent carrying the `OpenSentBfdUpPending` sub-state, and the BfdHoldTimer is
+armed if the negotiated hold time is zero.
+
+Two events leave that sub-state. A BFD Up (or AdminDown, or Disabled) sends the
+withheld KEEPALIVE and advances. A KEEPALIVE received from the peer, which is
+an FSM error in the unmodified state, moves the sub-state to
+`OpenSentConfirmedBfdUpPending` so the next BFD Up goes straight to Established.
+Both are `Session.handleBFDEvent` and `FSM.handleOpenSent`, and the whole table
+is in `fsm.md`.
+
+<!-- source: internal/component/bgp/reactor/session_bfd_strict.go — advanceAfterOpen, bfdStrictHolds, handleBFDEvent -->
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleOpen -->
 <!-- source: internal/component/bgp/reactor/session_negotiate.go — negotiateWith -->
 <!-- source: internal/component/bgp/reactor/session.go — openValidator, SetOpenValidator -->
@@ -123,7 +141,8 @@ Section 8.2.2, Event 10.
 - **On entry:** OPEN is written to the peer via `sendOpen(conn)`.
 - **On exit to OpenConfirm:** our KEEPALIVE is written via
   `sendKeepalive(conn)`. The hold timer is reset to the negotiated
-  value.
+  value. Under BFD strict mode there is no exit yet and no KEEPALIVE: the
+  session stays here until BFD is Up (see the fork above).
 - **On exit to Idle via validation failure:** NOTIFICATION with the
   appropriate OpenMessage error code is sent via `logNotifyErr`. The
   connection is closed via `closeConn`.
@@ -136,7 +155,7 @@ Section 8.2.2, Event 10.
   is already gone).
 
 <!-- source: internal/component/bgp/reactor/session_connection.go — sendOpen -->
-<!-- source: internal/component/bgp/reactor/session_handlers.go — sendKeepalive after EventBGPOpen -->
+<!-- source: internal/component/bgp/reactor/session_bfd_strict.go — advanceAfterOpen -->
 <!-- source: internal/component/bgp/reactor/session.go — logNotifyErr helper -->
 
 ## Code map
@@ -146,6 +165,7 @@ Section 8.2.2, Event 10.
 | State transitions | `internal/component/bgp/fsm/fsm.go` | `handleOpenSent` |
 | Entry wiring + OPEN send + hold start | `internal/component/bgp/reactor/session_connection.go` | `connectionEstablished`, `sendOpen` |
 | OPEN validation + capability negotiation + exit to OpenConfirm | `internal/component/bgp/reactor/session_handlers.go` | `handleOpen` |
+| The BFD strict-mode fork on that exit | `internal/component/bgp/reactor/session_bfd_strict.go` | `advanceAfterOpen` |
 | Alternate path with pre-buffered OPEN | `internal/component/bgp/reactor/session_connection.go` | `AcceptWithOpen`, `processOpen` |
 | TCP read loop producing message events | `internal/component/bgp/reactor/session_read.go` | `readAndProcessMessage`, `processMessage` |
 | Hold timer callback -> `EventHoldTimerExpires` | `internal/component/bgp/reactor/session.go` | `newSession` (wires `OnHoldTimerExpires`) |

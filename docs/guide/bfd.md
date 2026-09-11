@@ -179,6 +179,17 @@ session teardown the handle is released. When BFD reports the
 forwarding path Down, the reactor tears the BGP session with RFC 9384
 Cease NOTIFICATION (subcode 10, "BFD Down") without waiting for the
 hold timer.
+
+Two of those sentences are about the peer WITHOUT `strict true`. A strict
+peer opens its BFD session before the BGP FSM starts and keeps it across
+every retry, releasing it only when the peer itself stops
+(draft-ietf-idr-bgp-bfd-strict-mode Section 7). "BFD strict mode" below
+carries the whole difference.
+
+BFD AdminDown does NOT tear the BGP session down, in either mode. RFC 5882
+Section 4.2 says a client "SHOULD NOT take any control protocol action" on
+that transition, because Section 3.2 makes AdminDown say nothing about the
+data path.
 <!-- source: internal/component/bgp/reactor/peer_bfd.go — startBFDClient, runBFDSubscriber -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang — peer connection bfd container -->
 
@@ -567,10 +578,30 @@ in that VRF. Ze logs an `Info` line naming the dropped interface leaves
 whenever this override fires so the operator can correlate a reload
 with the behaviour change. If you need per-interface pinning in a
 non-default VRF, stand up separate sessions per slave device outside
-the shared VRF, or wait for the Stage 3 BGP peer opt-in which can
-drive one session per peer.
-<!-- source: internal/component/bfd/bfd.go — resolveLoopDevices, newUDPTransport -->
-<!-- source: internal/component/bfd/transport/udp_linux.go — applySocketOptions -->
+the shared VRF.
+
+Only a PINNED session binds the socket to a device. A session a protocol
+asks for at runtime, which is every BGP peer and every OSPF neighbor,
+never does: one socket serves every session of a (VRF, mode) pair, so a
+device chosen for the first request would decide where every later session
+in that VRF transmits from. The binding is resolved across the whole pinned
+set of one apply instead, and a loop that is already running cannot be
+rebound, because a socket cannot. A reload that asks for a different device
+therefore does not get one: Ze logs a `Warn` naming both devices and the
+effect, and every session on that loop keeps transmitting from the device
+the loop was created with. Restart Ze to rebind.
+
+A session's own `interface` leaf keeps its two other jobs whatever the
+socket is bound to: it is part of the session key, and the RFC 5881
+Section 5 TTL gate is applied per session.
+
+The socket also asks the kernel for `IP_PKTINFO` and `IPV6_RECVPKTINFO`.
+Those are what tell Ze which of its own addresses a packet was sent to and
+which link it arrived on, which is how a Control packet carrying no
+discriminator finds its session (RFC 5880 Section 6.8.6). They are Linux
+control messages: on any other platform that lookup has neither field.
+<!-- source: internal/component/bfd/bfd.go — resolveLoopDevices, loopDeviceFor, loopFor, newUDPTransport -->
+<!-- source: internal/component/bfd/transport/udp_linux.go — applySocketOptions, parseReceivedPktinfo -->
 
 ### Transmit jitter
 

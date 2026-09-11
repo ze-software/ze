@@ -252,6 +252,11 @@ func (p *Peer) runOnce() error {
 	session.setConfigCapabilityGetter(p.configuredCapabilities)
 	session.SetPluginFamiliesGetter(p.getPluginFamilies)
 	session.SetOpenValidator(p.validateOpen)
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 3: the session reads
+	// bfd.SessionState through this, so its OPEN rail can apply Section 8.5.5.
+	// Wired for every BFD peer, not just a strict one, so the reader answers
+	// the same way whichever peer asks (session_bfd_strict.go).
+	session.setBFDStateReader(p.bfdSessionState)
 
 	// This assignment is one of the two places a conn becomes a session, the
 	// other being s.conn in Session.connectionEstablished (session_connection.go).
@@ -342,6 +347,20 @@ func (p *Peer) runOnce() error {
 	// that survives the cycle. A counter created here would be destroyed with
 	// the Session and could never count a retry.
 	session.SetConnectRetryCounter(&p.connectRetryCounter)
+
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 7: "Implementations SHOULD
+	// start the BFD session associated with the BGP BFD strict-mode session
+	// prior to the BGP FSM starting. The motivation is to avoid delaying BGP
+	// FSM transitions while waiting for the BFD session reach the Up state."
+	//
+	// So a strict peer opens BFD HERE, one statement before the start event,
+	// and keeps it open across every retry: startBFDClient is idempotent and
+	// only Peer.cleanup releases it. A non-strict peer still opens on
+	// Established, in the FSM callback below, because RFC 5882 Section 10.2
+	// gives it nothing to detect before then.
+	if p.bfdStrict() {
+		p.startBFDClient()
+	}
 
 	// The operator's start is Event 1 (ManualStart), whose §8.2.2 clause sets
 	// the ConnectRetryCounter to zero. Every cycle after it is a retry the
@@ -505,7 +524,17 @@ func (p *Peer) runOnce() error {
 			// before clearEncodingContexts so the subscriber
 			// goroutine has observed the final StateChange
 			// (closed channel) before the handle is released.
-			p.stopBFDClient()
+			//
+			// A strict peer keeps its session:
+			// draft-ietf-idr-bgp-bfd-strict-mode Section 7 says
+			// implementations "SHOULD NOT immediately destroy BFD
+			// sessions when associated BGP connections transition
+			// to Idle", and a peer that rebuilt the BFD handshake
+			// on every failed attempt would never converge. Its
+			// release is Peer.cleanup.
+			if !p.bfdStrict() {
+				p.stopBFDClient()
+			}
 
 			// Drop this peer out of the startup convergence hold. Without it
 			// the hold's release condition would read "has been Established",
@@ -635,6 +664,11 @@ func (p *Peer) cleanup() {
 	p.releaseRouterIDClaim()
 	p.clearEncodingContexts()
 	p.ClearStats()
+	// The last release of a strict peer's BFD session, which
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 7 keeps alive across every
+	// BGP connection. Idempotent, so a non-strict peer whose session the FSM
+	// callback already released reaches a no-op.
+	p.stopBFDClient()
 	p.mu.Lock()
 	// p.session is NOT read here. runOnce's own defer nils it, and that defer
 	// runs first: cleanup is `defer p.cleanup()` in run(), so it can only run

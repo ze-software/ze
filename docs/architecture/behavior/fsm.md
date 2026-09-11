@@ -319,7 +319,8 @@ zeroing clauses make the value go down, which a Prometheus counter may not do.
 
 - **Purpose:** Delay the release until the BFD session has been Up for the configured interval (draft-ietf-idr-bgp-bfd-strict-mode Section 10)
 - **Default:** 0, meaning no hold-down, set by the peer's `connection bfd { hold-down }` leaf in milliseconds
-- **Behavior:** A BFD Up arms it instead of releasing the pending sub-state; the expiry re-enters the release. `EventBfdAdminDown` and `EventBfdDisabled` skip it, because neither says the session has been Up for any time at all
+- **Behavior:** It is armed on the step into ESTABLISHED, which is where Section 10 puts the gate, and the expiry re-enters the transition it held. That is one of two places, never both for one session. From `OpenSentConfirmedBfdUpPending`, where the peer's KEEPALIVE already arrived, a BFD Up arms it instead of establishing. From `OpenSentBfdUpPending` a BFD Up does NOT arm it: that release goes to OpenConfirm, and the interval is served when the peer's KEEPALIVE arrives there (`Session.handleKeepalive`). `EventBfdAdminDown` and `EventBfdDisabled` skip it, because neither says the session has been Up for any time at all
+- **Measured from:** when the BFD session entered Up, not when the BGP session noticed. A strict peer's BFD session outlives every BGP connection (Section 7), so a link that has been Up for a minute owes nothing on the next attempt, and only the part of the interval still outstanding is armed
 
 ### BFD Hold Timer
 

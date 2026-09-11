@@ -72,6 +72,28 @@ func (s *Session) handleOpen(body []byte) error {
 	// because it is what Section 8.2.2 associates with terminating on Event 19
 	// in exactly these two states. What is NOT defensible either way is silently
 	// re-negotiating, which is what happened before this gate.
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 8.5.5 extends this gate to
+	// OpenSent: "If the FSM is in the OpenSentBfdUpPending sub-state or the
+	// OpenSentConfirmedBfdUpPending sub-state, the reception of a second OPEN
+	// message is a FSM error." Without it a strict session, which STAYS in
+	// OpenSent while it waits, re-runs negotiateWith on the second OPEN -- the
+	// very mid-session re-negotiation this gate exists to stop -- and
+	// EnterBfdUpPending demotes a Confirmed sub-state back to Pending, so the
+	// next BFD Up lands in OpenConfirm against a peer that already confirmed.
+	//
+	// The draft's answer differs from the Cease below: it is Finite State
+	// Machine Error, and fsm.handleOpenSent's Event 19 arm applies the counter
+	// clause and the state change.
+	if pending := s.fsm.BfdSubState(); pending != fsm.SubStateNone {
+		s.mu.RLock()
+		conn := s.conn
+		s.mu.RUnlock()
+		s.logNotifyErr(conn, message.NotifyFSMError, 0, nil)
+		s.logFSMEvent(fsm.EventBGPOpen)
+		s.closeConn()
+		return fmt.Errorf("%w: second OPEN in the %s sub-state", ErrInvalidState, pending)
+	}
+
 	if state := s.fsm.State(); state == fsm.StateEstablished || state == fsm.StateOpenConfirm {
 		// Counted at the refusal, not after the send: what an operator needs to
 		// know is that this peer tried to re-negotiate mid-session, which is
@@ -186,6 +208,9 @@ func (s *Session) handleOpen(body []byte) error {
 
 	// Negotiate capabilities.
 	s.negotiateWith(localCaps, peerCaps)
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 6: the BfdStrictNegotiated
+	// attribute is settled by this exchange, and every clause below reads it.
+	s.applyBFDStrictNegotiation()
 
 	// Validate required families and capabilities are negotiated.
 	s.mu.RLock()
@@ -222,20 +247,11 @@ func (s *Session) handleOpen(body []byte) error {
 		return err
 	}
 
-	// Update FSM.
-	if err := s.fsm.Event(fsm.EventBGPOpen); err != nil {
-		return err
-	}
-
-	// Send KEEPALIVE to confirm.
-	if err := s.sendKeepalive(conn); err != nil {
-		return err
-	}
-
-	// Reset and restart hold timer with negotiated value.
-	s.timers.ResetHoldTimer()
-
-	return nil
+	// Update the FSM, send the KEEPALIVE and reset the hold timer to the
+	// negotiated value -- unless draft-ietf-idr-bgp-bfd-strict-mode Section
+	// 8.5.5 says to withhold the KEEPALIVE and wait for BFD
+	// (session_bfd_strict.go).
+	return s.advanceAfterOpen(conn)
 }
 
 func (s *Session) rejectOpenCapabilityError(err error) error {
@@ -267,6 +283,20 @@ func (s *Session) rejectOpenCapabilityError(err error) error {
 func (s *Session) handleKeepalive() error {
 	state := s.fsm.State()
 	if state == fsm.StateOpenConfirm {
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 10: "the BGP state machine
+		// is permitted to transition to the Established state from the
+		// OpenConfirm state after the locally configured BFD hold-down interval
+		// is observed". This is that transition, so this is where the interval
+		// is served. The session stays in OpenConfirm, and RFC 4271 Section
+		// 8.2.2 Event 26's "restarts the HoldTimer" is applied here rather than
+		// by the FSM, because the FSM event is withheld with it.
+		if s.bfdHoldDownPending() {
+			s.bfdHoldDownKeepalive.Store(true)
+			s.timers.ResetHoldTimer()
+			sessionLogger().Info("bfd strict-mode: observing the hold-down interval before establishing",
+				"peer", s.settings.Address, "hold-down", s.timers.BfdHoldDown())
+			return nil
+		}
 		// Start keepalive timer for sending our keepalives.
 		s.timers.StartKeepaliveTimer()
 		// Start RFC 9687 Send Hold Timer: detects when we cannot send

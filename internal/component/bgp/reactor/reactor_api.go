@@ -150,6 +150,7 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			Connect:              s.Connection.Connect,
 			Accept:               s.Connection.Accept,
 			State:                p.State().PluginState(),
+			BFDSubState:          p.bfdSubState(),
 			UpdatesReceived:      stats.UpdatesReceived,
 			UpdatesSent:          stats.UpdatesSent,
 			KeepalivesReceived:   stats.KeepalivesReceived,
@@ -662,6 +663,16 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 		// session flap on reload can see why.
 		apply, reason := peerSettingsSwapPlan(currentPeers[key], newSettings, currentSessions[key])
 		if reason != "" {
+			// draft-ietf-idr-bgp-bfd-strict-mode Section 4, Event 35
+			// (BfdStrictConfigChanged). The restart below reaches Idle by
+			// stopping the peer, which is the outcome every Section 8 clause
+			// for this event asks for, but it reaches it with no NOTIFICATION
+			// naming the reason. Raising the event first is what puts Cease /
+			// Other Configuration Change on the wire, so the peer learns that
+			// a configuration change and not a fault ended the session.
+			if session := currentSessions[key]; session != nil && bfdStrictConfigChanged(currentPeers[key], newSettings) {
+				session.raiseBFDStrictConfigChanged()
+			}
 			toRemove = append(toRemove, key)
 			toAdd = append(toAdd, newSettings)
 			reactorLogger().Info("peer restart required", "phase", label, "peer", key, "changed", reason)
