@@ -464,7 +464,7 @@ option=open:value=paths-limit:family=<f>[,<f>]:limit=<N>
 | `seconds` | 0, or 3 to 65535 | `session_negotiate` takes the smaller of this and ze's `receive-hold-time`, then calls `timers.SetHoldTime`. RFC 4271 Section 4.2. 1 and 2 fail the file |
 | `restart-time` | 0 to 4095 | `grStateManager.onSessionDown` arms the restart timer on it, `runPeer` gives it to `startEORTimer`, and `show bgp peer` prints it. RFC 4724 Section 3 gives the field 12 bits |
 | `stale-time` | 0 to 16777215 | `enterLLGRLocked` arms one timer per family on it. RFC 9494 Section 3 gives the field 24 bits |
-| `limit` | 0 to 65535 | `CommitService.enforcePathsLimit` drops paths past it, so ze sends this peer no more than `limit` paths for one prefix |
+| `limit` | 0 to 65535 | The Max Paths field of the code 76 entry this peer advertises. `Session.filterPathsLimit` drops paths past it, so ze sends this peer no more than `limit` paths for one prefix |
 | `family` | a family name, or a comma-separated list | The `<AFI, SAFI, Flags>` tuples of code 64, the 7-octet tuples of code 71, and the entries of code 76 |
 | `forward-state` | `true` (default) or `false` | The F bit of every tuple. `onSessionReestablished` purges the stale routes of a family whose F bit is clear |
 
@@ -629,7 +629,7 @@ cmd=api:conn=1:seq=1:text=update text origin set igp nhop set 10.0.1.1 nlri ipv4
 For orchestrating multiple processes:
 
 ```
-cmd=background:seq=<N>:exec=<command>[:stdin=<name>][:name=<handle>]
+cmd=background:seq=<N>:exec=<command>[:stdin=<name>][:name=<handle>][:timeout=<dur>]
 cmd=foreground:seq=<N>:exec=<command>[:stdin=<name>][:timeout=<dur>][:exit=<N>]
 cmd=stop:seq=<N>:name=<handle>[:signal=kill|term]
 ```
@@ -639,7 +639,7 @@ cmd=stop:seq=<N>:name=<handle>[:signal=kill|term]
 | `seq` | Execution order (lower first) |
 | `exec` | Command to execute |
 | `stdin` | Stdin block name to pipe |
-| `timeout` | Foreground timeout (e.g., `10s`) |
+| `timeout` | Foreground test budget, or background process lifetime (e.g., `10s`). |
 | `exit` | Exit code asserted for **this** command (0..255). See below. |
 | `name` | Handle for a background process, so a later `cmd=stop` can target it. |
 | `signal` | `cmd=stop` only: `kill` (SIGKILL, default) or `term` (SIGTERM). |
@@ -666,9 +666,16 @@ keep their own default when it does not parse, so it is refused here instead.
 <!-- source: internal/test/runner/record_parse_keys.go -- checkMarkerKeys -->
 <!-- test: internal/test/runner/record_parse_cmd_test.go TestCmdUnknownKeyRefused, TestCmdUnknownKeyNotSwallowedIntoExec -->
 
-**Background:** Starts and keeps running until test ends.
-**Foreground:** Starts and waits for completion.
+**Background:** Starts and keeps running until its timeout, an explicit stop, or test completion.
+**Foreground:** Setup commands finish before the next step. A `ze` daemon starts
+without blocking later steps. Its peers or observer determine when teardown starts.
 **Stop:** Terminates a named background process mid-test (see below).
+
+When an embedded observer sends `request shutdown`, teardown gives that daemon
+its bounded self-stop grace before stopping the other background processes.
+
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated, startBackgroundLifetime -->
+<!-- source: internal/test/runner/runner_exec_util.go -- tmpfsRequestsDaemonShutdown, terminateAfterSelfExit -->
 
 #### How an `exec=` value becomes argv
 
