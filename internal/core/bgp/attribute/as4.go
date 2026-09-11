@@ -388,13 +388,12 @@ func pathHasNonMappableAS(path *ASPath) bool {
 	return false
 }
 
-// AS4PathFor returns the AS4_PATH to emit alongside a two-octet AS_PATH carrying
-// path, or nil when RFC 6793 does not require (or forbids) one.
+// ASPathNeedsAS4 reports whether an AS4_PATH is owed beside a two-octet AS_PATH
+// carrying path, toward a peer whose four-octet AS support is dstASN4.
 //
-// This is the one site that answers "is an AS4_PATH owed toward this peer, and
-// what goes in it". Every sender asks here, whether it originates the route
-// (message.UpdateBuilder) or re-encodes a received one (wireu), so the rule
-// cannot drift between them.
+// This is the one site that answers the question. Every sender asks here,
+// whether it originates the route (message.UpdateBuilder) or re-encodes a
+// received one (wireu), so the rule cannot drift between them.
 //
 // RFC 6793 Section 4.1: "The new attributes, AS4_PATH and AS4_AGGREGATOR, MUST
 // NOT be carried in an UPDATE message between NEW BGP speakers."
@@ -405,10 +404,28 @@ func pathHasNonMappableAS(path *ASPath) bool {
 // mappable four-octet AS numbers only. In this case, the NEW BGP speaker MUST
 // NOT send the AS4_PATH attribute."
 //
+// It answers a bool rather than the attribute for one reason. An answer that
+// RETAINS path.Segments costs the caller two heap allocations on EVERY build,
+// owed or not. Escape analysis is not path-sensitive, so one branch that stores
+// the segments in a heap object moves them off the stack for every call.
+//
+// A caller on an allocation budget asks this, then writes the value through a
+// local AS4Path (message.UpdateBuilder.appendASPath). A caller that wants the
+// attribute asks AS4PathFor below.
+func ASPathNeedsAS4(path *ASPath, dstASN4 bool) bool {
+	if dstASN4 {
+		return false
+	}
+	return pathHasNonMappableAS(path)
+}
+
+// AS4PathFor returns the AS4_PATH to emit alongside a two-octet AS_PATH carrying
+// path, or nil when ASPathNeedsAS4 says none is owed.
+//
 // The returned AS4Path aliases path's segments; AS4Path.Len and AS4Path.WriteTo
 // drop confederation segments per RFC 6793 Section 3, so no copy is needed.
 func AS4PathFor(path *ASPath, dstASN4 bool) *AS4Path {
-	if dstASN4 || !pathHasNonMappableAS(path) {
+	if !ASPathNeedsAS4(path, dstASN4) {
 		return nil
 	}
 	return &AS4Path{Segments: path.Segments}

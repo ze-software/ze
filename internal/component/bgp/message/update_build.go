@@ -377,21 +377,24 @@ func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) *Update {
 // appendASPath appends the AS_PATH attribute for configuredPath to attrs, and
 // the AS4_PATH that RFC 6793 Section 4.2.2 obliges beside it.
 //
-// RFC 6793 Section 4.2.2: "The NEW BGP speaker MUST also send the AS path
-// information in the AS4_PATH attribute (encoded with four-octet AS numbers),
-// except for the case where all of the AS path information is composed of
-// mappable four-octet AS numbers only. In this case, the NEW BGP speaker MUST
-// NOT send the AS4_PATH attribute."
+// attribute.ASPathNeedsAS4 owns that condition, quotes RFC 6793 Section 4.2.2,
+// and answers the forwarding rails in wireu as well.
 //
-// Every builder in this package appends its AS_PATH here, because the
-// obligation is on the attribute BLOCK a peer receives: a builder that wrote
-// the two-octet AS_PATH itself and left the companion to its caller would send
-// AS_TRANS with the real AS number carried nowhere. attribute.AS4PathFor owns
-// the condition, so this encoder and the forwarding rails in wireu cannot
-// disagree about it.
+// Every builder in this package appends its AS_PATH here. The obligation is on
+// the attribute BLOCK a peer receives. A builder that wrote the two-octet
+// AS_PATH and left the companion to its caller would send AS_TRANS with the
+// real AS number carried nowhere.
 //
-// The AS4_PATH is appended rather than written: every caller hands the block to
-// an ordered writer, which places attribute 17 at its type-code position.
+// Both attributes are appended as scratch-backed raw bytes. That is what keeps
+// the build allocation-free. attribute.AS4PathFor answers with an *AS4Path that
+// RETAINS the AS path's segments. A retained slice is a heap slice on every
+// build, not on the rare one that owes the attribute, because escape analysis
+// cannot tell the two branches apart.
+//
+// So this asks the bool and writes the value through a local AS4Path that
+// nothing outlives. The wire form is the same encoder either way. AS4Path.Len
+// and AS4Path.WriteTo drop the confederation segments RFC 6793 Section 3
+// excludes.
 func (ub *UpdateBuilder) appendASPath(attrs []attribute.Attribute, configuredPath []uint32) []attribute.Attribute {
 	asPath := ub.buildASPath(configuredPath)
 	asPathBuf := ub.alloc(asPath.LenWithASN4(ub.ASN4))
@@ -402,11 +405,17 @@ func (ub *UpdateBuilder) appendASPath(attrs []attribute.Attribute, configuredPat
 		data:  asPathBuf,
 	})
 
-	as4Path := attribute.AS4PathFor(asPath, ub.ASN4)
-	if as4Path == nil {
+	if !attribute.ASPathNeedsAS4(asPath, ub.ASN4) {
 		return attrs
 	}
-	return append(attrs, as4Path)
+	as4Path := attribute.AS4Path{Segments: asPath.Segments}
+	as4Buf := ub.alloc(as4Path.Len())
+	as4Path.WriteTo(as4Buf, 0)
+	return append(attrs, &rawAttribute{
+		flags: as4Path.Flags(),
+		code:  as4Path.Code(),
+		data:  as4Buf,
+	})
 }
 
 // appendAggregator appends the AGGREGATOR attribute for asn and ip to attrs,

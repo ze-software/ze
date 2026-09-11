@@ -8,9 +8,9 @@
       "unit-sha": "5d4ffa545bc9b872",
       "claim-sha": "63fac791f7ed1175",
       "route": "revert",
-      "producer": "internal/core/bgp/attribute/as4.go::AS4PathFor",
-      "producer-sha": "d35396fec8aba756",
-      "break": "body of AS4PathFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/core/bgp/attribute/as4.go::ASPathNeedsAS4",
+      "producer-sha": "39b55b9d145492d7",
+      "break": "body of ASPathNeedsAS4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC6793-4.1-6",
@@ -77,9 +77,9 @@
       "unit-sha": "365777289c191eec",
       "claim-sha": "51267c22277ccef4",
       "route": "revert",
-      "producer": "internal/core/bgp/attribute/as4.go::AS4PathFor",
-      "producer-sha": "d35396fec8aba756",
-      "break": "body of AS4PathFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/core/bgp/attribute/as4.go::ASPathNeedsAS4",
+      "producer-sha": "39b55b9d145492d7",
+      "break": "body of ASPathNeedsAS4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC6793-4.2.2-2",
@@ -88,9 +88,9 @@
       "unit-sha": "ac9ffa4fb409d4de",
       "claim-sha": "0ad71db77ef1ac98",
       "route": "revert",
-      "producer": "internal/core/bgp/attribute/as4.go::AS4PathFor",
-      "producer-sha": "d35396fec8aba756",
-      "break": "body of AS4PathFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/core/bgp/attribute/as4.go::ASPathNeedsAS4",
+      "producer-sha": "39b55b9d145492d7",
+      "break": "body of ASPathNeedsAS4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC6793-4.2.2-2",
@@ -99,9 +99,9 @@
       "unit-sha": "963bd48031ea9d7a",
       "claim-sha": "8e54e5e09fe5bce6",
       "route": "revert",
-      "producer": "internal/core/bgp/attribute/as4.go::AS4PathFor",
-      "producer-sha": "d35396fec8aba756",
-      "break": "body of AS4PathFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/core/bgp/attribute/as4.go::ASPathNeedsAS4",
+      "producer-sha": "39b55b9d145492d7",
+      "break": "body of ASPathNeedsAS4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC6793-4.2.2-3",
@@ -110,9 +110,9 @@
       "unit-sha": "ac9ffa4fb409d4de",
       "claim-sha": "685676e454299ea4",
       "route": "revert",
-      "producer": "internal/core/bgp/attribute/as4.go::AS4PathFor",
-      "producer-sha": "d35396fec8aba756",
-      "break": "body of AS4PathFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/core/bgp/attribute/as4.go::ASPathNeedsAS4",
+      "producer-sha": "39b55b9d145492d7",
+      "break": "body of ASPathNeedsAS4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC6793-4.2.2-3",
@@ -121,9 +121,9 @@
       "unit-sha": "963bd48031ea9d7a",
       "claim-sha": "2e57182723f0b0c9",
       "route": "revert",
-      "producer": "internal/core/bgp/attribute/as4.go::AS4PathFor",
-      "producer-sha": "d35396fec8aba756",
-      "break": "body of AS4PathFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/core/bgp/attribute/as4.go::ASPathNeedsAS4",
+      "producer-sha": "39b55b9d145492d7",
+      "break": "body of ASPathNeedsAS4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC6793-4.2.2-5",
