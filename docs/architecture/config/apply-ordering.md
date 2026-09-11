@@ -141,8 +141,8 @@ emits it.
 
 ## What the tests do not reach
 
-The dual-presence window has a test on the real path, and that test has not yet
-been observed running. `test/reload/config-apply-ordering-address-swap.ci` gives two interfaces each
+The dual-presence window runs on the real path, and has been observed doing so.
+`test/reload/config-apply-ordering-address-swap.ci` gives two interfaces each
 other's address in one commit, which is the four-node cycle `tryRelaxCycle`
 relaxes, and reads the kernel's own notifications back through `ip monitor`. It
 asserts what the window means: both creates land before either destroy, so both
@@ -151,11 +151,15 @@ address at any notification.
 `test/reload/config-apply-ordering-mixed-root.ci` proves the same ordering with a
 second root in the transaction, using a static route whose gateway resolves only
 against the new address. Both carry `option=needs-linux:caps=net-admin`, so they
-run in the QEMU VM and skip on a host without CAP_NET_ADMIN. Neither has been
+run in the QEMU VM and skip on a host without CAP_NET_ADMIN. Both have been
 through the discrimination walk `ai/rules/interop-and-goal-validation.md`
-requires, so neither is evidence yet: until each is observed RED under the
-revert it fences and GREEN after the restore, the window is asserted here and
-not demonstrated.
+requires, in the QEMU guest on Ze's runtime kernel. Under a `tryRelaxCycle` that
+returns the unreduced edge set, the swap answers `config verify failed:
+operation dependency cycle` and nothing is applied; under the uncovered
+participant condition the orchestrator no longer carries, the mixed-root route
+installs before its address and the kernel answers `network is unreachable`.
+Each test passes when its revert is restored, so the window is demonstrated here
+rather than asserted.
 
 The rotation, swap and reip tests reach none of that. They rotate BGP
 router-ids, so they emit peer operations only, two peers changing router-id

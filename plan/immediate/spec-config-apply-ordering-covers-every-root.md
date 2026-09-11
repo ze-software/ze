@@ -232,9 +232,9 @@ bounds so implementation does not invent one.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `config-apply-ordering-mixed-root` | `test/reload/config-apply-ordering-mixed-root.ci` | An interface address plus a static route in one commit keeps address ordering (AC-1) | WRITTEN, NOT RUN. `option=needs-linux:caps=net-admin`, so it SKIPS on this darwin host, and the QEMU route that would run it was unreachable for the whole of phase 4 (see below) |
+| `config-apply-ordering-mixed-root` | `test/reload/config-apply-ordering-mixed-root.ci` | An interface address plus a static route in one commit keeps address ordering (AC-1) | PASS in the QEMU guest (3.2s), and observed RED under its own revert. RED: the reinstated uncovered-participant condition sends the transaction to the unordered section apply, the static plugin installs the route before the address exists, and the kernel answers `fib-kernel: add route failed prefix=172.30.0.0/24 error="network is unreachable"`; the driver then reports `ZE-OBSERVER-FAIL: the renumber and the static route did not both land`. GREEN after restore: 11 of 11 steps pass. Log: `tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/cao/qemu-walk-clean.log` |
 | `config-apply-ordering-coarse-root` | `test/reload/config-apply-ordering-coarse-root.ci` | A commit touching only a root with no decomposer still applies (AC-2) | PASS, and observed RED under its own revert |
-| `config-apply-ordering-address-swap` | `test/reload/config-apply-ordering-address-swap.ci` | Two interfaces swap addresses, both present for the window, and a BGP peer bound to one of them stays reachable (AC-4, closes D4) | WRITTEN, NOT RUN, for the same reason. Its two assertion functions ARE proven: `TestAssertSwapWindowRefusesBreakBeforeMake` and `TestAssertMixedRootOrderRefusesARouteInstalledFirst` (`internal/test/fixture/register_config_apply_ordering_test.go`) feed each one the notification stream the defect produces and require the refusal |
+| `config-apply-ordering-address-swap` | `test/reload/config-apply-ordering-address-swap.ci` | Two interfaces swap addresses, both present for the window, and a BGP peer bound to one of them stays reachable (AC-4, closes D4) | PASS in the QEMU guest (1.9s), and observed RED under its own revert. RED: with `tryRelaxCycle` returning the unreduced edge set the reload answers `config verify failed: operation dependency cycle`, nothing is applied, and the driver reports `ZE-OBSERVER-FAIL: the addresses never swapped`. GREEN after restore: 11 of 11 steps pass, the peer exchange holds its one connection across the swap, and the second `expect=stderr:contains` step, which is `OK: dual-presence window observed`, is one of them. D4 is closed: the window is now measured from the kernel's own notifications through decompose, graph, solver, executor, bridge, RPC and netlink. Log: `tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/cao/qemu-walk-clean.log`. Its two assertion functions were already proven by `TestAssertSwapWindowRefusesBreakBeforeMake` and `TestAssertMixedRootOrderRefusesARouteInstalledFirst` (`internal/test/fixture/register_config_apply_ordering_test.go`) |
 | `config-apply-ordering-mixed-rollback` | `test/reload/config-apply-ordering-mixed-rollback.ci` | A failed apply in a mixed transaction rolls back both node kinds (AC-7) | PASS (8.9s), and observed RED under its own revert. The tree that reddened 36 of the 63 reload tests healed; the whole suite is now 44 pass, 19 skip. Its connection-2 assertion was strengthened after the first run: it asserted the End-of-RIB alone, which passes while the restored peer announces nothing, so it now asserts the `192.168.1.0/24` UPDATE as well. The revert that reddens it is rebuilding the peer from the operation's config subtree instead of from the running peer (`runningPeerSettings`, `internal/component/bgp/reactor/operation.go`); under it the peer exchange fails on a message mismatch and every other reload test stays green. Logs: `tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/functional-reload-{1,red-revert}.log` |
 
 `config-apply-ordering-address-swap` and `config-apply-ordering-mixed-root`
@@ -242,16 +242,31 @@ carry `option=needs-linux:caps=net-admin`, matching
 `config-apply-ordering-create.ci`: they assign addresses to real devices and
 read them back.
 
-**Both are WRITTEN and NEITHER is proven. The walk for the two is the work this
-spec still owes.** They skip on a darwin host, so the route that runs them is
-QEMU: `./le qemu netns-test` does not cover the reload suite (its selector is
-`firewall,policy,ospf,ospfv3,pppoe`, `internal/le/qemu/actions.go`), so the
-route is `./le qemu run` with the reload suite as its command, per
-`docs/architecture/testing/qemu-integration.md`. A first attempt was cut short
-by a session limit before it produced a RED and GREEN from one tree, and a pair
-taken across two trees is not a pair, so nothing was recorded from it. The page
-`docs/architecture/config/apply-ordering.md` says the same in its own words: the
-window is asserted there and not yet demonstrated.
+**Both were walked on 2026-09-11 and both discriminate.** They skip on a darwin
+host, so the route that ran them is QEMU: `./le qemu netns-test` does not cover
+the reload suite (its selector is `firewall,policy,ospf,ospfv3,pppoe`,
+`internal/le/qemu/actions.go`), so the route is `./le qemu run kernel
+tmp/kernel/build/vmlinuz packages "iproute2 libcap"` carrying a guest script
+that runs `ze-test bgp reload -p 1 <test>` against each daemon in turn, per
+`docs/architecture/testing/qemu-integration.md`. The guest booted Ze's runtime
+kernel 7.2 and ran as root, which is what supplies `caps=net-admin`.
+
+Two things the walk had to establish, and both cost a run:
+
+- **One tree produced every binary.** This checkout is shared and its Go source
+  changed inside a 40-second window while the walk was being prepared, so a
+  green built before a red and a red built after it are not a pair. The four
+  daemons were therefore built in one script that builds green, both reverts,
+  and green again, and compares the two greens byte for byte. They are
+  identical, and so are the two builds of the harness, so nothing that reaches
+  a binary moved while the reverts were compiled
+  (`tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/cao/pairbuild.log`).
+- **The guest has ONE routing table.** The first walk ran the greens first, and
+  each left its dummy devices, addresses and static routes behind. The
+  mixed-root RED then failed with `add route failed ... error="file exists"`,
+  which is the fixture's environment and not the revert, so that red was
+  discarded. The walk now deletes `zdual0`, `zdual1`, `zmix0` and both static
+  prefixes before each run and prints the table it starts from.
 
 **Discrimination walk (`ai/rules/interop-and-goal-validation.md`, required, not
 assumed):** for each of the four tests, revert the change it fences, rebuild the
@@ -500,7 +515,7 @@ enforcing code.
 - [ ] AC-1..AC-7 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] Each of the four new functional tests observed RED under its own named revert and GREEN after restore, with both outputs recorded
+- [ ] Each of the four new functional tests observed RED under its own named revert and GREEN after restore, with both outputs recorded. All four are now walked. `coarse-root` and `mixed-rollback` were walked natively (logs in the Functional Tests table). `address-swap` and `mixed-root` were walked in the QEMU guest on 2026-09-11, red first and green after, all four daemons from one tree window: `tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/cao/qemu-walk-clean.log`, with the one-tree evidence in `.../cao/pairbuild.log`
 - [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
 - [ ] Feature code integrated (`internal/*`, `pkg/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence

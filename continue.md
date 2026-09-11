@@ -521,6 +521,19 @@ forward path.
 
 ## Open findings, recorded not fixed. Thomas's to schedule
 
+- **`reject=stderr:contains=using section apply` in
+  `test/reload/config-apply-ordering-mixed-root.ci` cannot fire.** Commit
+  `a6ea1ad0b` deleted the branch that logged that string, so no build of the
+  product emits it; reinstating the branch is this test's own revert, and even
+  then the line is `logger().Info` on subsystem `config.transaction`, which the
+  test does not raise to info. The test discriminates through its positive
+  ordering assertion, which is what produced its RED. The reject is named as an
+  inert tripwire in a comment above it rather than deleted. To make it fence,
+  add `option=env:var=ze.log.config.transaction:value=info` and re-run the walk.
+- **About 400MB of guest binaries sit in `bin/`** from the walk:
+  `ze-cao-green-linux-arm64`, `ze-cao-redswap-...`, `ze-cao-redmixed-...`,
+  `ze-test-cao-...`, `ze-stripped-cao-...`. Delete them when the spec closes.
+
 - `ASPathEdit.recordAggregator` (`internal/component/bgp/wireu/aspath_slot.go`)
   does NOT tombstone an AGGREGATOR whose length it cannot read. `RewriteASPath`
   did, so the behaviour vanished when `Record` replaced the rewrite, with no red
@@ -826,11 +839,18 @@ because the thing that would have reported it was the thing that was off.
 
 ## TO DO, in order. The first item is the only real work
 
-1. **The QEMU discrimination walk for two tests.**
-   `test/reload/config-apply-ordering-address-swap.ci` (AC-4, and it is what
-   closes D4) and `test/reload/config-apply-ordering-mixed-root.ci` (AC-1) are
-   written, committed, and prove nothing yet. Both carry
-   `option=needs-linux:caps=net-admin` and skip on darwin.
+1. ~~**The QEMU discrimination walk for two tests.**~~ DONE, 2026-09-11. Both
+   pairs hold, in the QEMU guest on runtime kernel 7.2 as root. `address-swap`
+   reddens under a `tryRelaxCycle` returning the unreduced edge set with `config
+   verify failed: operation dependency cycle`; `mixed-root` reddens under the
+   reinstated uncovered-participant condition, installing the route before its
+   address so the kernel answers `network is unreachable`. Both go green on
+   restore, 11 of 11 steps each. Evidence:
+   `tmp/session/2026-09-08-cbc36cee-.../scratch/cao/qemu-walk-clean.log`, the
+   four `WALK` banners at lines 53, 177, 216 and 308. D4 is closed. The original
+   instructions are kept below because they name the route, which nothing else
+   records:
+   Both carry `option=needs-linux:caps=net-admin` and skip on darwin.
    `./le qemu netns-test` does NOT cover the reload suite: its selector is
    `firewall,policy,ospf,ospfv3,pppoe` (`internal/le/qemu/actions.go`). The route
    is `./le qemu run` with the reload suite as its command, per

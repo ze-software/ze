@@ -101,6 +101,14 @@ expect=stderr:contains=sighup reload complete
 expect=stderr:contains=OK: address ordering held across two roots
 expect=stderr:contains=static routes loaded
 expect=file:path=mixed-events.txt:exists=true
+# This reject cannot fire, and it is kept as a tripwire rather than as
+# evidence. Commit a6ea1ad0b deleted the branch that logged it, so no build
+# of the product emits the string at all; reinstating that branch is the
+# revert this test was proven RED under, and even then the line is
+# logger().Info on subsystem config.transaction, which this test does not
+# raise to info. What discriminates here is the positive ordering assertion
+# above. To make this line fence anything, add
+# option=env:var=ze.log.config.transaction:value=info and re-run the walk.
 reject=stderr:contains=using section apply
 reject=stderr:contains=operation dependency cycle
 reject=stderr:contains=config apply partial failure
