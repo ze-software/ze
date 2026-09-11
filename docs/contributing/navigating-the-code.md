@@ -88,8 +88,41 @@ it was meant to save.
 | What is this file for, and which doc governs it? | the file's own `// Design:` header | the design doc, plus the sibling files that own each detail |
 | Which docs cover this code? | `grep` the basename under its package heading in `ai/CODE-TO-DOCS.md` | every doc citing it. Rows are keyed by BASENAME, so the package heading is what stops a bare `grep peer.go` returning three packages |
 | Which `.go` files implement this design doc? | `grep` the doc path in `ai/DOCS-TO-CODE.md` | every file whose `// Design:` header cites that doc, one line each |
-| What does this package do? | `grep` the package path in `ai/PACKAGE-MAP.md` | one line, derived from the package doc comment |
+| What does this package do? | `grep` the package path in `ai/PACKAGE-MAP.md` | one line, taken from the package doc comment |
 | How does this subsystem flow, entry to exit? | `ai/digests/<subsystem>.md` | the flow with `file:line`, the load-bearing files, and the invariants |
+
+The three indexes are DERIVED, and git tracks none of them. A `Write` or an
+`Edit` to a file that feeds one REMOVES it. A Bash command that names its path
+REBUILDS it before that command runs. So a grep reads the tree as it now stands,
+never the tree as it stood at the last commit.
+
+A rebuild that fails blocks the command, because a grep of a file nobody built
+answers "no match" for a tree the author cannot see.
+<!-- source: internal/le/hookruntime/postwrite.go -- postInvalidateDerived -->
+<!-- source: internal/le/hookruntime/bash.go -- preMaterializeDerived -->
+
+**Which writes invalidate, and which do not.** The removal is keyed to the
+`Write` and `Edit` TOOLS. A write that reaches the file some other way moves an
+input with no hook in the path: `sed -i`, a shell heredoc, `git rebase`, `git
+stash pop`, `git checkout`, and `./le repository generate`. Each of those leaves
+the index PRESENT, and the read half rebuilds only an ABSENT one, so a grep
+between such a write and the next session start CAN read a stale index.
+<!-- source: internal/le/hookruntime/runtime.go -- nativeHookActions posttool-writeedit tools -->
+
+A session start rebuilds every index unconditionally, which bounds that window
+to one session. It costs about 1.6 seconds for the three, once, before any work
+starts. Run the writer yourself after a bulk rewrite if you would rather not
+wait for the next session.
+<!-- source: internal/le/hookruntime/lifecycle.go -- hookSessionStart -->
+
+Only Bash is intercepted. The `Read` and the `Grep` TOOL reach no hook. One of
+them opens an index the last edit removed, and reports a missing file.
+
+Ask the question from Bash, or write the index yourself. The writers are
+`./le discovery-index update` for `ai/PACKAGE-MAP.md`, and
+`./le docs-to-code update` and `./le docs-to-code index-update` for the other
+two.
+<!-- source: internal/le/hookruntime/lifecycle.go -- hookSessionStart -->
 
 Every non-test `.go` file carries its own answer in a `// Design: <doc> -- topic`
 header. The scan stops after 25 lines (`HeaderLines`, `internal/le/docstocode/docstocode.go`),

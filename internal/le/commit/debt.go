@@ -45,7 +45,35 @@ var debtGates = []struct {
 	{gateMissingFullVerifyOK, "full native verification over this commit's Go", true, []string{
 		"full ./le verify current mode full over this commit's Go",
 	}},
-	{gateStaleIndexOK, "discovery-index freshness", true, nil},
+	// RETIRED as an override on 2026-09-11: ai/PACKAGE-MAP.md is derived rather
+	// than tracked, the gate that compared it is deleted, and `stale-index-ok`
+	// is no longer a `le commit create` keyword, so no commit can owe this row
+	// again.
+	//
+	// The DECLARATION stays because the ledger already holds rows naming it.
+	// debtGateAt answers -1 for a gate no table declares, an unrecognized row
+	// is never cleared by a green verify, and TestEveryLedgerGateNameIsDeclared
+	// (ledger_test.go) refuses a ledger row nothing declares, so deleting this
+	// line strands every one of those rows for good. How many there are is what
+	// `grep -rn "discovery-index freshness" plan/verification-debt/` answers,
+	// over the tree in hand; a count written here drifts with every commit any
+	// session lands.
+	//
+	// Runnable is FALSE because it is now false. `debt-clear` clears a row by
+	// re-running the gate it names, and there is no longer a gate to run, so
+	// `true` promised a clearance no command can perform and, worse, refused
+	// the one route that stays open: verifyDischarge (discharge.go) rejects a
+	// discharge for a runnable gate. Every open row naming this gate WAS then
+	// discharged, under `kind owner` and the owner's authorisation of
+	// 2026-09-11.
+	//
+	// Their shards still read `open`, and that is not a half-done sweep: a
+	// discharge is an overlay applied at READ time by applyDischarges, so the
+	// shard on disk never moves. `./le commit debt-status` is what answers,
+	// and a grep of plan/verification-debt/ is not, twice over: it reads the
+	// pre-overlay text, and the discharge RECORD lives under that directory
+	// and holds one row per discharge, so a grep counts its own output.
+	{gateStaleIndexOK, "discovery-index freshness", false, nil},
 	{gateReviewOverride, "independent critical review", false, nil},
 	{gateBrokenHeadFix, "repository tracked-build/check (HEAD does not compile)", true, []string{
 		"repository-tracked-build/check (HEAD does not compile)",

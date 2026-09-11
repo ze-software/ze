@@ -254,7 +254,6 @@ func verifyScopeWiringDriver(ctx context.Context, args []string) error {
 		return rawCommand(ctx, repo, env, leBinary, argCommit, "create",
 			"session", session, "subject", "fixture change", "file", "mine.go",
 			"unverified", "another session edited the tree",
-			"stale-index-ok", "scratch checkout intentionally has no generated discovery index",
 			"no-test", "mine.go is a scratch-repo fixture for gate attribution, not product code")
 	}
 	if err := writeIndex(nil); err != nil {

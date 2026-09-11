@@ -273,3 +273,31 @@ func SkipDirs() []string {
 // Separators answers the leading topic separators a citation can use between
 // the document path and the topic, longest first.
 func Separators() []string { return slices.Clone(separators[:]) }
+
+// IsDesignSource reports whether writing path can change ai/DOCS-TO-CODE.md.
+// path is relative to the checkout root, in slash form.
+//
+// The index is built from the `// Design:` header of every `.go` file walkGo
+// visits, so its inputs are exactly that walk: a `.go` file under a directory
+// the walk enters. The population is read from skipDirs and ModCache rather
+// than restated, so this predicate and the generator cannot answer two
+// different trees.
+//
+// The header itself is NOT consulted. An edit that REMOVES a `// Design:` line
+// changes the index as surely as one that adds one, and this is asked after the
+// write, when the removed line is already gone.
+func IsDesignSource(path string) bool {
+	if !strings.HasSuffix(path, ".go") {
+		return false
+	}
+	if path == ModCache || strings.HasPrefix(path, ModCache+"/") {
+		return false
+	}
+	segments := strings.Split(path, "/")
+	for _, name := range segments[:len(segments)-1] {
+		if skipDirs[name] || strings.HasPrefix(name, ".") {
+			return false
+		}
+	}
+	return true
+}

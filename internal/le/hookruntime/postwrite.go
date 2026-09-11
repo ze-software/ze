@@ -2,7 +2,9 @@
 package hookruntime
 
 import (
+	"bytes"
 	stdcontext "context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/le/derived"
 	"github.com/ze-software/ze/internal/le/journal"
 )
 
@@ -235,4 +238,108 @@ func postBoundary(ctx context) *verdict {
 		return &verdict{0, yellow + "⚠️  Numeric validation but no boundary tests in " + filepath.Base(testPath) + reset}
 	}
 	return nil
+}
+
+// tracked answers whether git holds path in its index, relative to root.
+//
+// An error answers TRUE, which is the safe side of this question: the caller
+// removes a file when the answer is false, so an unreadable index must not read
+// as permission to delete. A checkout with no git at all answers true and
+// removes nothing, which is a hook doing less rather than a hook doing harm.
+func tracked(root, path string) bool {
+	// A tree that is not a git checkout holds no index, so nothing in it is
+	// tracked and the question is answered without forking git. A worktree
+	// carries .git as a FILE rather than a directory, so this stats both.
+	//
+	// ABSENT is the only error that means "no index". Any other one means this
+	// process could not look, and the false arm of this function AUTHORIZES A
+	// DELETION, so an unreadable checkout reads as tracked.
+	if _, err := os.Stat(filepath.Join(root, ".git")); err != nil {
+		return !errors.Is(err, os.ErrNotExist)
+	}
+	timeout, cancel := stdcontext.WithTimeout(stdcontext.Background(), gitTimeout)
+	defer cancel()
+	// `ls-files` exits zero whether or not it matched, and prints the path only
+	// when the index holds it, so the OUTPUT is the answer and the exit code
+	// reports whether git ran at all. `--error-unmatch` would conflate the two.
+	command := exec.CommandContext(timeout, "git", "ls-files", "--", path) //nolint:gosec // path is a registered artifact path, and -- ends the option list
+	command.Dir = root
+	listed, err := command.Output()
+	if err != nil {
+		return true
+	}
+	return len(bytes.TrimSpace(listed)) != 0
+}
+
+// ze point: principles/directives/a-wrong-value-must-not-look-like-a-right-one
+// postInvalidateDerived removes every derived artifact the written file feeds.
+//
+// A derived artifact is a pure function of the tree, so the moment one of its
+// inputs moves, the file on disk answers about a tree that no longer exists and
+// nothing says so. Removing it makes the staleness LOUD: the next reader either
+// rebuilds it (preMaterializeDerived) or meets an absent file, and neither is a
+// wrong answer wearing the shape of a right one.
+//
+// Which artifacts a path feeds is the registry's answer, not this function's.
+// Nothing here names an artifact, so a fourth one is a derived.Register call in
+// its own package and no edit to this file.
+func postInvalidateDerived(ctx context) *verdict {
+	if !oneOf(ctx.tool, toolWrite, "Edit") || ctx.path == "" {
+		return nil
+	}
+	written := relativePath(ctx)
+	if written == "" || strings.HasPrefix(written, "../") {
+		return nil
+	}
+
+	// Every artifact is judged, and a refusal over one never ends the pass: the
+	// artifacts are independent, so one left in place says nothing about the
+	// ones behind it. Returning from inside this loop left every artifact after
+	// the first refusal present and stale, which is the wrong answer this check
+	// exists to prevent.
+	artifacts := derived.All()
+	removed := make([]string, 0, len(artifacts))
+	refused := make([]string, 0, len(artifacts))
+	for _, artifact := range artifacts {
+		if !artifact.Feeds(ctx.root, written) {
+			continue
+		}
+		// A TRACKED path is never removed here, whatever the registry says. Git
+		// reads the removal as a deletion to stage, so another session's commit
+		// script would carry it, and this checkout is shared. A registration
+		// whose artifact is still tracked is a migration half done rather than a
+		// license to delete somebody's file (ai/rules/never-destroy-work.md).
+		if tracked(ctx.root, artifact.Path) {
+			refused = append(refused, artifact.Path+
+				" is registered as derived and still TRACKED: untrack it, or drop its derived.Register call")
+			continue
+		}
+		err := os.Remove(filepath.Join(ctx.root, filepath.FromSlash(artifact.Path)))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			// A removal that failed leaves a file describing the tree from
+			// before this write, which a later grep reads as current. The
+			// author is told here rather than by the wrong answer later.
+			refused = append(refused, artifact.Path+" is stale and could not be removed: "+err.Error())
+			continue
+		}
+		removed = append(removed, artifact.Path)
+	}
+
+	if len(refused) == 0 {
+		if len(removed) == 0 {
+			return nil
+		}
+		return &verdict{0, dim + "derived: removed " + strings.Join(removed, ", ") +
+			" (rebuilt when a command names one)" + reset}
+	}
+	// One verdict carries both halves. An author told only about the refusal
+	// cannot tell whether the rest of the pass ran.
+	message := yellow + bold + "⚠ derived: " + strings.Join(refused, "\n  ") + reset
+	if len(removed) != 0 {
+		message += "\n  " + dim + "removed " + strings.Join(removed, ", ") + reset
+	}
+	return &verdict{1, message}
 }

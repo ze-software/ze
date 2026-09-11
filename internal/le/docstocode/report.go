@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/derived"
 )
 
 // ErrNoAIDir says the tree holds no ai/ directory, so there is nowhere for the
@@ -77,7 +78,7 @@ func Check(root string) (Report, error) {
 	current, err := os.ReadFile(out) //nolint:gosec // the index of the tree the caller named
 	switch {
 	case errors.Is(err, os.ErrNotExist):
-		if err := os.WriteFile(out, []byte(content), 0o600); err != nil {
+		if err := derived.WriteAtomic(out, []byte(content)); err != nil {
 			return Report{}, err
 		}
 		report.Generated = true
@@ -100,7 +101,7 @@ func Update(root string) (Report, error) {
 	}
 
 	out := filepath.Join(root, filepath.FromSlash(OutputRel))
-	if err := os.WriteFile(out, []byte(content), 0o600); err != nil {
+	if err := derived.WriteAtomic(out, []byte(content)); err != nil {
 		return Report{}, err
 	}
 	report.Written = true

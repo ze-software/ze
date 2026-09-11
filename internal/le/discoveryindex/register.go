@@ -8,12 +8,13 @@ package discoveryindex
 import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/le/derived"
 	"github.com/ze-software/ze/internal/le/leroot"
 )
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		Description: "the generated package map in ai/PACKAGE-MAP.md: check it against the tree, or rewrite it",
+		Description: "the generated package map in ai/PACKAGE-MAP.md: rewrite it from the tree",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
@@ -31,4 +32,13 @@ func init() {
 	// registers the command. A claim whose command never registered is red, so
 	// the count cannot fall for a tool nothing can reach.
 
+	// The map is DERIVED, so it is not tracked and no gate compares a
+	// re-render against a committed copy. A write to a file it takes text from
+	// deletes it, and a command that names it rebuilds it before that command
+	// runs.
+	derived.Register(derived.Artifact{
+		Path:    OutputRel,
+		Feeds:   func(_, path string) bool { return IsSourcePath(path) },
+		Rebuild: func(root string) error { _, err := Update(root); return err },
+	})
 }

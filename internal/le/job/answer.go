@@ -35,10 +35,11 @@ const usageLine = "usage: le job run label <label> [quiet] command <argv...>"
 // Answer is the command. It admits and runs one job. It reports the result and
 // the job's exit code.
 //
-// The exit code belongs to the JOB, and this command returns it unchanged. The
-// discovery-index check exits 0 for fresh, 3 for stale and 1 when the generator
-// itself fails. internal/le/commit/actions.go blocks on 3 but treats 1 as a
-// warning.
+// The exit code belongs to the JOB, and this command returns it unchanged. A
+// generator says which failure it met through that code: `le discovery-index
+// update` exits 1 when the tree holds no ai/ directory and 2 when the tree
+// cannot be read, and a caller that flattened the two could not tell an
+// incomplete scan from a tree with nowhere to write.
 func Answer(args []string) (any, int) {
 	if len(args) == 0 {
 		return actions(), 0

@@ -217,19 +217,18 @@ func TestAnEmbedOnlyDirectoryEarnsNoRow(t *testing.T) {
 	}
 }
 
-func TestCheckAndUpdateAgreeAboutOneTree(t *testing.T) {
+// TestUpdateWritesAMapOfTheTreeItRead is what remains of the pair that used to
+// check a committed copy and then repair it.
+//
+// The map is DERIVED and untracked, so there is no stored copy to compare
+// against: the walk that once decided the verdict now writes the answer. What
+// is owed is that the file Update leaves behind describes the tree it read, and
+// that the report says a write happened.
+func TestUpdateWritesAMapOfTheTreeItRead(t *testing.T) {
 	root := tree(t, map[string]string{
 		"ai/.keep":                     "",
 		"internal/core/thing/thing.go": "// Package thing does a thing.\npackage thing\n",
 	})
-
-	stale, err := Check(root)
-	if err != nil {
-		t.Fatalf("Check: %v", err)
-	}
-	if !stale.Stale {
-		t.Error("an index that is not there reads as current")
-	}
 
 	written, err := Update(root)
 	if err != nil {
@@ -239,12 +238,15 @@ func TestCheckAndUpdateAgreeAboutOneTree(t *testing.T) {
 		t.Error("Update did not report writing")
 	}
 
-	fresh, err := Check(root)
+	body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(OutputRel))) //nolint:gosec // a fixture path this test built under t.TempDir()
 	if err != nil {
-		t.Fatalf("Check after Update: %v", err)
+		t.Fatalf("read the index Update wrote: %v", err)
 	}
-	if fresh.Stale {
-		t.Error("the index Update just wrote reads as stale")
+	if !strings.Contains(string(body), "internal/core/thing") {
+		t.Errorf("the map does not describe the package it was built from:\n%s", body)
+	}
+	if string(body) != Render(written.Packages) {
+		t.Error("the file on disk and the report disagree about the same walk")
 	}
 }
 
@@ -253,8 +255,8 @@ func TestAnswerRefusesATreeWithNoAIDirectory(t *testing.T) {
 		"internal/core/thing/thing.go": "// Package thing does a thing.\npackage thing\n",
 	})
 
-	if _, err := Check(root); !errors.Is(err, ErrNoAIDir) {
-		t.Errorf("Check answered %v over a tree with nowhere to put the index", err)
+	if _, err := Update(root); !errors.Is(err, ErrNoAIDir) {
+		t.Errorf("Update answered %v over a tree with nowhere to put the index", err)
 	}
 }
 
@@ -372,7 +374,7 @@ func TestReportIsStructuredDataWithKebabCaseKeys(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the payload does not encode: %v", err)
 	}
-	for _, want := range []string{`"file"`, `"packages"`, `"path"`, `"responsibility"`, `"registered"`, `"todo"`, `"stale"`, `"written"`} {
+	for _, want := range []string{`"file"`, `"packages"`, `"path"`, `"responsibility"`, `"registered"`, `"todo"`, `"written"`} {
 		if !strings.Contains(string(raw), want) {
 			t.Errorf("the payload has no %s key: %s", want, raw)
 		}
@@ -382,35 +384,37 @@ func TestReportIsStructuredDataWithKebabCaseKeys(t *testing.T) {
 	}
 }
 
-func TestTheAreaHoldsBothNativeActionsAndOnlyUpdateWrites(t *testing.T) {
+// TestTheAreaHoldsOnlyTheWritingAction pins the surface after the check verb
+// was deleted with the map's tracked copy.
+//
+// A `check` re-rendered the whole map to compare it against the committed file,
+// and there is no committed file: the map is DERIVED, invalidated by a write to
+// one of its inputs and rebuilt by a command that names it. Leaving the verb in
+// place would offer a verdict nothing can now act on.
+func TestTheAreaHoldsOnlyTheWritingAction(t *testing.T) {
 	list := Actions()
 
-	if len(list.Actions) != 2 {
-		t.Fatalf("the area holds %d actions, want two", len(list.Actions))
+	if len(list.Actions) != 1 {
+		t.Fatalf("the area holds %d actions, want one: %+v", len(list.Actions), list.Actions)
 	}
-	for _, row := range list.Actions {
-		switch row.Verb {
-		case "check":
-			if row.Writes {
-				t.Error("check is marked as writing")
-			}
-		case "update":
-			if !row.Writes {
-				t.Error("update is not marked as writing")
-			}
-		default:
-			t.Errorf("an unexpected action: %+v", row)
-		}
+	if list.Actions[0].Verb != "update" {
+		t.Errorf("the one action is %q, want update", list.Actions[0].Verb)
+	}
+	if !list.Actions[0].Writes {
+		t.Error("update is not marked as writing")
 	}
 	if !strings.Contains(Subs(), "update (writes)") {
 		t.Errorf("help does not say which action writes: %q", Subs())
 	}
 }
 
-func TestAStaleIndexAnswersTheCodeTheCommitGateReads(t *testing.T) {
-	// 3 rather than 1, because the commit gate BLOCKS on drift and stays
-	// warn-only on a generator that failed. A flattened 1 turns a blocking gate
-	// into an advisory one.
+// TestADriftedIndexIsRewrittenRatherThanJudged is what replaced the stale-exit
+// contract.
+//
+// The command used to answer 3 for drift, which the commit gate blocked on.
+// Nothing compares the map against a stored copy now, so the only answer a
+// caller can get is the rewrite, and the assertion is that the rewrite lands.
+func TestADriftedIndexIsRewrittenRatherThanJudged(t *testing.T) {
 	root := tree(t, map[string]string{
 		"ai/PACKAGE-MAP.md":            "stale\n",
 		"internal/core/thing/thing.go": "// Package thing does a thing.\npackage thing\n",
@@ -419,10 +423,17 @@ func TestAStaleIndexAnswersTheCodeTheCommitGateReads(t *testing.T) {
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	if _, code := Answer([]string{"check"}); code != StaleExit {
-		t.Errorf("a stale index answered %d, want %d", code, StaleExit)
+	if _, code := Answer([]string{"check"}); code != 2 {
+		t.Errorf("the deleted check verb answered %d, want 2 for an unknown action", code)
 	}
 	if _, code := Answer([]string{"update"}); code != 0 {
-		t.Errorf("update answered %d over a stale index", code)
+		t.Errorf("update answered %d over a drifted index", code)
+	}
+	body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(OutputRel))) //nolint:gosec // a fixture path this test built under t.TempDir()
+	if err != nil {
+		t.Fatalf("read the rewritten index: %v", err)
+	}
+	if !strings.Contains(string(body), "internal/core/thing") {
+		t.Errorf("the drifted index was not replaced by a map of the tree:\n%s", body)
 	}
 }

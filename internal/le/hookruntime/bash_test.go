@@ -266,3 +266,95 @@ func TestSpecValidationReachesEveryReleaseBucket(t *testing.T) {
 		})
 	}
 }
+
+// TestReadingAnAbsentArtifactMaterializesItBeforeTheCommandRuns drives the read
+// half of the derived-artifact loop.
+//
+// A session's edits leave the artifact absent, so the grep that follows would
+// read nothing. The hook runs BEFORE the command, which is what makes the
+// rebuild reach the command rather than the one after it.
+func TestReadingAnAbsentArtifactMaterializesItBeforeTheCommandRuns(t *testing.T) {
+	root := derivedFixture(t)
+	mapPath := filepath.Join(root, "ai", "PACKAGE-MAP.md")
+	if err := os.Remove(mapPath); err != nil {
+		t.Fatalf("clear the fixture map: %v", err)
+	}
+
+	payload := Payload{
+		ToolName:  "Bash",
+		ToolInput: map[string]any{"command": "grep -n 'internal/core/x' ai/PACKAGE-MAP.md"},
+	}
+	code, message, found := Probe("preMaterializeDerived", payload, root)
+	if !found {
+		t.Fatal("preMaterializeDerived is not registered in nativeHookActions")
+	}
+	if code != 0 {
+		t.Fatalf("the hook refused a grep of a registered artifact: %d %s", code, message)
+	}
+
+	body, err := os.ReadFile(mapPath) //nolint:gosec // a fixture path this test built under t.TempDir()
+	if err != nil {
+		t.Fatalf("the artifact the command names was not built: %v", err)
+	}
+	if !strings.Contains(string(body), "internal/core/x") {
+		t.Errorf("the rebuilt map does not describe the fixture tree: %s", body)
+	}
+}
+
+// TestMaterializingLeavesAPresentArtifactAlone is the other polarity: a read
+// must not WRITE.
+//
+// A check that rewrote the artifact on every read would mutate the tree for
+// every grep in a session, which is the `check-mode-mutates-the-tree` failure
+// under a new name. The modification time is the assertion, because a rewrite
+// with identical content is still a write.
+func TestMaterializingLeavesAPresentArtifactAlone(t *testing.T) {
+	root := derivedFixture(t)
+	before := artifactStamp(t, root, "ai/PACKAGE-MAP.md")
+
+	payload := Payload{
+		ToolName:  "Bash",
+		ToolInput: map[string]any{"command": "grep -n 'internal/core/x' ai/PACKAGE-MAP.md"},
+	}
+	code, message, found := Probe("preMaterializeDerived", payload, root)
+	if !found {
+		t.Fatal("preMaterializeDerived is not registered in nativeHookActions")
+	}
+	if code != 0 {
+		t.Fatalf("the hook refused a grep of a present artifact: %d %s", code, message)
+	}
+
+	if now := artifactStamp(t, root, "ai/PACKAGE-MAP.md"); !now.Equal(before) {
+		t.Errorf("reading the artifact rewrote it: %v then %v", before, now)
+	}
+}
+
+// TestAGrepOverTheDirectoryMaterializesTheArtifact covers the command form a
+// session actually types when it does not know which index holds the answer.
+//
+// `grep -rn X ai/` names every artifact without spelling one, so a check that
+// matches the full path alone rebuilds nothing and the recursive grep walks a
+// directory the artifacts are missing from. What comes back is "no match",
+// which is a wrong answer wearing the shape of a right one.
+func TestAGrepOverTheDirectoryMaterializesTheArtifact(t *testing.T) {
+	root := derivedFixture(t)
+	mapPath := filepath.Join(root, "ai", "PACKAGE-MAP.md")
+	if err := os.Remove(mapPath); err != nil {
+		t.Fatalf("clear the fixture map: %v", err)
+	}
+
+	payload := Payload{
+		ToolName:  "Bash",
+		ToolInput: map[string]any{"command": "grep -rn 'internal/core/x' ai/"},
+	}
+	code, message, found := Probe("preMaterializeDerived", payload, root)
+	if !found {
+		t.Fatal("preMaterializeDerived is not registered in nativeHookActions")
+	}
+	if code != 0 {
+		t.Fatalf("the hook refused a recursive grep of the artifact directory: %d %s", code, message)
+	}
+	if _, err := os.Stat(mapPath); err != nil {
+		t.Errorf("a grep of the directory holding the artifact built nothing: %v", err)
+	}
+}

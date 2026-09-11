@@ -8,6 +8,7 @@ package docstocode
 import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/le/derived"
 	"github.com/ze-software/ze/internal/le/leroot"
 )
 
@@ -31,4 +32,18 @@ func init() {
 	// that registers the command. A claim whose command never registered is
 	// red, so the count cannot fall for a tool nothing can reach.
 
+	// Both indexes are DERIVED and untracked since c03dbe18a8. Until the
+	// registry existed, the session-start hook named them in two hardcoded
+	// os.Stat blocks and rebuilt each only when it was ABSENT, so an index that
+	// existed and no longer matched the tree was never rebuilt.
+	derived.Register(derived.Artifact{
+		Path:    OutputRel,
+		Feeds:   func(_, path string) bool { return IsDesignSource(path) },
+		Rebuild: func(root string) error { _, err := Update(root); return err },
+	})
+	derived.Register(derived.Artifact{
+		Path:    CodeOutputRel,
+		Feeds:   func(_, path string) bool { return IsAnchorSource(path) },
+		Rebuild: func(root string) error { _, err := UpdateCodeIndex(root); return err },
+	})
 }

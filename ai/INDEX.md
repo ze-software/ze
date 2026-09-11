@@ -3,8 +3,17 @@
 ## Understand Existing Code (not change it)
 
 Cold-start orientation. Read these to answer "what is here / where does it live"
-before grepping. All three are generated from the tree (`./le discovery-index update`)
-and gated fresh, so they never lie about the current code.
+before grepping. All three are DERIVED from the tree, and git tracks none of
+them.
+
+A `Write` or an `Edit` TOOL call on a file that feeds one removes it. A Bash
+command that names one, or names a directory holding one, rebuilds it before
+that command runs, so a grep reads the current code. A write that reaches the
+file another way (`sed -i`, a heredoc, `git rebase`, `./le repository generate`)
+moves an input with no hook in the path and leaves the index stale until the
+next session start, which rebuilds all three. The `Read` and the `Grep` TOOL
+reach no hook and meet an absent index. Ask the question from Bash instead
+(`docs/contributing/navigating-the-code.md`).
 
 | Question | Read |
 |----------|------|
@@ -236,7 +245,7 @@ Reach for one of these before inventing a new mechanism.
 | Documentation drift and YANG command contracts | `./le doc check verify` |
 | Source-to-document reverse index | `./le docs-to-code index-update`; read `ai/CODE-TO-DOCS.md` |
 | Which tests enforce an RFC MUST, and what the backlog is | `./le rfc index-update`. Read `rfc/requirements/<stem>.md` for one RFC, `ai/RFC-REQUIREMENTS.md` for the rollup over all of them. Coverage is gated by `./le rfc check`, freshness by `./le doc check verify`. Which of those tests is PROVEN to discriminate its claim is `./le rfc discriminate stem <stem>` |
-| What each package does | `./le discovery-index update`; read `ai/PACKAGE-MAP.md` |
+| What each package does | grep `ai/PACKAGE-MAP.md`, which is derived and rebuilt when a Bash command names it. `./le discovery-index update` writes it on demand |
 | Which `.go` files implement a design doc | read `ai/DOCS-TO-CODE.md`, the inverse of `// Design:` |
 | Which problems recur | `./le journal report`; read `plan/journal/`, one file per class, where the row count is the recurrence |
 | Whether every path a tracked file names still resolves | `./le doc check links`. It is its own `./le verify current mode full` stage, and `sweepTracked` in `internal/le/doc/check/links.go` sweeps every tracked file, not only the instruction corpus. Repair the reference, or mark its line with a `doc-links: ignore` marker that states why the path cannot resolve. `vendor/`, `third_party/` and `plan/handover/` are excluded |
@@ -290,7 +299,7 @@ all render it.
 | `./le dash-stdio` | `internal/le/dashstdio.Answer` | every command that takes a filename routes it through the helper that resolves "-", so an operator can always pipe into and out of one |
 | `./le deployment` | `internal/le/deployment.Answer` | ze against a real peer daemon in a container: the protocol proofs that need another implementation to mean anything |
 | `./le digest` | `internal/le/digest.Answer` | every file:line anchor in ai/digests/*.md resolves to a real file and an in-range line |
-| `./le discovery-index` | `internal/le/discoveryindex.Answer` | the generated package map in ai/PACKAGE-MAP.md: check it against the tree, or rewrite it |
+| `./le discovery-index` | `internal/le/discoveryindex.Answer` | the generated package map in ai/PACKAGE-MAP.md: rewrite it from the tree |
 | `./le doc check` | `internal/le/doc/check.Answer` | native documentation links, aggregate verification, and templ output checks |
 | `./le doc wiring` | `internal/le/doc/wiring.Answer` | the changed-file wiring, documentation, command and inventory gate |
 | `./le docs-to-code` | `internal/le/docstocode.Answer` | the two generated doc indexes, ai/DOCS-TO-CODE.md and its reverse ai/CODE-TO-DOCS.md: check either against the tree, or rewrite it |

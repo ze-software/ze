@@ -9,7 +9,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/discoveryindex"
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/testweakened"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
@@ -37,7 +36,6 @@ type Options struct {
 	Unverified          string   `json:"unverified,omitempty"`
 	StructuralRedOK     string   `json:"structural-red-ok,omitempty"`
 	MissingFullVerifyOK string   `json:"missing-full-verify-ok,omitempty"`
-	StaleIndexOK        string   `json:"stale-index-ok,omitempty"`
 	ReviewOverride      string   `json:"review-override,omitempty"`
 	BrokenHeadFix       string   `json:"broken-head-fix,omitempty"`
 	RFCChangeOK         string   `json:"rfc-change-ok,omitempty"`
@@ -261,11 +259,6 @@ func checkSourceGates(root string, options *Options, result *Prepared, paths, re
 		}
 	}
 
-	if options.StaleIndexOK == "" {
-		if err := checkDiscoveryIndex(root, paths); err != nil {
-			return fmt.Errorf("%w\n  or name stale-index-ok with a truthful reason", err)
-		}
-	}
 	if problems := testCoverageProblems(root, paths); len(problems) != 0 &&
 		strings.TrimSpace(options.NoTest) == "" {
 		return fmt.Errorf("%s\n  or name no-test with a truthful reason",
@@ -331,7 +324,6 @@ func checkVerificationGates(root string, options *Options, result *Prepared, pat
 		gateUnverified:          options.Unverified,
 		gateStructuralRedOK:     options.StructuralRedOK,
 		gateMissingFullVerifyOK: options.MissingFullVerifyOK,
-		gateStaleIndexOK:        options.StaleIndexOK,
 		gateReviewOverride:      options.ReviewOverride,
 		gateBrokenHeadFix:       options.BrokenHeadFix,
 		gateRFCChangeOK:         options.RFCChangeOK,
@@ -400,28 +392,6 @@ func owedDebt(session, subject string, overrides, observed map[string]string) []
 		}
 	}
 	return owed
-}
-
-func checkDiscoveryIndex(root string, paths []string) error {
-	required := false
-	for _, path := range paths {
-		content, _ := os.ReadFile(filepath.Join(root, filepath.FromSlash(path))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
-		if discoveryindex.IsSource(path, discoveryindex.HeaderText(string(content))) {
-			required = true
-			break
-		}
-	}
-	if required && !slices.Contains(paths, discoveryindex.OutputRel) {
-		return fmt.Errorf("commit changes an index-feeding source and omits %s", discoveryindex.OutputRel)
-	}
-	report, err := discoveryindex.Check(root)
-	if err != nil {
-		return fmt.Errorf("discovery-index check could not run: %w", err)
-	}
-	if report.Stale {
-		return fmt.Errorf("generated discovery index is stale: %s", report.File)
-	}
-	return nil
 }
 
 func testCoverageProblems(root string, paths []string) []string {

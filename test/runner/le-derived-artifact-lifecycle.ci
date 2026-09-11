@@ -1,0 +1,27 @@
+# One session's loop over a derived artifact: render it, edit an input, read it.
+#
+# The fixture drives the REAL `le hook-check` binary against a scratch checkout
+# and judges the file the hooks leave behind. Three facts are owed, and each has
+# its own marker: a session start renders an artifact the tree does not hold, a
+# write to one of its inputs REMOVES it, and a command naming it rebuilds it
+# before that command runs.
+#
+# The last marker is the one a tracked artifact could never earn. A committed
+# copy answered the read from whatever the previous commit held, with nothing in
+# the tree to say the inputs had moved since.
+#
+# The scenario rides ai/CODE-TO-DOCS.md rather than ai/PACKAGE-MAP.md because the
+# posttool-writeedit chain also lints an edited Go file, which would put
+# golangci-lint's verdict in this loop's exit code. The package map's own loop is
+# proved by TestAGrepAfterAnEditReadsTheEditedPackage
+# (internal/le/derived/derived_test.go), through the same two checks.
+
+option=timeout:value=120s
+
+cmd=foreground:seq=1:exec=ze-test fixture runner/le-derived-artifact-lifecycle
+expect=exit:code=0
+expect=stdout:contains=derived-fixture-ready
+expect=stdout:contains=session-start-rendered-the-artifact
+expect=stdout:contains=input-write-removed-the-artifact
+expect=stdout:contains=read-materialized-the-artifact
+expect=stdout:contains=grep-read-the-edited-tree

@@ -218,6 +218,10 @@ Nothing clears until EVERY piece of the cut has exited 0 over ONE commit. The re
 
 Which gates a verification can re-run is DECLARED by `debtGates` (`internal/le/commit/debt.go`), on a `Runnable` flag beside each gate's Name. A row naming `independent critical review` or `owner approval for an RFC-tagged test change` prints UNRUNNABLE and stays open, because no command produces either: both are acts a person performs.
 
+`discovery-index freshness` prints UNRUNNABLE for the other reason. That gate compared a committed `ai/PACKAGE-MAP.md` against a survey of the tree. It was RETIRED on 2026-09-11, when the map became a derived artifact. The check, the keyword and the verification stage are all deleted, so no commit can owe the row again.
+
+The DECLARATION stays. A gate string no table declares is UNRECOGNIZED and is never cleared. The ledger held 326 rows naming this gate on the day it was retired, 290 of them open. Deleting the declaration would strand every one. They are answered by a discharge, the same way a person-act row is.
+
 A gate string that is neither a declared Name nor a declared alias prints UNRECOGNIZED and is never cleared by a green verify. A name nobody declared says nothing about what ran. The legacy spellings the ledger already holds are declared as ALIASES on the gate they name, so those rows still clear, and `TestEveryLedgerGateNameIsDeclared` (`internal/le/commit/ledger_test.go`) turns a spelling nobody declared into a red test rather than a silent open row. It found the fifth one on 2026-09-08.
 
 A red verification exits non-zero. The pass cleared nothing, so the exit code and the ledger agree.

@@ -21,9 +21,26 @@ const (
 	gateRFCName    = "owner approval for an RFC-tagged test change"
 )
 
-// A gate a verification DOES re-run. A row naming one clears by running it, so
-// no discharge answers it whatever evidence the operator holds.
-const gateRunnableName = "discovery-index freshness"
+// runnableGateName answers a gate debtGates declares RUNNABLE. A row naming one
+// clears by running it, so no discharge answers it whatever evidence the
+// operator holds.
+//
+// It is READ from the table rather than spelled here. It was the literal
+// "discovery-index freshness" until 2026-09-11, when that gate was retired: the
+// check it named is deleted, so no verification re-runs it and the table now
+// declares it unrunnable. The literal did not move with the table, so the case
+// it feeds silently became a second test of the UNRUNNABLE path and reported
+// the product as broken.
+func runnableGateName(t *testing.T) string {
+	t.Helper()
+	for _, gate := range debtGates {
+		if gate.Runnable {
+			return gate.Name
+		}
+	}
+	t.Fatal("debtGates declares no runnable gate, so the case this name feeds cannot run")
+	return ""
+}
 
 const reviewGateArtifact = "| Artifact | `tmp/review/fixture.md` (3 files pinned by SHA-256, verdict clean) |"
 
@@ -793,7 +810,7 @@ func TestADischargeAnswersOnlyAGateNoVerificationRuns(t *testing.T) {
 	root := newDischargeRepository(t)
 	plain := commitFixture(t, root, "a prose edit only",
 		map[string]string{"docs/note.md": "# note\n"}, nil)
-	runnable, runnableLine := debtRowFor(t, root, "a prose edit only", gateRunnableName)
+	runnable, runnableLine := debtRowFor(t, root, "a prose edit only", runnableGateName(t))
 	undeclared, undeclaredLine := debtRowFor(t, root, "a prose edit only", "a gate nobody declared")
 	unrunnable, unrunnableLine := debtRowFor(t, root, "a prose edit only", gateReviewName)
 

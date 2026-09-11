@@ -10,53 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/discoveryindex"
 	"github.com/ze-software/ze/internal/le/lepath"
 	specsession "github.com/ze-software/ze/internal/le/spec/session"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
-
-// TestDiscoveryIndexGateReadsOnlyTheHeaderTheMapDerivesFrom drives the commit
-// gate over three files in one package. The map takes its text from one of
-// them, so only that one may demand a refreshed index.
-//
-// The gate hands the source test whatever text it read, and it used to read the
-// WHOLE file and search it for the marker as a substring. Any Go file that
-// mentioned a package header therefore demanded the index, and so did one whose
-// header sits past the window packageDoc reads. This is the entry point that
-// refused a `go mod vendor` result and refused the repair of its own predicate
-// (plan/journal/gate-fires-outside-its-population.md).
-func TestDiscoveryIndexGateReadsOnlyTheHeaderTheMapDerivesFrom(t *testing.T) {
-	root := t.TempDir()
-	writeCommitFixture(t, root, "ai/.keep", "")
-	writeCommitFixture(t, root, "internal/core/x/x.go", "// Package x does x.\npackage x\n")
-	writeCommitFixture(t, root, "internal/core/x/mentions.go",
-		"// mentions.go explains the `// Package` header it reads.\npackage x\n")
-	writeCommitFixture(t, root, "internal/core/x/late.go",
-		strings.Repeat("// filler\n", discoveryindex.HeaderLines)+"// Package x does x.\npackage x\n")
-	if _, err := discoveryindex.Update(root); err != nil {
-		t.Fatalf("seed the fixture index: %v", err)
-	}
-
-	for _, path := range []string{"internal/core/x/mentions.go", "internal/core/x/late.go"} {
-		if err := checkDiscoveryIndex(root, []string{path}); err != nil {
-			t.Errorf("committing %s alone was refused, and the map takes no text from it: %v", path, err)
-		}
-	}
-	// A bare err != nil is the whole assertion this row can carry, and it is
-	// enough. checkDiscoveryIndex has a second refusal, a stale index, but the
-	// omits-branch returns before the stale check runs, so no fixture state can
-	// answer this row through the other one. Measured 2026-09-08: with the
-	// index left unseeded the two rows ABOVE go red on the stale branch, which
-	// is where a drifted fixture shows up, and reordering the two branches
-	// leaves this row green because the seeded index is fresh. An assertion on
-	// the message would therefore need the reorder AND a stale index together,
-	// which no run here reaches, so it would never fail and would read as
-	// coverage it does not have.
-	if err := checkDiscoveryIndex(root, []string{"internal/core/x/x.go"}); err == nil {
-		t.Error("the file the map derives its row from did not demand a refreshed index")
-	}
-}
 
 func TestNormalizePathRefusesNonFilePopulations(t *testing.T) {
 	t.Parallel()
@@ -217,7 +174,7 @@ func TestCreateRefusesChargedStructuralRedWithoutRecordedOverride(t *testing.T) 
 	}]}`)
 	options := Options{
 		Subject: "charged red", Files: []string{"mine.txt"},
-		StaleIndexOK: "fixture repository has no generated index", DryRun: true,
+		DryRun: true,
 	}
 	if _, err := Create(root, &options); err == nil || !strings.Contains(err.Error(), "deterministic structural gate") {
 		t.Fatalf("Create structural refusal = %v", err)
@@ -283,7 +240,7 @@ func TestCreateDryRunBuildsExactScriptWithoutTouchingSharedIndex(t *testing.T) {
 
 	prepared, err := Create(root, &Options{
 		Subject: "prepare exact commit", Files: []string{"mine name.txt"},
-		StaleIndexOK: "fixture repository has no generated index", DryRun: true,
+		DryRun: true,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -604,7 +561,6 @@ func TestCreateRefusesBadTagBeforeRecordingDebt(t *testing.T) {
 
 	options := Options{
 		Tag: "fix(bgp)", Subject: "parenthesised tag", Files: []string{"mine.txt"},
-		StaleIndexOK:    "fixture repository has no generated index",
 		StructuralRedOK: "fixture repository carries no gate record",
 	}
 	_, err := Create(root, &options)
@@ -692,14 +648,77 @@ func TestCreateOutsideTheZeCheckoutSkipsTheGatesThatReadZeSources(t *testing.T) 
 	}
 
 	// The discrimination: the same call in a tree that IS the Ze checkout still
-	// meets the discovery-index gate, so the skip is keyed to the tree and not
-	// to the absence of an ai/ directory.
+	// runs the verification gates, so the skip is keyed to the tree rather than
+	// to what the fixture happens to hold. The gate that answers here is the
+	// verification certificate: no fixture carries a FRESH-green one, so the
+	// commit owes debt and the ledger is written under the checkout.
+	//
+	// It was the discovery-index gate until 2026-09-11, which refused outright
+	// with "the tree holds no ai/ directory". That gate is deleted, and the map
+	// it compared is derived rather than committed.
 	checkout := newCommitRepository(t)
 	writeCommitFixture(t, checkout, "index.html", "<p>published</p>\n")
-	if _, err := Create(checkout, &Options{
+	inside, err := Create(checkout, &Options{
 		Subject: "site: publish the generated tree", Files: []string{"index.html"},
-	}); err == nil {
-		t.Fatal("Create skipped the discovery-index gate inside the Ze checkout")
+	})
+	if err != nil {
+		t.Fatalf("Create refused a commit inside the Ze checkout: %v", err)
+	}
+	if len(inside.Debt) == 0 {
+		t.Fatal("Create skipped the verification gates inside the Ze checkout")
+	}
+	if _, err := os.Stat(filepath.Join(checkout, "plan", "verification-debt")); err != nil {
+		t.Fatalf("the ledger was not written inside the Ze checkout: %v", err)
+	}
+}
+
+// TestACommitChangingAPackageCommentNeedsNoIndex is user story 2.
+//
+// A commit that edits the `// Package` comment the map quotes used to be
+// refused with "commit changes an index-feeding source and omits
+// ai/PACKAGE-MAP.md", and the author then either regenerated a map from a
+// SHARED working tree, carrying other sessions' packages into it, or spent
+// stale-index-ok on it. The map is derived now, so the commit owes it nothing.
+func TestACommitChangingAPackageCommentNeedsNoIndex(t *testing.T) {
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "commit-derived-map-fixture")
+	root := newCommitRepository(t)
+	writeCommitFixture(t, root, "ai/.keep", "")
+	writeCommitFixture(t, root, "internal/core/x/x.go", "// Package x does x.\npackage x\n")
+	// The test-coverage gate is a DIFFERENT live gate over the same commit, and
+	// it refuses Go with no test. Satisfying it keeps this test about the index.
+	writeCommitFixture(t, root, "internal/core/x/x_test.go", "package x\n")
+
+	prepared, err := Create(root, &Options{
+		Subject: "core: x says what it does",
+		Files:   []string{"internal/core/x/x.go", "internal/core/x/x_test.go"},
+	})
+	if err != nil {
+		t.Fatalf("Create refused a commit that changes a package comment: %v", err)
+	}
+	if slices.Contains(prepared.Added, "ai/PACKAGE-MAP.md") {
+		t.Error("the prepared commit carries the derived map")
+	}
+	for _, row := range prepared.Debt {
+		if row.Gate == "discovery-index freshness" {
+			t.Errorf("the commit owes a gate nothing can now run: %#v", row)
+		}
+	}
+}
+
+// TestStaleIndexOKIsNotAKeyword pins that the override went with its gate.
+//
+// A keyword whose gate is deleted is worse than no keyword: it parses, it is
+// recorded as a debt reason, and it says a check was overridden when no check
+// ran. parseCreate refuses an undeclared keyword, so the absence is testable.
+func TestStaleIndexOKIsNotAKeyword(t *testing.T) {
+	t.Parallel()
+	if _, err := parseCreate([]string{"subject", "s", "file", "a", "stale-index-ok", "why"}); err == nil {
+		t.Fatal("parseCreate accepted stale-index-ok, whose gate is deleted")
+	}
+	// The discrimination: a keyword that IS declared still parses, so the
+	// refusal above is about this one name and not about the shape of the call.
+	if _, err := parseCreate([]string{"subject", "s", "file", "a", "unverified", "why"}); err != nil {
+		t.Fatalf("parseCreate refused a declared override keyword: %v", err)
 	}
 }
 

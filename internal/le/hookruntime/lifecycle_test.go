@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/derived"
 )
 
 // TestSessionHookCountsNoDischargedRowAsOwed drives the third consumer of the
@@ -20,9 +22,12 @@ import (
 // same shard with no discharge record still warns.
 func TestSessionHookCountsNoDischargedRowAsOwed(t *testing.T) {
 	root := t.TempDir()
-	// The hook builds ai/DOCS-TO-CODE.md when it is absent, which has nothing to
-	// do with the ledger and would read a tree this fixture does not hold.
-	writeHookFixture(t, root, "ai/DOCS-TO-CODE.md", "# derived\n")
+	// The hook builds every registered derived artifact that is absent, which
+	// has nothing to do with the ledger and would read a tree this fixture does
+	// not hold. Seeding them keeps this test about the ledger alone.
+	for _, artifact := range derived.All() {
+		writeHookFixture(t, root, artifact.Path, "# derived\n")
+	}
 
 	const row = "| 2026-09-08 | aaaaaaaa | a commit | independent critical review | no reviewer | open |"
 	writeHookFixture(t, root, "plan/verification-debt/aaaaaaaa.md",
@@ -62,5 +67,66 @@ func writeHookFixture(t *testing.T, root, path, content string) {
 	}
 	if err := os.WriteFile(full, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestSessionStartBuildsEveryRegisteredDerivedArtifact proves the session hook
+// reads the registry rather than a list of names.
+//
+// Two hardcoded os.Stat blocks named ai/DOCS-TO-CODE.md and ai/CODE-TO-DOCS.md
+// until 2026-09-11, so a third artifact was absent at every session start until
+// somebody edited this hook. The assertion is over derived.All(), which is why
+// a fourth artifact moves this test with it and needs no line here.
+func TestSessionStartBuildsEveryRegisteredDerivedArtifact(t *testing.T) {
+	root := derivedFixture(t)
+	artifacts := derived.All()
+	if len(artifacts) == 0 {
+		t.Fatal("the registry is empty, so this test asserts nothing")
+	}
+	for _, artifact := range artifacts {
+		if err := os.Remove(filepath.Join(root, filepath.FromSlash(artifact.Path))); err != nil {
+			t.Fatalf("clear %s: %v", artifact.Path, err)
+		}
+	}
+
+	printed := runSessionStart(t, root)
+
+	for _, artifact := range artifacts {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(artifact.Path))); err != nil {
+			t.Errorf("%s is still absent after a session start: %v", artifact.Path, err)
+		}
+		if !strings.Contains(printed, "Built "+artifact.Path) {
+			t.Errorf("the hook printed no line for %s:\n%s", artifact.Path, printed)
+		}
+	}
+}
+
+// TestSessionStartRebuildsAPresentArtifact covers the artifact that is STALE
+// rather than absent.
+//
+// Invalidation is keyed to the Write and Edit tools, so `sed -i`, a heredoc,
+// `git rebase`, `git stash pop` and `./le repository generate` each move an
+// input with no hook in the path, and each leaves the artifact present. The
+// read half rebuilds only an ABSENT one, so an absent-only session start let
+// such an artifact answer from before the edit for the rest of the checkout's
+// life. Rebuilding unconditionally is what bounds that to one session.
+func TestSessionStartRebuildsAPresentArtifact(t *testing.T) {
+	root := derivedFixture(t)
+	stale := filepath.Join(root, "ai", "DOCS-TO-CODE.md")
+	if err := os.WriteFile(stale, []byte("written by something no hook saw\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	runSessionStart(t, root)
+
+	body, err := os.ReadFile(stale) //nolint:gosec // a fixture path this test built under t.TempDir()
+	if err != nil {
+		t.Fatalf("read the artifact after the session start: %v", err)
+	}
+	if strings.Contains(string(body), "no hook saw") {
+		t.Errorf("a present artifact was left as an unhooked write left it:\n%s", body)
+	}
+	if !strings.Contains(string(body), "internal/core/x/x.go") {
+		t.Errorf("the rebuilt artifact does not describe the fixture tree:\n%s", body)
 	}
 }

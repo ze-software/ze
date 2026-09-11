@@ -66,7 +66,7 @@ check's row cannot survive it.
 
 ## PreToolUse: Bash (`internal/le/hookruntime/bash.go`)
 
-<!-- source: internal/le/hookruntime/bash.go -- bashWorktreeCopy, bashDestructiveGit, bashBranchMove, bashRootBuild, bashLossyPipe, bashRawHeavy, bashPollLoop, bashSystemTmp, bashScratch, bashTestDeletion, bashGovernedWrite -->
+<!-- source: internal/le/hookruntime/bash.go -- bashWorktreeCopy, bashDestructiveGit, bashBranchMove, bashRootBuild, bashLossyPipe, bashRawHeavy, bashPollLoop, bashSystemTmp, bashScratch, bashTestDeletion, bashGovernedWrite, preMaterializeDerived -->
 
 | Check | Enforces | What it refuses |
 |---|---|---|
@@ -81,6 +81,7 @@ check's row cannot survive it.
 | `bashScratch` | `commands.md` | Ad-hoc scratch written at the `tmp/` root. Sessions share that tree, so an unqualified name collides. |
 | `bashTestDeletion` | `testing.md` | Deleting a test without approval. A deleted test is indistinguishable from a test that never existed. |
 | `bashGovernedWrite` | `commands.md` | A shell write into `plan/` or `ai/rules/`. Those trees are guarded by the Write/Edit hook, and a shell write runs none of its checks. |
+| `preMaterializeDerived` | `principles.md` | A command naming a derived artifact the tree does not hold. It rebuilds the artifact first, and refuses the command when the rebuild fails, because a grep of an absent file answers "no match" for a tree nobody rendered. |
 
 ## PreToolUse: Write/Edit (`internal/le/hookruntime/writeedit.go`)
 
@@ -118,7 +119,7 @@ its native verification action.
 
 ## PostToolUse: Write/Edit (`internal/le/hookruntime/postwrite.go`)
 
-<!-- source: internal/le/hookruntime/postwrite.go -- postFormatGo, postFileSize, postDeferral, postJournal, postRFCHeader, postTestDocs, postFuzz, postVague, postBoundary -->
+<!-- source: internal/le/hookruntime/postwrite.go -- postFormatGo, postFileSize, postDeferral, postJournal, postRFCHeader, postTestDocs, postFuzz, postVague, postBoundary, postInvalidateDerived -->
 
 | Check | Enforces | What it does |
 |---|---|---|
@@ -131,6 +132,7 @@ its native verification action.
 | `postFuzz` | advisory, no rule point | Reports a wire parser whose package carries no fuzz target. |
 | `postVague` | Go style guidance, no rule point | Reports a vague variable name in the edited Go file. |
 | `postBoundary` | advisory, no rule point | Reports numeric validation whose sibling test names no boundary. |
+| `postInvalidateDerived` | `principles.md` | Removes every derived artifact the written file feeds, so a later reader rebuilds it rather than reading a map of the tree as it stood before the edit. |
 
 ## Lifecycle actions (`internal/le/hookruntime/lifecycle.go`)
 
@@ -174,7 +176,6 @@ the shared staging area. A refused gate writes no script.
 |---|---|---|
 | test-weakening | `testweakened.ProspectiveCommit`, `testweakened.CheckCommit` | none |
 | rfc-changed | `rfcChangeProblems` (`rfcchange.go`) | `rfc-change-ok` |
-| discovery-index | `checkDiscoveryIndex` (`prepare.go`) | `stale-index-ok` |
 | test-coverage | `testCoverageProblems` (`prepare.go`) | `no-test` |
 | verify-status | `verificationState` (`verification.go`) | `unverified`, `missing-full-verify-ok` |
 | structural-gate | `structuralGateReds` (`verification.go`) | `structural-red-ok`, `broken-head-fix` |
@@ -183,7 +184,7 @@ the shared staging area. A refused gate writes no script.
 <!-- source: internal/le/commit/debt.go -- debtGates, recordDebt, openDebt -->
 An override does not discharge the obligation. `recordDebt` writes one row per
 overridden gate under `plan/verification-debt/`, and `openDebt` refuses a push
-while any row is open. `debtGates` names the seven keys above.
+while any row is open. `debtGates` names the six keys above, plus `stale-index-ok`, whose gate was deleted on 2026-09-11 and whose declaration survives so the ledger rows already naming it stay clearable.
 
 The review gate runs only for a closure commit, which `closureStem` identifies.
 `ROUND_CAP` and `cmd_record` in `internal/le/spec/session/review.go` price the

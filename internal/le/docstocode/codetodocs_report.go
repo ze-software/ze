@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/derived"
 )
 
 // StaleRef is one document line naming a code path that no longer exists.
@@ -266,7 +267,7 @@ func UpdateCodeIndex(root string) (CodeReport, error) {
 	}
 
 	out := filepath.Join(root, filepath.FromSlash(CodeOutputRel))
-	if err := os.WriteFile(out, []byte(renderCodeIndex(index)), 0o600); err != nil {
+	if err := derived.WriteAtomic(out, []byte(renderCodeIndex(index))); err != nil {
 		return CodeReport{}, err
 	}
 

@@ -131,9 +131,15 @@ gokrazy/ze/builddir/github.com/ze-software/ze/go.sum
 
 # Derived documentation indexes, generated on demand and never committed.
 # `./le docs-to-code update` and `./le docs-to-code index-update` write them
-# from Go design headers and source anchors.
+# from Go design headers and source anchors, and `./le discovery-index update`
+# writes the package map from the package doc comments.
+#
+# Each one is registered in internal/le/derived, so a write to a file that feeds
+# one REMOVES it and a command that names one REBUILDS it. Nothing compares a
+# re-render against a committed copy, because there is no committed copy.
 /ai/DOCS-TO-CODE.md
 /ai/CODE-TO-DOCS.md
+/ai/PACKAGE-MAP.md
 
 # meta/ca holds a REAL PKI root private key, so a stray one must never be
 # committable. LoadOrGenerateRootFor (internal/component/pki/ca.go) writes the

@@ -33,7 +33,7 @@ func TestFullStagesMatchesNativeActionPopulation(t *testing.T) {
 		"doc check/templ-output", "vendor-web/check", "web-assets/check",
 		"docs-to-code/index-check", "rules/render-check", "rules/index-check",
 		"rules/condensed-check", "rules/lint", "arch-map/check",
-		"discovery-index/check", "test-health/check", "site facts/check",
+		"test-health/check", "site facts/check",
 		"htmx-upgrade/check", "verify deps/evidence-vet", "hook-check/unit",
 		"verify deps/vulnerability", "verify deps/unit-cached",
 		"verify deps/unit-race-changed", "verify deps/alloc", "functional/gating",

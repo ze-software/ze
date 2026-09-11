@@ -17,7 +17,6 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/digest"
-	"github.com/ze-software/ze/internal/le/discoveryindex"
 	"github.com/ze-software/ze/internal/le/docstocode"
 	"github.com/ze-software/ze/internal/le/docvalid"
 	"github.com/ze-software/ze/internal/le/journal"
@@ -262,15 +261,6 @@ func rulesDigestStage(root string) (any, int) {
 func discoveryIndexesStage(root string) (any, int) {
 	var out textbuf.Buffer
 	failed := false
-
-	packageMap, err := discoveryindex.Check(root)
-	if err != nil {
-		out.Str(prose(errorPage(err)))
-		failed = true
-	} else {
-		out.Str(prose(packageMap))
-		failed = failed || packageMap.Stale
-	}
 
 	docsToCode, err := docstocode.Check(root)
 	if err != nil {

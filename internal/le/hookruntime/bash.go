@@ -2,13 +2,16 @@
 package hookruntime
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"unicode"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/derived"
 )
 
 var (
@@ -659,4 +662,92 @@ func bashGovernedWrite(ctx context) *verdict {
 
 func scratchMessage(path string) string {
 	return fmt.Sprintf("%s%s❌ Refused: ad-hoc scratch at the tmp/ root: %s%s", red, bold, path, reset)
+}
+
+// ze point: principles/directives/a-wrong-value-must-not-look-like-a-right-one
+// preMaterializeDerived rebuilds every registered artifact the command names
+// and the tree does not hold.
+//
+// This is the read half of the derived-artifact loop. postInvalidateDerived
+// removes an artifact whenever one of its inputs is written, so an artifact is
+// absent for most of a session, and a grep would otherwise read nothing. The
+// rebuild runs BEFORE the command, so what the command reads describes the tree
+// as it now stands rather than as it stood at the last commit.
+//
+// A PRESENT artifact is left exactly as it is. A read that rewrote it would
+// mutate the tree on every grep, and its content is already correct: the write
+// hook removed it the moment it stopped being correct.
+//
+// A rebuild that fails BLOCKS the command. The alternative is a grep reading a
+// file nobody built, which answers "no match" for a tree the author cannot see,
+// and that answer is indistinguishable from a real absence.
+func preMaterializeDerived(ctx context) *verdict {
+	command := stringInput(ctx.input, "command")
+	if command == "" {
+		return nil
+	}
+
+	for _, artifact := range derived.All() {
+		if !commandNamesArtifact(command, artifact.Path) {
+			continue
+		}
+		// A tree that does not hold the artifact's DIRECTORY does not hold the
+		// artifact, so there is no index here to be stale and nothing to build.
+		// Without this, every command naming `ai/` in a scratch checkout a test
+		// or a fixture created was refused for a tree the artifact never lived
+		// in. The grep itself reports a missing path loudly, so the silent
+		// wrong answer this check exists to prevent cannot arise.
+		if _, err := os.Stat(filepath.Join(ctx.root, filepath.FromSlash(pathDirectory(artifact.Path)))); err != nil {
+			continue
+		}
+		_, err := os.Stat(filepath.Join(ctx.root, filepath.FromSlash(artifact.Path)))
+		if err == nil {
+			continue
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return &verdict{2, "❌ Blocked: " + artifact.Path + " cannot be read: " + err.Error() +
+				"\nIt is derived, so the command would judge a tree nobody rendered."}
+		}
+		if err := artifact.Rebuild(ctx.root); err != nil {
+			return &verdict{2, "❌ Blocked: " + artifact.Path + " is derived and could not be built: " + err.Error() +
+				"\nRunning the command now would read an absent file as an empty answer."}
+		}
+	}
+	return nil
+}
+
+// commandNamesArtifact reports whether the command text reaches the artifact,
+// by its own path or by a directory that holds it.
+//
+// The directory half is what a recursive search needs. `grep -rn X ai/` names
+// every artifact under ai/ without spelling one, so matching the full path
+// alone let that command walk a directory the artifacts were missing from and
+// answer "no match" for a tree the author could not see.
+//
+// A directory matches only with its trailing slash. `grep -rn X ai` reaches the
+// same files and is NOT matched, because the bare segment is two letters that
+// appear inside ordinary words, and firing on those would put a rebuild in
+// front of most of the session's commands. The trailing slash is how a
+// directory is written when it is meant as a path.
+func commandNamesArtifact(command, path string) bool {
+	if strings.Contains(command, path) {
+		return true
+	}
+	for directory := pathDirectory(path); directory != ""; directory = pathDirectory(directory) {
+		if strings.Contains(command, directory+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// pathDirectory answers the parent of a slash-separated repository path, and ""
+// when the path has no parent left. filepath.Dir is not used because it answers
+// "." at the top, which is a directory this search must not match.
+func pathDirectory(path string) string {
+	cut := strings.LastIndex(path, "/")
+	if cut <= 0 {
+		return ""
+	}
+	return path[:cut]
 }

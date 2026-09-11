@@ -9,7 +9,8 @@
 // coverage worklist.
 //
 // Nothing here is hand-maintained: `./le discovery-index update` regenerates
-// the map, and `./le discovery-index check` reports stale output.
+// the map, and the hook runtime rebuilds it whenever a command names it and the
+// tree does not hold it.
 //
 // It also answers WHICH changed files can make that map outdated (see
 // sources.go). Python kept that answer in another module because a gate cannot
@@ -38,15 +39,6 @@ import (
 const (
 	// OutputRel is the index this tool writes, relative to the checkout.
 	OutputRel = "ai/PACKAGE-MAP.md"
-
-	// StaleExit means that the committed output no longer matches its sources.
-	// It differs from 1, which means that the generator failed because of a
-	// missing directory, minimal checkout, or crash. The commit gate BLOCKS on
-	// drift but stays warn-only when the generator fails. It once distinguished
-	// them by matching the human-facing warning. A wording change then made a
-	// BLOCKING gate warn-only. The exit code is the contract, and the warning
-	// text CAN change.
-	StaleExit = 3
 
 	// HeaderLines limits the search for the `// Package` block in a file. It is
 	// exported because the Python half states the same CONTRACT value. Output

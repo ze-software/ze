@@ -85,7 +85,6 @@ var generationChecks = []generationAction{
 	{area: areaRules, verb: "index-check", answer: rules.Answer},
 	{area: "rfc", verb: verbCheck, answer: rfc.Answer},
 	{area: "arch-map", verb: verbCheck, answer: archmap.Answer},
-	{area: "discovery-index", verb: verbCheck, answer: discoveryindex.Answer},
 	{area: areaDocsToCode, verb: verbCheck, answer: docstocode.Answer},
 	{area: areaDocsToCode, verb: "index-check", answer: docstocode.Answer},
 	{area: "test-health", verb: verbCheck, answer: testhealth.Answer},

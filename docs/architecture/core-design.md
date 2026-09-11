@@ -94,7 +94,7 @@ Read from the top and stop at the first row that matches.
 
 | # | The area ... | Group |
 |---|--------------|-------|
-| 1 | exists to write a committed file, and checks that file against the tree | `leroot.GroupGenerate` |
+| 1 | exists to write a generated file, tracked or derived on demand | `leroot.GroupGenerate` |
 | 2 | runs tests, proofs, or benchmarks | `leroot.GroupSuite` |
 | 3 | acts on your working state: git, the session, job admission, scratch, a build | `leroot.GroupWorkflow` |
 | 4 | judges the tree and answers a verdict | `leroot.GroupGate` |
@@ -109,6 +109,22 @@ promises. Every area declares a rendered group, and every group is populated. A
 generator can rewrite what it checks. A report writes nothing. An area a
 pre-commit stage invokes is a gate, a generator, or a suite, never workflow or
 report.
+
+**A generated file git does not track declares itself in a second registry, and
+the hooks act on that registry.** `internal/le/derived` holds one `Artifact` per
+such file. It names the output path and the `Rebuild` that writes it. A
+`Feeds(root, path)` predicate answers which files the output is built from. A
+generator registers from the same `init()` as its `leroot.Register`. A new
+derived artifact is therefore one call in the generator's own package, and no
+edit anywhere else.
+
+The registry gives the artifact its lifecycle. A `Write` or an `Edit` to a file
+the predicate accepts REMOVES the artifact. A Bash command that names its path
+REBUILDS it before that command runs. A session start builds every artifact the
+tree does not hold. Nothing compares a re-render against a committed copy,
+because there is no committed copy. `ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`
+and `ai/CODE-TO-DOCS.md` are the three artifacts registered today, and
+`docs/contributing/navigating-the-code.md` is the consumer contract for them.
 
 **A gate reads recorded evidence. A separate verb produces it.** `./le rfc
 check` re-reads a stored proof and compares its fingerprints against the tree;
@@ -157,6 +173,7 @@ under the `testdata/` directory of the Go package that owns them.
 <!-- source: internal/le/leaction/leaction.go -- IsHelpArg, actionUsage -->
 <!-- source: internal/le/leroot/leroot.go -- Register -->
 <!-- source: internal/le/leroot/group.go -- Group, GroupTitle -->
+<!-- source: internal/le/derived/derived.go -- Artifact, Register, All -->
 <!-- source: cmd/ze/ze_le_register.go -->
 
 ---

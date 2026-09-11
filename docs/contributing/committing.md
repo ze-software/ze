@@ -78,16 +78,16 @@ cd ../gh-pages && git -c core.quotePath=false status --porcelain |
 ```
 
 The command also checks verification freshness for the named file population,
-records verification debt rather than dropping a local commit, refuses
-`push` while any debt row is open, and enforces discovery-index freshness. Run
-`./le discovery-index update` when it complains.
+records verification debt rather than dropping a local commit, and refuses
+`push` while any debt row is open.
 
-A row clears by RUNNING the gate it names: `./le commit debt-clear`. Two gates
-name an act a person performs, an independent review and an owner approval, so
-no verification produces them and no clearing pass can reach a row naming one.
-Those rows are answered by `./le commit debt-discharge`, which records HOW the
-obligation was met and re-derives that record from git on every read. The four
-kinds and what re-derives each one are in
+A row clears by RUNNING the gate it names: `./le commit debt-clear`. Three
+gates cannot be re-run. Two name an act a person performs: an independent review
+and an owner approval. The third, `discovery-index freshness`, was retired with
+the check that produced it. No clearing pass can reach a row naming one of the
+three. Those rows are answered by `./le commit debt-discharge`, which
+records HOW the obligation was met and re-derives that record from git on every
+read. The four kinds and what re-derives each one are in
 `docs/architecture/testing/verify-freshness-scope.md`.
 
 ## Worked invocations
@@ -231,11 +231,14 @@ On `gpg failed to sign` or `cannot open /dev/tty`, ask the user to run
 
 ## Rebasing onto a diverged main
 
-A rebase of local commits onto a diverged `origin/main` can re-conflict on the
-one derivable bookkeeping file still tracked, `ai/PACKAGE-MAP.md`. Regenerate it
-with `./le discovery-index update` at each rebase stop and continue. Finish the
-rebase before repairing bookkeeping, never mid-rebase, then regenerate the
-derived indexes and recompute any derived ratchet the rebase loosened.
+A rebase of local commits onto a diverged `origin/main` can re-conflict on a
+generated file git still tracks. The RFC ledger, the rendered rules,
+`docs/features/rfc-status.md` and `docs/features/test-health.md` are the ones to
+expect. Rewrite the conflicted file with its own generator at each rebase stop
+and continue. `ai/PACKAGE-MAP.md` is not one of them any more. It is derived and
+untracked, so a rebase cannot conflict on it. Finish the rebase before repairing
+bookkeeping, never mid-rebase, then recompute any derived ratchet the rebase
+loosened.
 
 `git rebase --continue` refuses with a misleading "You must edit all merge
 conflicts" whenever there are unstaged tracked changes, not only when index

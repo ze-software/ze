@@ -106,7 +106,6 @@ func fullStages() []Stage {
 		stage("rules", "condensed-check"),
 		stage("rules", "lint"),
 		stage("arch-map", "check"),
-		stage("discovery-index", "check"),
 		stage("test-health", "check"),
 		stage("site facts", "check"),
 		stage("htmx-upgrade", "check"),

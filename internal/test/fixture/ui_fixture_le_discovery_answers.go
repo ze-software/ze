@@ -189,38 +189,44 @@ func leDiscoveryAnswers(ctx context.Context) error {
 		return uiLeDiscoveryAnswersFailf("le doc wiring dry-run | yaml was refused: %s%s", wiringYAML.stdout, wiringYAML.stderr)
 	}
 
-	// Over the shared working tree either a current or stale verdict is valid,
-	// but the gate/result boundary and output streams are fixed.
-	verdict := runLE("", "discovery-index", "check")
-	if verdict.code != 0 && verdict.code != 3 {
-		return uiLeDiscoveryAnswersFailf("discovery-index check exited %d, want 0 or 3: %s%s", verdict.code, verdict.stdout, verdict.stderr)
+	// The map is DERIVED and no longer compared against a committed copy, so
+	// `update` is the whole command surface and it is exercised over an export
+	// of HEAD rather than over the shared working tree that other sessions are
+	// editing.
+	answerTree := filepath.Join(here, "discovery-index-answers")
+	if err := exportHEAD(ctx, root, answerTree); err != nil {
+		return uiLeDiscoveryAnswersFailf("exporting HEAD into discovery-index-answers: %v", err)
 	}
-	if verdict.err != nil && verdict.code < 0 {
-		return uiLeDiscoveryAnswersFailf("discovery-index check could not run: %v", verdict.err)
+	verdict := runLE(answerTree, "discovery-index", actionUpdate)
+	if verdict.code != 0 || verdict.err != nil {
+		return uiLeDiscoveryAnswersFailf("discovery-index update exited %d: %s%s", verdict.code, verdict.stdout, verdict.stderr)
 	}
 	if len(verdict.stderr) != 0 {
-		return uiLeDiscoveryAnswersFailf("discovery-index check wrote its verdict to stderr: %s", verdict.stderr)
+		return uiLeDiscoveryAnswersFailf("discovery-index update wrote its verdict to stderr: %s", verdict.stderr)
 	}
 	if len(verdict.stdout) == 0 {
-		return uiLeDiscoveryAnswersFailf("discovery-index check returned an empty verdict")
+		return uiLeDiscoveryAnswersFailf("discovery-index update returned an empty verdict")
 	}
 
 	// One discovery payload supports all three row renderings.
-	report := runLE("", "discovery-index", "check", "|", "json")
-	if report.code != 0 && report.code != 3 {
-		return uiLeDiscoveryAnswersFailf("discovery-index JSON check exited %d: %s%s", report.code, report.stdout, report.stderr)
+	report := runLE(answerTree, "discovery-index", actionUpdate, "|", "json")
+	if report.code != 0 {
+		return uiLeDiscoveryAnswersFailf("discovery-index JSON update exited %d: %s%s", report.code, report.stdout, report.stderr)
 	}
 	if len(report.stderr) != 0 {
-		return uiLeDiscoveryAnswersFailf("discovery-index JSON check wrote to stderr: %s", report.stderr)
+		return uiLeDiscoveryAnswersFailf("discovery-index JSON update wrote to stderr: %s", report.stderr)
 	}
 	var pageFields map[string]json.RawMessage
 	if err := json.Unmarshal(report.stdout, &pageFields); err != nil {
 		return uiLeDiscoveryAnswersFailf("discovery-index JSON is invalid: %v\n%s", err, report.stdout)
 	}
-	for _, key := range []string{fieldFile, fieldPackages, "todo", statusStale, fieldWritten} {
+	for _, key := range []string{fieldFile, fieldPackages, "todo", fieldWritten} {
 		if _, ok := pageFields[key]; !ok {
-			return uiLeDiscoveryAnswersFailf("the gate answered no %q key: %v", key, uiLeDiscoveryAnswersSortedKeys(pageFields))
+			return uiLeDiscoveryAnswersFailf("the generator answered no %q key: %v", key, uiLeDiscoveryAnswersSortedKeys(pageFields))
 		}
+	}
+	if _, ok := pageFields[statusStale]; ok {
+		return uiLeDiscoveryAnswersFailf("the payload still carries a %q key, which nothing can now set", statusStale)
 	}
 	var packages []struct {
 		Path           string `json:"path"`
@@ -237,35 +243,25 @@ func leDiscoveryAnswers(ctx context.Context) error {
 			return uiLeDiscoveryAnswersFailf("a package row is missing its path or its responsibility")
 		}
 	}
-	var stale, written bool
-	if err := json.Unmarshal(pageFields["stale"], &stale); err != nil {
-		return uiLeDiscoveryAnswersFailf("the stale field is not boolean: %v", err)
-	}
+	var written bool
 	if err := json.Unmarshal(pageFields["written"], &written); err != nil {
 		return uiLeDiscoveryAnswersFailf("the written field is not boolean: %v", err)
 	}
-	if written {
-		return uiLeDiscoveryAnswersFailf("check mode reported a write")
-	}
-	wantReportCode := 0
-	if stale {
-		wantReportCode = 3
-	}
-	if report.code != wantReportCode {
-		return uiLeDiscoveryAnswersFailf("the JSON payload says stale=%v but the gate exited %d", stale, report.code)
+	if !written {
+		return uiLeDiscoveryAnswersFailf("update reported no write")
 	}
 
-	counted := runLE("", "discovery-index", "check", "|", "count")
+	counted := runLE(answerTree, "discovery-index", actionUpdate, "|", "count")
 	if strings.TrimSpace(string(counted.stdout)) != fmt.Sprint(len(packages)) {
-		return uiLeDiscoveryAnswersFailf("le discovery-index check | count answered %q for %d packages", counted.stdout, len(packages))
+		return uiLeDiscoveryAnswersFailf("le discovery-index update | count answered %q for %d packages", counted.stdout, len(packages))
 	}
 	for _, operator := range []string{renderYAML, renderTable} {
-		rendered := runLE("", "discovery-index", "check", "|", operator)
+		rendered := runLE(answerTree, "discovery-index", actionUpdate, "|", operator)
 		if len(rendered.stderr) != 0 {
-			return uiLeDiscoveryAnswersFailf("le discovery-index check | %s was refused: %s", operator, rendered.stderr)
+			return uiLeDiscoveryAnswersFailf("le discovery-index update | %s was refused: %s", operator, rendered.stderr)
 		}
 		if len(rendered.stdout) <= 1000 {
-			return uiLeDiscoveryAnswersFailf("le discovery-index check | %s rendered %d bytes", operator, len(rendered.stdout))
+			return uiLeDiscoveryAnswersFailf("le discovery-index update | %s rendered %d bytes", operator, len(rendered.stdout))
 		}
 	}
 
@@ -274,10 +270,13 @@ func leDiscoveryAnswers(ctx context.Context) error {
 	if listing.code != 0 || listing.err != nil {
 		return uiLeDiscoveryAnswersFailf("le discovery-index exited %d: %s%s", listing.code, listing.stdout, listing.stderr)
 	}
-	for _, word := range []string{actionCheck, actionUpdate, wordWrites, fieldChecks} {
+	for _, word := range []string{actionUpdate, wordWrites} {
 		if !bytes.Contains(listing.stdout, []byte(word)) {
 			return uiLeDiscoveryAnswersFailf("the listing does not carry %q:\n%s", word, listing.stdout)
 		}
+	}
+	if bytes.Contains(listing.stdout, []byte("discovery-index "+actionCheck)) {
+		return uiLeDiscoveryAnswersFailf("the listing still offers a check verb:\n%s", listing.stdout)
 	}
 	if got := runLE("", "discovery-index", "nonesuch").code; got != 2 {
 		return uiLeDiscoveryAnswersFailf("an unknown discovery-index action answered %d, want 2", got)
@@ -292,7 +291,10 @@ func leDiscoveryAnswers(ctx context.Context) error {
 		return uiLeDiscoveryAnswersFailf("a keyword with nothing after it was accepted with exit %d", got)
 	}
 
-	// A controlled stale tree fixes the drift verdict at 3 and verifies repair.
+	// A controlled drifted tree proves the repair. The map used to be compared
+	// against its committed copy and the verdict was an exit code; it is now
+	// DERIVED, so what a reader gets is the rewrite, and the assertion is that
+	// the rewritten file describes the tree that produced it.
 	staleTree := filepath.Join(here, "stale")
 	if err := os.RemoveAll(staleTree); err != nil {
 		return uiLeDiscoveryAnswersFailf("clearing stale tree: %v", err)
@@ -313,22 +315,21 @@ func leDiscoveryAnswers(ctx context.Context) error {
 		}
 	}
 
-	drifted := runLE(staleTree, "discovery-index", "check")
-	if drifted.code != 3 {
-		return uiLeDiscoveryAnswersFailf("a stale index answered %d, want 3: %s%s", drifted.code, drifted.stdout, drifted.stderr)
-	}
-	updated := runLE(staleTree, "discovery-index", "update")
+	updated := runLE(staleTree, "discovery-index", actionUpdate)
 	if updated.code != 0 || updated.err != nil {
-		return uiLeDiscoveryAnswersFailf("update did not repair the stale index: %s%s", updated.stdout, updated.stderr)
+		return uiLeDiscoveryAnswersFailf("update did not repair the drifted index: %s%s", updated.stdout, updated.stderr)
 	}
-	current := runLE(staleTree, "discovery-index", "check")
-	if current.code != 0 || current.err != nil {
-		return uiLeDiscoveryAnswersFailf("the index update just wrote still reads as stale: %s%s", current.stdout, current.stderr)
+	repaired, err := os.ReadFile(filepath.Join(staleTree, filepath.FromSlash("ai/PACKAGE-MAP.md"))) //nolint:gosec // the path is the fixture's own scratch file
+	if err != nil {
+		return uiLeDiscoveryAnswersFailf("reading the repaired index: %v", err)
+	}
+	if !strings.Contains(string(repaired), "internal/core/thing") {
+		return uiLeDiscoveryAnswersFailf("the repaired index does not describe the tree it was built from:\n%s", repaired)
 	}
 	for _, operator := range []string{renderJSON, renderYAML, renderTable, pipeCount} {
-		rendered := runLE(staleTree, "discovery-index", "check", "|", operator)
+		rendered := runLE(staleTree, "discovery-index", actionUpdate, "|", operator)
 		if rendered.code != 0 || rendered.err != nil {
-			return uiLeDiscoveryAnswersFailf("le discovery-index check | %s over a current tree exited %d: %s%s", operator, rendered.code, rendered.stdout, rendered.stderr)
+			return uiLeDiscoveryAnswersFailf("le discovery-index update | %s over a current tree exited %d: %s%s", operator, rendered.code, rendered.stdout, rendered.stderr)
 		}
 	}
 

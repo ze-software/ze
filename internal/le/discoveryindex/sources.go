@@ -143,3 +143,36 @@ func feeds(path, headerText string) []string {
 func IsSource(path, headerText string) bool {
 	return len(feeds(path, headerText)) > 0
 }
+
+// IsSourcePath reports whether writing path can change ai/PACKAGE-MAP.md,
+// judged by the PATH alone. It is the predicate the invalidation hook uses.
+//
+// It is deliberately WIDER than IsSource, and the difference is one clause:
+// IsSource asks a non-test `.go` file for a package header, and this does not.
+// A caller with only the post-write text cannot use that clause, because the
+// edit that most obviously drifts the map is the one that DELETES the `//
+// Package` comment: the file on disk then carries no header, IsSource answers
+// false, and the map keeps a summary the tree no longer supports while
+// recordPackage would now render the register.go description or TODO.
+//
+// The two failure modes are not symmetric, which is what decides the trade. An
+// over-wide answer costs ONE rebuild, on a read that was going to happen
+// anyway. An under-wide answer is a stale index nothing announces. Precision is
+// an optimization here; correctness is not.
+//
+// IsSource keeps its exact contract, because the commit-time and doc-wiring
+// callers judge a COMMITTED population and can supply both trees' headers.
+func IsSourcePath(path string) bool {
+	// A derived output feeds itself: a hand edit of it is not evidence about
+	// the tree, so it is discarded rather than kept.
+	if slices.Contains(outputs[:], path) {
+		return true
+	}
+	if !inPopulation(path) {
+		return false
+	}
+	// The generator is covered by the clause below: it is a non-test `.go` file
+	// inside the population, so feeds names it separately only because that
+	// clause has to fire with no text to read.
+	return strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go")
+}

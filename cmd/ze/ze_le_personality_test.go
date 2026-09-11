@@ -92,11 +92,15 @@ func TestStandaloneLeAndZeLeHaveIdenticalSurface(t *testing.T) {
 		})
 	}
 
-	fixture := filepath.Join(dir, "stale-checkout")
+	// A generator failure carries its own exit code through both personalities,
+	// which is the half a zero-exit pair cannot show. The fixture holds Go to
+	// walk and no ai/ directory to write the map into, so the generator answers
+	// 1 rather than refusing the arguments.
+	fixture := filepath.Join(dir, "no-ai-checkout")
 	writePersonalityFixture(t, fixture)
 	env := []string{"ZE_REPO_ROOT=" + fixture}
-	assertInvocationPair(t, standalone, tagged, 3, env,
-		[]string{"discovery-index", "check", "|", "json"})
+	assertInvocationPair(t, standalone, tagged, 1, env,
+		[]string{"discovery-index", "update", "|", "json"})
 }
 
 // TestLeDispatchesNoProductCommand preserves the standalone boundary: a root
@@ -261,7 +265,6 @@ func personalityFeatureTags(t *testing.T, root string) []string {
 func writePersonalityFixture(t *testing.T, root string) {
 	t.Helper()
 	files := map[string]string{
-		"ai/PACKAGE-MAP.md":            "stale\n",
 		"internal/core/thing/thing.go": "// Package thing does a thing.\npackage thing\n",
 	}
 	for relative, content := range files {

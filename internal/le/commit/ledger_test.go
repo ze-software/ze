@@ -184,12 +184,11 @@ func weakenLedgerTest(t *testing.T, root, path, name string) {
 func ledgerCreate(t *testing.T, root, session string, paths ...string) (Prepared, error) {
 	t.Helper()
 	return Create(root, &Options{
-		Session:      session,
-		Subject:      "ledger fixture for session " + session,
-		Files:        paths,
-		NoTest:       "the fixture carries tests only",
-		StaleIndexOK: "the fixture repository has no generated index",
-		Unverified:   "the fixture repository runs no verification",
+		Session:    session,
+		Subject:    "ledger fixture for session " + session,
+		Files:      paths,
+		NoTest:     "the fixture carries tests only",
+		Unverified: "the fixture repository runs no verification",
 	})
 }
 

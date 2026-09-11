@@ -13,7 +13,6 @@ import (
 	commandlist "github.com/ze-software/ze/internal/le/command/list"
 	commandownership "github.com/ze-software/ze/internal/le/command/ownership"
 	"github.com/ze-software/ze/internal/le/digest"
-	"github.com/ze-software/ze/internal/le/discoveryindex"
 	"github.com/ze-software/ze/internal/le/docstocode"
 	"github.com/ze-software/ze/internal/le/docvalid"
 	"github.com/ze-software/ze/internal/le/inventory"
@@ -39,7 +38,6 @@ var goActions = map[string]call{
 	"command ownership":           registered(commandownership.Answer, nil),
 	actionDocCheckVerify:          {answer: answerDocVerify},
 	actionDocsToCodeIndexCheck:    {answer: answerDocIndex},
-	actionDiscoveryIndexCheck:     registered(discoveryindex.Answer, []string{"check"}),
 	actionDigest:                  registered(digest.Answer, nil),
 	actionInventory:               registered(inventory.Answer, nil),
 	actionCommandList:             registered(commandlist.Answer, nil),

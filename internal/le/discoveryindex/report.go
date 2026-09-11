@@ -6,9 +6,7 @@
 //
 // The payload carries the map ITSELF, not its count. The index is the answer
 // that a machine reader requests with `| json`. One key holds the rows so row
-// operators act on the packages. Stale and Written are separate facts. A check
-// reports a stale file without a write. An update reports the stale file that
-// it rewrote.
+// operators act on the packages.
 
 package discoveryindex
 
@@ -18,6 +16,7 @@ import (
 	"path/filepath"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/derived"
 )
 
 // ErrNoAIDir says the tree holds no ai/ directory, so there is nowhere for the
@@ -30,7 +29,6 @@ type Report struct {
 	File     string    `json:"file"`
 	Packages []Package `json:"packages"`
 	Todo     int       `json:"todo"`
-	Stale    bool      `json:"stale"`
 	Written  bool      `json:"written"`
 }
 
@@ -38,37 +36,12 @@ type Report struct {
 // ends in a newline.
 //
 // This is the Prose rendering leroot uses for the bare command, and every pipe
-// operator bypasses it.
+// operator bypasses it. Update is the only writer, so Written is the only
+// state: the map is DERIVED, and nothing compares it against a stored copy.
 func (r Report) Text() string {
 	var tb textbuf.Buffer
-	switch {
-	case r.Written:
-		tb.Str("wrote ").Str(r.File).Str(" (").Int(int64(len(r.Packages))).Str(" packages)")
-	case r.Stale:
-		tb.Str("WARNING: ").Str(r.File).Str(" is stale -- run: ./le discovery-index update")
-	default:
-		tb.Str("checked ").Int(int64(len(r.Packages))).Str(" packages, ").Str(r.File).Str(" up to date")
-	}
+	tb.Str("wrote ").Str(r.File).Str(" (").Int(int64(len(r.Packages))).Str(" packages)")
 	return tb.Byte('\n').String()
-}
-
-// Check reads the tree and reports whether the committed index still matches
-// it. It writes nothing.
-func Check(root string) (Report, error) {
-	report, content, err := survey(root)
-	if err != nil {
-		return Report{}, err
-	}
-
-	current, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(OutputRel))) //nolint:gosec // the index of the tree the caller named
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		// An index that is present and unreadable is not an index that is
-		// missing. Reporting it says which of the two happened, where the
-		// Python half read both as "no current content" and answered stale.
-		return Report{}, err
-	}
-	report.Stale = string(current) != content
-	return report, nil
 }
 
 // Update reads the tree and rewrites the index from it.
@@ -79,7 +52,7 @@ func Update(root string) (Report, error) {
 	}
 
 	out := filepath.Join(root, filepath.FromSlash(OutputRel))
-	if err := os.WriteFile(out, []byte(content), 0o600); err != nil {
+	if err := derived.WriteAtomic(out, []byte(content)); err != nil {
 		return Report{}, err
 	}
 	report.Written = true

@@ -93,7 +93,6 @@ var portedProducers = []portedProducer{
 	{Target: "ze-htmx-upgrade-report", Area: "htmx-upgrade", Verb: "report"},
 	{Target: "ze-arch-map-check", Area: "arch-map", Verb: "check"},
 	{Target: "ze-arch-map-update", Area: "arch-map", Verb: "update"},
-	{Target: "ze-discovery-index-check", Area: "discovery-index", Verb: "check"},
 	{Target: "ze-discovery-index-update", Area: "discovery-index", Verb: "update"},
 	{Target: "ze-ai-skills-sync", Area: "ai", Verb: "skills-sync"},
 	{Target: "ze-ai-sync-check", Area: "ai", Verb: "sync-check"},
@@ -321,6 +320,10 @@ var portedProducers = []portedProducer{
 // retiredProducers is the deliberate not-ported list. Each row states what
 // happened to the job, not that nobody had time for it.
 var retiredProducers = []retiredProducer{
+	{
+		Target: "ze-discovery-index-check",
+		Reason: "the subject is gone: the target compared ai/PACKAGE-MAP.md against a re-render of the tree, and the map is no longer tracked. A write to a file that feeds it removes it (hookruntime.postInvalidateDerived) and a command that names it rebuilds it (hookruntime.preMaterializeDerived), so there is no committed copy for a comparison to judge",
+	},
 	{
 		Target: "help",
 		Reason: "Make itself: the recipe echoed the Makefile's own target list. leroot.Usage prints the command list from the registry, so the list cannot go stale",

@@ -85,7 +85,7 @@ var nativeHookActions = map[string]hookAction{
 		checks: []hookCheck{
 			bashWorktreeCopy, bashDestructiveGit, bashBranchMove, bashRootBuild, bashLossyPipe,
 			bashRawHeavy, bashPollLoop, bashSystemTmp, bashScratch,
-			bashTestDeletion, bashGovernedWrite,
+			bashTestDeletion, bashGovernedWrite, preMaterializeDerived,
 		},
 	},
 	"pretool-writeedit": {
@@ -100,7 +100,7 @@ var nativeHookActions = map[string]hookAction{
 		tools: []string{toolWrite, "Edit"},
 		checks: []hookCheck{
 			postFormatGo, postFileSize, postDeferral, postJournal, postRFCHeader,
-			postTestDocs, postFuzz, postVague, postBoundary,
+			postTestDocs, postFuzz, postVague, postBoundary, postInvalidateDerived,
 		},
 	},
 	"pretool-agent-skill": {

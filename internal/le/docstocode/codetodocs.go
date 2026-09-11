@@ -586,6 +586,14 @@ func sortRefs(refs []Ref) {
 // use this same order.
 func markdownFiles(root string) ([]string, error) {
 	base := filepath.Join(root, docsDir)
+	// A tree with no docs/ holds no anchors, which is an ANSWER rather than a
+	// failure: the honest reverse index for it is empty. Returning the walk's
+	// ErrNotExist conflated "nothing to scan" with "cannot scan", and the hook
+	// that rebuilds this artifact on demand then refused every command naming
+	// ai/ in a checkout that carries no documentation tree.
+	if _, err := os.Stat(base); errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
 	var found []string
 	err := filepath.WalkDir(base, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
@@ -606,4 +614,18 @@ func markdownFiles(root string) ([]string, error) {
 	}
 	slices.Sort(found)
 	return found, nil
+}
+
+// IsAnchorSource reports whether writing path can change ai/CODE-TO-DOCS.md.
+// path is relative to the checkout root, in slash form.
+//
+// The reverse index inverts the `<!-- source: -->` anchors of every markdown
+// file markdownFiles answers, which is every `.md` file under docs/.
+//
+// A gitignored page is dropped by the generator and accepted here, because
+// filterGitignored costs one git child process and this predicate is asked on
+// every edit. The cost of accepting one is a rebuild the next read pays for
+// once; the cost of the git call is paid by every write in the session.
+func IsAnchorSource(path string) bool {
+	return strings.HasPrefix(path, docsDir+"/") && strings.HasSuffix(path, ".md")
 }

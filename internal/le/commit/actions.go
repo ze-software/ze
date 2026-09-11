@@ -293,8 +293,8 @@ func parseCreate(args []string) (Options, error) {
 		"append": {}, "replace": {}, "push": {Value: true}, "no-test": {Value: true},
 		gateUnverified:      {Value: true},
 		gateStructuralRedOK: {Value: true}, gateMissingFullVerifyOK: {Value: true},
-		gateStaleIndexOK: {Value: true}, gateReviewOverride: {Value: true},
-		gateBrokenHeadFix: {Value: true}, gateRFCChangeOK: {Value: true}, "dry-run": {},
+		gateReviewOverride: {Value: true},
+		gateBrokenHeadFix:  {Value: true}, gateRFCChangeOK: {Value: true}, "dry-run": {},
 	}
 	values, err := parseKeywords(args, rules)
 	if err != nil {
@@ -316,8 +316,8 @@ func parseCreate(args []string) (Options, error) {
 		Append: values.has("append"), Replace: values.has("replace"), Push: values.one("push"),
 		NoTest: values.one("no-test"), Unverified: values.one(gateUnverified),
 		StructuralRedOK:     values.one(gateStructuralRedOK),
-		MissingFullVerifyOK: values.one(gateMissingFullVerifyOK), StaleIndexOK: values.one(gateStaleIndexOK),
-		ReviewOverride: values.one(gateReviewOverride), BrokenHeadFix: values.one(gateBrokenHeadFix),
+		MissingFullVerifyOK: values.one(gateMissingFullVerifyOK),
+		ReviewOverride:      values.one(gateReviewOverride), BrokenHeadFix: values.one(gateBrokenHeadFix),
 		RFCChangeOK: values.one(gateRFCChangeOK), DryRun: values.has("dry-run"),
 	}, nil
 }

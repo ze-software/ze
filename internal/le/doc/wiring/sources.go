@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/discoveryindex"
 	"github.com/ze-software/ze/internal/le/spec/specpath"
 )
 
@@ -47,7 +46,6 @@ var actionOrder = [...]string{
 	"command ownership",
 	actionDocCheckVerify,
 	actionDocsToCodeIndexCheck,
-	actionDiscoveryIndexCheck,
 	actionDigest,
 	actionInventory,
 	actionCommandList,
@@ -79,7 +77,6 @@ func selectedActions(root string, changed []string) ([]string, error) {
 		}{
 			{isCommandSource, []string{actionDocvalidCommandContract}},
 			{isDocSource, []string{actionDocCheckVerify, actionDocsToCodeIndexCheck}},
-			{isDiscoverySource, []string{actionDiscoveryIndexCheck}},
 			{isDigestSource, []string{actionDigest}},
 			{isInventorySource, []string{actionInventory, actionCommandList, actionPluginImportsCheck}},
 		} {
@@ -199,31 +196,6 @@ func isDocSource(root, path string) (bool, error) {
 		return fileOrHeadContains(root, path, "<!-- source:")
 	}
 	return false, nil
-}
-
-// isDiscoverySource reports a change that can drift a generated discovery
-// index.
-//
-// The path rules are the generator's own (internal/le/discoveryindex), so the
-// router and the index cannot disagree about what feeds it. Here the package
-// header LINE the generator reads a summary from is looked for in the working
-// tree PLUS head, because a change either adds such a line or removes one.
-func isDiscoverySource(root, path string) (bool, error) {
-	header := ""
-	if strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go") {
-		current, err := readCurrentOrEmpty(root, path)
-		if err != nil {
-			return false, err
-		}
-		// Each tree is bounded to its own header before they are joined. The
-		// join is not a file, so a line bound applied after it would fall
-		// inside the working-tree copy and hide the HEAD one, which is the
-		// half that carries a header a change REMOVED.
-		var tb textbuf.Buffer
-		header = tb.Str(discoveryindex.HeaderText(current)).Byte('\n').
-			Str(discoveryindex.HeaderText(readHeadOrEmpty(root, path))).String()
-	}
-	return discoveryindex.IsSource(path, header), nil
 }
 
 var digestBaseRe = regexp.MustCompile(`<!--\s*digest-base:\s*(.+?)\s*-->`)
@@ -435,7 +407,6 @@ func actionOrderList() []string { return slices.Clone(actionOrder[:]) }
 
 // The delegated action names this package both dispatches and wires sources for.
 const (
-	actionDiscoveryIndexCheck     = "discovery-index/check"
 	actionDigest                  = "digest"
 	actionInventory               = "inventory"
 	actionCommandList             = "command list"

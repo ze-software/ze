@@ -54,10 +54,9 @@ func TestTwoCreatesUnderOneTagKeepTheirOwnMessages(t *testing.T) {
 	writeCommitFixture(t, root, "first.txt", "first\n")
 	writeCommitFixture(t, root, "second.txt", "second\n")
 
-	stale := "fixture repository has no generated index"
 	first, err := Create(root, &Options{
 		Subject: "first prepared commit", Files: []string{"first.txt"},
-		Tag: "shared", StaleIndexOK: stale,
+		Tag: "shared",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -69,7 +68,7 @@ func TestTwoCreatesUnderOneTagKeepTheirOwnMessages(t *testing.T) {
 
 	second, err := Create(root, &Options{
 		Subject: "second prepared commit", Files: []string{"second.txt"},
-		Tag: "shared", StaleIndexOK: stale,
+		Tag: "shared",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -115,17 +114,16 @@ func TestAppendUnderOneTagGivesEachBlockItsOwnMessage(t *testing.T) {
 	writeCommitFixture(t, root, "code.txt", "code\n")
 	writeCommitFixture(t, root, "spec.txt", "spec\n")
 
-	stale := "fixture repository has no generated index"
 	first, err := Create(root, &Options{
 		Subject: "carry the code", Files: []string{"code.txt"},
-		Tag: "closure", StaleIndexOK: stale,
+		Tag: "closure",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	second, err := Create(root, &Options{
 		Subject: "carry the spec", Files: []string{"spec.txt"},
-		Tag: "closure", StaleIndexOK: stale, Append: true,
+		Tag: "closure", Append: true,
 	})
 	if err != nil {
 		t.Fatal(err)

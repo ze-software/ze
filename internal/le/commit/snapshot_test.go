@@ -32,7 +32,6 @@ func TestTheCommitCarriesThePreparedContentAndNotAConcurrentSessionsEdit(t *test
 
 	prepared, err := Create(root, &Options{
 		Subject: "carry the prepared content", Files: []string{"mine.txt"},
-		StaleIndexOK: "fixture repository has no generated index",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -112,7 +111,6 @@ func TestABlockLeavesTheSharedIndexAloneWhenItsCommitFails(t *testing.T) {
 
 	prepared, err := Create(root, &Options{
 		Subject: "a commit whose message goes missing", Files: []string{"mine.txt"},
-		StaleIndexOK: "fixture repository has no generated index",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -153,14 +151,13 @@ func TestATwoBlockScriptCommitsEachBlockFromItsOwnIndex(t *testing.T) {
 
 	first, err := Create(root, &Options{
 		Subject: "the first block", Files: []string{"first.txt"},
-		StaleIndexOK: "fixture repository has no generated index",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	second, err := Create(root, &Options{
 		Subject: "the second block removes a file", Remove: []string{"tracked.txt"},
-		Append: true, StaleIndexOK: "fixture repository has no generated index",
+		Append: true,
 	})
 	if err != nil {
 		t.Fatal(err)

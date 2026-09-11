@@ -1,9 +1,12 @@
 // Design: docs/architecture/core-design.md -- the discovery-index area, as one command
 //
-// actions.go ports the Python area. `le check-rules ze-discovery-index-check`
-// selected one gate from a GateSet. `le discovery-index check` selects one
-// action from the table below. Each action carries its retired target identity,
-// the reason that `--list` printed, and whether it WRITES.
+// actions.go carries the TABLE of what `le discovery-index` can do. Each action
+// carries the reason that `--list` prints, and whether it WRITES.
+//
+// The `check` verb was deleted with the map's tracked copy on 2026-09-11. It
+// re-rendered the whole map to compare it against the committed file, so the
+// walk that decided the verdict was the walk that could have written the
+// answer, and it is now that write.
 //
 // The dispatch, the listing, the help line and the two refusals live in
 // internal/le/leaction. What stays here is the TABLE, because the table is the only
@@ -24,11 +27,9 @@ const area = "discovery-index"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "ai/PACKAGE-MAP.md is current with the tree",
-		Answer: func() (any, int) { return run(Check) }},
 	leaction.Action{Verb: "update", Why: "regenerate ai/PACKAGE-MAP.md",
 		Writes: true,
-		Answer: func() (any, int) { return run(Update) }},
+		Answer: runUpdate},
 )
 
 // Actions answers the command surface as data, so the listing, the Subs line
@@ -41,31 +42,29 @@ func Subs() string { return actions.Subs() }
 // Answer is the `le discovery-index` command.
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
-// run locates the checkout and hands it to one of the two halves.
+// runUpdate locates the checkout and rewrites the map from it.
 //
-// Three codes leave here, and each names a different fact. A stale index
-// answers StaleExit (3) because the commit gate BLOCKS on drift. The gate stays
-// warn-only when the generator fails. Combining those states would make the
-// blocking gate advisory. A tree without ai/ answers 1, the generator failure
-// code. An unreadable tree answers 2, which distinguishes an incomplete scan
-// from an outdated index.
-func run(judge func(string) (Report, error)) (any, int) {
+// Two failure codes leave here, and each names a different fact. A tree without
+// ai/ answers 1, the generator failure code. An unreadable tree answers 2,
+// which distinguishes an incomplete scan from a tree with nowhere to write.
+//
+// There is no third code for drift. The map is DERIVED and untracked, so no
+// stored copy exists to disagree with the tree: a write hook removes it when an
+// input moves and a read hook rebuilds it.
+func runUpdate() (any, int) {
 	tree, err := lepath.Root()
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
 	}
 
-	report, err := judge(tree)
+	report, err := Update(tree)
 	if err != nil {
 		leaction.ReportError(err)
 		if errors.Is(err, ErrNoAIDir) {
 			return nil, 1
 		}
 		return nil, 2
-	}
-	if report.Stale && !report.Written {
-		return report, StaleExit
 	}
 	return report, 0
 }
