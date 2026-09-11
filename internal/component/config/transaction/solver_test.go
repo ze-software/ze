@@ -54,53 +54,49 @@ func TestTopologicalSortCycle(t *testing.T) {
 	require.ErrorIs(t, err, ErrOperationCycle)
 }
 
-// TestTopologicalSortCycleResolution verifies that a two-way IP swap cycle
-// is resolved via dual-presence fallback instead of rejecting the commit.
+// TestTopologicalSortSwapsAddressesBreakBeforeMake verifies that two
+// interfaces trading addresses sort with every removal before every addition,
+// and with no cycle to break.
 //
-// VALIDATES: AC-2: IP swap between two interfaces uses dual-presence fallback.
-// PREVENTS: Commit rejection for valid IP swap scenarios.
-func TestTopologicalSortCycleResolution(t *testing.T) {
+// It replaces TestTopologicalSortCycleResolution, which asserted the opposite
+// policy: that the swap was a cycle, that the solver relaxed it by dropping
+// the cross-interface edges, and that the address creations came back marked
+// AllowDual so both addresses sat on the host at once. That was
+// make-before-break. The requirement stops the binder, removes the disturbed
+// address and adds it again (docs/architecture/config/apply-ordering.md).
+//
+// VALIDATES: phases 3 and 4. An address leaves before the same address arrives
+// on another interface, and no window holds both.
+// PREVENTS: the relaxation coming back, which it would as a silent reordering
+// rather than as an error: a graph that no longer closes a cycle would take
+// the relaxed branch for nothing and still leave both addresses present.
+func TestTopologicalSortSwapsAddressesBreakBeforeMake(t *testing.T) {
 	t.Parallel()
 
-	// IP swap: A currently has 10.0.0.1, B currently has 10.0.0.2.
-	// Candidate: A gets 10.0.0.2, B gets 10.0.0.1.
-	//
-	// R5 (same-address): remove-B-2 before add-A-2, remove-A-1 before add-B-1
-	// Make-before-break (same-iface): add-A-2 before remove-A-1, add-B-1 before remove-B-2
-	// Cycle: remove-B-2 -> add-A-2 -> remove-A-1 -> add-B-1 -> remove-B-2
+	// ethA currently holds 10.0.0.1 and ethB holds 10.0.0.2. The candidate
+	// gives each address to the other interface.
 	ops := []ConfigOperation{
 		{ID: "add-A-2", Type: testOpAddAddress, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceAddress, Interface: "ethA", Address: "10.0.0.2/32"}},
 		{ID: "add-B-1", Type: testOpAddAddress, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceAddress, Interface: "ethB", Address: "10.0.0.1/32"}},
 		{ID: "remove-B-2", Type: testOpRemoveAddress, Verb: VerbDestroy, Target: ResourceRef{Kind: ResourceAddress, Interface: "ethB", Address: "10.0.0.2/32"}},
 		{ID: "remove-A-1", Type: testOpRemoveAddress, Verb: VerbDestroy, Target: ResourceRef{Kind: ResourceAddress, Interface: "ethA", Address: "10.0.0.1/32"}},
 	}
-	rules := []ConstraintRule{
-		{ID: "R5-remove-before-add-same", Before: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameAddress},
-		{ID: "add-before-remove-same-iface", Before: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameInterface},
-	}
 
-	graph, err := BuildOperationGraph(ops, rules)
+	graph, err := BuildOperationGraph(ops, survivingAddressRule())
 	require.NoError(t, err)
 
 	sorted, err := TopologicalSort(graph)
-	require.NoError(t, err, "IP swap cycle should be resolved via dual-presence fallback")
-	require.Len(t, sorted, 4)
-
-	hasDual := false
-	for i := range sorted {
-		if sorted[i].Params.AllowDual {
-			hasDual = true
-		}
-	}
-	assert.True(t, hasDual, "at least one ADD_ADDRESS should have AllowDual set")
+	require.NoError(t, err, "a swap carries one destroy and one create for each address, and no cycle")
+	assert.Equal(t, []string{"remove-B-2", "remove-A-1", "add-A-2", "add-B-1"}, operationIDs(sorted))
 }
 
-// TestTopologicalSortThreeWayRotation verifies that a three-way IP rotation
-// cycle is resolved via dual-presence fallback.
+// TestTopologicalSortRotatesAddressesBreakBeforeMake verifies the three-way
+// rotation, which was the other cycle the relaxation existed for.
 //
-// VALIDATES: AC-9: Three-way IP rotation uses dual-presence fallback.
-// PREVENTS: Commit rejection for three-way IP rotation scenarios.
-func TestTopologicalSortThreeWayRotation(t *testing.T) {
+// VALIDATES: phases 3 and 4 over three interfaces.
+// PREVENTS: a rotation rejected as an unrelaxable cycle, which is what a rule
+// ordering an addition ahead of a removal would make it again.
+func TestTopologicalSortRotatesAddressesBreakBeforeMake(t *testing.T) {
 	t.Parallel()
 
 	// A:1->2, B:2->3, C:3->1
@@ -112,25 +108,46 @@ func TestTopologicalSortThreeWayRotation(t *testing.T) {
 		{ID: "remove-B-2", Type: testOpRemoveAddress, Verb: VerbDestroy, Target: ResourceRef{Kind: ResourceAddress, Interface: "ethB", Address: "10.0.0.2/32"}},
 		{ID: "remove-C-3", Type: testOpRemoveAddress, Verb: VerbDestroy, Target: ResourceRef{Kind: ResourceAddress, Interface: "ethC", Address: "10.0.0.3/32"}},
 	}
-	rules := []ConstraintRule{
-		{ID: "R5-remove-before-add-same", Before: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameAddress},
-		{ID: "add-before-remove-same-iface", Before: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameInterface},
-	}
 
-	graph, err := BuildOperationGraph(ops, rules)
+	graph, err := BuildOperationGraph(ops, survivingAddressRule())
 	require.NoError(t, err)
 
 	sorted, err := TopologicalSort(graph)
-	require.NoError(t, err, "three-way rotation cycle should be resolved via dual-presence fallback")
-	require.Len(t, sorted, 6)
+	require.NoError(t, err)
+	assertRemovalsBeforeAdditions(t, sorted)
+}
 
-	dualCount := 0
+// survivingAddressRule is the one constraint rule the `interface` root still
+// registers, under the test package's own operation labels: every address
+// removal runs before every address addition, which is phase 3 before phase 4.
+func survivingAddressRule() []ConstraintRule {
+	return []ConstraintRule{{
+		ID:       "iface-remove-address-before-add-address",
+		Before:   OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress},
+		After:    OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress},
+		Relation: ResourceRelationAny,
+	}}
+}
+
+// assertRemovalsBeforeAdditions reads the sorted order back as the two phases
+// it must hold: no address is added before the last address is removed.
+func assertRemovalsBeforeAdditions(t *testing.T, sorted []ConfigOperation) {
+	t.Helper()
+
+	firstAdd := len(sorted)
+	lastRemove := -1
 	for i := range sorted {
-		if sorted[i].Params.AllowDual {
-			dualCount++
+		switch sorted[i].Verb {
+		case VerbCreate:
+			if i < firstAdd {
+				firstAdd = i
+			}
+		case VerbDestroy:
+			lastRemove = i
+		case VerbModify:
 		}
 	}
-	assert.Equal(t, 3, dualCount, "all three ADD_ADDRESS operations should have AllowDual set")
+	assert.Less(t, lastRemove, firstAdd, "every removal runs before every addition; got %v", operationIDs(sorted))
 }
 
 // TestTopologicalSortNonAddressCycleFails verifies that cycles involving
@@ -165,15 +182,15 @@ func operationIDs(ops []ConfigOperation) []string {
 	return ids
 }
 
-// TestTopologicalSortRelaxesCycleByVerbAndKind verifies the address-swap
-// relaxation decides on the verb plus the target resource kind, and never on
-// the operation label. The operations below carry labels no package in this
+// TestTopologicalSortOrdersASwapWhoseLabelsItDoesNotKnow verifies the swap
+// ordering decides on the verb plus the target resource kind, and never on the
+// operation label. The operations below carry labels no package in this
 // repository names, which is what a root that owns its own vocabulary emits.
 //
 // VALIDATES: AC-5. The solver orders an operation whose label it does not know.
-// PREVENTS: The relaxation working for the two roots whose labels the solver
-// was written against, and silently rejecting every other root's swap.
-func TestTopologicalSortRelaxesCycleByVerbAndKind(t *testing.T) {
+// PREVENTS: the ordering working for the two roots whose labels the solver was
+// written against, and leaving every other root's swap in input order.
+func TestTopologicalSortOrdersASwapWhoseLabelsItDoesNotKnow(t *testing.T) {
 	t.Parallel()
 
 	const (
@@ -181,8 +198,8 @@ func TestTopologicalSortRelaxesCycleByVerbAndKind(t *testing.T) {
 		releaseVIP ConfigOperationType = "provision-release-vip"
 	)
 
-	// The same swap as TestTopologicalSortCycleResolution: ethA and ethB
-	// exchange 10.0.0.1 and 10.0.0.2, which is a cycle by construction.
+	// The same swap as TestTopologicalSortSwapsAddressesBreakBeforeMake:
+	// ethA and ethB exchange 10.0.0.1 and 10.0.0.2.
 	ops := []ConfigOperation{
 		{ID: "bind-A-2", Type: bindVIP, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceAddress, Interface: "ethA", Address: "10.0.0.2/32"}},
 		{ID: "bind-B-1", Type: bindVIP, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceAddress, Interface: "ethB", Address: "10.0.0.1/32"}},
@@ -190,37 +207,27 @@ func TestTopologicalSortRelaxesCycleByVerbAndKind(t *testing.T) {
 		{ID: "release-A-1", Type: releaseVIP, Verb: VerbDestroy, Target: ResourceRef{Kind: ResourceAddress, Interface: "ethA", Address: "10.0.0.1/32"}},
 	}
 	rules := []ConstraintRule{
-		{ID: "release-before-bind-same-address", Before: OperationSelector{Type: releaseVIP, ResourceKind: ResourceAddress}, After: OperationSelector{Type: bindVIP, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameAddress},
-		{ID: "bind-before-release-same-iface", Before: OperationSelector{Type: bindVIP, ResourceKind: ResourceAddress}, After: OperationSelector{Type: releaseVIP, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameInterface},
+		{ID: "release-before-bind", Before: OperationSelector{Type: releaseVIP, ResourceKind: ResourceAddress}, After: OperationSelector{Type: bindVIP, ResourceKind: ResourceAddress}, Relation: ResourceRelationAny},
 	}
 
 	graph, err := BuildOperationGraph(ops, rules)
 	require.NoError(t, err)
 
 	sorted, err := TopologicalSort(graph)
-	require.NoError(t, err, "a swap of addresses relaxes whatever the operations are labeled")
+	require.NoError(t, err, "a swap of addresses orders whatever the operations are labeled")
 	require.Len(t, sorted, 4)
-
-	dual := make([]string, 0, 2)
-	for i := range sorted {
-		if sorted[i].Params.AllowDual {
-			dual = append(dual, sorted[i].ID)
-		}
-	}
-	assert.ElementsMatch(t, []string{"bind-A-2", "bind-B-1"}, dual,
-		"dual presence is marked on the address creations, which the verb and the kind identify")
+	assertRemovalsBeforeAdditions(t, sorted)
 }
 
-// TestTopologicalSortRejectsNonAddressCycle restates the preserved rejection
-// against the verb vocabulary: a cycle relaxes only when every member creates
-// or destroys a resource of kind address. A cycle over another kind, and a
-// cycle over an address that no member creates or destroys, are both rejected.
+// TestTopologicalSortRejectsEveryCycle holds the rejection over the verb and
+// kind vocabulary. A cycle whose members modify an address, and a cycle over a
+// kind this package does not name, are both refused, and so is every other
+// shape: nothing relaxes a cycle.
 //
-// VALIDATES: "Address-only cross-interface cycles relax. Everything else is
-// rejected", now decided by verb and kind.
-// PREVENTS: A modification cycle being relaxed because its target happens to
-// be an address, which would apply two conflicting modifications at once.
-func TestTopologicalSortRejectsNonAddressCycle(t *testing.T) {
+// VALIDATES: "Every cycle is rejected" (docs/architecture/config/apply-ordering.md).
+// PREVENTS: a relaxation coming back for the kinds somebody happens to know,
+// which is how the deleted one applied two conflicting operations at once.
+func TestTopologicalSortRejectsEveryCycle(t *testing.T) {
 	t.Parallel()
 
 	const (
@@ -269,21 +276,25 @@ func TestTopologicalSortRejectsNonAddressCycle(t *testing.T) {
 	}
 }
 
-// TestTopologicalSortPlacesSectionNodeBetweenCreatesAndDestroys reads the
+// TestTopologicalSortPlacesSectionNodeBetweenAddressingAndBinders reads the
 // position the solver gives a coarse section-apply node. The node carries no
 // verb, no target and no produce or consume set, so it earns no edge from
 // either mechanism. Its place in the order is a decision the solver takes,
 // rather than a constraint the graph states.
 //
-// The decision is the design's own sequence: create the resource, update the
-// services that bind it, destroy the old resource last. A root nobody
-// decomposes is one of those services.
+// The decision is the requirement's own sequence: stop what binds, remove the
+// disturbed addresses, add them back, then start what binds them. The core
+// cannot tell whether a root nobody decomposes binds an address, so the
+// fail-safe default reads it as one, which puts it after the additions and
+// before the starts.
 //
-// VALIDATES: AC-1. A coarse node runs after the creations and before the destructions.
+// VALIDATES: phases 4 and 5. A coarse node runs after the addressing this
+// commit adds and before the first operation that binds it.
 // PREVENTS: a static route installed before the address it binds exists, which
-// is what the slice tie-break produced: the kernel answers "network is
-// unreachable" and the route is lost while the transaction reports committed.
-func TestTopologicalSortPlacesSectionNodeBetweenCreatesAndDestroys(t *testing.T) {
+// is what the slice tie-break produced (the kernel answers "network is
+// unreachable" and the route is lost while the transaction reports committed),
+// and a peer started before the plugins that configure its RIB have applied.
+func TestTopologicalSortPlacesSectionNodeBetweenAddressingAndBinders(t *testing.T) {
 	t.Parallel()
 
 	section := ConfigOperation{ID: "section-apply-static", Owner: "static", Type: OperationSectionApply}
@@ -295,7 +306,7 @@ func TestTopologicalSortPlacesSectionNodeBetweenCreatesAndDestroys(t *testing.T)
 		want  []string
 	}{
 		{
-			name: "after every create",
+			name: "after every addressing addition",
 			ops: []ConfigOperation{
 				{ID: "iface-add-zx", Type: testOpAddInterface, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceInterface, Name: "zx"},
 					Produces: []ResourceRef{{Kind: ResourceInterface, Name: "zx"}}},
@@ -307,16 +318,16 @@ func TestTopologicalSortPlacesSectionNodeBetweenCreatesAndDestroys(t *testing.T)
 			want: []string{"iface-add-zx", "iface-add-address-zx", "section-apply-static"},
 		},
 		{
-			name: "before every destroy",
+			name: "after the destructions, which are phases 1 to 3",
 			ops: []ConfigOperation{
 				{ID: "iface-remove-zold", Type: testOpRemoveInterface, Verb: VerbDestroy, Target: ResourceRef{Kind: ResourceInterface, Name: "zold"},
 					Produces: []ResourceRef{{Kind: ResourceInterface, Name: "zold"}}},
 				section,
 			},
-			want: []string{"section-apply-static", "iface-remove-zold"},
+			want: []string{"iface-remove-zold", "section-apply-static"},
 		},
 		{
-			name: "between the create and the destroy of one renumber",
+			name: "after the renumber, which removes before it adds",
 			ops: []ConfigOperation{
 				{ID: "iface-add-address-new", Type: testOpAddAddress, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceAddress, Interface: "zmix0", Address: "10.93.1.1/24"},
 					Produces: []ResourceRef{{Kind: ResourceAddress, Address: "10.93.1.1/24"}}},
@@ -324,10 +335,29 @@ func TestTopologicalSortPlacesSectionNodeBetweenCreatesAndDestroys(t *testing.T)
 					Produces: []ResourceRef{{Kind: ResourceAddress, Address: "10.93.0.1/24"}}},
 				section,
 			},
-			rules: []ConstraintRule{
-				{ID: "add-address-before-remove-same-interface", Before: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameInterface},
+			rules: survivingAddressRule(),
+			want:  []string{"iface-remove-address-old", "iface-add-address-new", "section-apply-static"},
+		},
+		{
+			name: "before the peer that binds the address, and after the address",
+			ops: []ConfigOperation{
+				{ID: "bgp-add-peer", Type: testOpAddPeer, Verb: VerbCreate, Target: ResourceRef{Kind: ResourcePeer, Peer: "edge"},
+					Produces: []ResourceRef{{Kind: ResourcePeer, Peer: "edge"}},
+					Consumes: []ResourceRef{{Kind: ResourceAddress, Address: "10.93.0.1/24"}}},
+				{ID: "iface-add-address", Type: testOpAddAddress, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceAddress, Interface: "zmix0", Address: "10.93.0.1/24"},
+					Produces: []ResourceRef{{Kind: ResourceAddress, Address: "10.93.0.1/24"}}},
+				section,
 			},
-			want: []string{"iface-add-address-new", "section-apply-static", "iface-remove-address-old"},
+			want: []string{"iface-add-address", "section-apply-static", "bgp-add-peer"},
+		},
+		{
+			name: "before a peer whose address this commit does not touch",
+			ops: []ConfigOperation{
+				{ID: "bgp-modify-peer", Type: testOpAddPeer, Verb: VerbModify, Target: ResourceRef{Kind: ResourcePeer, Peer: "edge"},
+					Produces: []ResourceRef{{Kind: ResourcePeer, Peer: "edge"}}},
+				section,
+			},
+			want: []string{"section-apply-static", "bgp-modify-peer"},
 		},
 	}
 
@@ -346,17 +376,11 @@ func TestTopologicalSortPlacesSectionNodeBetweenCreatesAndDestroys(t *testing.T)
 }
 
 // TestTopologicalSortSectionNodeJoinsAnAddressSwapWithoutACycle holds the
-// coarse node's position to a placement and away from an edge. An edge from
-// every create and to every destroy closes a cycle with the surviving
-// address-uniqueness rule, which orders a destroy before a create. The
-// relaxation then refuses the cycle, because one member is not an address
-// operation. The reload below is ordinary: two interfaces swap addresses
-// while one uncovered root has a diff.
-//
-// The order below is what the graph produces with the coarse node carrying no
-// edge. This test therefore passes before the placement lands and after it. It
-// fences the shape of the answer rather than a change of behavior, and goes
-// red the moment the position is stated as an edge.
+// coarse node's position to a placement and away from an edge. A coarse node
+// stands for a whole participant section, so it names no resource and nothing
+// in the graph can state where it goes. An edge invented for it would join
+// cycles the operator never wrote. The reload below is ordinary: two
+// interfaces swap addresses while one uncovered root has a diff.
 //
 // VALIDATES: R-2. Total coverage aborts no reload that worked before it.
 // PREVENTS: a swap reload answering "operation dependency cycle" because the
@@ -371,15 +395,11 @@ func TestTopologicalSortSectionNodeJoinsAnAddressSwapWithoutACycle(t *testing.T)
 		{ID: "remove-A-1", Type: testOpRemoveAddress, Verb: VerbDestroy, Target: ResourceRef{Kind: ResourceAddress, Interface: "ethA", Address: "10.0.0.1/32"}},
 		{ID: "section-apply-firewall", Owner: "firewall", Type: OperationSectionApply},
 	}
-	rules := []ConstraintRule{
-		{ID: "remove-address-before-add-same-address", Before: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameAddress},
-		{ID: "add-address-before-remove-same-interface", Before: OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress}, After: OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress}, Relation: ResourceRelationSameInterface},
-	}
 
-	graph, err := BuildOperationGraph(ops, rules)
+	graph, err := BuildOperationGraph(ops, survivingAddressRule())
 	require.NoError(t, err)
 
 	sorted, err := TopologicalSort(graph)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"add-A-2", "add-B-1", "section-apply-firewall", "remove-A-1", "remove-B-2"}, operationIDs(sorted))
+	assert.Equal(t, []string{"remove-B-2", "remove-A-1", "add-A-2", "add-B-1", "section-apply-firewall"}, operationIDs(sorted))
 }

@@ -42,9 +42,8 @@ const (
 // component's operation labels (ai/rules/principles.md).
 //
 // A constraint rule states what no produce and consume pair can state: address
-// uniqueness across interfaces, and make-before-break within one interface are
-// both facts about two operations over DIFFERENT resources, which the
-// derivation has no pair to hang an edge on.
+// uniqueness across interfaces is a fact about two operations over DIFFERENT
+// resources, which the derivation has no pair to hang an edge on.
 func BuildOperationGraph(ops []ConfigOperation, rules []ConstraintRule) (*OperationGraph, error) {
 	graph := &OperationGraph{
 		operations: make([]ConfigOperation, 0, len(ops)),
@@ -75,7 +74,7 @@ func BuildOperationGraph(ops []ConfigOperation, rules []ConstraintRule) (*Operat
 				if before.ID == after.ID || !matchesSelector(after, rule.After) {
 					continue
 				}
-				if !operationsRelated(before, after, rule.Relation) {
+				if !operationsRelated(rule.Relation) {
 					continue
 				}
 				graph.addEdge(before.ID, after.ID, rule.ID, seenEdge)
@@ -200,18 +199,8 @@ func matchesSelector(op *ConfigOperation, selector OperationSelector) bool {
 	return true
 }
 
-func operationsRelated(before, after *ConfigOperation, relation ResourceRelation) bool {
-	switch relation {
-	case ResourceRelationAny:
-		return true
-	case ResourceRelationSameInterface:
-		iface := opInterface(before)
-		return iface != "" && iface == opInterface(after)
-	case ResourceRelationSameAddress:
-		return opAddr(before) != "" && opAddr(before) == opAddr(after)
-	default:
-		return false
-	}
+func operationsRelated(relation ResourceRelation) bool {
+	return relation == ResourceRelationAny
 }
 
 // resourceIdentity is the key one operation's Produces entry and another's
@@ -268,10 +257,6 @@ func identityKey(tb *textbuf.Buffer, kind ResourceKind, value string) string {
 
 func opIfaceName(op *ConfigOperation) string {
 	return firstNonEmpty(op.Target.Name, op.Target.Interface, op.Params.Name, op.Params.Interface)
-}
-
-func opAddr(op *ConfigOperation) string {
-	return normalizeAddress(firstNonEmpty(op.Target.Address, op.Params.CIDR, op.Params.Address))
 }
 
 func normalizeAddress(value string) string {

@@ -67,24 +67,18 @@ func fixturePeer(id string, opType ConfigOperationType, verb OperationVerb, name
 	}
 }
 
-// The two rules that survived the derivation. Neither states a produce and
-// consume fact: each relates two operations over DIFFERENT resources, which no
-// pair of declarations can express.
+// The one rule that survived the derivation. It states no produce and consume
+// fact: it relates two operations over DIFFERENT resources, which no pair of
+// declarations can express. Every address this commit removes leaves before
+// any address this commit adds arrives, which is phases 3 and 4 of the
+// requirement (docs/architecture/config/apply-ordering.md).
 func survivingIfaceRules() []ConstraintRule {
-	return []ConstraintRule{
-		{
-			ID:       "iface-remove-address-before-add-same-address",
-			Before:   OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress},
-			After:    OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress},
-			Relation: ResourceRelationSameAddress,
-		},
-		{
-			ID:       "iface-add-address-before-remove-same-interface",
-			Before:   OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress},
-			After:    OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress},
-			Relation: ResourceRelationSameInterface,
-		},
-	}
+	return []ConstraintRule{{
+		ID:       "iface-remove-address-before-add-address",
+		Before:   OperationSelector{Type: testOpRemoveAddress, ResourceKind: ResourceAddress},
+		After:    OperationSelector{Type: testOpAddAddress, ResourceKind: ResourceAddress},
+		Relation: ResourceRelationAny,
+	}}
 }
 
 func graphEdgePairs(t *testing.T, graph *OperationGraph) []string {
@@ -292,7 +286,7 @@ func TestBuildOperationGraphDerivedEdgesMatchDeletedRules(t *testing.T) {
 			name: "iface-renumber-one-interface",
 			ops:  []ConfigOperation{fixtureAddAddress("dum0", "10.0.0.2/24"), fixtureRemoveAddress("dum0", "10.0.0.1/24")},
 			rules: []string{
-				"interface-add-address-dum0-10.0.0.2/24 -> interface-remove-address-dum0-10.0.0.1/24",
+				"interface-remove-address-dum0-10.0.0.1/24 -> interface-add-address-dum0-10.0.0.2/24",
 			},
 		},
 		{
@@ -311,7 +305,7 @@ func TestBuildOperationGraphDerivedEdgesMatchDeletedRules(t *testing.T) {
 				fixturePeer("bgp-add-peer-edge", testOpAddPeer, VerbCreate, "edge", "192.0.2.2"),
 			},
 			rules: []string{
-				"interface-add-address-dum0-192.0.2.2/32 -> interface-remove-address-dum0-192.0.2.1/32",
+				"interface-remove-address-dum0-192.0.2.1/32 -> interface-add-address-dum0-192.0.2.2/32",
 				"interface-add-address-dum0-192.0.2.2/32 -> bgp-add-peer-edge",
 				"bgp-remove-peer-edge -> interface-remove-address-dum0-192.0.2.1/32",
 			},

@@ -24,11 +24,19 @@ import (
 // because it looks like the place labels belong (ai/rules/principles.md). The
 // engine never compares one. It orders by the verb and the target kind that
 // each operation below also carries.
+//
+// The first four each apply one resource. `configure-interfaces` applies the
+// interface configuration as a whole, which is how this root covers a key it
+// has no primitive for: an MTU, a mirror, a tunnel spec, a DHCP client. It is
+// what makes the decomposition TOTAL, and the contract every decomposer owes
+// is exactly that (participantsWithoutOperations in
+// internal/component/config/transaction/orchestrator.go).
 const (
 	operationAddInterface    sdk.ConfigOperationType = "add-interface"
 	operationRemoveInterface sdk.ConfigOperationType = "remove-interface"
 	operationAddAddress      sdk.ConfigOperationType = "add-address"
 	operationRemoveAddress   sdk.ConfigOperationType = "remove-address"
+	operationConfigureIfaces sdk.ConfigOperationType = "configure-interfaces"
 )
 
 func init() {
@@ -36,29 +44,62 @@ func init() {
 		slog.Error("register iface operation decomposer", "error", err)
 		panic("BUG: register iface operation decomposer failed")
 	}
-	// Two rules survive, and each states a fact about two operations over
+	// One rule survives, and it states a fact about two operations over
 	// DIFFERENT resources, which is what no produce and consume pair can
-	// carry. One address leaves its old interface before it arrives on the
-	// new one, and an interface is never left with no address at all.
+	// carry: every address this commit removes leaves the host before any
+	// address this commit adds arrives. That is phases 3 and 4 of the
+	// requirement, in the order the requirement gives them
+	// (docs/architecture/config/apply-ordering.md).
 	//
 	// The five rules that stated a produce and consume fact are gone. Each
 	// operation below declares what it owns and what it needs instead, and
 	// BuildOperationGraph derives their edges from the pair.
+	//
+	// Two rules became this one. The first ordered a removal before the
+	// addition of the SAME address, which is one address living on one
+	// interface. The second held the new address on an interface until the
+	// old one left, so that no interface was ever bare: that was
+	// make-before-break, which the requirement does not ask for. Removing
+	// only the second would have left a renumber unordered, because the old
+	// address and the new one are two different addresses and no rule related
+	// them, and the planner emits its additions first.
 	if err := tx.RegisterConstraintRule(tx.ConstraintRule{
-		ID:       "iface-remove-address-before-add-same-address",
+		ID:       "iface-remove-address-before-add-address",
 		Before:   tx.OperationSelector{Type: operationRemoveAddress, ResourceKind: tx.ResourceAddress},
 		After:    tx.OperationSelector{Type: operationAddAddress, ResourceKind: tx.ResourceAddress},
-		Relation: tx.ResourceRelationSameAddress,
+		Relation: tx.ResourceRelationAny,
 	}); err != nil {
 		slog.Error("register iface constraint rule", "error", err)
 	}
-	if err := tx.RegisterConstraintRule(tx.ConstraintRule{
-		ID:       "iface-add-address-before-remove-same-interface",
-		Before:   tx.OperationSelector{Type: operationAddAddress, ResourceKind: tx.ResourceAddress},
-		After:    tx.OperationSelector{Type: operationRemoveAddress, ResourceKind: tx.ResourceAddress},
-		Relation: tx.ResourceRelationSameInterface,
-	}); err != nil {
-		slog.Error("register iface constraint rule", "error", err)
+	// The configure operation applies the END state of the whole root, so it
+	// is safe only once every operation that moves one resource has run. One
+	// rule for each operation this root emits says that. They are placement
+	// rather than a produce and consume fact: the configure operation owns no
+	// resource, so no declaration can order it.
+	//
+	// Run it before a destroy and it takes an address off the host at a
+	// position the graph chose for something else, which is the disturbance
+	// the ordering exists to place. Run it before a create and it adds the
+	// address the create is about to add. Run it last and every resource it
+	// reads is already where the plan left it, so its own pass over them
+	// changes nothing and only the keys no operation carries are applied.
+	//
+	// It orders nothing after itself, which is what keeps it out of every
+	// cycle the solver would have to reject.
+	for _, before := range []tx.OperationSelector{
+		{Type: operationAddAddress, ResourceKind: tx.ResourceAddress},
+		{Type: operationRemoveAddress, ResourceKind: tx.ResourceAddress},
+		{Type: operationAddInterface, ResourceKind: tx.ResourceInterface},
+		{Type: operationRemoveInterface, ResourceKind: tx.ResourceInterface},
+	} {
+		if err := tx.RegisterConstraintRule(tx.ConstraintRule{
+			ID:       textbuf.Join([]string{componentNameInterface, string(before.Type), "before-configure"}, "-"),
+			Before:   before,
+			After:    tx.OperationSelector{Type: operationConfigureIfaces},
+			Relation: tx.ResourceRelationAny,
+		}); err != nil {
+			slog.Error("register iface constraint rule", "error", err)
+		}
 	}
 	if err := tx.RegisterSettlementRule(tx.SettlementRule{
 		ID:           "iface-add-address-settles-addr-added",
@@ -89,12 +130,33 @@ func ifaceConfigOperationDecls() []sdk.ConfigOperationDecl {
 			operationRemoveInterface,
 			operationAddAddress,
 			operationRemoveAddress,
+			operationConfigureIfaces,
 		},
 	}}
 }
 
+// decomposeIfaceOperations turns one interface diff into the operations the
+// graph orders. It covers the WHOLE root on every call: an address change and
+// an interface of a type this package can create become one operation each,
+// and everything else rides the configure operation appended at the end.
+//
+// It used to answer nothing at all when any key in the diff was one it had no
+// primitive for. A commit that edited an MTU and moved an address therefore
+// emitted no address operation, the core read the plan and found no address
+// disturbed, and every peer bound to that address stayed up while the coarse
+// section apply moved the address underneath it. That is the failure phase 2
+// of the requirement exists to prevent, and an MTU edit on its own took the
+// identical path and was correct there
+// (docs/architecture/config/apply-ordering.md).
+//
+// So the address question is answered for the keys this package can read,
+// whatever else the diff carries, and no key is classified: a diff with any
+// key at all produces the configure operation, so nothing in the root can be
+// dropped by misreading what a key means. Where a key DOES disturb an address
+// the address operations say so, and where it does not they are absent, which
+// is the same answer the two cases gave before.
 func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.ConfigOperation, error) {
-	if req.Root != configRootInterface || !ifaceDiffHasDecomposableChanges(req.Diff) {
+	if req.Root != configRootInterface || !ifaceDiffHasChanges(req.Diff) {
 		return nil, nil
 	}
 	active, err := parseIfaceSections([]sdk.ConfigSection{{Root: configRootInterface, Data: req.ActiveRoot}})
@@ -114,11 +176,10 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 	// them a diff about config rather than about resolution.
 	//
 	// Without a listing every selected entry reads as unbound and contributes no
-	// operation, which is the same fail-safe direction the apply path takes: skip
-	// the entry, never guess a device for it. There is no separate refusal to
-	// make here, because this function's caller appends what it returns and
-	// cannot tell nil from an empty slice (reload_tx.go decomposeRootOperations).
-	// An entry with no selector needs no listing and is unaffected.
+	// operation of its own, and the configure operation applies it instead. That
+	// is the same fail-safe direction the apply path takes: never guess a device
+	// for an entry. An entry with no selector needs no listing and is
+	// unaffected.
 	var infos []InterfaceInfo
 	if b := GetBackend(); b != nil {
 		infos, _ = b.ListInterfaces()
@@ -128,17 +189,28 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 
 	var ops []tx.ConfigOperation
 
+	// configureCreates holds the interfaces the configure operation brings up,
+	// because this package has no create primitive for their type. An address
+	// on one of them waits for the same operation: an add-address operation
+	// would name a device that does not exist yet, and it earns no edge to
+	// the create because there is no create operation to earn it from.
+	configureCreates := make(map[string]bool)
 	for _, ifaceName := range sortedManagedNames(candidateManaged) {
-		if !activeManaged[ifaceName] {
-			ifType := candidate.ifaceType(ifaceName)
-			if !ifaceTypeSupportsOperations(ifType) {
-				return nil, nil
-			}
-			ops = append(ops, ifaceInterfaceOperation(operationAddInterface, ifaceName, ifType))
+		if activeManaged[ifaceName] {
+			continue
 		}
+		ifType := candidate.ifaceType(ifaceName)
+		if !ifaceTypeSupportsOperations(ifType) {
+			configureCreates[ifaceName] = true
+			continue
+		}
+		ops = append(ops, ifaceInterfaceOperation(operationAddInterface, ifaceName, ifType))
 	}
 
 	for _, ifaceName := range sortedAddressIfaces(candidateAddrs) {
+		if configureCreates[ifaceName] {
+			continue
+		}
 		for _, cidr := range sortedAddressCIDRs(candidateAddrs[ifaceName]) {
 			if activeAddrs[ifaceName][cidr] {
 				continue
@@ -146,6 +218,11 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 			ops = append(ops, ifaceAddressOperation(operationAddAddress, ifaceName, cidr))
 		}
 	}
+	// Every address leaving the host is named here, including one leaving on
+	// an interface the configure operation deletes. That operation is what the
+	// core reads the disturbed set out of, so an address removed without one
+	// is an address no binder is ever told about (DisturbedAddresses in
+	// internal/component/config/transaction/operation.go).
 	for _, ifaceName := range sortedAddressIfaces(activeAddrs) {
 		for _, cidr := range sortedAddressCIDRs(activeAddrs[ifaceName]) {
 			if candidateAddrs[ifaceName][cidr] {
@@ -156,16 +233,36 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 	}
 
 	for _, ifaceName := range sortedManagedNames(activeManaged) {
-		if !candidateManaged[ifaceName] {
-			ifType := active.ifaceType(ifaceName)
-			if !ifaceTypeSupportsOperations(ifType) {
-				return nil, nil
-			}
-			ops = append(ops, ifaceInterfaceOperation(operationRemoveInterface, ifaceName, ifType))
+		if candidateManaged[ifaceName] {
+			continue
 		}
+		ifType := active.ifaceType(ifaceName)
+		if !ifaceTypeSupportsOperations(ifType) {
+			continue
+		}
+		ops = append(ops, ifaceInterfaceOperation(operationRemoveInterface, ifaceName, ifType))
 	}
 
-	return ops, nil
+	return append(ops, ifaceConfigureOperation()), nil
+}
+
+// ifaceConfigureOperation is the operation that applies the interface
+// configuration as a whole. It is what carries every key the four resource
+// operations above have no primitive for, so this root leaves nothing for a
+// coarse section apply to pick up.
+//
+// It targets no resource and declares neither Produces nor Consumes, because
+// it owns none: it reads the host and applies the candidate config to it. It
+// therefore earns no derived edge, and the two rules registered in init() are
+// what put it after the operations that move a resource.
+func ifaceConfigureOperation() tx.ConfigOperation {
+	return tx.ConfigOperation{
+		ID:    textbuf.Join([]string{componentNameInterface, "configure"}, "-"),
+		Root:  configRootInterface,
+		Owner: componentNameInterface,
+		Type:  operationConfigureIfaces,
+		Verb:  tx.VerbModify,
+	}
 }
 
 func ifaceAddressOperation(opType tx.ConfigOperationType, ifaceName, cidr string) tx.ConfigOperation {
@@ -221,7 +318,18 @@ func ifaceInterfaceOperation(opType tx.ConfigOperationType, ifaceName, ifaceType
 	}
 }
 
-func ifaceDiffHasDecomposableChanges(diff tx.DiffSection) bool {
+// ifaceDiffHasChanges reports whether this diff names any key at all.
+//
+// A root asked with no diff is the binder case: the planner asks every root
+// that decomposes a second time once an address is disturbed, and this one is
+// asked then even when its own config did not change (bindingRoots in
+// internal/component/plugin/server/reload_tx.go). Answering with operations
+// there would apply a section nothing changed.
+//
+// It replaced a predicate that asked whether EVERY key was one this package
+// had a primitive for, and refused the whole root otherwise. No key is
+// classified now, because the configure operation applies them all.
+func ifaceDiffHasChanges(diff tx.DiffSection) bool {
 	seen := false
 	for _, raw := range []string{diff.Added, diff.Removed, diff.Changed} {
 		if raw == "" {
@@ -231,30 +339,11 @@ func ifaceDiffHasDecomposableChanges(diff tx.DiffSection) bool {
 		if err := json.Unmarshal([]byte(raw), &entries); err != nil {
 			return false
 		}
-		for key := range entries {
-			if !ifaceKeyDecomposable(key) {
-				return false
-			}
+		if len(entries) > 0 {
 			seen = true
 		}
 	}
 	return seen
-}
-
-func ifaceKeyDecomposable(key string) bool {
-	if strings.Contains(key, "/address") {
-		return true
-	}
-	for _, kind := range []string{"/dummy/", "/veth/", "/bridge/"} {
-		_, after, ok := strings.Cut(key, kind)
-		if !ok {
-			continue
-		}
-		if !strings.Contains(after, "/") {
-			return true
-		}
-	}
-	return false
 }
 
 func sortedManagedNames(managed map[string]bool) []string {
@@ -349,6 +438,10 @@ func verifyIfaceOperation(op *sdk.ConfigOperation) error {
 		if ifaceOperationInterface(op) == "" || ifaceOperationCIDR(op) == "" {
 			return fmt.Errorf("interface operation %s requires interface and cidr", op.Type)
 		}
+	case operationConfigureIfaces:
+		// It names no resource, so there is nothing to require. What it
+		// applies is the config the verify phase already validated, and the
+		// applier refuses it when that config is absent.
 	default:
 		return fmt.Errorf("interface operation %s not supported", op.Type)
 	}
@@ -388,6 +481,13 @@ func applyIfaceOperation(op *sdk.ConfigOperation, b Backend) (*sdk.Journal, erro
 			func() error { return b.RemoveAddress(ifaceName, cidr) },
 			func() error { return b.AddAddress(ifaceName, cidr) },
 		)
+	case operationConfigureIfaces:
+		// The configure operation applies the pending config, which lives in
+		// the plugin closure beside the verify that produced it, so the
+		// callback in register.go applies it and never reaches here. Reaching
+		// here means that dispatch was lost, and a silent success would apply
+		// none of the keys this operation carries (ai/rules/principles.md).
+		return nil, fmt.Errorf("interface operation %s is applied by the pending-config applier", op.Type)
 	default:
 		return nil, fmt.Errorf("interface operation %s not supported", op.Type)
 	}

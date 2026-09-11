@@ -25,7 +25,7 @@ func TestConfigOperationMarshal(t *testing.T) {
 			Type:   ConfigOperationType("add-address"),
 			Verb:   VerbCreate,
 			Target: ResourceRef{Kind: ResourceAddress, Interface: "eth0", Address: "10.0.0.1/32"},
-			Params: ConfigOperationParams{Interface: "eth0", CIDR: "10.0.0.1/32", AllowDual: true},
+			Params: ConfigOperationParams{Interface: "eth0", CIDR: "10.0.0.1/32"},
 		},
 	}
 
@@ -49,7 +49,6 @@ func TestConfigOperationMarshal(t *testing.T) {
 	assert.Equal(t, ConfigOperationType("add-address"), decoded.Operation.Type)
 	assert.Equal(t, VerbCreate, decoded.Operation.Verb)
 	assert.Equal(t, "eth0", decoded.Operation.Target.Interface)
-	assert.True(t, decoded.Operation.Params.AllowDual)
 }
 
 // TestDeclareRegistrationConfigOperationsMarshal verifies Stage 1 can declare

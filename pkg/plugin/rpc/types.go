@@ -1213,7 +1213,6 @@ type ConfigOperationParams struct {
 	Property  string          `json:"property,omitempty"`
 	Value     string          `json:"value,omitempty"`
 	OldValue  string          `json:"old-value,omitempty"`
-	AllowDual bool            `json:"allow-dual,omitempty"`
 	Spec      json.RawMessage `json:"spec,omitempty"`
 	Config    json.RawMessage `json:"config,omitempty"`
 	OldConfig json.RawMessage `json:"old-config,omitempty"`

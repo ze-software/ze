@@ -522,11 +522,12 @@ func emitSectionApply(gateway EventGateway, txID, name string, diffs []DiffSecti
 // declared, so no single root names it; and it has no resource identity to
 // order by, so no constraint rule matches it and the graph gives it no edge.
 //
-// Its position is therefore not decided here. The solver places it after the
-// last operation that creates or modifies a resource, because a root with no
-// operations binds what the decomposed roots own (placeSectionNodes in
-// solver.go). The order this function appends them in decides only the order
-// of two coarse nodes against each other.
+// Its position is therefore not decided here. The solver places it between the
+// addresses this commit adds and the starts that bind them, because the core
+// cannot tell whether a root with no operations binds one and the fail-safe
+// default says it does (placeSectionNodes in solver.go). The order this
+// function appends them in decides only the order of two coarse nodes against
+// each other.
 func (o *TxCoordinator) operationNodes(ops []ConfigOperation, diffs map[string][]DiffSection) []ConfigOperation {
 	uncovered := o.participantsWithoutOperations(ops, diffs)
 	nodes := make([]ConfigOperation, 0, len(ops)+len(uncovered))
@@ -638,18 +639,28 @@ func (o *TxCoordinator) filterDiffs(allDiffs map[string][]DiffSection, p Partici
 // The check is per-PARTICIPANT rather than per-root because that is the
 // granularity the apply events use: one participant receives one section apply
 // carrying every root it declared. So a decomposer MUST be all-or-nothing for
-// a root it claims. iface returns no operations at all when any key in its
-// diff is non-decomposable (ifaceDiffHasDecomposableChanges) and bgp returns
-// none unless the diff touches a peer (bgpDiffTouchesPeer). A decomposer that
-// instead emitted operations covering only PART of its root's diff would make
-// its participant look covered, and the remainder would reach nothing: that is
-// a defect in the decomposer, and this is the contract it must meet.
+// a root it claims. `interface` covers its whole root: an address and an
+// interface become one operation each, and every key it has no primitive for
+// rides the configure operation it closes with (decomposeIfaceOperations in
+// internal/component/iface/operation.go). `bgp` returns none unless the diff
+// touches a peer (bgpDiffTouchesPeer). A decomposer that instead emitted
+// operations covering only PART of its root's diff would make its participant
+// look covered, and the remainder would reach nothing: that is a defect in the
+// decomposer, and this is the contract it must meet.
 //
-// The names come back in PARTICIPANT order, which sortParticipantsBGPLast
-// decided. The bgp participant applies after the others, because peer
-// reconciliation reads the state they commit. Sorting the names alphabetically
-// here is deterministic and wrong: "bgp" sorts first, and the coarse nodes
-// keep this order to the executor (TestReloadTxApplyBGPLast).
+// `interface` used to answer nothing at all when any key in its diff was one
+// it had no primitive for, which met this contract and lost the address
+// ordering with it: a commit that edited an MTU and moved an address emitted
+// no address operation, so the core read no disturbance and every binder bound
+// to that address stayed up while the section apply moved it.
+//
+// The names come back in PARTICIPANT order, which buildTxInputs
+// (internal/component/plugin/server/reload_tx.go) already makes deterministic.
+// It decides only how two coarse nodes sit against each other: where they sit
+// against the decomposed operations is placeSectionNodes (solver.go), which
+// puts them after the addresses this commit adds and before the starts that
+// bind them. Sorting the names here would be deterministic and would say
+// nothing, because the order this function returns is not the applied order.
 func (o *TxCoordinator) participantsWithoutOperations(ops []ConfigOperation, diffs map[string][]DiffSection) []string {
 	owners := make(map[string]struct{}, len(ops))
 	for i := range ops {

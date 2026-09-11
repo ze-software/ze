@@ -54,7 +54,15 @@ func TestReloadStopsABinderWhoseAddressMovesAndItsOwnConfigDidNot(t *testing.T) 
 	addressOwner := "addressowner"
 	binderOwner := "binderowner"
 
+	// A decomposer stays registered for the life of the test binary, and the
+	// planner asks every registered root a second time once any LATER test
+	// disturbs an address. Answering there takes an address off the host that
+	// the first pass never named, which checkDisturbanceSettled refuses, so
+	// this one answers only while its own test runs and its diff is present.
 	require.NoError(t, transaction.RegisterOperationDecomposer(addressRoot, func(_ context.Context, req transaction.DecomposeRequest) ([]transaction.ConfigOperation, error) {
+		if req.CandidateRoot == "" || req.CandidateRoot == "{}" {
+			return nil, nil
+		}
 		return []transaction.ConfigOperation{
 			testAddressOperation("addr-remove", addressRoot, addressOwner, testOpMoveAddressOff, transaction.VerbDestroy, "zt0"),
 			testAddressOperation("addr-add", addressRoot, addressOwner, testOpMoveAddressOn, transaction.VerbCreate, "zt1"),
@@ -141,7 +149,12 @@ func TestReloadAsksNoUnchangedRootWhenNoAddressMoves(t *testing.T) {
 	changedOwner := "quietowner"
 	binderOwner := "quietbinder"
 
-	require.NoError(t, transaction.RegisterOperationDecomposer(changedRoot, func(context.Context, transaction.DecomposeRequest) ([]transaction.ConfigOperation, error) {
+	// Gated on its own diff, for the reason the decomposer above carries: a
+	// registration outlives its test, and the second pass asks every root.
+	require.NoError(t, transaction.RegisterOperationDecomposer(changedRoot, func(_ context.Context, req transaction.DecomposeRequest) ([]transaction.ConfigOperation, error) {
+		if req.CandidateRoot == "" || req.CandidateRoot == "{}" {
+			return nil, nil
+		}
 		return []transaction.ConfigOperation{{
 			ID:       "quiet-modify",
 			Root:     changedRoot,

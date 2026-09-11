@@ -3,15 +3,17 @@
 # After SIGHUP: peer1 rid=5.6.7.8, peer2 rid=9.10.11.12, peer3 rid=1.2.3.4
 #
 # What this rotation emits is three modify-peer operations on one root. It
-# emits no address operation, so it closes no cycle, tryRelaxCycle is never
-# reached, and no dual-presence window exists here. The header used to say it
-# stood in for a three-way IP rotation "resolved via the dual-presence fallback
-# (AllowDual on ADD_ADDRESS operations)", which was wrong about the operations
-# it produces and left D4 open while reading as covered.
+# emits no address operation at all, so nothing here reaches the address
+# ordering. The header used to say it stood in for a three-way IP rotation
+# "resolved via the dual-presence fallback (AllowDual on ADD_ADDRESS
+# operations)", which was wrong about the operations it produces and left D4
+# open while reading as covered. That fallback is deleted: the requirement
+# removes an address before it adds it, so a rotation closes no cycle to
+# resolve.
 #
 # VALIDATES: three peers restart inside one ordered transaction, each
 #            reconnects, and each resends its route.
-# The dual-presence window is proven on the real path by
+# The address ordering is proven on the real path by
 # test/reload/config-apply-ordering-address-swap.ci, which moves addresses
 # between two interfaces and reads the kernel's notifications back.
 # Expected: all three peers reconnect and resend their routes.

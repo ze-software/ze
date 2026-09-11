@@ -629,3 +629,105 @@ both node kinds, `runningPeerSettings` reading the reactor's own peer, the two
 gained derived edges with none lost, the blank-entry refusal, every deliverable
 grep, and the QEMU discrimination walk. R-2 was walked over four config shapes
 and NOT reproduced.
+
+---
+
+Round 2, independent reader, 2026-09-11. Findings artifact:
+`tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/review-findings-cao-round2.md`.
+Verdict: **findings** -- 2 BLOCKER, 1 ISSUE, 1 NIT. The gate is NOT clean.
+
+Scope is round 1's repairs and what they touched. Every round-1 disposition was
+re-verified at the producer. B-2, I-1, I-2, I-3, I-4, I-5, I-6, N-1, N-2 and N-3
+hold. B-1 is half repaired, and the half it left is the first finding below.
+
+| # | Severity | File / symbol | Finding |
+|---|----------|---------------|---------|
+| R2-B-1 | BLOCKER | `internal/component/config/transaction/solver.go` `placeSectionNodes` | The coarse node runs AFTER destroys whenever a create is delayed behind one, which `iface-remove-address-before-add-same-address` does on every cross-interface address move. Reproduced over the two rules iface registers: moving `10.0.0.1` from `eth0` to `eth1` together with deleting `eth2` (or removing a second address) sorts to remove, remove, add, coarse. The uncovered root is applied after an address and an interface it binds are gone, which is D1's own symptom. The page, the function comment and the round-1 B-1 disposition all state "so it runs before the destructions" as a guarantee; the Known Limitation names only the narrower case where a rule FORCES a destroy ahead of a create, and in the reproduction no rule forced those destroys anywhere. `TestTopologicalSortPlacesSectionNodeBetweenCreatesAndDestroys` has three cases and none delays a create |
+| R2-B-2 | BLOCKER | `solver.go` `placeSectionNodes` with `orchestrator.go` `participantsWithoutOperations` | The `bgp` participant applies FIRST on every reload that touches a peer. It decomposes, so it owns operations and takes no coarse node, while its siblings on the `bgp` root (`rib`, `gr`, `rpki`, `bmp`, the `filter_*` set) each get one, and the placement puts every coarse node after the last create-or-modify, which is the peer operation. Reproduced: `bgp-modify-peer`, then `section-apply-rib`, `section-apply-gr`, `section-apply-rpki`. `sortParticipantsBGPLast` exists to prevent exactly this and `TestReloadTxApplyBGPLast` guards it, but that test registers no bgp decomposer, so its three participants are all coarse and the participant order survives. Before this spec every bgp reload took the deleted fallback and bgp applied last |
+| R2-I-1 | ISSUE | `docs/architecture/config/transaction-protocol.md` | Two sentences still describe the deleted tiered deadline: "Engine enforces the dependency-graph-aware critical path" in the principles table, and "The engine knows the dependency graph for deadline computation" in section 9. `computeSequentialDeadline` calls `tierFn` never. The `apply-ordering.md` sentence quoted in R2-B-1 is the second page edit owed |
+| R2-N-1 | NIT | `orchestrator_budget.go` `computeRollbackDeadline` | It returns `3 * applyDeadline` and is the only other reader of the field. The apply deadline grew from a per-tier max to an uncapped sum, `MaxBudgetSeconds` caps each participant and nothing caps the total, so the rollback wait grew with it. The page states the apply-side trade and not the multiplier |
+
+**The QEMU evidence still describes the code, for what those two tests assert.**
+`address-swap` is a pure swap and `mixed-root` a renumber on one interface: the
+probe sorts both with the coarse node between the creates and the destroys, so
+no address operation moved, and neither RED is a timeout the larger deadline
+could reach. The caveat R2-B-1 adds is that the placement is shape-dependent and
+both `.ci` tests exercise the shape that works, so neither is evidence about a
+cross-interface move in a mixed transaction.
+
+Reproduction harness: a `go test -overlay` probe under
+`tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/r2probe/`,
+which injects a test into `internal/component/config/transaction` without
+editing the tree.
+
+## Phase 5 (2026-09-11): the ordering policy becomes the owner's
+
+The contract for this phase is `docs/architecture/config/apply-ordering.md`,
+section "The requirement", which carries the owner's words verbatim. It outranks
+the Task and Acceptance Criteria sections above, which were written from a
+paraphrase that had lost the requirement.
+
+**What a reload applies now.** The binders the commit removes stop, then the
+binders whose bound address is disturbed stop, then every address the commit
+removes leaves the host, then every address the commit adds arrives, then the
+binders start against them. Inside that last phase, the participants that apply
+a whole section come before the decomposed starts, so a peer finds its RIB and
+its filters configured before it opens a socket.
+
+**Make-before-break is deleted, not left beside its replacement.** Gone:
+`Params.AllowDual` (`pkg/plugin/rpc/types.go`), `markDualPresence`,
+`tryRelaxCycle`, `isAddressOperation` and `opInterface`
+(`internal/component/config/transaction/solver.go`), the constraint rule
+`iface-add-address-before-remove-same-interface`
+(`internal/component/iface/operation.go`), and the two constraint relations
+those rules were the only users of, `same-interface` and `same-address`
+(`internal/component/config/transaction/operation.go`).
+
+`tryRelaxCycle` was judged on its merits and deleted for a reason of its own: the
+cycle it existed to break cannot form any more. A cross-interface swap closed a
+four-node cycle only because the make-before-break rule ordered an addition
+ahead of a removal on the same interface. With that rule gone each address
+carries one destroy, one create and a single edge between them, so a swap and a
+three-way rotation both sort without relaxation
+(`TestTopologicalSortSwapsAddressesBreakBeforeMake`,
+`TestTopologicalSortRotatesAddressesBreakBeforeMake`). Every cycle is now
+rejected, which is the fail-closed answer.
+
+**One rule was widened rather than deleted.** Deleting only the make-before-break
+rule would have left a RENUMBER unordered: the old address and the new one are
+two different addresses, the same-address rule related them not at all, and the
+decomposer emits its additions before its removals, so the graph would have
+applied make-before-break by accident and re-armed the IPv4 primary/secondary
+hazard `internal/plugins/iface/netlink/addr_primary.go` documents. So
+`iface-remove-address-before-add-same-address` became
+`iface-remove-address-before-add-address`, which states phases 3 and 4 directly.
+That is the one edit this phase made in `internal/component/iface/` beyond the
+rule it was sent to delete.
+
+**The name check is gone and the ordering falls out of the graph.**
+`sortParticipantsBGPLast` and `bgpParticipantName`
+(`internal/component/plugin/server/reload_tx.go`) are deleted.
+`placeSectionNodes` now puts a coarse node after the last operation that creates
+an address or an interface, and before the first create-or-modify that targets
+anything else. That is the gap between phase 4 and phase 5, stated in the verb
+and resource-kind vocabulary the engine already orders by, with no root, no
+participant and no operation label named.
+
+Both round-2 blockers are answered:
+
+| Finding | Disposition |
+|---------|-------------|
+| R2-B-1 | MOOT. Its premise was that a coarse node must precede the destructions, which was the inherited sequence. The requirement removes before it adds, so a coarse node runs after the destructions by design, and the page and the function comment now say so |
+| R2-B-2 | FIXED. The coarse nodes of the `bgp` root's siblings sort before `bgp`'s own peer create or modify, because a peer operation targets `ResourcePeer` and is therefore a phase 5 start. Fenced end to end by `TestReloadTxAppliesCoarseSectionsBeforeBinderStarts`, which registers the decomposing participant FIRST so neither a name check nor the slice order can produce the answer, and at the solver by two new cases of `TestTopologicalSortPlacesSectionNodeBetweenAddressingAndBinders` |
+
+**What is NOT verified on this host.**
+`test/reload/config-apply-ordering-address-swap.ci` and
+`test/reload/config-apply-ordering-mixed-root.ci` both carry
+`option=needs-linux:caps=net-admin` and skip on darwin, where this phase was
+implemented. Both assert the requirement's order now, and both had their
+assertion functions rewritten, so the QEMU discrimination walk each passed under
+the old policy no longer covers them. Neither has been executed under the new
+policy. What ran instead is the two-arm unit test over each assertion function
+in `internal/test/fixture/register_config_apply_ordering_test.go`, which accepts
+the requirement's order and refuses the policy it replaced. The walk each file
+owes is written into its own DISCRIMINATION header and is outstanding.

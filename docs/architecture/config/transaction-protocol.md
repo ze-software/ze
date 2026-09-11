@@ -822,7 +822,7 @@ An operation is a typed, self-describing value (`ConfigOperation` in
 | `Target` | `ResourceRef`: kind, name, interface, address, peer, port, prefix, next-hop |
 | `Produces` | The resources this operation makes available to other operations |
 | `Consumes` | The resources this operation needs another operation to have produced |
-| `Params` | `ConfigOperationParams`: operation-specific values, config payloads, AllowDual flag |
+| `Params` | `ConfigOperationParams`: operation-specific values and config payloads |
 
 The engine orders an operation by its `Verb` and its target's `ResourceKind`.
 Those two are the whole ordering vocabulary:
@@ -887,7 +887,7 @@ they made.
 #### Constraint rules
 
 A constraint rule states what a produce and consume pair CANNOT: a fact about
-two operations over DIFFERENT resources. Two survive, both in `iface`, and no
+two operations over DIFFERENT resources. One survives, in `iface`, and no
 component registers another.
 
 A rule matches a pair of operations via selectors (type + resource kind) and a
@@ -896,7 +896,7 @@ relation holds, the graph builder adds an edge `before -> after`.
 
 | Field | Purpose |
 |-------|---------|
-| `ID` | Unique rule identifier (e.g., `iface-remove-address-before-add-same-address`) |
+| `ID` | Unique rule identifier (e.g., `iface-remove-address-before-add-address`) |
 | `Before` | `OperationSelector{Type, ResourceKind}` matching the operation that must run first |
 | `After` | `OperationSelector{Type, ResourceKind}` matching the operation that must run second |
 | `Relation` | How the two operations' resources relate (see below) |
@@ -906,21 +906,20 @@ Resource relations:
 | Relation | Meaning |
 |----------|---------|
 | (empty) | Any pair of matching operations |
-| `same-interface` | Both operations act on the same interface |
-| `same-address` | Both operations target the same IP address |
 
 A relation saying "both target the same resource" is not here. One operation
-produces what another consumes, and the two operations DECLARE that themselves.
-The graph derives that edge, so the relations left are the two the surviving
-rules select.
+produces what another consumes, and the two operations DECLARE that themselves,
+and the graph derives that edge. `same-interface` and `same-address` are gone
+with the rules that were their only users, and `RegisterConstraintRule` refuses
+a rule that names a relation this package does not know, rather than registering
+one that would match nothing.
 
 Rules are registered via `RegisterConstraintRule` in component `init()` functions.
-The two in the codebase:
+The one in the codebase:
 
 | Rule ID | Before | After | Relation | What it states |
 |---------|--------|-------|----------|----------------|
-| `iface-remove-address-before-add-same-address` | `remove-address/address` | `add-address/address` | `same-address` | One address lives on one interface, so it leaves the old one before it arrives on the new one |
-| `iface-add-address-before-remove-same-interface` | `add-address/address` | `remove-address/address` | `same-interface` | An interface is never left with no address: make before break |
+| `iface-remove-address-before-add-address` | `remove-address/address` | `add-address/address` | (empty) | Every address the commit removes leaves the host before any address the commit adds arrives: phases 3 and 4 of the requirement |
 
 Rules are sorted by ID before graph construction for deterministic edge ordering.
 
@@ -951,11 +950,13 @@ ordered path with everything else and is applied through the `config-apply`
 callback it already implements.
 
 Components that do not register a decomposer (DNS, telemetry, DHCP) are each
-one coarse node. The node is placed after the last operation that creates or
-modifies a resource, and therefore before the destructions. Each is ordered
-against the operations the other roots emit, and not within itself. No code
-change is needed in those components.
-<!-- source: internal/component/config/transaction/solver.go -- placeSectionNodes -->
+one coarse node. The node is placed after the addresses and interfaces the
+commit adds, and before the first operation that creates or modifies something
+which binds them, which is the gap between phase 4 and phase 5 of the
+requirement (`apply-ordering.md`). Each is ordered against the operations the
+other roots emit, and not within itself. No code change is needed in those
+components.
+<!-- source: internal/component/config/transaction/solver.go -- placeSectionNodes, sectionNodePosition -->
 
 ### Graph construction and topological sort
 
@@ -977,36 +978,22 @@ This section describes what the solver does today. The owner's requirement asks
 for a different policy, and `docs/architecture/config/apply-ordering.md` carries
 it under "What is not built".
 
-Address operations can form cycles. An IP swap (move 10.0.0.1 from eth0 to eth1)
-creates:
+Address operations formed cycles until 2026-09-11. An IP swap (eth0 and eth1
+trade 10.0.0.1 and 10.0.0.2) drew two rule edges for each address, one from the
+uniqueness rule and one from a make-before-break rule that held the new address
+on an interface until the old one left, and the four closed a cycle. The solver
+relaxed it by dropping the cross-interface edges, which left both addresses on
+the host for the duration of the swap.
 
-- Rule: `remove-address(10.0.0.1/eth0)` before `add-address(10.0.0.1/eth1)` (same-address uniqueness)
-- Rule: `add-address(*/eth0)` before `remove-address(*/eth0)` (make-before-break on same interface)
+That was make-before-break, and the requirement asks for the opposite order
+(`apply-ordering.md`, "The five phases"). The rule is deleted, so a swap now
+carries one destroy and one create for each address with a single edge between
+them, and the graph has no cycle to break.
 
-If both interfaces are involved symmetrically (e.g., three-way rotation), these
-edges form a cycle.
-
-The solver handles this with `tryRelaxCycle`:
-
-1. **Verify all cycle members are address operations.** If any non-address
-   operation is in the cycle, the solver returns `ErrOperationCycle` (the
-   transaction is aborted).
-
-2. **Remove cross-interface edges.** Edges between address operations on
-   different interfaces are dropped. Same-interface edges (make-before-break
-   ordering) are preserved.
-
-3. **Re-run Kahn's algorithm** on the reduced edge set. If the sort completes,
-   the cycle is resolved.
-
-4. **Mark dual-presence.** The cycle members that CREATE a resource of kind
-   `address`, whatever they are labelled, get `Params.AllowDual = true`. Nothing
-   outside `solver.go` reads that flag, so it labels the result and instructs no
-   applier. The window comes from the removed edges alone.
-
-Non-address cycles and same-interface cycles are not relaxable and cause
-`ErrOperationCycle`, which aborts the transaction.
-<!-- source: internal/component/config/transaction/solver.go -- tryRelaxCycle, markDualPresence -->
+Nothing relaxes a cycle now. `TopologicalSort` answers `ErrOperationCycle` for
+any graph Kahn's algorithm cannot finish, and the transaction aborts before
+anything is applied.
+<!-- source: internal/component/config/transaction/solver.go -- TopologicalSort -->
 
 ### Per-operation execution with settlement
 

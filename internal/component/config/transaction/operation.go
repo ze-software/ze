@@ -224,14 +224,15 @@ type OperationSelector struct {
 // That fact is DECLARED by the operations themselves, in Produces and Consumes,
 // and the graph derives its edge from the pair (BuildOperationGraph). A rule
 // carries what a pair cannot: a fact about two operations over DIFFERENT
-// resources. That is why the two relations left are the two the surviving
-// iface rules select.
+// resources. One relation is left. `same-interface` and `same-address` both
+// went with the rules that were their only users: the requirement removes
+// every disturbed address before it adds any, so the surviving iface rule
+// relates every removal to every addition and needs no narrower relation
+// (docs/architecture/config/apply-ordering.md).
 type ResourceRelation string
 
 const (
-	ResourceRelationAny           ResourceRelation = ""
-	ResourceRelationSameInterface ResourceRelation = "same-interface"
-	ResourceRelationSameAddress   ResourceRelation = "same-address"
+	ResourceRelationAny ResourceRelation = ""
 )
 
 // ConstraintRule is a data rule that produces an ordering edge when both
@@ -303,6 +304,12 @@ func OperationDecomposerFor(root string) (OperationDecomposer, bool) {
 func RegisterConstraintRule(rule ConstraintRule) error {
 	if rule.ID == "" || rule.Before.Type == "" || rule.After.Type == "" {
 		return fmt.Errorf("%w: rule id, before type, and after type are required", errOperationRegistryInvalidInput)
+	}
+	// A relation this package does not know produces NO edge, so the rule
+	// would register, match nothing and order nothing, with no line to read
+	// (ai/rules/principles.md). One relation is left, so the refusal is exact.
+	if rule.Relation != ResourceRelationAny {
+		return fmt.Errorf("%w: rule %s declares an unknown relation", errOperationRegistryInvalidInput, rule.ID)
 	}
 	operationRegistry.Lock()
 	defer operationRegistry.Unlock()

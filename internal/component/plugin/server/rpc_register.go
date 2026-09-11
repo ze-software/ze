@@ -40,7 +40,7 @@ func runProcessCleanupHooks(processName string) {
 const peerNodeName = "peer"
 
 // bgpPathKeyword is the `bgp` an operator TYPES, which is a separate fact from
-// bgpParticipantName, the plugin whose apply runs last.
+// the config root of the same name and from the plugin that declares it.
 const bgpPathKeyword = "bgp"
 
 // PeerKeywords is what the BGP `peer` containers declare, and which of those

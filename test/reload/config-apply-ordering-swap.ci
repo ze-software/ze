@@ -13,7 +13,7 @@
 #            reconnect.
 # The address swap this file is named after is
 # test/reload/config-apply-ordering-address-swap.ci, which moves two addresses
-# between two interfaces and proves the dual-presence window.
+# between two interfaces and proves each one leaves before it arrives.
 # Expected: both peers reconnect and resend their routes.
 
 # ze-peer expectations (router-id ordering works on both macOS and Linux)

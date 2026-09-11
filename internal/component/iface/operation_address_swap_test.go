@@ -35,28 +35,36 @@ func runSwapOperations(t *testing.T, active, candidate, changed string) []tx.Con
 // for a same-subnet address change (10.77.0.1/24 -> 10.77.0.2/24), the shape of
 // the reload that left the interface with no address at all.
 //
-// The ordering itself is correct and deliberate: the new address must be up
-// before the old one goes away. What it costs is that the new address becomes a
-// Linux SECONDARY of the old one, so the netlink backend has to stop the kernel
-// cascading the removal -- see internal/plugins/iface/netlink/addr_primary.go.
-// If this order is ever inverted, that guard stops being load-bearing, and the
-// inversion must be a deliberate reviewed decision rather than silent drift.
+// The order is INVERTED here, and this is the deliberate reviewed decision the
+// previous version of this comment demanded. The owner stated the apply order on
+// 2026-09-11 and it removes before it adds: "remove all IP deconfigured", then
+// "add all IP moved or added" (docs/architecture/config/apply-ordering.md,
+// quoted verbatim). The binder bound to the address is stopped first, so the
+// window with no address on the interface costs nothing that is still running.
 //
-// VALIDATES: a same-subnet address change yields ADD_ADDRESS(new) ordered before REMOVE_ADDRESS(old).
-// PREVENTS: a silent reordering that changes which address the kernel treats as primary.
-func TestIfaceSameSubnetSwapOrdersAddBeforeRemove(t *testing.T) {
+// What the old order cost is now gone with it: the new address is no longer
+// added while the old one is present, so it never becomes a Linux SECONDARY of
+// it, and the kernel has no removal to cascade. The guard in
+// internal/plugins/iface/netlink/addr_primary.go stays for the RECONCILE path,
+// which still adds before it removes; the ordered path no longer reaches it.
+//
+// VALIDATES: a same-subnet address change yields REMOVE_ADDRESS(old) ordered before ADD_ADDRESS(new).
+// PREVENTS: a silent return to make-before-break, which the requirement does not ask for.
+func TestIfaceSameSubnetSwapOrdersRemoveBeforeAdd(t *testing.T) {
 	sorted := runSwapOperations(t,
 		`{"interface":{"backend":"netlink","dummy":{"zdiag0":{"unit":{"0":{"ipv4":{"address":"10.77.0.1/24"}}}}}}}`,
 		`{"interface":{"backend":"netlink","dummy":{"zdiag0":{"unit":{"0":{"ipv4":{"address":"10.77.0.2/24"}}}}}}}`,
 		`{"interface/dummy/zdiag0/unit/0/ipv4/address/0":{"old":"10.77.0.1/24","new":"10.77.0.2/24"}}`,
 	)
 
-	require.Len(t, sorted, 2)
-	assert.Equal(t, operationAddAddress, sorted[0].Type)
-	assert.Equal(t, "10.77.0.2/24", sorted[0].Params.CIDR)
+	require.Len(t, sorted, 3)
+	assert.Equal(t, operationConfigureIfaces, sorted[2].Type,
+		"the configure operation runs last, once every address is where the plan leaves it")
+	assert.Equal(t, operationRemoveAddress, sorted[0].Type)
+	assert.Equal(t, "10.77.0.1/24", sorted[0].Params.CIDR)
 	assert.Equal(t, "zdiag0", sorted[0].Target.Interface)
-	assert.Equal(t, operationRemoveAddress, sorted[1].Type)
-	assert.Equal(t, "10.77.0.1/24", sorted[1].Params.CIDR)
+	assert.Equal(t, operationAddAddress, sorted[1].Type)
+	assert.Equal(t, "10.77.0.2/24", sorted[1].Params.CIDR)
 	assert.Equal(t, "zdiag0", sorted[1].Target.Interface)
 }
 
@@ -78,6 +86,13 @@ func TestIfaceSameSubnetSwapAppliesNewAddress(t *testing.T) {
 	b.ifaces["zdiag0"] = fakeIface{name: "zdiag0", linkType: "dummy"}
 	b.addrs["zdiag0"] = []string{"10.77.0.1/24"}
 	for i := range sorted {
+		// The configure operation applies the pending config, which the
+		// plugin closure holds and this test has no verify phase to fill
+		// (register.go, applyPendingConfig). What it would do to the
+		// addresses is what the two operations below have already done.
+		if sorted[i].Type == operationConfigureIfaces {
+			continue
+		}
 		_, err := applyIfaceOperation(&sorted[i], b)
 		require.NoErrorf(t, err, "apply %s", sorted[i].ID)
 	}

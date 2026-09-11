@@ -137,25 +137,12 @@ carries less machinery. The design asks for no dual-presence window.
 
 ## What is not built
 
-The five entries below are the distance between the design above and the code.
+The three entries below are the distance between the design above and the code.
 The rest of this page describes the code.
 
 **Phase 2 reaches a binder that decomposes.** BGP is the only one. What it does
 for BGP is in "Phases 2 and 5, for BGP" below. For every other binder it does
-nothing, and the next two entries say why.
-
-**A root whose decomposer DECLINES is read as disturbing nothing.** The
-disturbed set is computed from the address operations the plan carries. A root
-that produced none therefore looks quiet. `decomposeIfaceOperations` returns no
-operation at all when ANY key in its diff is one it does not decompose. That is
-the all-or-nothing contract "The current state" describes. So a commit that
-edits an MTU AND moves an address emits no address operation. The core
-establishes no disturbance, and the session stays up while the coarse section
-apply moves the address underneath it. An MTU edit on its own takes the same
-path and is correct there. The two cannot be told apart from outside the
-decomposer. The repair is in `interface`: answer the address
-question for the keys it can read, whatever else the diff carries.
-<!-- source: internal/component/iface/operation.go -- ifaceDiffHasDecomposableChanges -->
+nothing, and the next entry says why.
 
 **Phases 2 and 5 are out of reach for a binder nobody decomposes.** Both phases
 need one binder to take TWO steps in one commit, a stop before the addresses
@@ -164,28 +151,6 @@ section-apply node, and one node cannot be split in two. Two roots register a
 decomposer, `interface` and `bgp`, so every other binder has one lump.
 <!-- source: internal/component/config/transaction/operation.go -- RegisterOperationDecomposer -->
 <!-- source: internal/component/config/transaction/solver.go -- placeSectionNodes, appendSectionNodes -->
-
-**The dual-presence policy contradicts the requirement.** `tryRelaxCycle`
-removes the cross-interface edges of an address cycle, which leaves both
-addresses present while they swap. `markDualPresence` labels the creations it
-freed. That is make-before-break, which the requirement does not ask for.
-
-`test/reload/config-apply-ordering-address-swap.ci` asserts the window. It used
-to assert one TCP connection for the whole run. That was the claim that the BGP
-session bound to the moving address never restarted, and it stated the
-inherited policy rather than the owner's. Phase 2 made it false. The test now
-asserts two connections, one before the move and one after. The window
-itself is unchanged, and nothing is bound to the address while it moves.
-<!-- source: internal/component/config/transaction/solver.go -- tryRelaxCycle, markDualPresence -->
-
-**A name check stands in for phase 5.** `sortParticipantsBGPLast` sorts the
-participant named `bgp` to the tail of the slice, so the one binder somebody
-noticed applies last. Its own comment gives the reason, which is that it matches
-the ordering of the reload path it replaced. It is a crude stand-in for phase 5
-for one binder, and not a designed invariant. `ai/rules/principles.md` bans a
-central list of this shape. The core file spells one component's name, and no
-other binder is named at all.
-<!-- source: internal/component/plugin/server/reload_tx.go -- sortParticipantsBGPLast, bgpParticipantName -->
 
 **The wildcard carve-out is verified for BGP only.** Ze's BGP binds specific
 addresses. `CreateReactorFromTree` sets no global listen address.
@@ -269,7 +234,34 @@ carve-out frees no BGP session.
 <!-- source: internal/component/bgp/plugin/operation.go -- peerAddressConsumes -->
 
 What phase 2 does NOT cover is in "What is not built" above: a binder nobody
-decomposes, and a root whose decomposer declined to answer.
+decomposes.
+
+**Every interface commit answers the address question.** The disturbed set is
+computed from the address operations the plan carries, so a root that produces
+none reads as quiet. `decomposeIfaceOperations` used to produce none whenever
+ANY key in its diff was one it had no primitive for, which made a commit that
+edited an MTU AND moved an address look like a commit that disturbed nothing:
+the binder stayed up while the coarse section apply moved the address under it.
+An MTU edit on its own took the same path and was correct there, and the two
+cannot be told apart from outside the decomposer.
+
+It now decomposes the whole root on every call. An address and an interface of
+a type it can create become one operation each, and every other key rides one
+`configure-interfaces` operation, which applies the interface config as a
+whole. Four constraint rules place that operation after every operation that
+moves an address or an interface, so the end state it applies is the state the
+plan has already reached and only the keys no operation carries are left for it.
+No key is classified, so nothing in the root can be dropped by misreading one.
+
+Two cases stay with that operation rather than becoming operations of their
+own. An interface whose type this package has no create primitive for (a
+tunnel, a wireguard device, an xfrm device) is created and deleted by it, and
+an address arriving on an interface it creates waits for it, because an
+add-address operation would name a device that does not exist yet. Every
+address LEAVING the host still becomes an operation, whatever carries the
+interface, because that operation is what the core reads the disturbance out
+of.
+<!-- source: internal/component/iface/operation.go -- decomposeIfaceOperations, ifaceConfigureOperation -->
 
 The kernel-driven path is still there and is not a substitute.
 `handleAddrRemovedPayload` stops the LISTENER bound to a removed address and
@@ -301,12 +293,19 @@ runs before what consumes it, and a destroy runs after every destroy that
 consumes it. Nine hand-written rules said exactly that for two roots, and each
 one had to spell the other root's operation labels to say it. They are deleted.
 
-Two rules survive, both in `iface`, and both state a fact about two operations
-over DIFFERENT resources, which no pair of declarations can carry: one address
-lives on one interface (`iface-remove-address-before-add-same-address`), and an
-interface is never left without an address
-(`iface-add-address-before-remove-same-interface`). A root that adds a rule
-today is almost certainly describing a produce and consume fact instead.
+One rule survives, in `iface`, and it states a fact about two operations over
+DIFFERENT resources, which no pair of declarations can carry: every address the
+commit removes leaves the host before any address the commit adds arrives
+(`iface-remove-address-before-add-address`). That is phases 3 and 4, in the
+order the requirement gives them. A root that adds a rule today is almost
+certainly describing a produce and consume fact instead.
+
+Two rules became that one. The first ordered a removal before the addition of
+the SAME address, which is one address living on one interface. The second held
+the new address on an interface until the old one left, so no interface was ever
+bare: that was make-before-break. Deleting only the second would have left a
+renumber unordered, because the old address and the new one are two different
+addresses and the planner emits its additions first.
 <!-- source: internal/component/config/transaction/depgraph.go -- addDerivedEdges -->
 
 **A declared resource that names nothing orders nothing.** An entry carrying no
@@ -332,24 +331,35 @@ what replaced it.
 <!-- source: internal/component/config/transaction/orchestrator.go -- operationNodes -->
 <!-- source: internal/component/config/transaction/executor.go -- applySection -->
 
-**A coarse node is placed after the last create and modify, so it runs before
-the destructions.** That is the sequence the inherited design stated: create the
-address, update the services that bind it, destroy the old address last. The
-requirement asks for a different sequence, and one node cannot carry it, because
-phases 2 and 5 need two. A root nobody decomposes gets the one position the core
-can state for it, and the core knows nothing more about that root.
+**A coarse node is placed between phase 4 and phase 5.** It runs after the
+addresses and the interfaces the commit adds, and before the first operation
+that creates or modifies something which binds them. The core knows nothing
+about a root nobody decomposes, so the fail-safe default reads that participant
+as a binder, and a binder belongs in phase 5. Inside phase 5 it runs before the
+decomposed starts, because a binder has to find the subsystems it uses already
+configured: the `bgp` root's peers start after the plugins that configure the
+RIB, the graceful-restart state and the filters have applied their sections.
+
+That order is derived from the verb and the resource kind every operation
+already declares. `isAddressingKind` is the only place the engine reads a kind
+for anything but identity: a root that PROVIDES addressing declares `address` or
+`interface`, and a root that BINDS it declares its own kind and lands on the
+phase 5 side with no edit to the engine.
+
+One node still cannot carry phases 2 and 5 both, so a coarse binder is started
+against the new addresses and never stopped before the old ones go. That is the
+limit "What is not built" above states.
 
 The position is a placement rather than an edge, and `placeSectionNodes` takes
-it once the sort is done. An edge from every create and to every destroy would
-close a cycle with `iface-remove-address-before-add-same-address`, which orders
-a destroy BEFORE a create. Moving one address between two interfaces, while any
-uncovered root has a diff, would then abort a reload that works today. A coarse
-node carries no edge at all, so moving it constrains nothing and no other
-operation changes place.
+it once the sort is done. A coarse node stands for a whole participant section,
+so it names no resource and nothing in the graph can state where it goes; an
+edge invented for it would join cycles the operator never wrote.
 
-Where a destroy is forced ahead of a create the two halves cannot both hold,
-and the creations win. The section applies the config's end state.
-<!-- source: internal/component/config/transaction/solver.go -- placeSectionNodes -->
+The two bounds cross only where a binder start sorts ahead of an address the
+commit adds, which no edge can produce for a binder that declares the address it
+binds. The addressing bound wins there, because a binder started before its
+address is the failure the requirement exists to prevent.
+<!-- source: internal/component/config/transaction/solver.go -- placeSectionNodes, sectionNodePosition -->
 <!-- source: internal/component/iface/operation.go -- iface-owned decomposition -->
 <!-- source: internal/component/bgp/plugin/operation.go -- BGP-owned decomposition -->
 <!-- source: internal/component/bgp/reactor/operation.go -- peer add, remove and modify primitives -->
@@ -397,17 +407,13 @@ pre-release with no shipped external plugin, so no compatibility shim accepts a
 payload without one.
 <!-- source: internal/component/config/transaction/operation.go -- ValidateOperations -->
 
-**Address-only cross-interface cycles relax. Everything else is rejected.** A
-swap of two addresses between interfaces is a cycle by construction. The solver
-breaks it by removing the cross-interface edges, which leaves both addresses
-present for the duration of the swap, and then marks the creations it freed
-with `AllowDual` (see the note on that flag below). The window this produces is
-make-before-break, which "What is not built" above names as a policy the
-requirement does not ask for. "Address operation" is a
-verb and a kind: an operation
-that creates or destroys a resource of kind `address`, whatever it is labelled.
-A cycle that is not address-only, or that is inside one interface, is rejected
-instead of relaxed.
+**Every cycle is rejected.** A swap of two addresses between interfaces used to
+be a cycle by construction, and the solver relaxed it by removing the
+cross-interface edges, which left both addresses present for the duration of the
+swap. That window was make-before-break. With the rule that closed the cycle
+deleted, a swap carries one destroy and one create for each address with a single
+edge between them, so there is no cycle to break and nothing relaxes one.
+`TopologicalSort` answers `ErrOperationCycle` for any graph it cannot order.
 
 **Settlement waiters are armed before the apply**, so a readiness event that
 arrives fast is not missed.
@@ -429,25 +435,25 @@ emits it.
 
 ## What the tests do not reach
 
-The dual-presence window runs on the real path, and has been observed doing so.
+The applied ORDER is read on the real path from the kernel's own notifications.
 `test/reload/config-apply-ordering-address-swap.ci` gives two interfaces each
-other's address in one commit, which is the four-node cycle `tryRelaxCycle`
-relaxes, and reads the kernel's own notifications back through `ip monitor`. It
-asserts what the window means: both creates land before either destroy, so both
-addresses are present at the same time, and neither interface is left without an
-address at any notification.
+other's address in one commit and reads the notifications back through `ip
+monitor`. It asserts what the requirement asks for: each address leaves the
+interface that held it before it arrives on the one that takes it, and no
+interface ever holds both.
 `test/reload/config-apply-ordering-mixed-root.ci` proves the same ordering with a
 second root in the transaction, using a static route whose gateway resolves only
 against the new address. Both carry `option=needs-linux:caps=net-admin`, so they
-run in the QEMU VM and skip on a host without CAP_NET_ADMIN. Both have been
-through the discrimination walk `ai/rules/interop-and-goal-validation.md`
-requires, in the QEMU guest on Ze's runtime kernel. Under a `tryRelaxCycle` that
-returns the unreduced edge set, the swap answers `config verify failed:
-operation dependency cycle` and nothing is applied; under the uncovered
-participant condition the orchestrator no longer carries, the mixed-root route
-installs before its address and the kernel answers `network is unreachable`.
-Each test passes when its revert is restored, so the window is demonstrated here
-rather than asserted.
+run in the QEMU VM and skip on a host without CAP_NET_ADMIN.
+
+Neither has been walked under the break-before-make policy. Both passed a
+discrimination walk in the QEMU guest under the dual-presence policy, and both
+assertion functions changed with the policy on 2026-09-11, on a darwin host
+where the files skip. What HAS run is the two-arm unit test over each assertion
+function (`internal/test/fixture/register_config_apply_ordering_test.go`), which
+accepts the requirement's order and refuses the policy it replaced. The walk the
+two `.ci` files owe is named in their own DISCRIMINATION headers and is
+outstanding.
 
 The rotation, swap and reip tests reach none of that. They rotate BGP
 router-ids, so they emit peer operations only, two peers changing router-id
@@ -456,12 +462,6 @@ of their headers now says so and points at the address test that carries the
 claim its own file name suggests. The create and delete tests emit real iface
 interface operations and are Linux-only.
 
-What stays unreached is `Params.AllowDual`. `markDualPresence` writes it and
-nothing outside `solver.go` reads it, so the window comes from the removed edges
-alone and the flag labels the result rather than instructing the applier. No
-test can tell a build that sets it from one that does not, and the address-swap
-test asserts the window without reading it.
-
 The operation-count warning at 10000 and the cycle-depth rejection at 100 are
 named in the design and not enforced in the graph builder. Config is operator
 supplied and bounded, so neither is a security boundary.
@@ -469,12 +469,19 @@ supplied and bounded, so neither is a security boundary.
 The step-3 owner state check is not implemented in `armSettlementWaiters`, which
 subscribes and nothing more.
 
+The `configure-interfaces` operation is applied by the same function the
+section apply calls, so what a reload applies does not depend on which of the
+two paths it travels. The operation path used to apply neither, since a
+participant that owns operations receives no section apply: an interface reload
+through it never republished the name mapping, never reconciled the DHCP
+clients and never reconciled the router advertisements.
+<!-- source: internal/component/iface/register.go -- applyPendingConfig, OnConfigApply, OnConfigOperationApply -->
+
 The iface decomposer skips an address that the ACTIVE config already gives to
 the SAME interface with the same prefix length, and skips nothing else: an
 address moving to another interface, and an address whose prefix length changes,
-each produce a create beside the destroy of the old one. That is the pair the
-dual-presence window covers today, so "an address create never meets an address
-that is already there" was never true and is not what the ordering relies on.
+each produce a create beside the destroy of the old one. The surviving rule puts
+the destroy first, so an address create never meets the address it replaces.
 <!-- source: internal/component/iface/operation.go -- decomposeIfaceOperations -->
 
 A root outside `iface` that declares an address in `Produces` would be a second

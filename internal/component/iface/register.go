@@ -594,12 +594,23 @@ func runEngine(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+	// applyPendingConfig applies the config the verify phase accepted and
+	// returns the journal that undoes it. Two callers apply that config, and
+	// they differ only in where the journal goes: the section apply, which is
+	// this participant's whole config as one event, and the configure
+	// operation, which is the same work placed in the operation graph after
+	// every operation that moves an address (operation.go,
+	// ifaceConfigureOperation). A reload takes one of the two, never both.
+	//
+	// An apply with no pending config returns an EMPTY journal rather than a
+	// nil one. The caller stores what it gets where its own rollback looks,
+	// and an empty journal undoes nothing, which is what this apply did.
+	applyPendingConfig := func() (*sdk.Journal, error) {
 		cfg := pendingCfg
 		pendingCfg = nil
 		if cfg == nil {
 			log.Warn("interface config apply: no pending config (verify not called?)")
-			return nil
+			return sdk.NewJournal(), nil
 		}
 
 		previousCfg := activeCfg.Load()
@@ -611,14 +622,14 @@ func runEngine(conn net.Conn) int {
 		}
 		if cfg.Backend != previousBackend && cfg.Backend != "" {
 			if err := LoadBackend(cfg.Backend); err != nil {
-				return fmt.Errorf("interface backend switch to %q: %w", cfg.Backend, err)
+				return nil, fmt.Errorf("interface backend switch to %q: %w", cfg.Backend, err)
 			}
 			log.Info("interface backend switched", "from", previousBackend, "to", cfg.Backend)
 		}
 
 		b := GetBackend()
 		if b == nil {
-			return errInterfaceConfigApplyNoBackendLoaded
+			return nil, errInterfaceConfigApplyNoBackendLoaded
 		}
 		j := sdk.NewJournal()
 		err := j.Record(
@@ -657,11 +668,10 @@ func runEngine(conn net.Conn) int {
 		)
 		if err != nil {
 			j.Rollback()
-			return err
+			return nil, err
 		}
 
 		activeCfg.Store(cfg)
-		activeJournal = j
 		log.Info("interface config reloaded via transaction")
 
 		// Reconcile PPPoE clients on reload.
@@ -695,6 +705,18 @@ func runEngine(conn net.Conn) int {
 		reconcileRA(cfg, activeRA, log)
 		raMu.Unlock()
 
+		return j, nil
+	}
+
+	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+		j, err := applyPendingConfig()
+		if err != nil {
+			return err
+		}
+		// Stored whatever it holds. This transaction's journal is what a
+		// rollback of THIS transaction owes, and keeping the one before it
+		// would replay the inverse of a change that committed.
+		activeJournal = j
 		return nil
 	})
 
@@ -721,7 +743,17 @@ func runEngine(conn net.Conn) int {
 		if b == nil {
 			return nil, errInterfaceConfigApplyNoBackendLoaded
 		}
-		j, err := applyIfaceOperation(&input.Operation, b)
+		// The configure operation applies the pending config, which is what
+		// this root carries every key the four resource operations have no
+		// primitive for in. It is one operation among the others, ordered
+		// last, and its journal is rolled back the same way theirs is.
+		var j *sdk.Journal
+		var err error
+		if input.Operation.Type == operationConfigureIfaces {
+			j, err = applyPendingConfig()
+		} else {
+			j, err = applyIfaceOperation(&input.Operation, b)
+		}
 		if err != nil {
 			return nil, err
 		}

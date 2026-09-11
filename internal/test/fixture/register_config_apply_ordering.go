@@ -1,5 +1,5 @@
 // Design: docs/architecture/config/apply-ordering.md -- the ordered apply path
-// Detail: ../../component/config/transaction/solver.go -- tryRelaxCycle, the relaxation the swap driver observes
+// Detail: ../../component/config/transaction/solver.go -- TopologicalSort, the order the swap driver observes
 // Related: misc_fixture_shellports.go -- ifaceAddressSwapDriver, the single-interface renumber driver
 //
 // The two drivers behind test/reload/config-apply-ordering-address-swap.ci and
@@ -8,8 +8,8 @@
 // Both read the kernel's own netlink event stream through `ip monitor`. The
 // order a transaction applied is not recoverable from the final state, and no
 // function on the apply path writes one line per operation, so the event stream
-// is the only place the order survives. It is what makes the dual-presence
-// window a measurement instead of an inference from "the swap landed at all".
+// is the only place the order survives. It is what makes the applied ORDER a
+// measurement instead of an inference from "the change landed at all".
 package fixture
 
 import (
@@ -33,7 +33,8 @@ func init() {
 
 // The swap fixture's two interfaces and the two addresses that trade places.
 // Each address changes interface, so the iface decomposer emits a create and a
-// destroy for each one and the graph closes a four-node cycle.
+// destroy for each one, and the surviving constraint rule orders both destroys
+// ahead of both creates.
 const (
 	swapDeviceLeft   = "zdual0"
 	swapDeviceRight  = "zdual1"
@@ -57,14 +58,13 @@ const (
 // route and no interface state the reload will reconcile.
 const monitorProbeAddress = "10.99.0.1/32"
 
-// configApplyOrderingSwapDriver proves the dual-presence window on the real
-// path: two interfaces trade addresses in one commit, and both addresses stay
-// present while they do.
+// configApplyOrderingSwapDriver proves the requirement's order on the real
+// path: two interfaces trade addresses in one commit, and each address leaves
+// its old interface before it arrives on the new one.
 //
-// AC-4 says "both addresses are present at the same time" and "neither
-// interface is left without an address at any observable point". The observable
-// points are the netlink notifications, so the driver replays them over the
-// known initial state and checks the two claims on every step.
+// The observable points are the netlink notifications, so the driver replays
+// them over the known initial state and checks break-before-make on every
+// step.
 func configApplyOrderingSwapDriver(ctx context.Context, args []string) error {
 	if len(args) != 0 {
 		return errors.New("address swap driver takes no arguments")
@@ -108,7 +108,7 @@ func configApplyOrderingSwapDriver(ctx context.Context, args []string) error {
 	if err := writeOrderingEvents("swap-events.txt", events); err != nil {
 		return err
 	}
-	if err := assertSwapWindow(events); err != nil {
+	if err := assertSwapOrder(events); err != nil {
 		return err
 	}
 	if err := writeSwapFinalState(ctx, "swap-final.txt"); err != nil {
@@ -117,20 +117,23 @@ func configApplyOrderingSwapDriver(ctx context.Context, args []string) error {
 	return syscall.Kill(pid, syscall.SIGTERM)
 }
 
-// assertSwapWindow replays the address notifications over the known initial
-// state and checks AC-4 on every step.
+// assertSwapOrder replays the address notifications over the known initial
+// state and checks the requirement's order on every step.
 //
-// Two claims, and each fails a different way. Neither interface is ever left
-// bare, which a break-before-make order breaks. Both addresses are present at
-// once, which is the window itself: it exists only while every create has run
-// and no destroy has.
-func assertSwapWindow(events []kernelEvent) error {
+// Two claims, and each fails a different way. Each address is removed from the
+// interface that held it BEFORE it is added to the interface that takes it,
+// which a make-before-break order breaks. And no interface ever holds both
+// addresses, which is the dual-presence window this policy replaced: the
+// binder is stopped across the move, so there is no binding for a window to
+// protect (docs/architecture/config/apply-ordering.md).
+func assertSwapOrder(events []kernelEvent) error {
 	held := map[string]map[string]bool{
 		swapDeviceLeft:  {swapAddressLeft: true},
 		swapDeviceRight: {swapAddressRight: true},
 	}
-	window := false
-	for _, event := range events {
+	added := make(map[string]int, 2)
+	removed := make(map[string]int, 2)
+	for step, event := range events {
 		if event.kind != kindAddress {
 			continue
 		}
@@ -140,23 +143,35 @@ func assertSwapWindow(events []kernelEvent) error {
 		}
 		if event.deleted {
 			delete(addresses, event.target)
+			if _, seen := removed[event.target]; !seen {
+				removed[event.target] = step
+			}
 		} else {
 			addresses[event.target] = true
+			if _, seen := added[event.target]; !seen {
+				added[event.target] = step
+			}
 		}
-		if len(addresses) == 0 {
-			return fmt.Errorf("interface %s was left with no address after %s", event.device, event)
-		}
-		if len(held[swapDeviceLeft]) == 2 && len(held[swapDeviceRight]) == 2 {
-			window = true
+		if len(held[swapDeviceLeft]) > 1 || len(held[swapDeviceRight]) > 1 {
+			return fmt.Errorf("interface %s held both addresses after %s: the move was made before it was broken", event.device, event)
 		}
 	}
-	if !window {
-		return errors.New("the two addresses were never present at the same time: no dual-presence window")
+	for _, address := range []string{swapAddressLeft, swapAddressRight} {
+		remove, wasRemoved := removed[address]
+		add, wasAdded := added[address]
+		switch {
+		case !wasRemoved:
+			return fmt.Errorf("no notification removed %s from the interface that held it", address)
+		case !wasAdded:
+			return fmt.Errorf("no notification added %s to the interface that takes it", address)
+		case remove > add:
+			return fmt.Errorf("%s arrived on its new interface before it left the old one", address)
+		}
 	}
 	var tb textbuf.Buffer
-	tb.Str("OK: dual-presence window observed, ").
+	tb.Str("OK: break-before-make observed, ").
 		Str(swapAddressLeft).Str(" and ").Str(swapAddressRight).
-		Str(" both present while the interfaces swapped\n").StdErr() //nolint:errcheck // fixture progress output
+		Str(" each left one interface before arriving on the other\n").StdErr() //nolint:errcheck // fixture progress output
 	return nil
 }
 
@@ -165,8 +180,8 @@ func assertSwapWindow(events []kernelEvent) error {
 // second root joining the transaction.
 //
 // The static plugin registers no decomposer, so it is the coarse node. The
-// order the graph produces is create-address, then the coarse node, then
-// destroy-address, and each of the three is a netlink notification.
+// order the graph produces is destroy-address, then create-address, then the
+// coarse node, and each of the three is a netlink notification.
 func configApplyOrderingMixedRootDriver(ctx context.Context, args []string) error {
 	if len(args) != 0 {
 		return errors.New("mixed root driver takes no arguments")
@@ -212,7 +227,15 @@ func configApplyOrderingMixedRootDriver(ctx context.Context, args []string) erro
 }
 
 // assertMixedRootOrder checks the three notifications arrived in the order the
-// operation graph declares, which is what AC-1 states in kernel terms.
+// requirement gives: the old address is removed, the new one is added, and the
+// coarse root's route is installed against it.
+//
+// Until 2026-09-11 the last check ran the other way and refused a route
+// installed after the removal. That was make-before-break, which the
+// requirement replaced with remove-then-add
+// (docs/architecture/config/apply-ordering.md). What is load-bearing here is
+// unchanged and is the middle check: the route binds a gateway in the NEW
+// prefix, so the kernel answers ENETUNREACH to a route installed first.
 func assertMixedRootOrder(events []kernelEvent) error {
 	created := indexOfEvent(events, kernelEvent{kind: kindAddress, device: mixedDevice, target: mixedAddressNew})
 	installed := indexOfEvent(events, kernelEvent{kind: kindRoute, device: mixedDevice, target: mixedRoute})
@@ -224,14 +247,14 @@ func assertMixedRootOrder(events []kernelEvent) error {
 		return fmt.Errorf("no notification installed the static route %s", mixedRoute)
 	case destroyed < 0:
 		return fmt.Errorf("no notification removed %s from %s", mixedAddressOld, mixedDevice)
+	case destroyed > created:
+		return fmt.Errorf("the new address %s arrived before the old one %s was removed", mixedAddressNew, mixedAddressOld)
 	case created > installed:
 		return fmt.Errorf("the static route %s was installed before its address %s existed", mixedRoute, mixedAddressNew)
-	case installed > destroyed:
-		return fmt.Errorf("the old address %s was removed before the static route %s was installed", mixedAddressOld, mixedRoute)
 	}
 	var tb textbuf.Buffer
 	tb.Str("OK: address ordering held across two roots, ").
-		Str(mixedAddressNew).Str(" then ").Str(mixedRoute).Str(" then ").Str(mixedAddressOld).
+		Str(mixedAddressOld).Str(" then ").Str(mixedAddressNew).Str(" then ").Str(mixedRoute).
 		Byte('\n').StdErr() //nolint:errcheck // fixture progress output
 	return nil
 }

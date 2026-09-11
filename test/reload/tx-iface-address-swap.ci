@@ -1,12 +1,19 @@
 # Test: interface address renumbered WITHIN one subnet via SIGHUP
 #
-# The bug this fences: ze's address reconcile is make-before-break, so a
+# The bug this fences: ze's address RECONCILE is make-before-break, so a
 # renumber inside one subnet (10.77.0.1/24 -> 10.77.0.2/24) adds the new
 # address while the old one is still present. Linux then marks the newcomer
 # IFA_F_SECONDARY, and deleting the PRIMARY of that subnet deletes every
 # same-subnet secondary with it (net/ipv4/devinet.c, __inet_del_ifa) unless
 # net.ipv4.conf.<dev>.promote_secondaries is 1. The reload reported success and
 # left the interface with NO address at all.
+#
+# The ordered apply path no longer produces that sequence: since 2026-09-11 it
+# removes every disturbed address before it adds any, so the newcomer never
+# becomes a secondary of the address it replaces. The reconcile path
+# (reconcileOnReadyWithJournal, internal/component/iface/config_apply.go) still
+# adds before it removes, which is why the promote_secondaries policy stays and
+# why this test still has something to fence.
 #
 # The fence is the `ip addr show` readback in the native driver below: it asserts the NEW
 # address is present AND the old one is gone. A daemon that merely survives the

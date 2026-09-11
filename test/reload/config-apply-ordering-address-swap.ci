@@ -1,43 +1,49 @@
-# Test: two interfaces trade addresses in one commit, and both addresses stay
-#       present while they do.
+# Test: two interfaces trade addresses in one commit, and each address leaves
+#       the interface that held it before it arrives on the one that takes it.
 #
 # zdual0 holds 10.90.0.1/24 and zdual1 holds 10.91.0.1/24. The reloaded config
 # gives each address to the other interface. The iface decomposer emits a create
-# and a destroy for each one, and two rules close a cycle over the four: an
-# address must leave one interface before the same address joins another
-# (uniqueness), and a new address must arrive before the old one leaves the same
-# interface (make-before-break). TopologicalSort therefore reaches
-# tryRelaxCycle, which removes the two cross-interface edges and leaves both
-# creates before both destroys. That is the dual-presence window.
+# and a destroy for each one, and the surviving constraint rule orders every
+# address removal ahead of every address addition. The bgp decomposer emits a
+# stop and a start for peer1, which binds 10.90.0.1, because that address is
+# disturbed. So the commit applies in the order the owner asked for: stop the
+# binder, remove the addresses, add them back, start the binder
+# (docs/architecture/config/apply-ordering.md, "The five phases").
 #
-# VALIDATES: AC-4 -- both addresses are present at the same time for the
-#            duration of the swap, neither interface is left without an address
-#            at any observable point, the BGP peer bound to 10.90.0.1 is stopped
+# VALIDATES: phases 2 to 5. Each address is removed before the same address is
+#            added on the other interface, no interface holds both addresses at
+#            any observable point, the BGP peer bound to 10.90.0.1 is stopped
 #            before that address leaves zdual0 and started after it arrives on
 #            zdual1, and the transaction commits.
-# CLOSES: D4. Until this test the window ran only in TestTopologicalSortCycleResolution
-#         and TestTopologicalSortThreeWayRotation, over the solver alone. The
-#         rotation, swap and reip tests named for it emit peer operations, never
-#         address ones, so decompose to graph to solver to executor to bridge to
-#         netlink had never carried a relaxed cycle.
-# PREVENTS: a swap applied break-before-make, which leaves an interface bare and
-#           drops anything bound to the address, and a swap refused outright as
-#           an unrelaxable cycle.
+# PREVENTS: make-before-break coming back. Until 2026-09-11 this test asserted
+#           the opposite: that both creates landed before either destroy, so
+#           both addresses sat on the host at once. That was a policy inherited
+#           from a 2026-05-27 review table and not the owner's requirement, and
+#           the machinery that produced it (tryRelaxCycle, markDualPresence,
+#           Params.AllowDual and the constraint rule
+#           iface-add-address-before-remove-same-interface) is deleted.
 #
 # The observable points are the kernel's own netlink notifications, so the
 # driver reads them through `ip monitor` and replays them over the known initial
 # state (configApplyOrderingSwapDriver,
 # internal/test/fixture/register_config_apply_ordering.go). A poll of `ip addr`
-# cannot see the window: it is bounded by two netlink calls a few hundred
-# microseconds apart.
+# cannot see the order: the two netlink calls are a few hundred microseconds
+# apart.
 #
-# DISCRIMINATION: make tryRelaxCycle return graph.edges unreduced
-# (internal/component/config/transaction/solver.go). The second kahnSort then
-# leaves the same four nodes behind, TopologicalSort answers
-# ErrOperationCycle, the transaction aborts, and neither the swap nor the
-# window happens. The rejected reading is "the swap landed, so the window
-# happened": that is an inference from the only mechanism that can land it,
-# which is why the driver asserts the window from the event stream instead.
+# DISCRIMINATION: restore the constraint rule
+# iface-add-address-before-remove-same-interface
+# (internal/component/iface/operation.go), which orders an address addition
+# ahead of the removal on the same interface. The four operations then close a
+# cycle and, with the relaxation deleted, TopologicalSort answers
+# ErrOperationCycle and the reload aborts. Restore the relaxation with it and
+# the swap lands make-before-break instead, which assertSwapOrder refuses with
+# "held both addresses". The rejected reading is "the swap landed, so the order
+# was right": that is an inference from the final state, which carries no
+# order at all, and is why the driver asserts from the event stream.
+#
+# NOT WALKED on this host. This file carries option=needs-linux:caps=net-admin,
+# so it skips on darwin, where the change was made. The walk above is what it
+# owes and has not been run.
 
 # needs-linux: dummy interfaces, address assignment and `ip monitor` are kernel
 # surfaces, and creating a device plus moving an address needs CAP_NET_ADMIN.
@@ -49,12 +55,10 @@ option=needs-linux:caps=net-admin
 # requirement stops it in phase 2 and starts it again in phase 5
 # (docs/architecture/config/apply-ordering.md).
 #
-# Until 2026-09-11 this block said one connection, and that was the inherited
-# make-before-break policy rather than the owner's requirement: the
-# dual-presence window below keeps both addresses on the host across the swap,
-# and the session was left running over a binding that had moved underneath it.
-# The window stays; what changed is that nothing is bound to the address while
-# it moves.
+# Until 2026-09-11 this block said one connection, which asserted that the
+# session never restarted. That was the inherited make-before-break policy:
+# both addresses stayed on the host across the swap and the session was left
+# running over a binding that had moved underneath it.
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=2
 
@@ -205,7 +209,7 @@ cmd=foreground:seq=3:exec=ze-test fixture reload/config-apply-ordering-address-s
 
 expect=exit:code=0
 expect=stderr:contains=sighup reload complete
-expect=stderr:contains=OK: dual-presence window observed
+expect=stderr:contains=OK: break-before-make observed
 expect=file:path=swap-final.txt:contains=zdual0=10.91.0.1/24
 expect=file:path=swap-final.txt:contains=zdual1=10.90.0.1/24
 expect=file:path=swap-final.txt:not-contains=zdual0=10.90.0.1/24

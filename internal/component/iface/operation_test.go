@@ -32,7 +32,7 @@ func TestIfaceOperationDecomposerAddressAddRemove(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	require.Len(t, ops, 2)
+	require.Len(t, ops, 3)
 
 	assert.Equal(t, operationAddAddress, ops[0].Type)
 	assert.Equal(t, tx.VerbCreate, ops[0].Verb, "the engine orders by the verb, so every emitted operation carries one")
@@ -44,14 +44,24 @@ func TestIfaceOperationDecomposerAddressAddRemove(t *testing.T) {
 	assert.Equal(t, operationRemoveAddress, ops[1].Type)
 	assert.Equal(t, tx.VerbDestroy, ops[1].Verb)
 	assert.Equal(t, "10.0.0.1/24", ops[1].Params.CIDR)
+
+	assert.Equal(t, operationConfigureIfaces, ops[2].Type,
+		"the root covers itself whole, so the configure operation closes every decomposition")
 }
 
-// TestIfaceOperationDecomposerUnsupportedDiffFallsBack verifies that iface does
-// not force the operation path for changes it cannot express as operations.
+// TestIfaceOperationDecomposerBackendChangeRidesTheConfigureOperation verifies
+// that a change this package has no resource primitive for still reaches the
+// component, as the one operation that applies the config whole.
 //
-// VALIDATES: Non-interface, non-address changes produce no operations for legacy fallback.
-// PREVENTS: Partial operation decomposition silently dropping unsupported interface changes.
-func TestIfaceOperationDecomposerUnsupportedDiffFallsBack(t *testing.T) {
+// It used to answer nothing at all, which left the participant uncovered and
+// the core synthesized a coarse section apply for it. That answer was correct
+// for this diff and wrong for a diff that also moved an address, and the two
+// could not be told apart from outside this function.
+//
+// VALIDATES: a backend change decomposes to the configure operation alone.
+// PREVENTS: a root that answers nothing, which the core reads as a root that
+// disturbs nothing.
+func TestIfaceOperationDecomposerBackendChangeRidesTheConfigureOperation(t *testing.T) {
 	ops, err := decomposeIfaceOperations(context.Background(), tx.DecomposeRequest{
 		Root:          configRootInterface,
 		ActiveRoot:    `{"interface":{"backend":"test"}}`,
@@ -60,6 +70,29 @@ func TestIfaceOperationDecomposerUnsupportedDiffFallsBack(t *testing.T) {
 			Root:    configRootInterface,
 			Changed: `{"interface/backend":{"old":"test","new":"linux"}}`,
 		},
+	})
+	require.NoError(t, err)
+	require.Len(t, ops, 1)
+	assert.Equal(t, operationConfigureIfaces, ops[0].Type)
+	assert.Equal(t, tx.VerbModify, ops[0].Verb)
+}
+
+// TestIfaceOperationDecomposerNoDiffDecomposesNothing verifies that a root
+// asked with an empty diff answers with no operation.
+//
+// The planner asks every root that decomposes a second time once an address is
+// disturbed, and this root is asked then even when its own config did not
+// change (bindingRoots in internal/component/plugin/server/reload_tx.go).
+//
+// VALIDATES: an empty diff produces no operation, the configure operation included.
+// PREVENTS: a reload applying an interface section no commit changed.
+func TestIfaceOperationDecomposerNoDiffDecomposesNothing(t *testing.T) {
+	ops, err := decomposeIfaceOperations(context.Background(), tx.DecomposeRequest{
+		Root:               configRootInterface,
+		ActiveRoot:         `{"interface":{"backend":"test"}}`,
+		CandidateRoot:      `{"interface":{"backend":"test"}}`,
+		Diff:               tx.DiffSection{Root: configRootInterface},
+		DisturbedAddresses: []string{"10.0.0.1"},
 	})
 	require.NoError(t, err)
 	assert.Empty(t, ops)
@@ -82,7 +115,7 @@ func TestIfaceOperationDecomposerNewInterface(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	require.Len(t, ops, 2)
+	require.Len(t, ops, 3)
 
 	assert.Equal(t, operationAddInterface, ops[0].Type)
 	assert.Equal(t, "dum0", ops[0].Target.Name)
@@ -90,6 +123,8 @@ func TestIfaceOperationDecomposerNewInterface(t *testing.T) {
 
 	assert.Equal(t, operationAddAddress, ops[1].Type)
 	assert.Equal(t, "dum0", ops[1].Target.Interface)
+
+	assert.Equal(t, operationConfigureIfaces, ops[2].Type)
 }
 
 // TestIfaceOperationDecomposerDeleteInterface verifies that deleting a managed
@@ -109,13 +144,15 @@ func TestIfaceOperationDecomposerDeleteInterface(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	require.Len(t, ops, 2)
+	require.Len(t, ops, 3)
 
 	assert.Equal(t, operationRemoveAddress, ops[0].Type)
 	assert.Equal(t, "dum0", ops[0].Target.Interface)
 
 	assert.Equal(t, operationRemoveInterface, ops[1].Type)
 	assert.Equal(t, "dum0", ops[1].Target.Name)
+
+	assert.Equal(t, operationConfigureIfaces, ops[2].Type)
 }
 
 // TestApplyIfaceOperationAddInterfaceJournal verifies ADD_INTERFACE creates
@@ -144,13 +181,16 @@ func TestApplyIfaceOperationAddInterfaceJournal(t *testing.T) {
 	assert.True(t, b.deleted["dum1"])
 }
 
-// TestIfaceOperationDecomposerUnsupportedTypeFallsBack verifies that creating
-// or deleting an unsupported interface type (tunnel, wireguard, xfrm) falls
-// back to the legacy apply path instead of producing unrollable operations.
+// TestIfaceOperationDecomposerUnsupportedTypeRidesTheConfigureOperation
+// verifies that an interface type this package has no create primitive for
+// (tunnel, wireguard, xfrm) is applied by the configure operation instead of
+// an unrollable interface operation.
 //
-// VALIDATES: unsupported interface types do not enter the operation path.
-// PREVENTS: REMOVE_INTERFACE for a tunnel producing an unrollable operation.
-func TestIfaceOperationDecomposerUnsupportedTypeFallsBack(t *testing.T) {
+// VALIDATES: a tunnel deletion produces no interface operation and rides the
+// configure operation instead.
+// PREVENTS: REMOVE_INTERFACE for a tunnel producing an unrollable operation,
+// and a tunnel edit taking the whole root's address operations down with it.
+func TestIfaceOperationDecomposerUnsupportedTypeRidesTheConfigureOperation(t *testing.T) {
 	ops, err := decomposeIfaceOperations(context.Background(), tx.DecomposeRequest{
 		TransactionID: "tx-iface-unsupported",
 		Root:          configRootInterface,
@@ -162,27 +202,54 @@ func TestIfaceOperationDecomposerUnsupportedTypeFallsBack(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	assert.Empty(t, ops, "tunnel deletion must fall back to legacy path")
+	require.Len(t, ops, 1)
+	assert.Equal(t, operationConfigureIfaces, ops[0].Type,
+		"the configure operation deletes the tunnel, because this package has no primitive for one")
 }
 
-// TestIfaceOperationDecomposerMixedDiffFallsBack verifies that a diff with
-// both address changes and non-decomposable changes (e.g., MTU) falls back
-// to the legacy apply path to avoid losing the non-decomposable changes.
+// TestIfaceOperationDecomposerMixedDiffStillMovesTheAddress is the defect this
+// decomposition was rewritten for. A commit that edits an MTU AND moves an
+// address between interfaces used to produce no operation at all, because one
+// key the decomposer had no primitive for refused the whole root. The core
+// reads the disturbed address set out of the planned operations, so a plan
+// with no address destroy in it says nothing is disturbed, and every peer
+// bound to that address stayed up while the coarse section apply moved the
+// address underneath it.
 //
-// VALIDATES: mixed diffs do not enter the operation path.
-// PREVENTS: MTU/MAC/property changes silently dropped when address changes coexist.
-func TestIfaceOperationDecomposerMixedDiffFallsBack(t *testing.T) {
+// VALIDATES: a mixed diff emits the address destroy and create, and the
+// configure operation that carries the MTU.
+// PREVENTS: a binder left bound to an address that is being removed and added
+// again, which is the failure phase 2 of the requirement exists to prevent.
+func TestIfaceOperationDecomposerMixedDiffStillMovesTheAddress(t *testing.T) {
 	ops, err := decomposeIfaceOperations(context.Background(), tx.DecomposeRequest{
 		Root:          configRootInterface,
-		ActiveRoot:    `{"interface":{"backend":"test","dummy":{"dum0":{"unit":{"default":{"ipv4":{"address":"10.0.0.1/24"}}},"mtu":"1500"}}}}`,
-		CandidateRoot: `{"interface":{"backend":"test","dummy":{"dum0":{"unit":{"default":{"ipv4":{"address":"10.0.0.2/24"}}},"mtu":"9000"}}}}`,
+		ActiveRoot:    `{"interface":{"backend":"test","dummy":{"dum0":{"mtu":"1500","unit":{"default":{"ipv4":{"address":"10.0.0.1/24"}}}},"dum1":{}}}}`,
+		CandidateRoot: `{"interface":{"backend":"test","dummy":{"dum0":{"mtu":"9000"},"dum1":{"unit":{"default":{"ipv4":{"address":"10.0.0.1/24"}}}}}}}`,
 		Diff: tx.DiffSection{
 			Root:    configRootInterface,
-			Changed: `{"interface/dummy/dum0/unit/default/ipv4/address/0":{"old":"10.0.0.1/24","new":"10.0.0.2/24"},"interface/dummy/dum0/mtu":{"old":"1500","new":"9000"}}`,
+			Added:   `{"interface/dummy/dum1/unit/default/ipv4/address/0":"10.0.0.1/24"}`,
+			Removed: `{"interface/dummy/dum0/unit/default/ipv4/address/0":"10.0.0.1/24"}`,
+			Changed: `{"interface/dummy/dum0/mtu":{"old":"1500","new":"9000"}}`,
 		},
 	})
 	require.NoError(t, err)
-	assert.Empty(t, ops, "mixed address+MTU diff must fall back to legacy path")
+	require.Len(t, ops, 3)
+
+	assert.Equal(t, operationAddAddress, ops[0].Type)
+	assert.Equal(t, "dum1", ops[0].Target.Interface)
+	assert.Equal(t, "10.0.0.1/24", ops[0].Params.CIDR)
+
+	assert.Equal(t, operationRemoveAddress, ops[1].Type)
+	assert.Equal(t, tx.VerbDestroy, ops[1].Verb,
+		"the destroy is what the core reads the disturbed address out of")
+	assert.Equal(t, "dum0", ops[1].Target.Interface)
+	assert.Equal(t, []tx.ResourceRef{{Kind: tx.ResourceAddress, Address: "10.0.0.1/24"}}, ops[1].Produces)
+
+	assert.Equal(t, operationConfigureIfaces, ops[2].Type,
+		"the MTU still reaches the component, on the operation that applies the config whole")
+
+	assert.Equal(t, []string{"10.0.0.1"}, tx.DisturbedAddresses(ops),
+		"the core establishes the disturbance, so every binder bound to it is stopped")
 }
 
 // TestApplyIfaceOperationAddressJournal verifies address operation handlers
@@ -228,6 +295,7 @@ func TestIfaceConfigOperationDecls(t *testing.T) {
 	assert.ElementsMatch(t, []sdk.ConfigOperationType{
 		operationAddInterface, operationRemoveInterface,
 		operationAddAddress, operationRemoveAddress,
+		operationConfigureIfaces,
 	}, decls[0].Operations)
 }
 
@@ -252,7 +320,7 @@ func TestIfaceOperationsDeclareProduceAndConsume(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	require.Len(t, ops, 2)
+	require.Len(t, ops, 3)
 
 	assert.Equal(t, operationAddInterface, ops[0].Type)
 	assert.Equal(t, []tx.ResourceRef{{Kind: tx.ResourceInterface, Name: "dum0"}}, ops[0].Produces,
@@ -265,6 +333,10 @@ func TestIfaceOperationsDeclareProduceAndConsume(t *testing.T) {
 	assert.Equal(t, []tx.ResourceRef{{Kind: tx.ResourceInterface, Name: "dum0"}}, ops[1].Consumes,
 		"an address needs the interface it sits on")
 
+	assert.Equal(t, operationConfigureIfaces, ops[2].Type)
+	assert.Empty(t, ops[2].Produces, "the configure operation owns no resource")
+	assert.Empty(t, ops[2].Consumes, "so it earns no derived edge, and two placement rules order it")
+
 	removed, err := decomposeIfaceOperations(context.Background(), tx.DecomposeRequest{
 		TransactionID: "tx-iface-declares-remove",
 		Root:          configRootInterface,
@@ -276,7 +348,7 @@ func TestIfaceOperationsDeclareProduceAndConsume(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	require.Len(t, removed, 2)
+	require.Len(t, removed, 3)
 
 	assert.Equal(t, operationRemoveAddress, removed[0].Type)
 	assert.Equal(t, []tx.ResourceRef{{Kind: tx.ResourceAddress, Address: "10.0.0.1/24"}}, removed[0].Produces)
@@ -285,19 +357,30 @@ func TestIfaceOperationsDeclareProduceAndConsume(t *testing.T) {
 
 	assert.Equal(t, operationRemoveInterface, removed[1].Type)
 	assert.Equal(t, []tx.ResourceRef{{Kind: tx.ResourceInterface, Name: "dum0"}}, removed[1].Produces)
+
+	assert.Equal(t, operationConfigureIfaces, removed[2].Type)
 }
 
 // TestIfaceConstraintRulesStateOnlyWhatNoPairCan verifies this package
-// registers exactly the two rules that are not produce/consume facts, and that
-// both still produce their edge.
+// registers only rules no produce and consume pair can state, and that each
+// still produces its edge.
 //
-// VALIDATES: same-address uniqueness across interfaces, and make-before-break within one interface.
-// PREVENTS: the deletion of the five derived rules taking these two with it.
+// Two state a fact about two operations over DIFFERENT resources. Two more
+// place the configure operation, which owns no resource at all and therefore
+// earns no derived edge of its own.
+//
+// VALIDATES: every address removal is ordered before every address addition,
+// which is phases 3 and 4 of the owner's apply order, and the configure
+// operation after every operation that moves an address or an interface.
+// PREVENTS: a return to make-before-break, and a configure operation that
+// applies the end state while an address is still waiting to be removed.
 func TestIfaceConstraintRulesStateOnlyWhatNoPairCan(t *testing.T) {
 	ops := []tx.ConfigOperation{
 		ifaceAddressOperation(operationAddAddress, "dum1", "10.0.0.1/24"),
 		ifaceAddressOperation(operationRemoveAddress, "dum1", "10.0.0.9/24"),
 		ifaceAddressOperation(operationRemoveAddress, "dum0", "10.0.0.1/24"),
+		ifaceInterfaceOperation(operationAddInterface, "dum1", zeTypeDummy),
+		ifaceConfigureOperation(),
 	}
 
 	graph, err := tx.BuildOperationGraph(ops, tx.ConstraintRules())
@@ -305,6 +388,16 @@ func TestIfaceConstraintRulesStateOnlyWhatNoPairCan(t *testing.T) {
 
 	assert.True(t, graph.HasEdge("interface-remove-address-dum0-10.0.0.1_24", "interface-add-address-dum1-10.0.0.1_24"),
 		"one address is on one interface: the old one goes before the new one arrives")
-	assert.True(t, graph.HasEdge("interface-add-address-dum1-10.0.0.1_24", "interface-remove-address-dum1-10.0.0.9_24"),
-		"an interface is never left with no address: the new one arrives before the old one goes")
+	assert.True(t, graph.HasEdge("interface-remove-address-dum1-10.0.0.9_24", "interface-add-address-dum1-10.0.0.1_24"),
+		"phases 3 and 4: every address the commit removes goes before any address it adds, on one interface as across two")
+
+	configure := ifaceConfigureOperation().ID
+	assert.True(t, graph.HasEdge("interface-remove-address-dum0-10.0.0.1_24", configure),
+		"the configure operation applies the end state, so it follows every address destroy")
+	assert.True(t, graph.HasEdge("interface-add-address-dum1-10.0.0.1_24", configure),
+		"and every address create")
+	assert.True(t, graph.HasEdge("interface-add-dum1", configure),
+		"and every interface operation")
+	assert.False(t, graph.HasEdge(configure, configure),
+		"it orders nothing after itself, which is what keeps it out of every cycle")
 }

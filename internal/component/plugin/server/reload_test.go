@@ -1345,31 +1345,53 @@ func TestReloadTxVerifyReceivesFullSubtree(t *testing.T) {
 	assert.NotContains(t, bgp, "new", "plugin must not see DiffPair fields")
 }
 
-// TestReloadTxApplyBGPLast verifies that the "bgp" participant receives
-// config-apply after every non-bgp participant when BGP and other plugins
-// share the bgp config root. This guards the legacy reload.go ordering
-// semantic where BGP peer reconciliation saw sysrib/interface/gr/etc.
-// committed state.
+// TestReloadTxAppliesCoarseSectionsBeforeBinderStarts verifies that the
+// participants which apply a whole section on one root are applied BEFORE the
+// decomposed operation that starts what that root binds.
 //
-// VALIDATES: Participants with the "bgp" name are sorted to the tail of
-// the apply emit order so their RPC runs last in the bridge's serial
-// dispatch loop.
-// PREVENTS: A future change that introduces a plugin literally named
-// "bgp" silently reordering apply and breaking peer reconciliation.
-func TestReloadTxApplyBGPLast(t *testing.T) {
-	t.Parallel()
+// It replaces TestReloadTxApplyBGPLast, which asserted the same ordering by
+// checking that the participant literally named "bgp" came last. That sort is
+// deleted: the position comes from the operation graph now, which places every
+// coarse section-apply node after the addresses a commit adds and before the
+// first create or modify that binds them (placeSectionNodes in
+// internal/component/config/transaction/solver.go). So the ordering holds for
+// any root with any name, and the three participants below register in an
+// order that would defeat a name check and a slice sort alike.
+//
+// VALIDATES: phase 5 of the requirement. A binder starts after the plugins
+// that configure the subsystems it uses have applied their sections.
+// PREVENTS: a peer coming up against an unconfigured RIB, which is what the
+// deleted name sort was standing in for, and which a coarse node placed after
+// the peer operation reintroduces.
+func TestReloadTxAppliesCoarseSectionsBeforeBinderStarts(t *testing.T) {
+	root := fmt.Sprintf("oproot-coarse-before-binder-%d", time.Now().UnixNano())
+	binder := "binder"
+	require.NoError(t, transaction.RegisterOperationDecomposer(root, func(_ context.Context, req transaction.DecomposeRequest) ([]transaction.ConfigOperation, error) {
+		if req.Root != root {
+			return nil, nil
+		}
+		return []transaction.ConfigOperation{{
+			ID: "op-binder-start", Root: root, Owner: binder,
+			Type: testOpSetProperty, Verb: transaction.VerbCreate,
+			Target: transaction.ResourceRef{Kind: testResourceSysctl, Name: "session"},
+		}}, nil
+	}))
 
-	oldTree := map[string]any{"bgp": map[string]any{"router-id": "1.2.3.4"}}
-	newTree := map[string]any{"bgp": map[string]any{"router-id": "5.6.7.8"}}
+	oldTree := map[string]any{root: map[string]any{"value": "old"}}
+	newTree := map[string]any{root: map[string]any{"value": "new"}}
 	reactor := &mockReloadReactor{tree: oldTree}
 
 	order := &orderRecorder{}
 	plugins := []pluginDef{
-		// Intentional registration order: "bgp" first, then a non-bgp
-		// plugin. The sort must still place bgp last in apply order.
-		{name: "bgp", roots: []string{"bgp"}, order: order},
-		{name: "rib", roots: []string{"bgp"}, order: order},
-		{name: "gr", roots: []string{"bgp"}, order: order},
+		// The decomposing participant registers FIRST, which is the order
+		// that put it ahead of its siblings before the placement landed.
+		{name: binder, roots: []string{root}, order: order, configOps: []rpc.ConfigOperationDecl{{
+			Root:       root,
+			Decompose:  true,
+			Operations: []rpc.ConfigOperationType{testOpSetProperty},
+		}}},
+		{name: "subsystem-a", roots: []string{root}, order: order},
+		{name: "subsystem-b", roots: []string{root}, order: order},
 	}
 	s := newTestReloadServer(t, reactor, plugins)
 
@@ -1379,7 +1401,8 @@ func TestReloadTxApplyBGPLast(t *testing.T) {
 
 	calls := order.snapshot()
 	require.Len(t, calls, 3)
-	assert.Equal(t, "bgp", calls[len(calls)-1], "bgp participant must receive config-apply last; got order %v", calls)
+	assert.Equal(t, []string{"subsystem-a", "subsystem-b", "op-binder-start"}, calls,
+		"the coarse sections apply before the operation that starts the binder; got order %v", calls)
 }
 
 // TestReloadUsesRegisteredOperationDecomposer verifies that production reload

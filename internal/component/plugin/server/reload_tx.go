@@ -11,19 +11,11 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sort"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/transaction"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
-
-// bgpParticipantName is the plugin name whose apply must run last, matching
-// the legacy reload.go semantic where BGP peer reconciliation saw every other
-// plugin's committed state. Sorted to the tail of the participant list so the
-// orchestrator's publish loop emits verify/apply for "bgp" after every other
-// participant has acked.
-const bgpParticipantName = "bgp"
 
 // runTxCoordinator runs the transaction orchestrator for a reload once the
 // caller has computed the affected plugins and the raw diff. It builds
@@ -475,26 +467,15 @@ func buildTxInputs(affected []affectedPlugin, diff *config.ConfigDiff) ([]transa
 		verifySections[ap.proc.Name()] = copied
 	}
 
-	sortParticipantsBGPLast(participants)
-
+	// The participants come back in the order buildTxInputs read them, and
+	// nothing here moves one. Which participant applies last is decided by
+	// the operation graph: the solver places a coarse section-apply node
+	// before the decomposed starts that bind what it configures
+	// (placeSectionNodes in internal/component/config/transaction/solver.go).
+	// A sort that moved the participant called "bgp" to the tail used to
+	// stand in for that, and it was a central enumeration of one component's
+	// name in a core file (ai/rules/principles.md).
 	return participants, diffMap, verifySections, nil
-}
-
-// sortParticipantsBGPLast places the "bgp" participant at the tail of the
-// slice, preserving the relative order of every other participant. Used
-// by buildTxInputs so the orchestrator's serialized publish loop applies
-// bgp after sysrib/interface/gr/etc. have finished, matching the legacy
-// reload.go ordering.
-func sortParticipantsBGPLast(participants []transaction.Participant) {
-	sort.SliceStable(participants, func(i, j int) bool {
-		if participants[i].Name == bgpParticipantName {
-			return false
-		}
-		if participants[j].Name == bgpParticipantName {
-			return true
-		}
-		return false
-	})
 }
 
 // expandWildcardRoots replaces a "*" entry in the plugin's declared roots

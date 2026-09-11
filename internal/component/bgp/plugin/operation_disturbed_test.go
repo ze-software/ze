@@ -91,7 +91,7 @@ func sortOperations(t *testing.T, ops []tx.ConfigOperation) []string {
 // config changed (docs/architecture/config/apply-ordering.md).
 func TestBGPStopsThePeerBoundToAnAddressThatChangesInterface(t *testing.T) {
 	ifaceOps := decomposeIfaceRoot(t, ifaceRootAddressOnZdiag0, ifaceRootAddressOnZdiag1, ifaceAddressMoveDiff)
-	require.Len(t, ifaceOps, 2, "one address moving is one create and one destroy; got %v", ifaceOps)
+	require.Len(t, ifaceOps, 3, "one address moving is one create, one destroy and the interface configure; got %v", ifaceOps)
 
 	disturbed := tx.DisturbedAddresses(ifaceOps)
 	assert.Equal(t, []string{"10.90.0.1"}, disturbed,
@@ -116,8 +116,9 @@ func TestBGPStopsThePeerBoundToAnAddressThatChangesInterface(t *testing.T) {
 		"bgp-remove-peer-edge",
 		"interface-remove-address-zdiag0-10.90.0.1_24",
 		"interface-add-address-zdiag1-10.90.0.1_24",
+		"interface-configure",
 		"bgp-add-peer-edge",
-	}, order, "the stop runs before the address leaves and the start after it arrives")
+	}, order, "the stop runs before the address leaves and the start after it arrives, with the interface section between them")
 }
 
 // TestBGPLeavesThePeerAloneWhenTheAddressRowIsIntact drives the case the owner
@@ -181,6 +182,7 @@ func TestBGPStopsThePeerWhoseSourceAddressTheKernelPicks(t *testing.T) {
 		"bgp-remove-peer-edge",
 		"interface-remove-address-zdiag0-10.90.0.1_24",
 		"interface-add-address-zdiag1-10.90.0.1_24",
+		"interface-configure",
 		"bgp-add-peer-edge",
-	}, order, "the declared addresses order the stop and the start around the move")
+	}, order, "the five phases in order: the session stops, the address leaves, the address arrives, the interface section lands, the session starts")
 }

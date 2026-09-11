@@ -24,27 +24,32 @@ import (
 // ifaddr forces deletion all secondaries unless alias promotion is set").
 // IPv6 has no primary/secondary distinction, so none of this applies to it.
 //
-// Ze's address reconcilers are deliberately make-before-break: they ADD the new
-// address and only then REMOVE the old one -- see the constraint rule
-// iface-add-address-before-remove-same-interface in
-// internal/component/iface/operation.go and the add-loop-before-remove-loop
-// order in internal/component/iface/config_apply.go
-// (reconcileOnReadyWithJournal). For a same-subnet renumber such as
-// 10.0.0.1/24 -> 10.0.0.2/24 that ordering makes the NEW address a secondary of
-// the OLD one, so removing the old address silently takes the new one with it
-// and the interface is left with no address at all -- while the journal, the
-// reconcile, and the reload all report success.
+// The RECONCILE path is make-before-break: reconcileOnReadyWithJournal
+// (internal/component/iface/config_apply.go) runs its add loop before its
+// remove loop. For a same-subnet renumber such as 10.0.0.1/24 -> 10.0.0.2/24
+// that ordering makes the NEW address a secondary of the OLD one, so removing
+// the old address silently takes the new one with it and the interface is left
+// with no address at all -- while the journal, the reconcile, and the reload
+// all report success.
 //
-// Which path reaches the hazard depends on one other thing. The transaction
-// path gates the ADD on the settlement rule iface-add-address-settles-addr-added
-// (internal/component/iface/operation.go:57-65), and the executor rolls the
-// whole transaction back when that times out
-// (internal/component/config/transaction/executor.go:140-143). Until the
-// netlink monitor seeded its link-index cache (seedLinkNames,
-// monitor_linux.go), the addr-added event never arrived, so the transaction
-// path timed out and rolled back rather than reaching the REMOVE at all. The
-// reconcile path has no settlement gate, so it always reached the hazard --
-// which is why it showed up first as
+// The ordered apply path no longer reaches the hazard. Since 2026-09-11 the
+// constraint rule iface-remove-address-before-add-address
+// (internal/component/iface/operation.go) puts every address removal ahead of
+// every address addition, which is phases 3 and 4 of the owner's requirement
+// (docs/architecture/config/apply-ordering.md). The old address is gone before
+// the new one arrives, so the kernel never marks the newcomer a secondary. The
+// rule it replaced, iface-add-address-before-remove-same-interface, produced
+// exactly the sequence above.
+//
+// That path was also gated a second way, and the gate is why the reconcile
+// path showed the defect first. The ADD waits on the settlement rule
+// iface-add-address-settles-addr-added, and the executor rolls the whole
+// transaction back when that times out
+// (internal/component/config/transaction/executor.go). Until the netlink
+// monitor seeded its link-index cache (seedLinkNames, monitor_linux.go), the
+// addr-added event never arrived, so the transaction path rolled back rather
+// than reaching the REMOVE at all. The reconcile path has no settlement gate,
+// which is why the defect surfaced as
 // TestIntegrationApplyConfigVLANUnitAddressReconcile.
 //
 // Backend.RemoveAddress promises to remove ONE address. The functions below

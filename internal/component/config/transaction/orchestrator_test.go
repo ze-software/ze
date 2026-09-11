@@ -1433,7 +1433,7 @@ func autoAckSectionApply(gw *testGateway, name string, seen *[]string) {
 // TestExecuteMixedRootTakesOperationPath is the ordering fence, and it carries
 // the data-loss fence with it. A reload that touches BOTH a section that
 // decomposes (bgp: a peer was added) and one that does not (interface: a
-// wireguard property changed -- ifaceKeyDecomposable rejects it) runs through
+// wireguard property changed -- a root with no decomposer at all here) runs through
 // the operation path, and BOTH are applied: the decomposed root through its
 // per-operation callbacks, the other through one coarse node routed to the
 // section apply.
@@ -1833,6 +1833,9 @@ func TestExecuteRollsBackAnAppliedCoarseNode(t *testing.T) {
 			{ID: "iface-remove-address-zy", Root: "interface", Owner: "iface", Type: testOpRemoveAddress, Verb: VerbDestroy,
 				Target:   ResourceRef{Kind: ResourceAddress, Interface: "zy", Address: "10.93.0.1/24"},
 				Produces: []ResourceRef{{Kind: ResourceAddress, Address: "10.93.0.1/24"}}},
+			{ID: "iface-start-session", Root: "interface", Owner: "iface", Type: testOpAddPeer, Verb: VerbCreate,
+				Target:   ResourceRef{Kind: ResourcePeer, Peer: "edge"},
+				Produces: []ResourceRef{{Kind: ResourcePeer, Peer: "edge"}}},
 		}, nil
 	})
 	diffs := map[string][]DiffSection{
@@ -1850,9 +1853,10 @@ func TestExecuteRollsBackAnAppliedCoarseNode(t *testing.T) {
 		ack, _ := json.Marshal(ConfigOperationVerifyAck{TransactionID: ev.TransactionID, Plugin: "iface", OperationID: ev.Operation.ID, Status: CodeOK})
 		gw.mustEmit(EventOperationVerifyOK, ack)
 	})
-	// The destroy is the operation that fails, and it sorts after the coarse
-	// node: placeSectionNodes puts a coarse node after the last create and
-	// before the destructions (solver.go).
+	// The binder start is the operation that fails, and it sorts after the
+	// coarse node: placeSectionNodes puts a coarse node after the addressing
+	// this commit adds and before the first operation that binds it
+	// (solver.go).
 	gw.SubscribeConfigEvent(EventOperationApplyFor("iface"), func(payload []byte) {
 		var ev ConfigOperationApplyEvent
 		if err := json.Unmarshal(payload, &ev); err != nil {
@@ -1861,9 +1865,9 @@ func TestExecuteRollsBackAnAppliedCoarseNode(t *testing.T) {
 		seen = append(seen, ev.Operation.ID)
 		ack := ConfigOperationApplyAck{TransactionID: ev.TransactionID, Plugin: "iface", OperationID: ev.Operation.ID, Status: CodeOK}
 		event := EventOperationApplyOK
-		if ev.Operation.Verb == VerbDestroy {
+		if ev.Operation.Target.Kind == ResourcePeer {
 			ack.Status = CodeError
-			ack.Error = "netlink refused the address delete"
+			ack.Error = "the session refused to start"
 			event = EventOperationApplyFailed
 		}
 		payloadAck, _ := json.Marshal(ack)
@@ -1916,12 +1920,12 @@ func TestExecuteRollsBackAnAppliedCoarseNode(t *testing.T) {
 	if result.State != StateRolledBack {
 		t.Fatalf("state = %s (err %v), want %s", result.State, result.Err, StateRolledBack)
 	}
-	want := []string{"iface-add-zx", "static-section-apply", "iface-remove-address-zy", "static-section-rollback"}
+	want := []string{"iface-add-zx", "iface-remove-address-zy", "static-section-apply", "iface-start-session", "static-section-rollback"}
 	if !reflect.DeepEqual(seen, want) {
 		t.Fatalf("the transaction ran %v, want %v", seen, want)
 	}
-	if !reflect.DeepEqual(rolledBack, []string{"iface-add-zx"}) {
-		t.Errorf("per-operation rollback replayed %v, want the applied create alone", rolledBack)
+	if !reflect.DeepEqual(rolledBack, []string{"iface-remove-address-zy", "iface-add-zx"}) {
+		t.Errorf("per-operation rollback replayed %v, want the two applied operations in reverse", rolledBack)
 	}
 }
 

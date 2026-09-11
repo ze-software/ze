@@ -4,23 +4,35 @@
 # zmix0 is renumbered from 10.92.0.1/24 to 10.93.0.1/24 and the static section
 # is rewritten in the same reload. The iface component decomposes its root; the
 # static plugin registers no decomposer, so the orchestrator represents it with
-# one coarse node. The graph orders the create before the destroy
-# (make-before-break) and the coarse node carries no edge, so the sequence is
-# create-address, static section, destroy-address.
+# one coarse node. The graph orders every address removal before every address
+# addition, and the solver places the coarse node after the additions, so the
+# sequence is destroy-address, create-address, static section
+# (docs/architecture/config/apply-ordering.md, "The five phases").
+#
+# Until 2026-09-11 the sequence was create-address, static section,
+# destroy-address, which was make-before-break. The route is what makes the
+# ordering load-bearing either way, and that has not changed.
 #
 # The static route is what makes that sequence load-bearing rather than
 # cosmetic: its gateway 10.93.0.2 lies in the NEW prefix, so the kernel answers
 # ENETUNREACH to a route installed before the address exists.
 #
-# VALIDATES: AC-1 -- the new address is present before the route that binds it
-#            is installed, the old address is removed after, and no log line
-#            says the transaction used the section apply.
+# VALIDATES: AC-1 -- the old address is removed before the new one arrives, the
+#            new address is present before the route that binds it is
+#            installed, and no log line says the transaction used the section
+#            apply.
 # PREVENTS: D1. TxCoordinator.Execute took the operation path only while no
 #           participant was uncovered, so one root with a diff and no
 #           decomposer dropped the WHOLE transaction to runApply, which emits
 #           every participant's section apply at once and waits. The address
 #           operations that were ordered correctly lost their order with it,
 #           and the transaction still reported success.
+#
+# NOT WALKED on this host. This file carries option=needs-linux:caps=net-admin,
+# so it skips on darwin, where the change was made. Its assertion function
+# changed with the policy, and the two-arm unit test over it
+# (TestAssertMixedRootOrderRefusesARouteInstalledFirst and
+# TestAssertMixedRootOrderRefusesTheNewAddressArrivingFirst) is what has run.
 #
 # The order is read from the kernel's own netlink notifications
 # (configApplyOrderingMixedRootDriver,
