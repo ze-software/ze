@@ -15,10 +15,36 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Ze orders config changes across components with an operation graph:
 `BuildOperationGraph` builds it, `TopologicalSort` orders it, and
-`OperationExecutor` runs verify, execute and commit over the sorted list. The
-intended order is: add the address, then update the services that bind it, then
-remove the old address last, with a dual-presence window when two interfaces
-swap addresses.
+`OperationExecutor` runs verify, execute and commit over the sorted list.
+
+**The order a commit applies is the owner's, and it is quoted verbatim in
+`docs/architecture/config/apply-ordering.md` under "The requirement". That page
+is the specification. Where it and this spec disagree, the page is right.** This
+spec was written from a paraphrase of the owner's May 2026 words, and the
+paraphrase said make-before-break: add the address, update the services that
+bind it, remove the old address last, with both addresses present while two
+interfaces swap. That is not what he asked for, and every sentence derived from
+it is corrected here rather than repeated.
+
+The owner's order removes before it adds, with the binders stopped around the
+move. Five phases, quoted on the page and summarized here:
+
+| Phase | What runs |
+|-------|-----------|
+| 1 | Stop the binders the new config removes |
+| 2 | Stop the binders whose bound address is disturbed |
+| 3 | Remove the addresses that are removed or disturbed |
+| 4 | Add the addresses that are new or moved |
+| 5 | Start the binders against the new addresses |
+
+The vocabulary is the page's, and this spec uses no second word for any of it. A
+BINDER is a component that binds a local IP address: bgp, ike, l2tp, dhcp, ntp,
+gnmi, tftp, and any listener a plugin opens. The interface layer is the PROVIDER
+of the addresses they bind. An address is DISTURBED when the commit removes it,
+when it changes interface, or when its prefix length changes, and not by a
+change that leaves the address row intact. Where the core cannot establish
+whether a binding context still means what it meant, it treats the binder as
+disturbed and stops it.
 
 Four defects hold that ordering to two config roots.
 
@@ -27,19 +53,19 @@ Four defects hold that ordering to two config roots.
 | D1 | `TxCoordinator.Execute` takes the operation path only when operations exist AND no participant is uncovered. One participant with a diff and no operation drops the whole transaction to the unordered section apply, including the address operations that were ordered correctly. The fallback logs at `Info` and the transaction reports success | A commit that changes an interface address and a firewall rule together gets no address ordering. A service is updated before its address exists, or an address is removed while a listener still binds it |
 | D2 | `RegisterOperationDecomposer` has two non-test callers: `internal/component/bgp/plugin/operation.go` (root `bgp`) and `internal/component/iface/operation.go` (root `interface`). The same two files are the only registrants of constraint rules and settlement rules. `decomposeRootOperations` returns an empty result for every other root | firewall, dhcp, ike, l2tp, static, ntp and the rest declare no ordering, so a service in those roots that binds an address has no edge saying so. Each of them also triggers D1 |
 | D3 | The ordering vocabulary is a central enumeration in the plugin ABI: 21 `ConfigOperationType` constants and 9 `ResourceKind` constants in `pkg/plugin/rpc/types.go`. Seven operation kinds have no user outside their own declaration and the two alias files | A new root joins the ordering only by editing a central enum, which `ai/rules/principles.md` bans. The vocabulary was written for roots that never arrived |
-| D4 | The functional rotation, swap and reip tests emit `remove-peer` and `add-peer` only, never `add-address` or `remove-address`. The `AllowDual` dual-presence machinery is proven by `TestTopologicalSortCycleResolution` and `TestTopologicalSortThreeWayRotation` in `solver_test.go` only | The dual-presence window has never run through decompose, graph, executor, bridge, RPC and reactor. A break in that path is invisible |
+| D4 | The functional rotation, swap and reip tests emit `remove-peer` and `add-peer` only, never `add-address` or `remove-address`. The applied address order is asserted by unit tests over the solver alone | No test reads what a commit applies through decompose, graph, executor, bridge, RPC and reactor, so a break anywhere on that path is invisible. It is also what let the paraphrase above survive four months: nothing ever read the applied order off a kernel, so a make-before-break test and a break-before-make test both passed against their own model |
 
 Goal: every config root with a diff is a node in the operation graph, the
 ordering is derived from what each operation produces and consumes rather than
 from named operation pairs, the section-apply fallback is deleted, and the
-dual-presence window is proven on the real path.
+applied order is read off a real kernel and matches the owner's five phases.
 
 ## Required Reading
 
 ### Architecture Docs
 - [ ] `docs/architecture/config/apply-ordering.md` - the design of the subsystem this spec changes.
   → Decision: decomposition and constraint rules live in the owning component, never in a central switch. This spec keeps that and extends it to the roots that own no decomposer.
-  → Constraint: "Address-only cross-interface cycles relax. Everything else is rejected." The relaxation stays; only the test that decides "is this an address operation" changes.
+  → Constraint (CORRECTED 2026-09-11): the page now carries the owner's words under "The requirement", and they outrank every sentence in this spec. His order removes before it adds, so the cross-interface cycle the relaxation existed to break cannot form: each address carries one destroy, one create and a single edge between them. `tryRelaxCycle` is deleted and every cycle is rejected.
 - [ ] `docs/architecture/config/transaction-protocol.md` - the participant, verify, apply and rollback protocol the operation path sits inside.
   → Decision: phase 1 verifies the whole candidate config for every participant before any operation runs, so a coarse root node owes no second verify.
   → Constraint: the operation path reaches operation OWNERS only, because `runOperationPath` keys its events off `op.Owner`. A root with no node is never applied by that path.
@@ -56,8 +82,8 @@ ordering, and the plugin RPC contract is Ze's own.
 
 **Key insights:**
 - Coverage is what makes ordering unconditional. D1 is not a bug in the graph, it is the graph never being used.
-- The solver reads the operation type in two places only, `isAddressOperation` and `markDualPresence`, and both are asking "does this create or destroy an address".
-- `AllowDual` is written by `markDualPresence` and read by nothing outside `solver.go` and the wire type. The dual-presence window comes from the removed cycle edges, not from the flag.
+- The solver reads the operation type in two places only, `isAddressOperation` and `markDualPresence`, and both are asking "does this create or destroy an address". Both served make-before-break, so both are deleted with it rather than rewritten against the verb.
+- The requirement was lost to a paraphrase before this spec was written, and D4 is why the loss survived. No test read the order a commit APPLIES, so a suite built on the paraphrase was as green as a suite built on the requirement.
 
 ## Current Behavior (MANDATORY)
 
@@ -82,10 +108,9 @@ ordering, and the plugin RPC contract is Ze's own.
 - Verify, then execute, then commit, with rollback replaying inverse operations in reverse order and excluding the failed operation.
 - Phase 1 full-config verify for every participant, before any operation runs.
 - The section apply path itself (`runApply`, `phaseApply.runRPC`, `SendConfigApply`). It becomes how a coarse root node is applied, instead of how a whole transaction escapes ordering.
-- Address-only cross-interface cycles relax. Every other cycle is rejected.
 - `ConfigOperation` keeps its JSON keys `id`, `root`, `owner`, `type`, `target` and `params`, and `type` keeps its kebab-case values.
 - Settlement waiters are armed before the apply is emitted.
-- The two iface rules that are not produce/consume facts keep working: same-address uniqueness across interfaces, and make-before-break within one interface.
+- One iface rule states a fact no produce and consume pair can carry, and it keeps working: every address the commit removes leaves the host before any address the commit adds arrives.
 
 **Behavior to change:**
 - A transaction with a diff on a root that owns no decomposer takes the operation path, not the section apply. The `Info` log line "operations do not cover every participant, using section apply" stops existing, because its branch stops existing.
@@ -93,6 +118,12 @@ ordering, and the plugin RPC contract is Ze's own.
 - The solver stops reading the operation type. It reads a new verb (`create`, `destroy`, `modify`) and the target resource kind.
 - `ConfigOperationType` stops being a core enumeration. The seven unused constants are deleted, and the constants iface and bgp dispatch on move into those two packages.
 - An operation with no verb is refused at planning with a named error, rather than ordered as if it were `modify`.
+- Make-before-break is DELETED, not rewritten against the verb. `Params.AllowDual`, `markDualPresence`, `tryRelaxCycle`, `isAddressOperation`, `opInterface`, the rule `iface-add-address-before-remove-same-interface` and the two relations `same-interface` and `same-address` all go. Every cycle is now rejected: `TopologicalSort` answers `ErrOperationCycle` for any graph it cannot order.
+- The rule `iface-remove-address-before-add-same-address` widens to `iface-remove-address-before-add-address`, which states phases 3 and 4 directly. Without the widening a renumber would be unordered, because the old address and the new one are two different addresses and the planner emits its additions first.
+- The core computes which addresses a commit disturbs (`DisturbedAddresses`), the planner carries the set to every root that registers a decomposer even when that root has no diff (`operationPlannerFromTrees`, `bindingRoots`, `appendDecomposingPlugins`), and the owning component decides what stopping means (`decomposeBGPOperations`, `peerBindingDisturbed`). That is phases 2 and 5.
+- The iface decomposer covers its whole root on every call. An address and an interface of a type it can create become one operation each, and every other key rides one `configure-interfaces` operation that applies the interface config as a whole (`decomposeIfaceOperations`, `ifaceConfigureOperation`). It used to produce NO operation whenever one key in its diff had no primitive, so a commit that edited an MTU and moved an address read as a commit that disturbed nothing.
+- A coarse node is placed at the phase 4 to phase 5 boundary, after the addressing the commit adds and before the first operation that binds it (`placeSectionNodes`, `sectionNodePosition`, `isAddressingKind`). `sortParticipantsBGPLast` and `bgpParticipantName` are deleted, so no core package names a root to decide the order.
+- A rolled-back peer returns as the reactor was running it, not as the operation's config subtree describes it (`runningPeerSettings`), and a modify-peer the running session can take swaps its settings in place (`swapPeerForOperation`, `peerSettingsSwapPlan`).
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -104,8 +135,9 @@ ordering, and the plugin RPC contract is Ze's own.
 1. `runTxCoordinator` builds participants from the affected plugin registrations, builds per-root `DiffSection` slices, starts `configTxBridge`, and installs the planner.
 2. `TxCoordinator.Execute` runs phase 1 verify for every participant with a diff.
 3. The planner walks the sorted roots. A root with an in-process decomposer, or a participant declaring decomposition, produces operations. Every other root produces nothing today. After this spec the orchestrator synthesizes one coarse node per uncovered participant.
+3a. `DisturbedAddresses` reads the planned operations and returns every address a destroy produces. Where that set is not empty the planner decomposes a second time, carrying the set on `DecomposeRequest.DisturbedAddresses` to every root that registered a decomposer, whether or not that root has a diff. That is how a binder with no diff of its own emits its own stop and its own start.
 4. `BuildOperationGraph` adds an edge for every registered constraint rule that matches a pair, and one for every producer and consumer pair over the same resource identity.
-5. `TopologicalSort` orders the graph, relaxes an address-only cross-interface cycle, and marks the dual-presence members.
+5. `TopologicalSort` orders the graph and rejects any cycle. `placeSectionNodes` then puts each coarse node at the phase 4 to phase 5 boundary, using `sectionNodePosition`.
 6. `OperationExecutor` emits verify, then apply, then commit per operation on the owner's stream event. A coarse root node is applied through the participant's section apply event instead.
 7. `configTxBridge` turns each stream event into the plugin RPC: `config-operation-verify`, `config-operation-apply` and `config-operation-commit` for a decomposed operation, and `config-apply` for a coarse root node.
 8. The owning component applies the change: `applyIfaceOperation` reaches the netlink backend, `applyBGPOperation` reaches the reactor.
@@ -124,6 +156,8 @@ ordering, and the plugin RPC contract is Ze's own.
 - `transaction.RegisterConstraintRule` - survives for facts that are not produce/consume. Its produce/consume users are deleted.
 - `TxCoordinator.participantsWithoutOperations` - changes from a fallback trigger into the input of coarse-node synthesis.
 - `configTxBridge.subscribeOperationApply` and `phaseApply.runRPC` - the two apply routes a node can take.
+- `transaction.DisturbedAddresses` and `DecomposeRequest.DisturbedAddresses` - the core establishes WHICH addresses are disturbed and the owning component decides what stopping means. The core reads no root's semantics and keeps no list of binders.
+- `transaction.OperationDecomposerRoots` and `bindingRoots` - the roots the planner asks on its second pass, which is every root that registered a decomposer rather than every root with a diff.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -145,13 +179,13 @@ ordering, and the plugin RPC contract is Ze's own.
 | A-4 | `ResourceKind` is already open, because `resourceKey` has a default branch, so a root can carry a kind the core does not name | `depgraph.go` `resourceKey` | The vocabulary change has to open `ResourceKind` as well as the operation label | Unit test with an unnamed resource kind on both ends of a produce/consume pair | confirmed (phase 3) by reading the producer. `resourceKey` (`depgraph.go`) ends in a default branch keying an unnamed kind by its own string plus the first non-empty name, interface or address. The derivation's `resourceIdentity` keeps that branch, so a produce and a consume entry of kind `wireguard-tunnel` pair by identity like every other. `TestBuildOperationGraphUnknownResourceKindOrders` asserts it, and asserts a second resource of that kind earns no edge |
 | A-5 | The `static` plugin (`ConfigRoots` is `static`) is a real uncovered participant, usable as the third root in the mixed-root functional test | `internal/plugins/static/register.go`; only iface and bgp register decomposers or operation callbacks | The mixed-root test needs a different third root | Run the mixed-root test before the fix and confirm the fallback log line appears | confirmed as a FACT about static, and the premise under it is broken (phase 1). `static` declares `WantsConfig: []string{pluginName, "interface"}` (`internal/plugins/static/register.go`) and registers no decomposer: `RegisterOperationDecomposer` has exactly two non-test callers, `internal/component/iface/operation.go` and `internal/component/bgp/plugin/operation.go`. It is therefore a real uncovered participant. What is broken is "uncovered participants are rare": a dozen BGP plugins declare the `bgp` root and none decomposes (`rib`, `gr`, `rpki`, `bmp`, `rs`, `watchdog`, `hostname`, `softver`, `llnh`, `healthcheck`, `route_refresh`, the `filter_*` set), so EVERY bgp reload took the fallback. Phase 1's coarse-root functional test uses the `rsvp-te` root instead of `static`, because the static plugin applies to the kernel FIB and the coarse-root case needs no privilege |
 | A-6 | No other `plan/` spec is editing these files | Working tree inspection at design time | A merge conflict, or two designs for one defect | `git status` plus a grep of `plan/` for `apply-ordering` before implementation starts | confirmed (2026-09-08, before phase 1). `git status` showed no modification to the transaction, iface, bgp-plugin, plugin-server or rpc files. Two other specs mention `apply-ordering` and neither edits them: `spec-vpp-interface-in-use` reads `internal/component/iface/operation.go` to say its VPP referential-integrity verify is NOT that ordering, and `spec-peer-deactivate-and-bulk-route-purge` (skeleton) lists the page as required reading. That second spec states `OperationRemovePeer` lives in `pkg/plugin/rpc/types.go`, which phase 2 made false; it is another spec's row to correct |
-| A-7 | Nothing outside `solver.go` reads `Params.AllowDual`, so the dual-presence window is produced by the removed edges alone | grep over `internal/` and `pkg/`: the only non-test hits are `solver.go` and the field declaration | Deleting or keeping the flag changes apply behavior | The dual-presence functional test asserts both addresses present during the window, independent of the flag | confirmed (phase 4) by reading the producer and every reference. `markDualPresence` (`solver.go`) is the only writer, and it is also the last reader: nothing reads the field back. The whole non-test population is that function, the field declaration in `pkg/plugin/rpc/types.go`, and the doc comments beside them. `applyIfaceOperation` (`internal/component/iface/operation.go`) dispatches on the label and never touches `Params.AllowDual`, so the applier cannot behave differently for a dual-marked create. `test/reload/config-apply-ordering-address-swap.ci` asserts the window from the kernel's own netlink notifications and reads no flag |
+| A-7 | Nothing outside `solver.go` reads `Params.AllowDual`, so the dual-presence window is produced by the removed edges alone | grep over `internal/` and `pkg/`: the only non-test hits are `solver.go` and the field declaration | Deleting or keeping the flag changes apply behavior | The address-swap functional test asserts the applied order from the kernel, independent of the flag | confirmed (phase 4) by reading the producer and every reference, then made MOOT at phase 5. `markDualPresence` (`solver.go`) was the only writer and also the last reader: nothing read the field back. `applyIfaceOperation` (`internal/component/iface/operation.go`) dispatched on the label and never touched `Params.AllowDual`, so the applier could not behave differently for a dual-marked create. The flag labelled a policy the owner never asked for, so phase 5 deleted the field, its writer and the relaxation that fed it. A grep of `internal` and `pkg` for `AllowDual` and `markDualPresence` now returns only two history comments |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Total coverage puts every participant into one ordered sequence, so a slow root delays roots that used to apply beside it | Reload wall time grows across the reload functional tests | The executor already applies one operation at a time. Measure the reload suite before and after, and report the delta rather than hide it. MEASURED on 2026-09-11, over the deadline change of review round 2: 44 of 44 pass both times, 182.3s before (`.../scratch/cao-functional-reload.log`) and 162.9s after (`.../scratch/cao2-functional-reload-after.log`). No test moved outside the run-to-run spread the "slow" lines already report, and none timed out. The budget itself is no longer the cost the suite measures: the deadline bounds the wait for a plugin that does not answer, so a healthy reload never reaches it |
-| R-2 | Derived edges over-connect: a resource many roots consume produces a dense graph and a new cycle `tryRelaxCycle` rejects, turning a working reload into an aborted transaction | A reload test that passed now aborts with `operation dependency cycle` | Land the derivation against the existing iface and bgp fixtures first and compare the edge set, before any new root declares produce/consume |
+| R-2 | Derived edges over-connect: a resource many roots consume produces a dense graph and a new cycle, turning a working reload into an aborted transaction. Phase 5 raised this risk, because every cycle is now rejected and no relaxation survives | A reload test that passed now aborts with `operation dependency cycle` | Land the derivation against the existing iface and bgp fixtures first and compare the edge set, before any new root declares produce/consume. A coarse node is a placement rather than an edge, so it joins no cycle (`TestTopologicalSortSectionNodeJoinsAnAddressSwapWithoutACycle`) |
 | R-3 | Deleting the fallback turns a previously silent ordering loss into a transaction abort when the graph cannot be built | An abort on a config the operator applied yesterday | The coarse node makes every participant representable, so an abort now means a real cycle. Name the operation ids and the cycle members in the abort message |
 | R-4 | The coarse node's rollback differs from a decomposed operation's rollback, because the participant expects `config-rollback` rather than `config-operation-rollback` | A rollback test leaves one participant unrolled | Cover both kinds in the rollback unit test and in the mixed rollback functional test, before the fallback is deleted |
 | R-5 | The verb is a second spelling of what the label already implies, so a decomposer sets the two inconsistently | A peer create ordered after its address destroy | Refuse an operation with no verb at planning, and never infer the verb from the label |
@@ -172,7 +206,9 @@ ordering, and the plugin RPC contract is Ze's own.
 | SIGHUP on a config changing an interface address and a static route | → | `TxCoordinator.Execute` takes `runOperationPath` | `test/reload/config-apply-ordering-mixed-root.ci` |
 | SIGHUP on a config whose only diff is in a root with no decomposer | → | the orchestrator synthesizes a coarse node, the bridge sends `config-apply` | `TestExecuteCoarseNodeAppliesSection` in `orchestrator_test.go` |
 | A decomposer declaring produces and consumes, registering no constraint rule | → | `BuildOperationGraph` derived edge | `TestBuildOperationGraphDerivesProducerBeforeConsumer` in `depgraph_test.go` |
-| SIGHUP swapping two addresses between two interfaces | → | `tryRelaxCycle`, then `OperationExecutor.Execute` to the netlink backend | `test/reload/config-apply-ordering-address-swap.ci` |
+| SIGHUP swapping two addresses between two interfaces | → | `TopologicalSort`, then `OperationExecutor.Execute` to the netlink backend | `test/reload/config-apply-ordering-address-swap.ci` |
+| SIGHUP moving an address a BGP peer binds, with no diff in the `bgp` root | → | `DisturbedAddresses`, the planner's second decompose pass, `decomposeBGPOperations` | `test/reload/config-apply-ordering-address-swap.ci`, and `TestReloadStopsABinderWhoseAddressMovesAndItsOwnConfigDidNot` in `reload_disturbed_test.go` |
+| SIGHUP editing an MTU and moving an address in one commit | → | `decomposeIfaceOperations` covers the whole root, so the address destroy still reaches `DisturbedAddresses` | `TestIfaceOperationDecomposerMixedDiffStillMovesTheAddress` in `internal/component/iface/operation_test.go` |
 | An operation whose label the core does not name | → | `OperationExecutor` emits it on the owner's event, the owner dispatches on the label | `TestOperationPathCarriesUnknownLabel` in `executor_test.go` |
 
 ## Acceptance Criteria
@@ -182,7 +218,9 @@ ordering, and the plugin RPC contract is Ze's own.
 | AC-1 | One reload changes an interface address and a static route in the same transaction | The address operations keep their order: the new address is present before the route that binds it is installed, and the old address is removed after. No log line says the transaction used the section apply |
 | AC-2 | One reload whose only diff is in a root that registers no decomposer | The root's change is applied and the transaction reports committed. The applied result is identical to what the section apply produced before this spec |
 | AC-3 | A root declares that its operation consumes an address, and registers no constraint rule | The address create runs before that operation, and the address destroy runs after it |
-| AC-4 | One reload swaps address A from interface X to interface Y and address B from Y to X | Both addresses are present at the same time for the duration of the swap, and neither interface is left without an address at any observable point. The transaction commits |
+| AC-4 | One reload swaps address A from interface X to interface Y and address B from Y to X, with a BGP peer bound to A | Each address leaves the interface that held it before it arrives on the one that takes it, and no interface holds both at any observable point. The peer bound to A is stopped before A leaves X and started after A arrives on Y. The transaction commits. CORRECTED 2026-09-11: this row required the opposite, both addresses present for the whole swap, which was the paraphrase |
+| AC-8 | One reload changes an interface MTU and moves an address a binder holds, in the same commit | The address destroy still reaches `DisturbedAddresses`, so the binder is stopped and started. The MTU reaches the component on the `configure-interfaces` operation |
+| AC-9 | One reload changes an address a binder holds in a way that leaves the address row intact | No binder is stopped. `DisturbedAddresses` returns nothing, so the planner makes one decompose pass and asks no root that has no diff |
 | AC-5 | A decomposer emits an operation whose label no core package names, carrying a verb and a resource kind the core does name | The core orders it by verb and resource, carries the label unchanged to the owner, and the owner dispatches on it. No core package compares that label to a constant |
 | AC-6 | An operation arrives with no verb | The transaction aborts with an error naming the plugin, the root and the operation id. Nothing is applied |
 | AC-7 | One participant's apply fails, in a transaction mixing decomposed operations and a coarse root node | Rollback reaches both kinds: the decomposed operations replay their inverses in reverse order, and the coarse node's participant receives the section rollback. The transaction reports rolled back |
@@ -192,7 +230,7 @@ ordering, and the plugin RPC contract is Ze's own.
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | Changes an interface address and a static route in one commit | config file → diff → planner → graph (derived edges) → solver → executor → bridge → iface backend and the static plugin | `test/reload/config-apply-ordering-mixed-root.ci` |
-| 2 | Swaps the addresses of two interfaces in one commit | config file → diff → iface decomposer → graph → `tryRelaxCycle` → executor → netlink | `test/reload/config-apply-ordering-address-swap.ci` |
+| 2 | Swaps the addresses of two interfaces in one commit, with a peer bound to one of them | config file → diff → iface decomposer → `DisturbedAddresses` → bgp decomposer → graph → solver → executor → netlink and the reactor | `test/reload/config-apply-ordering-address-swap.ci` |
 | 3 | Changes only a config root that owns no decomposer | config file → diff → planner (no operations) → coarse node → executor → bridge `config-apply` → plugin | `test/reload/config-apply-ordering-coarse-root.ci` |
 | 4 | Reloads a config whose apply fails half way through a mixed transaction | executor → apply failure → `rollbackApplied` and the section rollback | `test/reload/config-apply-ordering-mixed-rollback.ci` |
 
@@ -206,8 +244,11 @@ ordering, and the plugin RPC contract is Ze's own.
 | `TestBuildOperationGraphNoDerivedEdgeAcrossDifferentResources` | `internal/component/config/transaction/depgraph_test.go` | Produce and consume of different resource identities create no edge | PASS. It fences an absence, so no revert reddens it |
 | `TestBuildOperationGraphUnknownResourceKindOrders` | `internal/component/config/transaction/depgraph_test.go` | A resource kind no core constant names still matches by identity (A-4) | PASS, and observed RED with the derivation removed |
 | `TestBuildOperationGraphDerivedEdgesMatchDeletedRules` | `internal/component/config/transaction/depgraph_test.go` | On the existing iface and bgp operation fixtures, the derived edge set equals the set the nine deleted rules produced | PASS, with two named additions (see Design Insights). Observed RED with the derivation removed |
-| `TestTopologicalSortRelaxesCycleByVerbAndKind` | `internal/component/config/transaction/solver_test.go` | The relaxation decides on the verb plus the address resource kind, not on the operation label | PASS, and observed RED under a label-comparing `isAddressOperation` |
-| `TestTopologicalSortRejectsNonAddressCycle` | `internal/component/config/transaction/solver_test.go` | Preserved rejection, restated against the verb test | PASS. It fences preserved behavior, so no phase-2 revert reddens it |
+| `TestTopologicalSortSwapsAddressesBreakBeforeMake` | `internal/component/config/transaction/solver_test.go` | A cross-interface swap sorts both destroys before either create, and it needs no relaxation because it closes no cycle. REPLACES the phase-2 row `TestTopologicalSortRelaxesCycleByVerbAndKind`, which asserted the paraphrase | EXISTS. Not run in this documentation pass |
+| `TestTopologicalSortRotatesAddressesBreakBeforeMake` | `internal/component/config/transaction/solver_test.go` | A three-way rotation sorts the same way, so no cycle forms there either | EXISTS. Not run in this documentation pass |
+| `TestTopologicalSortRejectsEveryCycle` | `internal/component/config/transaction/solver_test.go` | Every cycle answers `ErrOperationCycle`, which is the fail-closed replacement for `tryRelaxCycle` | EXISTS. Not run in this documentation pass |
+| `TestTopologicalSortNonAddressCycleFails` | `internal/component/config/transaction/solver_test.go` | Preserved rejection. The spec named it `TestTopologicalSortRejectsNonAddressCycle` until 2026-09-11; that name never existed in the tree | EXISTS. Not run in this documentation pass |
+| `TestTopologicalSortOrdersASwapWhoseLabelsItDoesNotKnow` | `internal/component/config/transaction/solver_test.go` | AC-5 at the solver: the sort reads the verb and the resource kind, never the label | EXISTS. Not run in this documentation pass |
 | `TestExecuteMixedRootTakesOperationPath` | `internal/component/config/transaction/orchestrator_test.go` | A transaction with one decomposed root and one uncovered participant runs `runOperationPath` (AC-1) | PASS |
 | `TestExecuteCoarseNodeAppliesSection` | `internal/component/config/transaction/orchestrator_test.go` | The coarse node emits the participant's section apply event with the diffs `runApply` would have sent (A-1, AC-2) | PASS |
 | `TestExecuteCoarseNodeEmitsNoOperationVerify` | `internal/component/config/transaction/orchestrator_test.go` | The coarse node owes no per-operation verify (A-2) | PASS |
@@ -218,7 +259,7 @@ ordering, and the plugin RPC contract is Ze's own.
 | `TestIfaceOperationsDeclareProduceAndConsume` | `internal/component/iface/operation_test.go` | The iface decomposer declares the sets the deleted rules used to state | PASS, and observed RED with the declarations removed |
 | `TestBGPOperationsDeclareConsumeAddress` | `internal/component/bgp/plugin/operation_test.go` | The bgp decomposer declares address consumption for its peer operations. It emits no listener operation, so no listener declaration exists to assert (corrected at review round 1, I-4) | PASS, and observed RED with the derivation removed |
 | `TestSDKPluginWithoutOperationCallbacksAnswersUnknownMethod` | `pkg/plugin/sdk/sdk_test.go` | A-3, the reason a coarse node takes the section route | PASS |
-| `TestTopologicalSortPlacesSectionNodeBetweenCreatesAndDestroys` | `internal/component/config/transaction/solver_test.go` | B-1. A coarse node runs after the creations and before the destructions | PASS, and observed RED before the placement: two of its three cases put the coarse node first or in the middle of the creations |
+| `TestTopologicalSortPlacesSectionNodeBetweenAddressingAndBinders` | `internal/component/config/transaction/solver_test.go` | B-1, R2-B-2. A coarse node runs after the addressing this commit adds and before the first operation that binds it, which is the phase 4 to phase 5 boundary. RENAMED at phase 5 from `TestTopologicalSortPlacesSectionNodeBetweenCreatesAndDestroys`, whose name stated the paraphrase's placement | EXISTS. Not run in this documentation pass |
 | `TestTopologicalSortSectionNodeJoinsAnAddressSwapWithoutACycle` | `internal/component/config/transaction/solver_test.go` | R-2. A swap plus one uncovered root still sorts, which an edge-shaped position would not | PASS before and after. It fences the shape of the answer, not a change of behavior |
 | `TestExecuteAppliesCoarseNodeAfterTheResourcesItBinds` | `internal/component/config/transaction/orchestrator_test.go` | B-1 through `Execute`, the door an operator reaches | PASS, and observed RED at `[iface-add-zx section-apply-static iface-add-address-zx]` |
 | `TestReloadRefusesAPluginOperationCarryingTheReservedSectionApplyLabel` | `internal/component/plugin/server/reload_test.go` | B-2. `ReloadConfig` refuses a plugin-supplied `section-apply` label | PASS, and observed RED with the reserved-type refusal deleted |
@@ -228,12 +269,24 @@ ordering, and the plugin RPC contract is Ze's own.
 | `TestExecuteRefusesAParticipantCoveredForOneRootAndNotAnother` | `internal/component/config/transaction/orchestrator_test.go` | I-2. A participant that decomposes one root and leaves another aborts the transaction, named | PASS, and observed RED at `state = committed (err <nil>), want aborted` |
 | `TestExecuteRollsBackAnAppliedCoarseNode` | `internal/component/config/transaction/orchestrator_test.go` | AC-7, I-3. An APPLIED coarse node's participant receives the section rollback | PASS, and observed RED with `publishRollback` deleted from the ordered path |
 | `TestApplyConfigOperationModifyPeerSwapsInPlaceAndKeepsTheSession` | `internal/component/bgp/reactor/operation_test.go` | I-6. A modify-peer the running session can take keeps the peer, and the rollback keeps it too | PASS, and observed RED with the swap forced to false |
+| `TestBGPStopsThePeerBoundToAnAddressThatChangesInterface` | `internal/component/bgp/plugin/operation_disturbed_test.go` | Phases 2 and 5, AC-4. An address that changes interface makes the bgp decomposer emit a remove-peer and an add-peer for the peer bound to it | EXISTS. Not run in this documentation pass |
+| `TestBGPLeavesThePeerAloneWhenTheAddressRowIsIntact` | `internal/component/bgp/plugin/operation_disturbed_test.go` | AC-9. A change that leaves the address row intact disturbs nothing, so no peer is stopped | EXISTS. Not run in this documentation pass |
+| `TestBGPStopsThePeerWhoseSourceAddressTheKernelPicks` | `internal/component/bgp/plugin/operation_disturbed_test.go` | The fail-safe default. A peer whose `connection.local.ip` is absent or `auto` binds an address Ze did not choose, so it is stopped as soon as any address is disturbed | EXISTS. Not run in this documentation pass |
+| `TestReloadStopsABinderWhoseAddressMovesAndItsOwnConfigDidNot` | `internal/component/plugin/server/reload_disturbed_test.go` | Phase 2 through the planner: a root with no diff of its own receives the disturbed set and joins the transaction | EXISTS. Not run in this documentation pass |
+| `TestReloadAsksNoUnchangedRootWhenNoAddressMoves` | `internal/component/plugin/server/reload_disturbed_test.go` | A commit that disturbs nothing makes one decompose pass and costs an unchanged root nothing | EXISTS. Not run in this documentation pass |
+| `TestReloadStopsABinderWhenTheCommitAlsoEditsAnMTU` | `internal/component/plugin/server/reload_iface_mixed_test.go` | AC-8 through the planner, over the real iface decomposer | EXISTS. Not run in this documentation pass |
+| `TestReloadMovesTheAddressWithNoOtherInterfaceChange` | `internal/component/plugin/server/reload_iface_mixed_test.go` | The same path with no MTU beside the move, so the MTU is not what produces the stop | EXISTS. Not run in this documentation pass |
+| `TestReloadDisturbsNothingWhenOnlyTheMTUChanges` | `internal/component/plugin/server/reload_iface_mixed_test.go` | AC-9 through the planner: an MTU edit alone emits no address operation and stops no binder | EXISTS. Not run in this documentation pass |
+| `TestIfaceOperationDecomposerMixedDiffStillMovesTheAddress` | `internal/component/iface/operation_test.go` | AC-8 at the decomposer. A diff carrying an MTU and a move emits the address destroy, the address create and one `configure-interfaces`, and `DisturbedAddresses` reads the address out of it | EXISTS. Not run in this documentation pass |
+| `TestIfaceOperationDecomposerUnsupportedTypeRidesTheConfigureOperation` | `internal/component/iface/operation_test.go` | An interface type this package has no create primitive for rides the configure operation instead of taking the whole root's address operations down | EXISTS. Not run in this documentation pass |
+| `TestIfaceOperationDecomposerBackendChangeRidesTheConfigureOperation` | `internal/component/iface/operation_test.go` | The same, for a key the decomposer has no primitive for | EXISTS. Not run in this documentation pass |
+| `TestReloadTxAppliesCoarseSectionsBeforeBinderStarts` | `internal/component/plugin/server/reload_test.go` | R2-B-2 end to end. The `bgp` root's sibling sections apply before `bgp`'s own peer create, with the decomposing participant registered FIRST so neither a name check nor the slice order can produce the answer | EXISTS. Not run in this documentation pass |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
 | Operations in one transaction | 0 to unbounded | The design names a 10000 warning the builder does not enforce. This spec adds no limit | N/A | N/A |
-| Cycle members considered for relaxation | 2 to the graph size | Three-way rotation, already covered by `TestTopologicalSortThreeWayRotation` | 1, a self edge, rejected as a cycle | N/A |
+| Cycle members | N-A since phase 5. No cycle is relaxed, so no member count is read. A three-way rotation now sorts without one (`TestTopologicalSortRotatesAddressesBreakBeforeMake`) | N/A | 1, a self edge, rejected as a cycle | N/A |
 | Coarse nodes per transaction | 0 to one per participant | One per uncovered participant | N/A | N/A |
 
 This spec introduces no new numeric input. The table records the existing
@@ -304,17 +357,18 @@ between the Ze engine and a plugin process. The external-plugin test is the
 cross-process peer this spec owes.
 
 ## Files to Modify
-- `internal/component/config/transaction/operation.go` - add the verb type and the produce/consume declaration to the registry surface, delete the two `ResourceRelation` values that state produce/consume facts, delete the seven unused operation constant aliases. Doc: `docs/architecture/config/apply-ordering.md`
+- `internal/component/config/transaction/operation.go` - add the verb type and the produce/consume declaration to the registry surface, delete the two `ResourceRelation` values that state produce/consume facts, delete the seven unused operation constant aliases. Add `DisturbedAddresses`, which reads the planned operations and returns every address a destroy produces, and `OperationDecomposerRoots`, which names the roots the planner asks on its second pass. Delete the relations `same-interface` and `same-address` with make-before-break. Doc: `docs/architecture/config/apply-ordering.md`
 - `internal/component/config/transaction/depgraph.go` - derive edges from produce and consume sets over resource identity, beside the surviving rule-driven edges. Doc: `docs/architecture/config/apply-ordering.md`
-- `internal/component/config/transaction/solver.go` - `isAddressOperation` and `markDualPresence` decide on the verb plus the address resource kind, not on the operation label. Doc: `docs/architecture/config/apply-ordering.md`
+- `internal/component/config/transaction/solver.go` - delete `tryRelaxCycle`, `markDualPresence`, `isAddressOperation` and `opInterface` with make-before-break, so `TopologicalSort` answers `ErrOperationCycle` for every graph it cannot order. `placeSectionNodes` and `sectionNodePosition` put a coarse node at the phase 4 to phase 5 boundary, reading the verb and `isAddressingKind` and no operation label. Doc: `docs/architecture/config/apply-ordering.md`
 - `internal/component/config/transaction/executor.go` - route a coarse root node to the section apply event and the section rollback, keep the per-operation route for everything else. Doc: `docs/architecture/config/apply-ordering.md`
 - `internal/component/config/transaction/orchestrator.go` - synthesize one coarse node per uncovered participant, delete the section-apply fallback and its log line, keep `participantsWithoutOperations` as the synthesis input. Doc: `docs/architecture/config/transaction-protocol.md`
 - `internal/component/config/transaction/orchestrator_budget.go` - NEW at review round 2. The deadline and budget concern, moved out of `orchestrator.go` when the file crossed 1000 lines. The deadline is the sum of the participants' budgets. Doc: `docs/architecture/config/transaction-protocol.md`
 - `internal/component/bgp/reactor/operation.go` - the modify-peer operation asks `peerSettingsSwapPlan` before it removes and re-adds, which is the decision the section apply already took, and a rolled-back peer returns as the reactor had it (`runningPeerSettings`). Named here at review round 2 (I-6): the operation path went live in this spec, so what it reaches is this spec's
-- `internal/component/plugin/server/reload_tx.go` - the planner refuses an operation with no verb, and reports an uncovered root to the orchestrator rather than making it invisible. Doc: `docs/architecture/config/transaction-protocol.md`
+- `internal/component/plugin/server/reload_tx.go` - the planner refuses an operation with no verb, and reports an uncovered root to the orchestrator rather than making it invisible. It also runs the second decompose pass: `bindingRoots` names the roots to ask, `DecomposeRequest.DisturbedAddresses` carries the set, and `checkDisturbanceSettled` refuses a plan whose second pass disturbs a different set from its first. `sortParticipantsBGPLast` and `bgpParticipantName` are deleted. Doc: `docs/architecture/config/transaction-protocol.md`
+- `internal/component/plugin/server/reload.go` - `appendDecomposingPlugins` joins every running plugin that declares a decomposition to the transaction with no section, so a binder with no diff can still be asked. `filterDiffs` then gives it no verify event, no section apply and no coarse node, so a commit that disturbs nothing costs it nothing. Doc: `docs/architecture/config/apply-ordering.md`
 - `internal/component/plugin/server/config_tx_bridge.go` - dispatch a coarse root node through `SendConfigApply`. Doc: `docs/architecture/config/transaction-protocol.md`
-- `internal/component/iface/operation.go` - declare produce and consume on each emitted operation, delete the five produce/consume constraint rules, keep the two that are not, move the four operation labels into this package. Doc: `docs/architecture/config/apply-ordering.md`
-- `internal/component/bgp/plugin/operation.go` - declare consumption of the local address on peer and listener operations, delete all four constraint rules, move the peer and listener labels out of the shared ABI.
+- `internal/component/iface/operation.go` - declare produce and consume on each emitted operation, delete the five produce/consume constraint rules and the make-before-break rule `iface-add-address-before-remove-same-interface`, widen `iface-remove-address-before-add-same-address` into `iface-remove-address-before-add-address`, move the four operation labels into this package. `decomposeIfaceOperations` now covers the whole root on every call: an address and an interface of a type it can create become one operation each, and every other key rides `ifaceConfigureOperation`, which four new placement rules order after every operation that moves an address or an interface. Doc: `docs/architecture/config/apply-ordering.md`
+- `internal/component/bgp/plugin/operation.go` - declare consumption of the local address on peer and listener operations, delete all four constraint rules, move the peer and listener labels out of the shared ABI. `decomposeBGPOperations` also emits a remove-peer and an add-peer for every peer whose local address is in the disturbed set (`peerBindingDisturbed`), and `peerAddressConsumes` makes those two operations declare every disturbed address so the derived edges still place them. That is phases 2 and 5, for BGP.
   → Decision (phase 2): the labels went to a new leaf, `internal/core/bgp/configop`, not into this package. The `bgp` root emits its operations here and APPLIES them in `internal/component/bgp/reactor`, and neither side can import the other: the reactor importing `bgp/plugin` pulls a plugin's registration into the engine, and `bgp/plugin` importing the reactor closes a cycle, because `events_import_test.go` is `package reactor` and blank-imports `bgp/plugin`. A leaf both import is the remaining option, and `internal/core/bgp/events` is the precedent. The property the spec wanted holds: no shared package carries a per-root label list. Doc: `docs/architecture/config/apply-ordering.md`
 - `pkg/plugin/rpc/types.go` - add the verb and the produce/consume fields to `ConfigOperation`, delete the seven unused operation constants and the constants that move into iface and bgp, keep `ConfigOperationType` as the free-text label type. Docs: `docs/architecture/api/ipc_protocol.md`, `docs/plugin-development/protocol.md`
 - `pkg/plugin/sdk/sdk_types.go` - re-export what survives, drop the aliases of the deleted constants. Doc: `docs/architecture/api/process-protocol.md`
@@ -372,10 +426,12 @@ cross-process peer this spec owes.
 | Sentence | Why it stops being true |
 |----------|------------------------|
 | "`iface` and `bgp` each register their own decomposition through `init()`." | Still true, and no longer the whole story. After this spec every root with a diff is represented, decomposer or not, so the paragraph must say what a root without a decomposer gets |
-| "Address-only cross-interface cycles relax. Everything else is rejected." | The rule survives. The test behind it moves from the operation label to the verb plus the resource kind, so the mechanism sentence beside it is wrong |
+| "Address-only cross-interface cycles relax. Everything else is rejected." | DELETED at phase 5, not rewritten. The relaxation existed to break a cycle make-before-break created, and that rule is gone, so the page now says "Every cycle is rejected" |
 | "The external contract is mandatory for v1 plugins: SDK types in `pkg/plugin/sdk/sdk_types.go` ..." | The contract gains the verb and the produce/consume sets, and a payload without a verb is refused. The sentence must state the refusal |
 | The whole first paragraph of "What the tests do not reach": "they exercise the whole decompose to graph to executor to bridge to RPC to reactor path and none of the `AllowDual` machinery" | `config-apply-ordering-address-swap.ci` reaches it. The paragraph is replaced by what that test proves and by what remains unreached |
-| "The current decomposers never emit an `ADD_ADDRESS` for an address that is already present." | This becomes false the moment a root outside iface declares an address it consumes. Re-verify at implementation, then rewrite or delete |
+| "The current decomposers never emit an `ADD_ADDRESS` for an address that is already present." | Rewritten at phase 5 against the iface decomposer as it now is: it skips an address the active config already gives to the SAME interface with the same prefix length, and skips nothing else |
+| The page gains a section it did not have: "The requirement", carrying the owner's words verbatim | The paraphrase in this spec's Task section is what made the subsystem wrong. The page is now the authority for the order, and this spec points at it rather than restating it |
+| The page gains "What is not built" | Phases 2 and 5 reach BGP only, the wildcard carve-out is verified for BGP only, and VRF is a constraint with no code. A reader who stops at "The design" would otherwise read the requirement as shipped |
 
 `docs/architecture/config/transaction-protocol.md` loses its operation type
 table (the 21 constants), nine rows of its constraint rule table (all deleted
@@ -418,7 +474,7 @@ This spec does not answer them from memory.
    - Files: `orchestrator.go` (synthesis, and the deleted fallback), `executor.go` (section route for a coarse node), `config_tx_bridge.go` (dispatch to `SendConfigApply`)
    - Verify: the wiring tests fail first because the coarse node does not exist, then pass. The fallback branch and its log line are gone, so no test can reach them
 2. **Phase: Vocabulary** -- the verb plus the resource replaces the operation type enum
-   - Tests: `TestExecuteRefusesOperationWithNoVerb`, `TestOperationPathCarriesUnknownLabel`, `TestSDKPluginWithoutOperationCallbacksAnswersUnknownMethod`, `TestTopologicalSortRelaxesCycleByVerbAndKind`
+   - Tests: `TestExecuteRefusesOperationWithNoVerb`, `TestOperationPathCarriesUnknownLabel`, `TestSDKPluginWithoutOperationCallbacksAnswersUnknownMethod`, `TestTopologicalSortOrdersASwapWhoseLabelsItDoesNotKnow`
    - Files: `pkg/plugin/rpc/types.go`, `pkg/plugin/sdk/sdk_types.go`, `internal/component/config/transaction/operation.go`, `solver.go`, `reload_tx.go`, and the labels moving into `internal/component/iface/operation.go` and `internal/component/bgp/plugin/operation.go`
    - Verify: no core package compares an operation label to a constant, the seven unused constants are deleted, and a missing verb aborts with a named error
 3. **Phase: Derived edges** -- produce and consume replace the nine hand-written rules
@@ -445,7 +501,8 @@ This spec does not answer them from memory.
 | Naming | New JSON keys are kebab-case: `verb`, `produces`, `consumes` |
 | Naming | The verb values are `create`, `destroy` and `modify` in every surface: Go constant, JSON value, doc table |
 | Data flow | The solver names no root, no component and no operation label. Grep it for the strings `bgp`, `interface`, `peer` and `address` after the change |
-| Rule: `ai/rules/no-layering.md` | The fallback branch, the nine rules, the seven unused constants and the two produce/consume `ResourceRelation` values are DELETED, not left unreachable |
+| Correctness | Every sentence in this spec agrees with `docs/architecture/config/apply-ordering.md`, "The requirement". Where it does not, the spec is wrong. This spec was written from a paraphrase, so a sentence that reads correct from inside the spec is exactly the failure mode |
+| Rule: `ai/rules/no-layering.md` | The fallback branch, the nine rules, the seven unused constants and the two produce/consume `ResourceRelation` values are DELETED, not left unreachable. So is make-before-break: `Params.AllowDual`, `markDualPresence`, `tryRelaxCycle`, `isAddressOperation`, `opInterface`, `sortParticipantsBGPLast` and `iface-add-address-before-remove-same-interface` |
 | Rule: `ai/rules/principles.md` | No operation is ordered on a default. A missing verb aborts, and never becomes `modify` |
 | Rule: `ai/rules/stale-comments.md` | The comment in `Execute` justifying the fallback, and the comment on `participantsWithoutOperations` describing the all-or-nothing decomposer contract, both describe deleted behavior |
 
@@ -454,8 +511,10 @@ This spec does not answer them from memory.
 |-------------|---------------------|
 | The section-apply fallback is gone | `grep -n "using section apply" internal/component/config/transaction/orchestrator.go` returns nothing |
 | The seven unused operation constants are gone | `grep -rn "OperationStartDHCP" --include=*.go .` and the same for the other six return nothing |
-| The nine produce/consume constraint rules are gone | `grep -rn "RegisterConstraintRule" --include=*.go internal/` shows two registrations, both in `internal/component/iface/operation.go` |
+| The nine produce/consume constraint rules are gone | `grep -rn "RegisterConstraintRule" --include=*.go internal/` shows two call sites, both in `internal/component/iface/operation.go`. One registers `iface-remove-address-before-add-address`; the other is a loop over four `*-before-configure` placements |
 | The solver reads no operation label | `grep -n "OperationAdd" internal/component/config/transaction/solver.go` and the same for `OperationRemove` return nothing |
+| Make-before-break is gone, not left unreachable | `grep -rn "AllowDual\|markDualPresence\|tryRelaxCycle\|sortParticipantsBGPLast" --include="*.go" internal pkg` returns only comments recording the deletion |
+| Phase 2 reaches a binder with no diff of its own | `TestReloadStopsABinderWhoseAddressMovesAndItsOwnConfigDidNot` passes, and `test/reload/config-apply-ordering-address-swap.ci` reddens when the pre-`284620ac2` early return in `decomposeBGPOperations` is restored |
 | Coverage is total | `TestParticipantsWithoutOperationsEmptyAfterSynthesis` passes |
 | The four new functional tests exist and pass | `./le test functional filter config-apply-ordering` |
 | Each new functional test discriminates | The recorded RED and GREEN output pair for each of the four, in the closure section |
@@ -490,14 +549,16 @@ This spec does not answer them from memory.
 - A vocabulary that must be edited centrally to be extended predicts its own disuse. Seven of the 21 operation kinds were written for roots that never arrived, which is the measurement of that prediction.
 - The derivation reproduced the nine deleted rules' edge set on the iface and bgp fixtures, and added exactly two edges, both of which a deleted rule's ID promised and its body never produced. `iface-remove-address-before-interface` related its pair through the interface an ADDRESS names (`opAddrIface`, which reads `Target.Interface`), and an interface operation carries its name in `Target.Name`, so that rule produced NO edge on any operation the iface decomposer emits: the interface delete had no ordering against its own address removal. `bgp-add-address-before-peer` selected the `add-peer` label, so a `modify-peer` binding the same address got no edge while its address moved interface. The measured pre-deletion edge set is recorded in `TestBuildOperationGraphDerivedEdgesMatchDeletedRules`.
 - A rule that names another root's operation labels is the shape of the defect above. Both dead rules were dead in a way no test could see, because a rule that matches nothing and a rule that is correct look identical from outside the graph.
-- `AllowDual` is written and never read outside the solver. The dual-presence window comes from the edges `tryRelaxCycle` removes, so the flag today labels the result rather than instructing the applier.
+- `AllowDual` was written and never read outside the solver. The window came from the edges `tryRelaxCycle` removed, so the flag labelled a result rather than instructing the applier. Phase 5 deleted all of it with the policy it served.
+- A paraphrase of a requirement is a second declaration of it, and it drifts like any other copy. The owner gave this order in May 2026, a spec kept a summary of it, the words were lost, and the subsystem was built from the summary. The repair is to QUOTE him on one page and point every other artifact at that page.
+- The defect could not be found from inside the code, because the code agreed with itself. Every test, every comment and both `.ci` files stated make-before-break, so the suite was as green under the wrong policy as under the right one. Only the owner's own sentence could tell them apart, and it was not in the tree.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | A coarse root node is applied through the existing `config-apply` RPC | Route it through `config-operation-apply` like every other node | `config-operation-apply` has no SDK default handler, so a plugin that never registered one answers "unknown method" and the transaction aborts. The section route reaches every participant the section apply reaches today, which is the property the coarse node exists to keep |
 | The coarse node owes no per-operation verify | Emit `config-operation-verify` for it, or invent a no-op verify | Phase 1 already verified the whole candidate config for that participant before the planner ran. A second verify is a second answer to a question already answered |
-| The constraint rule registry survives, with only its produce/consume users deleted | Delete the registry and derive everything | Two iface rules state facts that are not produce/consume: same-address uniqueness across interfaces, and make-before-break within one interface. Deriving those from produce/consume would be wrong, so the registry keeps a real job and the derivation takes the rest |
+| The constraint rule registry survives, with only its produce/consume users deleted | Delete the registry and derive everything | `iface-remove-address-before-add-address` states a fact about two operations over DIFFERENT resources, which no pair of declarations can carry: every address the commit removes leaves the host before any address it adds arrives. That is phases 3 and 4. The four `*-before-configure` rules place an operation that owns no resource. So the registry keeps a real job and the derivation takes the rest |
 | A missing verb aborts the transaction | Default to `modify` | A default orders the operation as if it had no dependencies, which is the silently wrong answer `ai/rules/principles.md` names. Pre-release, with no shipped external plugin, the refusal costs nobody |
 | The label stays on the wire as free text | Delete it and dispatch on the verb plus the resource | The owner needs it: `applyIfaceOperation` and `applyBGPOperation` dispatch on it, and a log line reads it. The core stops reading it, which is the part that mattered |
 | Operation labels move into the owning packages | Keep them in `pkg/plugin/rpc` as documentation | A label list in a shared package is a central enumeration again, and a new root would edit it because it looks like the place labels belong. The owning package already owns the dispatch |
@@ -505,8 +566,11 @@ This spec does not answer them from memory.
 ## Known Limitations
 - The 10000 operation warning and the 100 cycle-depth rejection named in the design stay unenforced. Config is operator supplied and bounded, so neither is a security boundary. Not this spec's work.
 - The step-3 owner state check in `armSettlementWaiters` stays unimplemented. Total coverage does not change that path.
-- This spec makes every root ORDERABLE. It does not make every root DECOMPOSED: firewall, dhcp, ike, l2tp, static and ntp still apply as one coarse node each. A coarse node is placed after the last operation that creates or modifies a resource and therefore before the destructions (`placeSectionNodes`, `solver.go`), which is ordering against the operations the other roots emit and none within itself. Where a destroy is forced ahead of a create by a surviving rule, the two halves cannot both hold and the creations win. Per-root decomposition is separate work, one spec per root, each a feature rather than a defect. None is written yet.
-- `Params.AllowDual` keeps no reader outside the solver. Whether an applier should act on it, for example to suppress a make-before-break check, belongs to the per-root decomposition work above.
+- This spec makes every root ORDERABLE. It does not make every root DECOMPOSED: firewall, dhcp, ike, l2tp, static and ntp still apply as one coarse node each. A coarse node is placed after the addressing the commit adds and before the first operation that binds it (`placeSectionNodes`, `sectionNodePosition`, `solver.go`), which is ordering against the operations the other roots emit and none within itself. Per-root decomposition is separate work, one spec per root, each a feature rather than a defect. None is written yet.
+- **Phases 2 and 5 are out of reach for any binder nobody decomposes, which is every binder except BGP.** Both phases need one binder to take TWO steps in one commit, a stop before the addresses move and a start after. A participant with no decomposer gets one coarse node, and one node cannot be split in two. Two roots register a decomposer, `interface` and `bgp`, so ike, l2tp, dhcp, ntp, gnmi, tftp and every plugin listener get one lump each: started against the new addresses, never stopped before the old ones go. `docs/architecture/config/apply-ordering.md`, "What is not built", is the authority for this and it carries the same limit.
+- **The wildcard refinement is verified for BGP only.** The owner's second refinement says a socket bound to `0.0.0.0` or `::` is not disturbed by an address that moves. Ze's BGP binds specific addresses: `CreateReactorFromTree` sets no listen address and `startMultiListeners` opens one listener per passive peer's local address, so the carve-out frees no BGP session today. Whether any other binder binds the wildcard is NOT established. `listenDHCP` binds `:67` and ties the socket to a device with `SO_BINDTODEVICE`, which is a wildcard address bind whose context is the device. Reading each remaining binder's own listen call is what settles the rest, and this spec did not do it.
+- **VRF is a forward-looking constraint with nothing implemented.** The owner's third refinement says a change of VRF changes who can speak to a binder, with the address, the prefix length and the interface all unchanged. Ze has no VRF support, so there is no code here to be right or wrong. It is recorded on the page so that the disturbance list is known to be open rather than closed.
+- A peer whose `connection.local.ip` is absent or `auto` binds an address Ze did not choose, so Ze cannot say whether a commit takes it away. The fail-safe default stops and starts it as soon as ANY address is disturbed (`peerAddressConsumes`). That costs the operator one session restart on a commit that moved an unrelated address.
 
 ## RFC Documentation (Scope: protocol)
 
@@ -530,7 +594,7 @@ enforcing code.
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-7 all demonstrated
+- [ ] AC-1..AC-9 all demonstrated. AC-8 and AC-9 were added on 2026-09-11, when the spec was corrected against the owner's requirement: they state the disturbance test the subsystem now applies, which no earlier AC named
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] Each of the four new functional tests observed RED under its own named revert and GREEN after restore, with both outputs recorded. ALL FOUR are walked. `coarse-root` and `mixed-rollback` were walked natively (logs in the Functional Tests table). `mixed-root` was walked in the QEMU guest on 2026-09-11 under the owner's order, red first under each of two reverts and green after: `tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/dw/walk-1.log`, one-tree evidence in `.../dw/pairbuild-4.log`. `address-swap` was walked in the same guest later that day, once its scaffolding could express the claim: red under the phase 2 and 5 revert, red under the phase 3 and 4 revert, green after restore, 11 of 11 steps. Log `.../sw/walk-2.log`, and its row in the Functional Tests table carries the failure text of each red
@@ -734,18 +798,28 @@ two reverts, so the owner's order holds across two roots on a real kernel:
 remove the address, add the address, then apply the section of the root that
 binds it.
 
-`address-swap` proves phases 3 and 4 the same way and cannot reach green. The
-walk found two defects in its own scaffolding, and neither is a property of the
-apply order. Its driver sends SIGTERM as soon as `ip addr` shows the addresses
-have moved, which is the end of phase 4, so the daemon dies inside the reload
-and `reloadComplete()` never prints the line the file expects. And its
-`option=tcp_connections:value=2` does not fence phases 2 and 5: `ze-peer` closes
-each connection when that connection's expectations are met, so the session is
-already gone when the reload starts and a daemon whose decomposer emits no peer
-operation reaches two connections on its own retry timer. Measured under that
-revert, in a run whose driver held the daemon alive past the reload: `ze-peer`
-reported "successful" after two connections
+`address-swap` proves phases 3 and 4 the same way, and since later on 2026-09-11
+it proves phases 2 and 5 as well, on the same kernel. It passes, 11 of 11 steps,
+and it reddens under one revert for each half.
+
+Reaching that took three repairs to its scaffolding, and none of them is a
+weakened assertion. The walk first found two defects there, and neither was a
+property of the apply order. Its driver sent SIGTERM as soon as `ip addr` showed
+the addresses had moved, which is the end of phase 4, so the daemon died inside
+the reload and `reloadComplete()` never printed the line the file expects. And
+its `option=tcp_connections:value=2` fenced nothing: `ze-peer` closed each
+connection when that connection's expectations were met, so the session was
+already gone when the reload started and a daemon emitting no peer operation
+reached two connections on its own retry timer. Measured under that revert:
+`ze-peer` reported "successful" after two connections
 (`tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/dw/walk-4.log`).
-The SIGTERM above is what hides this today. Making the file fence phases 2 and 5
-needs the check peer to hold its session open across the reload, which changes
-what the file asserts. That decision is the owner's, and it is open.
+
+The repairs answer both. `option=linger` now holds a connection open between
+connections until the remote closes it (`endSequence`,
+`internal/test/peer/reject.go`), so a second connection can only follow a
+daemon-side drop. The peer writes `session-returned.txt` once the returned
+session has re-announced its route, and the driver waits for that file before it
+signals the daemon, so the reload finishes. And `action=rewrite` answers
+completion like the other action arms, so the daemon's shutdown NOTIFICATION is
+no longer matched against an empty expectation list. The file's DISCRIMINATION
+header carries both reds, the green and their log paths.
