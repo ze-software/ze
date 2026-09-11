@@ -117,6 +117,70 @@ deadline.
 <!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
 <!-- source: internal/component/bgp/reactor/config.go -- PeersFromTree, config diff -->
 
+## The Order of a Commit
+
+`commit` in the config editor and `ze signal reload` reach the same reload, so
+the order below is the same for both. The editor sends the
+`ze-system:daemon-reload` request over the daemon socket, and the daemon runs
+the reload that SIGHUP runs.
+<!-- source: internal/component/cli/reload.go -- newSocketReloadNotifier -->
+<!-- source: cmd/ze/hub/main.go -- reloadAfterCommitContext -->
+<!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, doReloadContext -->
+
+Ze applies one commit in this order:
+
+1. Ze reads and validates the whole new configuration. A refusal stops the
+   commit here, and nothing on the host changes.
+2. Sessions the new configuration removes are stopped.
+3. Addresses the new configuration removes are taken off their interface.
+4. Addresses the new configuration adds are put on their interface.
+5. Sessions the new configuration adds are started.
+
+Steps 2 to 5 hold because a session declares the local address it binds. Ze
+keeps an address on the host until the last session bound to it is stopped. Ze
+puts a new address on the host before it starts a session that binds it.
+<!-- source: internal/component/config/transaction/depgraph.go -- addDerivedEdges -->
+
+Any interruption is bounded by the commit. The sessions stop, the addresses
+change, and the sessions come back.
+
+### Which Changes Interrupt a Session
+
+| The change | The effect on a protocol bound to the address |
+|------------|-----------------------------------------------|
+| The interface MTU, or its description | No interruption. The address does not move |
+| The address is removed from the configuration | The sessions bound to it are stopped, in step 2 |
+| A new address, with new sessions on it | The address is on the host before the first session starts |
+| The address moves to another interface | Read the limitation below |
+
+The DHCP server is an example of a listener an address move does not reach at
+all. It binds every address on one device rather than one address, so an address
+that moves does not invalidate its socket.
+<!-- source: internal/plugins/dhcpserver/socket_linux.go -- listenDHCP -->
+
+### Limitation: an Address That Moves Between Interfaces
+
+An address that moves from one interface to another does NOT stop the BGP
+sessions bound to it. A peer names the local address it binds. A peer does not
+name the interface. A move therefore leaves the peer's own configuration byte
+for byte identical, and Ze emits no stop and no start for it.
+<!-- source: internal/component/bgp/plugin/operation.go -- decomposeBGPOperations -->
+
+The session therefore keeps running while the address leaves one interface and
+arrives on another. For that time it holds a binding to an address the host does
+not have. The listener for the address is stopped and started again from the
+kernel's own address notifications. That is a separate path from the commit, and
+it is not ordered against the commit.
+<!-- source: internal/component/bgp/reactor/reactor_iface.go -- handleAddrRemovedPayload, handleAddrAddedPayload -->
+
+To move an address with no such window, use two commits. Remove the peers that
+bind it in the first commit. Add them again in the second commit, after the
+move.
+
+Ze owes a stop and a start for this case. The full order, and the part of it Ze
+does not yet do, is in
+[Config apply ordering](../architecture/config/apply-ordering.md).
+
 ## Best Practices
 
 - Always validate before reload: `ze config validate config.conf`

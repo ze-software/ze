@@ -1,10 +1,214 @@
 # Config Apply Ordering: the operation graph
 
+This page keeps three things apart. The REQUIREMENT is the owner's, and it is
+quoted. The DESIGN is what the requirement asks the core to do. The CURRENT
+STATE is what the code does today, and each claim names the function that
+produces the behavior.
+
+## The requirement
+
+The owner stated it on 2026-09-11. The words below are his, unedited.
+
+> Yes, BGP need an IP to bind. So adding IP must be done before dealing with peers, however if an IP is deleted to move, the move require BGP for the peer to be stopped, then the move then readded.
+> so the order is:
+> - stop all BGP deconfigured
+> - stop all BGP which IP needs to move
+> - remove all IP deconfigured
+> - add all IP moved or added
+> - setup BGP for new IPs
+> if the change for the IP is like an MTU change, then the IP does not need to be removed. If the IP is changed from interface then it does. If it is not easy to establish what action will lead to what, be safe and deconf/reconf
+
+He then wrote:
+
+> The same can be said from all protocol which need to use IP.
+
+Two refinements followed on the same day. The first covers a socket that binds
+the wildcard address:
+
+> if you binded to 0.0.0.0 moving the IP is then a non-issue but you have to assume the binding will be specific
+
+The second covers the routing context, and it looks forward to VRF support that
+Ze does not have:
+
+> Also changing the binding with VRF - down the line - will change what can speak with the IP and may cause issue too
+
+BGP is the instance the owner used. The requirement binds every component that
+binds a local IP address.
+
+## The design
+
+### Binder and provider
+
+A BINDER is a component that binds a local IP address. The list today is bgp,
+ike, l2tp, dhcp, ntp, gnmi, tftp, and any listener a plugin opens. The interface
+layer is the PROVIDER of the addresses they bind. This page uses one word for
+each role and never a second one.
+
+### The five phases
+
+A commit applies in this order:
+
+1. Stop the binders the new config removes.
+2. Stop the binders whose bound address is DISTURBED.
+3. Remove the addresses that are removed or disturbed.
+4. Add the addresses that are new or moved.
+5. Start the binders against the new addresses.
+
+Phases 2 and 5 are the two halves of one move. A binder that holds a disturbed
+address is stopped before its address leaves, and started after the new address
+arrives.
+
+### When an address is disturbed
+
+An address is disturbed when the commit removes it, when it changes interface,
+or when its prefix length changes. Each of those needs the address to be removed
+and added again.
+
+A change that leaves the address row intact does not disturb it. An MTU edit and
+a description edit on the interface are the cases the owner named.
+
+### When a binder is disturbed
+
+Disturbance is a property of the pair of one binder and one address. It is not a
+property of the address alone. The rule above answers whether the ADDRESS is
+disturbed. How the binder bound answers whether the BINDER is.
+
+| The binder is bound to | Its address is disturbed | Phases 2 and 5 |
+|------------------------|--------------------------|----------------|
+| A specific address | Yes | Apply. Stop the binder, then start it |
+| The wildcard, `0.0.0.0` or `::` | Yes | Do not apply. The binder keeps running |
+
+A wildcard socket was never tied to the address, so an address that arrives,
+moves or leaves does not invalidate it.
+
+### The binding context
+
+A binder is disturbed when the BINDING CONTEXT it holds stops meaning what it
+meant. The address is one part of that context. The routing context is another.
+The three disturbances above are an instance of that rule, and the list is not
+closed.
+
+VRF is the case that proves the list is not closed. The same address in two VRFs
+is reachable by different peers. A change of VRF therefore changes who can speak
+to the binder, with the address, the prefix length and the interface all
+unchanged. A VRF change is a disturbance of its own.
+
+VRF cuts across the wildcard rule above, and the two read as a contradiction
+until you state it. A wildcard binder is undisturbed by an address that moves
+inside its own VRF. It is disturbed by a change of the VRF it binds in, because
+a socket bound to `0.0.0.0` in one VRF does not serve another.
+
+Ze has no VRF support today. This is a constraint on the design. It is not a
+claim about the code.
+
+### The fail-safe default
+
+Where the core cannot establish whether a binding context still means what it
+meant, it treats the binder as disturbed. It stops it. One rule answers two
+questions. The first is a change whose effect on an address is not established.
+The second is a binder whose bind is not known to be the wildcard.
+
+The owner's words for it are "If it is not easy to establish what action will
+lead to what, be safe and deconf/reconf", and "you have to assume the binding
+will be specific".
+
+The default is not symmetric, and the cost of each error is the reason:
+
+| The core assumes | The truth | The cost |
+|------------------|-----------|----------|
+| Specific | The bind is the wildcard | One stop and one start of a session that would have survived |
+| Wildcard | The bind is specific | A binder holds an address that is gone |
+
+The second is the failure the requirement exists to prevent. The first costs the
+operator one session restart. Make the cheap error. `ai/rules/principles.md`
+states the general form: a value that is silently wrong must not be reachable.
+
+### What dual presence becomes
+
+Make-before-break keeps the old address on the host while the new one arrives,
+so that nothing bound to it loses its binding. With the binder stopped across
+the move, there is no binding to protect, and the window has no work to do.
+
+A move of ONE address can carry no such window at all. One address cannot sit on
+two interfaces at the same time, which is what the uniqueness rule states.
+
+Remove, then add, with the binder stopped, is correct under the requirement and
+carries less machinery. The design asks for no dual-presence window.
+
+## What is not built
+
+The four gaps below are the distance between the design above and the code. The
+rest of this page describes the code.
+
+**Phase 2 is absent.** A binder emits operations only when its OWN config
+changed. An address that moves between interfaces changes the `interface` root
+and leaves the `bgp` root identical, so nothing stops the peer.
+`decomposeBGPOperations` emits a remove and an add for a peer when
+`activePeer.localAddress != candidatePeer.localAddress`, which is the address
+VALUE changing. A peer whose config bytes are identical returns before that
+test. The session therefore stays up while its address leaves one interface and
+arrives on another.
+<!-- source: internal/component/bgp/plugin/operation.go -- decomposeBGPOperations -->
+
+What happens instead runs outside the transaction, on the kernel's own address
+notifications. `handleAddrRemovedPayload` stops the listener bound to a removed
+address, and `handleAddrAddedPayload` starts it again when the address arrives.
+Neither one stops or starts a peer, and neither is ordered against the commit.
+<!-- source: internal/component/bgp/reactor/reactor_iface.go -- handleAddrAddedPayload, handleAddrRemovedPayload -->
+
+**Phases 2 and 5 are out of reach for a binder nobody decomposes.** Both phases
+need one binder to take TWO steps in one commit, a stop before the addresses
+move and a start after. A participant with no decomposer gets one coarse
+section-apply node, and one node cannot be split in two. Two roots register a
+decomposer, `interface` and `bgp`, so every other binder has one lump.
+<!-- source: internal/component/config/transaction/operation.go -- RegisterOperationDecomposer -->
+<!-- source: internal/component/config/transaction/solver.go -- placeSectionNodes, appendSectionNodes -->
+
+**The dual-presence policy contradicts the requirement.** `tryRelaxCycle`
+removes the cross-interface edges of an address cycle, which leaves both
+addresses present while they swap. `markDualPresence` labels the creations it
+freed. That is make-before-break, which the requirement does not ask for.
+
+`test/reload/config-apply-ordering-address-swap.ci` asserts the window. It also
+asserts one TCP connection for the whole run. That is the claim that the BGP
+session bound to the moving address never restarted. Under the requirement that
+session is stopped in phase 2 and started in phase 5, so the test states the
+inherited policy rather than the owner's.
+<!-- source: internal/component/config/transaction/solver.go -- tryRelaxCycle, markDualPresence -->
+
+**A name check stands in for phase 5.** `sortParticipantsBGPLast` sorts the
+participant named `bgp` to the tail of the slice, so the one binder somebody
+noticed applies last. Its own comment gives the reason, which is that it matches
+the ordering of the reload path it replaced. It is a crude stand-in for phase 5
+for one binder, and not a designed invariant. `ai/rules/principles.md` bans a
+central list of this shape. The core file spells one component's name, and no
+other binder is named at all.
+<!-- source: internal/component/plugin/server/reload_tx.go -- sortParticipantsBGPLast, bgpParticipantName -->
+
+**The wildcard carve-out is verified for BGP only.** Ze's BGP binds specific
+addresses. `CreateReactorFromTree` sets no global listen address.
+`startMultiListeners` opens one listener for each passive peer's local address,
+through `startListenerForAddressPort`. The carve-out therefore frees no BGP
+listener today.
+
+Whether another binder binds the wildcard is not established here. `listenDHCP`
+binds `:67` and ties the socket to a device with `SO_BINDTODEVICE`. That is a
+wildcard ADDRESS bind whose context is the device. Reading each remaining
+binder's own listen call settles the rest.
+<!-- source: internal/component/bgp/config/loader_create.go -- CreateReactorFromTree, the reactor.Config with no ListenAddr -->
+<!-- source: internal/component/bgp/reactor/reactor.go -- startMultiListeners, startListenerForAddressPort -->
+<!-- source: internal/plugins/dhcpserver/socket_linux.go -- listenDHCP -->
+
+## The current state
+
+Every section below describes the code as it is today. Read it against "What is
+not built" above, which names the four places where the code and the requirement
+disagree.
+
 Config reload applied changes surface by surface with no cross-surface order.
-Dependent operations could run in the wrong order: add an interface after the
-BGP peer that binds it, tear a peer down before removing its address, or swap
-two interface addresses with no dual-presence window. The operation graph
-replaced that ad-hoc order.
+Dependent operations could run in the wrong order. One example is an interface
+added after the BGP peer that binds it. Another is an address removed while a
+peer still binds it. The operation graph replaced that ad-hoc order.
 
 ## The pipeline
 
@@ -62,10 +266,11 @@ what replaced it.
 <!-- source: internal/component/config/transaction/executor.go -- applySection -->
 
 **A coarse node is placed after the last create and modify, so it runs before
-the destructions.** That is the design's own sequence: create the address,
-update the services that bind it, destroy the old address last. A root nobody
-decomposes is one of those services, and the core knows nothing more about it
-than that.
+the destructions.** That is the sequence the inherited design stated: create the
+address, update the services that bind it, destroy the old address last. The
+requirement asks for a different sequence, and one node cannot carry it, because
+phases 2 and 5 need two. A root nobody decomposes gets the one position the core
+can state for it, and the core knows nothing more about that root.
 
 The position is a placement rather than an edge, and `placeSectionNodes` takes
 it once the sort is done. An edge from every create and to every destroy would
@@ -129,7 +334,9 @@ payload without one.
 swap of two addresses between interfaces is a cycle by construction. The solver
 breaks it by removing the cross-interface edges, which leaves both addresses
 present for the duration of the swap, and then marks the creations it freed
-with `AllowDual` (see the note on that flag below). "Address operation" is a
+with `AllowDual` (see the note on that flag below). The window this produces is
+make-before-break, which "What is not built" above names as a policy the
+requirement does not ask for. "Address operation" is a
 verb and a kind: an operation
 that creates or destroys a resource of kind `address`, whatever it is labelled.
 A cycle that is not address-only, or that is inside one interface, is rejected
@@ -199,7 +406,7 @@ The iface decomposer skips an address that the ACTIVE config already gives to
 the SAME interface with the same prefix length, and skips nothing else: an
 address moving to another interface, and an address whose prefix length changes,
 each produce a create beside the destroy of the old one. That is the pair the
-dual-presence window exists for, so "an address create never meets an address
+dual-presence window covers today, so "an address create never meets an address
 that is already there" was never true and is not what the ordering relies on.
 <!-- source: internal/component/iface/operation.go -- decomposeIfaceOperations -->
 

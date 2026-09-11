@@ -966,6 +966,10 @@ exists), the solver attempts cycle relaxation.
 
 #### Cycle detection and dual-presence fallback
 
+This section describes what the solver does today. The owner's requirement asks
+for a different policy, and `docs/architecture/config/apply-ordering.md` carries
+it under "What is not built".
+
 Address operations can form cycles. An IP swap (move 10.0.0.1 from eth0 to eth1)
 creates:
 
@@ -989,12 +993,13 @@ The solver handles this with `tryRelaxCycle`:
    the cycle is resolved.
 
 4. **Mark dual-presence.** The cycle members that CREATE a resource of kind
-   `address`, whatever they are labelled, get `Params.AllowDual = true`. This tells the iface plugin that the
-   address may temporarily exist on two interfaces during the transition. The
-   kernel allows this; the solver makes it explicit.
+   `address`, whatever they are labelled, get `Params.AllowDual = true`. Nothing
+   outside `solver.go` reads that flag, so it labels the result and instructs no
+   applier. The window comes from the removed edges alone.
 
 Non-address cycles and same-interface cycles are not relaxable and cause
 `ErrOperationCycle`, which aborts the transaction.
+<!-- source: internal/component/config/transaction/solver.go -- tryRelaxCycle, markDualPresence -->
 
 ### Per-operation execution with settlement
 
