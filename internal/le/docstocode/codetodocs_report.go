@@ -114,6 +114,13 @@ func (r CodeReport) staleLines() string {
 // The renderer groups entries by package directory, which is how a code editor
 // searches. A package with at most three files uses bullets. A larger package
 // uses a table because a two-row table costs more to read than it saves.
+//
+// BOTH shapes print the full path from the checkout root. The table shape
+// printed the basename until 2026-09-11, which made the page a rendering a
+// reader could not invert: `grep resolve.go` answered five rows from five
+// packages with no path on any of them, and the page's own reader had to join
+// each row to the package heading above it to guess the path back. The two
+// shapes differ in layout and never in what they state.
 func renderCodeIndex(index codeIndex) string {
 	var tb textbuf.Buffer
 	tb.Str("# Code to Documentation Index\n\n")
@@ -152,8 +159,7 @@ func renderCodeIndex(index codeIndex) string {
 		tb.Str("Files: ").Int(int64(len(files))).Str(" | Docs: ").Str(quotedList(sortedKeys(allDocs))).Byte('\n')
 		tb.Str("\n| File | Docs |\n|------|------|\n")
 		for _, path := range paths {
-			name := path[strings.LastIndex(path, "/")+1:]
-			tb.Str("| `").Str(name).Str("` | ").Str(quotedList(sortedKeys(files[path]))).Str(" |\n")
+			tb.Str("| `").Str(path).Str("` | ").Str(quotedList(sortedKeys(files[path]))).Str(" |\n")
 		}
 		tb.Byte('\n')
 	}

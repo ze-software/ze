@@ -14,8 +14,12 @@
 package testhealth
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/rfc"
 )
 
 func TestAPythonFloatKeepsItsTrailingZero(t *testing.T) {
@@ -229,7 +233,7 @@ func TestTheUnprovenListIsNamedInNameOrderRatherThanByRank(t *testing.T) {
 	// The list is GATED, so its order is part of the fact. Ordering by gated
 	// count would rewrite it whenever extraction moves a count, turning pure
 	// churn into a diff that reads as an event.
-	rows := []ledgerRow{
+	rows := []coverageRow{
 		{rfc: "rfc9001", gated: 9},
 		{rfc: "rfc1003", gated: 1},
 		{rfc: "rfc4271", gated: 5},
@@ -700,38 +704,33 @@ func TestTheCheckReportRendersEachVerdictOnce(t *testing.T) {
 	}
 }
 
-// VALIDATES: the rollup's Annotated and No test counts are READ from their own
-// columns, so a gated MUST with no test and no annotation lands in the No test
-// column and in no other.
+// VALIDATES: the rollup's annotated and no-test counts are READ from the
+// model's own columns, so a gated MUST with no test and no annotation lands in
+// the no-test count and in no other.
 // PREVENTS: the defect this replaced. The annotated count was derived as
 // `gated - both`, which is the whole remainder, so every untested and
 // unannotated requirement was counted as an annotation that does not exist.
 // The split cross-check then refused and took the entire page down whenever
 // `./le rfc check` was red -- which is exactly when the page is worth reading.
-func TestTheLedgerRollupIsReadFromItsAnnotatedAndNoTestColumns(t *testing.T) {
-	// Columns, in the order ai/RFC-REQUIREMENTS.md declares them: RFC, Gated,
-	// Both, One polarity, Annotated, No test, Outstanding, Nightly-only, State.
-	table := "| RFC | Gated | Both | One polarity | Annotated | No test | Outstanding | Nightly-only | State |\n" +
-		"|---|---|---|---|---|---|---|---|---|\n" +
-		"| `rfc9001` | 8 | 2 | 0 | 4 | 2 | 0 | 0 | **enrolled** |\n" +
-		"| `rfc9002` | 3 | 3 | 0 | 0 | 0 | 0 | 0 | **enrolled** |\n" +
-		"| `rfc9003` | 5 | 0 | 0 | 5 | 0 | 0 | 0 | **backlog** |\n" +
-		"| not a row | 1 | 1 |\n"
-
-	rows, err := ledgerRows(table)
-	if err != nil {
-		t.Fatalf("the rollup was refused: %v", err)
+func TestTheModelRollupIsReadFromItsAnnotatedAndNoTestCounts(t *testing.T) {
+	// rfc9001: 8 gated, of which 2 proven both ways, 4 annotated, 2 with no
+	// test at all. rfc9002: 3 gated and all three proven. rfc9003: 5 gated and
+	// all five annotated, and it is NOT enrolled.
+	collected := rfc.Collected{
+		Enrolled: map[string]bool{"rfc9001": true, "rfc9002": true},
 	}
+	addGatedRequirements(&collected, "rfc9001", 2, 0, 4, 2)
+	addGatedRequirements(&collected, "rfc9002", 3, 0, 0, 0)
+	addGatedRequirements(&collected, "rfc9003", 0, 0, 5, 0)
+
+	rows := rowsByRFC(modelRows(collected))
 	if len(rows) != 3 {
-		t.Fatalf("the rollup parsed to %d row(s), want 3", len(rows))
+		t.Fatalf("the model answered %d row(s), want 3", len(rows))
 	}
 
-	first := rows[0]
-	if first.rfc != "rfc9001" {
-		t.Fatalf("the first row is %q, want rfc9001", first.rfc)
-	}
+	first := rows["rfc9001"]
 	// The row that tells the two readings apart: `gated - both` is 6 and the
-	// Annotated column says 4, because 2 requirements carry no test at all.
+	// annotated count is 4, because 2 requirements carry no test at all.
 	if first.annotated != 4 {
 		t.Errorf("the annotated count is %d, want 4 -- it is derived from gated minus both, not read",
 			first.annotated)
@@ -740,59 +739,132 @@ func TestTheLedgerRollupIsReadFromItsAnnotatedAndNoTestColumns(t *testing.T) {
 		t.Errorf("the no-test count is %d, want 2", first.noTest)
 	}
 	if first.both+first.annotated+first.noTest != first.gated {
-		t.Errorf("%d both + %d annotated + %d with no test is not %d gated, so the columns do not partition the row",
+		t.Errorf("%d both + %d annotated + %d with no test is not %d gated, so the counts do not partition the row",
 			first.both, first.annotated, first.noTest, first.gated)
 	}
-	// A fully proven row leaves both columns at zero, and zero here is a real
-	// count rather than an unread cell.
-	if rows[1].annotated != 0 || rows[1].noTest != 0 {
+	// A fully proven row leaves both counts at zero, and zero here is a real
+	// count rather than an unread one.
+	if rows["rfc9002"].annotated != 0 || rows["rfc9002"].noTest != 0 {
 		t.Errorf("a fully proven row reads annotated=%d no-test=%d, want 0 and 0",
-			rows[1].annotated, rows[1].noTest)
+			rows["rfc9002"].annotated, rows["rfc9002"].noTest)
 	}
-	// State is read too: collectRFC keeps only the enrolled rows, and a backlog
-	// row counted into the population would be measured against a gate that
-	// does not run over it.
-	if rows[2].state != "**backlog**" {
-		t.Errorf("the third row's state is %q, want **backlog**", rows[2].state)
+	// Enrolment is read too: collectRFC keeps only the enrolled rows, and a
+	// backlog row counted into the population would be measured against a gate
+	// that does not run over it.
+	if !rows["rfc9001"].enrolled || !rows["rfc9002"].enrolled {
+		t.Errorf("the two enrolled RFCs read enrolled=%t and %t",
+			rows["rfc9001"].enrolled, rows["rfc9002"].enrolled)
+	}
+	if rows["rfc9003"].enrolled {
+		t.Error("rfc9003 reads as enrolled, and the model does not enrol it")
 	}
 }
 
-// VALIDATES: the One polarity column is READ, and it is one of the four buckets
+// VALIDATES: the one-polarity count is READ, and it is one of the four buckets
 // that partition a row's gated population.
-// PREVENTS: the defect this replaced. collectRFC summed Both, Annotated and No
-// test and asserted the three of them equal Gated, which is a three-way
-// partition over a four-way population. It held only while every One polarity
-// cell was zero, so the page went red the first time a requirement had one
-// polarity proven and the other absent -- a state the ledger records on
-// purpose. Every fixture in the test above leaves that column at zero, which
-// is why it could not see this.
-func TestTheLedgerRollupReadsItsOnePolarityColumn(t *testing.T) {
-	// Columns, in the order ai/RFC-REQUIREMENTS.md declares them: RFC, Gated,
-	// Both, One polarity, Annotated, No test, Outstanding, Nightly-only, State.
-	table := "| RFC | Gated | Both | One polarity | Annotated | No test | Outstanding | Nightly-only | State |\n" +
-		"|---|---|---|---|---|---|---|---|---|\n" +
-		"| `rfc9004` | 9 | 3 | 2 | 3 | 1 | 0 | 0 | **enrolled** |\n"
+// PREVENTS: the defect this replaced. collectRFC summed both, annotated and
+// no-test and asserted the three of them equal gated, which is a three-way
+// partition over a four-way population. It held only while every one-polarity
+// count was zero, so the page went red the first time a requirement had one
+// polarity proven and the other absent -- a state the model records on purpose.
+// Every fixture in the case above leaves that count at zero, which is why it
+// could not see this.
+func TestTheModelRollupReadsItsOnePolarityCount(t *testing.T) {
+	// rfc9004: 9 gated, of which 3 proven both ways, 2 proven one way, 3
+	// annotated, 1 with no test at all.
+	collected := rfc.Collected{Enrolled: map[string]bool{"rfc9004": true}}
+	addGatedRequirements(&collected, "rfc9004", 3, 2, 3, 1)
 
-	rows, err := ledgerRows(table)
-	if err != nil {
-		t.Fatalf("the rollup was refused: %v", err)
-	}
+	rows := modelRows(collected)
 	if len(rows) != 1 {
-		t.Fatalf("the rollup parsed to %d row(s), want 1", len(rows))
+		t.Fatalf("the model answered %d row(s), want 1", len(rows))
 	}
 
 	row := rows[0]
 	if row.onePolarity != 2 {
-		t.Errorf("the one-polarity count is %d, want 2 -- the column is not read", row.onePolarity)
+		t.Errorf("the one-polarity count is %d, want 2 -- the count is not read", row.onePolarity)
 	}
 	if row.both+row.onePolarity+row.annotated+row.noTest != row.gated {
-		t.Errorf("%d both + %d one polarity + %d annotated + %d with no test is not %d gated, so the four columns do not partition the row",
+		t.Errorf("%d both + %d one polarity + %d annotated + %d with no test is not %d gated, so the four counts do not partition the row",
 			row.both, row.onePolarity, row.annotated, row.noTest, row.gated)
 	}
-	// The assertion that tells the two readings apart. Dropping One polarity
+	// The assertion that tells the two readings apart. Dropping one polarity
 	// leaves 7 against 9 gated, which is the sum collectRFC used to refuse on.
 	if row.both+row.annotated+row.noTest == row.gated {
-		t.Errorf("three columns already sum to %d gated, so this row cannot tell a three-way partition from a four-way one",
+		t.Errorf("three counts already sum to %d gated, so this row cannot tell a three-way partition from a four-way one",
 			row.gated)
+	}
+}
+
+// VALIDATES: the RFC rollup is answered from the requirement model, so the
+// collector reads no generated page and names none.
+// PREVENTS: the move stopping halfway. The share moved to the model on
+// 2026-09-02 and every other number on this page kept parsing the rendered
+// rollup, which is how one page came to publish two derivations of one
+// population. A collector that still names ai/RFC-REQUIREMENTS.md still has a
+// second declaration in it (ai/rules/principles.md).
+func TestTestHealthAnswersWithNoRenderedLedgerPresent(t *testing.T) {
+	root := repoRoot(t)
+
+	collected, err := rfc.Collect(root)
+	if err != nil {
+		t.Fatalf("collecting the requirement model: %v", err)
+	}
+	density, unproven, err := rfcMetrics(newTree(root), collected, qualityFloors{values: object{}})
+	if err != nil {
+		t.Fatalf("the collector refused a corpus taken from this checkout: %v", err)
+	}
+	if density.Key != keyProofDensity || unproven.Key != keyUnproven {
+		t.Fatalf("the collector answered %q and %q, want %q and %q",
+			density.Key, unproven.Key, keyProofDensity, keyUnproven)
+	}
+	if density.Value == "" || unproven.Value == "" {
+		t.Errorf("a metric answered an empty value: density %q, unproven %q",
+			density.Value, unproven.Value)
+	}
+
+	// The other half: no file in this package names the rendered page, so the
+	// answer above cannot have come from one.
+	for _, name := range packageGoFiles(t, filepath.Join(root, "internal", "le", "testhealth")) {
+		body, readErr := os.ReadFile(name) // #nosec G304 -- a source file of this package
+		if readErr != nil {
+			t.Fatalf("reading %s: %v", name, readErr)
+		}
+		if strings.Contains(string(body), "ai/RFC-REQUIREMENTS.md") {
+			t.Errorf("%s names the generated RFC ledger, so this collector still reads a render",
+				filepath.Base(name))
+		}
+	}
+}
+
+// VALIDATES: a corpus in which nothing is enrolled is refused, not published.
+// PREVENTS: a vacuous partition. Every assertion the collector makes below the
+// filter is over the enrolled rows alone, and an empty enrolled set satisfies
+// all of them while measuring nothing (ai/rules/principles.md).
+func TestTheCollectorStillRefusesAnEmptyEnrolledPopulation(t *testing.T) {
+	collected := rfc.Collected{Enrolled: map[string]bool{}}
+	addGatedRequirements(&collected, "rfc9001", 2, 0, 4, 2)
+
+	_, _, err := rfcMetrics(newTree(repoRoot(t)), collected, qualityFloors{values: object{}})
+	if err == nil {
+		t.Fatal("a corpus with no enrolled RFC was published rather than refused")
+	}
+	if !strings.Contains(err.Error(), "none of them enrolled") {
+		t.Errorf("the refusal does not say what is empty: %v", err)
+	}
+}
+
+// VALIDATES: a corpus that carries no gate-carrying RFC at all is refused.
+// PREVENTS: the failure the pinned ledger header used to catch. A changed
+// column shape made the parse yield nothing, and the page would then have
+// published a row of zeros it never measured. The parse is gone; the corpus can
+// still answer nothing, and that still must not read as data.
+func TestTheCollectorStillRefusesACorpusWithNoGatedRFC(t *testing.T) {
+	_, _, err := rfcMetrics(newTree(repoRoot(t)), rfc.Collected{}, qualityFloors{values: object{}})
+	if err == nil {
+		t.Fatal("an empty corpus was published rather than refused")
+	}
+	if !strings.Contains(err.Error(), "no gate-carrying RFC") {
+		t.Errorf("the refusal does not say what was missing: %v", err)
 	}
 }

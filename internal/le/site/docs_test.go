@@ -80,6 +80,10 @@ func TestDocsManifestNamesEachSourceOnce(t *testing.T) {
 // TestEveryDocsProducerSourceExists checks the whole page set against the tree.
 // A row naming a moved or deleted file is a published route with no producer,
 // which is the failure this spec exists to remove.
+//
+// A source liveDocSources names is DERIVED, so the tree is not where it comes
+// from and its absence is not a defect. Such a row owes a producer instead, and
+// TestTheRFCStatusPageRendersWithoutItsCommittedCopy is what checks that half.
 func TestEveryDocsProducerSourceExists(t *testing.T) {
 	root := repositoryRoot(t)
 	pages, err := docsProducerPages()
@@ -91,7 +95,8 @@ func TestEveryDocsProducerSourceExists(t *testing.T) {
 	}
 	destinations := map[string]string{}
 	for _, page := range pages {
-		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(page.Source))); err != nil {
+		_, derived := liveDocSources[page.Source]
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(page.Source))); err != nil && !derived {
 			t.Errorf("%s publishes %s, which is not in the tree: %v", page.Dest, page.Source, err)
 		}
 		if !strings.HasSuffix(page.Dest, "/"+pageIndexFile) {
@@ -155,4 +160,71 @@ func publishedArtifactRoutes(t *testing.T) []string {
 		t.Fatalf("the published route fixture holds %d routes, want 712", len(routes))
 	}
 	return routes
+}
+
+// rfcStatusManifestPage answers the published page for the RFC status source,
+// taken from the producer's own page set rather than stated here, so a row that
+// left the manifest fails this lookup rather than passing a stale copy of it.
+func rfcStatusManifestPage(t *testing.T) sitePage {
+	t.Helper()
+	pages, err := docsProducerPages()
+	if err != nil {
+		t.Fatalf("pages: %v", err)
+	}
+	for _, page := range pages {
+		if page.Source == rfcStatusSource {
+			return page
+		}
+	}
+	t.Fatalf("no published page renders %s", rfcStatusSource)
+	return sitePage{}
+}
+
+// TestTheRFCStatusPageRendersWithoutItsCommittedCopy proves the published RFC
+// status page is rendered from the summaries, not read from the checkout.
+//
+// The page's Markdown is generated from each summary's Meta table and the file
+// is not tracked, so a build that read it off disk would publish whatever the
+// last regeneration left behind, or fail in a checkout that holds none. The
+// live producer is replaced by one answering a heading the generated file does
+// not carry: a renderer still opening the file publishes the file's own title
+// instead, and this test sees it.
+func TestTheRFCStatusPageRendersWithoutItsCommittedCopy(t *testing.T) {
+	const heading = "The status page came from the model"
+	restore, live := liveDocSources[rfcStatusSource]
+	if !live {
+		t.Fatalf("%s has no live producer, so the site publishes its committed bytes", rfcStatusSource)
+	}
+	t.Cleanup(func() { liveDocSources[rfcStatusSource] = restore })
+	liveDocSources[rfcStatusSource] = func(string) (string, error) {
+		return "# " + heading + "\n\nOne row, derived.\n", nil
+	}
+
+	published, mirror := renderOnePage(t, rfcStatusManifestPage(t))
+	for name, content := range map[string]string{"page": published, "mirror": mirror} {
+		if !strings.Contains(content, heading) {
+			t.Errorf("the published %s does not carry the producer's heading %q, so the render read the file", name, heading)
+		}
+		if strings.Contains(content, "RFC Implementation Status") {
+			t.Errorf("the published %s carries the generated file's own title, so the render read the file", name)
+		}
+	}
+}
+
+// TestADerivedDocsSourceThatAnswersNothingIsRefused covers the guard on a
+// producer that answers no Markdown.
+//
+// An empty answer would publish an empty page under a live route, and an empty
+// page reads as a page with nothing to say rather than as a build that failed.
+func TestADerivedDocsSourceThatAnswersNothingIsRefused(t *testing.T) {
+	restore, live := liveDocSources[rfcStatusSource]
+	if !live {
+		t.Fatalf("%s has no live producer, so the site publishes its committed bytes", rfcStatusSource)
+	}
+	t.Cleanup(func() { liveDocSources[rfcStatusSource] = restore })
+	liveDocSources[rfcStatusSource] = func(string) (string, error) { return "  \n", nil }
+
+	if _, err := docsSourceText(repositoryRoot(t), rfcStatusSource); err == nil {
+		t.Errorf("a producer answering no Markdown must be refused, not published as an empty page")
+	}
 }

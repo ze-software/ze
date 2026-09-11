@@ -131,7 +131,10 @@ func verifyScopeSelectorDriver(ctx context.Context, args []string) error {
 		return err
 	}
 	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
-	env := os.Environ()
+	// envRootedAt over the REAL root, not os.Environ(): this scenario asks the
+	// selector about this checkout, so ZE_REPO_ROOT keeps its value, and the
+	// other two inherited variables still have to go (inheritedDropped).
+	env := envRootedAt(root)
 	run := func(path, printing string) (string, string, int, error) {
 		input := filepath.Join(work, "scope.paths")
 		if err := os.WriteFile(input, []byte(path+"\n"), 0o600); err != nil {
@@ -139,9 +142,11 @@ func verifyScopeSelectorDriver(ctx context.Context, args []string) error {
 		}
 		return rawCommandStreams(ctx, root, env, le, "changed", "scope", "print", printing, "paths-from", input)
 	}
-	out, _, code, err := run("internal/component/ssh/ssh.go", "both")
+	// Both streams: a refusal from le itself prints on stderr and leaves stdout
+	// empty, so reporting stdout alone answered "exit=2" with nothing after it.
+	out, diagnostics, code, err := run("internal/component/ssh/ssh.go", "both")
 	if err != nil || code != 0 {
-		return fmt.Errorf("SSH selector exit=%d: %w %s", code, err, out)
+		return fmt.Errorf("SSH selector exit=%d: %w\n%s%s", code, err, out, diagnostics)
 	}
 	sections := strings.Split(out, "# tags\n")
 	if len(sections) != 2 {
@@ -157,9 +162,9 @@ func verifyScopeSelectorDriver(ctx context.Context, args []string) error {
 	fmt.Fprintln(os.Stdout, "ssh-selects-its-gated-importer") //nolint:errcheck // progress output
 	fmt.Fprintln(os.Stdout, "ssh-reaches-one-feature")        //nolint:errcheck // progress output
 	const unclassified = "demos/terminal/rpki/demo.cast"
-	out, diagnostics, code, err := run(unclassified, "packages")
+	out, diagnostics, code, err = run(unclassified, "packages")
 	if err != nil || code != 0 {
-		return fmt.Errorf("unclassified selector exit=%d: %w %s", code, err, out)
+		return fmt.Errorf("unclassified selector exit=%d: %w\n%s%s", code, err, out, diagnostics)
 	}
 	// The stderr line is the whole guarantee for a kind no rule names: the
 	// answer is never silently narrow, and the operator holds the path that

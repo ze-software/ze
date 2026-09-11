@@ -24,6 +24,18 @@ names in snake_case. The Go names below are the current ones.
 | `ai/RFC-REQUIREMENTS.md` | The generated backlog: the coverage rollup, the audit coverage, the claim-discrimination counts and the extraction sign-off counts |
 | `rfc/requirements/<stem>.md` | One RFC's requirement table: six cells per requirement, generated from the summary and the tags |
 
+Five of those paths are DERIVED and none of the five is tracked:
+`ai/RFC-REQUIREMENTS.md`, `rfc/requirements/`, `rfc/enrolled.txt`,
+`rfc/not-enrolled.txt` and `docs/features/rfc-status.md`. `IndexUpdate`
+(`internal/le/rfc/write.go`) writes all five in one run, and
+`internal/le/rfc/register.go` registers each in `internal/le/derived`, so writing
+a summary, an audit verdict, a discrimination record or any tag carrier REMOVES
+them and a shell command naming one REBUILDS it first. A `git ls-files` over any
+of the five answers nothing, and `./le commit create` refuses a commit that
+carries one. `./le rfc check` reads the summaries, the tags and the audits
+rather than any of the five, so no gate compares a re-render against a committed
+copy.
+
 Everything in that table is also PUBLISHED, one page per summary stem at
 `/quality/rfc-compliance/<stem>/`. The page carries the same six cells, the
 recorded verdict and its freshness, and the state of every stored proof

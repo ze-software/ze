@@ -110,6 +110,16 @@ metric record and the Markdown mirror in one pass. The mirror it publishes is
 `docs/features/test-health.md`'s own bytes, so the site is never a second author
 of that document.
 
+`../gh-pages/reference/rfcs/` is rendered from the same tree, and it is the one
+page of the docs producer that is. Every other published Markdown source is
+authored and is read from the checkout; `docs/features/rfc-status.md` is
+generated from each summary's `## Meta` table and is not tracked, so the site
+asks `rfc.StatusPage` for it instead. The renderer, the link rewriting and the
+Markdown mirror are the docs producer's own, unchanged: only where the bytes
+come from differs, and `liveDocSources` is the one table that says so.
+<!-- source: internal/le/site/docs.go -- liveDocSources -->
+<!-- source: internal/le/rfc/render_ledger.go -- StatusPage -->
+
 The RFC compliance report reads `internal/le/rfc`: `Collect` for the
 requirements and the test tags, `NewRenderInput` for the public ledger and the
 recorded audit verdicts, and `Check` for the verdict and the open issues. It

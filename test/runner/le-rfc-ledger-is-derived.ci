@@ -1,0 +1,22 @@
+# A session adds a tagged test and runs the RFC gate, regenerating nothing.
+#
+# The five generated RFC files are derived and untracked, so the gate judges the
+# summaries, the tags and the audits rather than a committed copy of its own
+# output. Until 2026-09-11 this loop reported four files stale and the session
+# charged a verification-debt row for each one.
+#
+# Five markers, one for each step of the loop: the gate answers over a tree that
+# holds none of the five, a read of one builds all of them, the write of a
+# tagged test removes them again -- the shard DIRECTORY included, which is the
+# member a file-only invalidation could not take -- and the next read rebuilds
+# the shard with the new test named in it.
+
+option=timeout:value=180s
+
+cmd=foreground:seq=1:exec=ze-test fixture runner/le-rfc-ledger-is-derived
+expect=exit:code=0
+expect=stdout:contains=rfc-fixture-ready
+expect=stdout:contains=gate-judged-the-tree-not-the-pages
+expect=stdout:contains=read-materialized-the-family
+expect=stdout:contains=tagged-test-removed-the-family
+expect=stdout:contains=rebuild-bound-the-requirement-to-the-new-test

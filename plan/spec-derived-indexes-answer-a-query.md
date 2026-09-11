@@ -5,9 +5,9 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | `spec-derived-artifacts-are-not-committed`, closed 2026-09-11, which built the `internal/le/derived` registry (`internal/le/derived/derived.go`: `Artifact`, `Register`, `All`) this spec registers into |
-| Phase | 1/6 |
+| Phase | 6/6 |
 | Handoff | - |
-| Updated | 2026-09-11 |
+| Updated | 2026-09-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -244,7 +244,7 @@ row is edited. The RFC artifacts move in git; the conformance verdicts they rend
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `le-rfc-ledger-is-derived` | `test/runner/le-rfc-ledger-is-derived.ci` | a user adds a tagged test and runs the RFC gate without regenerating anything | |
+| `le-rfc-ledger-is-derived` | `test/runner/le-rfc-ledger-is-derived.ci` | a user adds a tagged test and runs the RFC gate without regenerating anything | green, 775ms, in `./le functional runner` (13 of 13) |
 
 ### Interop Tests (Scope: protocol)
 N-A: Scope is tooling. No wire-visible behavior changes.

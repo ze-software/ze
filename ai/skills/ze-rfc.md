@@ -131,27 +131,26 @@ This replaces a check that had caught real failures and would have caught more: 
 source and **zero** captured. A ratio you eyeball says "roughly enough"; a classified site
 list says which sentence, by name.
 
-## Keep the ledger committed (BLOCKING)
+## The ledger is DERIVED, never committed (BLOCKING)
 
-`./le rfc index-update` writes two outputs from the summaries and the `RFC requirement:` tags.
-One is `ai/RFC-REQUIREMENTS.md`, the index of counts, coverage rollup, audit coverage,
-extraction sign-off and backlog. The other is one file per RFC under `rfc/requirements/`,
-holding that RFC's requirement rows.
+`./le rfc index-update` writes five outputs from the summaries and the `RFC requirement:`
+tags: `ai/RFC-REQUIREMENTS.md`, one file per RFC under `rfc/requirements/`,
+`rfc/enrolled.txt`, `rfc/not-enrolled.txt` and `docs/features/rfc-status.md`.
 
-The per-RFC file records each enforcing test's `file:line`. It goes stale when you add or
-retire a requirement. It also goes stale whenever a tagged test is added, moved, deleted or
-re-tagged. An unrelated edit that shifts a tagged test's line stales it too.
+**None of the five is tracked, and none of them belongs in a commit.** Each is registered in
+`internal/le/derived` from `internal/le/rfc/register.go`, so writing a summary, an audit
+verdict, a discrimination record or any tag carrier REMOVES them, and a command that names
+one REBUILDS it before that command runs. `./le rfc check` reads the summaries, the tags and
+the audits directly, so a generated file it never opens cannot be stale.
 
-Regenerate with `./le rfc index-update`. **Commit BOTH outputs in the SAME commit** as the
-change that caused the drift: the index, and every changed file under `rfc/requirements/`.
-Commit the index alone and the gate is red for the next session.
-`./le rfc check` renders both and fails on any mismatch, and it
-runs in both `./le verify current mode full` and `./le verify current mode changed` (`check_ledger_fresh`,
-`internal/le/rfc/rfc.go`). A ledger left stale is not silently tolerated: it
-surfaces later as a cross-commit diff that the next session inherits and the freshness gate
-pins on them. This cuts both ways: it is also why you must not regenerate the ledger as a
-side effect of unrelated work. If the diff is a pure line-number refresh with no change of
-yours behind it, a prior commit skipped the regen, so commit that refresh on its own.
+So: do not run `./le rfc index-update` because a tagged test moved, and do not carry one of
+the five in a commit -- `./le commit create` refuses an ignored path. Run it when you want to
+READ the rendered ledger, which is the same thing a grep of one of those paths does for you.
+
+Until 2026-09-11 both outputs were owed in the same commit, and the cost was paid nine times
+in `plan/journal/concurrent-rfc-gate-stale.md`: this checkout is shared, a regeneration
+renders EVERY session's summaries at once, and the author either published another session's
+requirement rows under their own message or charged a verification-debt row for not doing so.
 
 ## Structure
 
@@ -553,10 +552,9 @@ Step-by-step, pseudocode if RFC provides it.
 - Every checklist line gets a unique, permanent ID. Never renumber, never reuse
 - Never tick a checkbox — coverage is derived from test tags, not declared here
 - Never hand-write a test path into a summary — `rfc/requirements/<stem>.md` is generated
-- Run `./le rfc index-update` and commit BOTH its outputs in the same change whenever a tagged
-  test is added, moved, deleted, or re-tagged: `ai/RFC-REQUIREMENTS.md` and every changed
-  file under `rfc/requirements/`. The per-RFC file records `file:line`, and `./le rfc check`
-  fails on a stale index and on a stale per-RFC file
+- Never commit a generated ledger file. `ai/RFC-REQUIREMENTS.md`, `rfc/requirements/`,
+  `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and `docs/features/rfc-status.md` are derived and
+  untracked: a write to a tag carrier removes them and a read rebuilds them
 - Never annotate `{not-applicable}` / `{gap}` / `{lower-layer}` / `{feature-declined}` to reach green. Write the test, or leave
   the RFC un-enrolled and say so
 - Enrolment (`| Enrolment | enrolled |` in the summary's `## Meta` table) means "every

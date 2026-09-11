@@ -260,7 +260,10 @@ func TestSelectorMapsNativeRFCAndCorpusPaths(t *testing.T) {
 		want    string
 	}{
 		{changed: "internal/le/rfc/actions.go", want: "./internal/le/rfc"},
-		{changed: "rfc/enrolled.txt", want: "./" + rfcPackage},
+		// A summary, not one of the generated files: rfc/enrolled.txt was the
+		// case here until 2026-09-11 and is derived and untracked now, so no
+		// commit can carry it into a selection.
+		{changed: "rfc/short/rfc4271.md", want: "./" + rfcPackage},
 	}
 	for _, test := range cases {
 		t.Run(test.changed, func(t *testing.T) {

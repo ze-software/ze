@@ -146,6 +146,24 @@ gokrazy/ze/builddir/github.com/ze-software/ze/go.sum
 # every one of their `git status` runs.
 /ai/.*.md.tmp-*
 
+# The generated RFC ledger family, written by `./le rfc index-update` from the
+# `## Meta` table and the checklist of each rfc/short/*.md. One run writes all
+# five, and internal/le/rfc registers each one in internal/le/derived, so a
+# write to a summary, an audit verdict, a discrimination record or a tag carrier
+# removes them and a command that names one rebuilds them.
+#
+# rfc/short/ stays TRACKED: the summaries are authored, and they are the only
+# declaration these five derive from.
+/ai/RFC-REQUIREMENTS.md
+/rfc/requirements/
+/rfc/enrolled.txt
+/rfc/not-enrolled.txt
+/docs/features/rfc-status.md
+# The temporaries derived.WriteAtomic renames over, for the two that do not sit
+# under an ignored directory of their own.
+/rfc/.*.txt.tmp-*
+/docs/features/.*.md.tmp-*
+
 # meta/ca holds a REAL PKI root private key, so a stray one must never be
 # committable. LoadOrGenerateRootFor (internal/component/pki/ca.go) writes the
 # RELATIVE ZeFS keys meta/ca/cert and meta/ca/key (pkg/zefs/keys.go) onto

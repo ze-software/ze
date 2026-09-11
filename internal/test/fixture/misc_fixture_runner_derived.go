@@ -70,7 +70,7 @@ func leDerivedArtifactLifecycleDriver(ctx context.Context, args []string) error 
 
 	// A session start renders every registered artifact the tree does not hold,
 	// which is what puts the first copy there.
-	if _, err := derivedHook(ctx, repo, le, "session-start", map[string]any{}); err != nil {
+	if _, _, err := derivedHook(ctx, repo, le, "session-start", "", nil); err != nil {
 		return err
 	}
 	artifact := filepath.Join(repo, filepath.FromSlash(derivedArtifactRel))
@@ -97,15 +97,12 @@ func leDerivedArtifactLifecycleDriver(ctx context.Context, args []string) error 
 	if err := os.WriteFile(page, []byte(edited), 0o600); err != nil {
 		return err
 	}
-	code, err := derivedHook(ctx, repo, le, "posttool-writeedit", map[string]any{
-		"tool_name":  "Write",
-		"tool_input": map[string]any{"file_path": page},
-	})
+	code, said, err := derivedWriteHook(ctx, repo, le, page)
 	if err != nil {
 		return err
 	}
 	if code > 1 {
-		return fmt.Errorf("the write hook refused the edit with %d", code)
+		return fmt.Errorf("the write hook refused the edit with %d:\n%s", code, said)
 	}
 	if _, statErr := os.Stat(artifact); !os.IsNotExist(statErr) {
 		// statErr is nil in the failing case, which is why it is not reported:
@@ -116,15 +113,12 @@ func leDerivedArtifactLifecycleDriver(ctx context.Context, args []string) error 
 
 	// The read hook runs BEFORE the command, so the grep below reads a file
 	// built from the tree as it now stands.
-	code, err = derivedHook(ctx, repo, le, "pretool-bash", map[string]any{
-		"tool_name":  "Bash",
-		"tool_input": map[string]any{"command": "grep -n 'internal/core/thing' " + derivedArtifactRel},
-	})
+	code, said, err = derivedReadHook(ctx, repo, le, "grep -n 'internal/core/thing' "+derivedArtifactRel)
 	if err != nil {
 		return err
 	}
 	if code != 0 {
-		return fmt.Errorf("the read hook refused a grep of a registered artifact with %d", code)
+		return fmt.Errorf("the read hook refused a grep of a registered artifact with %d:\n%s", code, said)
 	}
 	fmt.Fprintln(os.Stdout, "read-materialized-the-artifact") //nolint:errcheck // progress output
 
@@ -143,52 +137,48 @@ func leDerivedArtifactLifecycleDriver(ctx context.Context, args []string) error 
 	return nil
 }
 
+// derivedWriteHook runs the post-write chain over one file a scenario has just
+// written, which is the half that INVALIDATES a derived artifact.
+func derivedWriteHook(ctx context.Context, repo, le, path string) (int, string, error) {
+	return derivedHook(ctx, repo, le, "posttool-writeedit", "Write", map[string]any{"file_path": path})
+}
+
+// derivedReadHook runs the pre-command chain over one shell command, which is
+// the half that REBUILDS every artifact the command names.
+func derivedReadHook(ctx context.Context, repo, le, command string) (int, string, error) {
+	return derivedHook(ctx, repo, le, "pretool-bash", "Bash", map[string]any{"command": command})
+}
+
 // derivedHook runs one `le hook-check <kind>` over the scratch checkout, with
-// the payload on stdin, and answers its exit code.
+// the payload on stdin, and answers its exit code and everything it printed.
 //
-// The environment is built here rather than by envRootedAt because the hook
-// runtime resolves its root from CLAUDE_PROJECT_DIR BEFORE it consults
-// ZE_REPO_ROOT (hookruntime.newContext). A harness that exports the first would
-// otherwise point every check at the shared checkout, where the write hook
-// would remove a live session's artifacts.
-func derivedHook(ctx context.Context, repo, le, kind string, payload map[string]any) (int, error) {
+// The output is answered on every path, refusal included. A hook states WHICH
+// check refused and why, and a caller that reported the exit code alone left
+// the author with a number and no way to reach the reason.
+//
+// A tool name of "" sends an empty payload, which is what a session-start hook
+// takes.
+func derivedHook(ctx context.Context, repo, le, kind, tool string, input map[string]any) (int, string, error) {
+	payload := map[string]any{}
+	if tool != "" {
+		payload["tool_name"] = tool
+		payload["tool_input"] = input
+	}
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return -1, err
+		return -1, "", err
 	}
 	command := exec.CommandContext(ctx, le, "hook-check", kind) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Dir = repo
-	command.Env = derivedHookEnvironment(repo)
+	command.Env = envRootedAt(repo)
 	command.Stdin = bytes.NewReader(body)
 	output, runErr := command.CombinedOutput()
 	if runErr == nil {
-		return 0, nil
+		return 0, string(output), nil
 	}
 	exit, ok := errors.AsType[*exec.ExitError](runErr)
 	if !ok {
-		return -1, fmt.Errorf("le hook-check %s: %w\n%s", kind, runErr, output)
+		return -1, string(output), fmt.Errorf("le hook-check %s: %w\n%s", kind, runErr, output)
 	}
-	return exit.ExitCode(), nil
-}
-
-// derivedHookEnvironment answers the child environment with every spelling of
-// the two root variables dropped, and ZE_REPO_ROOT set to the scratch checkout.
-func derivedHookEnvironment(repo string) []string {
-	inherited := os.Environ()
-	kept := make([]string, 0, len(inherited)+1)
-	for _, entry := range inherited {
-		name, _, found := strings.Cut(entry, "=")
-		if !found {
-			kept = append(kept, entry)
-			continue
-		}
-		// env.Get matches case-insensitively and reads a dot as an underscore,
-		// so both spellings of each key are dropped.
-		normalized := strings.ToUpper(strings.ReplaceAll(name, ".", "_"))
-		if normalized == "ZE_REPO_ROOT" || normalized == "CLAUDE_PROJECT_DIR" {
-			continue
-		}
-		kept = append(kept, entry)
-	}
-	return append(kept, "ZE_REPO_ROOT="+repo)
+	return exit.ExitCode(), string(output), nil
 }

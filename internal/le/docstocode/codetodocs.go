@@ -569,6 +569,38 @@ func buildCodeIndex(root string) (codeIndex, error) {
 	return index, nil
 }
 
+// DocumentsByPath answers every code path the documentation anchors, with the
+// documents that name it, sorted and without repetition.
+//
+// The reverse index as a MODEL. ai/CODE-TO-DOCS.md is a RENDERING of this map
+// for a person to read and to grep, so a reader that needs the map calls this
+// rather than parsing that rendering back into one (ai/rules/principles.md,
+// declare once). The rendering drops information the parse then has to guess
+// at: it groups by package and prints a basename in its table shape, and a
+// basename is not a path.
+func DocumentsByPath(root string) (map[string][]string, error) {
+	index, err := buildCodeIndex(root)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(map[string][]string, len(index.Refs))
+	for path, refs := range index.Refs {
+		seen := make(map[string]bool, len(refs))
+		documents := make([]string, 0, len(refs))
+		for _, ref := range refs {
+			if seen[ref.Doc] {
+				continue
+			}
+			seen[ref.Doc] = true
+			documents = append(documents, ref.Doc)
+		}
+		slices.Sort(documents)
+		out[path] = documents
+	}
+	return out, nil
+}
+
 // sortRefs orders one path's references by document then line, which is the
 // order the stale report prints them in.
 func sortRefs(refs []Ref) {

@@ -115,7 +115,10 @@ const (
 	gokrazyModuleCache = "gokrazy/modcache"
 
 	// rfcCorpusPrefix holds the RFC files that suite reads at run time:
-	// enrolled.txt, short/*.md, extraction/*.json, drain-budget.txt.
+	// short/*.md, extraction/*.json, audit/*.json, discrimination/*.json and
+	// drain-budget.txt. The generated members of the tree -- enrolled.txt,
+	// not-enrolled.txt and requirements/ -- are derived and untracked, so a
+	// change to one never reaches this selector.
 	rfcCorpusPrefix = "rfc/"
 
 	// vendorPrefix is third-party code. It is never linted or tested here, and a

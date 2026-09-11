@@ -9,6 +9,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/ze-software/ze/internal/le/rfc"
 )
 
 // The docs producer is registered from here, so a build discovers it through
@@ -53,6 +55,44 @@ func (page sitePage) root() string {
 	return strings.Repeat("../", strings.Count(page.Dest, "/"))
 }
 
+// docsSourceRoot is the directory a manifest row's Markdown lives in.
+const docsSourceRoot = "docs/"
+
+// rfcStatusSource is the published source whose Markdown the site derives.
+const rfcStatusSource = docsSourceRoot + docsSourceRFCStatus
+
+// liveDocSources names each published source whose Markdown is DERIVED, with
+// the producer that answers it.
+//
+// docs/features/rfc-status.md is rendered from the `## Meta` table of each
+// rfc/short/ summary and is not tracked. A build reading it off disk would
+// publish whatever the last regeneration left behind, and would fail in a
+// checkout that holds none. Every other published source is authored, and is
+// read from the tree.
+var liveDocSources = map[string]func(repository string) (string, error){
+	rfcStatusSource: rfc.StatusPage,
+}
+
+// docsSourceText answers the Markdown one published source is rendered from.
+//
+// A producer that answers nothing is refused rather than published: an empty
+// page under a live route reads as a page with nothing to say, which is not
+// what a failed derivation means.
+func docsSourceText(repository, source string) ([]byte, error) {
+	produce, derived := liveDocSources[source]
+	if !derived {
+		return os.ReadFile(filepath.Join(repository, filepath.FromSlash(source))) //nolint:gosec // a site build reads the checkout it was pointed at
+	}
+	text, err := produce(repository)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", source, err)
+	}
+	if strings.TrimSpace(text) == "" {
+		return nil, fmt.Errorf("%s answered no Markdown, so its page would publish empty", source)
+	}
+	return []byte(text), nil
+}
+
 // docsProducerPages answers every page this producer publishes, in a fixed
 // order: the manifest first, in its own declared order, then each family.
 func docsProducerPages() ([]sitePage, error) {
@@ -63,7 +103,7 @@ func docsProducerPages() ([]sitePage, error) {
 			return nil, err
 		}
 		pages = append(pages, sitePage{
-			Source:   "docs/" + row.Source,
+			Source:   docsSourceRoot + row.Source,
 			Dest:     directory + "/" + pageIndexFile,
 			Desc:     "Ze documentation: " + row.Source,
 			Category: row.Category,
@@ -138,7 +178,7 @@ func newDocsRenderer(paths Paths) (*docsRenderer, error) {
 // the hero the journey pass wrote rather than inside it.
 func (renderer *docsRenderer) render(page sitePage) error {
 	sourcePath := filepath.Join(renderer.paths.Repository, filepath.FromSlash(page.Source))
-	source, err := os.ReadFile(sourcePath) //nolint:gosec // a site build reads the checkout it was pointed at
+	source, err := docsSourceText(renderer.paths.Repository, page.Source)
 	if err != nil {
 		return err
 	}

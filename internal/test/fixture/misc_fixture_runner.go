@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -39,23 +40,47 @@ func execQuotedArgumentDriver(_ context.Context, args []string) error {
 	return nil
 }
 
-// envRootedAt answers this process's environment with ZE_REPO_ROOT REPLACED
-// rather than appended.
+// inheritedDropped is every variable a scratch-checkout fixture MUST NOT pass
+// to the `le` it starts. One list, because every fixture here runs a real
+// binary over a throwaway tree and each of these three points it somewhere
+// else.
 //
-// The harness exports ZE_REPO_ROOT naming this checkout, and a fixture that
-// appends a second one leaves the variable twice in the child's environment.
-// Which copy the child reads is a property of the C library and of Go's own
-// dedup rule, and a fixture must not depend on either: the wrong answer points
-// a real `le` at the real repository, where `le commit debt-clear` starts a
-// native verification over the shared tree and re-judges the real ledger.
+// ZE_REPO_ROOT is replaced rather than appended: the harness exports one naming
+// this checkout, and a fixture that appends a second leaves the variable twice
+// in the child's environment. Which copy the child reads is a property of the C
+// library and of Go's own dedup rule, and a fixture must not depend on either.
+//
+// CLAUDE_PROJECT_DIR goes because the hook runtime resolves its root from it
+// BEFORE it consults ZE_REPO_ROOT (hookruntime.newContext), so a harness that
+// exports it points every check at the shared checkout.
+//
+// ZE_LE_BUILD_NAME goes because a fixture chooses bin/le, the shared build.
+// That variable is the launcher's own channel for `./le --name <name>`, and the
+// binary refuses to run when it names a build this process is not
+// (cmd/ze/le_build_name.go). A session that started the suite through a named
+// build would otherwise hand every child a name contradicting the binary the
+// fixture picked.
+//
+// The wrong answer to any of the three points a real `le` at the real
+// repository, where `le commit debt-clear` starts a native verification over
+// the shared tree and re-judges the real ledger.
+var inheritedDropped = [...]string{"ZE_REPO_ROOT", "CLAUDE_PROJECT_DIR", "ZE_LE_BUILD_NAME"}
+
+// envRootedAt answers this process's environment with every variable in
+// inheritedDropped removed, and ZE_REPO_ROOT set to root.
 func envRootedAt(root string) []string {
 	inherited := os.Environ()
 	kept := make([]string, 0, len(inherited)+1)
 	for _, entry := range inherited {
 		name, _, found := strings.Cut(entry, "=")
+		if !found {
+			kept = append(kept, entry)
+			continue
+		}
 		// env.Get matches case-insensitively and reads a dot as an underscore,
-		// so both spellings of the key are dropped.
-		if found && strings.EqualFold(strings.ReplaceAll(name, ".", "_"), "ZE_REPO_ROOT") {
+		// so both spellings of each key are dropped.
+		normalized := strings.ToUpper(strings.ReplaceAll(name, ".", "_"))
+		if slices.Contains(inheritedDropped[:], normalized) {
 			continue
 		}
 		kept = append(kept, entry)

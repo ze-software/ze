@@ -468,11 +468,6 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	}
 	findings = append(findings, notes(checkExtractionRatchet(tree, extractions))...)
 	findings = append(findings, notes(checkDrainFloor(tree, collected.Enrolled, signed, today))...)
-	ledgerErrors, err := checkLedgerFresh(tree, collected, rows, dispositions)
-	if err != nil {
-		return CheckReport{}, err
-	}
-	findings = append(findings, notes(ledgerErrors)...)
 
 	report := CheckReport{Findings: findings, Violations: findingMessages(findings)}
 	if len(findings) > 0 {

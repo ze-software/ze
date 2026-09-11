@@ -372,7 +372,7 @@ and name, plus periodic progress while tests are still running.
 | Chaos | `ze-test bgp chaos` | `test/chaos/*.ci` | Runs Ze plus chaos peers end-to-end through the BGP `.ci` runner. |
 | Chaos web | `ze-test bgp chaos-web` | `test/chaos-web/*.ci` | Runs chaos dashboard HTTP endpoint checks through the BGP `.ci` runner. |
 | ExaBGP compatibility | `ze-test exabgp` | `test/exabgp-compat/encoding/*.ci` | Runs the ExaBGP compatibility fixtures through the Go `ze-test` runner, starts the mock BGP peer, runs the ExaBGP wrapper client, and checks the expected wire output. |
-| Runner | `ze-test runner` | `test/runner/*.ci` | Exercises the `.ci` orchestration grammar and the native verify-freshness, structural-red attribution, verification-debt (`verify-scope-debt-clear` runs the gate a row names, `verify-scope-debt-discharge` records how an unrunnable row's obligation was met and then tampers with the record to see the row counted open again), in-flight failure-query, change-set-selection and derived-artifact fixtures (`le-derived-artifact-lifecycle` drives `le hook-check` over a scratch checkout: a session start renders an artifact the tree does not hold, a write to one of its inputs removes it, and a command naming it rebuilds it before that command runs). The compiled Go fixtures use throwaway Git repositories and need no interpreter. |
+| Runner | `ze-test runner` | `test/runner/*.ci` | Exercises the `.ci` orchestration grammar and the native verify-freshness, structural-red attribution, verification-debt (`verify-scope-debt-clear` runs the gate a row names, `verify-scope-debt-discharge` records how an unrunnable row's obligation was met and then tampers with the record to see the row counted open again), in-flight failure-query, change-set-selection and derived-artifact fixtures (`le-derived-artifact-lifecycle` drives `le hook-check` over a scratch checkout: a session start renders an artifact the tree does not hold, a write to one of its inputs removes it, and a command naming it rebuilds it before that command runs; `le-rfc-ledger-is-derived` walks the same loop for the five RFC outputs, and runs `./le rfc check` over a tree holding none of them to prove the gate judges the summaries rather than a page). The compiled Go fixtures use throwaway Git repositories and need no interpreter. |
 <!-- source: internal/test/cli/cmd_bgp.go -- BGP suite routing -->
 <!-- source: internal/test/cli/ci_runner.go -- shared .ci suites -->
 <!-- source: internal/test/cli/cmd_editor.go -- .et suite runner -->
@@ -925,8 +925,12 @@ Rules the gate enforces:
   `{feature-declined}` annotation. It scans
   Go `_test.go` files and `.ci` files under `internal/`, `pkg/`, and `test/`.
   `./le rfc index-update` renders each RFC's requirement to test rows into
-  `rfc/requirements/<stem>.md`. It renders the index over them into
-  `ai/RFC-REQUIREMENTS.md`.
+  `rfc/requirements/<stem>.md`, and the index over them into
+  `ai/RFC-REQUIREMENTS.md`. Neither file is tracked: both are registered in
+  `internal/le/derived` from `internal/le/rfc/register.go`, so writing a tagged
+  test removes them and a shell command naming one rebuilds it. The gate reads
+  the summaries and the tags rather than either file, so running it after a
+  tagged test moves needs no regeneration and owes no commit.
 - **Do not edit a tagged test to make it pass.** Once a test carries an
   `RFC requirement:` tag its behavior cannot change without the owner's approval.
   Write it as one row in `test/rfc-changed/<session>.md`, your own session's
@@ -994,18 +998,23 @@ wants a human:
 
 ```
 ./le rfc reseal                   # clears SHIFTED: a line shift or a sibling edit
-./le rfc index-update                    # then re-render the ledger
 /ze-rfc-audit <rfc>                  # clears STALE: the tagged test itself changed
 ```
+
+No re-render step follows either one. `rfc/audit/` is an input the five derived
+outputs are built from, so `reseal` removes them and the next shell command that
+names one rebuilds it.
 
 `SHIFTED` means the tagged unit is byte-identical and only the file around it
 moved. The unit is the enclosing top-level Go function or the whole `.ci`,
 `.et`, or native interop fixture.
 
 `./le rfc reseal` is the only thing that writes `rfc/audit/` without a human edit.
-`./le rfc check` is read-only, and `./le rfc index-update` touches `ai/RFC-REQUIREMENTS.md` and
-`rfc/requirements/` alone. A re-stamp can therefore never happen as a side effect of
-unrelated work.
+`./le rfc check` is read-only, and `./le rfc index-update` writes the five derived
+outputs alone (`IndexUpdate`, `internal/le/rfc/write.go`): `ai/RFC-REQUIREMENTS.md`,
+`rfc/requirements/`, `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and
+`docs/features/rfc-status.md`. None of the five is tracked. A re-stamp can
+therefore never happen as a side effect of unrelated work.
 
 <!-- source: internal/le/rfc/actions.go -- Answer -->
 
@@ -2419,9 +2428,11 @@ func TestRFC7606MalformedOriginLength(t *testing.T) { ... }
   <!-- source: internal/le/hookruntime/writeedit.go -- writeWeakening -->
 
 `./le rfc check` verifies every enrolled MUST has its pair of tags, or a reasoned
-annotation. It also verifies that both generated outputs are fresh. Those outputs are
-`rfc/requirements/<stem>.md`, the requirement → test map for one RFC, and
-`ai/RFC-REQUIREMENTS.md`, the index over them.
+annotation. It judges the summaries, the tags and the audits directly, and reads
+no generated output at all: `rfc/requirements/<stem>.md`, the requirement → test
+map for one RFC, and `ai/RFC-REQUIREMENTS.md`, the index over them, are derived
+and untracked, so there is no committed copy for a freshness check to compare
+against.
 See `docs/contributing/rfc-implementation-guide.md` §9.7 and `ai/skills/ze-rfc.md`.
 
 ---

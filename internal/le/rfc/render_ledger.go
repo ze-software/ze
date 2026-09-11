@@ -121,6 +121,40 @@ func LedgerFiles(metas map[string]Meta, coverage []CoverageRow) (map[string]stri
 	}, nil
 }
 
+// ledgerFilesFrom renders the three files from one assembled input.
+//
+// Which fields of a RenderInput feed the ledger is stated HERE and nowhere
+// else. Two surfaces render these bytes -- the write and the published site --
+// and a coverage set assembled from a different triple on one of them would
+// publish a Proof column the other cannot reproduce.
+func ledgerFilesFrom(in RenderInput) (map[string]string, error) {
+	return LedgerFiles(in.Metas, CoverageRows(in.Requirements, in.Tags, in.Carriers))
+}
+
+// StatusPage answers the public support page for one checkout: the same bytes
+// `./le rfc index-update` writes to docs/features/rfc-status.md.
+//
+// The site renders the page from here rather than publishing the file, so the
+// published claim states what the summaries say today and a build needs no
+// generated file in the tree. The whole RenderInput is assembled rather than
+// the two arguments the render reads, because the write assembles it that way:
+// a second, lighter derivation is a second declaration of the same page.
+func StatusPage(tree string) (string, error) {
+	collected, err := Collect(tree)
+	if err != nil {
+		return "", err
+	}
+	in, err := NewRenderInput(tree, collected, nil, nil)
+	if err != nil {
+		return "", err
+	}
+	files, err := ledgerFilesFrom(in)
+	if err != nil {
+		return "", err
+	}
+	return files[statusRel], nil
+}
+
 // renderEnrolled emits rfc/enrolled.txt: the gated set and the reason each row
 // states, sorted by stem.
 func renderEnrolled(metas map[string]Meta) string {

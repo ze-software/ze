@@ -82,7 +82,6 @@ var qualityMetrics = [...]string{keyProofDensity, keyNegative}
 
 // The other inputs the collectors read.
 const (
-	rfcLedger        = "ai/RFC-REQUIREMENTS.md"
 	rfcSummaries     = "rfc/short"
 	rfcSummariesTree = "rfc"
 	sleepBaseline    = "test/.ci-sleep-baseline"
@@ -93,28 +92,8 @@ const (
 // third-party module trees and are excluded.
 var testRoots = [...]string{"internal", "cmd", "pkg", "test"}
 
-// rfcTableHeader is the RFC ledger's coverage table header, pinned exactly: the
-// ledger is generated, and a column change must fail loudly rather than
-// silently yield zero.
-//
-// `Nightly-only` is a SUBSET marker rather than a partition member, so it is
-// parsed but never summed with the others.
-const rfcTableHeader = "| RFC | Gated | Both | One polarity | Annotated | No test | Outstanding | " +
-	"Nightly-only | State |"
-
-// rfcStateEnrolled is the State cell an enrolled RFC renders. Matched as a
-// PREFIX, because the cell also carries a suffix when the RFC has been
-// obsoleted: `**enrolled**, superseded by RFC9568`. Exact equality dropped four
-// rows from the enrolled population and took 71 gated requirements off this
-// page with them, silently, because the remainder and the annotation split were
-// both narrowed by the same filter and still balanced.
-const rfcStateEnrolled = "**enrolled**"
-
 // The patterns the collectors read their inputs with.
 var (
-	// rfcRow is one coverage row of the ledger's rollup table.
-	rfcRow = regexp.MustCompile(
-		"^\\| `([^`]+)` \\| (\\d+) \\| (\\d+) \\| (\\d+) \\| (\\d+) \\| (\\d+) \\| (\\d+) \\| (\\d+) \\| (.*?) \\|$")
 	// rfcLevel is a requirement line in rfc/short/*.md:
 	// "- [ ] [RFC1234-1-1] [MUST] text {gap: ...}".
 	rfcLevel = regexp.MustCompile(`^- \[[ x]\] \[[^\]]+\] \[([A-Z ]+)\]`)

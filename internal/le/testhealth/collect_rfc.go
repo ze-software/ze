@@ -14,29 +14,33 @@ import (
 	"path"
 	"regexp"
 	"slices"
-	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/rfc"
 )
 
-// ledgerRow is one coverage row of the RFC ledger's rollup table.
+// coverageRow is one RFC's gated population, in the four states the model
+// partitions it into.
 //
-// annotated and noTest are READ from the ledger's own columns rather than
-// derived by subtracting both from gated. The two are not the same number
-// whenever the gate is red: a gated MUST with no test and no annotation is in
-// the remainder and in neither column, so `gated - both` counts it as an
-// annotation that does not exist (ai/rules/principles.md, declare once).
-type ledgerRow struct {
+// annotated and noTest are READ from the model's own counts rather than derived
+// by subtracting both from gated. The two are not the same number whenever the
+// gate is red: a gated MUST with no test and no annotation is in the remainder
+// and in neither count, so `gated - both` counts it as an annotation that does
+// not exist (ai/rules/principles.md, declare once).
+type coverageRow struct {
 	rfc         string
 	gated       int
 	both        int
 	onePolarity int
 	annotated   int
 	noTest      int
-	state       string
+	// enrolled says this RFC is one `./le rfc check` gates. It is a BOOLEAN
+	// rather than a rendered State cell, because that cell is a rendering:
+	// the same enrolment prints as `**enrolled**` on its own and as
+	// `**enrolled**, superseded by RFC9568` when the IETF has replaced the
+	// document, and only the model knows those are one state.
+	enrolled bool
 }
 
 // annotationPattern answers the pattern that finds one annotation kind on a
@@ -72,38 +76,51 @@ var annotationPatterns = func() []*regexp.Regexp {
 //
 // Two populations, and the metric names both. The published SHARE comes from
 // rfc.ProvenShareOf and is taken over the RFCs Ze implements. The annotation
-// split below is taken over the ENROLLED ledger rows, which is the set `le rfc
-// check` actually gates. The un-enrolled remainder is not hidden -- the ledger
-// states it in its own preamble and lists every one of those rows -- it simply
+// split below is taken over the ENROLLED coverage rows, which is the set `le
+// rfc check` actually gates. The un-enrolled remainder is not hidden -- the
+// generated ledger states it and lists every one of those rows -- it simply
 // is not part of the partition asserted below, because nothing obliges it to be
 // proven or annotated yet.
 //
 // The share was `both / gated`, summed from the rendered rollup's own columns,
-// until 2026-09-02. A number parsed back out of a generated artifact is a
-// second declaration of a fact (ai/rules/principles.md), and that one answered
-// 43.2% where /quality/rfc-compliance/ answered 58.1% for the same question.
-// Only the share moved: the rollup parse still feeds everything else here,
-// because the partition this page asserts is a property of the ledger's own
-// columns.
+// until 2026-09-02, and that one answered 43.2% where /quality/rfc-compliance/
+// answered 58.1% for the same question. The rest of this file kept parsing the
+// render until the model replaced it here: a number read back out of a
+// generated artifact is a second declaration of a fact, and the two
+// declarations diverge in silence (ai/rules/principles.md).
+//
+// One walk of the tree feeds both halves. rfc.Collect is what the share is
+// taken over and what the rollup rows are derived from, so the two populations
+// on this page cannot come from two readings of the corpus.
 func collectRFC(t *tree, floors qualityFloors) (Metric, Metric, error) {
-	share, err := provenShare(t)
+	collected, err := rfc.Collect(t.root)
 	if err != nil {
 		return Metric{}, Metric{}, err
 	}
-	text, err := t.readText(rfcLedger)
-	if err != nil {
-		return Metric{}, Metric{}, err
-	}
-	if !strings.Contains(text, rfcTableHeader) {
-		return Metric{}, Metric{}, collectErrorf(
-			"%s has no recognizable coverage table header. The ledger format changed; "+
-				"update the pinned header rather than letting this report a zero it did not measure",
-			rfcLedger)
-	}
+	return rfcMetrics(t, collected, floors)
+}
 
-	rows, err := ledgerRows(text)
-	if err != nil {
-		return Metric{}, Metric{}, err
+// rfcMetrics judges one collected corpus, and is where every refusal below
+// lives.
+//
+// Separated from the walk above so a case can hand it a corpus. Each refusal is
+// a statement about the SHAPE of a corpus, and a guard whose only reachable
+// input is this checkout's own tree is a guard nothing can drive
+// (ai/rules/evidence.md). The tree argument is still taken, because
+// annotationSplit reads rfc/short; every refusal fires before that read.
+func rfcMetrics(t *tree, collected rfc.Collected, floors qualityFloors) (Metric, Metric, error) {
+	// A corpus that yields no coverage row at all is refused rather than
+	// reported. Every count below would be a zero this collector did not
+	// measure, and a zero that reads as data is the failure this page exists to
+	// avoid publishing (ai/rules/principles.md). The pinned ledger header this
+	// replaced refused the same thing for the same reason: it caught a changed
+	// column shape, where this catches a corpus that answered nothing.
+	rows := modelRows(collected)
+	if len(rows) == 0 {
+		return Metric{}, Metric{}, collectErrorf(
+			"the requirement model answers no gate-carrying RFC across %d requirement(s) "+
+				"and %d tag(s), so every count on this page would be a zero it did not measure",
+			len(collected.Requirements), len(collected.Tags))
 	}
 
 	// ENROLLED ROWS ONLY, on every side of the partition below. "Every gated
@@ -114,21 +131,21 @@ func collectRFC(t *tree, floors qualityFloors) (Metric, Metric, error) {
 	// rows, not yet enrolled" is a REQUIRED intermediate state rather than an
 	// anomaly. Summing the whole table made that state raise.
 	//
-	// Enrolment is read from the ledger ROW, never from rfc/enrolled.txt: the
-	// row IS the population this assertion is about, and a second source is how
-	// the two diverge again.
-	enrolled := make([]ledgerRow, 0, len(rows))
+	// Enrolment is read from the corpus rfc.Collect answered, never from
+	// rfc/enrolled.txt: that map IS the population this assertion is about, and
+	// a second source is how the two diverge again.
+	enrolled := make([]coverageRow, 0, len(rows))
 	for _, row := range rows {
-		if strings.HasPrefix(row.state, rfcStateEnrolled) {
+		if row.enrolled {
 			enrolled = append(enrolled, row)
 		}
 	}
 	if len(enrolled) == 0 {
 		return Metric{}, Metric{}, collectErrorf(
-			"%s parsed %d coverage row(s), none marked %q in its State column. Either the "+
-				"ledger's state marker changed or the row parse broke; an empty enrolled "+
-				"population would satisfy the annotation partition vacuously, so refuse it",
-			rfcLedger, len(rows), rfcStateEnrolled)
+			"the requirement model answers %d gate-carrying RFC(s) and none of them enrolled. "+
+				"An empty enrolled population satisfies the annotation partition below "+
+				"vacuously, so it is refused rather than published as a measurement",
+			len(rows))
 	}
 	rows = enrolled
 
@@ -140,10 +157,15 @@ func collectRFC(t *tree, floors qualityFloors) (Metric, Metric, error) {
 		annotated += row.annotated
 		noTest += row.noTest
 	}
+	// A backstop, and named as one. rfc.CoverageRows drops an RFC whose gated
+	// count is zero rather than answering a row for it, so every row here gates
+	// at least one requirement and this sum cannot reach zero today. It stays
+	// because the alternative to a guard that never fires is a page that
+	// divides by zero the day that skip changes.
 	if gated == 0 {
 		return Metric{}, Metric{}, collectErrorf(
-			"%s reports zero gated requirements across its %d gate-carrying RFC(s)",
-			rfcLedger, len(rows))
+			"the requirement model reports zero gated requirements across %d enrolled "+
+				"gate-carrying RFC(s)", len(rows))
 	}
 
 	kinds, err := annotationSplit(t, rows)
@@ -151,8 +173,9 @@ func collectRFC(t *tree, floors qualityFloors) (Metric, Metric, error) {
 		return Metric{}, Metric{}, err
 	}
 
-	// The cross-check is the ledger's Annotated COLUMN against the live count
-	// over rfc/short. Two derivations of one population, from two files, which
+	// The cross-check is the model's annotated COUNT against the live count
+	// over rfc/short. Two derivations of one population, one from the parsed
+	// requirement lines and one from a second read of the same summaries, which
 	// is a real disagreement to arbitrate. Comparing against `gated - both`
 	// instead compared the split against a different population -- the
 	// remainder holds every gated MUST with no test as well -- so a red gate
@@ -160,7 +183,7 @@ func collectRFC(t *tree, floors qualityFloors) (Metric, Metric, error) {
 	splitTotal := kinds.total()
 	if splitTotal != annotated {
 		return Metric{}, Metric{}, collectErrorf(
-			"annotation split %s sums to %d, but the ledger's Annotated column sums to %d "+
+			"annotation split %s sums to %d, but the model's annotated count sums to %d "+
 				"across %d gated requirement(s). The page must not present a non-partition as "+
 				"one; the two sources have diverged",
 			pythonDict(kinds), splitTotal, annotated, gated)
@@ -169,13 +192,26 @@ func collectRFC(t *tree, floors qualityFloors) (Metric, Metric, error) {
 	// summed. One polarity is a real bucket: a requirement whose positive test
 	// exists and whose negative one does not is neither proven both ways nor
 	// annotated nor untested. Omitting it asserted a three-way partition over a
-	// four-way population, which held only while that column summed to zero.
+	// four-way population, which held only while that count summed to zero.
 	if both+onePolarity+annotated+noTest != gated {
 		return Metric{}, Metric{}, collectErrorf(
-			"the ledger's own columns do not partition its gated population: %d both + %d "+
+			"the model's own counts do not partition its gated population: %d both + %d "+
 				"one polarity + %d annotated + %d with no test is not %d gated, so the page "+
 				"would publish a remainder it cannot account for",
 			both, onePolarity, annotated, noTest, gated)
+	}
+
+	// The published share is derived LAST, after the two guards above have
+	// judged the corpus it is taken over. Taken first, it refused an empty
+	// enrolled population on its own terms -- "no enrolled RFC declares a
+	// public row claiming support" -- and that answer names a missing `|
+	// Support status |` cell for a corpus whose real fault is that it carries
+	// no enrolled RFC at all. A guard sitting behind another guard's message
+	// cannot be reached, and cannot be driven by a case either
+	// (ai/rules/evidence.md).
+	share, err := provenShare(collected)
+	if err != nil {
+		return Metric{}, Metric{}, err
 	}
 
 	unproven := unprovenRows(rows)
@@ -186,57 +222,46 @@ func collectRFC(t *tree, floors qualityFloors) (Metric, Metric, error) {
 		unprovenMetric(rows, unproven), nil
 }
 
-// provenShare answers the published proof share over this checkout.
+// provenShare answers the published proof share over one collected corpus.
 //
 // The carriers argument is nil because no field of a ProvenShare reads one:
 // rfc.CoverageRows takes them to decide NightlyOnly, which the share does not
 // count. The site's home page and its RFC compliance report pass nil for the
 // same reason, so the three surfaces cannot answer different numbers.
-func provenShare(t *tree) (rfc.ProvenShare, error) {
-	collected, err := rfc.Collect(t.root)
-	if err != nil {
-		return rfc.ProvenShare{}, err
-	}
+func provenShare(collected rfc.Collected) (rfc.ProvenShare, error) {
 	return rfc.ProvenShareOf(collected.Metas, collected.Requirements, collected.Tags, nil)
 }
 
-// ledgerRows parses the rollup table, and refuses a table that yielded nothing.
-func ledgerRows(text string) ([]ledgerRow, error) {
-	var rows []ledgerRow
-	for line := range strings.SplitSeq(text, "\n") {
-		match := rfcRow.FindStringSubmatch(strings.TrimSpace(line))
-		if match == nil {
-			continue
-		}
-		gated, gatedErr := strconv.Atoi(match[2])
-		both, bothErr := strconv.Atoi(match[3])
-		if gatedErr != nil || bothErr != nil {
-			continue
-		}
-		onePolarity, onePolarityErr := strconv.Atoi(match[4])
-		annotated, annotatedErr := strconv.Atoi(match[5])
-		noTest, noTestErr := strconv.Atoi(match[6])
-		if onePolarityErr != nil || annotatedErr != nil || noTestErr != nil {
-			continue
-		}
-		rows = append(rows, ledgerRow{
-			rfc: match[1], gated: gated, both: both, onePolarity: onePolarity,
-			annotated: annotated, noTest: noTest, state: strings.TrimSpace(match[9]),
+// modelRows answers one coverage row per RFC from the requirement model.
+//
+// The SAME call renderRollup makes (internal/le/rfc/sections.go) to render the
+// ledger's rollup table, so the page and this collector state one derivation of
+// one population rather than one of them parsing the other's output
+// (ai/rules/principles.md, declare once).
+//
+// The carriers argument is nil because no field read here depends on one:
+// rfc.CoverageRows takes carriers only to decide NightlyOnly, which the ledger
+// prints as an overlapping subset marker and this collector never sums.
+func modelRows(collected rfc.Collected) []coverageRow {
+	coverage := rfc.CoverageRows(collected.Requirements, collected.Tags, nil)
+	rows := make([]coverageRow, 0, len(coverage))
+	for _, row := range coverage {
+		rows = append(rows, coverageRow{
+			rfc: row.RFC, gated: row.Gated, both: row.Both, onePolarity: row.One,
+			annotated: row.Annotated, noTest: row.Missing,
+			enrolled: collected.Enrolled[row.RFC],
 		})
 	}
-	if len(rows) == 0 {
-		return nil, collectErrorf("%s coverage table parsed to zero rows", rfcLedger)
-	}
-	return rows, nil
+	return rows
 }
 
 // annotationSplit counts the coverage annotations of every enrolled summary.
 //
 // The other half of "same population": two filters, both required. A summary
-// counts only when it owns an ENROLLED ledger row, and a line counts only when
+// counts only when it owns an ENROLLED coverage row, and a line counts only when
 // its requirement level is gated. Drop either filter and the split stops being
 // a partition of `gated - both`.
-func annotationSplit(t *tree, rows []ledgerRow) (annotationCounts, error) {
+func annotationSplit(t *tree, rows []coverageRow) (annotationCounts, error) {
 	known := make(map[string]bool, len(rows))
 	for _, row := range rows {
 		known[row.rfc] = true
@@ -258,7 +283,7 @@ func annotationSplit(t *tree, rows []ledgerRow) (annotationCounts, error) {
 	}
 	if len(summaries) == 0 {
 		return annotationCounts{}, collectErrorf(
-			"no tracked summaries under %s match an enrolled ledger row: refusing to report "+
+			"no tracked summaries under %s match an enrolled coverage row: refusing to report "+
 				"the annotation split as all-zero when nothing was measured", rfcSummaries)
 	}
 
@@ -330,19 +355,31 @@ func annotationOf(line string) (string, bool) {
 }
 
 // unprovenRows answers the enrolled RFCs that gate something and prove none of
-// it, worst first. The sort is stable, so ties keep the ledger's own order.
-func unprovenRows(rows []ledgerRow) []ledgerRow {
-	var unproven []ledgerRow
+// it, worst first and then by name.
+//
+// The name breaks the tie because the order is PUBLISHED: densityMetric prints
+// the first ten of this list. A stable sort left a tie in the order the rows
+// arrived in, which made a display slice of ten a property of whoever produced
+// the rows rather than of the rows themselves. Three RFCs gate 13 requirements
+// each today, so moving this collector from the rendered ledger to the
+// requirement model reordered the page while every count on it stayed put.
+func unprovenRows(rows []coverageRow) []coverageRow {
+	var unproven []coverageRow
 	for _, row := range rows {
 		if row.gated > 0 && row.both == 0 {
 			unproven = append(unproven, row)
 		}
 	}
-	sort.SliceStable(unproven, func(i, j int) bool { return unproven[i].gated > unproven[j].gated })
+	slices.SortFunc(unproven, func(a, b coverageRow) int {
+		if a.gated != b.gated {
+			return b.gated - a.gated
+		}
+		return strings.Compare(a.rfc, b.rfc)
+	})
 	return unproven
 }
 
-// rfcTotals is the enrolled population, summed from the ledger's own columns.
+// rfcTotals is the enrolled population, summed from the model's own counts.
 //
 // noTest is carried rather than left out of the sentence: a gated MUST that
 // nothing tests and nothing excuses is the weakest state on this page, and a
@@ -362,7 +399,7 @@ type rfcTotals struct {
 // string. The detail names the population under every count it states: the
 // share is over the RFCs Ze implements, and the annotation split beside it is
 // over every enrolled RFC, which is the wider set the gate holds.
-func densityMetric(rows, unproven []ledgerRow, kinds annotationCounts, density object,
+func densityMetric(rows, unproven []coverageRow, kinds annotationCounts, density object,
 	floors qualityFloors, share rfc.ProvenShare, totals rfcTotals,
 ) Metric {
 	both, gated, noTest := totals.both, totals.gated, totals.noTest
@@ -438,7 +475,7 @@ func densityMetric(rows, unproven []ledgerRow, kinds annotationCounts, density o
 }
 
 // unprovenMetric renders the row that NAMES every enrolled RFC with no pair.
-func unprovenMetric(rows, unproven []ledgerRow) Metric {
+func unprovenMetric(rows, unproven []coverageRow) Metric {
 	status := statusOK
 	if len(unproven) > 0 {
 		status = statusWarn

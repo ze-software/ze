@@ -242,3 +242,33 @@ func gitInitFixture(t *testing.T, root string) {
 		}
 	}
 }
+
+// TestAWriteRemovesADerivedDirectoryWhole covers the artifact that is a
+// DIRECTORY rather than a file.
+//
+// rfc/requirements holds one shard per summary, and the SET of shards is
+// derived too: a summary that stops declaring requirements leaves a file the
+// generator no longer owns. os.Remove refuses a directory holding anything, so
+// a directory artifact would be reported unremovable on every edit and would
+// stay on disk, stale, which is the answer this hook exists to prevent.
+func TestAWriteRemovesADerivedDirectoryWhole(t *testing.T) {
+	root := derivedFixture(t)
+	writeHookFixture(t, root, "rfc/requirements/rfc9999.md", "# RFC 9999\n")
+	writeHookFixture(t, root, "rfc/requirements/rfc9998.md", "# RFC 9998\n")
+	writeHookFixture(t, root, "internal/core/x/x_test.go", "package x\n")
+
+	payload := Payload{
+		ToolName:  toolWrite,
+		ToolInput: map[string]any{"file_path": filepath.Join(root, "internal", "core", "x", "x_test.go")},
+	}
+	code, message, found := Probe("postInvalidateDerived", payload, root)
+	if !found {
+		t.Fatal("postInvalidateDerived is not registered in nativeHookActions")
+	}
+	if code > 1 {
+		t.Fatalf("the hook refused the write: %d %s", code, message)
+	}
+	if _, err := os.Stat(filepath.Join(root, "rfc", "requirements")); !os.IsNotExist(err) {
+		t.Errorf("rfc/requirements survived a write to a tag carrier: %v (%s)", err, message)
+	}
+}

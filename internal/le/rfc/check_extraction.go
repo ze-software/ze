@@ -22,11 +22,6 @@ type drainBudget struct {
 	rate  float64
 }
 
-const (
-	generatedMissingSuffix = " is missing -- run: ./le rfc index-update"
-	generatedStaleSuffix   = " is stale vs its sources -- run: ./le rfc index-update"
-)
-
 func checkExtractionRatchet(tree string, current map[string]Extraction) []string {
 	baseline, known := baselineExtractions(tree)
 	return checkExtractionRatchetAgainst(current, baseline, known)
@@ -176,75 +171,4 @@ func checkDrainFloor(tree string, enrolled map[string]bool, signed map[string]Ex
 	}
 	var tb textbuf.Buffer
 	return []string{tb.Str("rfc/drain-budget.txt: the drain schedule requires ").Int(int64(floor)).Str(" extraction sign-off(s) by now (rate ").Str(formatRate(budget.rate)).Str("/calendar month since ").Str(budget.start.Format("2006-01-02")).Str(", capped at the ").Int(int64(len(enrolled))).Str(" enrolled RFC(s)), and there are ").Int(int64(total)).Str(" (").Str(registerPhrase(counts)).Str("; every register counts, umbrella D6), leaving ").Int(int64(backlog)).Str(" unsigned. Walk another RFC: ./le rfc extraction-create stem <stem>, then classify every site").String()}
-}
-
-// checkLedgerFresh compares the generated pages against what the render
-// produces, and answers a finding rather than an error when a summary's Meta
-// table did not parse.
-//
-// The distinction is the whole point. A stem whose Meta table is unreadable is
-// absent from the render, so the freshness comparison would report every
-// generated page stale for a reason that has nothing to do with staleness --
-// and `check` turns an error from here into `return CheckReport{}, err`, which
-// DISCARDS every finding built before it. That is a gate nobody can run, over a
-// checkout several sessions share, for one summary somebody is midway through
-// editing. `summaryMetas` collects those errors instead of aborting for exactly
-// that reason, and returning one here undid it a level up (independent review,
-// 2026-09-02).
-//
-// `Collect` already routes each problem into ParseErrors, so `check` reports
-// them by name. What is skipped is only the comparison that cannot be made.
-func checkLedgerFresh(tree string, collected Collected, rows map[string]LedgerRow,
-	dispositions map[string]Disposition) ([]string, error) {
-	if len(collected.MetaProblems) > 0 {
-		var tb textbuf.Buffer
-		return []string{tb.Str("ledger freshness was not judged: ").
-			Int(int64(len(collected.MetaProblems))).
-			Str(" summary/summaries have an unreadable `## Meta` table, so they are absent ").
-			Str("from the render and every generated page would compare stale for that reason ").
-			Str("alone. The parse errors are reported above; fix them and re-run").String()}, nil
-	}
-	input, err := NewRenderInput(tree, collected, rows, dispositions)
-	if err != nil {
-		return nil, err
-	}
-	var errs []string
-	var tb textbuf.Buffer
-	index, err := RenderIndex(input)
-	if err != nil {
-		return nil, err
-	}
-	index = tb.Str(index).Byte('\n').String()
-	current, readErr := os.ReadFile(treePath(tree, ledgerRel)) // #nosec G304 -- generated page under the checkout
-	if readErr != nil || string(current) != index {
-		errs = append(errs, tb.Reset().Str(ledgerRel).Str(generatedStaleSuffix).String())
-	}
-	shards := RenderShards(input)
-	keep := map[string]bool{}
-	for _, stem := range ShardStems(collected.Requirements) {
-		keep[stem] = true
-		rel := shardRel(stem)
-		path := treePath(tree, rel)
-		current, readErr := os.ReadFile(path) // #nosec G304 -- generated page under the checkout
-		if os.IsNotExist(readErr) {
-			errs = append(errs, tb.Reset().Str(rel).Str(generatedMissingSuffix).String())
-			continue
-		}
-		want := tb.Reset().Str(shards[stem]).Byte('\n').Slice()
-		if readErr != nil {
-			errs = append(errs, tb.Reset().Str(rel).Str(generatedStaleSuffix).String())
-			continue
-		}
-		if string(current) != want {
-			errs = append(errs, tb.Reset().Str(rel).Str(generatedStaleSuffix).String())
-		}
-	}
-	prunable, err := PrunableShards(tree, keep)
-	if err != nil {
-		return nil, err
-	}
-	for _, stem := range prunable {
-		errs = append(errs, tb.Reset().Str(shardRelDir).Byte('/').Str(stem).Str(".md renders no requirement section and the generator no longer owns it -- run: ./le rfc index-update").String())
-	}
-	return errs, nil
 }

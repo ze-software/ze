@@ -21,11 +21,11 @@ audit; everything below serves it.
    alone: the summary is the thing under audit. RFC 7606's own list once said an UPDATE
    with no reachable NLRI must session-reset, dropping the RFC's "other than
    MP_UNREACH_NLRI" clause — which made it demand a reset on every End-of-RIB.
-4. Run `./le rfc index-update`, then read
-   `rfc/requirements/$ARGUMENTS.md`. If this regeneration produces a diff you did not cause
-   (a pure `file:line` refresh from someone else's un-regenerated test edit), do NOT fold it
-   into the audit: it belongs to that other change's commit. See "Keep the ledger committed"
-   in `ai/skills/ze-rfc.md`.
+4. READ `rfc/requirements/$ARGUMENTS.md` with a SHELL command, `cat` or `grep`. That file is
+   derived and untracked, and naming its path in a shell command is what rebuilds it from the
+   tree first (`preMaterializeDerived`, `internal/le/hookruntime/bash.go`). No regeneration
+   step is owed, and nothing here belongs in a commit. See "The ledger is DERIVED, never
+   committed" in `ai/skills/ze-rfc.md`.
 5. For EACH gated requirement, open every tagged test and judge it (see below).
 6. WRITE `rfc/audit/$ARGUMENTS.json`.
 7. Run `./le rfc check`.
@@ -156,8 +156,11 @@ written note. And each one taught the reflex that re-stamping is what you do whe
 red. That is the failure mode at fleet scale, so the class is now automated away.
 
 `./le rfc reseal` is the ONLY thing that writes `rfc/audit/` without a human editing it.
-`./le rfc check` is read-only, and `./le rfc index-update` touches `ai/RFC-REQUIREMENTS.md`
-and `rfc/requirements/` alone.
+`./le rfc check` is read-only, and `./le rfc index-update` writes the five DERIVED outputs
+alone (`IndexUpdate`, `internal/le/rfc/write.go`): `ai/RFC-REQUIREMENTS.md`,
+`rfc/requirements/`, `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and
+`docs/features/rfc-status.md`. None of the five is tracked, so no run of it can put a byte
+in a commit.
 
 ## Rules
 

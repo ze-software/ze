@@ -50,53 +50,6 @@ func ledgerFixtureTree(t *testing.T) string {
 	return root
 }
 
-// VALIDATES: AC-9 -- a hand edit to any of the three generated ledger files is
-// reported stale against the summaries that declare it.
-// PREVENTS: the failure mode a generated page has and an authored one does not.
-// docs/features/rfc-status.md was authored until 2026-09-01 and is derived now,
-// so an author editing it in place loses the edit at the next
-// `./le rfc index-update` with nothing saying so. Being told the page is stale
-// is what turns a silent loss into a message. The two disposition files carry
-// the same hazard and are checked on the same footing.
-func TestHandEditedStatusPageReportsStale(t *testing.T) {
-	for _, rel := range rfc.LedgerPaths() {
-		t.Run(rel, func(t *testing.T) {
-			root := ledgerFixtureTree(t)
-
-			page, code := rfcFreshnessStage(root)
-			if code != 0 {
-				t.Fatalf("a freshly generated tree reported code %d:\n%s", code, pageText(t, page))
-			}
-
-			path := filepath.Join(root, filepath.FromSlash(rel))
-			body, err := os.ReadFile(path) //nolint:gosec // this test's own fixture tree
-			if err != nil {
-				t.Fatalf("read %s: %v", rel, err)
-			}
-			// An edit a person would plausibly make: one more sentence, in
-			// the register the file already uses. Truncating the file would
-			// prove less, because a reader could believe only a corrupt page
-			// is caught.
-			edited := string(body) + "\nA sentence an author added by hand.\n"
-			if err := os.WriteFile(path, []byte(edited), 0o600); err != nil {
-				t.Fatalf("hand-edit %s: %v", rel, err)
-			}
-
-			page, code = rfcFreshnessStage(root)
-			text := pageText(t, page)
-			if code == 0 {
-				t.Fatalf("a hand edit to %s was not reported:\n%s", rel, text)
-			}
-			if !strings.Contains(text, rel) {
-				t.Errorf("the report does not name %s:\n%s", rel, text)
-			}
-			if !strings.Contains(text, "./le rfc index-update") {
-				t.Errorf("the report does not name the command that repairs it:\n%s", text)
-			}
-		})
-	}
-}
-
 // pageText answers the rendered text of whatever the stage returned.
 func pageText(t *testing.T, page any) string {
 	t.Helper()
@@ -106,4 +59,35 @@ func pageText(t *testing.T, page any) string {
 		t.Fatalf("the stage answered %T, want docVerifyPage", page)
 	}
 	return rendered.text
+}
+
+// TestTheDocVerifyStageNoLongerJudgesTheRFCLedger is AC-9 for this package.
+//
+// The five generated RFC files are derived and untracked, so there is no
+// committed copy to compare a re-render against. A stage that still compared
+// would report every checkout stale for as long as an input sat unrendered,
+// and the author would charge a debt row for a file nobody is expected to hold.
+func TestTheDocVerifyStageNoLongerJudgesTheRFCLedger(t *testing.T) {
+	root := ledgerFixtureTree(t)
+	for _, rel := range []string{"ai/RFC-REQUIREMENTS.md", "rfc/enrolled.txt",
+		"rfc/not-enrolled.txt", "docs/features/rfc-status.md"} {
+		if err := os.Remove(filepath.Join(root, filepath.FromSlash(rel))); err != nil {
+			t.Fatalf("remove %s: %v", rel, err)
+		}
+	}
+	if err := os.RemoveAll(filepath.Join(root, "rfc", "requirements")); err != nil {
+		t.Fatalf("remove rfc/requirements: %v", err)
+	}
+
+	page, code := discoveryIndexesStage(root)
+	text := pageText(t, page)
+	for _, rel := range []string{"ai/RFC-REQUIREMENTS.md", "rfc/requirements", "rfc/enrolled.txt",
+		"rfc/not-enrolled.txt", "docs/features/rfc-status.md"} {
+		if strings.Contains(text, rel) {
+			t.Errorf("the stage still judges %s, which is derived and untracked:\n%s", rel, text)
+		}
+	}
+	if code != 0 {
+		t.Errorf("the stage exits %d over a tree holding no generated RFC file:\n%s", code, text)
+	}
 }

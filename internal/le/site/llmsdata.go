@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -212,7 +213,11 @@ func writeLLMSDocumentation(out *textbuf.Buffer, paths Paths) error {
 
 // writeDocumentationEntry writes one documentation page as one line.
 func writeDocumentationEntry(out *textbuf.Buffer, paths Paths, source, href string) error {
-	title, summary, err := markdownTitleAndSummary(filepath.Join(paths.Repository, filepath.FromSlash(source)))
+	content, err := docsSourceText(paths.Repository, source)
+	if err != nil {
+		return err
+	}
+	title, summary, err := markdownTitleAndSummary(source, content)
 	if err != nil {
 		return err
 	}
@@ -232,21 +237,20 @@ var markdownListItem = regexp.MustCompile(`^(?:[-+*]|\d+[.)])\s+`)
 
 // markdownTitleAndSummary answers one source's heading and its opening prose.
 //
+// The content is handed in rather than read here, because a published source is
+// not always a file: docsSourceText answers a derived page from its producer.
+//
 // The summary is the first paragraph that is prose: a fence, a heading, a
 // quote, a table row and a block of HTML each say nothing about the page. A
 // source whose first content is a list falls back to that list's first item,
 // which is what a reader would skim first anyway.
-func markdownTitleAndSummary(path string) (string, string, error) {
-	content, err := os.ReadFile(path) //nolint:gosec // a site build reads the checkout it was pointed at
-	if err != nil {
-		return "", "", err
-	}
+func markdownTitleAndSummary(source string, content []byte) (string, string, error) {
 	_, body, err := parseFrontMatter(content)
 	if err != nil {
-		return "", "", fmt.Errorf("%s: %w", path, err)
+		return "", "", fmt.Errorf("%s: %w", source, err)
 	}
 	text := string(body)
-	title := strings.TrimSuffix(filepath.Base(path), ".md")
+	title := strings.TrimSuffix(path.Base(source), ".md")
 	if match := markdownHeading.FindStringSubmatch(text); match != nil {
 		title = cleanInline(match[1])
 	}

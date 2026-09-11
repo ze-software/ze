@@ -274,6 +274,28 @@ func tracked(root, path string) bool {
 	return len(bytes.TrimSpace(listed)) != 0
 }
 
+// removeArtifact deletes one artifact, which is a file or a whole directory.
+//
+// A generator that writes a DIRECTORY of files registers the directory, because
+// the set of files inside it is derived as well: rfc/requirements holds one
+// shard per summary, and a summary that stops declaring requirements leaves a
+// file the generator no longer owns. os.Remove refuses a directory that holds
+// anything, so such an artifact would be reported unremovable on every edit and
+// would sit there stale.
+//
+// Lstat rather than Stat, so a symlink is unlinked rather than followed into
+// whatever it points at.
+func removeArtifact(path string) error {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return os.RemoveAll(path)
+	}
+	return os.Remove(path)
+}
+
 // ze point: principles/directives/a-wrong-value-must-not-look-like-a-right-one
 // postInvalidateDerived removes every derived artifact the written file feeds.
 //
@@ -317,7 +339,7 @@ func postInvalidateDerived(ctx context) *verdict {
 				" is registered as derived and still TRACKED: untrack it, or drop its derived.Register call")
 			continue
 		}
-		err := os.Remove(filepath.Join(ctx.root, filepath.FromSlash(artifact.Path)))
+		err := removeArtifact(filepath.Join(ctx.root, filepath.FromSlash(artifact.Path)))
 		if errors.Is(err, os.ErrNotExist) {
 			continue
 		}

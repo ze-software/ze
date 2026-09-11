@@ -48,8 +48,19 @@ The ratchet deliberately differs: `./le test-sensitivity check` scans the WORKIN
 TREE, so an inert test is caught by the verify run before its commit rather than
 by the next, unrelated one. The two populations therefore differ by whatever is
 currently uncommitted, which is intended. That is what
-lets `./le test-health check` gate the committed page for staleness, the way
-every other generated file in this repository is gated. It also removes the
+lets `./le test-health check` gate the committed page for staleness.
+
+Staleness gating is not how every generated file in this repository is handled,
+and the difference is whether the file is TRACKED. The four data files here and
+`docs/features/test-health.md` are committed records, so a gate compares them
+against the tree.
+
+The other family is DERIVED, and `internal/le/derived` holds the list: each
+member registers itself there, `ai/RFC-REQUIREMENTS.md` from
+`internal/le/rfc/register.go` among them. None of them is tracked, a write to
+one of their inputs removes them, and a shell command naming one rebuilds it
+before that command runs. A file nobody commits cannot be stale, so a derived
+artifact carries no freshness gate at all. It also removes the
 sensor-rot failure, where a collector broke weeks ago and the page still shows
 its last green.
 

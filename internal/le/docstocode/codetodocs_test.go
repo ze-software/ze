@@ -302,3 +302,41 @@ func TestCheckAnchorsReadsAPathThatCarriesALineNumber(t *testing.T) {
 		t.Errorf("a declared symbol behind a line number was reported: %v", declared)
 	}
 }
+
+// VALIDATES: both render shapes print the full path from the checkout root, on
+// a package of exactly three files and on one of exactly four.
+// PREVENTS: a page whose reader has to guess. The table shape printed the
+// basename, so `grep resolve.go ai/CODE-TO-DOCS.md` answered five rows from five
+// packages with no path on any of them, and a parser reading the page back could
+// only recover the path by joining each row to the heading above it. The
+// boundary is where the shapes meet, so both sides of it are checked.
+func TestTheCodeIndexRendersFullPathsInBothShapes(t *testing.T) {
+	bulleted := codeIndex{Refs: map[string][]Ref{}}
+	for i := range namedInline {
+		bulleted.Refs[filePath(i)] = []Ref{{Doc: "docs/one.md", Line: 1}}
+	}
+	tabled := codeIndex{Refs: map[string][]Ref{}}
+	for path, refs := range bulleted.Refs {
+		tabled.Refs[path] = refs
+	}
+	tabled.Refs[filePath(namedInline)] = []Ref{{Doc: "docs/one.md", Line: 1}}
+
+	for _, shape := range []struct {
+		name  string
+		index codeIndex
+		table bool
+	}{
+		{"bullets", bulleted, false},
+		{"table", tabled, true},
+	} {
+		body := renderCodeIndex(shape.index)
+		if strings.Contains(body, "| File | Docs |") != shape.table {
+			t.Fatalf("%s: the package did not render in the expected shape:\n%s", shape.name, body)
+		}
+		for path := range shape.index.Refs {
+			if !strings.Contains(body, "`"+path+"`") {
+				t.Errorf("%s: %s is not printed as a full path:\n%s", shape.name, path, body)
+			}
+		}
+	}
+}

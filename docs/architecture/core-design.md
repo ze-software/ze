@@ -125,9 +125,19 @@ the tree does not hold. Both build only what is ABSENT, so a write that reaches
 an input with no hook in its path leaves the artifact present and stale until
 the next hooked write removes it. Nothing compares a re-render against a
 committed copy,
-because there is no committed copy. `ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`
-and `ai/CODE-TO-DOCS.md` are the three artifacts registered today, and
-`docs/contributing/navigating-the-code.md` is the consumer contract for them.
+because there is no committed copy. Which files are registered is the registry's
+own answer rather than a list here: `derived.All` enumerates them, and
+`internal/le/discoveryindex`, `internal/le/docstocode` and `internal/le/rfc` are
+the packages that register today.
+`docs/contributing/navigating-the-code.md` is the consumer contract for the
+index artifacts, and `docs/contributing/rfc-conformance-gates.md` for the five
+RFC outputs.
+
+An artifact's path can be a DIRECTORY, and `rfc/requirements` is one: the set of
+files inside it is derived too, because a summary that stops declaring
+requirements leaves a shard the generator no longer owns. `removeArtifact`
+(`internal/le/hookruntime/postwrite.go`) takes such a member whole, so an
+invalidation cannot leave one orphaned file behind and read as current.
 
 **A gate reads recorded evidence. A separate verb produces it.** `./le rfc
 check` re-reads a stored proof and compares its fingerprints against the tree;

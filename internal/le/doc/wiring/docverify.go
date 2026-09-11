@@ -20,7 +20,6 @@ import (
 	"github.com/ze-software/ze/internal/le/docstocode"
 	"github.com/ze-software/ze/internal/le/docvalid"
 	"github.com/ze-software/ze/internal/le/journal"
-	"github.com/ze-software/ze/internal/le/rfc"
 	"github.com/ze-software/ze/internal/le/rules"
 )
 
@@ -258,6 +257,13 @@ func rulesDigestStage(root string) (any, int) {
 	return report, 0
 }
 
+// discoveryIndexesStage reports the generated documentation indexes.
+//
+// The five generated RFC files were judged here until 2026-09-11, by comparing
+// a fresh render against the copy in the tree. They are derived and untracked
+// now (internal/le/rfc/register.go), so there is no committed copy to compare
+// against and nothing to report: a write to a summary removes them and a read
+// rebuilds them.
 func discoveryIndexesStage(root string) (any, int) {
 	var out textbuf.Buffer
 	failed := false
@@ -271,122 +277,10 @@ func discoveryIndexesStage(root string) (any, int) {
 		failed = failed || docsToCode.Stale
 	}
 
-	rfcPage, code := rfcFreshnessStage(root)
-	out.Str(prose(rfcPage))
-	failed = failed || code != 0
 	if failed {
 		return docVerifyPage{text: out.String()}, 1
 	}
 	return docVerifyPage{text: out.String()}, 0
-}
-
-func rfcFreshnessStage(root string) (any, int) {
-	var tb textbuf.Buffer
-	collected, err := rfc.Collect(root)
-	if err != nil {
-		return docVerifyPage{text: tb.Str("rfc-requirements: cannot run: ").
-			Err(err).Byte('\n').String()}, 2
-	}
-	if len(collected.ParseErrors) > 0 {
-		tb.Reset()
-		for _, problem := range collected.ParseErrors {
-			tb.Str("* ").Str(problem).Byte('\n')
-		}
-		tb.Str("rfc-requirements: cannot judge freshness: a summary did not parse, so its ").
-			Str("requirements are absent from this render and every page deriving from them ").
-			Str("would be reported wrongly. Fix the summary, then re-run\n")
-		return docVerifyPage{text: tb.String()}, 2
-	}
-
-	input, err := rfc.NewRenderInput(root, collected, nil, nil)
-	if err != nil {
-		return docVerifyPage{text: tb.Reset().Str("rfc-requirements: cannot run: ").
-			Err(err).Byte('\n').String()}, 2
-	}
-	var stale []string
-	index, err := rfc.RenderIndex(input)
-	if err != nil {
-		return docVerifyPage{text: tb.Reset().Str("rfc-requirements: cannot run: ").
-			Err(err).Byte('\n').String()}, 2
-	}
-	indexPath := filepath.Join(root, "ai", "RFC-REQUIREMENTS.md")
-	current, err := os.ReadFile(indexPath) //nolint:gosec // generated page under the named checkout
-	if err != nil && !os.IsNotExist(err) {
-		return docVerifyPage{text: tb.Reset().Str("rfc-requirements: cannot run: ").
-			Err(err).Byte('\n').String()}, 2
-	}
-	if string(current) != tb.Reset().Str(index).Byte('\n').Slice() {
-		stale = append(stale,
-			"ai/RFC-REQUIREMENTS.md is stale vs its sources -- run: ./le rfc index-update")
-	}
-
-	// The three ledger files join the same freshness comparison as the index
-	// and the shards, and by the same rule: they are GENERATED, so a hand edit
-	// to one is destroyed at the next run with nothing saying so. Reporting
-	// them stale is what tells the author before the run does.
-	ledgers, err := rfc.LedgerFiles(input.Metas,
-		rfc.CoverageRows(input.Requirements, input.Tags, input.Carriers))
-	if err != nil {
-		return docVerifyPage{text: tb.Reset().Str("rfc-requirements: cannot run: ").
-			Err(err).Byte('\n').String()}, 2
-	}
-	for _, rel := range rfc.LedgerPaths() {
-		body, readErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel))) //nolint:gosec // generated page under the named checkout
-		if os.IsNotExist(readErr) {
-			stale = append(stale, tb.Reset().Str(rel).
-				Str(" is missing -- run: ./le rfc index-update").String())
-			continue
-		}
-		if readErr != nil {
-			return docVerifyPage{text: tb.Reset().Str("rfc-requirements: cannot run: ").
-				Err(readErr).Byte('\n').String()}, 2
-		}
-		if string(body) != ledgers[rel] {
-			stale = append(stale, tb.Reset().Str(rel).
-				Str(" is stale vs the summaries that declare it -- run: ./le rfc index-update").String())
-		}
-	}
-
-	shards := rfc.RenderShards(input)
-	keep := make(map[string]bool, len(shards))
-	for _, stem := range rfc.ShardStems(collected.Requirements) {
-		keep[stem] = true
-		fileName := tb.Reset().Str(stem).Str(".md").String()
-		rel := filepath.ToSlash(filepath.Join("rfc", "requirements", fileName))
-		body, readErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel))) //nolint:gosec // generated page under the named checkout
-		if os.IsNotExist(readErr) {
-			stale = append(stale, tb.Reset().Str(rel).
-				Str(" is missing -- run: ./le rfc index-update").String())
-			continue
-		}
-		if readErr != nil {
-			return docVerifyPage{text: tb.Reset().Str("rfc-requirements: cannot run: ").
-				Err(readErr).Byte('\n').String()}, 2
-		}
-		if string(body) != tb.Reset().Str(shards[stem]).Byte('\n').Slice() {
-			stale = append(stale, tb.Reset().Str(rel).
-				Str(" is stale vs its sources -- run: ./le rfc index-update").String())
-		}
-	}
-	prunable, err := rfc.PrunableShards(root, keep)
-	if err != nil {
-		return docVerifyPage{text: tb.Reset().Str("rfc-requirements: cannot run: ").
-			Err(err).Byte('\n').String()}, 2
-	}
-	for _, stem := range prunable {
-		stale = append(stale, tb.Reset().Str("rfc/requirements/").Str(stem).
-			Str(".md renders no requirement section and the generator no longer owns it -- ").
-			Str("run: ./le rfc index-update").String())
-	}
-	if len(stale) > 0 {
-		tb.Reset()
-		for _, problem := range stale {
-			tb.Str("* ").Str(problem).Byte('\n')
-		}
-		return docVerifyPage{text: tb.String()}, 1
-	}
-	return docVerifyPage{text: tb.Reset().Str("ai/RFC-REQUIREMENTS.md and ").
-		Int(int64(len(keep))).Str(" shard(s) up to date\n").String()}, 0
 }
 
 func journalStage(root string) (any, int) {

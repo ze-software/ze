@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/derived"
 )
 
 // stemRE is what a name has to look like to BE a summary stem.
@@ -27,13 +28,13 @@ import (
 // authored README.md beside a generated tree is safe by the same rule.
 var stemRE = regexp.MustCompile(`\A[a-z0-9][a-z0-9._-]*\z`)
 
-// PrunableShards answers every stem under rfc/requirements/ the write would
+// prunableShards answers every stem under rfc/requirements/ the write would
 // delete, given the rendered set `keep`.
 //
-// The ONE producer of "what the generator owns and no longer wants". PruneShards
-// deletes it and the freshness check reports it as an orphan, so the gate can
-// never name a file the write would leave, nor stay silent about one the write
-// would remove.
+// The ONE producer of "what the generator owns and no longer wants". It was
+// exported until 2026-09-11, for a freshness gate that reported an orphan the
+// write would remove; the directory is a derived artifact now, invalidated
+// whole, so the write is the only caller left.
 //
 // Four limits, and each one is a deletion this must never make: only `.md`, so
 // a `.gitkeep` beside the files survives; only a name whose stem could BE a
@@ -48,7 +49,7 @@ var stemRE = regexp.MustCompile(`\A[a-z0-9][a-z0-9._-]*\z`)
 // covered by the stale and missing branches, which iterate the rendered stems
 // rather than the directory. Left unguarded on purpose: the failure direction is
 // NOT-deleting.
-func PrunableShards(tree string, keep map[string]bool) ([]string, error) {
+func prunableShards(tree string, keep map[string]bool) ([]string, error) {
 	dir := treePath(tree, shardRelDir)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -75,14 +76,14 @@ func PrunableShards(tree string, keep map[string]bool) ([]string, error) {
 	return stems, nil
 }
 
-// PruneShards deletes every shard PrunableShards names, and answers the deleted
+// PruneShards deletes every shard prunableShards names, and answers the deleted
 // stems.
 //
 // A shard the render no longer produces is a page about an RFC that no longer
 // declares anything, and it reads as current for as long as it sits there. The
 // write owns this directory, so the write removes it.
 func PruneShards(tree string, keep map[string]bool) ([]string, error) {
-	removed, err := PrunableShards(tree, keep)
+	removed, err := prunableShards(tree, keep)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +156,7 @@ func IndexUpdate(tree string) (IndexReport, error) {
 			Str(summaryRel).Str(" is present").String())
 	}
 
-	ledgers, err := LedgerFiles(in.Metas, CoverageRows(in.Requirements, in.Tags, in.Carriers))
+	ledgers, err := ledgerFilesFrom(in)
 	if err != nil {
 		return IndexReport{}, err
 	}
@@ -196,20 +197,11 @@ func refuseToWrite(errs []string, why string) error {
 	return parseErr(tb.Str("rfc-requirements: refusing to write: ").Str(why))
 }
 
-// writePage writes one generated page, terminated by the newline both the
-// generator and the freshness comparison expect.
+// writePage writes one generated page, terminated by the newline the generator
+// ends every page with.
 func writePage(tree, rel, body string) error {
-	path := treePath(tree, rel)
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		var tb textbuf.Buffer
-		return parseErr(tb.Str(rel).Str(": cannot create directory: ").Err(err))
-	}
 	var page textbuf.Buffer
-	if err := os.WriteFile(path, []byte(page.Str(body).Byte('\n').String()), 0o644); err != nil { //nolint:gosec // a generated page, world-readable by design
-		var tb textbuf.Buffer
-		return parseErr(tb.Str(rel).Str(": cannot write: ").Err(err))
-	}
-	return nil
+	return writeArtifact(tree, rel, []byte(page.Str(body).Byte('\n').String()))
 }
 
 // writeExact writes one generated file with no terminator of its own.
@@ -221,12 +213,22 @@ func writePage(tree, rel, body string) error {
 // freshness check compares have to be one string, so the terminator is part of
 // the render rather than part of the write.
 func writeExact(tree, rel, body string) error {
+	return writeArtifact(tree, rel, []byte(body))
+}
+
+// writeArtifact publishes one generated file through derived.WriteAtomic.
+//
+// Every file this generator writes is a registered derived artifact, and the
+// hooks put a rebuild on the path of an ordinary grep, so a write and a read of
+// the same file race by design. A plain write truncates first, and a reader
+// that lands in that window reads a short file as a complete answer.
+func writeArtifact(tree, rel string, body []byte) error {
 	path := treePath(tree, rel)
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		var tb textbuf.Buffer
 		return parseErr(tb.Str(rel).Str(": cannot create directory: ").Err(err))
 	}
-	if err := os.WriteFile(path, []byte(body), 0o644); err != nil { //nolint:gosec // a generated page, world-readable by design
+	if err := derived.WriteAtomic(path, body); err != nil {
 		var tb textbuf.Buffer
 		return parseErr(tb.Str(rel).Str(": cannot write: ").Err(err))
 	}
