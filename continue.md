@@ -1061,3 +1061,80 @@ Ordered. Each item says what "done" means, so nobody has to reconstruct it.
 Not in this list on purpose: every journal row this session wrote is committed and
 is a record, not a task. A class file earns its fix in a deliberate pass over the
 journal, never by whoever trips over it next.
+
+## Update, 2026-09-11: the BFD reactor half is PARKED, and the three issues are fixed
+
+Two changes since the block above. Read both before touching `internal/component/bgp/reactor`.
+
+### The deadlock, and how it was broken
+
+`reactor/session.go` was mutually entangled with the paths-limit session's work.
+Git commits whole files, so that one file carried both halves: the paths-limit
+session could not land its chunk without carrying our unreviewed BFD code, and we
+could not land ours without carrying theirs. "Yours first, then mine" had no first
+step.
+
+Resolved by withdrawing our half from the package entirely. `session.go` in the
+working tree now holds exactly one hunk, the paths-limit fields, so that session
+can commit it under a review artifact that covers every line of it.
+
+**Everything is preserved, nothing deleted:**
+
+| Where | What |
+|---|---|
+| `backups/parked-bfd-strict-20260911-0100/` | `session_bfd_strict.go.parked`, `session_bfd_strict_test.go.parked`, `config_bfd_strict_test.go.parked`, plus `RESTORE.md` naming every piece and its destination |
+| `backups/bfd-strict-reactor-20260911-0100.patch` | The tracked-file hunks: `session.go` (3 fields + the Section 10 log switch), `session_handlers.go` (4), `session_connection.go` (2), `peer_run.go` (4), `reactor_api.go` (2) |
+| `backups/bfd-session-go-20260911-005714.patch` | The `session.go` pair alone, taken first |
+| `backups/bfd-fsm-docs-20260911-0105.patch` | The `fsm-open-sent.md` and `fsm-open-confirm.md` hunks, whose six anchors named the parked file |
+
+`peer_bfd.go`, `peer_bfd_test.go` and `session_handlers_test.go` were wholly ours
+and are back at HEAD content. `peer_run.go` was reverted HUNK BY HUNK, not by
+file: update-delay's `startInitialRoutes` and `updateDelayPeerDown` are still in
+it, verified present after the sweep.
+
+**The park uses a `.parked` suffix deliberately.** The first attempt left them as
+`.go` files under `backups/`, and `./le verify lint run` typechecked them and
+reported `undefined: Session`. Nothing compiles a `.parked` file. Do not rename
+them back until the restore condition below is met.
+
+**Restore condition: not until BFD's round 7 has run.** Round 6's three issues are
+fixed (below) but unreviewed, and a seventh round past the five-round cap needs
+Thomas's authorisation.
+
+### The three round-6 issues: fixed, unreviewed
+
+All three live outside the parked package, in `internal/component/bfd/`.
+
+1. **The bind-to-device regression.** `loopDeviceFor(req, normalized)`
+   (`internal/component/bfd/bfd.go`) takes the `SO_BINDTODEVICE` name from
+   `req.Interface`, never the derived one. Tests
+   `TestLoopDeviceIgnoresADerivedInterface`, `TestLoopForKeepsTheFirstCallersDevice`.
+   Forced red observed.
+2. **RFC 5882 Section 4.4 for multi-hop**, implemented rather than the ledger
+   lowered. `canonicalMultiHop` clears the interface and derives `Local` from the
+   interface the route to the peer leaves by, refusing on no route, no address,
+   several addresses, or a non-default VRF. Tagged `RFC5882-4.4-1`;
+   `rfc/discrimination/rfc5882.json` holds 5 records.
+3. **The VRF-blind link table.** `api.Link` gains `VRF`, `deriveLink` skips a link
+   in another VRF, and `connectedLinks` computes membership by walking
+   `InterfaceInfo.MasterIndex` to a `Type == "vrf"` master. No reach into the
+   interface component was needed, so no journal row. Tests
+   `TestCanonicalWillNotCrossVRFs`, `TestVRFMembershipReadsTheMasterChain`.
+
+`Canonical` now takes an `api.Topology`; all three call sites are updated.
+
+Verified after the fixes: `gofmt` clean, `go vet` exit 0 over
+`internal/component/bfd/...` and `internal/plugins/ospf/`, all 8 bfd package
+tests green. **Unproven:** golangci-lint over `internal/component/bfd/...` since
+these edits. A background run was killed by the OS for memory pressure, not by a
+finding. Worth one run on an idle machine; nothing should block on it.
+
+### Revised order
+
+1. Wait for the paths-limit session to land `session.go` and its files. It has
+   confirmed it will, with a review covering it, and will message when it does.
+2. Restore the parked BFD half from `backups/parked-bfd-strict-20260911-0100/`
+   per its `RESTORE.md`, and re-apply the tracked-file patches.
+3. BFD round 7, which needs Thomas's authorisation, then closure.
+4. update-delay's closure commit, then as-notation's commit B. Both unchanged
+   from the block above.
