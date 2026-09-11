@@ -214,6 +214,29 @@ type BFDSettings struct {
 	// means let the BFD plugin derive it from the peer's local
 	// address.
 	Interface string
+	// Strict turns on the BFD strict-mode procedures of
+	// draft-ietf-idr-bgp-bfd-strict-mode. Ze then advertises capability
+	// 74 in its OPEN (Section 6) and holds the BGP session out of
+	// OpenConfirm until the BFD session is Up (Section 8). It also
+	// changes WHEN the BFD session opens: before the BGP FSM starts,
+	// rather than on Established (Section 7).
+	Strict bool
+	// HoldTime is the draft's BfdHoldTime session attribute (Section 3,
+	// item 18), in seconds. Zero selects the draft default of 30. The
+	// timer only ever runs when the NEGOTIATED BGP hold time is zero,
+	// because that is the case in which no other timer bounds the wait.
+	HoldTime uint16
+	// HoldDown is the BFD hold-down interval of the draft's Section 10,
+	// in MILLISECONDS. It is how long the BFD session must stay Up
+	// before the BGP session is allowed to establish. Zero, the
+	// default, establishes on the first Up.
+	//
+	// Milliseconds rather than the seconds HoldTime uses: BFD detects a
+	// failure in tens of milliseconds, so a hold-down expressed in
+	// whole seconds cannot damp at the timescale the thing it damps
+	// runs at. A 300 ms hold-down against a 300 ms BFD interval is the
+	// shape Section 10 recommends ("use similar values").
+	HoldDown uint32
 }
 
 // PeerSettings contains configuration for a BGP peer.
