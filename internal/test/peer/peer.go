@@ -177,12 +177,22 @@ type Config struct {
 	TCPConnections int
 	// Mode: operation mode (check, sink, echo). Default ModeCheck.
 	Mode Mode
-	// Linger: after all expectations complete, announce success but keep the
-	// session open (reading and answering KEEPALIVEs) until the test tears
-	// the peer down. Without it a check peer closes its connection the moment
-	// its own script completes, and ze correctly treats that as session-down
-	// and withdraws the peer's routes -- racing any forwarding still in
-	// flight toward other peers (option=linger:value=true).
+	// Linger: a check peer that never closes a connection itself
+	// (option=linger:value=true). Without it a check peer closes the moment a
+	// connection's own script completes, and ze correctly treats that as
+	// session-down and withdraws the peer's routes -- racing any forwarding
+	// still in flight toward other peers.
+	//
+	// After ALL expectations complete it announces success and keeps the
+	// session open, reading and answering KEEPALIVEs, until the test tears the
+	// peer down (completed, reject.go).
+	//
+	// Between connections, where one connection's expectations are met and a
+	// later connection is still owed, it holds that connection open until the
+	// REMOTE closes it (endSequence, reject.go). A test asserting that the
+	// daemon stopped and restarted a session needs that: a peer that closes
+	// first makes the daemon's close unobservable, because ze dials again on
+	// its retry timer whoever closed.
 	Linger bool
 	// Silent stops the AUTOMATIC KEEPALIVE reply a check peer otherwise writes
 	// for every message it receives (replyKeepalive, called from the check-mode
@@ -717,7 +727,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 	// (e.g., conn=1 had only send actions, conn=2 has the expects),
 	// return so the next connection can start reading.
 	if p.checker.sequenceEnded() {
-		return Result{Success: true}
+		return p.endSequence(ctx, conn)
 	}
 
 	// Main message loop.
@@ -811,7 +821,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 		// and a new connection is expected.
 		if p.checker.sequenceEnded() {
 			// More sequences expected - let connection close and wait for reconnect.
-			return Result{Success: true}
+			return p.endSequence(ctx, conn)
 		}
 
 		// Check for close action after matched message.
@@ -874,6 +884,16 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 			}
 			if err := os.WriteFile(dest, data, 0o600); err != nil {
 				return Result{Success: false, Error: fmt.Errorf("rewrite write %s: %w", dest, err)}
+			}
+			// A rewrite can be the last item the file queues, and then the
+			// exchange is over: every arm that consumes an action answers
+			// completion the same way. Without this the peer kept matching, and
+			// the daemon's shutdown NOTIFICATION arrived against an empty
+			// expectation list and was reported as a message mismatch
+			// (test/reload/config-apply-ordering-address-swap.ci, walk-1.log of
+			// 2026-09-11).
+			if p.checker.Completed() {
+				return p.completed(ctx, conn)
 			}
 		}
 

@@ -6,6 +6,7 @@ package peer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -175,10 +176,67 @@ func (p *Peer) completed(ctx context.Context, conn net.Conn) Result {
 	}
 	p.printf("\nsuccessful\n")
 	p.printf("lingering: holding the session open until teardown (option=linger)\n")
+	result, _ := p.holdSession(ctx, conn)
+	return result
+}
+
+// errSessionHeldToTeardown is what a lingering peer answers when the test ended
+// while it was still holding a connection the REMOTE was expected to close. The
+// connections it was still owed never happened, so it validated less than the
+// file asked for.
+var errSessionHeldToTeardown = errors.New("the remote never closed the held session, so the next connection never happened (option=linger)")
+
+// endSequence answers what a check-mode peer does when one connection's
+// expectations are complete and a later connection is still owed.
+//
+// Without option=linger it reports success and the caller closes the
+// connection, which is what every multi-connection test did before 2026-09-11.
+//
+// With option=linger the peer holds that connection open until the REMOTE
+// closes it, because a peer that closes first makes the daemon's own close
+// unobservable: ze reads the peer's close as session-down and dials again on
+// its retry timer, so the next connection proves that ze retries and nothing
+// else. test/reload/config-apply-ordering-address-swap.ci measured that
+// directly -- a daemon whose decomposer emitted NO peer operation at all still
+// reached two connections. Held open, connection 2 exists only because the
+// daemon stopped the session and started it again.
+//
+// A conn_map peer is excluded: it serves every connection of one batch in turn
+// and only then waits for the daemon to close them all (waitBatchClosed,
+// peer_connmap.go). Holding the first one would starve the rest of its batch.
+func (p *Peer) endSequence(ctx context.Context, conn net.Conn) Result {
+	if !p.config.Linger {
+		return Result{Success: true}
+	}
+	if p.config.ConnMap != "" {
+		return Result{Success: true}
+	}
+	p.printf("\nholding this connection open until the remote closes it (option=linger)\n")
+	result, closed := p.holdSession(ctx, conn)
+	if !result.Success {
+		return result // a reject=bgp pattern fired while the session was held
+	}
+	if !closed {
+		return Result{Success: false, Error: errSessionHeldToTeardown}
+	}
+	p.printf("\nthe remote closed the held session\n")
+	return result
+}
+
+// holdSession reads until the remote closes the connection or the test ends,
+// answering every frame with a KEEPALIVE so the session stays up and checking
+// every frame against the rejections. A negative assertion therefore holds for
+// as long as the session does.
+//
+// It reports whether the REMOTE closed the session, because that is the fact
+// its two callers read differently. For a peer whose expectations are all met,
+// teardown is the normal exit. For a peer still owed a later connection, it is
+// the failure endSequence names.
+func (p *Peer) holdSession(ctx context.Context, conn net.Conn) (Result, bool) {
 	for {
 		select {
 		case <-ctx.Done():
-			return Result{Success: true}
+			return Result{Success: true}, false
 		default:
 		}
 		_ = conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
@@ -187,15 +245,15 @@ func (p *Peer) completed(ctx context.Context, conn net.Conn) Result {
 			if isTimeout(err) {
 				continue
 			}
-			// EOF/reset after completion: the exchange already validated.
-			return Result{Success: true}
+			// EOF/reset: the remote ended the session.
+			return Result{Success: true}, true
 		}
 		if res, rejected := p.rejected(&Message{Header: header, Body: body}); rejected {
-			return res
+			return res, false
 		}
 		if _, err := conn.Write(KeepaliveMsg()); err != nil {
-			// Remote closed after completion: the exchange already validated.
-			return Result{Success: true}
+			// The write failed because the remote is gone.
+			return Result{Success: true}, true
 		}
 	}
 }

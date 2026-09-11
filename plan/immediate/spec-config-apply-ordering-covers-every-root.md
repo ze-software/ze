@@ -242,9 +242,9 @@ bounds so implementation does not invent one.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `config-apply-ordering-mixed-root` | `test/reload/config-apply-ordering-mixed-root.ci` | An interface address plus a static route in one commit keeps address ordering (AC-1) | PASS in the QEMU guest (3.2s), and observed RED under its own revert. RED: the reinstated uncovered-participant condition sends the transaction to the unordered section apply, the static plugin installs the route before the address exists, and the kernel answers `fib-kernel: add route failed prefix=172.30.0.0/24 error="network is unreachable"`; the driver then reports `ZE-OBSERVER-FAIL: the renumber and the static route did not both land`. GREEN after restore: 11 of 11 steps pass. Log: `tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/cao/qemu-walk-clean.log` |
+| `config-apply-ordering-mixed-root` | `test/reload/config-apply-ordering-mixed-root.ci` | An interface address plus a static route in one commit keeps address ordering (AC-1) | PASS in the QEMU guest (925ms) under the owner's order, and observed RED under each of two reverts. RED 1, the constraint rule `iface-remove-address-before-add-address` unregistered (`internal/component/iface/operation.go`): `ZE-OBSERVER-FAIL: the new address 10.93.0.1/24 arrived before the old one 10.92.0.1/24 was removed`. RED 2, `sectionNodePosition` made to answer 0 so the coarse node runs at the head (`internal/component/config/transaction/solver.go`): the static section applies before its gateway's prefix exists, the kernel refuses the route, and the driver reports `ZE-OBSERVER-FAIL: the renumber and the static route did not both land` over an event stream carrying the renumber and no route. GREEN: 11 of 11 steps pass. Log: `tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/dw/walk-1.log` |
 | `config-apply-ordering-coarse-root` | `test/reload/config-apply-ordering-coarse-root.ci` | A commit touching only a root with no decomposer still applies (AC-2) | PASS, and observed RED under its own revert |
-| `config-apply-ordering-address-swap` | `test/reload/config-apply-ordering-address-swap.ci` | Two interfaces swap addresses, both present for the window, and a BGP peer bound to one of them stays reachable (AC-4, closes D4) | PASS in the QEMU guest (1.9s), and observed RED under its own revert. RED: with `tryRelaxCycle` returning the unreduced edge set the reload answers `config verify failed: operation dependency cycle`, nothing is applied, and the driver reports `ZE-OBSERVER-FAIL: the addresses never swapped`. GREEN after restore: 11 of 11 steps pass, the peer exchange holds its one connection across the swap, and the second `expect=stderr:contains` step, which is `OK: dual-presence window observed`, is one of them. D4 is closed: the window is now measured from the kernel's own notifications through decompose, graph, solver, executor, bridge, RPC and netlink. Log: `tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/cao/qemu-walk-clean.log`. Its two assertion functions were already proven by `TestAssertSwapWindowRefusesBreakBeforeMake` and `TestAssertMixedRootOrderRefusesARouteInstalledFirst` (`internal/test/fixture/register_config_apply_ordering_test.go`) |
+| `config-apply-ordering-address-swap` | `test/reload/config-apply-ordering-address-swap.ci` | Two interfaces swap addresses, each address leaves its old interface before it arrives on the new one, and the peer bound to one of them is stopped and started around the move (AC-4) | PASS (3.2s, 11 of 11 steps) in the QEMU guest on 2026-09-11, and RED under one revert for EACH half. Phases 2 and 5: restoring the pre-`284620ac2` early return in `decomposeBGPOperations` stops the peer operations being emitted, and the driver reports `ZE-OBSERVER-FAIL: the check peer never wrote session-returned.txt: the session bound to 10.90.0.1/24 was not stopped and started around the move, so phases 2 and 5 did not happen`. The peer log carries the mechanism: it held its connection open, and the close that follows is the teardown 20 seconds later. Phases 3 and 4: unregistering `iface-remove-address-before-add-address` gives `ZE-OBSERVER-FAIL: interface zdual0 held both addresses after add address 10.91.0.1/24 dev zdual0: the move was made before it was broken`. What made the file able to pass at all is three repairs, none of them a weakened assertion: the check peer now holds its session open across the reload (`option=linger`, `endSequence` in `internal/test/peer/reject.go`), so a second connection can only follow a daemon-side drop; the driver waits for the peer's `session-returned.txt` marker before it signals, so the reload finishes and prints `sighup reload complete`; and `action=rewrite` answers completion like the other action arms, so the daemon's shutdown NOTIFICATION is no longer matched against an empty expectation list. Logs: `tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/sw/walk-2.log` (the walk), `.../sw/walk-1.log` (the same walk one fix earlier, whose peer output shows the drop and the return in order), one-tree evidence in the `sw-pairbuild` and `sw-rebuild` job logs beside them |
 | `config-apply-ordering-mixed-rollback` | `test/reload/config-apply-ordering-mixed-rollback.ci` | A failed apply in a mixed transaction rolls back both node kinds (AC-7) | PASS (8.9s), and observed RED under its own revert. The tree that reddened 36 of the 63 reload tests healed; the whole suite is now 44 pass, 19 skip. Its connection-2 assertion was strengthened after the first run: it asserted the End-of-RIB alone, which passes while the restored peer announces nothing, so it now asserts the `192.168.1.0/24` UPDATE as well. The revert that reddens it is rebuilding the peer from the operation's config subtree instead of from the running peer (`runningPeerSettings`, `internal/component/bgp/reactor/operation.go`); under it the peer exchange fails on a message mismatch and every other reload test stays green. Logs: `tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/functional-reload-{1,red-revert}.log` |
 
 `config-apply-ordering-address-swap` and `config-apply-ordering-mixed-root`
@@ -252,8 +252,10 @@ carry `option=needs-linux:caps=net-admin`, matching
 `config-apply-ordering-create.ci`: they assign addresses to real devices and
 read them back.
 
-**Both were walked on 2026-09-11 and both discriminate.** They skip on a darwin
-host, so the route that ran them is QEMU: `./le qemu netns-test` does not cover
+**Both were walked on 2026-09-11 under the owner's order, and both pass.**
+`mixed-root` discriminates and passes. `address-swap` discriminates on phases 3
+and 4 and, after the repairs in its row above, on phases 2 and 5 as well. They
+skip on a darwin host, so the route that ran them is QEMU: `./le qemu netns-test` does not cover
 the reload suite (its selector is `firewall,policy,ospf,ospfv3,pppoe`,
 `internal/le/qemu/actions.go`), so the route is `./le qemu run kernel
 tmp/kernel/build/vmlinuz packages "iproute2 libcap"` carrying a guest script
@@ -270,7 +272,10 @@ Two things the walk had to establish, and both cost a run:
   and green again, and compares the two greens byte for byte. They are
   identical, and so are the two builds of the harness, so nothing that reaches
   a binary moved while the reverts were compiled
-  (`tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/cao/pairbuild.log`).
+  (`tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/dw/pairbuild-4.log`).
+  The green daemon carried md5 `315e5ca496b701bc01cbeed3de814448` in every one
+  of the four pairbuilds this walk ran, which is the same fact measured four
+  times.
 - **The guest has ONE routing table.** The first walk ran the greens first, and
   each left its dummy devices, addresses and static routes behind. The
   mixed-root RED then failed with `add route failed ... error="file exists"`,
@@ -281,11 +286,12 @@ Two things the walk had to establish, and both cost a run:
 **Discrimination walk (`ai/rules/interop-and-goal-validation.md`, required, not
 assumed):** for each of the four tests, revert the change it fences, rebuild the
 daemon so the revert takes effect, run the test, record the RED output in the
-closure section, restore the fix, and record GREEN. The reverts are: for
-`mixed-root`, restore the uncovered-participant condition; for `coarse-root`,
-delete the coarse node synthesis; for `address-swap`, make `tryRelaxCycle`
-return the unreduced edge set; for `mixed-rollback`, skip the section rollback
-for coarse nodes. A test that does not go RED under its own revert has not been
+closure section, restore the fix, and record GREEN. The reverts are: for `mixed-root`,
+unregister `iface-remove-address-before-add-address` and, separately, make
+`sectionNodePosition` answer 0; for `coarse-root`, delete the coarse node
+synthesis; for `address-swap`, unregister
+`iface-remove-address-before-add-address`; for `mixed-rollback`, skip the
+section rollback for coarse nodes. A test that does not go RED under its own revert has not been
 shown to discriminate and is not evidence.
 
 ### Interop Tests (Scope: protocol)
@@ -352,7 +358,7 @@ cross-process peer this spec owes.
 | 7 | Wire format changed? | No | No protocol wire format. The plugin RPC payload is covered by rows 4 and 8 |
 | 8 | Plugin SDK/protocol changed? | Yes | `docs/plugin-development/protocol.md` (the `config-operations` field and the operation callback table), and `ai/rules/plugins.md` if it restates the registration field list |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | No RFC governs this path |
-| 10 | Test infrastructure changed? | No | The four new `.ci` tests use existing runner options. No new tool, option or harness |
+| 10 | Test infrastructure changed? | Yes | `docs/architecture/testing/ci-format.md`, two rows, both UPDATED on 2026-09-11. `option=linger` now also holds a connection BETWEEN connections, until the remote closes it, which is what lets a `.ci` assert that the DAEMON stopped and restarted a session (`endSequence`, `internal/test/peer/reject.go`); a `conn_map` peer is excluded and the row says why. And `action=rewrite` answers completion when it is the last item a peer block queues, as `action=sighup` and `action=sigterm` already did. No new option and no new tool |
 | 11 | Affects daemon comparison? | No | `docs/comparison.md` makes no claim about config transaction ordering |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/config/apply-ordering.md` and `docs/architecture/config/transaction-protocol.md`. See the sentence table below |
 | 13 | Route metadata keys added/changed? | No | No route metadata |
@@ -527,7 +533,7 @@ enforcing code.
 - [ ] AC-1..AC-7 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] Each of the four new functional tests observed RED under its own named revert and GREEN after restore, with both outputs recorded. All four are now walked. `coarse-root` and `mixed-rollback` were walked natively (logs in the Functional Tests table). `address-swap` and `mixed-root` were walked in the QEMU guest on 2026-09-11, red first and green after, all four daemons from one tree window: `tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/cao/qemu-walk-clean.log`, with the one-tree evidence in `.../cao/pairbuild.log`
+- [ ] Each of the four new functional tests observed RED under its own named revert and GREEN after restore, with both outputs recorded. ALL FOUR are walked. `coarse-root` and `mixed-rollback` were walked natively (logs in the Functional Tests table). `mixed-root` was walked in the QEMU guest on 2026-09-11 under the owner's order, red first under each of two reverts and green after: `tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/dw/walk-1.log`, one-tree evidence in `.../dw/pairbuild-4.log`. `address-swap` was walked in the same guest later that day, once its scaffolding could express the claim: red under the phase 2 and 5 revert, red under the phase 3 and 4 revert, green after restore, 11 of 11 steps. Log `.../sw/walk-2.log`, and its row in the Functional Tests table carries the failure text of each red
 - [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
 - [ ] Feature code integrated (`internal/*`, `pkg/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
@@ -720,14 +726,26 @@ Both round-2 blockers are answered:
 | R2-B-1 | MOOT. Its premise was that a coarse node must precede the destructions, which was the inherited sequence. The requirement removes before it adds, so a coarse node runs after the destructions by design, and the page and the function comment now say so |
 | R2-B-2 | FIXED. The coarse nodes of the `bgp` root's siblings sort before `bgp`'s own peer create or modify, because a peer operation targets `ResourcePeer` and is therefore a phase 5 start. Fenced end to end by `TestReloadTxAppliesCoarseSectionsBeforeBinderStarts`, which registers the decomposing participant FIRST so neither a name check nor the slice order can produce the answer, and at the solver by two new cases of `TestTopologicalSortPlacesSectionNodeBetweenAddressingAndBinders` |
 
-**What is NOT verified on this host.**
-`test/reload/config-apply-ordering-address-swap.ci` and
-`test/reload/config-apply-ordering-mixed-root.ci` both carry
-`option=needs-linux:caps=net-admin` and skip on darwin, where this phase was
-implemented. Both assert the requirement's order now, and both had their
-assertion functions rewritten, so the QEMU discrimination walk each passed under
-the old policy no longer covers them. Neither has been executed under the new
-policy. What ran instead is the two-arm unit test over each assertion function
-in `internal/test/fixture/register_config_apply_ordering_test.go`, which accepts
-the requirement's order and refuses the policy it replaced. The walk each file
-owes is written into its own DISCRIMINATION header and is outstanding.
+**What the kernel says, and what is still open.**
+Both files carry `option=needs-linux:caps=net-admin` and skip on darwin, where
+this phase was implemented, so both were walked in a QEMU guest on 2026-09-11
+against Ze's own runtime kernel. `mixed-root` passes and reddens under each of
+two reverts, so the owner's order holds across two roots on a real kernel:
+remove the address, add the address, then apply the section of the root that
+binds it.
+
+`address-swap` proves phases 3 and 4 the same way and cannot reach green. The
+walk found two defects in its own scaffolding, and neither is a property of the
+apply order. Its driver sends SIGTERM as soon as `ip addr` shows the addresses
+have moved, which is the end of phase 4, so the daemon dies inside the reload
+and `reloadComplete()` never prints the line the file expects. And its
+`option=tcp_connections:value=2` does not fence phases 2 and 5: `ze-peer` closes
+each connection when that connection's expectations are met, so the session is
+already gone when the reload starts and a daemon whose decomposer emits no peer
+operation reaches two connections on its own retry timer. Measured under that
+revert, in a run whose driver held the daemon alive past the reload: `ze-peer`
+reported "successful" after two connections
+(`tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/dw/walk-4.log`).
+The SIGTERM above is what hides this today. Making the file fence phases 2 and 5
+needs the check peer to hold its session open across the reload, which changes
+what the file asserts. That decision is the owner's, and it is open.

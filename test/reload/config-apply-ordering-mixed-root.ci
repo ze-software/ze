@@ -28,27 +28,34 @@
 #           operations that were ordered correctly lost their order with it,
 #           and the transaction still reported success.
 #
-# NOT WALKED on this host. This file carries option=needs-linux:caps=net-admin,
-# so it skips on darwin, where the change was made. Its assertion function
-# changed with the policy, and the two-arm unit test over it
-# (TestAssertMixedRootOrderRefusesARouteInstalledFirst and
-# TestAssertMixedRootOrderRefusesTheNewAddressArrivingFirst) is what has run.
-#
 # The order is read from the kernel's own netlink notifications
 # (configApplyOrderingMixedRootDriver,
 # internal/test/fixture/register_config_apply_ordering.go), because nothing on
 # the apply path logs one line per operation and the final state carries no
 # order at all.
 #
-# DISCRIMINATION: restore the uncovered-participant condition in
-# TxCoordinator.Execute (internal/component/config/transaction/orchestrator.go)
-# so a transaction with a coarse participant falls back to runApply. The
-# fallback's Info line reappears, which the reject below refuses, and runApply
-# publishes both section applies before waiting for either ack, so the route
-# install no longer waits for the address. The rejected pattern is a test that
-# asserts only the end state: the renumber and the route are both present
-# whichever order they landed in, so the end state cannot tell the two paths
-# apart.
+# DISCRIMINATION: two reverts, one for each half of the order this file reads,
+# both WALKED in QEMU on 2026-09-11 against the guest's own kernel. The log is
+# tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/dw/walk-1.log,
+# and every daemon in it was built in one window so the reds and the green are a
+# pair.
+#
+#   1. Unregister the constraint rule iface-remove-address-before-add-address
+#      (internal/component/iface/operation.go), so the planner emits its
+#      addition first. Observed: "the new address 10.93.0.1/24 arrived before
+#      the old one 10.92.0.1/24 was removed".
+#   2. Make sectionNodePosition (internal/component/config/transaction/solver.go)
+#      answer 0, so the coarse node runs at the head instead of after the
+#      addresses this commit adds. The static section then applies before its
+#      gateway's prefix exists, the kernel answers ENETUNREACH, and the route
+#      never lands. Observed: "the renumber and the static route did not both
+#      land", over an event stream that carries the renumber and no route.
+#
+# The green daemon passed every step of this file.
+#
+# The rejected pattern is a test that asserts only the end state: the renumber
+# and the route are both present whichever order they landed in, so the end
+# state cannot tell the two paths apart.
 
 # needs-linux: a dummy interface, an address, a kernel FIB route and
 # `ip monitor` are kernel surfaces, and all of them need CAP_NET_ADMIN.
@@ -115,11 +122,11 @@ expect=stderr:contains=static routes loaded
 expect=file:path=mixed-events.txt:exists=true
 # This reject cannot fire, and it is kept as a tripwire rather than as
 # evidence. Commit a6ea1ad0b deleted the branch that logged it, so no build
-# of the product emits the string at all; reinstating that branch is the
-# revert this test was proven RED under, and even then the line is
+# of the product emits the string at all, and even then the line is
 # logger().Info on subsystem config.transaction, which this test does not
-# raise to info. What discriminates here is the positive ordering assertion
-# above. To make this line fence anything, add
+# raise to info. Neither revert above reinstates that branch. What
+# discriminates here is the positive ordering assertion above. To make this
+# line fence anything, add
 # option=env:var=ze.log.config.transaction:value=info and re-run the walk.
 reject=stderr:contains=using section apply
 reject=stderr:contains=operation dependency cycle

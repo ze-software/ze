@@ -378,7 +378,7 @@ option=<type>:key=value[:key=value...]
 | `bind` | `value=ipv6` | Bind to IPv6 |
 | `timeout` | `value=<duration>` | Test timeout (e.g., `30s`). Overrides auto-timeout. |
 | `tcp_connections` | `value=<N>` | Number of TCP connections |
-| `linger` | `value=true` | Peer-block only: after all expectations complete, the check peer prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. Without it a completed peer closes its connection, which ze correctly treats as session-down; that withdraws the peer's routes and races any forwarding still in flight toward other peers. A `reject=bgp` that fires during the linger loop RETRACTS the success token already printed, so the peer still fails the test. |
+| `linger` | `value=true` | Peer-block only: the check peer never closes a connection itself. After ALL expectations complete it prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. BETWEEN connections, where one connection's expectations are met and a later connection is still owed, it holds that connection until the REMOTE closes it, and fails the test if teardown comes first. Without it a completed peer closes, which ze correctly treats as session-down; that withdraws the peer's routes and races any forwarding still in flight toward other peers, and it also makes the daemon's OWN close unobservable, because ze dials again on its retry timer whoever closed (`test/reload/config-apply-ordering-address-swap.ci` asserts a stop and a restart, and needs the peer to be incapable of causing one). A `conn_map` peer is excluded from the between-connections hold: it serves every connection of one batch in turn and then waits for the daemon to close them all, so holding the first would starve the batch. A `reject=bgp` that fires during either hold RETRACTS the success token already printed, so the peer still fails the test. |
 | `silent` | `value=true` | Peer-block only, check mode only: the peer stops sending the automatic KEEPALIVE reply it otherwise writes for every message it receives. It holds the TCP connection open and keeps reading and matching expectations. Needed to reach ze's receive hold timer: ze sends its own KEEPALIVE every hold/3 seconds, each automatic reply resets ze's hold timer, and "the peer went quiet" is otherwise unexpressible. A closed connection is a different event on a different code path, so `action=close` does not substitute. **Explicit writes still happen**: `action=send`, `action=notification`, the OPEN handshake itself, and `option=linger`'s post-completion KEEPALIVE loop are unaffected, so `silent` with `linger` is not silent. Sink and echo modes ignore it. See `test/plugin/deadpeer-holddown.ci`. |
 | `open` | `value=<behavior>` | OPEN message behavior |
 | `update` | `value=<behavior>` | UPDATE message behavior |
@@ -1315,6 +1315,16 @@ action=rewrite:conn=<N>:seq=<N>:source=<tmpfs-file>:dest=<config-file>
 ```
 
 Copies a tmpfs file over the daemon's config file. Used with `action=sighup` to test config reload.
+
+It also writes a marker a second process can wait on, which is its other use:
+`test/reload/config-apply-ordering-address-swap.ci` copies one file to
+`session-returned.txt` once the restarted BGP session has re-announced its
+routes, and the test's own driver waits for that file before it signals the
+daemon. When the rewrite is the LAST item the peer block queues, the exchange
+is over and the peer completes on it, exactly as `action=sighup` and
+`action=sigterm` do. Without that the peer kept matching, and the daemon's
+shutdown NOTIFICATION arrived against an empty expectation list and failed the
+test as a message mismatch.
 
 | Key | Description |
 |-----|-------------|

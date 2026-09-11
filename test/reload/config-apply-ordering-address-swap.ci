@@ -23,53 +23,113 @@
 #           Params.AllowDual and the constraint rule
 #           iface-add-address-before-remove-same-interface) is deleted.
 #
-# The observable points are the kernel's own netlink notifications, so the
-# driver reads them through `ip monitor` and replays them over the known initial
-# state (configApplyOrderingSwapDriver,
+# The observable points of phases 3 and 4 are the kernel's own netlink
+# notifications, so the driver reads them through `ip monitor` and replays them
+# over the known initial state (configApplyOrderingSwapDriver,
 # internal/test/fixture/register_config_apply_ordering.go). A poll of `ip addr`
 # cannot see the order: the two netlink calls are a few hundred microseconds
 # apart.
 #
-# DISCRIMINATION: restore the constraint rule
-# iface-add-address-before-remove-same-interface
-# (internal/component/iface/operation.go), which orders an address addition
-# ahead of the removal on the same interface. The four operations then close a
-# cycle and, with the relaxation deleted, TopologicalSort answers
-# ErrOperationCycle and the reload aborts. Restore the relaxation with it and
-# the swap lands make-before-break instead, which assertSwapOrder refuses with
-# "held both addresses". The rejected reading is "the swap landed, so the order
-# was right": that is an inference from the final state, which carries no
-# order at all, and is why the driver asserts from the event stream.
+# Phases 2 and 5 reach no kernel object, so the check peer observes them
+# instead, and it can do that only because it never closes a connection itself
+# (option=linger, see the peer block below). The peer writes
+# session-returned.txt once the returned session has re-announced its route,
+# and the driver waits for that file before it signals the daemon. The daemon
+# therefore finishes its reload, which is what the `sighup reload complete`
+# expectation below reads.
 #
-# NOT WALKED on this host. This file carries option=needs-linux:caps=net-admin,
-# so it skips on darwin, where the change was made. The walk above is what it
-# owes and has not been run.
+# DISCRIMINATION: one revert for each half of the file, both WALKED in QEMU on
+# 2026-09-11 against the guest's own kernel (Ze runtime kernel 7.2, uid 0). The
+# two reverted daemons, the unreverted one and the harness came out of one tree
+# window, and the two builds of the unreverted daemon are byte for byte
+# identical, so each red and the green are a pair (green md5
+# 25dbe432f5e33edea41bd49d912be590,
+# tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/sw/pairbuild.sh).
+#
+#   PHASES 2 AND 5. Restore the pre-284620ac2 early return in
+#   decomposeBGPOperations (internal/component/bgp/plugin/operation.go), so a
+#   root with no diff of its own emits no peer operation. The bgp section here
+#   is byte-identical across the reload, so the reverted daemon never stops
+#   peer1. RED: the peer held its first connection open for the whole reload,
+#   the daemon never closed it, no second connection came, and the driver
+#   failed with "the check peer never wrote session-returned.txt: the session
+#   bound to 10.90.0.1/24 was not stopped and started around the move, so
+#   phases 2 and 5 did not happen". The peer's own log carries the mechanism:
+#   "holding this connection open until the remote closes it", and the close
+#   that follows it is the test teardown 20 seconds later, not a phase 2.
+#
+#   PHASES 3 AND 4. Unregister the constraint rule
+#   iface-remove-address-before-add-address
+#   (internal/component/iface/operation.go), the one rule that orders every
+#   address removal ahead of every address addition. The planner then emits its
+#   additions first and the swap lands make-before-break. RED: "interface
+#   zdual0 held both addresses after add address 10.91.0.1/24 dev zdual0: the
+#   move was made before it was broken".
+#
+# GREEN under the unreverted daemon: 11 of 11 steps pass in 3.2s, the peer
+# exchange over both connections among them. Log
+# tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/sw/walk-2.log,
+# and walk-1.log beside it for the same walk one fix earlier, whose peer output
+# shows the whole sequence in order: hold,
+# "the remote closed the held session", "waiting for next connection (1/2)",
+# the new connection from 10.90.0.1, its UPDATE and End-of-RIB, and the rewrite
+# that marks phase 5.
+#
+# The rejected reading is "the swap landed, so the order was right": that is an
+# inference from the final state, which carries no order at all, and is why the
+# driver asserts from the event stream. The rejected reading for the peer half
+# is "two connections happened, so the session restarted": ze dials again on
+# its retry timer whoever closed, so a count fences nothing unless the peer is
+# incapable of closing first. That is what option=linger buys here.
 
 # needs-linux: dummy interfaces, address assignment and `ip monitor` are kernel
 # surfaces, and creating a device plus moving an address needs CAP_NET_ADMIN.
 option=needs-linux:caps=net-admin
 
-# ze-peer expectations. TWO connections for the run is the assertion that the
-# session bound to 10.90.0.1 was stopped and started: that address changes
-# interface in this commit, so the binder holding it is disturbed, and the
-# requirement stops it in phase 2 and starts it again in phase 5
+# ze-peer holds its session open across the whole reload (option=linger), and
+# that is what makes the second connection evidence. The peer never closes, so
+# the only thing that can end connection A is the daemon: phase 2 stops the
+# session bound to 10.90.0.1, because that address changes interface in this
+# commit and the binder holding it is disturbed, and phase 5 starts it again
+# once the address has arrived on zdual1
 # (docs/architecture/config/apply-ordering.md).
 #
-# Until 2026-09-11 this block said one connection, which asserted that the
-# session never restarted. That was the inherited make-before-break policy:
-# both addresses stayed on the host across the swap and the session was left
-# running over a binding that had moved underneath it.
+# A connection COUNT on its own asserts nothing here, and until 2026-09-11 this
+# block was exactly that. ze-peer closed each connection as soon as that
+# connection's expectations were met, so the first session was gone before the
+# reload began: phase 2 had nothing to stop, and a daemon whose decomposer
+# emitted no peer operation at all still reached two connections on ze's own
+# retry timer. Measured under that revert, in
+# tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/dw/walk-4.log.
+# Held open, connection B exists only because the session DROPPED and RETURNED.
+#
+# Before that the block said one connection, which asserted that the session
+# never restarted. That was the inherited make-before-break policy: both
+# addresses stayed on the host across the swap and the session was left running
+# over a binding that had moved underneath it.
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=2
+option=linger:value=true
 
 # Connection A: the session that held 10.90.0.1 on zdual0, up to the commit.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# Connection B: the same session started again, from the same address on zdual1.
+# Connection B: the same session started again, from the same address on zdual1,
+# announcing its route again. The rewrite is how the peer tells the driver that
+# phase 5 happened: the driver reads the kernel, and a BGP session is not a
+# kernel object, so it waits for session-returned.txt before it signals the
+# daemon (awaitSessionReturned, internal/test/fixture/register_config_apply_ordering.go).
 expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=rewrite:conn=2:seq=1:source=session-returned.src:dest=session-returned.txt
 EOF_PEER
+
+# The marker's body, copied to session-returned.txt by the action above. The
+# file is the signal; its text is for whoever reads the artifacts after a run.
+tmpfs=session-returned.src:terminator=EOF_RETURNED
+the session bound to 10.90.0.1 dropped in phase 2 and returned in phase 5
+EOF_RETURNED
 
 # Initial config: each interface holds the address the other one takes.
 stdin=ze-bgp:terminator=EOF_CONF
@@ -205,11 +265,12 @@ option=env:var=ze.log.interface:value=info
 # driver raced its own teardown.
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=ze-test fixture reload/config-apply-ordering-address-swap-driver:timeout=40s
+cmd=foreground:seq=3:exec=ze-test fixture reload/config-apply-ordering-address-swap-driver:timeout=60s
 
 expect=exit:code=0
 expect=stderr:contains=sighup reload complete
 expect=stderr:contains=OK: break-before-make observed
+expect=file:path=session-returned.txt:exists=true
 expect=file:path=swap-final.txt:contains=zdual0=10.91.0.1/24
 expect=file:path=swap-final.txt:contains=zdual1=10.90.0.1/24
 expect=file:path=swap-final.txt:not-contains=zdual0=10.90.0.1/24

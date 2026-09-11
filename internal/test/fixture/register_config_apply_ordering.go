@@ -65,6 +65,12 @@ const monitorProbeAddress = "10.99.0.1/32"
 // The observable points are the netlink notifications, so the driver replays
 // them over the known initial state and checks break-before-make on every
 // step.
+//
+// That covers phases 3 and 4. Phases 2 and 5, the stop and the start of the
+// peer bound to the address that moves, reach no kernel object the driver can
+// read, so the check peer observes them and reports through fileSessionReturned
+// (awaitSessionReturned). The driver signals the daemon only after that marker,
+// so the reload is over before the signal lands.
 func configApplyOrderingSwapDriver(ctx context.Context, args []string) error {
 	if len(args) != 0 {
 		return errors.New("address swap driver takes no arguments")
@@ -114,7 +120,36 @@ func configApplyOrderingSwapDriver(ctx context.Context, args []string) error {
 	if err := writeSwapFinalState(ctx, "swap-final.txt"); err != nil {
 		return err
 	}
+	if err := awaitSessionReturned(ctx); err != nil {
+		return err
+	}
 	return syscall.Kill(pid, syscall.SIGTERM)
+}
+
+// fileSessionReturned is the marker the check peer writes once its SECOND
+// connection has carried the peer's routes again (`action=rewrite`, in
+// test/reload/config-apply-ordering-address-swap.ci).
+//
+// The peer holds its first connection open for the whole reload
+// (`option=linger`), so a second connection exists only because the daemon
+// stopped the session in phase 2 and started it again in phase 5.
+const fileSessionReturned = "session-returned.txt"
+
+// awaitSessionReturned holds the driver until phase 5 has happened, because the
+// next thing the driver does is signal the daemon.
+//
+// The driver reads the kernel, and phases 2 and 5 produce no netlink
+// notification, so the check peer is what observes them and the marker file is
+// how it reports it. Until 2026-09-11 this driver sent SIGTERM as soon as `ip
+// addr` showed the addresses had moved, which is the end of phase 4. The signal
+// landed inside the reload, so reloadComplete() (cmd/ze/hub/main_reload.go)
+// never ran and the file's `sighup reload complete` expectation could not be met
+// by any build.
+func awaitSessionReturned(ctx context.Context) error {
+	if waitForFile(ctx, fileSessionReturned, 200, 100*time.Millisecond) {
+		return nil
+	}
+	return fmt.Errorf("the check peer never wrote %s: the session bound to %s was not stopped and started around the move, so phases 2 and 5 did not happen", fileSessionReturned, swapAddressLeft)
 }
 
 // assertSwapOrder replays the address notifications over the known initial

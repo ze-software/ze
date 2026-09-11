@@ -446,14 +446,39 @@ second root in the transaction, using a static route whose gateway resolves only
 against the new address. Both carry `option=needs-linux:caps=net-admin`, so they
 run in the QEMU VM and skip on a host without CAP_NET_ADMIN.
 
-Neither has been walked under the break-before-make policy. Both passed a
-discrimination walk in the QEMU guest under the dual-presence policy, and both
-assertion functions changed with the policy on 2026-09-11, on a darwin host
-where the files skip. What HAS run is the two-arm unit test over each assertion
-function (`internal/test/fixture/register_config_apply_ordering_test.go`), which
-accepts the requirement's order and refuses the policy it replaced. The walk the
-two `.ci` files owe is named in their own DISCRIMINATION headers and is
-outstanding.
+Both were walked in the QEMU guest on 2026-09-11, under this policy and against
+Ze's own runtime kernel. `mixed-root` passes, and it reddens under each of two
+reverts: unregister the constraint rule `iface-remove-address-before-add-address`
+and the new address arrives before the old one leaves; make `sectionNodePosition`
+answer 0 and the static section applies before its gateway's prefix exists, so
+the kernel refuses the route. Phases 3 and 4 therefore hold on a real kernel,
+and so does the placement of a coarse root at the phase 4 to phase 5 boundary.
+
+`address-swap` proves phases 3 and 4 the same way, and since 2026-09-11 it
+proves phases 2 and 5 as well, against the same kernel. The session is what
+observes them, so the check peer holds its connection open for the whole reload
+(`option=linger`) and never closes one itself. A second connection then exists
+only because the daemon stopped the session and started it again: ze dials again
+on its retry timer whoever closed, so a connection COUNT fences nothing unless
+the peer cannot close first. The peer marks the return by copying a file, and
+the driver waits for that file before it signals the daemon, which is what lets
+the reload finish and print `sighup reload complete`.
+
+The file reddens under one revert for each half. Restore the pre-`284620ac2`
+early return in `decomposeBGPOperations` and the peer is never stopped: the held
+connection stays up, no second connection comes, and the driver reports "the
+check peer never wrote session-returned.txt". Unregister
+`iface-remove-address-before-add-address` and the swap lands make-before-break.
+Both walks and the green run are in the file's DISCRIMINATION header with their
+log paths.
+
+Until that walk, phases 2 and 5 were asserted by unit tests only
+(`internal/component/bgp/plugin/operation_disturbed_test.go`,
+`internal/component/plugin/server/reload_disturbed_test.go`), and the file could
+not pass on any build: its driver killed the daemon at the end of phase 4, so
+`reloadComplete()` (`cmd/ze/hub/main_reload.go`) never ran, and its
+two-connection expectation was reached by a daemon emitting no peer operation at
+all.
 
 The rotation, swap and reip tests reach none of that. They rotate BGP
 router-ids, so they emit peer operations only, two peers changing router-id
