@@ -336,6 +336,8 @@ About 18 GB was freed: 33 pre-today session scratch directories and 103 stale
 
 ## 8. Update, 2026-09-09: the OSPF closure was started and stopped
 
+**SPENT, 2026-09-11. The closure finished and the three files landed; see section 10.**
+
 `/ze-close` ran on `spec-ospf-auto-cost-reference-bandwidth` and was stopped
 mid-phase, out of budget. It had passed the audit steps and was inside its own
 Review Gate, fixing what that gate found: its last words were "the
@@ -1048,6 +1050,9 @@ committing.
 
 ## 9. The work left, as one list
 
+**SPENT, 2026-09-11. Every item below is done; section 10 says what is true now.**
+Kept because its reasoning still reads, not because any of it is outstanding.
+
 Ordered. Each item says what "done" means, so nobody has to reconstruct it.
 
 1. **Decide the three uncommitted OSPF files.** `internal/plugins/ospf/instance.go`,
@@ -1158,3 +1163,55 @@ finding. Worth one run on an idle machine; nothing should block on it.
 3. BFD round 7, which needs Thomas's authorisation, then closure.
 4. update-delay's closure commit, then as-notation's commit B. Both unchanged
    from the block above.
+
+## 10. Final state of the immediate sweep, 2026-09-11
+
+Sections 8 and 9 are spent. This is what is true now.
+
+**Four of the five specs are closed**: `vrrp-deferred-accept-mode-dataplane`,
+`policyroute-interface-list-matches-no-packet`,
+`ospf-auto-cost-reference-bandwidth`, `ddos-timing-leaves-reach-no-worker`.
+The last two closed while this session was idle, by other sessions, together with
+the three items section 9 listed as open:
+
+- `0044a4f92d` finished the deferred-origination fix the killed closure agent had
+  in flight, so the three uncommitted OSPF files section 8 warned about are gone
+  from the working tree and in HEAD. Nothing needs deciding about them.
+- `45643bafde` fixed the ddos round-5 BLOCKER (the stale-table sweep running
+  before the firewall engine is configured), and `cc01230a35` closed that spec.
+- `e4ba142514` answered the one question section 9 left with Thomas: the explicit
+  `cost` leaf now preserves its adjacency too, so ze no longer gives two answers
+  to what a cost change costs.
+
+**One spec is open and is NOT this sweep's to finish.**
+`spec-ipsec-dataplane-inspection` is being closed by another session's
+`IpsecClosure`, five rounds in, which owns the uncommitted `internal/component/ike/**`
+edits. Its Review Gate records what it still owes: the native artifact and the
+AC-2 final policy-repair proof. Do not claim that spec or commit its files
+without talking to that session first.
+
+**What this sweep contributed to it, 2026-09-11.** The three artifacts written in
+`03a77aa12` had never executed once. All three now have, each observed RED under
+one break (`xfrmBackend.ListSAs` returning an empty SAD instead of the netlink
+dump) and GREEN restored, with no product code changed and no assertion weakened:
+
+- `ipsec-show-dataplane-kernel.ci`: RED `output missing "cbc(aes)" ... last output
+  "done {"sas":[]}"`, GREEN `PASS 4.6s`.
+- `ipsec-show-sa-counters.ci`: RED all four counters `null` while `counters-known`
+  stayed TRUE, which is the distinction that file exists to draw, GREEN `PASS 2.8s`.
+- `dataplane-readback` vs strongSwan: RED the join REFUSED rather than agreeing,
+  reporting that an agreement would have been vacuous; GREEN both before the break
+  and after the restore.
+
+The SPI-base trap the design phase warned about is exercised for real: the green
+scenario compared a non-empty Ze set against a non-empty iproute2 set and found
+them equal, which holds only because both normalize through a typed `uint32`
+decode (`decodeZeDataplaneSAs`, `internal/le/interoplab/ipsec/helpers.go`) rather
+than a `map[string]any` float64. The evidence is in the spec under "Kernel and
+strongSwan discrimination walk (2026-09-11)" and will land with that session's
+closure commit.
+
+**Nothing else is outstanding from this sweep.** Sections 3 to 6 above still read
+true and are the part worth keeping: the two owner rulings, what five review
+rounds bought, the three tests that passed for the wrong reason, and the seven
+journal rows recording defects found and deliberately not chased.
