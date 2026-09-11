@@ -42,7 +42,7 @@ non-destructive: no state changes, no side effects.
 | 1 | Engine | Emits `(config, verify-<plugin>)` per plugin with transaction ID and that plugin's filtered diffs. The event type is registered dynamically per plugin name. |
 | 2 | Plugin | Validates its portion. Emits `(config, verify-ok)` including an estimated apply duration, or `(config, verify-failed)` with a reason. |
 | 3 | Engine | Collects acks. Every plugin must ack positively. A single `verify-failed` or a missing ack (timeout) fails the entire verify phase. Engine emits `(config, verify-abort)` and the transaction ends. |
-| 4 | Engine | Computes the transaction deadline from the dependency-graph critical path (sum per-tier max budgets). This becomes the deadline in each `(config, apply-<plugin>)` event. |
+| 4 | Engine | Adds up the budgets of every participant, because they apply one after another. This becomes the deadline in each `(config, apply-<plugin>)` event. |
 
 Participation in config transactions is opt-in via two separate declarations
 in Stage 1 of the 5-stage startup protocol:
@@ -92,8 +92,8 @@ union of its `ConfigRoots` and `WantsConfig` roots. A DHCP plugin declaring
 `dhcp` and `iface`, but never sees `bgp` or `telemetry` config.
 
 The deadline is plugin-decided but engine-enforced. Plugins know their workload
-after inspecting the diffs during verify. The engine takes the maximum across all
-plugins and enforces it as the transaction deadline.
+after inspecting the diffs during verify. The engine adds up what every
+participant declared and enforces the total as the transaction deadline.
 
 ### Phase 2: Apply
 
@@ -197,27 +197,40 @@ transaction phase. The engine always uses the latest values.
 |------|----------------|-----------------|
 | Stage 1 registration | Initial verify budget + initial apply budget | First transaction |
 | After each verify response | Updated apply budget (based on actual diffs) | This transaction's apply deadline |
-| After each apply/rollback response | Updated verify budget + updated apply budget | Next transaction |
+| After each apply response | Updated verify budget + updated apply budget | Nothing. The coordinator is built for one transaction and is discarded with it |
 
-The engine computes the deadline from the dependency graph, not a simple max.
-Plugins estimate only their own work. The engine computes the critical path
-through the dependency tiers returned by `registry.TopologicalTiers`:
+The engine-side bridge fills both budget fields of an ack from the plugin's own
+registration (`registrationVerifyBudget` and `registrationApplyBudget`,
+`config_tx_bridge.go`), which is where the coordinator already read them at
+`buildTxInputs`. An apply ack therefore writes back the value that is already
+installed, and the verify ack is the one that matters: it lands before the
+apply deadline is computed.
 
-- Within a tier (independent plugins): take the max budget
-- Across tiers (serialized phases): sum the per-tier maxes
-- Total deadline = `sum_k(max_{p in tier k}(budget(p)))`
+Plugins estimate only their own work, and the engine adds those estimates up:
 
-The engine derives tiers from each plugin's `Dependencies` field in its
-registration. Plugins in tier 0 have no dependencies in the participant set;
-tier `k` plugins depend (transitively) on plugins in tiers `0..k-1`. Plugins
-within a tier run concurrently so their cost is the max; tiers are serialized
-because tier `k+1` can only start after tier `k` finishes.
+- Total deadline = `sum_p(budget(p))` over the participants of this transaction
+- A participant that declares no budget adds nothing
+- A participant set that declares nothing at all takes a 30-second default
 
-Example: bgp (tier 0, 10s) and rib (tier 0, 5s) run concurrently in tier 0;
-fib-kernel (tier 1, 3s) depends on rib. Tier 0 max = max(10, 5) = 10s.
-Tier 1 max = 3s. Total deadline = 10 + 3 = 13s. The pre-graph flat formula
-would have returned 10s, missing the 3 seconds the fib plugin needs after
-rib finishes.
+The sum is what a phase can cost, because a phase reaches its participants one
+at a time. An engine handler runs inside the emitter's goroutine and the bridge
+performs the plugin RPC inside that handler, so a publish returns only after
+the plugin has answered. The ordered path then applies one node at a time, and
+every node carries the one absolute instant the phase computed, which the
+bridge turns into each RPC's context deadline.
+
+Example: bgp (10s), rib (5s) and fib-kernel (3s) apply in turn, so the deadline
+is 18s. A deadline of `max(10, 5, 3)` would abort the transaction while
+fib-kernel was still applying correctly.
+
+The cost of the sum is the time a hung plugin takes to be noticed, and it grows
+with the participant count. That is the trade the engine takes: a late abort of
+a broken reload, against a false abort of a working one.
+
+Until 2026-09-11 the engine took the max budget within each dependency tier
+from `registry.TopologicalTiers` and summed the tiers, on the premise that a
+tier applied concurrently. No tier ever did. Tiers still decide the order
+rollback acks are drained in, which is a different question.
 
 ### Self-Correcting Feedback
 

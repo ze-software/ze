@@ -150,7 +150,7 @@ ordering, and the plugin RPC contract is Ze's own.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Total coverage puts every participant into one ordered sequence, so a slow root delays roots that used to apply beside it | Reload wall time grows across the reload functional tests | The executor already applies one operation at a time. Measure the reload suite before and after, and report the delta rather than hide it |
+| R-1 | Total coverage puts every participant into one ordered sequence, so a slow root delays roots that used to apply beside it | Reload wall time grows across the reload functional tests | The executor already applies one operation at a time. Measure the reload suite before and after, and report the delta rather than hide it. MEASURED on 2026-09-11, over the deadline change of review round 2: 44 of 44 pass both times, 182.3s before (`.../scratch/cao-functional-reload.log`) and 162.9s after (`.../scratch/cao2-functional-reload-after.log`). No test moved outside the run-to-run spread the "slow" lines already report, and none timed out. The budget itself is no longer the cost the suite measures: the deadline bounds the wait for a plugin that does not answer, so a healthy reload never reaches it |
 | R-2 | Derived edges over-connect: a resource many roots consume produces a dense graph and a new cycle `tryRelaxCycle` rejects, turning a working reload into an aborted transaction | A reload test that passed now aborts with `operation dependency cycle` | Land the derivation against the existing iface and bgp fixtures first and compare the edge set, before any new root declares produce/consume |
 | R-3 | Deleting the fallback turns a previously silent ordering loss into a transaction abort when the graph cannot be built | An abort on a config the operator applied yesterday | The coarse node makes every participant representable, so an abort now means a real cycle. Name the operation ids and the cycle members in the abort message |
 | R-4 | The coarse node's rollback differs from a decomposed operation's rollback, because the participant expects `config-rollback` rather than `config-operation-rollback` | A rollback test leaves one participant unrolled | Cover both kinds in the rollback unit test and in the mixed rollback functional test, before the fallback is deleted |
@@ -223,6 +223,11 @@ ordering, and the plugin RPC contract is Ze's own.
 | `TestExecuteAppliesCoarseNodeAfterTheResourcesItBinds` | `internal/component/config/transaction/orchestrator_test.go` | B-1 through `Execute`, the door an operator reaches | PASS, and observed RED at `[iface-add-zx section-apply-static iface-add-address-zx]` |
 | `TestReloadRefusesAPluginOperationCarryingTheReservedSectionApplyLabel` | `internal/component/plugin/server/reload_test.go` | B-2. `ReloadConfig` refuses a plugin-supplied `section-apply` label | PASS, and observed RED with the reserved-type refusal deleted |
 | `TestReloadRefusesAPluginOperationDeclaringAResourceWithNoIdentity` | `internal/component/plugin/server/reload_test.go` | B-2. `ReloadConfig` refuses a blank resource entry, from the door rather than the helper | PASS, and observed RED with `validateResourceRefs` unwired |
+| `TestApplyDeadlineSumsEveryParticipantBudget` | `internal/component/config/transaction/orchestrator_test.go` | I-1. The apply and verify deadlines cover every participant in sequence | PASS, and observed RED at `apply deadline = 10s, want 20s`. Replaces `TestOrchestratorDependencyGraphDeadline` |
+| `TestApplyDeadlineDefaultsWhenNoParticipantDeclaresABudget` | `internal/component/config/transaction/orchestrator_test.go` | I-1. A participant set that declares no budget takes the 30-second default rather than a zero deadline | PASS. It keeps the half of `TestOrchestratorTieredDeadlineCycleFallback` that survives the tier computation's deletion |
+| `TestExecuteRefusesAParticipantCoveredForOneRootAndNotAnother` | `internal/component/config/transaction/orchestrator_test.go` | I-2. A participant that decomposes one root and leaves another aborts the transaction, named | PASS, and observed RED at `state = committed (err <nil>), want aborted` |
+| `TestExecuteRollsBackAnAppliedCoarseNode` | `internal/component/config/transaction/orchestrator_test.go` | AC-7, I-3. An APPLIED coarse node's participant receives the section rollback | PASS, and observed RED with `publishRollback` deleted from the ordered path |
+| `TestApplyConfigOperationModifyPeerSwapsInPlaceAndKeepsTheSession` | `internal/component/bgp/reactor/operation_test.go` | I-6. A modify-peer the running session can take keeps the peer, and the rollback keeps it too | PASS, and observed RED with the swap forced to false |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -298,6 +303,8 @@ cross-process peer this spec owes.
 - `internal/component/config/transaction/solver.go` - `isAddressOperation` and `markDualPresence` decide on the verb plus the address resource kind, not on the operation label. Doc: `docs/architecture/config/apply-ordering.md`
 - `internal/component/config/transaction/executor.go` - route a coarse root node to the section apply event and the section rollback, keep the per-operation route for everything else. Doc: `docs/architecture/config/apply-ordering.md`
 - `internal/component/config/transaction/orchestrator.go` - synthesize one coarse node per uncovered participant, delete the section-apply fallback and its log line, keep `participantsWithoutOperations` as the synthesis input. Doc: `docs/architecture/config/transaction-protocol.md`
+- `internal/component/config/transaction/orchestrator_budget.go` - NEW at review round 2. The deadline and budget concern, moved out of `orchestrator.go` when the file crossed 1000 lines. The deadline is the sum of the participants' budgets. Doc: `docs/architecture/config/transaction-protocol.md`
+- `internal/component/bgp/reactor/operation.go` - the modify-peer operation asks `peerSettingsSwapPlan` before it removes and re-adds, which is the decision the section apply already took, and a rolled-back peer returns as the reactor had it (`runningPeerSettings`). Named here at review round 2 (I-6): the operation path went live in this spec, so what it reaches is this spec's
 - `internal/component/plugin/server/reload_tx.go` - the planner refuses an operation with no verb, and reports an uncovered root to the orchestrator rather than making it invisible. Doc: `docs/architecture/config/transaction-protocol.md`
 - `internal/component/plugin/server/config_tx_bridge.go` - dispatch a coarse root node through `SendConfigApply`. Doc: `docs/architecture/config/transaction-protocol.md`
 - `internal/component/iface/operation.go` - declare produce and consume on each emitted operation, delete the five produce/consume constraint rules, keep the two that are not, move the four operation labels into this package. Doc: `docs/architecture/config/apply-ordering.md`
@@ -446,7 +453,7 @@ This spec does not answer them from memory.
 | Coverage is total | `TestParticipantsWithoutOperationsEmptyAfterSynthesis` passes |
 | The four new functional tests exist and pass | `./le test functional filter config-apply-ordering` |
 | Each new functional test discriminates | The recorded RED and GREEN output pair for each of the four, in the closure section |
-| Docs match the code | `./le doc check verify` passes |
+| Docs match the code | `./le doc check verify` names none of the four pages this spec edits. It FAILS tree-wide on this checkout and every cause belongs to another session: 6 stale source anchors, all into `internal/component/bgp/reactor/session_bfd_strict.go`; two `request bgp rib` rows in the generated command-equivalents surface; 7 RPC long-help rules over `ze-bgp-cmd-*`, `ze-cli-set-api` and `ze-rib-api`; one `ze-policyroute-conf` summary over its character cap. Log: `.../scratch/cao2-doc-check-verify.log`. `ai/DOCS-TO-CODE.md` is stale tree-wide and one of this spec's files, `orchestrator_budget.go`, is new since the last regeneration |
 | The gate is green on a committed tree | `./le verify worktree` |
 
 ### Security Review Checklist
@@ -564,8 +571,11 @@ Verdict: **findings** -- 2 BLOCKER, 6 ISSUE, 3 NOTE. The gate is NOT clean.
 | N-2 | NOTE | `orchestrator.go` `subscribeAcks` | Section-apply acks land in `o.applyOKCh` on the ordered path and nothing drains it, so a coarse node's budget refresh is lost |
 | N-3 | NOTE | Deliverables Checklist | `./le doc check verify` does not pass on this tree. Every named cause is another session's work, so nothing here is this spec's to repair; the row is untrue as written |
 
-**Round 1 disposition, 2026-09-11.** Four findings are repaired in this tree and
-the rest are still open.
+**Round 1 disposition, 2026-09-11.** Every finding is dispositioned in this
+tree. Both BLOCKERs and four ISSUEs are repaired, I-1 and I-2 changed product
+code, I-3 and I-6 were missing tests and now exist, and the three NOTEs are
+answered at the producer. N-2 is the one the reviewer read differently from the
+code: the acks are undrained and nothing is lost by it.
 
 | # | Disposition |
 |---|-------------|
@@ -573,7 +583,13 @@ the rest are still open.
 | B-2 | FIXED. Both guards are driven from `Server.ReloadConfig`, through the plugin's own decompose RPC. Evidence: `.../scratch/cao-b2-red-reserved.log`, `.../scratch/cao-b2-red-blank.log`, `.../scratch/cao-b2-green-restored.log` |
 | I-4 | FIXED. `test/weakened/4c26aef3.md` and the TDD row above now say what the code does: the decomposer emits no listener operation, so the two listener rules ordered nothing and their coverage is LOST rather than replaced |
 | I-5 | FIXED. `ResourceBridgeMember`, `ResourceSysctl`, `ResourceDHCP` and `ResourceTunnel` are deleted from `pkg/plugin/rpc/types.go` and both alias files. `ResourceRelationSameResource` is deleted, and `resourceKey`, `opAddrIface` and `firstNonZeroUint16`, which had no other user, go with it. The tests that used them now spell their own kind and use `ResourceRelationAny`, which builds the same two-node cycles |
-| I-1, I-2, I-3, I-6, N-1, N-2, N-3 | Open. Not routed |
+| I-1 | FIXED. The deadline is the SUM of the participants' budgets (`computeSequentialDeadline`, `orchestrator_budget.go`), because nothing in a phase runs concurrently: an engine handler fires inside the emitter's goroutine and the bridge performs the plugin RPC inside it, and the ordered path applies one node at a time under one absolute instant. R-1 measured, see that row. Evidence: `.../scratch/cao2-i1-deadline-red.log` (apply deadline = 10s, want 20s), `.../scratch/cao2-i1-deadline-green.log` |
+| I-2 | FIXED. `checkOperationRootCoverage` (`orchestrator.go`) refuses a participant that owns an operation for one root it has diffs on and none for another, naming the plugin and the root. Driven from `Execute`. Evidence: `.../scratch/cao2-i2-coverage-red.log` (`state = committed (err <nil>), want aborted`), `.../scratch/cao2-i2-coverage-green.log` |
+| I-3 | FIXED (test). `TestExecuteRollsBackAnAppliedCoarseNode` (`orchestrator_test.go`) applies the coarse node, then fails the destroy that sorts after it, and asserts the participant sees its section apply and then the rollback. Evidence: `.../scratch/cao2-i3-rollback-red.log` under the revert that deletes `publishRollback` from the ordered path, `.../scratch/cao2-i3-rollback-green.log` |
+| I-6 | FIXED (test). `TestApplyConfigOperationModifyPeerSwapsInPlaceAndKeepsTheSession` (`internal/component/bgp/reactor/operation_test.go`) edits the import filter chain alone, so `peerSettingsSwapPlan` answers "no restart", and asserts the peer pointer is unchanged. Evidence: `.../scratch/cao2-i6-swap-red.log` under a `swapped := false` revert (`the apply rebuilt the peer`), `.../scratch/cao2-i6-swap-green.log` |
+| N-1 | CONFIRMED, no code. `AllowDual` still has one writer (`markDualPresence`) and no reader outside `solver.go`: `placeSectionNodes` neither writes nor reads it. The Known Limitation stands. One sentence of `docs/architecture/config/apply-ordering.md` said the solver "breaks the cycle with `AllowDual`", which the same page contradicts 50 lines later; it now says the removed edges break it and the flag marks the result |
+| N-2 | NOT A LEAK. The acks do land undrained in `o.applyOKCh`, and what they carry is read by nobody: `emitApplyOK` (`config_tx_bridge.go`) fills both budget fields from `proc.Registration()`, which is where `buildTxInputs` (`reload_tx.go`) already read them, and the coordinator is built per transaction (`runTxCoordinator`). The buffer holds one per participant, which is the most that can arrive. `subscribeAcks` now says so, and the "Next transaction" row of `docs/architecture/config/transaction-protocol.md` is corrected: it named a transaction the coordinator does not live to see |
+| N-3 | FIXED. The Deliverables row states what this spec's pages owe and names the tree-wide failures as other sessions'. Evidence: `.../scratch/cao2-doc-check-verify.log` |
 
 **Found while fixing B-1, fixed here, and journalled in
 `plan/journal/refactor-removes-feature.md`:** `TestReloadTxApplyBGPLast` was RED
@@ -591,6 +607,20 @@ two coarse nodes AGAINST EACH OTHER, which neither test asserts. Both tests skip
 on darwin and were not re-run: this is a reading of the change, not a fresh
 walk. The native reload suite is 44 of 44 with 19 skipped
 (`.../scratch/cao-functional-reload.log`).
+
+**Round 2 leaves the QEMU evidence describing the code.** Neither fix changes
+what `address-swap` and `mixed-root` exercise, and neither RED depended on a
+deadline. The deadline only grew, and it bounds the wait for a plugin that does
+not answer: both tests complete in seconds, and their REDs are a cycle abort and
+a route installed before its address, neither of which is a timeout. The
+coverage guard is inert across the whole first-party tree, because it fires only
+for a participant that owns operations for one of its roots and not another, and
+the two participants that own any declare one root each with no `*` wildcard
+(`internal/component/iface/register.go`, `internal/component/bgp/plugin/register.go`,
+and `ConfigOperations` has no other non-test declarer). Both tests still skip on
+darwin and were not re-run: this is a reading of the change. The native reload
+suite is 44 of 44 with 19 skipped after it
+(`.../scratch/cao2-functional-reload-after.log`).
 
 Verified at the producer and found sound: A-1 (one `emitSectionApply` for both
 routes), A-2 (phase-1 verify precedes the planner, `Verify` skips a coarse node),

@@ -258,6 +258,75 @@ func TestApplyConfigOperationRemovePeerJournal(t *testing.T) {
 	assert.Equal(t, "203.0.113.1", r.Peers()[0].Settings().Address.String())
 }
 
+// TestApplyConfigOperationModifyPeerSwapsInPlaceAndKeepsTheSession is the
+// branch every other modify-peer test misses: the change the RUNNING session
+// can take.
+//
+// The operation below edits the import filter chain and nothing else, which
+// hotSwappableSettings delivers to a live peer (peer_settings_apply.go), so
+// peerSettingsSwapPlan answers "no restart". The session must survive it. The
+// assertion is the peer's identity: a remove followed by an add builds a new
+// *Peer, and a swap writes the running one, so a pointer comparison tells the
+// two apart where a settings comparison cannot.
+//
+// It matters because the operation path is now the path EVERY reload takes.
+// Without the swap, a reload that changes one filter tears the session down,
+// the peer re-learns every route, and which path the reload took decided it.
+//
+// VALIDATES: I-6 -- a modify-peer the running session can take does not bounce the peer.
+// PREVENTS: every BGP session flapping on a reload that edits a filter chain.
+func TestApplyConfigOperationModifyPeerSwapsInPlaceAndKeepsTheSession(t *testing.T) {
+	r := New(&Config{ConfigPath: "ze.conf"})
+	settings := NewPeerSettings(mustParseAddr("203.0.113.1"), 65000, 65001, 0)
+	settings.Name = "edge"
+	settings.LocalAddress = mustParseAddr("192.0.2.1")
+	settings.ImportFilters = []filterapi.FilterRef{{Name: "bgp-filter-prefix:CUSTOMERS"}}
+	require.NoError(t, r.AddPeer(settings))
+	require.Len(t, r.Peers(), 1)
+	running := r.Peers()[0]
+
+	// The candidate differs from the running peer in the filter chain alone.
+	// Reading it from the running peer is what makes that true of every OTHER
+	// field, which is what the swap decision is taken over.
+	candidate := *running.settingsSnapshot()
+	candidate.ImportFilters = []filterapi.FilterRef{{Name: "bgp-filter-community:UPSTREAM"}}
+	r.SetReloadFunc(func(string) ([]*PeerSettings, error) {
+		return []*PeerSettings{&candidate}, nil
+	})
+
+	adapter := &reactorAPIAdapter{r: r}
+	j := &testJournal{}
+	op := rpc.ConfigOperation{
+		ID:     "bgp-modify-peer-edge",
+		Root:   "bgp",
+		Owner:  "bgp",
+		Type:   configop.ModifyPeer,
+		Target: rpc.ResourceRef{Kind: rpc.ResourcePeer, Peer: "edge"},
+		Params: rpc.ConfigOperationParams{Peer: "edge"},
+	}
+
+	out, err := adapter.applyConfigOperation(&op, j)
+	require.NoError(t, err)
+	require.NotNil(t, out)
+	assert.Equal(t, rpc.StatusOK, out.Status)
+
+	require.Len(t, r.Peers(), 1)
+	if r.Peers()[0] != running {
+		t.Fatal("the apply rebuilt the peer, so the session was torn down for a change the running one could take")
+	}
+	assert.Equal(t, 1, j.recordCount, "a swap journals one entry; a remove plus an add journals two")
+	assert.Equal(t, []filterapi.FilterRef{{Name: "bgp-filter-community:UPSTREAM"}},
+		r.Peers()[0].settingsSnapshot().ImportFilters)
+
+	require.Empty(t, j.Rollback())
+	require.Len(t, r.Peers(), 1)
+	if r.Peers()[0] != running {
+		t.Fatal("the rollback rebuilt the peer")
+	}
+	assert.Equal(t, []filterapi.FilterRef{{Name: "bgp-filter-prefix:CUSTOMERS"}},
+		r.Peers()[0].settingsSnapshot().ImportFilters)
+}
+
 // TestApplyConfigOperationModifyPeerJournal verifies MODIFY_PEER removes the
 // old peer and adds the new one atomically, with rollback restoring the old.
 //

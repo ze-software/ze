@@ -1094,27 +1094,23 @@ func TestOrchestratorRollbackReverseTier(t *testing.T) {
 	}
 }
 
-// VALIDATES: dependency-graph apply deadline sums per-tier max budgets.
-// PREVENTS: Flat max-of-budgets ignoring chain serialization, causing premature
-// timeouts when tier k+1 cannot start until tier k finishes.
+// TestApplyDeadlineSumsEveryParticipantBudget fences the size of the budget
+// against the way the phase actually runs. Every participant applies in turn,
+// one after another, so the phase can cost the SUM of what they declared and
+// the deadline has to cover it.
 //
-// Setup: tier 0 = {bgp:10s, sysrib:5s}, tier 1 = {fib-kernel:3s, fib-p4:2s}.
-// Expected: sum(max per tier) = max(10,5) + max(3,2) = 10 + 3 = 13 seconds.
-// The pre-tier flat max would have returned 10 seconds.
-func TestOrchestratorDependencyGraphDeadline(t *testing.T) {
-	withTierFn(t, func(names []string) ([][]string, error) {
-		var tier0, tier1 []string
-		for _, n := range names {
-			switch n {
-			case "bgp", "rib":
-				tier0 = append(tier0, n)
-			case "fib-kernel", "fib-p4":
-				tier1 = append(tier1, n)
-			}
-		}
-		return [][]string{tier0, tier1}, nil
-	})
-
+// The tier shape below is the one the deleted per-tier max read: bgp and rib
+// in tier 0, fib-kernel and fib-p4 in tier 1. It no longer decides anything,
+// and the expectation says so: 10+5+3+2 rather than max(10,5)+max(3,2).
+//
+// It replaces TestOrchestratorDependencyGraphDeadline, which asserted 13s for
+// the same participants. That answer was correct for a tier applied
+// concurrently, and nothing applies concurrently (test/weakened/4c26aef3.md).
+//
+// VALIDATES: I-1 -- the apply and verify deadlines cover every participant in sequence.
+// PREVENTS: a reload that four plugins each take their declared budget to
+// apply timing out on the fourth and rolling back work that had committed.
+func TestApplyDeadlineSumsEveryParticipantBudget(t *testing.T) {
 	gw := newTestGateway()
 	pp := []Participant{
 		{Name: "bgp", ApplyBudget: 10, VerifyBudget: 4},
@@ -1128,40 +1124,45 @@ func TestOrchestratorDependencyGraphDeadline(t *testing.T) {
 	}
 
 	gotApply := orch.computeApplyDeadline()
-	wantApply := 13 * time.Second
+	wantApply := 20 * time.Second
 	if gotApply != wantApply {
-		t.Fatalf("apply deadline = %v, want %v (sum of tier maxes 10+3)", gotApply, wantApply)
+		t.Fatalf("apply deadline = %v, want %v (10+5+3+2)", gotApply, wantApply)
 	}
 
 	gotVerify := orch.computeVerifyDeadline()
-	// max(bgp=4, sysrib=2) + max(fib-kernel=1, fib-p4=1) = 4 + 1 = 5
-	wantVerify := 5 * time.Second
+	wantVerify := 8 * time.Second
 	if gotVerify != wantVerify {
-		t.Fatalf("verify deadline = %v, want %v (sum of tier maxes 4+1)", gotVerify, wantVerify)
+		t.Fatalf("verify deadline = %v, want %v (4+2+1+1)", gotVerify, wantVerify)
 	}
 }
 
-// VALIDATES: tier deadline falls back to flat max when tierFn returns an error.
-// PREVENTS: A registry cycle bug producing zero deadline (and instant timeout).
-func TestOrchestratorTieredDeadlineCycleFallback(t *testing.T) {
-	withTierFn(t, func(names []string) ([][]string, error) {
-		return nil, errors.New("synthetic cycle")
-	})
-
+// TestApplyDeadlineDefaultsWhenNoParticipantDeclaresABudget keeps the half of
+// TestOrchestratorTieredDeadlineCycleFallback that survives the deletion of
+// the tier computation: a deadline of zero is an instant timeout, so a
+// transaction whose participants declared nothing takes the 30-second default.
+//
+// The other half went with its mechanism. That test made tierFn return an
+// error to reach the flat-max fallback branch, and the deadline no longer
+// calls tierFn at all (test/weakened/4c26aef3.md).
+//
+// VALIDATES: a participant set declaring no budget still gets a usable deadline.
+// PREVENTS: a zero deadline timing out the apply before the first plugin answers.
+func TestApplyDeadlineDefaultsWhenNoParticipantDeclaresABudget(t *testing.T) {
 	gw := newTestGateway()
 	pp := []Participant{
-		{Name: "a", ApplyBudget: 7},
-		{Name: "b", ApplyBudget: 4},
+		{Name: "a"},
+		{Name: "b"},
 	}
 	orch, err := NewTxCoordinator(gw, pp, nil)
 	if err != nil {
 		t.Fatalf("NewTxCoordinator: %v", err)
 	}
 
-	got := orch.computeApplyDeadline()
-	want := 7 * time.Second
-	if got != want {
-		t.Fatalf("apply deadline = %v, want %v (flat max fallback)", got, want)
+	if got, want := orch.computeApplyDeadline(), 30*time.Second; got != want {
+		t.Fatalf("apply deadline = %v, want %v (the no-budget default)", got, want)
+	}
+	if got, want := orch.computeVerifyDeadline(), 30*time.Second; got != want {
+		t.Fatalf("verify deadline = %v, want %v (the no-budget default)", got, want)
 	}
 }
 
@@ -1796,5 +1797,207 @@ func TestExecuteAppliesCoarseNodeAfterTheResourcesItBinds(t *testing.T) {
 	want := []string{"iface-add-zx", "iface-add-address-zx", "section-apply-static"}
 	if !reflect.DeepEqual(applied, want) {
 		t.Fatalf("applied in the order %v, want %v", applied, want)
+	}
+}
+
+// TestExecuteRollsBackAnAppliedCoarseNode is AC-7's missing half. The
+// transaction below applies the coarse node and THEN fails, so the node's
+// participant has real work to undo when the rollback goes out.
+//
+// The reach is what is asserted, because the two node kinds are undone by two
+// different mechanisms. A decomposed operation replays its inverse through
+// `config-operation-rollback` (rollbackApplied, executor.go), which the coarse
+// node is skipped by: its participant implements no such callback. What undoes
+// the coarse node is the broadcast rollback the orchestrator publishes when
+// the ordered apply fails, which the bridge turns into one `config-rollback`
+// per participant.
+//
+// The order the events arrive in is the assertion: the static participant sees
+// its section apply, and then the rollback.
+//
+// VALIDATES: AC-7, I-3 -- an APPLIED coarse node's participant receives the section rollback.
+// PREVENTS: a failed reload leaving an uncovered root applied while every
+// decomposed operation is undone around it.
+func TestExecuteRollsBackAnAppliedCoarseNode(t *testing.T) {
+	gw := newTestGateway()
+	participants := []testParticipant{
+		{name: "iface", configRoots: []string{"interface"}},
+		{name: "static", configRoots: []string{"static"}},
+	}
+	orch := newTestOrchestrator(t, gw, participants)
+	orch.SetOperationPlanner(func(_ context.Context, _ OperationPlanRequest) ([]ConfigOperation, error) {
+		return []ConfigOperation{
+			{ID: "iface-add-zx", Root: "interface", Owner: "iface", Type: testOpAddInterface, Verb: VerbCreate,
+				Target:   ResourceRef{Kind: ResourceInterface, Name: "zx"},
+				Produces: []ResourceRef{{Kind: ResourceInterface, Name: "zx"}}},
+			{ID: "iface-remove-address-zy", Root: "interface", Owner: "iface", Type: testOpRemoveAddress, Verb: VerbDestroy,
+				Target:   ResourceRef{Kind: ResourceAddress, Interface: "zy", Address: "10.93.0.1/24"},
+				Produces: []ResourceRef{{Kind: ResourceAddress, Address: "10.93.0.1/24"}}},
+		}, nil
+	})
+	diffs := map[string][]DiffSection{
+		"interface": {{Root: "interface", Added: `{"interface/dummy/zx":{}}`}},
+		"static":    {{Root: "static", Added: `{"static/route/172.30.0.0-24":{}}`}},
+	}
+
+	var seen []string
+	var rolledBack []string
+	gw.SubscribeConfigEvent(EventOperationVerifyFor("iface"), func(payload []byte) {
+		var ev ConfigOperationVerifyEvent
+		if err := json.Unmarshal(payload, &ev); err != nil {
+			return
+		}
+		ack, _ := json.Marshal(ConfigOperationVerifyAck{TransactionID: ev.TransactionID, Plugin: "iface", OperationID: ev.Operation.ID, Status: CodeOK})
+		gw.mustEmit(EventOperationVerifyOK, ack)
+	})
+	// The destroy is the operation that fails, and it sorts after the coarse
+	// node: placeSectionNodes puts a coarse node after the last create and
+	// before the destructions (solver.go).
+	gw.SubscribeConfigEvent(EventOperationApplyFor("iface"), func(payload []byte) {
+		var ev ConfigOperationApplyEvent
+		if err := json.Unmarshal(payload, &ev); err != nil {
+			return
+		}
+		seen = append(seen, ev.Operation.ID)
+		ack := ConfigOperationApplyAck{TransactionID: ev.TransactionID, Plugin: "iface", OperationID: ev.Operation.ID, Status: CodeOK}
+		event := EventOperationApplyOK
+		if ev.Operation.Verb == VerbDestroy {
+			ack.Status = CodeError
+			ack.Error = "netlink refused the address delete"
+			event = EventOperationApplyFailed
+		}
+		payloadAck, _ := json.Marshal(ack)
+		gw.mustEmit(event, payloadAck)
+	})
+	gw.SubscribeConfigEvent(EventOperationRollbackFor("iface"), func(payload []byte) {
+		var ev ConfigOperationRollbackEvent
+		if err := json.Unmarshal(payload, &ev); err != nil {
+			return
+		}
+		for i := range ev.Operations {
+			rolledBack = append(rolledBack, ev.Operations[i].ID)
+			ack, _ := json.Marshal(ConfigOperationRollbackAck{TransactionID: ev.TransactionID, Plugin: "iface", OperationID: ev.Operations[i].ID, Status: CodeOK})
+			gw.mustEmit(EventOperationRollbackOK, ack)
+		}
+	})
+	gw.SubscribeConfigEvent(EventApplyFor("static"), func(payload []byte) {
+		var ev ApplyEvent
+		if err := json.Unmarshal(payload, &ev); err != nil {
+			return
+		}
+		seen = append(seen, "static-section-apply")
+		ack, _ := json.Marshal(ApplyAck{TransactionID: ev.TransactionID, Plugin: "static", Status: CodeOK})
+		gw.mustEmit(EventApplyOK, ack)
+	})
+	gw.SubscribeConfigEvent(EventRollback, func(payload []byte) {
+		seen = append(seen, "static-section-rollback")
+		for i := range participants {
+			participants[i].respondRollback(gw, orch.TransactionID())
+		}
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	resultCh := make(chan *TxResult, 1)
+	go func() { resultCh <- orch.Execute(ctx, diffs) }()
+
+	for i := range participants {
+		waitForEmit(t, gw, EventVerifyFor(participants[i].name))
+		participants[i].respondVerify(gw, orch.TransactionID())
+	}
+
+	var result *TxResult
+	select {
+	case result = <-resultCh:
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for the transaction to roll back")
+	}
+
+	if result.State != StateRolledBack {
+		t.Fatalf("state = %s (err %v), want %s", result.State, result.Err, StateRolledBack)
+	}
+	want := []string{"iface-add-zx", "static-section-apply", "iface-remove-address-zy", "static-section-rollback"}
+	if !reflect.DeepEqual(seen, want) {
+		t.Fatalf("the transaction ran %v, want %v", seen, want)
+	}
+	if !reflect.DeepEqual(rolledBack, []string{"iface-add-zx"}) {
+		t.Errorf("per-operation rollback replayed %v, want the applied create alone", rolledBack)
+	}
+}
+
+// TestExecuteRefusesAParticipantCoveredForOneRootAndNotAnother drives the
+// coverage guard from the door. The participant below decomposes the
+// `interface` root and has a diff on `firewall` it decomposes nothing for.
+//
+// Coarse-node synthesis asks whether a participant owns ANY operation, so this
+// participant reads as covered, gets no coarse node, and its firewall sections
+// reach no phase of the transaction. The transaction would then report
+// committed over a change nothing applied, which is the silently wrong answer
+// `ai/rules/principles.md` bans.
+//
+// No first-party participant can reach it today: the two that decompose
+// declare one root each (iface/register.go, bgp/plugin/register.go). The guard
+// is what keeps the second root from being an unreported loss the day a
+// participant declares one.
+//
+// VALIDATES: I-2 -- a partially decomposed participant aborts the transaction.
+// PREVENTS: a root's config change being discarded while the reload reports success.
+func TestExecuteRefusesAParticipantCoveredForOneRootAndNotAnother(t *testing.T) {
+	gw := newTestGateway()
+	participants := []testParticipant{{name: "iface", configRoots: []string{"interface", "firewall"}}}
+	orch := newTestOrchestrator(t, gw, participants)
+	orch.SetOperationPlanner(func(_ context.Context, _ OperationPlanRequest) ([]ConfigOperation, error) {
+		return []ConfigOperation{{
+			ID:       "iface-add-zx",
+			Root:     "interface",
+			Owner:    "iface",
+			Type:     testOpAddInterface,
+			Verb:     VerbCreate,
+			Target:   ResourceRef{Kind: ResourceInterface, Name: "zx"},
+			Produces: []ResourceRef{{Kind: ResourceInterface, Name: "zx"}},
+		}}, nil
+	})
+	diffs := map[string][]DiffSection{
+		"interface": {{Root: "interface", Added: `{"interface/dummy/zx":{}}`}},
+		"firewall":  {{Root: "firewall", Added: `{"firewall/rule/drop-ssh":{}}`}},
+	}
+	// The operation acks make the unguarded run reach its end, so the failure
+	// this test fences is the transaction COMMITTING with the firewall root
+	// applied by nothing, rather than a hang on an unanswered event.
+	var operationEvents []string
+	autoAckOperations(gw, "iface", &operationEvents)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	resultCh := make(chan *TxResult, 1)
+	go func() { resultCh <- orch.Execute(ctx, diffs) }()
+
+	waitForEmit(t, gw, EventVerifyFor("iface"))
+	participants[0].respondVerify(gw, orch.TransactionID())
+
+	var result *TxResult
+	select {
+	case result = <-resultCh:
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for the transaction to abort")
+	}
+
+	if result.State != StateAborted {
+		t.Fatalf("state = %s (err %v), want %s", result.State, result.Err, StateAborted)
+	}
+	if !errors.Is(result.Err, ErrParticipantRootUncovered) {
+		t.Fatalf("err = %v, want %v", result.Err, ErrParticipantRootUncovered)
+	}
+	message := result.Err.Error()
+	for _, want := range []string{"iface", "firewall"} {
+		if !strings.Contains(message, want) {
+			t.Errorf("the abort message does not name %q: %s", want, message)
+		}
+	}
+	if applies := gw.findEmitted(EventApplyFor("iface")); len(applies) != 0 {
+		t.Errorf("the refused transaction applied %d sections, want 0", len(applies))
+	}
+	if applies := gw.findEmitted(EventOperationApplyFor("iface")); len(applies) != 0 {
+		t.Errorf("the refused transaction applied %d operations, want 0", len(applies))
 	}
 }

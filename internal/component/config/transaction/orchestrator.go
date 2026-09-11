@@ -24,9 +24,11 @@ import (
 
 func logger() *slog.Logger { return slogutil.Logger("config.transaction") }
 
-// tierFn computes dependency tiers for a set of plugin names. Used by deadline
-// computation and rollback ack collection. Package-level so tests can override
-// it without mutating the global plugin registry.
+// tierFn computes dependency tiers for a set of plugin names. Rollback ack
+// collection drains them in reverse tier order, and it is the only caller: the
+// deadline is a sum over participants and reads no tier
+// (orchestrator_budget.go). Package-level so tests can override it without
+// mutating the global plugin registry.
 var tierFn = registry.TopologicalTiers
 
 // Report bus source and codes for config transaction error events.
@@ -124,7 +126,8 @@ type TxCoordinator struct {
 	verifyDeadlineOverride time.Duration
 	applyDeadlineOverride  time.Duration
 
-	// Computed apply deadline (from max budget across participants).
+	// Computed apply deadline (the sum of the participants' budgets,
+	// orchestrator_budget.go).
 	applyDeadline time.Duration
 
 	// Ack collection.
@@ -261,6 +264,13 @@ func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSect
 			o.publishAbort(err.Error())
 			return &TxResult{State: StateAborted, Err: err}
 		}
+		// A participant that decomposed one of its roots and not another is
+		// covered as far as the synthesis below can see, and the root it left
+		// would reach nothing while this transaction committed.
+		if err := o.checkOperationRootCoverage(ops, diffs); err != nil {
+			o.publishAbort(err.Error())
+			return &TxResult{State: StateAborted, Err: err}
+		}
 		return o.runOperationPath(ctx, o.operationNodes(ops, diffs), diffs)
 	}
 
@@ -294,6 +304,18 @@ func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSect
 // participant; if a plugin sends more acks than expected (duplicate, retry,
 // malicious) the excess is dropped with a warning log instead of stalling
 // the emitter.
+//
+// applyOKCh is read by runApply alone, so on the ordered path a coarse node's
+// section ack lands in it and stays there. That is the design and not a leak.
+// The executor subscribes to the same event for the node it is waiting on
+// (OperationExecutor.Execute), so the ack is consumed where the wait is; and
+// the buffer holds one per participant, which is the most that can arrive,
+// because a participant gets at most one coarse node. What the undrained copy
+// carries is a budget refresh nothing would read: the bridge fills both budget
+// fields of an ack from the plugin's registration (registrationVerifyBudget,
+// config_tx_bridge.go), which is where buildTxInputs read them, and this
+// coordinator is discarded with its transaction. The verify ack is the one
+// that has a reader, and runVerify drains it on both paths.
 func (o *TxCoordinator) subscribeAcks() {
 	subscribeVerifyAck := func(eventType string, ch chan<- VerifyAck) {
 		unsub := o.gateway.SubscribeConfigEvent(eventType, func(payload []byte) {
@@ -647,6 +669,59 @@ func (o *TxCoordinator) participantsWithoutOperations(ops []ConfigOperation, dif
 	return uncovered
 }
 
+// ErrParticipantRootUncovered reports a participant that owns operations for
+// one of the roots it has diffs on and none for another.
+var ErrParticipantRootUncovered = errors.New("participant decomposes one of its roots and leaves another unapplied")
+
+// checkOperationRootCoverage refuses a transaction in which a participant owns
+// an operation for one root it has diffs on and no operation for another.
+//
+// It is a GUARD, and it fails closed. Coarse-node synthesis asks whether a
+// participant owns ANY operation (participantsWithoutOperations), because one
+// participant receives one section apply carrying every root it declared. A
+// participant that decomposes root A therefore reads as covered, and its diff
+// on root B reaches no phase: no operation carries it, no coarse node stands
+// for it, and the transaction commits over a change nothing applied.
+//
+// No first-party participant can reach it today. The two that decompose
+// declare one root each (internal/component/iface/register.go,
+// internal/component/bgp/plugin/register.go), and neither declares the `*`
+// wildcard expandWildcardRoots reads. A silently discarded root is not a thing
+// to wait for a caller to reach (ai/rules/principles.md), so the second root
+// aborts the transaction here, before anything is applied, and names the
+// plugin and the root rather than the config values the operation carries.
+//
+// The remedy for a plugin that hits it is to decompose every root it declares,
+// or none of them: the all-or-nothing contract on participantsWithoutOperations
+// stated for one root, stated across them.
+func (o *TxCoordinator) checkOperationRootCoverage(ops []ConfigOperation, diffs map[string][]DiffSection) error {
+	rootsByOwner := make(map[string]map[string]struct{}, len(ops))
+	for i := range ops {
+		owner := ops[i].Owner
+		if owner == "" {
+			continue
+		}
+		if rootsByOwner[owner] == nil {
+			rootsByOwner[owner] = make(map[string]struct{}, 1)
+		}
+		rootsByOwner[owner][ops[i].Root] = struct{}{}
+	}
+
+	for _, p := range o.participants {
+		owned := rootsByOwner[p.Name]
+		if len(owned) == 0 {
+			continue
+		}
+		for _, section := range o.filterDiffs(diffs, p) {
+			if _, ok := owned[section.Root]; ok {
+				continue
+			}
+			return fmt.Errorf("%w: plugin %s, root %s", ErrParticipantRootUncovered, p.Name, section.Root)
+		}
+	}
+	return nil
+}
+
 // activeParticipantCount returns how many participants have diffs to process.
 func (o *TxCoordinator) activeParticipantCount(diffs map[string][]DiffSection) int {
 	count := 0
@@ -656,102 +731,6 @@ func (o *TxCoordinator) activeParticipantCount(diffs map[string][]DiffSection) i
 		}
 	}
 	return count
-}
-
-func (o *TxCoordinator) computeVerifyDeadline() time.Duration {
-	if o.verifyDeadlineOverride > 0 {
-		return o.verifyDeadlineOverride
-	}
-	return o.computeTieredDeadline(func(p Participant) int { return p.VerifyBudget })
-}
-
-func (o *TxCoordinator) computeApplyDeadline() time.Duration {
-	if o.applyDeadlineOverride > 0 {
-		return o.applyDeadlineOverride
-	}
-	return o.computeTieredDeadline(func(p Participant) int { return p.ApplyBudget })
-}
-
-// computeTieredDeadline sums the per-tier max budget across dependency tiers.
-// Plugins within a tier run concurrently so the tier cost is the max budget
-// in that tier; tiers are serialized (tier k+1 waits for tier k) so tier
-// costs are summed. This gives the critical-path duration through the
-// dependency graph: "sum chains, max independent".
-//
-// For unregistered plugins (or when tierFn returns an error), all participants
-// land in a single tier and the result is equivalent to a flat max across
-// participants. A zero result falls back to a 30-second default.
-func (o *TxCoordinator) computeTieredDeadline(budget func(Participant) int) time.Duration {
-	participantNames := make([]string, 0, len(o.participants))
-	budgetByName := make(map[string]int, len(o.participants))
-	for _, p := range o.participants {
-		participantNames = append(participantNames, p.Name)
-		budgetByName[p.Name] = capBudget(budget(p))
-	}
-
-	tiers, err := tierFn(participantNames)
-	if err != nil {
-		logger().Warn("tier computation failed, falling back to flat max budget",
-			"error", err)
-		maxBudget := 0
-		for _, b := range budgetByName {
-			if b > maxBudget {
-				maxBudget = b
-			}
-		}
-		if maxBudget == 0 {
-			return 30 * time.Second
-		}
-		return time.Duration(maxBudget) * time.Second
-	}
-
-	totalSecs := 0
-	for _, tier := range tiers {
-		tierMax := 0
-		for _, name := range tier {
-			if b, ok := budgetByName[name]; ok && b > tierMax {
-				tierMax = b
-			}
-		}
-		totalSecs += tierMax
-	}
-
-	if totalSecs == 0 {
-		return 30 * time.Second
-	}
-	return time.Duration(totalSecs) * time.Second
-}
-
-// capBudget clamps a budget to MaxBudgetSeconds.
-func capBudget(secs int) int {
-	if secs > MaxBudgetSeconds {
-		return MaxBudgetSeconds
-	}
-	return secs
-}
-
-// updateParticipantApplyBudget updates a participant's apply budget.
-// Caller MUST hold o.mu.
-func (o *TxCoordinator) updateParticipantApplyBudget(name string, secs int) {
-	secs = capBudget(secs)
-	for i := range o.participants {
-		if o.participants[i].Name == name {
-			o.participants[i].ApplyBudget = secs
-			return
-		}
-	}
-}
-
-// updateParticipantVerifyBudget updates a participant's verify budget.
-// Caller MUST hold o.mu.
-func (o *TxCoordinator) updateParticipantVerifyBudget(name string, secs int) {
-	secs = capBudget(secs)
-	for i := range o.participants {
-		if o.participants[i].Name == name {
-			o.participants[i].VerifyBudget = secs
-			return
-		}
-	}
 }
 
 func (o *TxCoordinator) publishAbort(reason string) {
@@ -917,16 +896,6 @@ func (o *TxCoordinator) handleRollbackAck(ack RollbackAck) {
 			logger().Error("failed to restart broken plugin", "plugin", ack.Plugin, "error", err)
 		}
 	}
-}
-
-func (o *TxCoordinator) computeRollbackDeadline() time.Duration {
-	o.mu.Lock()
-	applyDL := o.applyDeadline
-	o.mu.Unlock()
-	if applyDL == 0 {
-		return 90 * time.Second
-	}
-	return 3 * applyDL
 }
 
 func (o *TxCoordinator) writeConfigFile() bool {

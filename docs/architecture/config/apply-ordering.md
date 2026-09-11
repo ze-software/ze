@@ -127,8 +127,10 @@ payload without one.
 
 **Address-only cross-interface cycles relax. Everything else is rejected.** A
 swap of two addresses between interfaces is a cycle by construction. The solver
-breaks it with `AllowDual`, which permits both addresses to be present for the
-duration of the swap. "Address operation" is a verb and a kind: an operation
+breaks it by removing the cross-interface edges, which leaves both addresses
+present for the duration of the swap, and then marks the creations it freed
+with `AllowDual` (see the note on that flag below). "Address operation" is a
+verb and a kind: an operation
 that creates or destroys a resource of kind `address`, whatever it is labelled.
 A cycle that is not address-only, or that is inside one interface, is rejected
 instead of relaxed.
