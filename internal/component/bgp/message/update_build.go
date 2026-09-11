@@ -220,8 +220,12 @@ type UnicastParams struct {
 func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) *Update {
 	ub.resetScratch()
 
-	// Build attributes in a fixed-size buffer for sorting (max 12 attribute types).
-	var attrBuf [12]attribute.Attribute
+	// Build attributes in a fixed-size buffer for sorting. The bound counts every
+	// attribute one route can produce: ORIGIN, AS_PATH, AS4_PATH, NEXT_HOP, MED,
+	// LOCAL_PREF, ATOMIC_AGGREGATE, AGGREGATOR, AS4_AGGREGATOR, COMMUNITIES,
+	// ORIGINATOR_ID, CLUSTER_LIST, MP_REACH_NLRI, EXTENDED_COMMUNITIES and
+	// LARGE_COMMUNITIES. An append past it still works; it allocates.
+	var attrBuf [15]attribute.Attribute
 	attrs := attrBuf[:0]
 
 	// 1. ORIGIN (type 1) - RFC 4271 Section 5.1.1
@@ -230,15 +234,7 @@ func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) *Update {
 	// 2. AS_PATH (type 2) - RFC 4271 Section 5.1.2
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	// When ASN4=false, ASNs are 2-byte. When ASN4=true (default), ASNs are 4-byte.
-	asPath := ub.buildASPath(p.ASPath)
-	asn4 := ub.ASN4
-	asPathBuf := ub.alloc(asPath.LenWithASN4(asn4))
-	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
-	attrs = append(attrs, &rawAttribute{
-		flags: asPath.Flags(),
-		code:  asPath.Code(),
-		data:  asPathBuf,
-	})
+	attrs = ub.appendASPath(attrs, p.ASPath)
 
 	// 3. NEXT_HOP (type 3) - RFC 4271 Section 5.1.3
 	// Only for IPv4 unicast with IPv4 next-hop (not MP_REACH_NLRI, not extended next-hop)
@@ -275,12 +271,7 @@ func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) *Update {
 	// 7. AGGREGATOR (type 7) - RFC 4271 Section 5.1.7
 	// RFC 6793: AGGREGATOR encoding depends on ASN4 capability.
 	if p.HasAggregator {
-		aggBytes := ub.packAggregator(p.AggregatorASN, p.AggregatorIP)
-		attrs = append(attrs, &rawAttribute{
-			flags: attribute.FlagOptional | attribute.FlagTransitive,
-			code:  attribute.AttrAggregator,
-			data:  aggBytes,
-		})
+		attrs = ub.appendAggregator(attrs, p.AggregatorASN, p.AggregatorIP)
 	}
 
 	// 8. COMMUNITIES (type 8) - RFC 1997
@@ -383,6 +374,67 @@ func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) *Update {
 	}
 }
 
+// appendASPath appends the AS_PATH attribute for configuredPath to attrs, and
+// the AS4_PATH that RFC 6793 Section 4.2.2 obliges beside it.
+//
+// RFC 6793 Section 4.2.2: "The NEW BGP speaker MUST also send the AS path
+// information in the AS4_PATH attribute (encoded with four-octet AS numbers),
+// except for the case where all of the AS path information is composed of
+// mappable four-octet AS numbers only. In this case, the NEW BGP speaker MUST
+// NOT send the AS4_PATH attribute."
+//
+// Every builder in this package appends its AS_PATH here, because the
+// obligation is on the attribute BLOCK a peer receives: a builder that wrote
+// the two-octet AS_PATH itself and left the companion to its caller would send
+// AS_TRANS with the real AS number carried nowhere. attribute.AS4PathFor owns
+// the condition, so this encoder and the forwarding rails in wireu cannot
+// disagree about it.
+//
+// The AS4_PATH is appended rather than written: every caller hands the block to
+// an ordered writer, which places attribute 17 at its type-code position.
+func (ub *UpdateBuilder) appendASPath(attrs []attribute.Attribute, configuredPath []uint32) []attribute.Attribute {
+	asPath := ub.buildASPath(configuredPath)
+	asPathBuf := ub.alloc(asPath.LenWithASN4(ub.ASN4))
+	asPath.WriteToWithASN4(asPathBuf, 0, ub.ASN4)
+	attrs = append(attrs, &rawAttribute{
+		flags: asPath.Flags(),
+		code:  asPath.Code(),
+		data:  asPathBuf,
+	})
+
+	as4Path := attribute.AS4PathFor(asPath, ub.ASN4)
+	if as4Path == nil {
+		return attrs
+	}
+	return append(attrs, as4Path)
+}
+
+// appendAggregator appends the AGGREGATOR attribute for asn and ip to attrs,
+// and the AS4_AGGREGATOR that RFC 6793 Section 4.2.2 obliges beside it.
+//
+// RFC 6793 Section 4.2.2: "if the NEW BGP speaker has to send the AGGREGATOR
+// attribute, and if the aggregating Autonomous System's AS number is a
+// non-mappable four-octet AS number, then the speaker MUST use the
+// AS4_AGGREGATOR attribute and set the AS number field in the existing
+// AGGREGATOR attribute to the reserved AS number, AS_TRANS."
+//
+// packAggregator writes the AS_TRANS half. attribute.AS4AggregatorFor answers
+// whether the companion is owed, which is the same question the forwarding rail
+// asks at rib.appendAS4AggregatorFor.
+func (ub *UpdateBuilder) appendAggregator(attrs []attribute.Attribute, asn uint32, ip [4]byte) []attribute.Attribute {
+	attrs = append(attrs, &rawAttribute{
+		flags: attribute.FlagOptional | attribute.FlagTransitive,
+		code:  attribute.AttrAggregator,
+		data:  ub.packAggregator(asn, ip),
+	})
+
+	as4Agg := attribute.AS4AggregatorFor(asn, netip.AddrFrom4(ip), ub.ASN4)
+	if as4Agg == nil {
+		return attrs
+	}
+	return append(attrs, as4Agg)
+}
+
 // buildASPath constructs the AS_PATH attribute.
 //
 // RFC 4271 Section 5.1.2 - AS_PATH handling:
@@ -424,6 +476,10 @@ func (ub *UpdateBuilder) buildASPath(configuredPath []uint32) *attribute.ASPath 
 //   - ASN4=true: 8 bytes (4-byte ASN + 4-byte IP).
 //   - ASN4=false: 6 bytes (2-byte ASN + 4-byte IP).
 //   - ASN4=false with ASN>65535: Uses AS_TRANS (23456).
+//
+// The AS_TRANS case loses the real AS number, so RFC 6793 Section 4.2.2 obliges
+// an AS4_AGGREGATOR beside it. appendAggregator is what writes that pair, and it
+// is the only caller: reaching packAggregator directly sends AS_TRANS alone.
 func (ub *UpdateBuilder) packAggregator(asn uint32, ip [4]byte) []byte {
 	asn4 := ub.ASN4
 

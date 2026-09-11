@@ -52,15 +52,7 @@ func (ub *UpdateBuilder) BuildEVPN(p EVPNParams) *Update {
 	attrs = append(attrs, p.Origin)
 
 	// 2. AS_PATH
-	asPath := ub.buildASPath(p.ASPath)
-	asn4 := ub.ASN4
-	asPathBuf := ub.alloc(asPath.LenWithASN4(asn4))
-	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
-	attrs = append(attrs, &rawAttribute{
-		flags: asPath.Flags(),
-		code:  asPath.Code(),
-		data:  asPathBuf,
-	})
+	attrs = ub.appendASPath(attrs, p.ASPath)
 
 	// 3. NEXT_HOP - for IPv4 next-hop compatibility
 	if p.NextHop.Is4() {

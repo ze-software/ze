@@ -104,15 +104,7 @@ func (ub *UpdateBuilder) packGroupedAttributes(first *UnicastParams) []byte {
 	attrs = append(attrs, first.Origin)
 
 	// 2. AS_PATH
-	asPath := ub.buildASPath(first.ASPath)
-	asn4 := ub.ASN4
-	asPathBuf := ub.alloc(asPath.LenWithASN4(asn4))
-	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
-	attrs = append(attrs, &rawAttribute{
-		flags: asPath.Flags(),
-		code:  asPath.Code(),
-		data:  asPathBuf,
-	})
+	attrs = ub.appendASPath(attrs, first.ASPath)
 
 	// 3. NEXT_HOP (IPv4 only)
 	if first.NextHop.Is4() {
@@ -140,12 +132,7 @@ func (ub *UpdateBuilder) packGroupedAttributes(first *UnicastParams) []byte {
 
 	// 7. AGGREGATOR
 	if first.HasAggregator {
-		aggBytes := ub.packAggregator(first.AggregatorASN, first.AggregatorIP)
-		attrs = append(attrs, &rawAttribute{
-			flags: attribute.FlagOptional | attribute.FlagTransitive,
-			code:  attribute.AttrAggregator,
-			data:  aggBytes,
-		})
+		attrs = ub.appendAggregator(attrs, first.AggregatorASN, first.AggregatorIP)
 	}
 
 	// 8. COMMUNITIES

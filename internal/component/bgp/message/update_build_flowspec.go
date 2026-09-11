@@ -49,15 +49,7 @@ func (ub *UpdateBuilder) BuildFlowSpec(p FlowSpecParams) *Update {
 
 	// 2. AS_PATH
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
-	asPath := ub.buildASPath(nil)
-	asn4 := ub.ASN4
-	asPathBuf := ub.alloc(asPath.LenWithASN4(asn4))
-	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
-	attrs = append(attrs, &rawAttribute{
-		flags: asPath.Flags(),
-		code:  asPath.Code(),
-		data:  asPathBuf,
-	})
+	attrs = ub.appendASPath(attrs, nil)
 
 	// 5. LOCAL_PREF
 	if ub.IsIBGP {

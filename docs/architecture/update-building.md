@@ -344,9 +344,16 @@ Wire format depends on negotiated capabilities:
 
 | Capability | Effect |
 |------------|--------|
-| ASN4 | 2-byte vs 4-byte AS numbers in AS_PATH |
+| ASN4 | 2-byte vs 4-byte AS numbers in AS_PATH and AGGREGATOR. Without it, a non-mappable AS number goes out as AS_TRANS and the real value goes in AS4_PATH or AS4_AGGREGATOR beside it (RFC 6793 Section 4.2.2) |
 | ADD-PATH | Path ID prefix in NLRI |
 | Extended Message | >4096 byte messages |
+
+Every builder appends AS_PATH through `UpdateBuilder.appendASPath` and AGGREGATOR
+through `UpdateBuilder.appendAggregator`, which add the RFC 6793 companion
+attributes. `attribute.AS4PathFor` and `attribute.AS4AggregatorFor` answer
+whether one is owed, and the forwarding rails in `wireu` ask the same two
+functions.
+<!-- source: internal/component/bgp/message/update_build.go -- UpdateBuilder.appendASPath, UpdateBuilder.appendAggregator -->
 
 **Build path:** `UpdateBuilder.Ctx` contains pack context
 **Forward path:** `WireUpdate.SourceCtxID()` vs the destination's `sendCtxID` determines zero-copy eligibility

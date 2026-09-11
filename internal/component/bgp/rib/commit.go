@@ -359,7 +359,7 @@ func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, as
 // would make the attribute appear twice, which RFC 7606 Section 3(g) treats as
 // malformed.
 func appendAS4AggregatorFor(attrs []attribute.Attribute, dstCtx *bgpctx.EncodingContext) []attribute.Attribute {
-	if dstCtx == nil || dstCtx.ASN4() {
+	if dstCtx == nil {
 		return attrs
 	}
 
@@ -373,14 +373,18 @@ func appendAS4AggregatorFor(attrs []attribute.Attribute, dstCtx *bgpctx.Encoding
 		}
 	}
 
-	if aggregator == nil || aggregator.ASN <= 65535 {
+	if aggregator == nil {
 		return attrs
 	}
 
-	return append(attrs, &attribute.AS4Aggregator{
-		ASN:     aggregator.ASN,
-		Address: aggregator.Address,
-	})
+	// attribute.AS4AggregatorFor owns the "non-mappable AS, and only toward an
+	// OLD speaker" condition, and the originating encoder asks the same function
+	// (message.UpdateBuilder.appendAggregator), so the two cannot disagree.
+	as4Agg := attribute.AS4AggregatorFor(aggregator.ASN, aggregator.Address, dstCtx.ASN4())
+	if as4Agg == nil {
+		return attrs
+	}
+	return append(attrs, as4Agg)
 }
 
 // buildASPathFromExplicit builds AS_PATH from an explicit AS_PATH parameter.

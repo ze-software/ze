@@ -35,11 +35,12 @@ type PluginParams struct {
 	MapV4NextHop bool
 }
 
-// pluginMaxAttrs bounds the per-route attribute count: AS_PATH + ORIGIN +
-// LOCAL_PREF + MP_REACH + up to pluginMaxRawAttrs plugin-supplied attributes.
+// pluginMaxAttrs bounds the per-route attribute count: AS_PATH + AS4_PATH +
+// ORIGIN + LOCAL_PREF + MP_REACH + up to pluginMaxRawAttrs plugin-supplied
+// attributes. An append past the bound still works; it allocates.
 const (
 	pluginMaxRawAttrs = 16
-	pluginMaxAttrs    = pluginMaxRawAttrs + 4
+	pluginMaxAttrs    = pluginMaxRawAttrs + 5
 )
 
 // BuildPlugin builds an UPDATE message for a plugin-registered route.
@@ -53,20 +54,12 @@ func (ub *UpdateBuilder) BuildPlugin(p PluginParams) *Update {
 
 	var attrBuf [pluginMaxAttrs]attribute.Attribute
 	var rawBuf [pluginMaxRawAttrs]fullRawAttribute
-	n := 0
 
 	// AS_PATH (code 2) is always built here: the plugin cannot encode it without
 	// the negotiated ASN4 capability. The plugin must never supply code 2.
-	asPath := ub.buildASPath(p.ASPath)
-	asn4 := ub.ASN4
-	asPathData := ub.alloc(asPath.LenWithASN4(asn4))
-	asPath.WriteToWithASN4(asPathData, 0, asn4)
-	attrBuf[n] = &rawAttribute{
-		flags: asPath.Flags(),
-		code:  asPath.Code(),
-		data:  asPathData,
-	}
-	n++
+	// appendASPath adds the RFC 6793 Section 4.2.2 AS4_PATH when the peer is an
+	// OLD speaker and the path holds a non-mappable AS number.
+	attrs := ub.appendASPath(attrBuf[:0], p.ASPath)
 
 	// Plugin-supplied raw attributes. Track ORIGIN and drop any AS_PATH/LOCAL_PREF
 	// (those are owned by BuildPlugin / session context).
@@ -83,15 +76,13 @@ func (ub *UpdateBuilder) BuildPlugin(p PluginParams) *Update {
 			pluginOrigin = true
 		}
 		rawBuf[rb] = fullRawAttribute{data: raw}
-		attrBuf[n] = &rawBuf[rb]
+		attrs = append(attrs, &rawBuf[rb])
 		rb++
-		n++
 	}
 
 	// ORIGIN (code 1): default IGP unless the plugin supplied its own.
 	if !pluginOrigin {
-		attrBuf[n] = attribute.OriginIGP
-		n++
+		attrs = append(attrs, attribute.OriginIGP)
 	}
 
 	// LOCAL_PREF (code 5): well-known discretionary, iBGP only (RFC 4271 Section 5.1.5).
@@ -100,15 +91,13 @@ func (ub *UpdateBuilder) BuildPlugin(p PluginParams) *Update {
 		if lp == 0 {
 			lp = 100
 		}
-		attrBuf[n] = attribute.LocalPref(lp)
-		n++
+		attrs = append(attrs, attribute.LocalPref(lp))
 	}
 
-	attrBuf[n] = ub.buildMPReachPlugin(p)
-	n++
+	attrs = append(attrs, ub.buildMPReachPlugin(p))
 
 	return &Update{
-		PathAttributes: ub.packAttributesOrderedInto(attrBuf[:n], nil),
+		PathAttributes: ub.packAttributesOrderedInto(attrs, nil),
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
@@ -348,6 +349,93 @@ func (a *AS4Aggregator) ToAggregator() *Aggregator {
 //
 // RFC 6793 Section 9 (IANA): AS_TRANS = 23456.
 const ASTrans uint32 = 23456
+
+// isNonMappable reports whether asn cannot be represented in two octets, so a
+// two-octet encoding of it has to substitute AS_TRANS.
+//
+// RFC 6793 Section 4.2.1: a four-octet AS number is mappable only when its two
+// high-order octets are zero.
+func isNonMappable(asn uint32) bool { return asn > 0xFFFF }
+
+// pathHasNonMappableAS reports whether path carries an AS number above 65535 in
+// a segment that is eligible for AS4_PATH.
+//
+// RFC 6793 Section 4.2.2: "Whenever the AS path information contains the
+// AS_CONFED_SEQUENCE or AS_CONFED_SET path segment, the NEW BGP speaker MUST
+// exclude such path segments from the AS4_PATH attribute being constructed."
+//
+// Confederation segments are therefore not considered: a non-mappable AS number
+// that only ever appears inside one cannot be carried in AS4_PATH, so it must
+// not trigger the attribute either. The RFC's own generation algorithm agrees --
+// it sets has_non_mappable only in the non-confederation branch (summarized in
+// rfc/short/rfc6793.md, "Generating UPDATE to OLD Speaker").
+//
+// Counting them would also let a confederation-only path produce a zero-length
+// AS4_PATH, which RFC 6793 Section 6 declares malformed (the attribute length
+// must be at least 6).
+func pathHasNonMappableAS(path *ASPath) bool {
+	if path == nil {
+		return false
+	}
+	for _, seg := range path.Segments {
+		if seg.Type == ASConfedSequence || seg.Type == ASConfedSet {
+			continue
+		}
+		if slices.ContainsFunc(seg.ASNs, isNonMappable) {
+			return true
+		}
+	}
+	return false
+}
+
+// AS4PathFor returns the AS4_PATH to emit alongside a two-octet AS_PATH carrying
+// path, or nil when RFC 6793 does not require (or forbids) one.
+//
+// This is the one site that answers "is an AS4_PATH owed toward this peer, and
+// what goes in it". Every sender asks here, whether it originates the route
+// (message.UpdateBuilder) or re-encodes a received one (wireu), so the rule
+// cannot drift between them.
+//
+// RFC 6793 Section 4.1: "The new attributes, AS4_PATH and AS4_AGGREGATOR, MUST
+// NOT be carried in an UPDATE message between NEW BGP speakers."
+//
+// RFC 6793 Section 4.2.2: "The NEW BGP speaker MUST also send the AS path
+// information in the AS4_PATH attribute (encoded with four-octet AS numbers),
+// except for the case where all of the AS path information is composed of
+// mappable four-octet AS numbers only. In this case, the NEW BGP speaker MUST
+// NOT send the AS4_PATH attribute."
+//
+// The returned AS4Path aliases path's segments; AS4Path.Len and AS4Path.WriteTo
+// drop confederation segments per RFC 6793 Section 3, so no copy is needed.
+func AS4PathFor(path *ASPath, dstASN4 bool) *AS4Path {
+	if dstASN4 || !pathHasNonMappableAS(path) {
+		return nil
+	}
+	return &AS4Path{Segments: path.Segments}
+}
+
+// AS4AggregatorFor returns the AS4_AGGREGATOR to emit alongside an AGGREGATOR
+// whose AS number a two-octet encoding replaced with AS_TRANS, or nil when none
+// is owed.
+//
+// This is the one site that answers that question, for the sender that
+// originates the route and for the sender that forwards one alike.
+//
+// RFC 6793 Section 4.2.2: "if the NEW BGP speaker has to send the AGGREGATOR
+// attribute, and if the aggregating Autonomous System's AS number is a
+// non-mappable four-octet AS number, then the speaker MUST use the
+// AS4_AGGREGATOR attribute and set the AS number field in the existing
+// AGGREGATOR attribute to the reserved AS number, AS_TRANS. Note that if the AS
+// number is mappable, then the AS4_AGGREGATOR attribute MUST NOT be sent."
+//
+// RFC 6793 Section 4.1: a NEW speaker receives the four-octet AS number in the
+// AGGREGATOR itself, so the companion MUST NOT be sent to one.
+func AS4AggregatorFor(asn uint32, address netip.Addr, dstASN4 bool) *AS4Aggregator {
+	if dstASN4 || !isNonMappable(asn) {
+		return nil
+	}
+	return &AS4Aggregator{ASN: asn, Address: address}
+}
 
 // MergeAS4Path merges AS_PATH and AS4_PATH per RFC 6793 Section 4.2.3.
 //

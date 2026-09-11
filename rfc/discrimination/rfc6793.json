@@ -3,6 +3,17 @@
   "records": [
     {
       "rid": "RFC6793-4.1-6",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateOmitsAS4PathTowardNewSpeaker",
+      "unit-sha": "5d4ffa545bc9b872",
+      "claim-sha": "63fac791f7ed1175",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::AS4PathFor",
+      "producer-sha": "d35396fec8aba756",
+      "break": "body of AS4PathFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.1-6",
       "polarity": "negative",
       "unit": "test/plugin/rfc6793-narrow-to-old-speaker.ci",
       "unit-sha": "3a0c4f3435c23b24",
@@ -58,6 +69,105 @@
       "producer-sha": "ab2668a627662c2f",
       "break": "body of CollapseAS4Family replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE9FA56EA7B40030401010101180A0000"
+    },
+    {
+      "rid": "RFC6793-4.2.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateCarriesAS4PathForANonMappableLocalAS",
+      "unit-sha": "365777289c191eec",
+      "claim-sha": "51267c22277ccef4",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::AS4PathFor",
+      "producer-sha": "d35396fec8aba756",
+      "break": "body of AS4PathFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateCarriesAS4PathTowardOldSpeaker",
+      "unit-sha": "ac9ffa4fb409d4de",
+      "claim-sha": "0ad71db77ef1ac98",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::AS4PathFor",
+      "producer-sha": "d35396fec8aba756",
+      "break": "body of AS4PathFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.2-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateOmitsAS4PathWhenEveryASIsMappable",
+      "unit-sha": "963bd48031ea9d7a",
+      "claim-sha": "8e54e5e09fe5bce6",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::AS4PathFor",
+      "producer-sha": "d35396fec8aba756",
+      "break": "body of AS4PathFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.2-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateCarriesAS4PathTowardOldSpeaker",
+      "unit-sha": "ac9ffa4fb409d4de",
+      "claim-sha": "685676e454299ea4",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::AS4PathFor",
+      "producer-sha": "d35396fec8aba756",
+      "break": "body of AS4PathFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.2-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateOmitsAS4PathWhenEveryASIsMappable",
+      "unit-sha": "963bd48031ea9d7a",
+      "claim-sha": "2e57182723f0b0c9",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::AS4PathFor",
+      "producer-sha": "d35396fec8aba756",
+      "break": "body of AS4PathFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.2-5",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedAggregatorCarriesItsCompanionTowardOldSpeaker",
+      "unit-sha": "f3e95a5ed2c4bf92",
+      "claim-sha": "39a83b07f4e45e85",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::AS4AggregatorFor",
+      "producer-sha": "2b0bfd478294480d",
+      "break": "body of AS4AggregatorFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.2-5",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedMappableAggregatorGetsNoCompanion",
+      "unit-sha": "4e5a807cac4a507a",
+      "claim-sha": "f28c45c8183eeccb",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::AS4AggregatorFor",
+      "producer-sha": "2b0bfd478294480d",
+      "break": "body of AS4AggregatorFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.2-6",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedAggregatorCarriesItsCompanionTowardOldSpeaker",
+      "unit-sha": "f3e95a5ed2c4bf92",
+      "claim-sha": "d05bd49014bfba7f",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::AS4AggregatorFor",
+      "producer-sha": "2b0bfd478294480d",
+      "break": "body of AS4AggregatorFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.2-6",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedMappableAggregatorGetsNoCompanion",
+      "unit-sha": "4e5a807cac4a507a",
+      "claim-sha": "0d26de14107f21ee",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::AS4AggregatorFor",
+      "producer-sha": "2b0bfd478294480d",
+      "break": "body of AS4AggregatorFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC6793-4.2.3-1",

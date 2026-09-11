@@ -84,15 +84,7 @@ func (ub *UpdateBuilder) BuildLabeledUnicast(p *LabeledUnicastParams) *Update {
 
 	// 2. AS_PATH
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
-	asPath := ub.buildASPath(p.ASPath)
-	asn4 := ub.ASN4
-	asPathBuf := ub.alloc(asPath.LenWithASN4(asn4))
-	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
-	attrs = append(attrs, &rawAttribute{
-		flags: asPath.Flags(),
-		code:  asPath.Code(),
-		data:  asPathBuf,
-	})
+	attrs = ub.appendASPath(attrs, p.ASPath)
 
 	// 3. NEXT_HOP - RFC 4271 Section 5.1.3
 	// For ExaBGP compatibility, include NEXT_HOP even for MP_REACH_NLRI routes.
@@ -122,12 +114,7 @@ func (ub *UpdateBuilder) BuildLabeledUnicast(p *LabeledUnicastParams) *Update {
 	// 7. AGGREGATOR
 	// RFC 6793: AGGREGATOR encoding depends on ASN4 capability.
 	if p.HasAggregator {
-		aggBytes := ub.packAggregator(p.AggregatorASN, p.AggregatorIP)
-		attrs = append(attrs, &rawAttribute{
-			flags: attribute.FlagOptional | attribute.FlagTransitive,
-			code:  attribute.AttrAggregator,
-			data:  aggBytes,
-		})
+		attrs = ub.appendAggregator(attrs, p.AggregatorASN, p.AggregatorIP)
 	}
 
 	// 8. COMMUNITIES

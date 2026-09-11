@@ -3,9 +3,10 @@
 // Related: aspath_slot.go (ASPathEdit, the EBGP egress rail), aspath_transcode.go
 // (the narrowing encoder), aspath_collapse.go (the ingest reconciliation)
 //
-// Single owner of the "does this UPDATE need an AS4_PATH, and what goes in it"
-// question. Every egress path routes through here so the rule cannot drift
-// between them.
+// The forwarding rails' entry to the "does this UPDATE need an AS4_PATH, and
+// what goes in it" question. The answer itself is attribute.AS4PathFor, which
+// the originating encoders ask too, so the rule cannot drift between what ze
+// relays and what ze originates.
 
 package wireu
 
@@ -13,55 +14,15 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
-// hasNonMappableASN reports whether the path carries an ASN above 65535 in a
-// segment that is eligible for AS4_PATH.
-//
-// RFC 6793 Section 4.2.2: "Whenever the AS path information contains the
-// AS_CONFED_SEQUENCE or AS_CONFED_SET path segment, the NEW BGP speaker MUST
-// exclude such path segments from the AS4_PATH attribute being constructed."
-//
-// Confederation segments are therefore not considered: a non-mappable ASN that
-// only ever appears inside one cannot be carried in AS4_PATH, so it must not
-// trigger the attribute either. The RFC's own generation algorithm agrees --
-// it sets has_non_mappable only in the non-confederation branch (summarized in
-// rfc/short/rfc6793.md, "Generating UPDATE to OLD Speaker").
-//
-// Counting them would also let a confederation-only path produce a zero-length
-// AS4_PATH, which RFC 6793 Section 6 declares malformed (the attribute length
-// must be at least 6).
-func hasNonMappableASN(p *attribute.ASPath) bool {
-	for _, seg := range p.Segments {
-		if seg.Type == attribute.ASConfedSequence || seg.Type == attribute.ASConfedSet {
-			continue
-		}
-		for _, asn := range seg.ASNs {
-			if asn > 65535 {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // as4PathForPath returns the AS4_PATH to emit alongside a 2-octet AS_PATH
 // carrying path, or nil when RFC 6793 does not require (or forbids) one.
 //
-// RFC 6793 Section 4.1: "The new attributes, AS4_PATH and AS4_AGGREGATOR, MUST
-// NOT be carried in an UPDATE message between NEW BGP speakers."
-//
-// RFC 6793 Section 4.2.2: "The NEW BGP speaker MUST also send the AS path
-// information in the AS4_PATH attribute (encoded with four-octet AS numbers),
-// except for the case where all of the AS path information is composed of
-// mappable four-octet AS numbers only. In this case, the NEW BGP speaker MUST
-// NOT send the AS4_PATH attribute."
-//
-// The returned AS4Path aliases path's segments; AS4Path.Len and AS4Path.WriteTo
-// drop confederation segments per RFC 6793 Section 3, so no copy is needed.
+// The rule itself is attribute.AS4PathFor, which the originating encoders in
+// internal/component/bgp/message ask as well. This name stays because the three
+// wireu rails read better against it, and because a rule stated twice is a
+// future disagreement with nothing to arbitrate it (ai/rules/principles.md).
 func as4PathForPath(path *attribute.ASPath, dstASN4 bool) *attribute.AS4Path {
-	if dstASN4 || path == nil || !hasNonMappableASN(path) {
-		return nil
-	}
-	return &attribute.AS4Path{Segments: path.Segments}
+	return attribute.AS4PathFor(path, dstASN4)
 }
 
 // AS4PathForRewrite returns the AS4_PATH to emit alongside an outgoing AS_PATH
