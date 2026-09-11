@@ -120,8 +120,11 @@ edit anywhere else.
 
 The registry gives the artifact its lifecycle. A `Write` or an `Edit` to a file
 the predicate accepts REMOVES the artifact. A Bash command that names its path
-REBUILDS it before that command runs. A session start builds every artifact the
-tree does not hold. Nothing compares a re-render against a committed copy,
+REBUILDS it before that command runs, and a session start builds every artifact
+the tree does not hold. Both build only what is ABSENT, so a write that reaches
+an input with no hook in its path leaves the artifact present and stale until
+the next hooked write removes it. Nothing compares a re-render against a
+committed copy,
 because there is no committed copy. `ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`
 and `ai/CODE-TO-DOCS.md` are the three artifacts registered today, and
 `docs/contributing/navigating-the-code.md` is the consumer contract for them.

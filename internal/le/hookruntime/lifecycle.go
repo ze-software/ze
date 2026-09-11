@@ -208,8 +208,9 @@ func hookSessionStart(ctx context, out io.Writer) int {
 	// ABSENT-ONLY is a budget decision, not an oversight. `.claude/settings.json`
 	// gives this hook 5 seconds, and rendering all three artifacts does not fit
 	// inside what is LEFT of it. The rendering itself is about a second; the
-	// hook's own cost is the rest, most of it `commit.ListDebt` below reading
-	// every shard in plan/verification-debt/ and applying the discharge overlay.
+	// hook's own cost is the rest, most of it the `commit.ListDebt` call above,
+	// which reads every shard in plan/verification-debt/ and applies the
+	// discharge overlay.
 	// That read grows with the ledger, so the margin shrinks on its own, and a
 	// loaded machine has none: measured at 2.2s here and at 4.3, 4.8 and 5.9s on
 	// the same checkout the same afternoon. Read the rebuild as the change that

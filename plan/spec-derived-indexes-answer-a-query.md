@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
-| Depends | `plan/spec-derived-artifacts-are-not-committed.md` (lands first; provides the `internal/le/derived` registry this spec registers into) |
-| Phase | - |
+| Depends | `spec-derived-artifacts-are-not-committed`, closed 2026-09-11, which built the `internal/le/derived` registry (`internal/le/derived/derived.go`: `Artifact`, `Register`, `All`) this spec registers into |
+| Phase | 1/6 |
 | Handoff | - |
 | Updated | 2026-09-11 |
 
@@ -29,11 +29,20 @@ so a generated markdown page is load-bearing input to two published surfaces.
 `ai/CODE-TO-DOCS.md` back into `map[source][]doc` with `indexRowPattern`, which
 matches a TABLE row. `renderCodeIndex` (`internal/le/docstocode/codetodocs_report.go`)
 renders a package of at most `namedInline` = 3 files as BULLETS instead, and only
-the table form is matched. 631 of the 2,533 entries in the current index are
-bullets, so a quarter of the tree is invisible to the reader. That reader is a
-guard: `hookValidateSpec` (`internal/le/hookruntime/lifecycle.go`) refuses a spec
-whose own code declares a design document the spec does not name, and for any
-file in a small package it has never fired. A guard that fails open.
+the table form is matched. 674 of the 2,537 entries in the current index are
+bullets, so a quarter of the tree is invisible to the reader.
+
+An earlier draft of this spec called that a guard failing open, and it was WRONG.
+`AuditAnchors` (`internal/le/spec/citation/anchors.go`) builds `report.Owners`,
+the only half `hookValidateSpec` refuses on, from `declaredDesignDocument`, which
+opens each source file and reads its own `// Design:` header. The index is never
+consulted for `Owners`. It feeds `report.Mentions` alone, which prints as an
+advisory `note:`. So the blocking guard has always fired for a file in a small
+package, and measured across all 321 specs with the widened reader, 0 newly fail.
+What was blind for a quarter of the tree is the advisory half. That is worth
+fixing, and it is not a guard that fails open. The error was diagnosing a
+consumer by reading the producer of its data, which is `ai/rules/evidence.md`
+run backwards.
 
 The same renderer is why a grep is ambiguous. The table form prints the BASENAME
 and the bullet form prints the full path, so `grep resolve.go ai/CODE-TO-DOCS.md`

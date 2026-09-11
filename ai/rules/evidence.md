@@ -11,6 +11,7 @@
 - **A peer's CORRECTION arrives already feeling checked.** An assertion invites doubt and a correction implies somebody did the work, so it costs nothing to adopt and nothing pushes back. You MUST verify it at the producer before you act on it, and above all before you relay it to the owner.
 - **A pending result is not a result.** You MUST NOT record, act on, or report a verdict before the thing that produces it has reported. Being right by luck leaves the same false record, and the pressure is strongest at the last step before a commit.
 - **The named example is the worst sample.** The instance a document NAMES is the one its author already looked at, so it is the member most likely to satisfy the claim and the least informative to check. You MUST derive the set the claim covers and count how many members hold.
+- **A guard is judged at the function that turns data into a VERDICT, never at the producer of the data it reads.** Reading a parser and a renderer tells you what a value looks like, not what is decided from it, and the two answer different questions. You MUST read the consumer before you call a guard blind, weak, or failing open. Measured on 2026-09-11: a session read a parser that matched a quarter of the index and reported the spec-citation guard as failing open for a quarter of the tree. `AuditAnchors` builds the half that refuses from each file's own `// Design:` header and never consults the index, so the guard had always fired, and 0 of 321 specs newly failed once the parser was widened.
 
 ## No Fabrication
 

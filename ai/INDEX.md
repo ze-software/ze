@@ -10,9 +10,12 @@ A `Write` or an `Edit` TOOL call on a file that feeds one removes it. A Bash
 command that names one, or names a directory holding one, rebuilds it before
 that command runs, so a grep reads the current code. A write that reaches the
 file another way (`sed -i`, a heredoc, `git rebase`, `./le repository generate`)
-moves an input with no hook in the path and leaves the index stale until the
-next session start, which rebuilds all three. The `Read` and the `Grep` TOOL
-reach no hook and meet an absent index. Ask the question from Bash instead
+moves an input with no hook in the path and leaves the index PRESENT and stale.
+Nothing rebuilds one that is present: a session start builds only what the tree
+does not hold, and so does the read hook. It stays stale until the next `Write`
+or `Edit` to one of its inputs removes it, or until you run the generator
+yourself. The `Read` and the `Grep` TOOL reach no hook and meet an absent index.
+Ask the question from Bash instead
 (`docs/contributing/navigating-the-code.md`).
 
 | Question | Read |
