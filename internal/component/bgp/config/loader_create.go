@@ -96,6 +96,14 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		return nil, fmt.Errorf("redistribute config: %w", err)
 	}
 
+	// Record the notation this process writes an AS number in. This is the
+	// daemon adopting its FIRST configuration, and no refusal follows it. Every
+	// later change is recorded by the reload path's own commit point
+	// (SetConfigTree, ../reactor/reactor_api.go).
+	if err := applyASNotation(tree); err != nil {
+		return nil, err
+	}
+
 	// Build peers and dynamic groups from tree (resolves templates, extracts
 	// routes and filter chains). Incomplete peers are skipped inside the builder
 	// so the daemon can start for config editing with partial configs. Hard
