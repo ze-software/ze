@@ -459,6 +459,36 @@ dedup matched accel-ppp's, which is cookie-keyed.
 **The IDE diagnostics in this harness are stale about seven times out of seven.**
 Verify with the registered action before acting on one.
 
+**Correction, 2026-09-11: QEMU DOES run on this host.** Earlier sections of this
+document say it does not, and that is wrong. `qemu-system-aarch64` with HVF is
+installed and boots. The refusal "qemu guest evidence requires Linux" belongs to the
+guest-only `./le qemu pppoe-test` verb, not to QEMU as such. Phase 6 of the backoff
+spec discovered this by trying rather than believing the note. The Docker interop
+blocker is real and separate: that kernel carries no `pppoe` module.
+
+---
+
+# Open findings from the AS-path collapse (spec closed 2026-09-11)
+
+The spec is closed and its handoff is gone. These four are not: each was found
+while doing that work, each is a defect or a false claim in the tree rather than
+a task somebody abandoned, and each carries a journal row. They are listed here
+so they are visible to a session reading this file rather than only to one that
+greps the journal.
+
+| Finding | Where it is recorded |
+|---------|----------------------|
+| `ASPathEdit.recordAggregator` (`internal/component/bgp/wireu/aspath_slot.go`) does NOT tombstone an AGGREGATOR whose length it cannot read. `RewriteASPath` did, so the behaviour vanished when `Record` replaced the whole-payload rewrite, with no red test. The transcode rail still tombstones | `plan/journal/unwired-feature.md` |
+| `test/interop/scenarios/bgp-aggregator-as4-downgrade-bird` rests on the claim that `internal rib` alone relays a route to a peer. Measured false twice: the relay is `bgp-rs` plus `bgp-adj-rib-in`. The scenario is unverified, not failing, which is worse | `plan/journal/test-against-broken-path.md` |
+| No originating encoder emits an AS4_PATH (`internal/component/bgp/message/update_build*.go`), so a route ze ORIGINATES carrying a non-mappable AS reaches a two-octet peer as AS_TRANS with the real number nowhere. RFC 6793 Section 4.2.2 requires it | `plan/journal/requirement-met-on-the-rails-the-spec-planned.md` |
+| About 25 RFC tags in `internal/core/bgp/attribute/rfc6793_reconcile_test.go` carry no discrimination record. They moved there with the rule; only the five added by that work were recorded. `./le rfc discriminate stem rfc6793` lists them | the retired spec's Work Not Done, in commit `b1098e376` |
+
+Two decisions from that work that a later session should not re-open: a lone
+AS4_AGGREGATOR is DROPPED (the RFC does not cover the shape, FRR keeps and
+fabricates, BIRD drops, ze takes BIRD's answer), and the tombstone
+draft-mangin Section 5.3 egress clear is REMOVED. Both are Thomas's, 2026-09-09,
+and both are documented at the producer as well as here.
+
 ---
 
 # asdot/asdot+, update-delay, BFD strict mode (session `bgp-notation`, 2026-09-08/09)
