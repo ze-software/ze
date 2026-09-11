@@ -85,6 +85,11 @@ type ASPathEdit struct {
 	as4    as4PathGen
 	agg    aggregatorGen
 	as4Agg as4AggregatorGen
+	// tomb holds the ATTR_TOMBSTONE value of the one attribute this rail can
+	// discard: the (code, reason) pair of
+	// draft-mangin-idr-attr-tombstone-00 Section 4.3. It is named by the
+	// operation rather than copied into it, so it obeys the reuse rule above.
+	tomb [2]byte
 }
 
 // Record resolves the AS-path family against payload and records the resulting
@@ -327,11 +332,16 @@ func (e *ASPathEdit) recordAS4Path(mods *filterapi.ModAccumulator, spans *attrib
 	}
 }
 
-// recordAggregator records the RFC 6793 Section 4.2.2 AGGREGATOR rewrite.
+// recordAggregator records the RFC 6793 Section 4.2.2 AGGREGATOR rewrite, or
+// the RFC 7606 Section 7.7 discard of one whose length no reader can resolve.
 //
 // Only a width CHANGE touches AGGREGATOR. When the widths match, the attribute
 // is optional transitive and is propagated unchanged (RFC 4271 Section 5.1.7),
-// so nothing is recorded and the writer carries it through verbatim.
+// so nothing is recorded and the writer carries it through verbatim. That early
+// return is also what leaves a MALFORMED attribute untouched toward a
+// matching-width destination: the transcode rail does no work at all in that
+// case either, and the receive-side discard belongs at ingest rather than on one
+// of the two rails that happen to re-encode (plan/journal/silent-fall-through.md).
 func (e *ASPathEdit) recordAggregator(mods *filterapi.ModAccumulator, section []byte, spans *attribute.SpanIndex, in ASPathIntent) {
 	if in.SrcASN4 == in.DstASN4 {
 		return
@@ -351,11 +361,66 @@ func (e *ASPathEdit) recordAggregator(mods *filterapi.ModAccumulator, section []
 	case !in.SrcASN4 && len(val) == 6:
 		asn = uint32(binary.BigEndian.Uint16(val[0:2]))
 		copy(ip[:], val[2:6])
+	case len(val) == 6 || len(val) == 8:
+		// Well formed at the OTHER width, which this speaker has no basis to
+		// reinterpret: nothing says which octets are the AS number once the
+		// declared width and the value disagree. It is optional transitive, so it
+		// travels on unchanged (RFC 4271 Section 5.1.7). The transcode rail
+		// answers the same input the same way (aspath_transcode.go).
+		return
 	default:
-		// The AGGREGATOR does not carry the width its sender's encoding implies.
-		// Leaving it alone propagates it unchanged, which is what RFC 4271
-		// Section 5.1.7 asks of an optional transitive attribute this speaker has
-		// no basis to rewrite.
+		// RFC 7606 Section 7.7: "The AGGREGATOR attribute SHALL be considered
+		// malformed if any of the following applies: Its length is not 6 (when
+		// the 4-octet AS number capability is not advertised to or not received
+		// from the peer). Its length is not 8 (when the 4-octet AS number
+		// capability is both advertised to and received from the peer)." An
+		// UPDATE carrying one "SHALL be handled using the approach of 'attribute
+		// discard'". No length outside that pair is readable, so nothing here can
+		// re-encode it and nothing may forward it either.
+		//
+		// The transcode rail discards the same attribute and marks the discard
+		// with an ATTR_TOMBSTONE, so this rail marks it too: two egress rails
+		// that answer one malformed attribute differently is the defect this
+		// branch was written to end (plan/journal/unwired-feature.md, 2026-09-09).
+		//
+		// The MARKER differs in form, because the rails differ in what they can
+		// do. The transcode rail overwrites the attribute where it sits, so it
+		// takes the in-place procedure and inherits the original length. This rail
+		// REBUILDS the path attribute section for each destination, so it takes
+		// the rebuild procedure of draft-mangin-idr-attr-tombstone-00 Section 5.1:
+		// "the speaker MUST rebuild the path attributes section, removing all
+		// affected attributes and inserting a single ATTR_TOMBSTONE whose value
+		// contains all N (code, reason) pairs (value length exactly 2 * N)".
+		// N is 1 here, so the value is the pair alone.
+		//
+		// A RECEIVED payload rarely arrives here holding one: the RFC 7606
+		// validator judges an AGGREGATOR's length against the session's own
+		// negotiated width and discards it at ingest (validateAggregatorAttr,
+		// message/rfc7606.go, through session_validation.go). What is left is the
+		// raw override an export filter plugin may return, which filter_ordered.go
+		// relays as the destination's base payload after checking its length
+		// alone -- the same producer that keeps the AS4_PATH drop above alive.
+		//
+		// On an UPDATE that advertises nothing the DISCARD still lands and the
+		// marker does not: the rebuild refuses to create an attribute on a body
+		// with no reachable NLRI (advertiseGate, reactor/forward_build.go), while
+		// the suppress names an attribute the source already carries. RFC 7606
+		// asks for the discard, and the marker is what records it, so the
+		// withdrawal loses the record rather than the action.
+		//
+		// A value under two octets is left alone. WriteTombstone refuses one that
+		// cannot hold the pair, so the transcode rail forwards such an attribute
+		// verbatim, and discarding it here would put the two rails back into the
+		// disagreement this branch removes. Both rails owe RFC 7606 the discard
+		// for that length too; the shared gap is recorded in
+		// plan/journal/silent-fall-through.md.
+		if len(val) < 2 {
+			return
+		}
+		mods.Op(byte(attribute.AttrAggregator), filterapi.AttrModSuppress, nil)
+		e.tomb[0] = byte(attribute.AttrAggregator)
+		e.tomb[1] = TombstoneInvalidLength
+		mods.Op(byte(attribute.AttrTombstone), filterapi.AttrModSet, e.tomb[:])
 		return
 	}
 

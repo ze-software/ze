@@ -440,6 +440,25 @@ the pair past it.
 <!-- source: internal/component/bgp/reactor/session_read.go -- collapseASPathFamily -->
 <!-- source: internal/core/bgp/attribute/as4.go -- ReconcileASPathFamily -->
 
+### An ORIGINATED route carries it too
+
+The rule is one function, `attribute.AS4PathFor`, and both kinds of sender ask
+it. `wireu` asks for a route ze RELAYS. The `UpdateBuilder` asks for a route ze
+ORIGINATES: a static route, a route an API client announces, a route a family
+plugin encodes. `message` cannot import `wireu` (the import runs the other way),
+so the answer lives in `attribute`, which both import.
+
+Every builder appends its AS_PATH through `UpdateBuilder.appendASPath`, which
+adds the AS4_PATH when the peer is an OLD speaker and the path holds a
+non-mappable AS number. A builder that took no configured AS_PATH still needs
+it: ze prepends its own AS to a self-originated eBGP route, so a four-octet
+LOCAL AS makes the path non-mappable with no operator input at all.
+
+Until 2026-09-11 no originating builder wrote the attribute, and such a route
+reached an OLD speaker as AS_TRANS with the real AS number carried nowhere.
+<!-- source: internal/core/bgp/attribute/as4.go -- AS4PathFor -->
+<!-- source: internal/component/bgp/message/update_build.go -- UpdateBuilder.appendASPath -->
+
 ### The policy prepend obeys the same two rules
 
 The `as-path-prepend` filter action does not go through the per-destination
@@ -501,8 +520,15 @@ forward rail. A length other than 8 is malformed (RFC 6793 Section 6): the
 attribute is discarded there, the AGGREGATOR beside it is left as the peer sent
 it, and the UPDATE continues. `appendAS4AggregatorFor` synthesizes the companion
 again for a destination that negotiated two octets.
+
+An ORIGINATED route gets the same pair. `UpdateBuilder.appendAggregator` writes
+the AGGREGATOR with AS_TRANS in its AS field and the companion beside it, and
+`attribute.AS4AggregatorFor` is the one function that answers whether one is
+owed, for the originating builder and the forwarding rail alike.
 <!-- source: internal/core/bgp/attribute/attribute.go -- AttrAS4Aggregator -->
 <!-- source: internal/core/bgp/attribute/as4.go -- selectAggregator -->
+<!-- source: internal/core/bgp/attribute/as4.go -- AS4AggregatorFor -->
+<!-- source: internal/component/bgp/message/update_build.go -- UpdateBuilder.appendAggregator -->
 <!-- source: internal/component/bgp/rib/commit.go -- appendAS4AggregatorFor -->
 
 ---
@@ -690,6 +716,31 @@ malformed or policy-discarded attribute's header and first two value bytes with 
 ATTR_TOMBSTONE marker in place, preserving the wire layout for zero-copy
 forwarding. The length field is never modified.
 
+Section 5.1 gives a second procedure for a speaker that REBUILDS the path
+attribute section: the discarded attribute is removed and one marker is inserted
+whose value is exactly the (code, reason) pairs, two octets for each discarded
+attribute. Ze uses each procedure where it applies, and the two rails agree on
+the decision rather than on the bytes.
+
+| Rail | Procedure | Marker value |
+|------|-----------|--------------|
+| `wireu.TranscodeASPath`, which narrows one payload for an OLD-speaker destination | in place | the pair, then the discarded attribute's remaining octets zeroed |
+| `wireu.ASPathEdit`, which records per-destination operations the forward path rebuilds from | rebuild | the pair alone, 2 octets |
+
+Both mark the same attribute: an AGGREGATOR whose length is neither 6 nor 8, which
+RFC 7606 Section 7.7 makes malformed and subject to attribute discard. An
+AGGREGATOR whose value is under 2 octets is forwarded unchanged on both rails,
+because the in-place procedure cannot fit the pair in it, and the two rails answer
+one attribute the same way (`plan/journal/silent-fall-through.md`).
+
+The rebuild rail reaches the wire through one handler registered for code 252,
+`reactor.tombstoneHandler`. It exists because the flags of every other attribute
+follow that attribute's own type code, and this one's do not: Section 4.2 derives
+the Transitive bit from the DISCARDED attributes, so the handler reads the codes
+out of the marker's own value. A marker the source already carries is forwarded
+unchanged and the local pairs are dropped, because the Section 5.1 merge of an
+upstream marker with a local discard is not implemented.
+
 | Field | Value | Reference |
 |-------|-------|-----------|
 | Flags | `0x80 \| (original_flags & 0x50)`: Optional set, Transitive and Extended Length mirror the discarded attribute, Partial cleared | Section 4.2 |
@@ -717,10 +768,16 @@ forwarded with the layout and the flags it was written with.
 
 Source: `internal/component/bgp/message/attr_discard.go` (receive-time stamp),
 `internal/component/bgp/wireu/tombstone.go` (`WriteTombstone`),
-`internal/component/bgp/wireu/aspath_transcode.go` (the marker written over an
-AGGREGATOR ze cannot re-encode).
+`internal/component/bgp/wireu/aspath_transcode.go` (the marker written in place
+over an AGGREGATOR ze cannot re-encode),
+`internal/component/bgp/wireu/aspath_slot.go` (`recordAggregator`, the same
+decision recorded as operations for the rebuild),
+`internal/component/bgp/reactor/filter_delta_handlers.go` (`tombstoneHandler`,
+which emits the recorded marker).
 <!-- source: internal/core/bgp/attribute/attribute.go -- AttrTombstone = 252 -->
 <!-- source: internal/component/bgp/wireu/tombstone.go -- WriteTombstone -->
+<!-- source: internal/component/bgp/wireu/aspath_slot.go -- recordAggregator -->
+<!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- tombstoneHandler -->
 
 ---
 

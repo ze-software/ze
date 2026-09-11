@@ -2,6 +2,8 @@
 // RFC: rfc/short/rfc4271.md -- path attribute flags and the Extended Length header class (Section 4.3)
 // RFC: rfc/short/rfc4456.md -- ORIGINATOR_ID set-if-absent and CLUSTER_LIST prepend (Section 8)
 // RFC: rfc/short/rfc4760.md -- MP_REACH_NLRI value layout (Section 3)
+// RFC: rfc/short/rfc7606.md -- the attribute-discard action a marker records (Section 7.7)
+// RFC: rfc/drafts/draft-mangin-idr-attr-tombstone-00.txt -- ATTR_TOMBSTONE flags (Section 4.2) and the rebuild marker (Section 5.1)
 // Related: filter_delta.go -- textDeltaToModOps produces AttrModSet ops consumed by these handlers
 // Related: forward_build.go -- buildModifiedPayload dispatches to registered handlers
 
@@ -325,6 +327,93 @@ func aspathHandler() filterapi.AttrModHandler {
 	}
 }
 
+// tombstoneHandler handles ATTR_TOMBSTONE (type 252,
+// draft-mangin-idr-attr-tombstone-00), the marker a rebuild writes in place of
+// an attribute it discarded. `wireu.ASPathEdit` records one for an AGGREGATOR
+// whose length RFC 7606 Section 7.7 makes unreadable, and without a handler here
+// the rebuild would suppress the whole route rather than emit the marker
+// (planAttr, forward_build.go).
+//
+// It is not a generic set handler, because the flags of every other attribute
+// follow its own type code and this one's do not: Section 4.2 derives the
+// Transitive bit from the DISCARDED attributes. The value carries their codes,
+// one (code, reason) pair each (Section 4.3), so tombstoneFlags reads them.
+//
+// A marker the SOURCE already carries is kept and the local pairs are dropped.
+// Section 5.1 asks for the two to be merged into one marker, which no rail in Ze
+// builds today; replacing the upstream marker would delete an upstream speaker's
+// diagnostic from the wire, and that is the outcome worth refusing. The RFC 7606
+// discard itself still lands, because it is a separate operation on the
+// discarded attribute's own code.
+func tombstoneHandler() filterapi.AttrModHandler {
+	return func(p *filterapi.AttrPlan) {
+		setIdx, suppress := lastSetOrSuppress(p.Ops())
+
+		if setIdx >= 0 && suppress {
+			p.Drop()
+			return
+		}
+		if setIdx < 0 {
+			keepOrDrop(p)
+			return
+		}
+		if p.Source() != nil {
+			fwdLogger().Warn("ATTR_TOMBSTONE already present, forwarding the upstream marker and dropping the local pairs",
+				"upstreamValueLen", len(p.Value()), "localValueLen", len(p.Ops()[setIdx].Buf))
+			p.KeepAll()
+			return
+		}
+
+		p.Op(setIdx)
+		p.Emit(tombstoneFlags(p.Ops()[setIdx].Buf), byte(attribute.AttrTombstone))
+	}
+}
+
+// tombstoneFlags derives an ATTR_TOMBSTONE's flags from the attribute codes its
+// value records.
+//
+// draft-mangin-idr-attr-tombstone-00 Section 4.2 fixes the Optional bit at 1 and
+// derives the Transitive bit from the discarded attributes, and Section 5.7
+// resolves a marker that names several: transitive only when every discarded
+// attribute was transitive, and the conservative 0x80 otherwise. A code this
+// speaker cannot place takes the same conservative answer, so an unknown code
+// yields a marker that is ignored downstream rather than one propagated under a
+// transitivity nobody established.
+//
+// The per-code flags come from genericAttrCodes, which is where this file already
+// declares them, so the two cannot disagree (ai/rules/principles.md). The
+// Extended Length bit is not set here: AttrPlan.Emit derives it from the final
+// value length, which is what Section 4.2 asks of a marker written by rebuild.
+//
+// A marker whose value is produced by a GENERATOR reads as empty here, because
+// those bytes exist only at write time, and it takes the conservative answer for
+// the same reason an unknown code does. Every producer today records the pair as
+// bytes (wireu.ASPathEdit.recordAggregator), which is what a two-octet value
+// costs nothing to do.
+func tombstoneFlags(value []byte) byte {
+	if len(value) < 2 {
+		return byte(attribute.FlagOptional)
+	}
+	for off := 0; off+1 < len(value); off += 2 {
+		declared, known := canonicalAttrFlags(value[off])
+		if !known || declared&byte(attribute.FlagTransitive) == 0 {
+			return byte(attribute.FlagOptional)
+		}
+	}
+	return byte(attribute.FlagOptional | attribute.FlagTransitive)
+}
+
+// canonicalAttrFlags returns the flags genericAttrCodes declares for a type code,
+// and whether that table names the code at all.
+func canonicalAttrFlags(code byte) (flags byte, known bool) {
+	for i := range genericAttrCodes {
+		if byte(genericAttrCodes[i].code) == code {
+			return genericAttrCodes[i].flags, true
+		}
+	}
+	return 0, false
+}
+
 // attrModHandlersWithDefaults returns the registered AttrModHandler map with
 // generic set handlers filled in for attribute codes that lack specialized handlers.
 // Called by the reactor at startup instead of filterapi.AttrModHandlers() directly.
@@ -344,5 +433,8 @@ func attrModHandlersWithDefaults() map[uint8]filterapi.AttrModHandler {
 	handlers[byte(attribute.AttrClusterList)] = clusterListHandler()
 	// MP_REACH_NLRI next-hop rewriting (RFC 4760 §3, RFC 2545 §3).
 	handlers[byte(attribute.AttrMPReachNLRI)] = mpReachNextHopHandler()
+	// ATTR_TOMBSTONE, whose flags are derived from the attributes it records
+	// rather than from its own code (draft-mangin-idr-attr-tombstone-00).
+	handlers[byte(attribute.AttrTombstone)] = tombstoneHandler()
 	return handlers
 }
