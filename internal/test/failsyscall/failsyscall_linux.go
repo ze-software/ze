@@ -122,18 +122,11 @@ func Run(args []string) int {
 		fmt.Fprintf(os.Stderr, "fail-syscall: %v\n", err) //nolint:errcheck // diagnostic on the way out
 		return 1
 	}
-	// Put the real stderr back on descriptor 2 before the image is replaced.
-	// Every cmd/ze binary calls crashlog.Init at startup, which dup2s a PIPE
-	// onto fd 2 and reads it from a goroutine. The execve below destroys that
-	// goroutine and leaves the launched daemon writing into a pipe nobody
-	// drains: its log vanishes, and once 64 KiB have accumulated every further
-	// write BLOCKS FOREVER. Flush restores the saved descriptor and closes the
-	// pipe. Measured in the QEMU guest on 2026-09-11: without this call the
-	// daemon served metrics and counted read errors while emitting not one log
-	// line, which is what `expect=stderr:contains=l2tp: listener read error`
-	// in test/l2tp/subscriber-reader-failing-socket.ci caught.
-	crashlog.Flush()
-	err = unix.Exec(path, parsed.Command, os.Environ())
+	// crashlog.Exec puts the real stderr back on descriptor 2 before the image
+	// is replaced. Its doc comment carries the reason, and it is what
+	// `expect=stderr:contains=l2tp: listener read error` in
+	// test/l2tp/subscriber-reader-failing-socket.ci reads.
+	err = crashlog.Exec(path, parsed.Command, os.Environ())
 	fmt.Fprintf(os.Stderr, "fail-syscall: exec %s: %v\n", path, err) //nolint:errcheck // diagnostic on the way out
 	return 1
 }

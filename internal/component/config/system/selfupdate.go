@@ -22,6 +22,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/identity"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -118,7 +119,7 @@ func newSelfUpdater(url string, intervalSecs uint32, cfg SelfUpdateConfig, store
 }
 
 func defaultRestart(binPath string) error {
-	return syscall.Exec(binPath, os.Args, os.Environ()) //nolint:gosec // G204: binary path is from os.Executable, not user input
+	return crashlog.Exec(binPath, os.Args, os.Environ())
 }
 
 // Start begins the periodic check loop.

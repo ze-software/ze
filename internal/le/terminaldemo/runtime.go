@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -152,7 +153,7 @@ func execDemoShell() error {
 	if err := os.Chdir(demoRoot()); err != nil {
 		return err
 	}
-	return syscall.Exec("/bin/bash", []string{"bash", "--noprofile", "--norc", "-i"}, environ) //nolint:gosec // a fixed interactive shell inside the demo container
+	return crashlog.Exec("/bin/bash", []string{"bash", "--noprofile", "--norc", "-i"}, environ)
 }
 
 func envValue(environ []string, key string) string {

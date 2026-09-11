@@ -15,12 +15,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
 
+	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -122,8 +122,8 @@ func loginMain() int {
 }
 
 func defaultExecShell() int {
-	err := syscall.Exec(shellBinaryPath, []string{"ash"}, os.Environ()) //nolint:gosec // hardcoded constant path, not user input
-	fmt.Fprintf(os.Stderr, "exec %s: %v\n", shellBinaryPath, err)       //nolint:errcheck // serial console output
+	err := crashlog.Exec(shellBinaryPath, []string{"ash"}, os.Environ())
+	fmt.Fprintf(os.Stderr, "exec %s: %v\n", shellBinaryPath, err) //nolint:errcheck // serial console output
 	return 1
 }
 

@@ -1,7 +1,7 @@
 //go:build ruleguard
 
-// Design: docs/contributing/ze-go-style.md -- modern standard-library idioms
-// golangci-lint cannot reach through gocritic's own checkers.
+// Design: docs/contributing/ze-go-style.md -- the idioms and invariants no
+// linter knows, which golangci-lint can only reach through gocritic.
 //
 // Detail: gocritic loads this file at runtime through its ruleguard checker.
 // The build tag keeps it out of every Ze build, and the leading dot on
@@ -38,4 +38,23 @@ func modernSort(m dsl.Matcher) {
 	m.Match(`sort.Float64s($s)`).
 		Report(`sort.Float64s sorts through sort.Interface -- use slices.Sort($s)`).
 		Suggest(`slices.Sort($s)`)
+}
+
+// crashlogExec keeps every execve behind crashlog.Exec.
+//
+// crashlog.Init dup2s a pipe onto descriptor 2 and drains it from a goroutine.
+// An execve destroys that goroutine, and fd 2 survives into the new image, so
+// the replacement program writes its stderr into a pipe nobody reads: the log
+// vanishes, and the write blocks forever once 64 KiB have accumulated.
+// crashlog.Exec restores the saved descriptor first.
+//
+// The rule exists because the defect is invisible at the call site and in any
+// test that does not arm crashlog. Four of the five execve sites in the tree
+// had lost their output this way, and each was written by an author who could
+// not have seen it (plan/journal/output-lost-to-an-exit-past-the-flush.md).
+func crashlogExec(m dsl.Matcher) {
+	m.Match(`syscall.Exec($path, $argv, $environ)`, `unix.Exec($path, $argv, $environ)`).
+		Where(!m.File().PkgPath.Matches(`/internal/core/crashlog$`)).
+		Report(`an execve past the crash-capture flush leaves the new image writing into a pipe nobody reads -- use crashlog.Exec($path, $argv, $environ)`).
+		Suggest(`crashlog.Exec($path, $argv, $environ)`)
 }

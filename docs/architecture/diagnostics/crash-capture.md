@@ -21,6 +21,22 @@ capture an arbitrary goroutine panic is to intercept the file descriptor itself.
 **The build tag is `unix`, not `linux`.** `syscall.Dup2` works on darwin too,
 and crash capture must be testable during development.
 
+**An execve goes through `crashlog.Exec`, which drains the pipe before it
+replaces the image.** The new image inherits fd 2 and does not inherit the
+goroutine that drained it, so the program it runs writes its stderr into a pipe
+nobody reads: every line vanishes, and the write blocks forever once 64 KiB have
+accumulated in the pipe buffer. `Exec` calls `Flush` first, so the new program
+gets the saved descriptor. A raw `syscall.Exec` or `unix.Exec` outside the
+package is refused by the `crashlogExec` rule in
+`.golangci/ruleguard/modern.go`. The rule carries the invariant because the call
+site shows nothing, and a test that does not arm `Init` passes either way.
+<!-- source: internal/core/crashlog/exec_unix.go -- the leave that drains the pipe -->
+<!-- source: .golangci/ruleguard/modern.go -- crashlogExec, the rule that refuses a raw execve -->
+
+The worst case is the shipped daemon. `defaultRestart` re-execs `ze` after a
+self-update, so a self-updated appliance used to come back with no log at all
+and then stop on the first full pipe.
+
 **Crash files are written on panic detection, not continuously.** A continuous
 `current.log` needs a clean-shutdown marker, which conflicts with the many
 `os.Exit` paths in `main()`.

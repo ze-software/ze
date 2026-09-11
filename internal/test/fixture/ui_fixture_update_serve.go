@@ -3,7 +3,8 @@ package fixture
 import (
 	"fmt"
 	"os"
-	"syscall"
+
+	"github.com/ze-software/ze/internal/core/crashlog"
 )
 
 func init() {
@@ -27,7 +28,7 @@ func runUIUpdateServe(args []string) error {
 		"--listen",
 		"127.0.0.1:" + port,
 	}
-	if err := syscall.Exec(ze, argv, os.Environ()); err != nil { //nolint:gosec // the fixture chooses the program and its arguments
+	if err := crashlog.Exec(ze, argv, os.Environ()); err != nil {
 		return fmt.Errorf("exec ze update serve: %w", err)
 	}
 	return nil

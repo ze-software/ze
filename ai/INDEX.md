@@ -487,7 +487,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | Keywords | Docs |
 |----------|------|
 | pcap, packet capture, capture-raw, LINKTYPE_RAW, TCP reassembly, decode a capture, tcpdump, Wireshark | `docs/architecture/diagnostics/packet-capture.md` |
-| crash capture, kernel panic, pstore, ramoops, reserve_mem, kdump, crash-dump, show crashes, configured versus armed, harvest a crash record | `docs/architecture/diagnostics/crash-capture.md`, `docs/guide/appliance.md`, `docs/guide/configuration.md` |
+| crash capture, kernel panic, pstore, ramoops, reserve_mem, kdump, crash-dump, show crashes, configured versus armed, harvest a crash record, execve past the stderr flush, crashlog.Exec | `docs/architecture/diagnostics/crash-capture.md`, `docs/guide/appliance.md`, `docs/guide/configuration.md` |
 | buffer, iterator, parse, wire | `core-design.md`, `buffer-architecture.md`, `ai/rules/performance.md` |
 | encode, Pack, WriteTo, alloc | `ai/rules/performance.md`, `buffer-architecture.md` |
 | string building, textbuf, Sprintf, concatenation | `textbuf-string-building.md`, `ai/rules/performance.md` |
