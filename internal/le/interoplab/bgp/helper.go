@@ -68,6 +68,9 @@ func runProcessHelper(args []string) error {
 		return errors.New("process wants SCENARIO and PLUGIN-NAME")
 	}
 	scenario, name := args[0], args[1]
+	if scenario == pathsLimitScenario {
+		return runPathsLimitProcess(name)
+	}
 	if scenario == scenarioMEDIBGPPostSelectionRemovalGoBGP {
 		return runRawMEDFilter(name)
 	}
@@ -174,17 +177,6 @@ func announcementPlan(scenario string) (processPlan, error) {
 	case scenarioAddPathFRR:
 		add("update text path-information 0.0.0.1 origin igp path 65001 65010 nhop 172.30.0.2 nlri ipv4/unicast add 10.10.0.0/24")
 		addAfter(100*time.Millisecond, "update text path-information 0.0.0.2 origin igp path 65001 65020 nhop 172.30.0.2 nlri ipv4/unicast add 10.10.0.0/24")
-	case "bgp-paths-limit-frr":
-		plan.startup = 2 * time.Second
-		plan.stop = true
-		for offset := range 3 {
-			index := offset + 1
-			delay := time.Duration(0)
-			if offset > 0 {
-				delay = 500 * time.Millisecond
-			}
-			addAfter(delay, fmt.Sprintf("update text path-information 0.0.0.%d origin igp next-hop 10.10.0.%d nlri ipv4/unicast add 10.10.0.0/24", index, index))
-		}
 	case "bgp-community-frr":
 		add("update text origin igp path 65001 nhop 172.30.0.2 community [65001:100 65001:200] nlri ipv4/unicast add 10.10.0.0/24")
 		addAfter(100*time.Millisecond, "update text origin igp path 65001 nhop 172.30.0.2 large-community [65001:0:1] nlri ipv4/unicast add 10.10.1.0/24")

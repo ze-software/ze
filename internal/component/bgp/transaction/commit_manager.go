@@ -5,6 +5,8 @@ package transaction
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"sync"
 	"time"
 
@@ -90,17 +92,17 @@ func (t *Transaction) QueueWithdraw(n nlri.NLRI) {
 	t.withdrawals[idx] = n
 }
 
-// nlriIndex builds an index key for an NLRI.
+// nlriIndex identifies a family, prefix, and path, including path ID zero.
 func (t *Transaction) nlriIndex(n nlri.NLRI) string {
 	fam := n.Family()
-	// Use WriteTo for consistent API - writes same bytes as Bytes()
-	nlriLen := n.Len()
+	// Include ADD-PATH identity even before a destination session is selected.
+	nlriLen := nlri.LenWithContext(n, true)
 
 	buf := make([]byte, 3+nlriLen)
 	buf[0] = byte(fam.AFI >> 8)
 	buf[1] = byte(fam.AFI)
 	buf[2] = byte(fam.SAFI)
-	n.WriteTo(buf, 3)
+	nlri.WriteNLRI(n, buf, 3, true)
 
 	return string(buf)
 }
@@ -126,26 +128,27 @@ func (t *Transaction) TotalCount() int {
 	return len(t.announces) + len(t.withdrawals)
 }
 
-// Routes returns all pending announcement routes.
+// Routes returns pending announcements in family and NLRI key order.
+// Stable ordering makes the first advertised paths deterministic under a peer's limit.
 func (t *Transaction) Routes() []*rib.Route {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
 	routes := make([]*rib.Route, 0, len(t.announces))
-	for _, r := range t.announces {
-		routes = append(routes, r)
+	for _, idx := range slices.Sorted(maps.Keys(t.announces)) {
+		routes = append(routes, t.announces[idx])
 	}
 	return routes
 }
 
-// Withdrawals returns all pending withdrawals.
+// Withdrawals returns pending withdrawals in family and NLRI key order.
 func (t *Transaction) Withdrawals() []nlri.NLRI {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
 	nlris := make([]nlri.NLRI, 0, len(t.withdrawals))
-	for _, n := range t.withdrawals {
-		nlris = append(nlris, n)
+	for _, idx := range slices.Sorted(maps.Keys(t.withdrawals)) {
+		nlris = append(nlris, t.withdrawals[idx])
 	}
 	return nlris
 }

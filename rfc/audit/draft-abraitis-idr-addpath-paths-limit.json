@@ -1,0 +1,116 @@
+{
+  "audited": "2026-09-11",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note. Amended 2026-09-11: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1 was afterwards RE-JUDGED by /ze-rfc-audit rather than re-stamped. The reseal refused it as stale-unit, correctly: the claim on its config-parser carrier was reworded, so the earlier judgement of that carrier no longer described what the carrier says.",
+  "requirements": {
+    "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1": {
+      "note": "Re-judged on 2026-09-11 against the draft text and both carriers, after the config-parser carrier's claim was reworded. Section 3: \"A BGP speaker that wishes to indicate support for multiple AFI/SAFIs MUST do so by including the information in a single instance of the PATHS-LIMIT capability.\" TestBuildOpenCoalescesPathsLimit is what proves it. It drives buildOpen, the one producer of ze's OPEN, with four PATHS-LIMIT inputs: an empty configured instance, a configured ipv4/unicast tuple, and two raw code-76 plugin payloads carrying a duplicate and a zero tuple. It re-parses the encoded OPEN and makes two distinct assertions, not one wearing two hats. The negative is the draft's own violation shape offered as input, several instances in and require.Len(limits, 1) out. The positive is that the information for both families travels inside that one instance, pinned as exactly [ipv4/unicast 4, ipv4/multicast 3]. buildOpen runs twice in the loop, so a second OPEN over the same caller-owned capabilities cannot leak a second instance either. The read-back drops the plugin's ipv6/unicast limit-0 tuple under 3-5, which is why the expectation names two families and not three; the instance-count assertion is untouched by that skip, so no neighbouring rule decides this one. coalescePathsLimit (internal/component/bgp/reactor/session_negotiate.go) is the enforcing function and buildOpen calls it on every OPEN. Both polarities carry a discrimination record over it: \"merged == nil\" -> true emits four instances and reds the negative, \"seen[f]\" -> true empties the merged instance and reds the positive. TestParsePeerCapabilityPathsLimitSingleInstance is a subordinate positive one hop short of the wire, and its reworded claim now matches its body: it reads the capability list parsePeerFromTree BUILDS, asserts one *capability.PathsLimit holding both configured families, and never encodes or parses an OPEN. It adds no proof of this requirement, because the regression it prevents cannot reach a peer: a parser emitting one instance per family is merged back into one by coalescePathsLimit before any OPEN is encoded, and the other readers of ps.Capabilities (configuredCapabilities, read in reactor.go and reactor_api.go) take Multiprotocol families and ConfigProvider values rather than PATHS-LIMIT framing. It stays tagged as a true config-path regression guard whose claim no longer over-states it. Whether a redundant carrier is worth keeping is an owner decision, not an audit finding.",
+      "requirement_sha": "c2bb9e2daaa1656b",
+      "tests": {
+        "internal/component/bgp/reactor/config_test.go::TestParsePeerCapabilityPathsLimitSingleInstance": "51927ee9f02fe031",
+        "internal/component/bgp/reactor/session_negotiate_test.go::TestBuildOpenCoalescesPathsLimit": "8eb219df809f4ef8",
+        "internal/component/bgp/reactor/session_negotiate_test.go::TestBuildOpenCoalescesPathsLimit#2": "8eb219df809f4ef8"
+      },
+      "units": {
+        "internal/component/bgp/reactor/config_test.go::TestParsePeerCapabilityPathsLimitSingleInstance": "c9442174d485198f",
+        "internal/component/bgp/reactor/session_negotiate_test.go::TestBuildOpenCoalescesPathsLimit": "eb7c282485314236",
+        "internal/component/bgp/reactor/session_negotiate_test.go::TestBuildOpenCoalescesPathsLimit#2": "eb7c282485314236"
+      },
+      "verdict": "enforced"
+    },
+    "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-2": {
+      "note": "TestNegotiatePathsLimit pins both stored directions on exact values, the remote's 10 constraining our send and the local's 5 constraining the peer's send, so a direction swap fails it. TestNegotiatePathsLimitNoAddPath offers the same two PATHS-LIMIT capabilities with no ADD-PATH on either side and requires both maps to stay at zero. The producing branch is \"n.addPath[f]&direction == 0\" in negotiatePathsLimitDirection (internal/core/bgp/capability/negotiated.go). The negative buffer holds Multiprotocol and PathsLimit only, so no neighbouring rule can trip first. No discrimination record: both tags predate HEAD and the gate grandfathers them.",
+      "requirement_sha": "bba5f191b6ab24eb",
+      "tests": {
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiatePathsLimit": "11055f7df281fb36",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiatePathsLimitNoAddPath": "11055f7df281fb36"
+      },
+      "units": {
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiatePathsLimit": "e4564b1477c4b095",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiatePathsLimitNoAddPath": "18fa632c1d78404e"
+      },
+      "verdict": "enforced"
+    },
+    "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-3": {
+      "note": "One test carries both polarities on two distinct assertions rather than one assertion wearing two hats: ipv4/unicast is present in ADD-PATH so its tuple applies in both directions (10 and 5), and ipv6/unicast is absent from ADD-PATH so both directions stay zero while its PATHS-LIMIT tuple is present in the same capability. Same producing branch as 3-2, evaluated per family. No discrimination record: the tags predate HEAD.",
+      "requirement_sha": "5e46b5401484cd7c",
+      "tests": {
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiatePathsLimitPartialAddPath": "11055f7df281fb36",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiatePathsLimitPartialAddPath#2": "11055f7df281fb36"
+      },
+      "units": {
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiatePathsLimitPartialAddPath": "cb313affa9bdf14c",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiatePathsLimitPartialAddPath#2": "cb313affa9bdf14c"
+      },
+      "verdict": "enforced"
+    },
+    "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-4": {
+      "note": "TestParsePathsLimitDuplicateFirstWins parses two ipv4/unicast tuples, limit 10 then limit 20, and requires one entry whose limit is 10. The positive is the kept value and the negative is the count, which are separate assertions over the same buffer. Removing the \"seen[f]\" guard in parsePathsLimit (internal/core/bgp/capability/capability.go) yields two entries, so the count assertion discriminates. No discrimination record: the tags predate HEAD.",
+      "requirement_sha": "102103544e9ad4de",
+      "tests": {
+        "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitDuplicateFirstWins": "dcbd12ce57e598f2",
+        "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitDuplicateFirstWins#2": "dcbd12ce57e598f2"
+      },
+      "units": {
+        "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitDuplicateFirstWins": "fb1793e5bbc718c8",
+        "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitDuplicateFirstWins#2": "fb1793e5bbc718c8"
+      },
+      "verdict": "enforced"
+    },
+    "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5": {
+      "note": "parsePathsLimit marks a family seen BEFORE it skips a zero limit, so a first zero tuple also suppresses a later duplicate for that family. TestParsePathsLimitSkipZero covers the plain skip and TestParsePathsLimitZeroFirst covers that interplay with 3-4, requiring ipv4/unicast to stay absent even though a later duplicate advertises 10. TestNegotiatePathsLimitDuplicateEntries runs one set of tuples through the direct API and through the wire parser and requires the negotiated maps to hold ipv6 alone in both directions. All three units carry a discrimination record over \"limit == 0\" -> false in parsePathsLimit, under which each goes red.",
+      "requirement_sha": "6470378a2c29229d",
+      "tests": {
+        "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitSkipZero": "dcbd12ce57e598f2",
+        "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitSkipZero#2": "dcbd12ce57e598f2",
+        "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitZeroFirst": "dcbd12ce57e598f2",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiatePathsLimitDuplicateEntries": "11055f7df281fb36",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiatePathsLimitDuplicateEntries#2": "11055f7df281fb36"
+      },
+      "units": {
+        "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitSkipZero": "3a745b154248bd62",
+        "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitSkipZero#2": "3a745b154248bd62",
+        "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitZeroFirst": "2dec5b72d193a059",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiatePathsLimitDuplicateEntries": "8ebb372f11226080",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiatePathsLimitDuplicateEntries#2": "8ebb372f11226080"
+      },
+      "verdict": "enforced"
+    },
+    "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6": {
+      "note": "The unit tests assert the exact identifier sequence that reached the wire, for ipv4/unicast and ipv6/unicast: announced [0 1 1 4] and withdrawn [99 0] across eight sends, which pins the withheld path, the replacement at capacity, the unknown withdrawal that frees nothing, and the reuse after a real withdrawal. TestPathsLimitForwardWritersShareState proves raw forwarding and re-encoded forwarding draw on one per-session budget, forwarding [5 7] and never 6. test/plugin/paths-limit-live.ci carries the same requirement at the daemon: it starts ze and a peer that advertises ipv4 1 and ipv6 2, drives the real `ze send bgp * update text` CLI over SSH, and asserts by hex, in sequence groups, that an excess identifier never reaches the wire before the next different-prefix sentinel and appears only after a withdrawal and an explicit retry. Six records: the four unit tags over the admission guard in pathsLimitSection, and the two .ci tags by revert of that same function, each citing the expect directive its red was tied to. The enforcing code is Session.pathsLimitSection, reached from writeRawUpdateBody through filterPathsLimit, which is why the route-server fast path is covered by the same state.",
+      "requirement_sha": "dba716d4e727d240",
+      "tests": {
+        "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitForwardWritersShareState": "0531c35df62729f2",
+        "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitForwardWritersShareState#2": "0531c35df62729f2",
+        "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitSessionAcrossUpdates": "0531c35df62729f2",
+        "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitSessionAcrossUpdates#2": "0531c35df62729f2",
+        "test/plugin/paths-limit-live.ci": "32e3777dd3b27ca5",
+        "test/plugin/paths-limit-live.ci#2": "32e3777dd3b27ca5"
+      },
+      "units": {
+        "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitForwardWritersShareState": "c5e97c978335c423",
+        "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitForwardWritersShareState#2": "c5e97c978335c423",
+        "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitSessionAcrossUpdates": "52da5bc261d30ab4",
+        "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitSessionAcrossUpdates#2": "52da5bc261d30ab4",
+        "test/plugin/paths-limit-live.ci": "32e3777dd3b27ca5",
+        "test/plugin/paths-limit-live.ci#2": "32e3777dd3b27ca5"
+      },
+      "verdict": "enforced"
+    },
+    "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7": {
+      "note": "The pair over TestConfiguredPathsLimitOpen is a strong test of half the sentence and nothing tests the other half. What it checks: the container knob `session > capability > add-path > limit`, the per-family override, and the interaction with disabled, refused and required families decide the tuples encoded in the OPEN, with an omitted limit advertising none and a disabled or refused family unable to carry an orphan tuple. parseAddPathFromTree (internal/component/bgp/reactor/config_capabilities.go) derives the tuples from addPath.Families, the same slice that reaches the wire. What nothing checks, because no code does it: the draft asks for a knob that specifies \"the maximum number of paths to accept from a sender\", and ze's knob states a number to the peer without bounding what ze accepts. EncodingCaps.PathsLimitRecv is read by internal/core/bgp/context/context.go, internal/component/bgp/format/json.go and internal/component/bgp/reactor/negotiated.go, all of which carry it into a negotiated context or into show output, and no reader drops a received path above it. A peer that ignores the request is not policed. The verdict is weak rather than enforced because the tag ties this body to the whole requirement, and the reading under which \"accept\" means local enforcement is not proven by anything. The absent behavior is disclosed on the summary's Support remaining row. No discrimination record was written, because the owner's open decision on building the receive side can reword this claim, and rewording stales a record.",
+      "requirement_sha": "7300932b51286fd7",
+      "tests": {
+        "internal/component/bgp/reactor/config_paths_limit_test.go::TestConfiguredPathsLimitOpen": "a6ede23ac2972069",
+        "internal/component/bgp/reactor/config_paths_limit_test.go::TestConfiguredPathsLimitOpen#2": "a6ede23ac2972069",
+        "internal/component/bgp/reactor/config_test.go::TestParsePeerCapabilityPathsLimit": "51927ee9f02fe031"
+      },
+      "units": {
+        "internal/component/bgp/reactor/config_paths_limit_test.go::TestConfiguredPathsLimitOpen": "adcfd3f308d14d77",
+        "internal/component/bgp/reactor/config_paths_limit_test.go::TestConfiguredPathsLimitOpen#2": "adcfd3f308d14d77",
+        "internal/component/bgp/reactor/config_test.go::TestParsePeerCapabilityPathsLimit": "373e6f57b2e78b02"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "draft-abraitis-idr-addpath-paths-limit"
+}

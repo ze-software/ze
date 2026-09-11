@@ -36,6 +36,7 @@ const (
 	fieldName                = "name"
 	fieldGroup               = "group"
 	fieldState               = "state"
+	fieldBFDSubState         = "bfd-sub-state"
 	fieldUptime              = "uptime"
 	fieldRemoteAS            = "remote-as"
 	fieldLocalAS             = "local-as"
@@ -68,3 +69,19 @@ const (
 	// what happened rather than inferring it from an empty answer.
 	fieldAction = "action"
 )
+
+// addPathsLimitFields serves both inspection commands and their standard text
+// and JSON renderers. The maps contain only nonzero negotiated limits.
+func addPathsLimitFields(fields map[string]any, send, receive map[string]uint16) {
+	if len(send) == 0 && len(receive) == 0 {
+		return
+	}
+	limits := make(map[string]any)
+	if len(send) > 0 {
+		limits["send"] = send
+	}
+	if len(receive) > 0 {
+		limits["receive"] = receive
+	}
+	fields["paths-limit"] = limits
+}

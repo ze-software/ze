@@ -103,6 +103,120 @@ func TestTransaction_ReplaceAnnounce(t *testing.T) {
 	}
 }
 
+// TestTransaction_AddPathPreservation keeps distinct paths and replaces only the same path.
+func TestTransaction_AddPathPreservation(t *testing.T) {
+	tests := []struct {
+		name   string
+		family family.Family
+		prefix string
+	}{
+		{name: "IPv4", family: family.IPv4Unicast, prefix: "10.0.0.0/24"},
+		{name: "IPv6", family: family.IPv6Unicast, prefix: "2001:db8::/64"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prefix := netip.MustParsePrefix(tt.prefix)
+			nextHop := netip.MustParseAddr("192.0.2.1")
+			replacementHop := netip.MustParseAddr("192.0.2.2")
+			tx := NewTransaction("paths", "*")
+			for _, pathID := range []uint32{0xffffffff, 256, 0, 7} {
+				n := nlri.NewINET(tt.family, prefix, pathID)
+				tx.QueueAnnounce(rib.NewRouteWithASPath(n, nextHop, nil, nil))
+			}
+			replacement := nlri.NewINET(tt.family, prefix, 0)
+			tx.QueueAnnounce(rib.NewRouteWithASPath(replacement, replacementHop, nil, nil))
+
+			routes := tx.Routes()
+			wantIDs := []uint32{0, 7, 256, 0xffffffff}
+			if len(routes) != len(wantIDs) {
+				t.Fatalf("got %d paths, want %d", len(routes), len(wantIDs))
+			}
+			for i, route := range routes {
+				if got := route.NLRI().PathID(); got != wantIDs[i] {
+					t.Errorf("path %d: got ID %d, want %d", i, got, wantIDs[i])
+				}
+				wantHop := nextHop
+				if wantIDs[i] == 0 {
+					wantHop = replacementHop
+				}
+				if got := route.NextHop(); got != wantHop {
+					t.Errorf("path %d: got next hop %v, want %v", wantIDs[i], got, wantHop)
+				}
+			}
+		})
+	}
+}
+
+// TestTransaction_AddPathCancellation isolates withdrawals and reannouncements by path ID.
+func TestTransaction_AddPathCancellation(t *testing.T) {
+	tx := NewTransaction("paths", "*")
+	prefix := netip.MustParsePrefix("10.0.0.0/24")
+	nextHop := netip.MustParseAddr("192.0.2.1")
+	for _, pathID := range []uint32{0, 7, 8} {
+		n := nlri.NewINET(family.IPv4Unicast, prefix, pathID)
+		tx.QueueAnnounce(rib.NewRouteWithASPath(n, nextHop, nil, nil))
+	}
+	tx.QueueWithdraw(nlri.NewINET(family.IPv4Unicast, prefix, 7))
+	tx.QueueWithdraw(nlri.NewINET(family.IPv4Unicast, prefix, 9))
+	routes := tx.Routes()
+	if len(routes) != 2 {
+		t.Fatalf("got %d announcements after withdrawal, want 2", len(routes))
+	}
+	if routes[0].NLRI().PathID() != 0 || routes[1].NLRI().PathID() != 8 {
+		t.Fatal("withdrawal canceled a different path")
+	}
+	withdrawals := tx.Withdrawals()
+	if len(withdrawals) != 2 {
+		t.Fatalf("got %d withdrawals, want 2", len(withdrawals))
+	}
+	if withdrawals[0].PathID() != 7 || withdrawals[1].PathID() != 9 {
+		t.Fatal("withdrawals lost their path identities")
+	}
+
+	reannounced := nlri.NewINET(family.IPv4Unicast, prefix, 7)
+	tx.QueueAnnounce(rib.NewRouteWithASPath(reannounced, nextHop, nil, nil))
+	tx.QueueWithdraw(nlri.NewINET(family.IPv4Unicast, prefix, 9))
+	tx.QueueWithdraw(nlri.NewINET(family.IPv4Unicast, prefix, 0))
+	routes = tx.Routes()
+	if len(routes) != 2 {
+		t.Fatalf("got %d announcements after reannouncement, want 2", len(routes))
+	}
+	if routes[0].NLRI().PathID() != 7 || routes[1].NLRI().PathID() != 8 {
+		t.Fatal("reannouncement or path-zero withdrawal changed another path")
+	}
+	withdrawals = tx.Withdrawals()
+	if len(withdrawals) != 2 {
+		t.Fatalf("got %d withdrawals after reannouncement, want 2", len(withdrawals))
+	}
+	if withdrawals[0].PathID() != 0 || withdrawals[1].PathID() != 9 {
+		t.Fatal("reannouncement canceled a different withdrawal")
+	}
+}
+
+// TestTransaction_RouteOrder makes path selection independent of map and insertion order.
+func TestTransaction_RouteOrder(t *testing.T) {
+	for _, pathIDs := range [][]uint32{{2, 0, 1}, {1, 2, 0}, {0, 1, 2}} {
+		tx := NewTransaction("paths", "*")
+		prefix := netip.MustParsePrefix("10.0.0.0/24")
+		nextHop := netip.MustParseAddr("192.0.2.1")
+		for _, pathID := range pathIDs {
+			n := nlri.NewINET(family.IPv4Unicast, prefix, pathID)
+			tx.QueueAnnounce(rib.NewRouteWithASPath(n, nextHop, nil, nil))
+		}
+		for range 10 {
+			routes := tx.Routes()
+			if len(routes) != 3 {
+				t.Fatalf("got %d paths, want 3", len(routes))
+			}
+			for i, route := range routes {
+				if got := route.NLRI().PathID(); got != uint32(i) {
+					t.Fatalf("input %v: path %d has ID %d", pathIDs, i, got)
+				}
+			}
+		}
+	}
+}
+
 // TestCommitManager_StartAndGet verifies basic commit lifecycle.
 //
 // VALIDATES: Can start and retrieve commits by name.

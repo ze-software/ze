@@ -262,6 +262,10 @@ type Session struct {
 	// All access must hold writeMu.
 	writeBuf *wire.SessionBuffer
 
+	// Negotiated sender limits and advertised path identities, owned by writeMu.
+	pathsLimit       map[capability.Family]*pathsLimitFamily
+	pathsLimitTotals pathsLimitSendCounts
+
 	// Error channel for timer callbacks to signal errors.
 	errChan chan error
 

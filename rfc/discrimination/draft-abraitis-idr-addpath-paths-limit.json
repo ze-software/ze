@@ -1,0 +1,128 @@
+{
+  "rfc": "draft-abraitis-idr-addpath-paths-limit",
+  "records": [
+    {
+      "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/session_negotiate_test.go::TestBuildOpenCoalescesPathsLimit",
+      "unit-sha": "ed09f23603356022",
+      "claim-sha": "223fc657cad84e67",
+      "route": "mutant",
+      "producer": "internal/component/bgp/reactor/session_negotiate.go::coalescePathsLimit",
+      "producer-sha": "d596fbb1b6541cdb",
+      "break": "line 291: \"merged == nil\" -\u003e \"true\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/session_negotiate_test.go::TestBuildOpenCoalescesPathsLimit",
+      "unit-sha": "ed09f23603356022",
+      "claim-sha": "a422566d65e2417d",
+      "route": "mutant",
+      "producer": "internal/component/bgp/reactor/session_negotiate.go::coalescePathsLimit",
+      "producer-sha": "d596fbb1b6541cdb",
+      "break": "line 300: \"seen[f]\" -\u003e \"true\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitSkipZero",
+      "unit-sha": "32dbd6e6ea9d1e18",
+      "claim-sha": "17a4bdbbac5d5fc1",
+      "route": "mutant",
+      "producer": "internal/core/bgp/capability/capability.go::parsePathsLimit",
+      "producer-sha": "d4672a7ae55c074a",
+      "break": "line 873: \"limit == 0\" -\u003e \"false\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitSkipZero",
+      "unit-sha": "32dbd6e6ea9d1e18",
+      "claim-sha": "181b1667d1c1b579",
+      "route": "mutant",
+      "producer": "internal/core/bgp/capability/capability.go::parsePathsLimit",
+      "producer-sha": "d4672a7ae55c074a",
+      "break": "line 873: \"limit == 0\" -\u003e \"false\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitZeroFirst",
+      "unit-sha": "6687bd054f9c00b0",
+      "claim-sha": "ee8f8633a2e7b043",
+      "route": "mutant",
+      "producer": "internal/core/bgp/capability/capability.go::parsePathsLimit",
+      "producer-sha": "d4672a7ae55c074a",
+      "break": "line 873: \"limit == 0\" -\u003e \"false\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitForwardWritersShareState",
+      "unit-sha": "548da67c3c6e84f7",
+      "claim-sha": "a11b8801dbbab1f8",
+      "route": "mutant",
+      "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
+      "producer-sha": "a5b40993910711b9",
+      "break": "line 141: \"!withdraw \u0026\u0026 !held \u0026\u0026 prefix != nil \u0026\u0026 len(prefix.ids) \u003e= int(state.limit)\" -\u003e \"false\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitForwardWritersShareState",
+      "unit-sha": "548da67c3c6e84f7",
+      "claim-sha": "e0c4df78d919642e",
+      "route": "mutant",
+      "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
+      "producer-sha": "a5b40993910711b9",
+      "break": "line 141: \"!withdraw \u0026\u0026 !held \u0026\u0026 prefix != nil \u0026\u0026 len(prefix.ids) \u003e= int(state.limit)\" -\u003e \"true\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitSessionAcrossUpdates",
+      "unit-sha": "2cc74d9fd3cbc792",
+      "claim-sha": "e47aaa86df95bb96",
+      "route": "mutant",
+      "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
+      "producer-sha": "a5b40993910711b9",
+      "break": "line 141: \"!withdraw \u0026\u0026 !held \u0026\u0026 prefix != nil \u0026\u0026 len(prefix.ids) \u003e= int(state.limit)\" -\u003e \"false\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitSessionAcrossUpdates",
+      "unit-sha": "2cc74d9fd3cbc792",
+      "claim-sha": "cfb6f9efbd5695df",
+      "route": "mutant",
+      "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
+      "producer-sha": "a5b40993910711b9",
+      "break": "line 141: \"!withdraw \u0026\u0026 !held \u0026\u0026 prefix != nil \u0026\u0026 len(prefix.ids) \u003e= int(state.limit)\" -\u003e \"true\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6",
+      "polarity": "negative",
+      "unit": "test/plugin/paths-limit-live.ci",
+      "unit-sha": "910926a500c5d18f",
+      "claim-sha": "42b2d0d3191e8c69",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
+      "producer-sha": "a5b40993910711b9",
+      "break": "body of pathsLimitSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FFFD4003040A0000010000006318C63364"
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6",
+      "polarity": "positive",
+      "unit": "test/plugin/paths-limit-live.ci",
+      "unit-sha": "910926a500c5d18f",
+      "claim-sha": "33936730418e1fa1",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
+      "producer-sha": "a5b40993910711b9",
+      "break": "body of pathsLimitSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FFFD4003040A0000010000000118C00002"
+    }
+  ]
+}

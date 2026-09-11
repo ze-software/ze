@@ -169,8 +169,9 @@ func softwareVersionTLV(version string) []byte {
 // draft-abraitis-idr-addpath-paths-limit Section 3 gives each entry five octets:
 // AFI (2), SAFI (1) and Max Paths (2). negotiatePathsLimit
 // (internal/core/bgp/capability/negotiated.go) reads the entries into
-// pathsLimitSend, "Remote's limits (constrains our send)", which
-// CommitService.enforcePathsLimit then applies to what ze sends this peer.
+// pathsLimitSend, "Remote's limits (constrains our send)". Session.filterPathsLimit
+// (session_paths_limit.go, internal/component/bgp/reactor) then drops every path
+// past that limit on the connection to this peer.
 func pathsLimitTLV(entries []PathsLimitDecl) []byte {
 	limit := &capability.PathsLimit{Entries: make([]capability.PathsLimitEntry, 0, len(entries))}
 	for _, entry := range entries {

@@ -15,8 +15,10 @@ func init() {
 		{AFI: family.AFIIPv6, SAFI: family.SAFIMulticast},
 	} {
 		Register(fam, splitCIDR)
+		prefixKeys[fam] = keyCIDR
 	}
 	Register(family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}, splitEVPN)
+	prefixKeys[family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}] = keyEVPN
 	// RFC 7606 Section 5.4 names MCAST-VPN and EVPN as typed families in the same
 	// sentence. Both need a splitter before a route type can be judged, so both have
 	// one here; draft-ietf-bess-mup-safi frames MUP the same way with a wider header.
@@ -31,12 +33,15 @@ func init() {
 		{AFI: family.AFIIPv6, SAFI: family.SAFIMUP},
 	} {
 		Register(fam, SplitMUP)
+		prefixKeys[fam] = keyMUP
 	}
 	for _, fam := range []family.Family{
 		{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel},
 		{AFI: family.AFIIPv6, SAFI: family.SAFIMPLSLabel},
 	} {
 		Register(fam, SplitLabeled)
+		prefixKeys[fam] = keyLabeled
+		withdrawalSplitters[fam] = splitVPN
 	}
 
 	// A family ze negotiates and decodes but does not split is accepted on the
@@ -52,6 +57,7 @@ func init() {
 		{AFI: family.AFIIPv6, SAFI: family.SAFIVPN},
 	} {
 		Register(fam, splitVPN)
+		prefixKeys[fam] = keyVPN
 	}
 
 	// Route Target Constrain (RFC 4684 Section 4): [length in bits][origin
@@ -60,6 +66,7 @@ func init() {
 		{AFI: family.AFIIPv4, SAFI: family.SAFIRTC},
 	} {
 		Register(fam, splitCIDR)
+		prefixKeys[fam] = keyCIDR
 	}
 
 	// Flow specification (RFC 8955 Section 4, RFC 8956): a 1- or 2-octet length.
@@ -70,10 +77,12 @@ func init() {
 		{AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpecVPN},
 	} {
 		Register(fam, SplitFlowSpec)
+		prefixKeys[fam] = keyFlowSpec
 	}
 
 	// VPLS (RFC 4761 Section 3.2.2): a 2-octet length.
 	Register(family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIVPLS}, SplitVPLS)
+	prefixKeys[family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIVPLS}] = keyVPLS
 
 	// Link-State (RFC 9552 Section 5.1): [NLRI Type:2][Total NLRI Length:2].
 	for _, fam := range []family.Family{

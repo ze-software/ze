@@ -273,8 +273,7 @@ func parseAddPathFromTree(capMap, _ map[string]any, ps *PeerSettings) {
 		mode capMode
 	}
 	var perFamily []familyEntry
-	var pathsLimitEntries []capability.PathsLimitEntry
-	perFamilyHasLimit := make(map[family.Family]bool)
+	perFamilyLimits := make(map[family.Family]uint16)
 
 	if familyMap, ok := mapMap(apBlock, "family"); ok {
 		for key, val := range familyMap {
@@ -298,14 +297,7 @@ func parseAddPathFromTree(capMap, _ map[string]any, ps *PeerSettings) {
 					}
 				}
 				if limitStr, ok := mapString(m, "limit"); ok {
-					if limit := parseUint16(limitStr); limit > 0 {
-						pathsLimitEntries = append(pathsLimitEntries, capability.PathsLimitEntry{
-							AFI:   fam.AFI,
-							SAFI:  fam.SAFI,
-							Limit: limit,
-						})
-						perFamilyHasLimit[fam] = true
-					}
+					perFamilyLimits[fam] = parseUint16(limitStr)
 				}
 			}
 
@@ -373,19 +365,33 @@ func parseAddPathFromTree(capMap, _ map[string]any, ps *PeerSettings) {
 		ps.Capabilities = append(ps.Capabilities, addPath)
 	}
 
-	// Apply default limit to AddPath families without a per-family limit.
-	if defaultLimit > 0 {
-		for _, apf := range addPath.Families {
-			f := family.Family{AFI: apf.AFI, SAFI: apf.SAFI}
-			if !perFamilyHasLimit[f] {
-				pathsLimitEntries = append(pathsLimitEntries, capability.PathsLimitEntry{
-					AFI: apf.AFI, SAFI: apf.SAFI, Limit: defaultLimit,
-				})
-			}
+	// draft-abraitis-idr-addpath-paths-limit-04 Section 3: "An AFI/SAFI tuple MUST be
+	// ignored if the same tuple was not received in the ADD-PATH capability."
+	// The tuples are derived from addPath.Families, the same slice that reaches the wire,
+	// so the two sets cannot disagree. A family the mode filter above dropped therefore
+	// contributes no tuple, and Ze never sends a limit a conformant peer must discard.
+	var pathsLimitEntries []capability.PathsLimitEntry
+	for _, apf := range addPath.Families {
+		f := family.Family{AFI: apf.AFI, SAFI: apf.SAFI}
+		limit, hasOverride := perFamilyLimits[f]
+		if !hasOverride {
+			limit = defaultLimit
+		}
+
+		// Section 3: "If the received Paths Limit is zero (0), the tuple SHOULD be ignored."
+		// The YANG range on both limit leaves is 1..65535, so a zero here is an absent
+		// container default rather than an operator asking for a limit of none.
+		if limit > 0 {
+			pathsLimitEntries = append(pathsLimitEntries, capability.PathsLimitEntry{
+				AFI: apf.AFI, SAFI: apf.SAFI, Limit: limit,
+			})
 		}
 	}
 
-	// Emit PATHS-LIMIT capability if any family has a limit.
+	// draft-abraitis-idr-addpath-paths-limit-04 Section 3: "The PATHS-LIMIT capability
+	// MUST be ignored if the ADD-PATH capability is not present."
+	// An empty addPath.Families appends no ADD-PATH capability above, and it leaves this
+	// slice empty, so PATHS-LIMIT is never advertised on its own.
 	if len(pathsLimitEntries) > 0 {
 		ps.Capabilities = append(ps.Capabilities, &capability.PathsLimit{Entries: pathsLimitEntries})
 	}

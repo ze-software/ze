@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	peersel "github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -417,9 +418,16 @@ func handleBgpPeerList(ctx *pluginserver.CommandContext, args []string) (*plugin
 	for i := range peers {
 		p := &peers[i]
 		row := map[string]any{
-			fieldRemoteAS: p.PeerAS,
+			fieldRemoteAS: asn.Of(p.PeerAS),
 			fieldState:    p.State.String(),
 			fieldUptime:   p.Uptime.Truncate(time.Second).String(),
+		}
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 11: "Implementations SHOULD
+		// provide visibility for these sub-states in its display of the BGP
+		// finite state machine." Written only when there is one, so a peer that
+		// is not waiting for BFD carries no empty key.
+		if p.BFDSubState != "" {
+			row[fieldBFDSubState] = p.BFDSubState
 		}
 		if p.Name != "" {
 			row[fieldName] = p.Name
@@ -460,8 +468,8 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, args []string) (*plug
 			"connect-retry":     int(p.ConnectRetry.Seconds()),
 		}
 		row := map[string]any{
-			fieldRemoteAS:           p.PeerAS,
-			fieldLocalAS:            p.LocalAS,
+			fieldRemoteAS:           asn.Of(p.PeerAS),
+			fieldLocalAS:            asn.Of(p.LocalAS),
 			fieldRouterID:           routerID,
 			fieldPeerType:           p.PeerType,
 			"timer":                 timer,
@@ -485,6 +493,16 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, args []string) (*plug
 			// RFC 4271 §8.1.1 mandatory session attribute 2: "the number of
 			// times a BGP peer has tried to establish a peer session".
 			"connect-retry-counter": p.ConnectRetryCounter,
+		}
+		// draft-ietf-idr-bgp-bfd-strict-mode Section 11: "Implementations SHOULD
+		// provide visibility for these sub-states in its display of the BGP
+		// finite state machine." Carried by BOTH peer displays, because an
+		// operator meets a stuck peer through either: `show bgp peer list` is
+		// where a peer that will not come up is noticed, and `show bgp peer
+		// detail` is where the reason is looked for. Written only when there is
+		// a sub-state, so a peer that is not waiting carries no empty key.
+		if p.BFDSubState != "" {
+			row[fieldBFDSubState] = p.BFDSubState
 		}
 		if p.Name != "" {
 			row[fieldName] = p.Name
@@ -567,6 +585,7 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, args []string) (*plug
 			if p.NegotiatedAddPath != nil {
 				caps["add-path"] = p.NegotiatedAddPath
 			}
+			addPathsLimitFields(caps, p.NegotiatedPathsLimitSend, p.NegotiatedPathsLimitReceive)
 			if p.GracefulRestart {
 				caps["graceful-restart"] = map[string]any{
 					"restart-time": p.GRRestartTime,

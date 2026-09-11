@@ -431,7 +431,7 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 		return nil
 	}
 
-	if overridden {
+	if overridden || len(s.pathsLimit) != 0 {
 		return s.writeRawUpdateBody(body)
 	}
 
@@ -469,6 +469,34 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 // writeRawUpdateBody writes a raw UPDATE body to bufWriter without locking or flushing.
 // Caller must hold writeMu. Fires sent event callback with route metadata.
 func (s *Session) writeRawUpdateBody(body []byte) error {
+	committed := false
+	var withheld uint64
+	if len(s.pathsLimit) != 0 {
+		handle := s.getReadBuffer()
+		defer s.returnReadBuffer(handle)
+		changes, _ := pathsLimitScratch.Get().(*pathsLimitChanges)
+		defer func() {
+			if !committed {
+				changes.rollback()
+			}
+			changes.release()
+		}()
+		n, dropped, err := s.filterPathsLimit(handle.Buf, body, changes)
+		if err != nil {
+			return err
+		}
+		withheld = uint64(dropped)
+		if dropped != 0 {
+			sessionLogger().Debug("PATHS-LIMIT withheld additional paths",
+				"peer", s.settings.Address, "paths", dropped)
+		}
+		if n == 0 {
+			s.pathsLimitTotals.routes += withheld
+			s.pathsLimitTotals.updates++
+			return nil
+		}
+		body = handle.Buf[:n]
+	}
 	totalLen := message.HeaderLen + len(body)
 	s.writeBuf.Reset()
 	buf := s.writeBuf.Buffer()
@@ -485,6 +513,8 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 		}
 		return err
 	}
+	committed = true
+	s.pathsLimitTotals.routes += withheld
 	// Asked only while the answer can still change, as above. This is the
 	// zero-copy forwarding path and it runs for every relayed UPDATE, so an
 	// armed connection pays one atomic load here rather than a walk of the body.
@@ -576,6 +606,12 @@ func (s *Session) flushFwdDirty() {
 // Uses zero-allocation path via Update.WriteTo and session write buffer.
 // Concurrent calls are serialized by writeMu.
 func (s *Session) SendUpdate(update *message.Update) error {
+	return s.sendUpdateCounted(update, nil)
+}
+
+// sendUpdateCounted captures this write's admission result while writeMu is
+// held. Named commits must not count paths withheld by the session as sent.
+func (s *Session) sendUpdateCounted(update *message.Update, counts *pathsLimitSendCounts) error {
 	s.mu.RLock()
 	conn := s.conn
 	state := s.fsm.State()
@@ -591,12 +627,17 @@ func (s *Session) SendUpdate(update *message.Update) error {
 
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
+	before := s.pathsLimitTotals
 
 	if err := s.writeUpdate(update); err != nil {
 		return err
 	}
 	if err := s.flushWrites(); err != nil {
 		return err
+	}
+	if counts != nil {
+		counts.routes = s.pathsLimitTotals.routes - before.routes
+		counts.updates = s.pathsLimitTotals.updates - before.updates
 	}
 	s.resetSendHoldTimer()
 	return nil
@@ -714,7 +755,7 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 		return nil
 	}
 
-	if overridden {
+	if overridden || len(s.pathsLimit) != 0 {
 		if err := s.writeRawUpdateBody(body); err != nil {
 			return err
 		}
@@ -775,6 +816,16 @@ func (s *Session) sendWithdraw(prefix netip.Prefix, addPath bool) error {
 	// RFC 4271 Section 4.3 - Zero-allocation: write UPDATE directly to session buffer
 	s.writeBuf.Reset()
 	n := writeWithdrawUpdate(s.writeBuf.Buffer(), 0, prefix, addPath)
+	if len(s.pathsLimit) != 0 {
+		if err := s.writeRawUpdateBody(s.writeBuf.Buffer()[message.HeaderLen:n]); err != nil {
+			return err
+		}
+		if err := s.flushWrites(); err != nil {
+			return err
+		}
+		s.resetSendHoldTimer()
+		return nil
+	}
 
 	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
 		return err

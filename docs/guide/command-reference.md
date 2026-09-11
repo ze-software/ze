@@ -445,6 +445,60 @@ IP address.
 <!-- source: internal/component/plugin/register.go -- dataPlugins, pluginRows, show plugin list registration -->
 <!-- source: internal/component/plugin/registry/setup.go -- SetupResults, the outcome each row carries -->
 
+### show plugin declarations
+
+What each plugin declares: the commands it serves and the pipe aliases it puts
+on them. `show plugin list` answers which plugins the binary carries; this
+command answers what they declare. Answered in the operator's own process, so
+it needs no daemon.
+
+```
+ze show plugin declarations                             # the plugins this binary carries
+ze show plugin declarations config /etc/ze/ze.conf      # plus the plugins that file names
+```
+
+The bare form answers from the compiled-in registration and starts no process.
+The `config <path>` form adds one row for each plugin the file declares, and
+the config block decides where that row's declaration comes from. An `internal`
+block names code this binary carries, so the row is answered from the
+registration. An `external` block names another program, so the row is answered
+by starting that program with `ZE_PLUGIN_MODE=declare` in its environment, with
+every `ze.plugin.` variable removed, and reading the one framed declaration line
+it writes to stdout. Anything else the child writes is ignored, so a banner or a
+log line cannot corrupt the answer.
+
+Every pipe operator applies: `| json`, `| yaml`, `| table`, `| count`,
+`| match <text>`, `| first <n>`. The rows carry these keys:
+
+| Key | Value |
+|-----|-------|
+| `name` | The plugin name, as the registry or the config block spells it |
+| `kind` | `internal` for code this binary carries, `external` for another program |
+| `state` | One of the five below |
+| `commands` | The commands the plugin declares. Absent when it declares none |
+| `pipes` | The pipe aliases the plugin declares. Absent when it declares none |
+| `reason` | Why a row carries no declaration. Absent when one was read |
+
+| State | What it means |
+|-------|---------------|
+| `declared` | an answer arrived carrying declarations |
+| `declared-none` | an answer arrived carrying an empty declaration |
+| `no-answer` | the process ran and wrote no declaration, which is what a plugin with no query mode in it does |
+| `unstartable` | the process could not be started |
+| `timeout` | the process started, wrote no declaration inside the budget, and was stopped |
+
+No plugin is ever omitted: a plugin that could not answer keeps its row and says
+why. `declared-none` and `no-answer` stay apart, because a plugin with nothing
+to declare and a plugin that answered nothing are different facts.
+
+The budget is 5 seconds per plugin, the same wait a startup stage gets, and
+`ze.plugin.query.timeout` sets it. Zero or less is refused rather than read as
+"wait no time". A plugin that runs out of it is stopped with everything it
+started.
+
+<!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, queriedDeclarationRow -->
+<!-- source: internal/component/plugin/register.go -- the two show plugin declarations registrations -->
+
 ### show host
 
 Host hardware inventory. Read-only. Walks sysfs/procfs (and issues best-effort
@@ -1302,7 +1356,7 @@ name the URLs that run actually read.
 
 ```
 show vpn ipsec dataplane sa                  # The Security Association Database the kernel holds
-show vpn ipsec dataplane sa spi <spi>        # One SA, by SPI (1-4294967295)
+show vpn ipsec dataplane sa spi <spi>        # Matching SAs, by SPI (1-4294967295)
 show vpn ipsec dataplane policy              # The Security Policy Database the kernel holds
 show vpn ipsec dataplane drift               # Where engine belief and kernel state disagree
 ```
@@ -1318,10 +1372,12 @@ counters, and the add and use timestamps. It never renders key material.
 priority, upper-layer protocol, if_id, tunnel endpoints, and the peer that
 installed it. A policy Ze did not install reports its owner as unknown.
 
-`drift` names each Child SA the engine counts as installed whose SPI the kernel
-does not hold, and exits non-zero when it finds one. It exits zero when the two
-agree. A rekey window is not drift: RFC 7296 Section 2.8 keeps the old and the
-new Child SA alive together.
+`drift` names each expected Child SA identity the kernel does not hold and exits
+non-zero when it finds one. Identity includes SPI, destination, protocol, and
+XFRM interface ID. Extra kernel SAs are permitted during rekey. A failed or
+changing observation returns an error rather than a clean result.
+<!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneDrift -->
+<!-- source: internal/component/ike/engine/health_drift.go -- ObserveDataplane, driftingPeersFrom -->
 
 A backend that cannot enumerate the dataplane, VPP and the noop backend among
 them, reports that it cannot rather than rendering an empty table. So does a
@@ -2226,6 +2282,7 @@ Many commands take a `peer <selector>` argument:
 | `show bgp peer <sel> statistics` | read-only | Per-peer update statistics with rates |
 | `show bgp peer <sel> history` | read-only | FSM transition history |
 | `show bgp` | read-only | BGP summary table (all peers) |
+| `show bgp update-delay` | read-only | The startup convergence hold: whether this speaker is withholding its first advertisement, which condition ended a hold that has finished (`converged`, `establish-wait`, `max-delay`), and how many of the expected peers have converged. Read it when a speaker has come up and advertised nothing: it separates a working hold from a wedged daemon <!-- source: internal/component/bgp/plugins/cmd/peer/update_delay.go -- handleBgpUpdateDelay --> |
 | `show bgp <afi/safi>` | read-only | Per-family summary: filter to peers that negotiated this AFI/SAFI. Shorthands `ipv4`, `ipv6`, `l2vpn` expand to `ipv4/unicast`, `ipv6/unicast`, `l2vpn/evpn`. Unknown or un-negotiated families reject with the list of families currently negotiated on this daemon. Response adds `family` + `peers-in-family`; `peers-established` is the filtered count |
 | `request peer <sel> pause` | write | Pause read loop (flow control) |
 | `request peer <sel> resume` | write | Resume read loop |
@@ -2241,6 +2298,15 @@ matched peers:
 ```
 
 A capabilities row adds a `negotiated` object once the session negotiates.
+
+The `negotiated` object carries `paths-limit` when the session negotiated
+PATHS-LIMIT (capability 76) for a family that also negotiated ADD-PATH. The
+`send` map holds the limit the peer advertised, which caps the number of paths
+Ze announces to that peer for each prefix. The `receive` map holds the limit Ze
+advertised, which is what Ze asked the peer for. A family with ADD-PATH and no
+limit is in neither map, because no limit is not a limit of zero. The same
+object appears under `capabilities` on `show bgp peer <sel> detail`.
+<!-- source: internal/component/bgp/plugins/cmd/peer/fields.go -- addPathsLimitFields -->
 
 Until 2026-08 each command answered a bare object for one matched peer and an
 array for several. `show bgp peer * statistics | count` therefore answered on a

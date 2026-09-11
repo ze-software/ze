@@ -2,7 +2,7 @@
 
 ADD-PATH (RFC 7911) allows multiple paths per prefix by including a Path Identifier with each NLRI. Route servers use it to forward all available paths rather than one best path.
 
-PATHS-LIMIT (draft-abraitis-idr-addpath-paths-limit) lets a receiver advertise the maximum number of paths it wants per prefix per family, preventing uncontrolled path proliferation.
+PATHS-LIMIT (draft-abraitis-idr-addpath-paths-limit-04) lets a receiver request a maximum number of paths per prefix per family. Ze enforces the peer's negotiated limit on outbound routes.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- add-path capability config -->
 
 ## Configuration
@@ -46,6 +46,9 @@ capability {
 }
 ```
 
+A family entry can carry no block at all. `family { ipv4/unicast; }` takes the container direction and the container limit. A bare entry adds no family when the container states no direction.
+<!-- source: internal/component/bgp/reactor/config_capabilities.go -- parseAddPathFromTree -->
+
 ### Full Example
 
 ```
@@ -66,8 +69,8 @@ bgp {
                 }
             }
             family {
-                ipv4/unicast
-                ipv6/unicast
+                ipv4/unicast { prefix { maximum 1000; } }
+                ipv6/unicast { prefix { maximum 1000; } }
             }
         }
     }
@@ -92,14 +95,43 @@ bgp {
 
 ## PATHS-LIMIT
 
-The `limit` leaf on a per-family entry advertises a PATHS-LIMIT capability (code 76) for that family. The value (1-65535) is the maximum number of paths per prefix the receiver wants.
+The `limit` leaf advertises a PATHS-LIMIT capability (code 76) for the family. The value (1-65535) requests the maximum number of paths per prefix Ze wants to receive.
+
+This local limit is a receiver request, not a guarantee that the peer obeys it. It does not set Ze's outbound limit.
 
 | Setting | Effect |
 |---------|--------|
-| No `limit` leaf | No path count limit for that family |
-| `limit 10` | Peer will send at most 10 paths per prefix |
-| `limit 1` | Effectively single-path behaviour |
+| No effective `limit` | Ze requests no path count limit for that family |
+| `limit 10` | Request at most 10 paths per prefix from the peer |
+| `limit 1` | Request one path per prefix, still with ADD-PATH identifiers |
+| `limit` under `mode disable` | Ze advertises no limit for the family. A limit reaches the wire only for a family Ze advertises in ADD-PATH |
 <!-- source: internal/core/bgp/capability/capability.go -- PathsLimit struct -->
+<!-- source: internal/component/bgp/reactor/config_capabilities.go -- parseAddPathFromTree -->
+
+The peer's nonzero limit applies only when Ze negotiates ADD-PATH send for that family. Ze's local limit applies only to negotiated ADD-PATH receive. An absent limit or an unnegotiated ADD-PATH direction imposes no PATHS-LIMIT restriction.
+
+### Outbound Enforcement
+
+Ze counts distinct advertised path IDs for each AFI/SAFI and prefix on the destination connection. The count persists across UPDATE messages and batches. All normal send and forwarding paths share this count, including route-server fast-path forwarding.
+
+The count uses each family's route identity, not its forwarding fields. Labels do not create a new labeled IP prefix; VPN route distinguishers do. EVPN, VPLS, and MUP omit their non-key forwarding fields. Insignificant prefix padding cannot create another slot.
+<!-- source: internal/core/bgp/nlri/nlrisplit/prefix_key.go -- PrefixKeyFunc; internal/core/bgp/nlri/nlrisplit/register.go -- family key registration -->
+
+| Event | Effect |
+|-------|--------|
+| New path below the limit | Admit the path and count its ID |
+| New path at the limit | Suppress the announcement |
+| Replacement with an admitted path ID | Send the replacement without consuming another slot |
+| Withdrawal of an admitted path ID | Remove the ID and free its slot |
+| Destination reconnect | Start with an empty count for the new connection |
+
+The first admitted paths keep their slots. Ze does not select the best paths or queue suppressed paths for later transmission. A later re-announcement can retry after a withdrawal frees a slot.
+
+Named transactions retain separate path IDs for one prefix. They emit routes in deterministic identity order, with ascending path IDs for the same prefix. A lower ID does not displace a path admitted earlier on the connection.
+
+The deliberate `send ... raw message` diagnostic command sends exact bytes outside normal route admission. PATHS-LIMIT does not filter this command.
+<!-- source: internal/component/bgp/reactor/session_paths_limit.go -- pathsLimitFamily, pathsLimitSection, filterPathsLimit -->
+<!-- source: internal/component/bgp/transaction/commit_manager.go -- path-aware transaction identity and ordering -->
 
 ## How It Works
 
@@ -124,7 +156,7 @@ Peers that negotiate the same ADD-PATH modes share an encoding context (`Context
 
 ### Route Withdrawal
 
-To withdraw a specific path, the withdrawal NLRI includes the same path ID used in the announcement. Withdrawing without a path ID removes all paths for that prefix.
+In an ADD-PATH direction, a withdrawal includes the same path ID used in the announcement. Withdrawing one ID leaves the other paths for that prefix in place. Path ID zero is a valid identifier, not an instruction to withdraw every path.
 
 ### Ze Generates Its Own Path Identifiers
 
@@ -146,5 +178,5 @@ Regeneration runs whenever either side of the forward frames identifiers. A sess
 
 ## Interaction with Route Reflection
 
-ADD-PATH fits the route server plugin (`bgp-rs`). Without ADD-PATH, the route server can only forward one path per prefix to each peer. With ADD-PATH, it forwards all received paths, and downstream routers make their own best-path decisions.
+ADD-PATH fits the route server plugin (`bgp-rs`). Without ADD-PATH, the route server can only forward one path per prefix to each peer. With ADD-PATH, it forwards received paths within each destination's negotiated PATHS-LIMIT. Downstream routers make their own best-path decisions.
 <!-- source: internal/component/bgp/plugins/rs/ -- route server ADD-PATH forwarding -->

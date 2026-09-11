@@ -284,15 +284,8 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 				peer.incrUpdatesReceived()
 				// Additionally count EOR as a subset of updates.
 				if wireUpdate != nil {
-					if eorFamily, isEOR := wireUpdate.IsEOR(); isEOR {
+					if _, isEOR := wireUpdate.IsEOR(); isEOR {
 						peer.incrEORReceived()
-						// RFC 4724 Section 4.1 defers the initial routing
-						// update until the End-of-RIB marker has arrived from
-						// every peer it waits for. This is the one site that
-						// decodes an inbound marker, so the startup
-						// convergence hold learns about it here rather than
-						// keeping a second decode of its own (update_delay.go).
-						peer.updateDelayEndOfRIB(eorFamily)
 						// Cancel EOR timeout warning (AC-11).
 						if peer.health != nil {
 							peer.health.onEORReceived()
@@ -608,10 +601,9 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 	// capability bool (set once in New from the filterapi seam the rs plugin
 	// activates) makes the fast path inert even if that field were somehow set
 	// without the plugin, keeping the "delete the plugin, RS forwarding vanishes"
-	// invariant enforced at this gate and not only by the schema. The other
-	// RSFastPath/RSClient readers (session_negotiate PATHS-LIMIT suppression,
-	// peer_forward_facts AS-path-skip) stay schema-gated only, which suffices
-	// because they are unreachable without the plugin-owned config.
+	// invariant enforced at this gate and not only by the schema. The
+	// peer_forward_facts RSClient AS-path-skip reader stays schema-gated only,
+	// which suffices because it is unreachable without the plugin-owned config.
 	if kept && hasPeer && r.rsForwardingEnabled && peer.settings.RSFastPath && msgType == msgtype.TypeUPDATE {
 		// ReactorForwarded is a claim of delivery, and bgp-rs believes it: with
 		// the flag set and no FastPathSkipped it takes `default: releaseCache`

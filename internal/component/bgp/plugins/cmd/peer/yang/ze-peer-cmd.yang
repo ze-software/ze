@@ -86,7 +86,11 @@ the per-peer detail.";
 and four timers: receive hold time, send hold time, keepalive, and connect
 retry. The 'connect' and 'accept' flags say which directions this session opens.
 A 'messages' map counts OPEN, UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH and
-End-of-RIB in each direction.";
+End-of-RIB in each direction. Negotiated nonzero PATHS-LIMIT values appear
+under capabilities.paths-limit, keyed by family: send is the peer's maximum
+paths per prefix enforced on our outbound updates; receive is our advertised
+receive request, not a locally enforced inbound limit. Zero or absent limits
+are omitted.";
                 }
 
                 container capabilities {
@@ -95,8 +99,12 @@ End-of-RIB in each direction.";
                     description "Show what capabilities were negotiated with a peer.";
                     ze:help "The row carries the peer address and the FSM state. Once the OPEN exchange
 completed, a negotiated map follows with the address families, the extended
-message capability, enhanced route refresh, and 4-byte ASN support. A selector
-that matches no peer is refused with 'no matching peers'.";
+message capability, enhanced route refresh, and 4-byte ASN support.
+negotiated.paths-limit carries nonzero limits keyed by family: send is the
+peer's maximum paths per prefix enforced on our outbound updates; receive is
+our advertised receive request, not a locally enforced inbound limit. Zero or
+absent limits are omitted. A selector that matches no peer is refused with
+'no matching peers'.";
                 }
 
                 container statistics {
@@ -144,7 +152,6 @@ without a peer scope.";
                     }
                 }
             }
-
             // The command node lives HERE, in the -cmd module, and not beside the
             // handler's other declarations in ze-bgp-cmd-peer-api.yang.
             // BuildCommandTree walks modules whose name ends -cmd alone
@@ -163,6 +170,7 @@ converged, establish-wait or max-delay. expected-peers, peers-held and peers-con
 still waiting for, so you can name the neighbor that has not finished. Read this command when a speaker has come
 up and advertised nothing: it separates a hold that is working from a daemon that is wedged.";
             }
+
 
             container health {
                 config false;

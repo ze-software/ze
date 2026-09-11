@@ -1,0 +1,86 @@
+# draft-abraitis-idr-addpath-paths-limit-04 live operator admission.
+# The compiled fixture starts a daemon and this ze-test peer, then invokes the
+# real `ze send bgp * update text ...` CLI over ephemeral authenticated SSH.
+# Our receive limit is 9; the peer independently advertises IPv4=1 and IPv6=2.
+# All expectations are separate sequence groups: an excess route arriving before
+# the next different-prefix sentinel is a mismatch, not a quiet-time assertion.
+# A previously suppressed ID is expected only AFTER withdrawal and explicit retry.
+#
+# RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6 positive -- the paths the daemon sends for one prefix stay within the number the peer advertised, for IPv4 and IPv6, and a replacement of an admitted identifier and a reuse of a withdrawn slot both reach the wire.
+# RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6 negative -- an identifier above the peer's advertised number never reaches the wire: it is absent from the hex before the next different-prefix sentinel, and it appears only after a withdrawal frees a slot and the operator retries it.
+
+option=timeout:value=180s
+
+tmpfs=paths-limit.conf:terminator=EOF_CONF
+bgp {
+    router-id 10.0.0.2
+    peer peer1 {
+        connection {
+            remote { ip 127.0.0.1; }
+            local { ip 127.0.0.1; accept false; }
+        }
+        session {
+            asn { local 65533; remote 65000; }
+            router-id 10.0.0.2
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+                ipv6/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                graceful-restart disable
+                add-path {
+                    direction send/receive
+                    limit 9
+                    family { ipv4/unicast; ipv6/unicast; }
+                }
+            }
+        }
+        behavior { group-updates disable; }
+        timer { receive-hold-time 180; }
+    }
+}
+system {
+    authentication {
+        user ci {
+            password "{{PASSWORD_HASH}}"
+            profile [ admin ]
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=peer-script:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=open:value=paths-limit:family=ipv4/unicast:limit=1
+option=open:value=paths-limit:family=ipv6/unicast:limit=2
+# Both initial-sync EORs precede operator announcements; family order is immaterial.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
+# IPv4 ID 1 accepted; ID 2 must not appear before the sentinel ID 99.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FFFD4003040A0000010000000118C00002
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FFFD4003040A0000010000006318C63364
+# ID 1 replacement has a different next hop, then its withdrawal frees the slot.
+expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FFFD4003040A0000020000000118C00002
+expect=bgp:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001F0200080000000118C000020000
+# No queued suppressed route is released implicitly by the withdrawal.
+expect=bgp:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FFFD4003040A0000050000006318C63364
+# Explicit retry of ID 2 now reaches the wire; ID 3 remains suppressed.
+expect=bgp:conn=1:seq=7:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FFFD4003040A0000010000000218C00002
+expect=bgp:conn=1:seq=8:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FFFD4003040A0000020000006318C63364
+# IPv6 admits IDs 1 and 2 independently of IPv4; ID 3 must not precede the fence.
+expect=bgp:conn=1:seq=9:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004902000000324001010040020602010000FFFD800E220002011020010DB800000000000000000000000100000000014020010DB800010000
+expect=bgp:conn=1:seq=10:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004902000000324001010040020602010000FFFD800E220002011020010DB800000000000000000000000100000000024020010DB800010000
+expect=bgp:conn=1:seq=11:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FFFD4003040A0000030000006318C63364
+# IPv6 same-ID replacement, ID 1 withdrawal, explicit ID 3 retry.
+expect=bgp:conn=1:seq=12:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004902000000324001010040020602010000FFFD800E220002011020010DB800000000000000000000000200000000024020010DB800010000
+expect=bgp:conn=1:seq=13:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002A0200000013800F10000201000000014020010DB800010000
+# Again, only the later explicit retry may admit the formerly withheld ID.
+expect=bgp:conn=1:seq=14:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FFFD4003040A0000060000006318C63364
+expect=bgp:conn=1:seq=15:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004902000000324001010040020602010000FFFD800E220002011020010DB800000000000000000000000100000000034020010DB800010000
+# Final IPv4 ID 3 retry stays suppressed even though an IPv6 slot was freed.
+expect=bgp:conn=1:seq=16:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FFFD4003040A0000040000006318C63364
+EOF_PEER
+
+cmd=foreground:seq=1:exec=ze-test fixture plugin/paths-limit-live $PORT:timeout=170s
+expect=exit:code=0
+expect=stdout:contains=OK: PATHS-LIMIT live IPv4 and IPv6 admission, replacement, withdrawal and retry

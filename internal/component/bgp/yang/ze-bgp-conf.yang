@@ -75,7 +75,6 @@ module ze-bgp-conf {
                     'bgp bestpath as-path multipath-relax'.";
             }
         }
-
         container update-delay {
             description "Hold the first advertisement at startup until the RIB settles.";
             ze:help "An absent container is the default, and it keeps the behavior Ze had before the container
@@ -118,6 +117,7 @@ module ze-bgp-conf {
                     configuration where this value is more than max-delay.";
             }
         }
+
 
         container session {
             description "Global BGP session defaults";
@@ -1006,8 +1006,9 @@ module ze-bgp-conf {
                     }
                     leaf limit {
                         type uint16 { range "1..65535"; }
-                        description "Default maximum paths per prefix (PATHS-LIMIT).";
-                        ze:help "Every family inherits the value. A per-family entry overrides it.";
+                        description "Default maximum paths per prefix requested from the peer (PATHS-LIMIT).";
+                        ze:help "Ze advertises this receive request for each enabled ADD-PATH family. A per-family
+                            limit overrides it. This setting does not enforce a local receive-side limit.";
                     }
                     list family {
                         key "name";
@@ -1029,9 +1030,10 @@ module ze-bgp-conf {
                         }
                         leaf limit {
                             type uint16 { range "1..65535"; }
-                            description "Maximum paths per prefix to receive (PATHS-LIMIT capability).";
-                            ze:help "Ze sends one PATHS-LIMIT entry for this family when the value is more than 0.
-                                With 0 the family takes the container limit instead.";
+                            description "Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).";
+                            ze:help "Use a value from 1 through 65535. Omit this leaf to inherit the container limit.
+                                Ze advertises no limit for a disabled or refused ADD-PATH family. This is a request
+                                to the sender, not local receive-side policing.";
                         }
                         leaf mode {
                             type enumeration {

@@ -10,11 +10,11 @@
 | Date | 2024 |
 | Depends | RFC 7911 (ADD-PATH) |
 | Enrolment | enrolled |
-| Enrolment reason | BGP ADD-PATH Paths-Limit capability (code 76): four MUST-level requirements, all met and test-bound. 3-2 (limit ignored when ADD-PATH capability absent), 3-3 (per-family limit ignored when the AFI/SAFI was not in ADD-PATH), 3-4 (duplicate tuple: first considered, others ignored) each carry positive+negative tags on internal/core/bgp/capability negotiation/parse tests; 3-1 (a single PATHS-LIMIT capability instance carries all families) is {single-polarity: positive} bound to a new reactor emit test, since the encoder appends exactly one capability.PathsLimit by construction (internal/component/bgp/reactor/config_capabilities.go:388-391). |
+| Enrolment reason | BGP ADD-PATH Paths-Limit capability (code 76): four MUST-level requirements with positive and negative test carriers. For 3-1, coalescePathsLimit in internal/component/bgp/reactor/session_negotiate.go merges configuration and plugin declarations; TestBuildOpenCoalescesPathsLimit checks multiple families in one emitted instance and prevents repeated input instances from leaking into OPEN. For 3-2 and 3-3, core capability negotiation tests cover ADD-PATH present/absent and matching/unmatched families; for 3-4, TestParsePathsLimitDuplicateFirstWins covers retaining the first tuple and ignoring later duplicates. SHOULD-level zero handling (3-5) and session-wide sender enforcement (3-6) have separate parser, negotiation, and sender regression carriers. |
 | Support | drafts 10 |
 | Support area | BGP PATHS-LIMIT |
 | Support status | Supported |
-| Support coverage | Per-family path-count limit capability for ADD-PATH. |
+| Support coverage | Receiver-advertised per-family path-count requests for ADD-PATH, with session-wide outbound enforcement across normal sends and forwarding, including the route-server fast path. The configuration knob states a request to the peer and does not bound what Ze accepts: a peer that ignores it is not policed. |
 | Support remaining | - |
 
 **Purpose:** Extends ADD-PATH (RFC 7911) by letting a receiver advertise the maximum number of paths it wants to receive per prefix, per address family. Prevents uncontrolled path proliferation in ADD-PATH deployments.
@@ -51,31 +51,32 @@ Variable length: sequence of 5-byte entries. Each entry specifies the maximum nu
 
 - Receiver-advertised: a speaker advertises how many paths it wants to receive per prefix.
 - The remote speaker's PATHS-LIMIT constrains our outgoing path count.
-- Our PATHS-LIMIT constrains the peer's outgoing path count.
+- Our PATHS-LIMIT requests a maximum for the peer's outgoing path count; it is not inbound policing by Ze.
 - PATHS-LIMIT entries are only accepted for families also present in the peer's ADD-PATH capability.
 - If a family has ADD-PATH negotiated but no PATHS-LIMIT, there is no limit.
 
 ## Key Requirements
 
-1. Only emit PATHS-LIMIT in OPEN if at least one family has a limit > 0.
+1. Emit at most one PATHS-LIMIT instance in OPEN, coalescing configuration and plugin declarations; an empty instance communicates no limits.
 2. Entries with limit 0 are skipped/ignored during parsing.
 3. Duplicate AFI/SAFI entries: first entry wins, duplicates silently ignored.
-4. Maximum 50 entries per capability (255-2 header bytes / 5 bytes per entry).
+4. Maximum 51 entries per capability (255 value octets / 5 bytes per entry; the two-octet header is separate).
 5. Enforcement is on the sender side: the sender counts paths per prefix and drops excess before transmitting UPDATE messages.
 
 ## Ze Implementation
 
 - Capability code: `capability.CodePathsLimit` (76)
 - Struct: `capability.PathsLimit` with `[]PathsLimitEntry`
+- OPEN producer: `coalescePathsLimit()` in `session_negotiate.go` combines configuration and plugin declarations into one capability before encoding.
 - Negotiation: `Negotiate()` processes after ADD-PATH, stores in `EncodingCaps.PathsLimitSend/Recv`
 - Context: `EncodingContext.PathsLimit(family)` returns direction-specific limit
-- Enforcement: `CommitService.enforcePathsLimit()` drops excess routes per prefix before grouping
-- RS fast-path: PATHS-LIMIT capability suppressed for RSFastPath peers (no per-prefix state in forwarding)
-- Config: `session > capability > add-path > family > limit` leaf (YANG range 1..65535)
+- Enforcement: `Session.filterPathsLimit()` and `pathsLimitSection()` share per-connection, per-family, per-prefix admitted-path state across normal UPDATE sends and forwarding. Existing path replacements pass at capacity; withdrawals free slots; a new connection starts empty.
+- RS fast-path: advertises PATHS-LIMIT normally and shares the session's outbound admission state for raw and re-encoded forwarding. The deliberate raw-message diagnostic command remains outside normal route admission.
+- Config: `session > capability > add-path > limit` sets the default receive request; `family > limit` overrides it for one family. Both leaves accept 1..65535. Omit the family leaf to inherit the default. Disabled/refused families advertise no limit. These knobs request sender behavior; they do not enforce a local receive-side cap.
 
 ## Compliance Checklist
 
-- [ ] [DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1] [MUST] A BGP speaker wishing to indicate support for multiple AFI/SAFIs "MUST do so by including the information in a single instance of the PATHS-LIMIT capability" (§3) {single-polarity: positive; the encoder appends exactly one capability.PathsLimit holding all families at internal/component/bgp/reactor/config_capabilities.go:388-391, so no code path can emit a second instance and a two-instance negative case cannot be constructed}
+- [ ] [DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1] [MUST] A BGP speaker wishing to indicate support for multiple AFI/SAFIs "MUST do so by including the information in a single instance of the PATHS-LIMIT capability" (§3)
 - [ ] [DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-2] [MUST] "The PATHS-LIMIT capability MUST be ignored if the ADD-PATH capability is not present" (§3)
 - [ ] [DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-3] [MUST] "An AFI/SAFI tuple MUST be ignored if the same tuple was not received in the ADD-PATH capability" (§3)
 - [ ] [DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-4] [MUST] When more than one tuple is received for the same AFI/SAFI pair, only the first tuple is considered and "All others MUST be ignored" (§3)

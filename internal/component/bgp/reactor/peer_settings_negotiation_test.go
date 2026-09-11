@@ -53,7 +53,9 @@ func establishNegotiatedSession(t *testing.T, p *Peer, peerCaps ...capability.Ca
 
 	s := NewSession(p.settings)
 	s.setConfigCapabilityGetter(p.configuredCapabilities)
-	s.localOpen = s.buildOpen(p.settings, p.settings.Capabilities)
+	open, err := s.buildOpen(p.settings, p.settings.Capabilities)
+	require.NoError(t, err)
+	s.localOpen = open
 	peerParams, peerExtended := buildOptionalParams(peerCaps)
 	s.peerOpen = &message.Open{
 		Version:        4,
@@ -74,6 +76,23 @@ func establishNegotiatedSession(t *testing.T, p *Peer, peerCaps ...capability.Ca
 	p.session = s
 	p.mu.Unlock()
 	return s
+}
+
+// TestNegotiationRejectsUnencodablePathsLimit prevents reload from treating an
+// invalid outbound capability as an ignorable, unsupported capability change.
+func TestNegotiationRejectsUnencodablePathsLimit(t *testing.T) {
+	current := negotiationSettings(capIPv4())
+	peer := NewPeer(current)
+	session := establishNegotiatedSession(t, peer, capIPv4())
+	next := negotiationSettings(capIPv4())
+	entries := make([]capability.PathsLimitEntry, 52)
+	for i := range entries {
+		entries[i] = capability.PathsLimitEntry{
+			AFI: capability.AFI(i + 1), SAFI: capability.SAFIUnicast, Limit: 1,
+		}
+	}
+	next.Capabilities = append(next.Capabilities, &capability.PathsLimit{Entries: entries})
+	assert.False(t, session.negotiationOutcomeUnchanged(next))
 }
 
 // TestNegotiationOutcomeDecidesSwapOrRestart drives the owner's ruling of
@@ -263,7 +282,9 @@ func TestNegotiationProbeFailsClosed(t *testing.T) {
 		_, peer := newSwapTestReactor(t, current, next)
 		s := NewSession(peer.settings)
 		s.setConfigCapabilityGetter(peer.configuredCapabilities)
-		s.localOpen = s.buildOpen(peer.settings, peer.settings.Capabilities)
+		open, err := s.buildOpen(peer.settings, peer.settings.Capabilities)
+		require.NoError(t, err)
+		s.localOpen = open
 		_, reason := peerSettingsSwapPlan(current, next, s)
 		assert.Equal(t, "Capabilities", reason, "half an OPEN exchange proves nothing")
 	})

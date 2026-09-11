@@ -1640,28 +1640,6 @@ func (a *reactorAPIAdapter) commitToPeer(peer *Peer, routes []*rib.Route, withdr
 		return row
 	}
 
-	if len(routes) > 0 {
-		// Two-level grouping, one UPDATE per attribute-and-AS_PATH group.
-		cs := rib.NewCommitService(peer, ctx, true)
-
-		// Commit returns its stats BESIDE the error, and those stats are
-		// partial: a refusal in the third group leaves two groups already on
-		// the wire. Counting them is the whole point -- discarding the error
-		// used to discard the UPDATEs that did leave along with it.
-		stats, err := cs.Commit(routes, rib.CommitOptions{SendEOR: false})
-		row.UpdatesSent += stats.UpdatesSent
-		row.RoutesAnnounced += stats.RoutesAnnounced
-		switch {
-		case err != nil:
-			row.Reasons = append(row.Reasons, bgptypes.CommitReasonAnnounceRefused)
-		case stats.RoutesAnnounced < len(routes):
-			// enforcePathsLimit (rib/commit.go) drops routes over a negotiated
-			// per-prefix limit and reports no error for it, so a successful
-			// commit can still carry fewer routes than were queued.
-			row.Reasons = append(row.Reasons, bgptypes.CommitReasonRoutesDropped)
-		}
-	}
-
 	if len(withdrawals) > 0 {
 		outcome := a.sendWithdrawals(peer, withdrawals)
 		row.UpdatesSent += outcome.updatesSent
@@ -1671,6 +1649,27 @@ func (a *reactorAPIAdapter) commitToPeer(peer *Peer, routes []*rib.Route, withdr
 		}
 		if outcome.failed > 0 {
 			row.Reasons = append(row.Reasons, bgptypes.CommitReasonSendFailed)
+		}
+	}
+	if len(routes) > 0 {
+		// Two-level grouping, one UPDATE per attribute-and-AS_PATH group.
+		sender := pathsLimitCommitSender{peer: peer}
+		cs := rib.NewCommitService(&sender, ctx, true)
+
+		// Commit returns its stats BESIDE the error, and those stats are
+		// partial: a refusal in the third group leaves two groups already on
+		// the wire. Counting them is the whole point -- discarding the error
+		// used to discard the UPDATEs that did leave along with it.
+		stats, err := cs.Commit(routes, rib.CommitOptions{SendEOR: false})
+		row.UpdatesSent += stats.UpdatesSent - int(sender.withheld.updates)
+		row.RoutesAnnounced += stats.RoutesAnnounced - int(sender.withheld.routes)
+		switch {
+		case err != nil:
+			row.Reasons = append(row.Reasons, bgptypes.CommitReasonAnnounceRefused)
+		case row.RoutesAnnounced < len(routes):
+			// The session can withhold routes across commits as well as within
+			// one batch. Report only paths actually accepted by its writer.
+			row.Reasons = append(row.Reasons, bgptypes.CommitReasonRoutesDropped)
 		}
 	}
 

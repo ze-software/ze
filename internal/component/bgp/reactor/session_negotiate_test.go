@@ -1,7 +1,9 @@
 package reactor
 
 import (
+	"bufio"
 	"encoding/hex"
+	"fmt"
 	"net/netip"
 	"strings"
 	"testing"
@@ -307,7 +309,8 @@ func negotiateAgainstMirror(t *testing.T, open *message.Open) *NegotiatedCapabil
 func TestBuildOpenNoFamilyNegotiatesImplicitIPv4Unicast(t *testing.T) {
 	s, settings := newNoFamilySession(t)
 
-	open := s.buildOpen(settings, settings.Capabilities)
+	open, err := s.buildOpen(settings, settings.Capabilities)
+	require.NoError(t, err)
 
 	// One type-2 optional parameter carrying one capability: ASN4 (code 0x41,
 	// length 4) with local AS 65001 = 0x0000FDE9. No Multiprotocol capability.
@@ -334,7 +337,8 @@ func TestBuildOpenConfigFamiliesUnchanged(t *testing.T) {
 		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast},
 	}
 
-	open := s.buildOpen(settings, settings.Capabilities)
+	open, err := s.buildOpen(settings, settings.Capabilities)
+	require.NoError(t, err)
 
 	// Multiprotocol ipv6/unicast (code 01, length 4, AFI 0x0002, reserved 00,
 	// SAFI 01) then ASN4, bundled in one type-2 optional parameter of 12 bytes.
@@ -360,7 +364,8 @@ func TestBuildOpenPluginFamiliesUnchanged(t *testing.T) {
 	s, settings := newNoFamilySession(t)
 	s.SetPluginFamiliesGetter(func() []string { return []string{"ipv6/unicast"} })
 
-	open := s.buildOpen(settings, settings.Capabilities)
+	open, err := s.buildOpen(settings, settings.Capabilities)
+	require.NoError(t, err)
 
 	assert.Equal(t, "020C010400020001"+"41040000FDE9",
 		strings.ToUpper(hex.EncodeToString(open.OptionalParams)),
@@ -370,4 +375,104 @@ func TestBuildOpenPluginFamiliesUnchanged(t *testing.T) {
 	require.NotNil(t, nc)
 	assert.Equal(t, []family.Family{family.IPv6Unicast}, nc.Families(),
 		"the plugin family is the negotiated family: no implicit ipv4/unicast is added")
+}
+
+// TestBuildOpenCoalescesPathsLimit verifies configuration and raw plugin tuples
+// reach the peer in one instance, with the first tuple authoritative.
+//
+// RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1 positive -- configuration and raw plugin families reach the peer together in one PATHS-LIMIT instance.
+// RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1 negative -- repeated configuration and plugin instances, including an empty instance and duplicate tuples, do not escape as multiple OPEN capabilities.
+func TestBuildOpenCoalescesPathsLimit(t *testing.T) {
+	s, settings := newNoFamilySession(t)
+	settings.Capabilities = []capability.Capability{
+		&capability.PathsLimit{},
+		&capability.PathsLimit{Entries: []capability.PathsLimitEntry{
+			{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast, Limit: 4},
+		}},
+	}
+	s.SetPluginCapabilityGetter(func() []capability.Capability {
+		return []capability.Capability{
+			capability.NewPlugin(76, []byte{0, 1, 1, 0, 9, 0, 2, 1, 0, 0}),
+			capability.NewPlugin(76, []byte{0, 2, 1, 0, 8, 0, 1, 2, 0, 3}),
+		}
+	})
+	for range 2 {
+		open, err := s.buildOpen(settings, settings.Capabilities)
+		require.NoError(t, err)
+		caps, err := capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
+		require.NoError(t, err)
+		var limits []*capability.PathsLimit
+		for _, c := range caps {
+			if pl, ok := c.(*capability.PathsLimit); ok {
+				limits = append(limits, pl)
+			}
+		}
+		require.Len(t, limits, 1)
+		assert.Equal(t, []capability.PathsLimitEntry{
+			{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast, Limit: 4},
+			{AFI: capability.AFIIPv4, SAFI: capability.SAFIMulticast, Limit: 3},
+		}, limits[0].Entries)
+	}
+}
+
+// TestSendOpenPathsLimitBoundary exercises the socket boundary: 51 distinct
+// tuples encode in an extended OPEN, while 52 refuse the OPEN without writing.
+func TestSendOpenPathsLimitBoundary(t *testing.T) {
+	for _, count := range []int{51, 52} {
+		t.Run(fmt.Sprint(count), func(t *testing.T) {
+			s, settings := newNoFamilySession(t)
+			entries := make([]capability.PathsLimitEntry, count)
+			for i := range entries {
+				entries[i] = capability.PathsLimitEntry{
+					AFI: capability.AFI(i + 1), SAFI: capability.SAFIUnicast, Limit: 65535,
+				}
+			}
+			settings.Capabilities = []capability.Capability{
+				&capability.PathsLimit{Entries: entries[:26]},
+				&capability.PathsLimit{Entries: entries[25:]},
+			}
+			conn := &recordingConn{}
+			s.bufWriter = bufio.NewWriter(conn)
+			err := s.sendOpen(conn)
+			if count == 52 {
+				require.ErrorIs(t, err, capability.ErrInvalidLength)
+				assert.Empty(t, conn.written())
+				assert.Nil(t, s.localOpen)
+				return
+			}
+			require.NoError(t, err)
+			wire := conn.written()
+			require.Greater(t, len(wire), message.HeaderLen)
+			open, err := message.UnpackOpen(wire[message.HeaderLen:])
+			require.NoError(t, err)
+			assert.True(t, open.ExtendedParams)
+			caps, err := capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
+			require.NoError(t, err)
+			var limits []*capability.PathsLimit
+			for _, c := range caps {
+				if pl, ok := c.(*capability.PathsLimit); ok {
+					limits = append(limits, pl)
+				}
+			}
+			require.Len(t, limits, 1)
+			assert.Equal(t, entries, limits[0].Entries)
+		})
+	}
+}
+
+// TestSendOpenRejectsMalformedPluginPathsLimit prevents raw plugin values from
+// overflowing the capability length or emitting an incomplete tuple.
+func TestSendOpenRejectsMalformedPluginPathsLimit(t *testing.T) {
+	for _, size := range []int{4, 260} {
+		t.Run(fmt.Sprint(size), func(t *testing.T) {
+			s, _ := newNoFamilySession(t)
+			s.SetPluginCapabilityGetter(func() []capability.Capability {
+				return []capability.Capability{capability.NewPlugin(76, make([]byte, size))}
+			})
+			conn := &recordingConn{}
+			require.ErrorIs(t, s.sendOpen(conn), capability.ErrInvalidLength)
+			assert.Empty(t, conn.written())
+			assert.Nil(t, s.localOpen)
+		})
+	}
 }

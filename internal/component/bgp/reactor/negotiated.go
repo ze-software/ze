@@ -22,6 +22,11 @@ type NegotiatedCapabilities struct {
 	EnhancedRouteRefresh bool                   // RFC 7313: Enhanced route refresh
 	ASN4                 bool                   // RFC 6793: 4-byte ASN support
 
+	// Nonzero PATHS-LIMIT facts, immutable after publication. Sending is
+	// enforced locally; receiving is only our advertised request to the peer.
+	pathsLimitSend    map[string]uint16
+	pathsLimitReceive map[string]uint16
+
 	// RFC 4271 Section 4.2: negotiated hold time in seconds.
 	HoldTime uint16
 
@@ -44,6 +49,7 @@ func NewNegotiatedCapabilities(neg *capability.Negotiated) *NegotiatedCapabiliti
 		HoldTime:             neg.HoldTime,
 		GracefulRestart:      neg.GracefulRestart,
 	}
+	nc.pathsLimitSend, nc.pathsLimitReceive = negotiatedPathsLimits(neg)
 
 	for _, f := range neg.Families() {
 		// f is capability.Family which is now family.Family (type alias)
@@ -79,4 +85,31 @@ func (nc *NegotiatedCapabilities) Families() []family.Family {
 	})
 
 	return result
+}
+
+// negotiatedPathsLimits projects the session's effective per-family limits onto
+// both peer inspection surfaces. Zero means unrestricted, not an enforced zero.
+func negotiatedPathsLimits(neg *capability.Negotiated) (send, receive map[string]uint16) {
+	if neg.Encoding == nil {
+		return nil, nil
+	}
+	for f, limit := range neg.Encoding.PathsLimitSend {
+		if limit == 0 || neg.Encoding.AddPathMode[f]&capability.AddPathSend == 0 {
+			continue
+		}
+		if send == nil {
+			send = make(map[string]uint16)
+		}
+		send[f.String()] = limit
+	}
+	for f, limit := range neg.Encoding.PathsLimitRecv {
+		if limit == 0 || neg.Encoding.AddPathMode[f]&capability.AddPathReceive == 0 {
+			continue
+		}
+		if receive == nil {
+			receive = make(map[string]uint16)
+		}
+		receive[f.String()] = limit
+	}
+	return send, receive
 }

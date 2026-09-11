@@ -392,7 +392,7 @@ func (u *announceUnit) recordAll(peer *Peer) {
 			return
 		}
 		off = next
-		peer.adjOut.record(u.batch.Family, wire, u.storedSignature())
+		peer.recordAnnounced(u.batch.Family, wire, u.storedSignature())
 	}
 }
 
@@ -466,7 +466,7 @@ func (a *reactorAPIAdapter) announcePartialToPeers(peers []*Peer, u *announceUni
 			continue
 		}
 		for _, wire := range owedWire {
-			peer.adjOut.record(u.batch.Family, wire, u.storedSignature())
+			peer.recordAnnounced(u.batch.Family, wire, u.storedSignature())
 		}
 		sent++
 	}

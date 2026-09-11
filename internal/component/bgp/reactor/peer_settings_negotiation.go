@@ -79,7 +79,10 @@ func (s *Session) negotiationOutcomeUnchanged(next *PeerSettings) bool {
 		return false
 	}
 
-	nextOpen := s.buildOpen(next, next.Capabilities)
+	nextOpen, err := s.buildOpen(next, next.Capabilities)
+	if err != nil {
+		return false
+	}
 	if !openHeaderEqual(localOpen, nextOpen) {
 		return false
 	}

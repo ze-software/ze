@@ -789,43 +789,52 @@ func TestParsePathsLimit(t *testing.T) {
 	assert.Equal(t, uint16(20), pl.Entries[1].Limit)
 }
 
-// TestParsePathsLimitEmpty verifies empty data produces empty PathsLimit.
-//
-// VALIDATES: Edge case with no entries.
-//
-// PREVENTS: Panic on empty PATHS-LIMIT capability.
-func TestParsePathsLimitEmpty(t *testing.T) {
+// TestPathsLimitEmptyRoundTrip verifies that an explicit empty capability reaches
+// the wire and communicates no limits without consuming the next capability.
+func TestPathsLimitEmptyRoundTrip(t *testing.T) {
 	t.Parallel()
-	data := []byte{
-		0x4C, // Code = PATHS-LIMIT (76)
-		0x00, // Length = 0
-	}
+	pl := &PathsLimit{}
+	buf := make([]byte, pl.Len()+2)
+	n := pl.WriteTo(buf, 0)
+	n += (&RouteRefresh{}).WriteTo(buf, n)
+	require.Equal(t, []byte{76, 0, 2, 0}, buf[:n])
 
-	caps, err := Parse(data)
+	caps, err := Parse(buf[:n])
 	require.NoError(t, err)
-	require.Len(t, caps, 1)
-
-	pl, ok := caps[0].(*PathsLimit)
+	require.Len(t, caps, 2)
+	parsed, ok := caps[0].(*PathsLimit)
 	require.True(t, ok)
-	assert.Empty(t, pl.Entries)
+	assert.Empty(t, parsed.Entries)
+	assert.Equal(t, CodeRouteRefresh, caps[1].Code())
 }
 
-// TestParsePathsLimitShortRead verifies truncated data returns ErrShortRead.
-//
-// VALIDATES: Malformed data detection.
-//
-// PREVENTS: Buffer overread from corrupted packets.
-func TestParsePathsLimitShortRead(t *testing.T) {
+// TestParsePathsLimitMalformed verifies incomplete tuples and truncated TLVs
+// return the offending data instead of accepting partial limits.
+func TestParsePathsLimitMalformed(t *testing.T) {
 	t.Parallel()
-	data := []byte{
-		0x4C,       // Code = PATHS-LIMIT (76)
-		0x03,       // Length = 3 (not multiple of 5)
-		0x00, 0x01, // AFI
-		0x01, // SAFI (truncated: missing 2-byte limit)
+	for _, length := range []int{1, 2, 3, 4, 254} {
+		t.Run(fmt.Sprint(length), func(t *testing.T) {
+			t.Parallel()
+			data := make([]byte, 2+length)
+			data[0], data[1] = 76, byte(length)
+			caps, err := Parse(data)
+			require.ErrorIs(t, err, ErrShortRead)
+			assert.Nil(t, caps)
+			assert.Equal(t, data, ErrorData(err))
+		})
 	}
-
-	_, err := Parse(data)
-	require.ErrorIs(t, err, ErrShortRead)
+	t.Run("truncated value", func(t *testing.T) {
+		t.Parallel()
+		data := []byte{76, 5, 0, 1, 1, 0}
+		_, err := Parse(data)
+		require.ErrorIs(t, err, ErrShortRead)
+		assert.Equal(t, data, ErrorData(err))
+	})
+	t.Run("truncated header", func(t *testing.T) {
+		t.Parallel()
+		_, err := Parse([]byte{76})
+		require.ErrorIs(t, err, ErrShortRead)
+	})
 }
 
 // TestParsePathsLimitSkipZero verifies entries with limit 0 are skipped.
@@ -833,6 +842,9 @@ func TestParsePathsLimitShortRead(t *testing.T) {
 // VALIDATES: draft-abraitis-idr-addpath-paths-limit: limit 0 means skip.
 //
 // PREVENTS: Accepting 0 as a valid limit (would mean "no paths").
+//
+// RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5 positive -- the nonzero IPv6 limit remains usable when another family's received limit is zero.
+// RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5 negative -- the received zero IPv4 tuple is omitted rather than imposing a zero-path limit.
 func TestParsePathsLimitSkipZero(t *testing.T) {
 	t.Parallel()
 	data := []byte{
@@ -886,6 +898,30 @@ func TestParsePathsLimitDuplicateFirstWins(t *testing.T) {
 	require.True(t, ok)
 	require.Len(t, pl.Entries, 1)
 	assert.Equal(t, uint16(10), pl.Entries[0].Limit)
+}
+
+// TestParsePathsLimitZeroFirst verifies that ignoring a zero limit does not
+// allow a later duplicate to impose a limit for that AFI/SAFI.
+//
+// RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5 negative -- ignoring a first zero tuple leaves that family without a limit even when a later duplicate advertises a nonzero value.
+func TestParsePathsLimitZeroFirst(t *testing.T) {
+	t.Parallel()
+	data := []byte{
+		76, 20,
+		0, 1, 1, 0, 0,
+		0, 2, 1, 0, 7,
+		0, 1, 1, 0, 10,
+		0, 1, 2, 0, 3,
+	}
+	caps, err := Parse(data)
+	require.NoError(t, err)
+	require.Len(t, caps, 1)
+	pl, ok := caps[0].(*PathsLimit)
+	require.True(t, ok)
+	assert.Equal(t, []PathsLimitEntry{
+		{AFI: AFIIPv6, SAFI: SAFIUnicast, Limit: 7},
+		{AFI: AFIIPv4, SAFI: SAFIMulticast, Limit: 3},
+	}, pl.Entries)
 }
 
 // TestPathsLimitWriteTo verifies WriteTo produces correct wire bytes.
@@ -958,35 +994,26 @@ func TestPathsLimitRoundTrip(t *testing.T) {
 	}
 }
 
-// TestPathsLimitLen verifies Len returns 2 + 5*N.
-//
-// VALIDATES: Correct size calculation for buffer allocation.
-//
-// PREVENTS: Buffer overflows from wrong size.
-func TestPathsLimitLen(t *testing.T) {
+// TestPathsLimitMaximumValue verifies all 51 tuples fit in one capability and
+// the 255-octet value does not corrupt the capability that follows it.
+func TestPathsLimitMaximumValue(t *testing.T) {
 	t.Parallel()
-	tests := []struct {
-		name    string
-		entries int
-		want    int
-	}{
-		{"empty", 0, 0},
-		{"one", 1, 7},
-		{"two", 2, 12},
-		{"max_50", 50, 252},
+	entries := make([]PathsLimitEntry, 51)
+	for i := range entries {
+		entries[i] = PathsLimitEntry{AFI: AFI(i + 1), SAFI: SAFIUnicast, Limit: 65535}
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			entries := make([]PathsLimitEntry, tt.entries)
-			for i := range entries {
-				entries[i] = PathsLimitEntry{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 10}
-			}
-			pl := &PathsLimit{Entries: entries}
-			assert.Equal(t, tt.want, pl.Len())
-		})
-	}
+	pl := &PathsLimit{Entries: entries}
+	buf := make([]byte, pl.Len()+2)
+	n := pl.WriteTo(buf, 0)
+	n += (&RouteRefresh{}).WriteTo(buf, n)
+	require.Equal(t, byte(255), buf[1])
+	caps, err := Parse(buf[:n])
+	require.NoError(t, err)
+	require.Len(t, caps, 2)
+	parsed, ok := caps[0].(*PathsLimit)
+	require.True(t, ok)
+	assert.Equal(t, entries, parsed.Entries)
+	assert.Equal(t, CodeRouteRefresh, caps[1].Code())
 }
 
 // TestPathsLimitConfigValues verifies ConfigValues returns scoped keys.

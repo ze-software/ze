@@ -88,6 +88,13 @@ type PeerInfo struct {
 	State           PeerState
 	Uptime          time.Duration
 
+	// BFDSubState is the draft-ietf-idr-bgp-bfd-strict-mode Section 8.1
+	// sub-state, empty where the session is not waiting for BFD. Section 11
+	// asks an implementation to "provide visibility for these sub-states in
+	// its display of the BGP finite state machine", and an operator whose
+	// peer sits in OPENSENT has no other way to learn that BFD is why.
+	BFDSubState string
+
 	// Route reflection (RFC 4456).
 	RouteReflectorClient bool   // Peer is an RR client
 	ClusterID            uint32 // Explicit cluster-id (0 = use router-id)
@@ -178,6 +185,12 @@ type PeerInfo struct {
 	NegotiatedEnhancedRR   bool
 	NegotiatedAddPath      map[string]string // family -> "send"/"receive"/"both"
 
+	// PATHS-LIMIT counts paths per prefix, keyed by negotiated family.
+	// Send is the peer's nonzero maximum enforced on our outbound updates.
+	// Receive is our advertised request, not an inbound enforcement limit.
+	NegotiatedPathsLimitSend    map[string]uint16
+	NegotiatedPathsLimitReceive map[string]uint16
+
 	// RFC 4724: Graceful restart state.
 	GracefulRestart bool
 	GRRestartTime   uint16
@@ -230,6 +243,8 @@ type PeerCapabilitiesInfo struct {
 	EnhancedRouteRefresh bool              // RFC 7313: Enhanced route refresh
 	ASN4                 bool              // RFC 6793: 4-byte ASN support
 	AddPath              map[string]string // RFC 7911: family -> "send" for families with ADD-PATH (nil if none)
+	PathsLimitSend       map[string]uint16 // Nonzero outbound maximum paths per prefix, from the peer
+	PathsLimitReceive    map[string]uint16 // Locally advertised receive request, not inbound policing
 }
 
 // ReactorIntrospector provides read-only access to BGP peer and reactor state.

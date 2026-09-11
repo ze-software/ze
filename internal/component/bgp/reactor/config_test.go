@@ -561,6 +561,7 @@ func TestParsePeerCapabilityAddPathSendOnly(t *testing.T) {
 //
 // VALIDATES: add-path { family { ipv4/unicast { limit 10; } } } produces PathsLimit capability.
 // PREVENTS: PATHS-LIMIT capability not advertised when limit is configured.
+// RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7 positive -- the per-family configuration knob sets the advertised receive request.
 func TestParsePeerCapabilityPathsLimit(t *testing.T) {
 	tree := map[string]any{
 		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
@@ -600,7 +601,7 @@ func TestParsePeerCapabilityPathsLimit(t *testing.T) {
 // *capability.PathsLimit whose Entries hold both tuples.
 // PREVENTS: Emitting a separate PATHS-LIMIT capability per family.
 //
-// RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1 positive -- multiple AFI/SAFIs are advertised in a single instance of the PATHS-LIMIT capability.
+// RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1 positive -- the config parser builds one PathsLimit capability holding both configured families.
 func TestParsePeerCapabilityPathsLimitSingleInstance(t *testing.T) {
 	tree := map[string]any{
 		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
@@ -634,6 +635,100 @@ func TestParsePeerCapabilityPathsLimitSingleInstance(t *testing.T) {
 	}
 	assert.Equal(t, uint16(10), limits[capability.Family{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}])
 	assert.Equal(t, uint16(20), limits[capability.Family{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast}])
+}
+
+// TestParsePeerCapabilityPathsLimitSkipsDisabledFamily checks that a family whose
+// ADD-PATH mode is disable contributes no PATHS-LIMIT tuple, while an enabled
+// sibling in the same block still contributes one. The method configures a limit on
+// both families and reads back the tuples Ze would put on the wire.
+//
+// VALIDATES: ipv6/unicast { mode disable; limit 20; } leaves the PathsLimit entries
+// holding ipv4/unicast alone.
+// PREVENTS: An orphan PATHS-LIMIT tuple for a family that is absent from Ze's own
+// ADD-PATH capability, which a conformant peer is required to discard.
+func TestParsePeerCapabilityPathsLimitSkipsDisabledFamily(t *testing.T) {
+	tree := map[string]any{
+		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
+		"session": map[string]any{
+			"asn": map[string]any{"remote": "65001"},
+			"family": map[string]any{
+				"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}},
+				"ipv6/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}},
+			},
+			"capability": map[string]any{"add-path": map[string]any{
+				"direction": "send/receive",
+				"family": map[string]any{
+					"ipv4/unicast": map[string]any{"limit": "10"},
+					"ipv6/unicast": map[string]any{"mode": "disable", "limit": "20"},
+				},
+			}},
+		},
+	}
+
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
+	require.NoError(t, err)
+
+	var addPath *capability.AddPath
+	var pathsLimit *capability.PathsLimit
+	for _, c := range ps.Capabilities {
+		if ap, ok := c.(*capability.AddPath); ok {
+			addPath = ap
+		}
+		if pl, ok := c.(*capability.PathsLimit); ok {
+			pathsLimit = pl
+		}
+	}
+
+	require.NotNil(t, addPath, "the enabled family keeps the AddPath capability present")
+	require.Len(t, addPath.Families, 1, "the disabled family is absent from ADD-PATH")
+	assert.Equal(t, capability.AFIIPv4, addPath.Families[0].AFI)
+
+	require.NotNil(t, pathsLimit, "the enabled family still carries its limit")
+	require.Len(t, pathsLimit.Entries, 1, "the disabled family contributes no PATHS-LIMIT tuple")
+	assert.Equal(t, capability.AFIIPv4, pathsLimit.Entries[0].AFI)
+	assert.Equal(t, capability.SAFIUnicast, pathsLimit.Entries[0].SAFI)
+	assert.Equal(t, uint16(10), pathsLimit.Entries[0].Limit)
+}
+
+// TestParsePeerCapabilityPathsLimitNoneWithoutAddPath checks that a config whose
+// every ADD-PATH family is disabled advertises neither capability. The method sets a
+// container direction so the block is parsed, disables both families, gives each a
+// limit, and reads back the capability list.
+//
+// VALIDATES: every family at mode disable leaves no AddPath and no PathsLimit
+// capability in PeerSettings.
+// PREVENTS: A PATHS-LIMIT capability advertised on its own, which a conformant peer
+// is required to ignore because no ADD-PATH capability accompanies it.
+func TestParsePeerCapabilityPathsLimitNoneWithoutAddPath(t *testing.T) {
+	tree := map[string]any{
+		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
+		"session": map[string]any{
+			"asn": map[string]any{"remote": "65001"},
+			"family": map[string]any{
+				"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}},
+				"ipv6/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}},
+			},
+			"capability": map[string]any{"add-path": map[string]any{
+				"direction": "send/receive",
+				"family": map[string]any{
+					"ipv4/unicast": map[string]any{"mode": "disable", "limit": "10"},
+					"ipv6/unicast": map[string]any{"mode": "disable", "limit": "20"},
+				},
+			}},
+		},
+	}
+
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
+	require.NoError(t, err)
+
+	for _, c := range ps.Capabilities {
+		if _, ok := c.(*capability.AddPath); ok {
+			t.Error("no family is enabled, so no AddPath capability is advertised")
+		}
+		if _, ok := c.(*capability.PathsLimit); ok {
+			t.Error("PathsLimit must not be advertised without an accompanying AddPath capability")
+		}
+	}
 }
 
 // TestParsePeerCapabilityExtendedNextHop verifies RFC 8950 extended next-hop parsing.

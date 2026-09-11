@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -204,6 +205,8 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			info.NegotiatedExtMsg = neg.ExtendedMessage
 			info.NegotiatedRouteRefresh = neg.RouteRefresh
 			info.NegotiatedEnhancedRR = neg.EnhancedRouteRefresh
+			info.NegotiatedPathsLimitSend = maps.Clone(neg.pathsLimitSend)
+			info.NegotiatedPathsLimitReceive = maps.Clone(neg.pathsLimitReceive)
 			for _, f := range neg.Families() {
 				if p.addPathFor(f) {
 					if info.NegotiatedAddPath == nil {
@@ -262,6 +265,8 @@ func (a *reactorAPIAdapter) PeerNegotiatedCapabilities(addr netip.Addr) *plugin.
 		EnhancedRouteRefresh: neg.EnhancedRouteRefresh,
 		ASN4:                 neg.ASN4,
 		AddPath:              addPath,
+		PathsLimitSend:       maps.Clone(neg.pathsLimitSend),
+		PathsLimitReceive:    maps.Clone(neg.pathsLimitReceive),
 	}
 }
 
@@ -377,11 +382,47 @@ func (a *reactorAPIAdapter) GetConfigTree() map[string]any {
 	return a.r.configTree
 }
 
+// configRootNameBGP is the key the BGP block sits under in a full config tree.
+const configRootNameBGP = "bgp"
+
 // SetConfigTree replaces the running config tree after a successful reload.
+//
+// This is where a candidate BECOMES the running configuration. The reload
+// coordinator calls it last: after verify, after every plugin has applied, and
+// after ApplyConfigDiff (reloadConfig, ../../plugin/server/reload.go). Every
+// refusal has had its chance by then.
+//
+// That is why the AS notation is recorded here, and nowhere else on the reload
+// path. It is a process-wide display setting, so a write anywhere earlier
+// survives a refusal. `ze config validate`, `ze doctor`, the web commit path
+// and the coordinator's own verify phase each parse a candidate. An operator
+// whose commit was refused would be left reading a notation that never took
+// effect. The daemon's FIRST configuration is recorded by applyASNotation
+// (../config/asn_notation.go), which no refusal follows.
 func (a *reactorAPIAdapter) SetConfigTree(tree map[string]any) {
+	recordASNotation(tree)
+
 	a.r.mu.Lock()
 	defer a.r.mu.Unlock()
 	a.r.configTree = tree
+}
+
+// recordASNotation records the notation this process writes an AS number in.
+// It reads the bgp subtree of a config tree that has just become the running
+// one.
+//
+// A tree with no bgp block leaves the previous value in place, and so does a
+// leaf naming no notation. The schema and applyASNotation refuse both earlier.
+// Reaching either here means the tree was not the one the loader accepted, and
+// the notation already in force is the better answer.
+func recordASNotation(tree map[string]any) {
+	bgp, ok := tree[configRootNameBGP].(map[string]any)
+	if !ok {
+		return
+	}
+	if err := asn.ConfigureFromBGP(bgp); err != nil {
+		reactorLogger().Warn("as-notation not recorded from the running config", "error", err.Error())
+	}
 }
 
 // Stats returns reactor statistics for the API.

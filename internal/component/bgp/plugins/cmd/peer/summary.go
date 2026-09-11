@@ -477,6 +477,7 @@ func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, args []string) 
 			if caps.AddPath != nil {
 				neg["add-path"] = caps.AddPath
 			}
+			addPathsLimitFields(neg, caps.PathsLimitSend, caps.PathsLimitReceive)
 			entry["negotiated"] = neg
 		} else {
 			entry[fieldNegotiationComplete] = false

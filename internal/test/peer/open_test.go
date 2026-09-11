@@ -760,8 +760,9 @@ func TestPeerOpenSoftwareVersionIsTheHarnessOwn(t *testing.T) {
 //
 // VALIDATES: the Max Paths ze-peer states is the one the .ci declared.
 // PREVENTS: the mirror, under which negotiatePathsLimit fills pathsLimitSend
-// with ze's own number and CommitService.enforcePathsLimit then polices ze's
-// sending by a limit ze set for itself.
+// with ze's own number and Session.filterPathsLimit (session_paths_limit.go,
+// internal/component/bgp/reactor) then polices ze's sending by a limit ze set
+// for itself.
 func TestPeerOpenPathsLimitIsTheHarnessOwn(t *testing.T) {
 	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1),
 		capTLV(76, 0, 1, 1, 0, 10))

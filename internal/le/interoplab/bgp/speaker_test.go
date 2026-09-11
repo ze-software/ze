@@ -23,7 +23,7 @@ var compiledProcessScenarios = []string{
 	"bgp-extended-community-frr", "bgp-flowspec-frr", "bgp-flowspec-gobgp",
 	"bgp-graceful-restart-frr", "bgp-ipv6-ebgp-bird", "bgp-ipv6-ebgp-frr",
 	"bgp-ipv6-ebgp-gobgp", "bgp-med-across-as-gobgp", "bgp-multihop-ebgp-bird",
-	"bgp-multihop-ebgp-frr", "bgp-multihop-ebgp-gobgp", "bgp-paths-limit-frr",
+	"bgp-multihop-ebgp-frr", "bgp-multihop-ebgp-gobgp",
 	"bgp-route-refresh-frr", "bgp-route-withdrawal-frr", "bgp-routes-gobgp",
 	"bgp-routes-to-frr", "bgp-vpn-frr", "bgp-vpn-gobgp",
 	"bgp-wire-edit-api-origin-bird", "shutdown-cease-frr",
@@ -65,7 +65,7 @@ func TestAnnouncementPlanOrderAndTimingFixture(t *testing.T) {
 			fmt.Fprintf(plans, "%s|%s|%d|%t\n", update.selector, update.command, update.delay, update.quiesce) //nolint:errcheck // neither hash.Hash nor strings.Builder returns a write error
 		}
 	}
-	const want = "45e2577acca669c8f994c669e385c0c5334c07756e8416e9279c40e500e22f75"
+	const want = "65f220df69b676a871d5b9cdc75af98d87062e06a69d997ae32012f11522f2db"
 	if got := hex.EncodeToString(digest.Sum(nil)); got != want {
 		t.Fatalf("compiled announcement order/timing digest = %s, want %s\ndigest input:\n%s", got, want, input.String())
 	}

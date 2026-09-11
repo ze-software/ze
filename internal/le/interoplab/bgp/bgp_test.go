@@ -464,6 +464,8 @@ func TestSpecialCheckerParsers(t *testing.T) {
 // TestBespokeCheckerBranches pins every non-linear checker predicate that a
 // generic presence assertion cannot represent.
 func TestBespokeCheckerBranches(t *testing.T) {
+	t.Run(pathsLimitScenario, pathsLimitCheckerBranches)
+
 	t.Run("bfd-frr", func(t *testing.T) {
 		if bfdSessionDown("BGP state = Established") {
 			t.Fatal("Established BGP session was reported down")

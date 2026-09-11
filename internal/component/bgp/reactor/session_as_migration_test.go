@@ -181,7 +181,8 @@ func TestMigrationOpenCarriesResolvedASN(t *testing.T) {
 			flag.Store(tt.fallback)
 			session.asMigrationFallback = &flag
 
-			open := session.buildOpen(settings, nil)
+			open, err := session.buildOpen(settings, nil)
+			require.NoError(t, err)
 
 			assert.Equal(t, tt.wantMyAS, open.MyAS, "My Autonomous System")
 			assert.Equal(t, tt.wantAS, open.ASN4, "the ASN4 field the encoder reads")

@@ -6,6 +6,7 @@ package reactor
 
 import (
 	"encoding/binary"
+	"fmt"
 	"log/slog"
 	"net"
 	"time"
@@ -31,6 +32,10 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 		s.settings.LocalAS,
 		s.peerOpen.ASN4,
 	)
+
+	s.writeMu.Lock()
+	s.initPathsLimit(s.negotiated.Encoding)
+	s.writeMu.Unlock()
 
 	// RFC 8654: If extended message is negotiated, track for pool selection.
 	// MUST be capable of receiving/sending messages up to 65535 octets.
@@ -94,13 +99,16 @@ func (s *Session) sendOpen(conn net.Conn) error {
 		return ErrLocalASZero
 	}
 
-	open := s.buildOpen(s.settings, s.configCapabilities())
+	open, err := s.buildOpen(s.settings, s.configCapabilities())
+	if err != nil {
+		return err
+	}
 
 	s.mu.Lock()
 	s.localOpen = open
 	s.mu.Unlock()
 
-	err := s.writeMessage(conn, open)
+	err = s.writeMessage(conn, open)
 	if err == nil && s.onOpenSent != nil {
 		s.onOpenSent()
 	}
@@ -131,7 +139,7 @@ func (s *Session) configCapabilities() []capability.Capability {
 // configCaps is passed rather than read off settings.Capabilities because the two
 // have different lock rules: every other field this reads is set at construction
 // and never mutated, while Capabilities is replaced by a reload swap.
-func (s *Session) buildOpen(settings *PeerSettings, configCaps []capability.Capability) *message.Open {
+func (s *Session) buildOpen(settings *PeerSettings, configCaps []capability.Capability) (*message.Open, error) {
 	// Build capabilities in RFC-expected order:
 	// 1. Multiprotocol (from config OR plugin decode families - not both)
 	// 2. ASN4
@@ -201,24 +209,20 @@ func (s *Session) buildOpen(settings *PeerSettings, configCaps []capability.Capa
 		caps = append(caps, &capability.ASN4{ASN: openAS})
 	}
 
-	// draft-abraitis-idr-addpath-paths-limit: suppress PATHS-LIMIT for RS fast-path peers
-	// (RS fast-path forwards raw UPDATEs without per-prefix path tracking).
-	if settings.RSFastPath {
-		filtered := make([]capability.Capability, 0, len(otherCaps))
-		for _, c := range otherCaps {
-			if c.Code() != capability.CodePathsLimit {
-				filtered = append(filtered, c)
-			}
-		}
-		otherCaps = filtered
-	}
-
 	// Add remaining capabilities.
 	caps = append(caps, otherCaps...)
 
 	// Add plugin-declared capabilities (e.g., hostname from RFC 9234 plugin).
 	if s.pluginCapGetter != nil {
 		caps = append(caps, s.pluginCapGetter()...)
+	}
+
+	// draft-abraitis-idr-addpath-paths-limit-04 Section 3: multiple families
+	// "MUST" be included "in a single instance of the PATHS-LIMIT capability."
+	// Merge configuration and plugin declarations before any length is encoded.
+	caps, err := coalescePathsLimit(caps)
+	if err != nil {
+		return nil, err
 	}
 
 	// Build optional parameters (capabilities).
@@ -243,7 +247,67 @@ func (s *Session) buildOpen(settings *PeerSettings, configCaps []capability.Capa
 		ASN4:           openAS,
 		OptionalParams: optParams,
 		ExtendedParams: extendedParams,
+	}, nil
+}
+
+// coalescePathsLimit compacts the builder-owned slice in place. Caller-owned
+// capability objects remain unchanged, including their entry slices.
+func coalescePathsLimit(caps []capability.Capability) ([]capability.Capability, error) {
+	var merged *capability.PathsLimit
+	var seen map[family.Family]bool
+	count := 0
+	for _, c := range caps {
+		if c.Code() != capability.CodePathsLimit {
+			caps[count] = c
+			count++
+			continue
+		}
+
+		var entries []capability.PathsLimitEntry
+		if pl, ok := c.(*capability.PathsLimit); ok {
+			entries = pl.Entries
+		} else {
+			// Plugins supply raw value bytes. Validate before WriteTo can narrow
+			// the length to one octet; retain zero tuples for duplicate precedence.
+			size := c.Len()
+			if size < 2 || size > 257 || (size-2)%5 != 0 {
+				return nil, fmt.Errorf("%w: PATHS-LIMIT value must contain at most 51 five-octet tuples", capability.ErrInvalidLength)
+			}
+			var wire [257]byte
+			if c.WriteTo(wire[:], 0) != size {
+				return nil, fmt.Errorf("%w: PATHS-LIMIT encoded size differs from declared size", capability.ErrInvalidLength)
+			}
+			entries = make([]capability.PathsLimitEntry, (size-2)/5)
+			for i := range entries {
+				off := 2 + i*5
+				entries[i] = capability.PathsLimitEntry{
+					AFI:   family.AFI(binary.BigEndian.Uint16(wire[off:])),
+					SAFI:  family.SAFI(wire[off+2]),
+					Limit: binary.BigEndian.Uint16(wire[off+3:]),
+				}
+			}
+		}
+
+		if merged == nil {
+			merged = &capability.PathsLimit{}
+			seen = make(map[family.Family]bool)
+			caps[count] = merged
+			count++
+		}
+		for _, entry := range entries {
+			f := family.Family{AFI: entry.AFI, SAFI: entry.SAFI}
+			// Section 3: "All others MUST be ignored." A first zero also wins.
+			if seen[f] {
+				continue
+			}
+			if len(merged.Entries) == 51 {
+				return nil, fmt.Errorf("%w: PATHS-LIMIT exceeds 51 distinct AFI/SAFI tuples", capability.ErrInvalidLength)
+			}
+			seen[f] = true
+			merged.Entries = append(merged.Entries, entry)
+		}
 	}
+	return caps[:count], nil
 }
 
 // buildOptionalParams packs capabilities into a single type-2 optional
