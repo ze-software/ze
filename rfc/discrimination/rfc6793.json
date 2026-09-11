@@ -27,6 +27,17 @@
     },
     {
       "rid": "RFC6793-4.1-7",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793NewSpeakerAS4AttributesAreDiscarded",
+      "unit-sha": "9cac7aaec04e8a67",
+      "claim-sha": "0c9a5afc96129911",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::ReconcileASPathFamily",
+      "producer-sha": "972a1c07729fed4b",
+      "break": "body of ReconcileASPathFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.1-7",
       "polarity": "negative",
       "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath",
       "unit-sha": "9e6765d56e77eb7f",
@@ -47,6 +58,28 @@
       "producer-sha": "ab2668a627662c2f",
       "break": "body of CollapseAS4Family replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE9FA56EA7B40030401010101180A0000"
+    },
+    {
+      "rid": "RFC6793-4.2.3-1",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ASPathAloneNotInventedIntoFourOctet",
+      "unit-sha": "10fbfa3e85154d0e",
+      "claim-sha": "140f6ab64060e9b8",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::expandASPath2to4",
+      "producer-sha": "287ffbf1cf878f5b",
+      "break": "body of expandASPath2to4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.3-1",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath",
+      "unit-sha": "9e6765d56e77eb7f",
+      "claim-sha": "4cb239cae09928fc",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::MergeAS4Path",
+      "producer-sha": "986018bf5f4f1ccc",
+      "break": "body of MergeAS4Path replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC6793-4.2.3-10",
@@ -71,6 +104,28 @@
       "break": "body of appendLeadingSegments replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC6793-4.2.3-10",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LeadingConfedSegmentIsPrepended",
+      "unit-sha": "ddd656d62f215691",
+      "claim-sha": "9b645653cb4e80d6",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::appendLeadingSegments",
+      "producer-sha": "a0039e164b91371a",
+      "break": "body of appendLeadingSegments replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.3-10",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793UnadjacentConfedSegmentIsNotPrepended",
+      "unit-sha": "f85e4bef868046c3",
+      "claim-sha": "8c79d9309b3e8169",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::appendLeadingSegments",
+      "producer-sha": "a0039e164b91371a",
+      "break": "body of appendLeadingSegments replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC6793-4.2.3-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/storage/rfc6793_as4_test.go::TestRFC6793ReceivedAS4AggregatorAccepted",
@@ -79,6 +134,17 @@
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/storage/attrparse.go::selectAggregator",
       "producer-sha": "b655b171c4f2a6c0",
+      "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.3-2",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4AggregatorAccepted",
+      "unit-sha": "2911de0052f18467",
+      "claim-sha": "7970f2df2b02a64e",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::selectAggregator",
+      "producer-sha": "f9e5cb99e08585e5",
       "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -104,6 +170,39 @@
       "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC6793-4.2.3-3",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorOfTheWrongWidthIsNotRead",
+      "unit-sha": "4953fdac20e299fc",
+      "claim-sha": "ecc7cc46be14c364",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::aggregatorASIsTrans",
+      "producer-sha": "e18e9d6b3a8d2a25",
+      "break": "body of aggregatorASIsTrans replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.3-3",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator",
+      "unit-sha": "c1da15ed311b49b6",
+      "claim-sha": "85be5c50c3e46f11",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::MergeAS4Path",
+      "producer-sha": "986018bf5f4f1ccc",
+      "break": "body of MergeAS4Path replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.3-3",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes",
+      "unit-sha": "b0b352b0edb97908",
+      "claim-sha": "8647802cd0cd1362",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::selectAggregator",
+      "producer-sha": "f9e5cb99e08585e5",
+      "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC6793-4.2.3-4",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator",
@@ -124,6 +223,28 @@
       "producer": "internal/component/bgp/plugins/rib/storage/attrparse.go::selectAggregator",
       "producer-sha": "b655b171c4f2a6c0",
       "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.3-4",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator",
+      "unit-sha": "c1da15ed311b49b6",
+      "claim-sha": "28225581787989e0",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::selectAggregator",
+      "producer-sha": "f9e5cb99e08585e5",
+      "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.3-4",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes",
+      "unit-sha": "b0b352b0edb97908",
+      "claim-sha": "6549b9dd13d8b69a",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::canonicalAggregator",
+      "producer-sha": "6ba3d10b48b5d9bb",
+      "break": "body of canonicalAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC6793-4.2.3-5",
@@ -148,6 +269,28 @@
       "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC6793-4.2.3-5",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator",
+      "unit-sha": "c1da15ed311b49b6",
+      "claim-sha": "22047b50a55213bd",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::reconstructASPath",
+      "producer-sha": "28c1ea3c4fcbd99d",
+      "break": "body of reconstructASPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.3-5",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes",
+      "unit-sha": "b0b352b0edb97908",
+      "claim-sha": "41ffb7ecb22e4517",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::expandASPath2to4",
+      "producer-sha": "287ffbf1cf878f5b",
+      "break": "body of expandASPath2to4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC6793-4.2.3-6",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator",
@@ -170,6 +313,28 @@
       "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC6793-4.2.3-6",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator",
+      "unit-sha": "c1da15ed311b49b6",
+      "claim-sha": "eda6e29979aa9dc3",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::aggregatorASIsTrans",
+      "producer-sha": "e18e9d6b3a8d2a25",
+      "break": "body of aggregatorASIsTrans replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.3-6",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes",
+      "unit-sha": "b0b352b0edb97908",
+      "claim-sha": "e0256159f53d9037",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::aggregatorASIsTrans",
+      "producer-sha": "e18e9d6b3a8d2a25",
+      "break": "body of aggregatorASIsTrans replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC6793-4.2.3-7",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator",
@@ -189,6 +354,39 @@
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/storage/attrparse.go::selectAggregator",
       "producer-sha": "b655b171c4f2a6c0",
+      "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.3-7",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator",
+      "unit-sha": "c1da15ed311b49b6",
+      "claim-sha": "74501724bcf73987",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::selectAggregator",
+      "producer-sha": "f9e5cb99e08585e5",
+      "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.3-7",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes",
+      "unit-sha": "b0b352b0edb97908",
+      "claim-sha": "963d6f3b4af040a3",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::selectAggregator",
+      "producer-sha": "f9e5cb99e08585e5",
+      "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.3-7",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LoneAS4AggregatorIsDropped",
+      "unit-sha": "72bab35759e00d78",
+      "claim-sha": "12b0c0c4fa1f5c5d",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::selectAggregator",
+      "producer-sha": "f9e5cb99e08585e5",
       "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -214,6 +412,28 @@
       "break": "body of MergeAS4Path replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC6793-4.2.3-8",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerAS4PathIsIgnored",
+      "unit-sha": "cc069758d567143c",
+      "claim-sha": "991647f04150bcd4",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::MergeAS4Path",
+      "producer-sha": "986018bf5f4f1ccc",
+      "break": "body of MergeAS4Path replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.3-8",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerASPathPrependsLeadingHops",
+      "unit-sha": "bceb3b36b225ef73",
+      "claim-sha": "4ec0660a66f6d589",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::MergeAS4Path",
+      "producer-sha": "986018bf5f4f1ccc",
+      "break": "body of MergeAS4Path replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC6793-4.2.3-9",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/rib/storage/rfc6793_reconstruct_test.go::TestRFC6793LongerAS4PathIsIgnored",
@@ -234,6 +454,61 @@
       "producer": "internal/core/bgp/attribute/as4.go::appendLeadingSegments",
       "producer-sha": "a0039e164b91371a",
       "break": "body of appendLeadingSegments replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.3-9",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793EqualCountsPrependNothing",
+      "unit-sha": "326be763bcd3f69a",
+      "claim-sha": "85d545d8d90b8374",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::countASNs",
+      "producer-sha": "8c6ce8c8e0bc9bf6",
+      "break": "body of countASNs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.3-9",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LeadingASSetIsTakenWhole",
+      "unit-sha": "e34c0da1b185eba6",
+      "claim-sha": "8d2527cc975c61fc",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::leadingPart",
+      "producer-sha": "42d6f6ab6f4a4523",
+      "break": "body of leadingPart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.3-9",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerAS4PathIsIgnored",
+      "unit-sha": "cc069758d567143c",
+      "claim-sha": "254a7eb33d744c9f",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::countASNs",
+      "producer-sha": "8c6ce8c8e0bc9bf6",
+      "break": "body of countASNs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.3-9",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerASPathPrependsLeadingHops",
+      "unit-sha": "bceb3b36b225ef73",
+      "claim-sha": "83a2298e9675c1ab",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::appendLeadingSegments",
+      "producer-sha": "a0039e164b91371a",
+      "break": "body of appendLeadingSegments replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-6-1",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793MalformedAS4PathIsDiscarded",
+      "unit-sha": "cdd39cbaa9b6806d",
+      "claim-sha": "8a242cab309d43c1",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::ParseAS4Path",
+      "producer-sha": "107b613500ed0ac7",
+      "break": "body of ParseAS4Path replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC6793-6-5",
