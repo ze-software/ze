@@ -1,0 +1,87 @@
+# A subscriber socket that fails every read must cost the daemon a bounded
+# slice of one core, and must stay visible on the log and on the counter.
+# readLoop (internal/component/l2tp/listener.go) paces its retry for that
+# reason, and this scenario is what proves the pacing is real rather than
+# asserted.
+#
+# THE STIMULUS. `ze-test fail-syscall` installs a classic seccomp filter that
+# answers ENETDOWN for recvfrom, but only for a read of 1500 bytes, which is
+# rxBufLen and so selects the listener's own socket and no other. It then
+# execs the daemon. The kernel refuses the call at its entry, so the failing
+# read is charged to the daemon's own CPU time, which is what the fixture
+# measures off /metrics. The launcher refuses to start anything if it did not
+# arm: it makes the selected call once itself, and a second call of a length
+# it must NOT select, before the exec.
+#
+# WHY NOT ptrace. `strace -e inject=recvfrom:error=ENETDOWN:when=1+` sustains
+# the same error and destroys the reading with it. Go's runtime emits a
+# continuous SIGURG stream for goroutine preemption, ptrace traps every
+# delivery regardless of --seccomp-bpf, and time spent ptrace-stopped counts
+# as wall clock rather than as the tracee's CPU. Measured on 2026-09-11: by
+# hand the pre-fix build reached 36,640 read errors and 0.99 CPU-seconds,
+# and through this .ci the SAME pre-fix build reported 19 errors and no
+# measurable CPU delta, passing every assertion below. That vacuous version
+# lived in test/draft/l2tp/ until the seccomp mechanism replaced it
+# (spec-failing-socket-proof-needs-a-non-ptrace-injection-point).
+#
+# LD_PRELOAD does not apply: ze builds CGO_ENABLED=0 and makes raw syscalls,
+# so there is no libc call to interpose on.
+#
+# WHAT IT DISCRIMINATES. Measured in the QEMU guest on ze's runtime kernel,
+# 2026-09-11, over the same 3s window under the same armed filter:
+#   paced (this tree): 12 read errors, 0.0133 of one core
+#   pacer reverted:    1,053,776 read errors, 2.1067 of one core
+# The fixture's bounds (1000 errors, 0.5 of a core) sit between them, with
+# three orders of magnitude of headroom on the counter.
+#
+# DO NOT DELETE THE expect=stderr LINE. It reads like a third copy of what the
+# two stdout lines already assert, and it is not: the fixture reads /metrics
+# and nothing else, so a daemon that serves metrics while writing no log at
+# all passes both stdout assertions. That daemon is exactly what this scenario
+# produced on 2026-09-11. `ze-test fail-syscall` execs the daemon, and every
+# cmd/ze binary starts by dup2-ing a crashlog pipe over fd 2 whose draining
+# goroutine the exec destroys, so the launched daemon wrote into a pipe nobody
+# read and blocked once 64 KiB filled it. The launcher now calls
+# crashlog.Flush() before the exec (internal/test/failsyscall, Run), and this
+# line is the only assertion in the tree that would go red if that call were
+# removed (plan/journal/output-lost-to-an-exit-past-the-flush.md).
+option=needs-linux
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+	enabled true
+	shared-secret s3cr3t
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port $PORT
+		}
+	}
+}
+
+telemetry {
+	prometheus {
+		enabled true
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
+# The runner adds this one itself when the launched binary IS ze. Here the
+# launched binary is the fault-injection launcher, so the test states it:
+# a functional daemon keeps its state out of the developer's shared zefs.
+option=env:var=ze.storage.blob:value=false
+
+cmd=background:seq=1:exec=ze-test fail-syscall syscall recvfrom errno ENETDOWN length 1500 -- ze -:stdin=config
+cmd=foreground:seq=2:exec=ze-test fixture l2tp/failing-socket $PORT2:timeout=30s
+expect=exit:code=0
+expect=stdout:contains=OK: CPU use stayed at
+expect=stdout:contains=OK: ze_l2tp_listener_read_errors_total rose by
+expect=stderr:contains=l2tp: listener read error

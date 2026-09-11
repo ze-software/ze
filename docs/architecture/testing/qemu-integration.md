@@ -295,6 +295,50 @@ Never require physical hardware. Use kernel virtual devices:
 A focused VM run that needs an extra Alpine package, such as `strace` or
 `util-linux`, passes it after the `packages` keyword to `./le qemu run`.
 
+### Failing ONE Socket Under a Daemon
+
+A test that asserts what an operator's monitoring shows while a socket fails
+needs that socket to fail for a whole window, not once. No ordinary network
+condition supplies one: an interface that goes down delivers silence, and a
+device-bound `AF_PACKET` socket is told `ENETDOWN` once by `packet_notifier`
+before it reverts to blocking.
+
+`ze-test fail-syscall` supplies one. It installs a classic seccomp filter that
+answers a chosen errno for a chosen syscall, then `execve`s the command, so no
+tracer is in the path and the refused call is charged to the daemon's own CPU
+time.
+
+```
+cmd=background:seq=1:exec=ze-test fail-syscall syscall recvfrom errno ENETDOWN length 1500 -- ze -:stdin=config
+```
+
+| Keyword | Meaning |
+|---------|---------|
+| `syscall` | which call fails, by name. `recvfrom` and `recvmsg` are what it knows, and a name it does not know is refused |
+| `errno` | what the call answers, by name. Pick one the loop under test does NOT classify as a closed socket: `readDiscoveryFrame` maps `EBADF` and `EINVAL` onto `errSocketClosed` and LEAVES the loop, so either would prove nothing |
+| `length` | selects ONE socket by the byte count its reader asks for, which is a per-loop constant. Optional; without it every descriptor in the process fails |
+
+Three constraints the caller has to know:
+
+- **`length` reads `args[2]`, which is a read length only for some calls.**
+  `recvfrom(fd, buf, len, flags, ...)` carries the length there, so the keyword
+  selects one socket. `recvmsg(fd, msghdr, flags)` carries the FLAGS there, and
+  the launcher refuses the combination rather than compare against a flag word.
+- **Arming is loud.** The launcher makes the selected call once itself, plus one
+  call of a length it must NOT select, and refuses to `execve` anything if
+  either answer is wrong. A filter that installed and selects nothing would
+  otherwise leave the daemon healthy while the test reported an armed window.
+- **The runner's `ze`-only arms do not fire.** The launched binary is
+  `ze-test`, not `ze`, so the `.ci` states `ze.storage.blob=false` itself and
+  gets no `ZE_READY_FILE`. A fixture that needs readiness polls for it.
+
+`CONFIG_SECCOMP` and `CONFIG_SECCOMP_FILTER` are pinned in
+`gokrazy/kernel/runtime.require`, so a defconfig that stopped setting them fails
+the kernel build rather than turning the scenario into a quiet pass.
+
+<!-- source: internal/test/failsyscall/failsyscall_linux.go -- arm, buildFilter, proveArmed -->
+<!-- test: test/l2tp/subscriber-reader-failing-socket.ci -- the first caller, with the measured numbers in its header -->
+
 ### Network Namespace Isolation
 
 Tests that create interfaces or routes MUST use a dedicated network namespace

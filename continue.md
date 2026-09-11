@@ -36,10 +36,11 @@ the pattern worth budgeting for: the gate is defect-finding, not paperwork.
 
 `spec-subscriber-reader-loops-retry-a-failing-socket-without-backoff` is closed.
 Everything below this heading is the record of how it got there, kept because the
-Phase 6 finding outlives the spec. What replaced its one outstanding item is
-`plan/spec-failing-socket-proof-needs-a-non-ptrace-injection-point.md`, a
-skeleton: Ze has no way to fail a real socket from outside the daemon without
-tracing it, and tracing destroys the measurement.
+Phase 6 finding outlives the spec. What replaced its one outstanding item was
+spec-failing-socket-proof-needs-a-non-ptrace-injection-point, closed on
+2026-09-11: `ze-test fail-syscall` (`internal/test/failsyscall`) fails one named
+syscall through a classic seccomp filter and then execs the daemon, so nothing
+traces it and the failing call is charged to the daemon's own CPU.
 
 ### Done and verified, phases 1 to 4
 
@@ -398,10 +399,10 @@ is stale on both its items. The killed agent had already finished them:
 ## The only outstanding work on that spec -- ANSWERED on 2026-09-11
 
 All three items below are settled, and the closure is committed. Item 1 was
-attempted and PROVEN UNREACHABLE by any mechanism this repository can currently
-drive: see `test/draft/l2tp/subscriber-reader-failing-socket.ci`, which is
-tracked, read by no gate, and carries the numbers. Item 3 is answered rather than
-recorded: the three `ppp` tests now RUN, on kernel 7.2 in the QEMU guest, and two
+attempted, found unreachable under ptrace, and then reached on 2026-09-11 through
+a seccomp filter: see `test/l2tp/subscriber-reader-failing-socket.ci`, which the
+l2tp suite gates and whose header carries both sets of numbers. Item 3 is
+answered rather than recorded: the three `ppp` tests now RUN, on kernel 7.2 in the QEMU guest, and two
 of them carry an observed red there. The original text stands below as the record
 of what was asked for.
 

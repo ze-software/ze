@@ -5,23 +5,17 @@
 // Related: internal/component/l2tp/reader_metrics.go --
 // ze_l2tp_listener_read_errors_total, the counter this personality reads.
 // Related: register_l2tp_failing_socket.go -- registers l2tp/failing-socket.
-// Related: test/draft/l2tp/subscriber-reader-failing-socket.ci -- the only
-// caller, KNOWN VACUOUS, tracked but read by no gate.
+// Related: test/l2tp/subscriber-reader-failing-socket.ci -- the only caller.
+// Related: internal/test/failsyscall -- the stimulus that .ci arms.
 //
-// NO GATED CALLER, ON PURPOSE. The one .ci file that drives this
-// personality lives under test/draft/, which every recursive .ci reader
-// skips (test/draft/README.md), so nothing in `./le verify current mode
-// full` ever runs this function. That is not an orphan a suite forgot to
-// name: the .ci drives the daemon under `strace -e inject`, and ptrace's
-// own signal-trap overhead suppresses the traced daemon's CPU accounting
-// and iteration rate enough to make the paced and unpaced builds
-// indistinguishable, so gating it would gate a test that passes against the
-// BROKEN code. This fixture's own CPU and counter reads are sound; what is
-// missing is a failure-injection mechanism that does not route through
-// ptrace. Supply one and both files move into the l2tp suite together (the
-// .ci file's header carries the full finding and the candidate mechanism).
-// Until then the entry point that reaches this code is an operator typing
-// `ze-test fixture l2tp/failing-socket <metrics-port>` by hand.
+// The measurement here was never what failed. The STIMULUS was: the .ci
+// drove the daemon under `strace -e inject` until 2026-09-11, and ptrace's
+// own signal-trap overhead suppressed the traced daemon's CPU accounting and
+// iteration rate enough to make the paced and unpaced builds
+// indistinguishable, so the file sat under test/draft/ where no gate read
+// it. `ze-test fail-syscall` replaced ptrace with a seccomp filter, the two
+// builds separated by three orders of magnitude on the counter, and the .ci
+// moved into test/l2tp/. The .ci file's header carries the numbers.
 
 package fixture
 
@@ -62,8 +56,8 @@ const tunnelL2TPFailingSocketMaxErrors = 1000
 // tunnelL2TPFailingSocket proves AC-1 of
 // spec-subscriber-reader-loops-retry-a-failing-socket-without-backoff: with
 // readLoop's UDP socket held in a persistently failing state (the .ci file
-// wraps the daemon in `strace -e inject=recvfrom:error=ENETDOWN:when=1+`,
-// so every read fails from the first one), the daemon's own CPU use over
+// launches the daemon under `ze-test fail-syscall`, whose seccomp filter
+// answers ENETDOWN for every 1500-byte recvfrom), the daemon's own CPU use over
 // the window stays a small fraction of one core, and the swallowed-read
 // counter rises. The log line is asserted separately, by the .ci file's own
 // expect=stderr line: this fixture proves what an operator's monitoring

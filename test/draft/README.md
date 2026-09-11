@@ -2,29 +2,35 @@
 
 A `.ci` file here is **invisible to every suite and every repo-wide gate**. Write
 and iterate on it as long as you like; it cannot redden `./le verify current mode full`, and
-because the directory is gitignored it does not exist in CI at all. The two
-tracked exceptions below are checked out by CI: they are invisible there because
+because the directory is gitignored it does not exist in CI at all. The one
+tracked exception below is checked out by CI: it is invisible there because
 every reader skips this directory, not because the file is absent.
 
-This directory is tracked for this README and for the two exceptions.
-Everything else in it is ignored (`.gitignore`: `test/draft/*` plus the
-negations).
+This directory is tracked for this README and for that exception. Everything
+else in it is ignored (`.gitignore`: `test/draft/*` plus the negations).
 
-## The two tracked exceptions
+## The one tracked exception
 
-Neither is a test under development, and neither is ever promoted on the
-workflow below. Each is here for the property this directory already has, which
-is that no gate reads it, and each states its own reason in its own header.
+It is not a test under development, and it is never promoted on the workflow
+below. It is here for the property this directory already has, which is that no
+gate reads it, and it states its own reason in its own header.
 
 | File | What it is | Why it is not gated | What would gate it |
 |------|-----------|--------------------|--------------------|
 | `plugin/gr-vacuity-*.ci` | three DEMONSTRATIONS: two pass with Graceful Restart unreachable, and the third MUST fail | a demonstration that MUST fail reddens every sweep of the directory that holds it (`plan/journal/unwired-feature.md`, 2026-09-08) | nothing. A demonstration is never a regression test |
-| `l2tp/subscriber-reader-failing-socket.ci` | the failing-socket scenario for `spec-subscriber-reader-loops-retry-a-failing-socket-without-backoff` | it is KNOWN VACUOUS: `strace` fault injection is the only mechanism that sustains the read error, and ptrace's own signal-trap overhead throttles the daemon into the range the fix produces, so the PRE-FIX build passes every assertion in it | a failure-injection point that does not route through ptrace, for example kernel fault injection against the socket receive path. Then it moves to `test/l2tp/` and is gated like any other test |
 
-Run them with `ze-test bgp plugin --draft --pattern gr-vacuity` and
-`ze-test l2tp --draft --pattern subscriber-reader-failing-socket`.
+Run it with `ze-test bgp plugin --draft --pattern gr-vacuity`.
 
-A third file must not be added to this table on the strength of "it is not
+`l2tp/subscriber-reader-failing-socket.ci` was the second exception until
+2026-09-11. It was KNOWN VACUOUS because `strace` was the only mechanism that
+sustained a read error, and ptrace's own signal-trap overhead throttled the
+traced daemon into the same range the fix produces, so the pre-fix build passed
+every assertion in it. `ze-test fail-syscall` (`internal/test/failsyscall`)
+replaced that stimulus with a seccomp filter, which has no tracer in the path,
+and the scenario moved to `test/l2tp/` and is now gated. Its header carries the
+whole finding, including the ptrace numbers.
+
+A second file must not be added to this table on the strength of "it is not
 ready". That is what the rest of this directory is for, and an ignored draft
 costs no reader anything. A tracked exception earns its place by carrying a
 finding that is worth more than the file costs, and by saying in its own header

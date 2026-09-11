@@ -53,7 +53,15 @@ gated directory.
 All three files state, in their own headers, that no gate reads them, why, and
 what would have to change for them to be gated. That last clause is what makes
 it a decision rather than rot: the mechanism is named, and
-`plan/spec-failing-socket-proof-needs-a-non-ptrace-injection-point.md` owns it.
+spec-failing-socket-proof-needs-a-non-ptrace-injection-point owned it.
+
+**It answered on 2026-09-11, and the orphan stopped being one.** `ze-test
+fail-syscall` (`internal/test/failsyscall`) fails a named syscall through a
+classic seccomp filter and then execs the daemon, so no tracer is in the path.
+The failing-socket scenario moved to `test/l2tp/subscriber-reader-failing-socket.ci`
+and the l2tp suite now gates it, leaving `gr-vacuity-*.ci` as the one tracked
+exception under `test/draft/`. What that build cost is
+`plan/learned/018-the-replacement-instrument-brings-its-own-defect.md`.
 
 ## A cross-compiled test is not a test that ran
 

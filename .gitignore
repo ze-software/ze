@@ -50,21 +50,6 @@ test/draft/*
 test/draft/plugin/*
 !test/draft/plugin/gr-vacuity-*.ci
 
-# The subscriber failing-socket scenario, tracked by exception for the same
-# reason as the exhibit above. It drives a real daemon through strace syscall
-# fault injection, and the measurement it makes cannot discriminate the defect
-# it was written for: ptrace's own signal-trap overhead throttles the traced
-# daemon into the same range the pacer's ceiling produces, so the pre-fix build
-# passes every assertion in it. It is kept because the mechanism, the numbers
-# and the reason it fails are worth more than the file costs, and it is kept
-# HERE because no gate reads this directory. The file's own header says what
-# would have to change for it to move into test/l2tp/ and be gated.
-# The directory must be re-included before its contents can be excluded: git
-# does not descend into an excluded DIRECTORY.
-!test/draft/l2tp/
-test/draft/l2tp/*
-!test/draft/l2tp/subscriber-reader-failing-socket.ci
-
 # MRT data files (large, downloaded)
 test/internet/*.gz
 test/internet/*.bz2

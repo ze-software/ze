@@ -4,6 +4,7 @@ package cli
 
 import (
 	interopbgp "github.com/ze-software/ze/internal/le/interoplab/bgp"
+	"github.com/ze-software/ze/internal/test/failsyscall"
 	"github.com/ze-software/ze/internal/test/fixture"
 	"github.com/ze-software/ze/internal/test/mock/cymru"
 	dnsmock "github.com/ze-software/ze/internal/test/mock/dns"
@@ -91,4 +92,10 @@ func init() {
 	registerRoot("vpp-stub", cmdVPPStub, "Run the GoVPP Unix-socket stub used by VPP functional tests")
 	registerRoot("http-get", cmdHTTPGet, "Fetch one HTTP URL to stdout for container-local test tooling")
 	registerRoot("fixture", fixture.Run, "Run one compiled .ci fixture helper")
+
+	// Fault injection under a daemon, with no tracer: a seccomp filter answers
+	// one errno for one syscall, then the launcher execs the daemon. A tracer
+	// charges the failing call to itself, which is what made the earlier
+	// failing-socket measurement unreadable (internal/test/failsyscall).
+	registerRoot("fail-syscall", failsyscall.Run, "Launch a command with one syscall failing in the kernel (seccomp SECCOMP_RET_ERRNO; Linux only)")
 }

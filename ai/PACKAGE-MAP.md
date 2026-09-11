@@ -859,6 +859,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/test/ci` | provides shared utilities for parsing .ci test files |  |
 | `internal/test/cli` | registers the ze-test command's functional-test and mock-server handlers |  |
 | `internal/test/decode` | provides shared BGP message decode helpers for test tools |  |
+| `internal/test/failsyscall` | fails one named syscall for one launched process, through a seccomp filter rather than a tracer |  |
 | `internal/test/fixture` | provides compiled helper processes for .ci scenarios |  |
 | `internal/test/golden` | compares captured bytes against fixtures committed beside the package under test |  |
 | `internal/test/localdatacoverage` | TODO |  |
