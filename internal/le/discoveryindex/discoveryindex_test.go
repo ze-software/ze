@@ -260,42 +260,51 @@ func TestAnswerRefusesATreeWithNoAIDirectory(t *testing.T) {
 	}
 }
 
-func TestFeedsNamesTheIndexEachSourceDrifts(t *testing.T) {
+// TestIsSourcePathNamesEveryWriteThatDriftsTheMap is the population table.
+//
+// It asked IsSource(path, header) until 2026-09-11 and carried a header column,
+// because the commit gate judged a COMMITTED file and could read both trees.
+// The gate is deleted and the predicate is asked after a WRITE, so the two rows
+// the header decided are the interesting change: a `.go` file with no package
+// header still drifts the map, because deleting that header is itself a drift.
+func TestIsSourcePathNamesEveryWriteThatDriftsTheMap(t *testing.T) {
 	for _, tc := range []struct {
-		path, header string
-		want         bool
+		path string
+		want bool
 	}{
-		{OutputRel, "", true},
-		{"internal/le/discoveryindex/discoveryindex.go", "", true},
-		{"internal/plugins/p/register.go", "", true},
-		{"internal/core/x/x.go", "// Package x does x.", true},
-		{"internal/core/x/x.go", "package x", false},
-		{"internal/core/x/x_test.go", "// Package x does x.", false},
-		{"docs/architecture/one.md", "", false},
+		{OutputRel, true},
+		{"internal/le/discoveryindex/discoveryindex.go", true},
+		{"internal/plugins/p/register.go", true},
+		{"internal/core/x/x.go", true},
+		// No package header. IsSource answered false here; the write that
+		// REMOVED the header is exactly the write that drifts the map most.
+		{"internal/core/x/headerless.go", true},
+		{"internal/core/x/x_test.go", false},
+		{"docs/architecture/one.md", false},
 		// Outside the roots the walk covers, or inside a directory it skips.
-		// The map cannot describe any of these, so committing one drifts it
-		// however the file is named and whatever header it carries.
-		{"vendor/github.com/x/y/y.go", "// Package y does y.", false},
-		{"vendor/github.com/x/y/register.go", "", false},
-		{"internal/core/x/testdata/x.go", "// Package x does x.", false},
-		{"internal/core/x/.hidden/x.go", "// Package x does x.", false},
-		{"internal/core/x/node_modules/x/x.go", "// Package x does x.", false},
-		{"tools.go", "// Package main pins tools.", false},
-		{"third_party/y/y.go", "// Package y does y.", false},
+		// The map cannot describe any of these, so writing one drifts it
+		// however the file is named.
+		{"vendor/github.com/x/y/y.go", false},
+		{"vendor/github.com/x/y/register.go", false},
+		{"internal/core/x/testdata/x.go", false},
+		{"internal/core/x/.hidden/x.go", false},
+		{"internal/core/x/node_modules/x/x.go", false},
+		{"tools.go", false},
+		{"third_party/y/y.go", false},
 	} {
-		if got := IsSource(tc.path, tc.header); got != tc.want {
-			t.Errorf("IsSource(%q, header=%q) = %v, want %v", tc.path, tc.header, got, tc.want)
+		if got := IsSourcePath(tc.path); got != tc.want {
+			t.Errorf("IsSourcePath(%q) = %v, want %v", tc.path, got, tc.want)
 		}
 	}
 }
 
-// TestIsSourceAgreesWithTheWalkAboutTheFilesTheMapDescribes derives the wanted
-// answer from Build over one tree, rather than restating it. A file the walk
-// never reaches cannot change a byte of the map, so calling it a source refuses
-// a commit over an index that could not have moved. That is what a
+// TestIsSourcePathAgreesWithTheWalkAboutTheFilesTheMapDescribes derives the
+// wanted answer from Build over one tree, rather than restating it. A file the
+// walk never reaches cannot change a byte of the map, so calling it a source
+// spends a rebuild on an index that could not have moved. That is what a
 // `go mod vendor` result met until 2026-09-08: 765 files outside the walk read
 // as sources of a map whose walk skips vendor outright.
-func TestIsSourceAgreesWithTheWalkAboutTheFilesTheMapDescribes(t *testing.T) {
+func TestIsSourcePathAgreesWithTheWalkAboutTheFilesTheMapDescribes(t *testing.T) {
 	const header = "// Package x does x.\npackage x\n"
 	sources := []string{
 		"internal/core/x/x.go",
@@ -323,45 +332,9 @@ func TestIsSourceAgreesWithTheWalkAboutTheFilesTheMapDescribes(t *testing.T) {
 
 	for _, rel := range sources {
 		want := described[path.Dir(rel)]
-		if got := IsSource(rel, header); got != want {
-			t.Errorf("IsSource(%q) = %v, but Build %s the package holding it",
+		if got := IsSourcePath(rel); got != want {
+			t.Errorf("IsSourcePath(%q) = %v, but Build %s the package holding it",
 				rel, got, map[bool]string{true: "describes", false: "never reaches"}[want])
-		}
-	}
-}
-
-// TestIsSourceAgreesWithPackageDocAboutTheTextTheMapDerives derives the wanted
-// answer from packageDoc over real files rather than restating it. A file the
-// map takes no text from is not a source of that text.
-//
-// A substring search for the marker said otherwise until 2026-09-08. It matched
-// a mention of the header in prose, a constant holding it, and a header past
-// the window packageDoc reads, so sources.go read as a source of the map on the
-// strength of naming the thing it looks for, and the commit repairing this
-// gate's other over-fire was refused by it.
-func TestIsSourceAgreesWithPackageDocAboutTheTextTheMapDerives(t *testing.T) {
-	const dir = "internal/core/x"
-	bodies := map[string]string{
-		"header.go":   "// Package x does x.\npackage x\n",
-		"mentions.go": "// mentions.go explains the `// Package` header it reads.\npackage x\n\nconst marker = \"// Package\"\n",
-		"bare.go":     "// Package x\npackage x\n",
-		"late.go":     strings.Repeat("// filler\n", HeaderLines) + "// Package x does x.\npackage x\n",
-	}
-	files := map[string]string{"ai/.keep": ""}
-	for name, body := range bodies {
-		files[dir+"/"+name] = body
-	}
-	root := tree(t, files)
-
-	for name, body := range bodies {
-		rel := dir + "/" + name
-		doc, err := packageDoc(filepath.Join(root, filepath.FromSlash(rel)))
-		if err != nil {
-			t.Fatalf("packageDoc(%s): %v", rel, err)
-		}
-		want := doc != ""
-		if got := IsSource(rel, HeaderText(body)); got != want {
-			t.Errorf("IsSource(%q) = %v, but packageDoc reads %q from it", rel, got, doc)
 		}
 	}
 }

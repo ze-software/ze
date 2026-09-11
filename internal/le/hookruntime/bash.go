@@ -717,18 +717,28 @@ func preMaterializeDerived(ctx context) *verdict {
 }
 
 // commandNamesArtifact reports whether the command text reaches the artifact,
-// by its own path or by a directory that holds it.
+// by its own path or by a directory that holds it with a trailing slash.
 //
 // The directory half is what a recursive search needs. `grep -rn X ai/` names
 // every artifact under ai/ without spelling one, so matching the full path
 // alone let that command walk a directory the artifacts were missing from and
 // answer "no match" for a tree the author could not see.
 //
-// A directory matches only with its trailing slash. `grep -rn X ai` reaches the
-// same files and is NOT matched, because the bare segment is two letters that
-// appear inside ordinary words, and firing on those would put a rebuild in
-// front of most of the session's commands. The trailing slash is how a
-// directory is written when it is meant as a path.
+// WHAT THIS DOES NOT CATCH, stated because a reader will meet it. A search that
+// names neither the path nor a slashed directory holding it is not matched, and
+// after an edit removed the artifact such a search reads a tree without it:
+//
+//	rg ResolveBGPTree                 -- names no path at all
+//	grep -rn foo .                    -- names the checkout, not the directory
+//	grep -rn X ai                     -- the same files, without the slash
+//	./le <action>                     -- reads an artifact inside its own process
+//
+// Widening it to catch them has no bound: every search over the checkout would
+// pay a rebuild, and the bare segment `ai` is two letters that appear inside
+// ordinary words. The trailing slash is how a directory is written when it is
+// MEANT as a path, and that is where the line is drawn.
+// docs/contributing/navigating-the-code.md tells the reader to name the path
+// when the answer matters.
 func commandNamesArtifact(command, path string) bool {
 	if strings.Contains(command, path) {
 		return true

@@ -242,10 +242,13 @@ func postBoundary(ctx context) *verdict {
 
 // tracked answers whether git holds path in its index, relative to root.
 //
-// An error answers TRUE, which is the safe side of this question: the caller
-// removes a file when the answer is false, so an unreadable index must not read
-// as permission to delete. A checkout with no git at all answers true and
-// removes nothing, which is a hook doing less rather than a hook doing harm.
+// The false arm AUTHORIZES A DELETION, so the two ways of not knowing are told
+// apart rather than lumped together. A tree with no `.git` has no index, so
+// nothing in it is tracked and the honest answer is FALSE: that is the ordinary
+// case for a throwaway checkout, and answering true there would stop the hook
+// working at all. Any OTHER failure means this process could not look, and a
+// question it cannot answer must not read as permission to delete, so it
+// answers TRUE and the caller removes nothing.
 func tracked(root, path string) bool {
 	// A tree that is not a git checkout holds no index, so nothing in it is
 	// tracked and the question is answered without forking git. A worktree

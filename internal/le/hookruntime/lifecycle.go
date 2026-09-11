@@ -200,34 +200,33 @@ func hookSessionStart(ctx context, out io.Writer) int {
 			}
 		}
 	}
-	// Every derived artifact is rebuilt here, and the registry is what says
-	// which they are. Two hardcoded os.Stat blocks named ai/DOCS-TO-CODE.md and
-	// ai/CODE-TO-DOCS.md until 2026-09-11, which made this hook a central
-	// enumeration a third artifact had to be added to.
+	// Every derived artifact the tree does not hold is built here, and the
+	// registry is what says which they are. Two hardcoded os.Stat blocks named
+	// ai/DOCS-TO-CODE.md and ai/CODE-TO-DOCS.md until 2026-09-11, which made
+	// this hook a central enumeration a third artifact had to be added to.
 	//
-	// The rebuild is UNCONDITIONAL rather than absent-only, and that is what
-	// bounds staleness to one session. Invalidation is keyed to the Write and
-	// Edit TOOLS, so a `sed -i`, a heredoc, a `git rebase`, a `git stash pop`
-	// and `./le repository generate` all move an input with no hook in the
-	// path. Each leaves the artifact PRESENT, and the read half rebuilds only
-	// an ABSENT one, so an absent-only session start let that artifact answer
-	// from before the edit for the rest of the checkout's life. Rebuilding all
-	// three costs about 1.6 seconds, once, at a point where nothing is waiting.
+	// ABSENT-ONLY is a budget decision, not an oversight. `.claude/settings.json`
+	// gives this hook 5 seconds, and rendering all three artifacts does not fit
+	// inside it. A hook killed at its timeout is worse than a stale artifact in
+	// two ways at once: every artifact after the kill point is left exactly as
+	// it was, and the whole session-start message goes with it, the BLOCKING LSP
+	// notice and the verification-debt warning included. Measure before changing
+	// this, and put a number here only when you have:
 	//
-	// A TRACKED artifact that is present is the exception, for the reason
-	// postInvalidateDerived leaves one alone: a rewrite is a working-tree
-	// change another session's commit script would carry, and the content comes
-	// from a shared tree holding other sessions' files. An absent one is
-	// rebuilt whether or not git tracks it, because a deletion git can already
-	// see is not made worse by restoring the file.
+	//	dir=$(./le session scratch ensure)
+	//	echo '{}' | time ./le hook-check session-start > "$dir/session-start.log" 2>&1
+	//
+	// What the bound costs is a STATED limitation rather than a hidden one: a
+	// write no Write or Edit hook sees (`sed -i`, a heredoc, `git rebase`, `git
+	// stash pop`, a generator) leaves the artifact present and stale until the
+	// next hooked write to one of its inputs.
+	// docs/contributing/navigating-the-code.md tells the reader so.
 	for _, artifact := range derived.All() {
-		_, statErr := os.Stat(filepath.Join(ctx.root, filepath.FromSlash(artifact.Path)))
-		if statErr == nil && tracked(ctx.root, artifact.Path) {
-			fmt.Fprintf(out, "Warning: %s is registered as derived and still TRACKED, so it was left as it is\n", artifact.Path) //nolint:errcheck // hook protocol
+		if _, err := os.Stat(filepath.Join(ctx.root, filepath.FromSlash(artifact.Path))); !os.IsNotExist(err) {
 			continue
 		}
 		if err := artifact.Rebuild(ctx.root); err != nil {
-			fmt.Fprintf(out, "Warning: %s could not be built: %v\n", artifact.Path, err) //nolint:errcheck // hook protocol
+			fmt.Fprintf(out, "Warning: %s is absent and could not be built: %v\n", artifact.Path, err) //nolint:errcheck // hook protocol
 			continue
 		}
 		fmt.Fprintf(out, "Built %s (derived, not tracked)\n", artifact.Path) //nolint:errcheck // hook protocol

@@ -1,10 +1,15 @@
-// Design: docs/architecture/core-design.md -- which changed file drifts which index
+// Design: docs/architecture/core-design.md -- which written file drifts the package map
 // Overview: discoveryindex.go -- the generator these rules describe
 //
-// sources.go answers whether a committed path can make a generated discovery
-// index outdated. The changed-file router uses this answer to select the
-// freshness gate. The commit gate uses it to require an updated committed
-// index.
+// sources.go answers whether writing a path can make ai/PACKAGE-MAP.md
+// outdated. The invalidation hook asks it after every Write and Edit, and
+// removes the map when the answer is yes.
+//
+// It answered a COMMITTED population until 2026-09-11, for a changed-file
+// router and a commit-time gate that compared the map against its tracked copy.
+// Both are deleted: the map is derived on demand, so there is no tracked copy
+// for a comparison to judge, and the only question left is which write drifts
+// it. `IsSource` and `HeaderText` served those two callers and went with them.
 
 package discoveryindex
 
@@ -12,52 +17,6 @@ import (
 	"slices"
 	"strings"
 )
-
-// generator is the source file that produces OutputRel. A commit touching it
-// can change every byte of the index, so it feeds the index it writes.
-const generator = "internal/le/discoveryindex/discoveryindex.go"
-
-// HeaderText answers the first HeaderLines lines of content, which is the
-// window packageDoc reads a package header from. A caller that asks IsSource
-// about a `.go` file bounds its text with this, so the trigger and the
-// generator judge the same bytes.
-//
-// The bound belongs to the caller rather than to feeds, because a caller can
-// supply the working tree, HEAD, or both joined, and only a caller knows which
-// trees it read. Handing feeds a whole FILE is what made any Go file that
-// merely SPELLS a package header read as a source of the map, this one included
-// (plan/journal/gate-fires-outside-its-population.md).
-func HeaderText(content string) string {
-	end, lines := 0, 0
-	for end < len(content) {
-		idx := strings.IndexByte(content[end:], '\n')
-		if idx < 0 {
-			break
-		}
-		end += idx + 1
-		lines++
-		if lines == HeaderLines {
-			return content[:end]
-		}
-	}
-	return content
-}
-
-// hasPackageHeader reports whether text carries a line packageDoc would read a
-// package summary from.
-//
-// It asks packageLine, which is the generator's own test, so a file the map
-// derives no text from cannot read as a source of that text. A substring search
-// for the marker answered yes to a mention of it in prose, to a constant
-// holding it, and to a comment quoting it.
-func hasPackageHeader(text string) bool {
-	for line := range strings.SplitSeq(text, "\n") {
-		if _, ok := packageLine(strings.TrimSpace(line)); ok {
-			return true
-		}
-	}
-	return false
-}
 
 // outputs names every generated index these rules cover.
 //
@@ -92,76 +51,19 @@ func inPopulation(path string) bool {
 	return true
 }
 
-// feeds answers the indexes that committing path can drift, sorted, or nothing
-// when path feeds none.
+// IsSourcePath reports whether writing path can change ai/PACKAGE-MAP.md.
 //
-// headerText is used only for a non-test `.go` file, and it is the file's
-// header rather than its body: the caller bounds it with HeaderText. It is
-// searched for the package header line from which the index derives text. The
-// caller supplies the working tree, HEAD, or both, because a change can add or
-// remove that line and only the caller knows which trees are available.
-func feeds(path, headerText string) []string {
-	// A committed index feeds only itself: committing it is how its own
-	// freshness is satisfied, and it never obliges any OTHER index to ride
-	// along.
-	if slices.Contains(outputs[:], path) {
-		return []string{path}
-	}
-
-	// A generator feeds exactly the output it writes. It is judged before the
-	// population and before any content test, because it can change every row
-	// at once: the rules below ask what ONE package contributes, and that
-	// question does not reach a change to how every package is read. It is also
-	// the only clause that can fire when the caller has no text to give, which
-	// is a deleted file.
-	if path == generator {
-		return []string{OutputRel}
-	}
-
-	// Every rule below reads a file the walk visits, so a path the walk cannot
-	// reach drifts nothing whatever it is named or whatever header it carries.
-	if !inPopulation(path) {
-		return nil
-	}
-
-	// A register.go Description feeds the map, whether or not the file carries
-	// a package header.
-	if strings.HasSuffix(path, "register.go") {
-		return []string{OutputRel}
-	}
-
-	if strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go") &&
-		hasPackageHeader(headerText) {
-		return []string{OutputRel}
-	}
-	return nil
-}
-
-// IsSource reports whether committing path can change a generated discovery
-// index. It is defined in terms of feeds so the "is it a source" and "which
-// index" answers can never disagree.
-func IsSource(path, headerText string) bool {
-	return len(feeds(path, headerText)) > 0
-}
-
-// IsSourcePath reports whether writing path can change ai/PACKAGE-MAP.md,
-// judged by the PATH alone. It is the predicate the invalidation hook uses.
-//
-// It is deliberately WIDER than IsSource, and the difference is one clause:
-// IsSource asks a non-test `.go` file for a package header, and this does not.
-// A caller with only the post-write text cannot use that clause, because the
-// edit that most obviously drifts the map is the one that DELETES the `//
-// Package` comment: the file on disk then carries no header, IsSource answers
-// false, and the map keeps a summary the tree no longer supports while
-// recordPackage would now render the register.go description or TODO.
+// The header is NOT consulted, and that is the decision this function makes.
+// It is asked AFTER the write, so the edit that most obviously drifts the map,
+// deleting a `// Package` comment, leaves a file with no header to read: a
+// predicate that required one would answer false exactly then, and the map
+// would keep a summary the tree no longer supports while recordPackage now
+// renders the register.go description or TODO.
 //
 // The two failure modes are not symmetric, which is what decides the trade. An
 // over-wide answer costs ONE rebuild, on a read that was going to happen
 // anyway. An under-wide answer is a stale index nothing announces. Precision is
 // an optimization here; correctness is not.
-//
-// IsSource keeps its exact contract, because the commit-time and doc-wiring
-// callers judge a COMMITTED population and can supply both trees' headers.
 func IsSourcePath(path string) bool {
 	// A derived output feeds itself: a hand edit of it is not evidence about
 	// the tree, so it is discarded rather than kept.
@@ -171,8 +73,8 @@ func IsSourcePath(path string) bool {
 	if !inPopulation(path) {
 		return false
 	}
-	// The generator is covered by the clause below: it is a non-test `.go` file
-	// inside the population, so feeds names it separately only because that
-	// clause has to fire with no text to read.
+	// The generator, internal/le/discoveryindex/discoveryindex.go, needs no
+	// clause of its own: it is a non-test `.go` file inside the population, so
+	// the line below already answers for it.
 	return strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go")
 }

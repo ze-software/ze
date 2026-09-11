@@ -101,32 +101,40 @@ func TestSessionStartBuildsEveryRegisteredDerivedArtifact(t *testing.T) {
 	}
 }
 
-// TestSessionStartRebuildsAPresentArtifact covers the artifact that is STALE
-// rather than absent.
+// TestSessionStartLeavesAPresentArtifactAlone bounds what this hook does.
 //
-// Invalidation is keyed to the Write and Edit tools, so `sed -i`, a heredoc,
-// `git rebase`, `git stash pop` and `./le repository generate` each move an
-// input with no hook in the path, and each leaves the artifact present. The
-// read half rebuilds only an ABSENT one, so an absent-only session start let
-// such an artifact answer from before the edit for the rest of the checkout's
-// life. Rebuilding unconditionally is what bounds that to one session.
-func TestSessionStartRebuildsAPresentArtifact(t *testing.T) {
+// The rebuild is ABSENT-ONLY because the hook has a budget: `.claude/settings.json`
+// gives `le hook-check session-start` 5 seconds, and rendering all three
+// artifacts does not fit inside it. A hook killed at its timeout loses the
+// whole session-start message with it, the BLOCKING LSP notice and the
+// verification-debt warning included, and leaves every artifact after the kill
+// point exactly as it found them. Measure it before changing this:
+//
+//	dir=$(./le session scratch ensure)
+//	echo '{}' | time ./le hook-check session-start > "$dir/session-start.log" 2>&1
+//
+// The cost of the bound is a STATED limitation: a write no Write or Edit hook
+// sees leaves the artifact present and stale until the next hooked write to one
+// of its inputs. `docs/contributing/navigating-the-code.md` names it, and the
+// spec's Known Limitations carries it.
+func TestSessionStartLeavesAPresentArtifactAlone(t *testing.T) {
 	root := derivedFixture(t)
-	stale := filepath.Join(root, "ai", "DOCS-TO-CODE.md")
-	if err := os.WriteFile(stale, []byte("written by something no hook saw\n"), 0o600); err != nil {
+	present := filepath.Join(root, "ai", "DOCS-TO-CODE.md")
+	const body = "written by something no hook saw\n"
+	if err := os.WriteFile(present, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	runSessionStart(t, root)
+	printed := runSessionStart(t, root)
 
-	body, err := os.ReadFile(stale) //nolint:gosec // a fixture path this test built under t.TempDir()
+	after, err := os.ReadFile(present) //nolint:gosec // a fixture path this test built under t.TempDir()
 	if err != nil {
 		t.Fatalf("read the artifact after the session start: %v", err)
 	}
-	if strings.Contains(string(body), "no hook saw") {
-		t.Errorf("a present artifact was left as an unhooked write left it:\n%s", body)
+	if string(after) != body {
+		t.Errorf("a present artifact was rebuilt, which the hook has no budget for:\n%s", after)
 	}
-	if !strings.Contains(string(body), "internal/core/x/x.go") {
-		t.Errorf("the rebuilt artifact does not describe the fixture tree:\n%s", body)
+	if strings.Contains(printed, "Built ai/DOCS-TO-CODE.md") {
+		t.Errorf("the hook reported building an artifact that was already there:\n%s", printed)
 	}
 }

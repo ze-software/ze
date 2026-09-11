@@ -112,7 +112,9 @@ readers parse the rendered markdown, so they are blocked behind
   (`Report.Packages`, `| json`), because `internal/test/fixture/ui_fixture_le_discovery_answers.go`
   and the UI fixtures assert on it
 - `./le docs-to-code update` and `index-update` are unchanged as writers
-- `discoveryindex.IsSource` keeps its exact contract, including the header bound left to the caller
+- `discoveryindex.IsSource` and `HeaderText` are DELETED, not preserved: their only production
+  callers were `checkDiscoveryIndex` and `isDiscoverySource`, and this spec deletes both. The
+  invalidation hook needs a predicate over the path alone, which is `IsSourcePath`
 - Every rendered rule under `ai/rules/*.md` stays tracked and keeps `rules render-check` and
   `rules points-roundtrip-check`: those gate an AUTHORED source against its render, not a
   derivation against the tree
@@ -430,10 +432,20 @@ always-in-scope classes apply wherever they surface.
 - Invalidation is keyed to the `Write` and `Edit` TOOLS (`nativeHookActions`, `posttool-writeedit`),
   so a write that reaches a file another way moves an input with no hook in the path: `sed -i`,
   a shell heredoc, `git rebase`, `git stash pop`, `git checkout` and `./le repository generate`.
-  Each leaves the artifact PRESENT, and `preMaterializeDerived` rebuilds only an ABSENT one, so a
-  grep between such a write and the next session start can read a stale artifact. `hookSessionStart`
-  rebuilds every registered artifact unconditionally, which bounds the window to one session at a
-  cost of about 1.6 seconds once.
+  Each leaves the artifact PRESENT and stale. Neither `preMaterializeDerived` nor `hookSessionStart`
+  rebuilds one that is present, so it stays stale until the next `Write` or `Edit` to one of its
+  inputs, or until a generator is run by hand.
+- `hookSessionStart` rebuilds only an ABSENT artifact, because `.claude/settings.json` gives the
+  hook 5 seconds and rendering all three does not fit. A hook killed at its timeout leaves every
+  artifact after the kill point untouched AND discards the whole session-start message, the
+  BLOCKING LSP notice and the verification-debt warning included, so the unconditional rebuild is
+  strictly worse than the staleness it was meant to remove. Measure before revisiting:
+  `echo '{}' | time ./le hook-check session-start`.
+- `preMaterializeDerived` matches the artifact's path, or a directory holding it WITH a trailing
+  slash. A search naming neither reads a tree without the artifact and answers no match:
+  `rg <symbol>`, `grep -rn foo .`, `grep -rn X ai`, and any `./le` action that reads an artifact
+  in its own process. Catching those has no bound, so the limit is stated in
+  `commandNamesArtifact` and in `docs/contributing/navigating-the-code.md` instead.
 
 ## Checklist
 

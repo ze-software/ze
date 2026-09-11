@@ -101,18 +101,28 @@ answers "no match" for a tree the author cannot see.
 <!-- source: internal/le/hookruntime/postwrite.go -- postInvalidateDerived -->
 <!-- source: internal/le/hookruntime/bash.go -- preMaterializeDerived -->
 
+**Which searches rebuild, and which do not.** The read hook rebuilds when the
+command text holds the index's own path, or a directory that contains it with
+its trailing slash. `grep -n X ai/PACKAGE-MAP.md` and `grep -rn X ai/` both
+rebuild. A search that names neither does not: `rg ResolveBGPTree`,
+`grep -rn foo .`, `grep -rn X ai` without the slash, and any `./le` action that
+reads an index from inside its own process. After an edit removed the index, one
+of those reads a tree without it and answers no match.
+<!-- source: internal/le/hookruntime/bash.go -- commandNamesArtifact -->
+
+Name the path when the answer matters. `grep -n X ai/PACKAGE-MAP.md` is the form
+that always reads a current index.
+
 **Which writes invalidate, and which do not.** The removal is keyed to the
 `Write` and `Edit` TOOLS. A write that reaches the file some other way moves an
 input with no hook in the path: `sed -i`, a shell heredoc, `git rebase`, `git
 stash pop`, `git checkout`, and `./le repository generate`. Each of those leaves
-the index PRESENT, and the read half rebuilds only an ABSENT one, so a grep
-between such a write and the next session start CAN read a stale index.
-<!-- source: internal/le/hookruntime/runtime.go -- nativeHookActions posttool-writeedit tools -->
-
-A session start rebuilds every index unconditionally, which bounds that window
-to one session. It costs about 1.6 seconds for the three, once, before any work
-starts. Run the writer yourself after a bulk rewrite if you would rather not
-wait for the next session.
+the index PRESENT and stale, and neither the read hook nor a session start
+rebuilds one that is present, so it stays stale until the next `Write` or `Edit`
+to one of its inputs. Run the writer yourself after a bulk rewrite:
+`./le discovery-index update`, `./le docs-to-code update`,
+`./le docs-to-code index-update`.
+<!-- source: internal/le/hookruntime/runtime.go -- nativeHookActions -->
 <!-- source: internal/le/hookruntime/lifecycle.go -- hookSessionStart -->
 
 Only Bash is intercepted. The `Read` and the `Grep` TOOL reach no hook. One of

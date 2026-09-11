@@ -140,6 +140,11 @@ gokrazy/ze/builddir/github.com/ze-software/ze/go.sum
 /ai/DOCS-TO-CODE.md
 /ai/CODE-TO-DOCS.md
 /ai/PACKAGE-MAP.md
+# derived.WriteAtomic publishes each one by renaming a temporary file created
+# beside it, so a process killed between the two leaves that temporary behind.
+# Several sessions share this checkout, and an unignored leftover shows up in
+# every one of their `git status` runs.
+/ai/.*.md.tmp-*
 
 # meta/ca holds a REAL PKI root private key, so a stray one must never be
 # committable. LoadOrGenerateRootFor (internal/component/pki/ca.go) writes the
