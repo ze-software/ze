@@ -7,6 +7,9 @@
 // Related: check_ac.go -- the general Ze access-concentrator checker this one
 // shares its dial, session-wait and LCP/auth/IPCP helpers with.
 // Related: check_service_name.go -- the wire-capture shape this one follows.
+
+//go:build ze_l2tp
+
 package pppoe
 
 import (

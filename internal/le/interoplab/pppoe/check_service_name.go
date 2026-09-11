@@ -5,6 +5,9 @@
 // Related: check_ac.go -- the general Ze access-concentrator checker this one
 // specializes, sharing its dial, session-wait and LCP/auth/IPCP helpers.
 // Related: check_helpers.go -- processRunning, the fail-closed peer queries.
+
+//go:build ze_l2tp
+
 package pppoe
 
 import (

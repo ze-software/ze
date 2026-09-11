@@ -2,12 +2,14 @@
 // Related: scenarios.go -- typed container plans for both PPPoE roles.
 // Related: check_client.go -- Ze client assertions against accel-ppp.
 // Related: check_ac.go -- Ze access-concentrator assertions against pppd.
+// Related: checkers_l2tp.go -- the ze_l2tp half of the scenario table.
 package pppoe
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -114,15 +116,26 @@ func setupFailure(err error) interoplab.SuiteReport {
 	return interoplab.SuiteReport{SetupError: err.Error(), Code: 1}
 }
 
+// wireCheckers holds the scenarios whose checkers decode PPPoE frames with
+// internal/component/l2tp/pppoe, the feature's own codec. That package is
+// compile-out-able under ze_l2tp, so an always-on file MUST NOT import it
+// (ai/rules/architecture.md, `./le tier check`). checkers_l2tp.go carries the
+// import behind the tag and fills this map from its init().
+//
+// The map is empty rather than absent in a build without the tag, because such
+// a build holds no PPPoE access concentrator to drive: offering a scenario that
+// cannot run is worse than offering none. Every build that RUNS this lab
+// carries the tag, so nothing is lost -- the `le` script and the CI workflows
+// both build the le personality with every tag feature-gates.txt declares.
+var wireCheckers = map[string]interoplab.Checker{}
+
 func checkers() map[string]interoplab.Checker {
-	return map[string]interoplab.Checker{
-		"01-pppoe-chap-ipv4":       checkZeClient,
-		"02-ze-ac-pppd-client":     checkZeAccessConcentrator,
-		"pppoe-empty-service-name": checkZeAccessConcentratorEmptyServiceName,
-		"pppoe-padr-replay":        checkZeAccessConcentratorPADRReplay,
-		"ipv6cp-zero-identifier":   checkZeAccessConcentratorIPv6CPZeroIdentifier,
-		"ipv6cp-missing-option":    checkZeAccessConcentratorIPv6CPMissingOption,
+	all := map[string]interoplab.Checker{
+		"01-pppoe-chap-ipv4":   checkZeClient,
+		"02-ze-ac-pppd-client": checkZeAccessConcentrator,
 	}
+	maps.Copy(all, wireCheckers)
+	return all
 }
 
 // ScenarioNames returns every typed PPPoE scenario in lexical selection order.

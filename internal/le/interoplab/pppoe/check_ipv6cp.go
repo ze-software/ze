@@ -27,6 +27,9 @@
 // changes the pool decline. Written and registered now so
 // interoplab.Discover picks them up the moment it does; the assertions
 // after that wait are the real target behavior, not weakened to pass today.
+
+//go:build ze_l2tp
+
 package pppoe
 
 import (
