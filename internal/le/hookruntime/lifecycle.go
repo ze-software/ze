@@ -207,7 +207,16 @@ func hookSessionStart(ctx context, out io.Writer) int {
 	//
 	// ABSENT-ONLY is a budget decision, not an oversight. `.claude/settings.json`
 	// gives this hook 5 seconds, and rendering all three artifacts does not fit
-	// inside it. A hook killed at its timeout is worse than a stale artifact in
+	// inside what is LEFT of it. The rendering itself is about a second; the
+	// hook's own cost is the rest, most of it `commit.ListDebt` below reading
+	// every shard in plan/verification-debt/ and applying the discharge overlay.
+	// That read grows with the ledger, so the margin shrinks on its own, and a
+	// loaded machine has none: measured at 2.2s here and at 4.3, 4.8 and 5.9s on
+	// the same checkout the same afternoon. Read the rebuild as the change that
+	// does not fit, never as the reason the budget is tight
+	// (plan/journal/test-gate-repeats-expensive-work.md).
+	//
+	// A hook killed at its timeout is worse than a stale artifact in
 	// two ways at once: every artifact after the kill point is left exactly as
 	// it was, and the whole session-start message goes with it, the BLOCKING LSP
 	// notice and the verification-debt warning included. Measure before changing

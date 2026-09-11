@@ -393,9 +393,23 @@ in Files to Modify and Files to Create, plus `.gitignore`, `internal/le/commit/d
 and `plan/verification-debt/discharged/`. At least two lenses. The eight
 always-in-scope classes apply wherever they surface.
 
+Round 2 scope: the round 1 fixes only, plus the sibling call sites they touched.
+Round 3 scope: the round 2 fixes only, which are commit `38c3c8882`, plus the
+sibling call sites they touched. The eight always-in-scope classes apply in every
+round wherever they surface.
+
 | Round | Scope | BLOCKER | ISSUE | NOTE | Recorded |
 |-------|-------|---------|-------|------|----------|
-| 1 | whole diff, two lenses | | | | |
+| 1 | whole diff, two lenses | 2 | 6 | 3 | fixed, then re-reviewed as round 2 |
+| 2 | the round 1 fixes | 2 | 3 | 1 | fixed in `38c3c8882` |
+| 3 | the round 2 fixes (`38c3c8882`) | 0 | 1 | 4 | fixed below |
+| 4 | the round 3 fix only: the corrected weakening reason and the `hookSessionStart` budget comment | | | | |
+
+Round 3's ISSUE was a FALSE reason in `test/weakened/4350711e.md`, which said the
+inverted session-start test had put "a 4 to 6 second rebuild" inside a 5 second
+budget. Measured, the rebuild is about one second and the hook's own debt-ledger
+read is the rest. The row now says that, and the `hookSessionStart` comment says
+it too, so neither sends the next reader at the rendering.
 
 ## Design Insights
 
