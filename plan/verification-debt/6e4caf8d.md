@@ -7,6 +7,6 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
-| 2026-09-09 | 6e4caf8d | pppoe: every PADO and PADS carries the mandatory Service-Name tag (+10 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-09-05T00:11:54Z) | open |
-| 2026-09-09 | 6e4caf8d | pppoe: every PADO and PADS carries the mandatory Service-Name tag (+5 more) | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-09-09 | 6e4caf8d | pppoe: every PADO and PADS carries the mandatory Service-Name tag (+11 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-09-05T00:11:54Z) | open |
+| 2026-09-09 | 6e4caf8d | pppoe: every PADO and PADS carries the mandatory Service-Name tag (+6 more) | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-09-09 | 6e4caf8d | a failing subscriber socket is paced, logged and counted (+2 more) | discovery-index freshness | ai/PACKAGE-MAP.md already carries internal/core/pacer at HEAD; ./le discovery-index update produces no diff | open |

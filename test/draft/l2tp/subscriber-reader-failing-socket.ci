@@ -1,0 +1,114 @@
+# KNOWN VACUOUS -- DO NOT ENABLE IN A GATING RUN AS WRITTEN.
+#
+# THIS FILE IS TRACKED AND NO GATE READS IT, ON PURPOSE. It lives under
+# test/draft/, whose one property is that every recursive .ci reader skips it
+# (test/draft/README.md names the four readers and the ratchet that holds them
+# there), and it is tracked by an explicit .gitignore negation rather than by
+# accident. It is NOT an orphan a suite forgot to name: moving it to
+# test/l2tp/ would gate a file that passes against the BROKEN build, which is
+# worse than not running it at all.
+#
+# What would have to change for it to become gated: a failure-injection point
+# that does not route through ptrace, so that the pre-fix build fails the
+# assertions below and the fixed build passes them. The candidate is named at
+# the end of this header. With that in hand, move this file to test/l2tp/,
+# delete the .gitignore exception, and it is gated like any other test.
+#
+# It is kept rather than deleted because the mechanism, the measured numbers
+# and the reason they do not discriminate are what the next attempt needs, and
+# a spec section cannot carry a runnable scenario
+# (spec-subscriber-reader-loops-retry-a-failing-socket-without-backoff,
+# Phase 6, AC-1's end-to-end proof; the owner ruled on 2026-09-11 that AC-1
+# resolves on the unit coverage and that this file is committed here).
+# The short version of the finding:
+#
+# Goal: put readLoop's UDP socket (listener.go) into a persistently failing
+# state from OUTSIDE the daemon and show the pacer keeps CPU low, logs, and
+# counts, where the pre-fix bare `continue` would spin a core.
+#
+# No ordinary external network condition can sustain a repeating read error
+# on any of the four loops this spec covers: a UDP or AF_PACKET socket that
+# is not tied to one interface via a specific bind (all four are) delivers
+# SILENCE on interface-down (recvfrom blocks with no data), never an error,
+# and even a socket that IS bound to one interface only gets ENETDOWN
+# delivered ONCE from the kernel (net/packet/af_packet.c, packet_notifier)
+# before it reverts to blocking -- never a sustained stream.
+#
+# The one mechanism that CAN sustain a repeating error is ptrace-based
+# syscall fault injection: `strace -f --seccomp-bpf -e trace=recvfrom
+# -e inject=recvfrom:error=ENETDOWN:when=1+ -- ze -` (wrapped in a tmpfs
+# script because the .ci `cmd=` line's own `:<word>=` key parser collides
+# with strace's `:error=`/`:when=` syntax otherwise). Run BY HAND against a
+# throwaway daemon (not through this .ci file), it works exactly as
+# intended: `ze_l2tp_listener_read_errors_total` reached 36640 and
+# `process_cpu_seconds_total` reached 0.99 in under 4 seconds against the
+# pre-fix (pacer-reverted) code -- a real, reproduced busy loop.
+#
+# Run through THIS .ci file, against the SAME pre-fix code, it is vacuous:
+# the pacer-reverted build reports the SAME low CPU and a SIMILAR small
+# counter delta (19 errors in one run) as the fixed build, so the two are
+# indistinguishable and every expect= line below passes on BOTH. Root
+# cause, confirmed by inspecting the captured strace log: Go's runtime
+# sends itself a constant stream of SIGURG signals for goroutine
+# preemption, and ptrace traps on EVERY signal delivery regardless of
+# `--seccomp-bpf` (that flag only elides the trap for UNMATCHED syscalls,
+# never for signals). Each trap is a stop-the-world round trip into the
+# tracer, and time spent ptrace-stopped counts as wall clock, not as the
+# tracee's own CPU time (getrusage). The tracer's own overhead therefore
+# throttles the traced daemon's iteration rate to the same order of
+# magnitude the pacer's 250ms ceiling already caps it to (in the captured
+# run: 19 iterations in the observation window, versus the pacer's own
+# steady-state ceiling of about 12), so BOTH the CPU signal and the
+# iteration-rate signal this test needs to read are swamped by the
+# measuring instrument itself. This is not a tunable threshold problem:
+# no CPU or counter bound distinguishes the two builds under this
+# mechanism, because ptrace's overhead dominates over the range where they
+# would otherwise differ.
+#
+# What would actually work: a fault-injection point that does not route
+# through ptrace, e.g. a kernel fault-injection framework
+# (docs.kernel.org/fault-injection) targeting the socket receive path, or
+# an LD_PRELOAD shim -- ruled out here because Ze's binaries are
+# CGO_ENABLED=0 and make raw syscalls directly, so libc interposition
+# reaches nothing. Neither was pursued further in this phase.
+option=needs-linux
+
+tmpfs=run-strace.sh:mode=755:terminator=EOF_SCRIPT
+#!/bin/sh
+exec strace -f --seccomp-bpf -e trace=recvfrom -e inject=recvfrom:error=ENETDOWN:when=1+ -o strace-listener.log -- ze -
+EOF_SCRIPT
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+	enabled true
+	shared-secret s3cr3t
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port $PORT
+		}
+	}
+}
+
+telemetry {
+	prometheus {
+		enabled true
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
+
+cmd=background:seq=1:exec=./run-strace.sh:stdin=config
+cmd=foreground:seq=2:exec=ze-test fixture l2tp/failing-socket $PORT2:timeout=30s
+expect=exit:code=0
+expect=stdout:contains=OK: CPU use stayed at
+expect=stdout:contains=OK: ze_l2tp_listener_read_errors_total rose by
+expect=stderr:contains=l2tp: listener read error

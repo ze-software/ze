@@ -32,11 +32,14 @@ Four real defects came out of the audits, each became a spec, and three are now 
 Each Review Gate found a defect all its implementation phases had missed. That is
 the pattern worth budgeting for: the gate is defect-finding, not paperwork.
 
-## 3. The one spec still open
+## 3. The one spec still open -- CLOSED on 2026-09-11
 
-`plan/immediate/spec-subscriber-reader-loops-retry-a-failing-socket-without-backoff.md`,
-`in-progress`, Phase 5/6, claimed by the stopped session. **Release the claim before
-starting: `./le spec session release`.**
+`spec-subscriber-reader-loops-retry-a-failing-socket-without-backoff` is closed.
+Everything below this heading is the record of how it got there, kept because the
+Phase 6 finding outlives the spec. What replaced its one outstanding item is
+`plan/spec-failing-socket-proof-needs-a-non-ptrace-injection-point.md`, a
+skeleton: Ze has no way to fail a real socket from outside the daemon without
+tracing it, and tracing destroys the measurement.
 
 ### Done and verified, phases 1 to 4
 
@@ -392,11 +395,15 @@ is stale on both its items. The killed agent had already finished them:
 - Item 2 exists: `TestReadLoopAllocationsPerPacketUnchanged` in `listener_test.go`,
   and `TestWaitForPADOBlocksRatherThanSpins` in `dialer_test.go`. Both pass.
 
-## The only outstanding work on that spec
+## The only outstanding work on that spec -- ANSWERED on 2026-09-11
 
-`plan/immediate/spec-subscriber-reader-loops-retry-a-failing-socket-without-backoff.md`
-is `in-progress`, Phase 5/6, and the session claim is still on it. **Release it
-first: `./le spec session release`.**
+All three items below are settled, and the closure is committed. Item 1 was
+attempted and PROVEN UNREACHABLE by any mechanism this repository can currently
+drive: see `test/draft/l2tp/subscriber-reader-failing-socket.ci`, which is
+tracked, read by no gate, and carries the numbers. Item 3 is answered rather than
+recorded: the three `ppp` tests now RUN, on kernel 7.2 in the QEMU guest, and two
+of them carry an observed red there. The original text stands below as the record
+of what was asked for.
 
 1. **Phase 6, the functional scenario.** AC-1: a socket held in a persistently
    failing state leaves CPU low while the log line and the counter show the failure.
