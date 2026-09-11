@@ -766,7 +766,13 @@ carries every participant with a diff. Two conditions decide it:
    Phase 2 apply is the path of a coordinator built without a planner.
 
 The planner calls each registered `OperationDecomposer` for the affected config
-roots. A root with no decomposer, and a root whose decomposer declines the diff,
+roots. Where that first pass takes an address off the host, it calls them a
+second time with the set of disturbed addresses. The second pass reaches every
+root that decomposes, not only the roots with a diff. A binder whose address
+moves has no diff of its own
+(`docs/architecture/config/apply-ordering.md`, "Phases 2 and 5, for BGP").
+
+A root with no decomposer, and a root whose decomposer declines the diff,
 produce no operations, and their participants are covered a second way:
 `operationNodes` synthesizes one COARSE NODE per participant that has diffs and
 owns no operation. The graph therefore holds a node for every participant, which
@@ -928,17 +934,18 @@ to break its config root into atomic operations registers a decomposer via
 | Component | Config root | Decomposer | What it emits | What it declares |
 |-----------|------------|------------|---------------|------------------|
 | iface | `interface` | `decomposeIfaceOperations` | `add-interface`, `remove-interface`, `add-address`, `remove-address` per managed interface and IP | an interface operation produces the interface; an address operation produces the address and consumes the interface |
-| bgp | `bgp` | `decomposeBGPOperations` | `add-peer`, `remove-peer`, `modify-peer` per changed peer | a peer operation produces the peer and consumes the local address it binds, or declares no address when the peer lets the kernel pick its source |
+| bgp | `bgp` | `decomposeBGPOperations` | `add-peer`, `remove-peer`, `modify-peer` per changed peer, plus a remove and an add for each peer bound to a disturbed address | a peer operation produces the peer and consumes the local address it binds; a peer that lets the kernel pick its source consumes every disturbed address, and nothing where none is disturbed |
 
-A decomposer receives a `DecomposeRequest` with the transaction ID, the config
-root name, the active and candidate root data (full JSON for that root), and
-the diff. It returns a slice of `ConfigOperation` values. Each operation carries
+A decomposer receives a `DecomposeRequest`. It carries the transaction ID, the
+config root name, the active and candidate root data (full JSON for that root),
+the diff, and the addresses this commit takes off the host. The decomposer
+returns a slice of `ConfigOperation` values. Each operation carries
 its `Owner` field so the executor knows which plugin to contact for apply and
 rollback.
 
 Decomposers are selective: `decomposeIfaceOperations` returns nil unless the diff
 touches addresses or managed interface types. `decomposeBGPOperations` returns nil
-unless the diff touches the peer section. A participant a decomposer produced no
+unless the diff touches the peer section or this commit disturbs an address. A participant a decomposer produced no
 operation for is carried by one coarse `section-apply` node, so it takes the
 ordered path with everything else and is applied through the `config-apply`
 callback it already implements.

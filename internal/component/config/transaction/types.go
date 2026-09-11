@@ -35,6 +35,10 @@ type ConfigOperationDecomposeEvent struct {
 	CandidateRoot string      `json:"candidate-root,omitempty"`
 	Diff          DiffSection `json:"diff"`
 	DeadlineMS    int64       `json:"deadline-ms,omitempty"`
+	// DisturbedAddresses carries the local addresses this commit takes off
+	// the host, so a plugin that binds one can stop before it goes and start
+	// after it comes back (docs/architecture/config/apply-ordering.md).
+	DisturbedAddresses []string `json:"disturbed-addresses,omitempty"`
 }
 
 // ConfigOperationVerifyEvent asks one plugin to verify one operation.

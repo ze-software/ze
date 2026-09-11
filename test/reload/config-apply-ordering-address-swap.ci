@@ -12,8 +12,9 @@
 #
 # VALIDATES: AC-4 -- both addresses are present at the same time for the
 #            duration of the swap, neither interface is left without an address
-#            at any observable point, a BGP peer bound to 10.90.0.1 stays up
-#            across the swap, and the transaction commits.
+#            at any observable point, the BGP peer bound to 10.90.0.1 is stopped
+#            before that address leaves zdual0 and started after it arrives on
+#            zdual1, and the transaction commits.
 # CLOSES: D4. Until this test the window ran only in TestTopologicalSortCycleResolution
 #         and TestTopologicalSortThreeWayRotation, over the solver alone. The
 #         rotation, swap and reip tests named for it emit peer operations, never
@@ -42,13 +43,28 @@
 # surfaces, and creating a device plus moving an address needs CAP_NET_ADMIN.
 option=needs-linux:caps=net-admin
 
-# ze-peer expectations. One connection for the whole run is the assertion that
-# the session bound to 10.90.0.1 never bounced: that address changes interface
-# in this commit, and a break-before-make swap takes it off the host.
+# ze-peer expectations. TWO connections for the run is the assertion that the
+# session bound to 10.90.0.1 was stopped and started: that address changes
+# interface in this commit, so the binder holding it is disturbed, and the
+# requirement stops it in phase 2 and starts it again in phase 5
+# (docs/architecture/config/apply-ordering.md).
+#
+# Until 2026-09-11 this block said one connection, and that was the inherited
+# make-before-break policy rather than the owner's requirement: the
+# dual-presence window below keeps both addresses on the host across the swap,
+# and the session was left running over a binding that had moved underneath it.
+# The window stays; what changed is that nothing is bound to the address while
+# it moves.
 stdin=peer:terminator=EOF_PEER
-option=tcp_connections:value=1
+option=tcp_connections:value=2
+
+# Connection A: the session that held 10.90.0.1 on zdual0, up to the commit.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Connection B: the same session started again, from the same address on zdual1.
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 # Initial config: each interface holds the address the other one takes.
@@ -113,8 +129,10 @@ interface {
 EOF_CONF
 
 # Reloaded config: the two addresses change places. The bgp section is
-# byte-identical, so the bgp root does not diff and the transaction carries the
-# four interface operations alone.
+# byte-identical, so the bgp root does not diff. The transaction carries the
+# four interface operations AND the stop and start of peer1, which the bgp
+# decomposer emits from the disturbed address set rather than from a diff of
+# its own.
 tmpfs=config2.conf:terminator=EOF_CONF2
 bgp {
 	peer peer1 {

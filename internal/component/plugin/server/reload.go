@@ -306,7 +306,8 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	// Find affected plugins: those with WantsConfigRoots matching changed roots.
 	var affected []affectedPlugin
 
-	if pm := s.procManager.Load(); pm != nil {
+	pm := s.procManager.Load()
+	if pm != nil {
 		for _, proc := range pm.AllProcesses() {
 			reg := proc.Registration()
 			if reg == nil || len(reg.WantsConfigRoots) == 0 {
@@ -338,6 +339,10 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 				affected = append(affected, affectedPlugin{proc: proc, sections: sections})
 			}
 		}
+	}
+
+	if len(affected) > 0 {
+		affected = appendDecomposingPlugins(pm, affected)
 	}
 
 	if len(affected) == 0 {
@@ -395,6 +400,57 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	s.reactor.SetConfigTree(newTree)
 	logger().Info("config reload completed")
 	return nil
+}
+
+// appendDecomposingPlugins adds every running plugin that decomposes a config
+// root and is not already in the affected list, carrying no section.
+//
+// A plugin joins here because what it owes this commit can be decided by
+// ANOTHER root's change. An address that moves between interfaces changes the
+// `interface` root, leaves the binder's own config byte for byte identical,
+// and still requires the binder to stop before the address goes and start
+// after it arrives (docs/architecture/config/apply-ordering.md). A plugin the
+// transaction never heard of cannot be asked, and cannot be sent the
+// operations it answers with.
+//
+// It joins with no sections, so the orchestrator's filterDiffs finds it no
+// diff, sends it no verify and no apply event, and synthesizes it no coarse
+// node. Nothing reaches it but the per-operation events for the operations it
+// emits, so a commit that disturbs nothing costs it nothing.
+//
+// The list is not built here. Each plugin DECLARED that it decomposes, in its
+// own registration, so no central enumeration of binders exists to go stale
+// (ai/rules/principles.md).
+func appendDecomposingPlugins(pm *process.ProcessManager, affected []affectedPlugin) []affectedPlugin {
+	if pm == nil {
+		return affected
+	}
+	joined := make(map[string]struct{}, len(affected))
+	for _, ap := range affected {
+		joined[ap.proc.Name()] = struct{}{}
+	}
+	for _, proc := range pm.AllProcesses() {
+		if _, exists := joined[proc.Name()]; exists {
+			continue
+		}
+		reg := proc.Registration()
+		if reg == nil || !declaresDecomposition(reg.ConfigOperations) {
+			continue
+		}
+		affected = append(affected, affectedPlugin{proc: proc})
+	}
+	return affected
+}
+
+// declaresDecomposition reports whether any of a plugin's config operation
+// declarations asks to decompose its root.
+func declaresDecomposition(decls []rpc.ConfigOperationDecl) bool {
+	for _, decl := range decls {
+		if decl.Decompose {
+			return true
+		}
+	}
+	return false
 }
 
 // rootHasChanges returns true if the diff contains changes under the given root.

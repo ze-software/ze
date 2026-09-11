@@ -163,9 +163,9 @@ func testAddressOperation(id string, verb tx.OperationVerb, ifaceName, cidr stri
 // VALIDATES: add-address -> add-peer and remove-peer -> remove-address, derived from Consumes.
 // PREVENTS: a peer started before its local address exists, or an address removed under a live session.
 func TestBGPOperationsDeclareConsumeAddress(t *testing.T) {
-	addPeer := bgpPeerOperation(configop.AddPeer, "edge", "192.0.2.2", nil, nil)
-	removePeer := bgpPeerOperation(configop.RemovePeer, "edge-old", "192.0.2.1", nil, nil)
-	modifyPeer := bgpModifyPeerOperation("edge-same", "192.0.2.3", nil, nil)
+	addPeer := bgpPeerOperation(configop.AddPeer, "edge", "192.0.2.2", nil, nil, nil)
+	removePeer := bgpPeerOperation(configop.RemovePeer, "edge-old", "192.0.2.1", nil, nil, nil)
+	modifyPeer := bgpModifyPeerOperation("edge-same", "192.0.2.3", nil, nil, nil)
 
 	for _, op := range []tx.ConfigOperation{addPeer, removePeer, modifyPeer} {
 		assert.Equal(t, []tx.ResourceRef{{Kind: tx.ResourceAddress, Address: op.Params.Address}}, op.Consumes,
@@ -174,7 +174,7 @@ func TestBGPOperationsDeclareConsumeAddress(t *testing.T) {
 			"%s owns the session it names", op.ID)
 	}
 
-	assert.Nil(t, bgpPeerOperation(configop.AddPeer, "auto", "", nil, nil).Consumes,
+	assert.Nil(t, bgpPeerOperation(configop.AddPeer, "auto", "", nil, nil, nil).Consumes,
 		"a peer that lets the kernel pick its source address waits for no address, and declares no entry rather than a blank one")
 
 	ops := []tx.ConfigOperation{
@@ -197,7 +197,7 @@ func TestBGPOperationsDeclareConsumeAddress(t *testing.T) {
 // VALIDATES: the derived edge holds when the address moves to another interface.
 // PREVENTS: an identity that includes the interface, which no peer knows.
 func TestBGPOperationsOrderAgainstAnAddressOnAnyInterface(t *testing.T) {
-	addPeer := bgpPeerOperation(configop.AddPeer, "edge", "192.0.2.2", nil, nil)
+	addPeer := bgpPeerOperation(configop.AddPeer, "edge", "192.0.2.2", nil, nil, nil)
 
 	ops := []tx.ConfigOperation{
 		testAddressOperation("addr-add-elsewhere", tx.VerbCreate, "dum7", "192.0.2.2/24"),

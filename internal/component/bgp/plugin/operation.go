@@ -59,9 +59,16 @@ func init() {
 }
 
 func decomposeBGPOperations(_ context.Context, req configtx.DecomposeRequest) ([]configtx.ConfigOperation, error) {
-	if req.Root != configRootBGP || !bgpDiffTouchesPeer(req.Diff) {
+	if req.Root != configRootBGP {
 		return nil, nil
 	}
+	// A commit that disturbs an address reaches this root with no diff at all,
+	// and the sessions bound to that address still have to stop and start
+	// (docs/architecture/config/apply-ordering.md, phase 2).
+	if !bgpDiffTouchesPeer(req.Diff) && len(req.DisturbedAddresses) == 0 {
+		return nil, nil
+	}
+	disturbed := req.DisturbedAddresses
 	activeRoot, err := parseBGPOperationRoot(req.ActiveRoot)
 	if err != nil {
 		return nil, fmt.Errorf("bgp operation decompose active: %w", err)
@@ -85,7 +92,19 @@ func decomposeBGPOperations(_ context.Context, req configtx.DecomposeRequest) ([
 		activePeer := activePeers[name]
 		candidatePeer, exists := candidatePeers[name]
 		if !exists {
-			ops = append(ops, bgpPeerOperation(configop.RemovePeer, name, activePeer.localAddress, nil, activePeer.raw))
+			ops = append(ops, bgpPeerOperation(configop.RemovePeer, name, activePeer.localAddress, nil, activePeer.raw, disturbed))
+			continue
+		}
+		// Phase 2 and phase 5 of the requirement: the session is stopped
+		// before the address it binds leaves the host and started after the
+		// address arrives again, even where the peer's own config is byte for
+		// byte what it was. The graph derives both edges from the address
+		// this pair declares in Consumes.
+		if peerBindingDisturbed(disturbed, activePeer.localAddress) {
+			ops = append(ops,
+				bgpPeerOperation(configop.RemovePeer, name, activePeer.localAddress, nil, activePeer.raw, disturbed),
+				bgpPeerOperation(configop.AddPeer, name, candidatePeer.localAddress, candidatePeer.raw, nil, disturbed),
+			)
 			continue
 		}
 		if string(activePeer.raw) == string(candidatePeer.raw) {
@@ -93,8 +112,8 @@ func decomposeBGPOperations(_ context.Context, req configtx.DecomposeRequest) ([
 		}
 		if activePeer.localAddress != candidatePeer.localAddress {
 			ops = append(ops,
-				bgpPeerOperation(configop.RemovePeer, name, activePeer.localAddress, nil, activePeer.raw),
-				bgpPeerOperation(configop.AddPeer, name, candidatePeer.localAddress, candidatePeer.raw, nil),
+				bgpPeerOperation(configop.RemovePeer, name, activePeer.localAddress, nil, activePeer.raw, disturbed),
+				bgpPeerOperation(configop.AddPeer, name, candidatePeer.localAddress, candidatePeer.raw, nil, disturbed),
 			)
 			continue
 		}
@@ -102,14 +121,14 @@ func decomposeBGPOperations(_ context.Context, req configtx.DecomposeRequest) ([
 	}
 	if peerRouterIDRotation(sameAddressChanges) {
 		for _, change := range sameAddressChanges {
-			ops = append(ops, bgpPeerOperation(configop.RemovePeer, change.name, change.active.localAddress, nil, change.active.raw))
+			ops = append(ops, bgpPeerOperation(configop.RemovePeer, change.name, change.active.localAddress, nil, change.active.raw, disturbed))
 		}
 		for _, change := range sameAddressChanges {
-			ops = append(ops, bgpPeerOperation(configop.AddPeer, change.name, change.candidate.localAddress, change.candidate.raw, nil))
+			ops = append(ops, bgpPeerOperation(configop.AddPeer, change.name, change.candidate.localAddress, change.candidate.raw, nil, disturbed))
 		}
 	} else {
 		for _, change := range sameAddressChanges {
-			ops = append(ops, bgpModifyPeerOperation(change.name, change.candidate.localAddress, change.candidate.raw, change.active.raw))
+			ops = append(ops, bgpModifyPeerOperation(change.name, change.candidate.localAddress, change.candidate.raw, change.active.raw, disturbed))
 		}
 	}
 	for _, name := range sortedBGPPeerNames(candidatePeers) {
@@ -117,7 +136,7 @@ func decomposeBGPOperations(_ context.Context, req configtx.DecomposeRequest) ([
 			continue
 		}
 		candidatePeer := candidatePeers[name]
-		ops = append(ops, bgpPeerOperation(configop.AddPeer, name, candidatePeer.localAddress, candidatePeer.raw, nil))
+		ops = append(ops, bgpPeerOperation(configop.AddPeer, name, candidatePeer.localAddress, candidatePeer.raw, nil, disturbed))
 	}
 	return ops, nil
 }
@@ -134,6 +153,7 @@ func decomposeBGPOperationInput(ctx context.Context, input sdk.ConfigOperationDe
 			Removed: input.Diff.Removed,
 			Changed: input.Diff.Changed,
 		},
+		DisturbedAddresses: input.DisturbedAddresses,
 	})
 	if err != nil {
 		return nil, err
@@ -209,7 +229,7 @@ func injectBGPGlobalPeerDefaults(root, peer map[string]any) {
 	}
 }
 
-func bgpPeerOperation(opType configtx.ConfigOperationType, name, localAddress string, config, oldConfig json.RawMessage) configtx.ConfigOperation {
+func bgpPeerOperation(opType configtx.ConfigOperationType, name, localAddress string, config, oldConfig json.RawMessage, disturbed []string) configtx.ConfigOperation {
 	verb := configtx.VerbCreate
 	word := "add"
 	if opType == configop.RemovePeer {
@@ -236,7 +256,7 @@ func bgpPeerOperation(opType configtx.ConfigOperationType, name, localAddress st
 		// before it goes, which is the ordering the four deleted rules
 		// hand-wrote for this one pair.
 		Produces: []configtx.ResourceRef{{Kind: configtx.ResourcePeer, Peer: name}},
-		Consumes: peerAddressConsumes(localAddress),
+		Consumes: peerAddressConsumes(localAddress, disturbed),
 		Params:   params,
 	}
 }
@@ -252,22 +272,73 @@ func peerResource(name, localAddress string) configtx.ResourceRef {
 	}
 }
 
-// peerAddressConsumes declares the local address a peer binds, and declares
-// NOTHING for a peer with no local address configured.
+// peerAddressConsumes declares the addresses a peer operation waits for.
 //
-// A peer whose `connection.local.ip` is absent or `auto` lets the kernel pick
-// the source address, so there is no address this operation waits for. An
-// entry naming no address would be refused by ValidateOperations, and it is
+// A peer with a configured local address declares that address, and the graph
+// puts its create after the address arrives and its destroy before the address
+// goes.
+//
+// A peer whose `connection.local.ip` is absent or `auto` lets the KERNEL pick
+// the source address, so Ze cannot say which address the session holds. Where
+// this commit disturbs none, there is nothing to wait for and the operation
+// declares nothing, as it always has. Where it disturbs some, the peer
+// declares every one of them, because its source could be any of them: that is
+// the fail-safe default, and it is what orders the stop ahead of the removals
+// and the start behind the additions. Guessing that the kernel picked an
+// address this commit leaves alone is the reading that leaves a session
+// holding an address that is gone (ai/rules/principles.md).
+//
+// The addresses arrive sorted from the core, and the order is kept, because it
+// decides the order of the edges the graph derives from them.
+//
+// An entry naming no address would be refused by ValidateOperations, and it is
 // the operation that must not carry one rather than the check that must
-// tolerate it (ai/rules/principles.md).
-func peerAddressConsumes(localAddress string) []configtx.ResourceRef {
+// tolerate it.
+func peerAddressConsumes(localAddress string, disturbed []string) []configtx.ResourceRef {
 	if localAddress == "" {
-		return nil
+		if len(disturbed) == 0 {
+			return nil
+		}
+		refs := make([]configtx.ResourceRef, 0, len(disturbed))
+		for _, address := range disturbed {
+			refs = append(refs, configtx.ResourceRef{Kind: configtx.ResourceAddress, Address: address})
+		}
+		return refs
 	}
 	return []configtx.ResourceRef{{Kind: configtx.ResourceAddress, Address: localAddress}}
 }
 
-func bgpModifyPeerOperation(name, localAddress string, config, oldConfig json.RawMessage) configtx.ConfigOperation {
+// peerBindingDisturbed reports whether this commit takes away the address the
+// named peer binds, so that the session has to stop before it goes and start
+// after it comes back (docs/architecture/config/apply-ordering.md, phase 2).
+//
+// A peer with a configured local address is disturbed when THAT address is.
+// A peer with none lets the kernel choose its source, so Ze cannot establish
+// which address it holds, and the requirement's fail-safe default treats it as
+// disturbed the moment any address moves: "If it is not easy to establish what
+// action will lead to what, be safe and deconf/reconf". The cost of the wrong
+// guess is not symmetric. Stopping a session that would have survived costs
+// one restart; leaving one up costs a session bound to an address the kernel
+// no longer has.
+//
+// Ze binds specific addresses, never the wildcard: CreateReactorFromTree sets
+// no listen address and startListenerForAddressPort opens one listener per
+// local address, so the page's wildcard carve-out frees no BGP session.
+func peerBindingDisturbed(disturbed []string, localAddress string) bool {
+	if len(disturbed) == 0 {
+		return false
+	}
+	if localAddress == "" {
+		return true
+	}
+	// The core names an address by its IP alone (resourceIdentity in
+	// internal/component/config/transaction/depgraph.go), so a value carrying
+	// a prefix length is cut to the same name before the comparison.
+	address, _, _ := strings.Cut(localAddress, "/")
+	return slices.Contains(disturbed, address)
+}
+
+func bgpModifyPeerOperation(name, localAddress string, config, oldConfig json.RawMessage, disturbed []string) configtx.ConfigOperation {
 	return configtx.ConfigOperation{
 		ID:     "bgp-modify-peer-" + sanitizeBGPOperationID(name),
 		Root:   configRootBGP,
@@ -280,7 +351,7 @@ func bgpModifyPeerOperation(name, localAddress string, config, oldConfig json.Ra
 		// puts it after that address where one transaction moves the address
 		// and changes the peer.
 		Produces: []configtx.ResourceRef{{Kind: configtx.ResourcePeer, Peer: name}},
-		Consumes: peerAddressConsumes(localAddress),
+		Consumes: peerAddressConsumes(localAddress, disturbed),
 		Params: configtx.ConfigOperationParams{
 			Peer:      name,
 			Address:   localAddress,

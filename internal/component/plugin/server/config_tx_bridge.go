@@ -395,6 +395,10 @@ func (b *configTxBridge) subscribeOperationDecompose(parentCtx context.Context, 
 			Active:        rpc.ConfigSection{Root: ev.Root, Data: ev.ActiveRoot},
 			Candidate:     rpc.ConfigSection{Root: ev.Root, Data: ev.CandidateRoot},
 			Diff:          diffSectionToDiffRPCSection(ev.Diff),
+			// The commit's disturbed addresses ride to the plugin with its
+			// own diff: a binder whose address moves has no diff of its own
+			// and answers from this field alone.
+			DisturbedAddresses: ev.DisturbedAddresses,
 		})
 		if err != nil {
 			b.emitOperationDecomposeFailed(ev.TransactionID, name, ev.Root, err.Error())

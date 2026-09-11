@@ -213,6 +213,12 @@ func (m *mockPluginResponder) start(ctx context.Context) {
 				if len(req.Params) > 0 {
 					_ = json.Unmarshal(req.Params, &m.opApplyInput)
 				}
+				// The operation id rather than the plugin name: the executor
+				// applies operations one at a time in the order the solver
+				// produced, and that order is what an ordering test reads.
+				if m.order != nil {
+					m.order.record(m.opApplyInput.Operation.ID)
+				}
 				resp := m.opApplyResp
 				if resp == nil {
 					resp = &rpc.ConfigOperationApplyOutput{Status: rpc.StatusOK}

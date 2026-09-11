@@ -64,6 +64,23 @@ func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin
 	return txResultToError(result)
 }
 
+// operationPlannerFromTrees installs the planner the orchestrator calls once
+// per transaction. It decomposes the roots that have a diff, computes the
+// addresses that plan takes off the host, and decomposes again with that set
+// where there is one, so every binder answers for the addresses it holds.
+//
+// The second pass is what phase 2 of the requirement needs
+// (docs/architecture/config/apply-ordering.md). A binder's stop is decided by
+// what ANOTHER root does: an address that moves between interfaces changes the
+// `interface` root and leaves the binder's own config identical. The core
+// cannot know which addresses move until the roots that own them have
+// decomposed, and the binders cannot answer until it does, so the two happen
+// in that order.
+//
+// There is no second pass where no address moves, which is every commit that
+// edits an MTU, a description or a service. A decomposer whose root has no
+// diff and no disturbed address has nothing to answer for: its active and
+// candidate subtrees are the same bytes.
 func operationPlannerFromTrees(gateway transaction.EventGateway, runningTree, candidateTree map[string]any, participants []transaction.Participant) transaction.OperationPlanner {
 	return func(ctx context.Context, req transaction.OperationPlanRequest) ([]transaction.ConfigOperation, error) {
 		decomposeOKCh := make(chan transaction.ConfigOperationDecomposeAck, len(req.Diffs))
@@ -87,29 +104,30 @@ func operationPlannerFromTrees(gateway transaction.EventGateway, runningTree, ca
 			defer closeUnsubs(unsubs)
 		}
 
-		roots := make([]string, 0, len(req.Diffs))
-		for root := range req.Diffs {
-			roots = append(roots, root)
+		plan := &operationPlan{
+			gateway:       gateway,
+			txID:          req.TransactionID,
+			runningTree:   runningTree,
+			candidateTree: candidateTree,
+			participants:  participants,
+			diffs:         req.Diffs,
+			okCh:          decomposeOKCh,
+			failedCh:      decomposeFailedCh,
 		}
-		slices.Sort(roots)
 
-		var operations []transaction.ConfigOperation
-		for _, root := range roots {
-			decomposer, _ := transaction.OperationDecomposerFor(root)
-			activeRoot, err := marshalOperationRoot(runningTree, root)
+		changedRoots := sortedDiffRoots(req.Diffs)
+		operations, err := plan.decomposeRoots(ctx, changedRoots, nil)
+		if err != nil {
+			return nil, err
+		}
+		disturbed := transaction.DisturbedAddresses(operations)
+		if len(disturbed) > 0 {
+			operations, err = plan.decomposeRoots(ctx, bindingRoots(changedRoots, participants), disturbed)
 			if err != nil {
 				return nil, err
 			}
-			candidateRoot, err := marshalOperationRoot(candidateTree, root)
-			if err != nil {
+			if err := checkDisturbanceSettled(disturbed, operations); err != nil {
 				return nil, err
-			}
-			for _, diff := range req.Diffs[root] {
-				ops, err := decomposeRootOperations(ctx, gateway, req.TransactionID, root, activeRoot, candidateRoot, diff, decomposer, participants, decomposeOKCh, decomposeFailedCh)
-				if err != nil {
-					return nil, err
-				}
-				operations = append(operations, ops...)
 			}
 		}
 		if err := validateOperationDeclarations(participants, operations); err != nil {
@@ -119,41 +137,166 @@ func operationPlannerFromTrees(gateway transaction.EventGateway, runningTree, ca
 	}
 }
 
-func decomposeRootOperations(ctx context.Context, gateway transaction.EventGateway, txID, root, activeRoot, candidateRoot string, diff transaction.DiffSection, decomposer transaction.OperationDecomposer, participants []transaction.Participant, okCh, failedCh <-chan transaction.ConfigOperationDecomposeAck) ([]transaction.ConfigOperation, error) {
+// operationPlan holds what every decompose call in one transaction shares, so
+// the call itself carries only what changes between roots.
+type operationPlan struct {
+	gateway       transaction.EventGateway
+	txID          string
+	runningTree   map[string]any
+	candidateTree map[string]any
+	participants  []transaction.Participant
+	diffs         map[string][]transaction.DiffSection
+	okCh          <-chan transaction.ConfigOperationDecomposeAck
+	failedCh      <-chan transaction.ConfigOperationDecomposeAck
+}
+
+// decomposeRoots asks each root in turn for the operations it owns, and
+// returns them in root order.
+//
+// A root with no diff is asked once, with an empty diff section. That is the
+// binder whose own config did not change while the address it binds moves, and
+// the caller passes a root of that shape only once an address is disturbed.
+func (p *operationPlan) decomposeRoots(ctx context.Context, roots, disturbed []string) ([]transaction.ConfigOperation, error) {
+	var operations []transaction.ConfigOperation
+	for _, root := range roots {
+		decomposer, _ := transaction.OperationDecomposerFor(root)
+		activeRoot, err := marshalOperationRoot(p.runningTree, root)
+		if err != nil {
+			return nil, err
+		}
+		candidateRoot, err := marshalOperationRoot(p.candidateTree, root)
+		if err != nil {
+			return nil, err
+		}
+		sections := p.diffs[root]
+		if len(sections) == 0 {
+			sections = []transaction.DiffSection{{Root: root}}
+		}
+		for _, diff := range sections {
+			ops, err := p.decomposeRoot(ctx, root, activeRoot, candidateRoot, diff, disturbed, decomposer)
+			if err != nil {
+				return nil, err
+			}
+			operations = append(operations, ops...)
+		}
+	}
+	return operations, nil
+}
+
+// decomposeRoot asks one root for its operations, through its in-process
+// decomposer where it registered one and over the plugin event where the
+// declaration is all the engine has.
+func (p *operationPlan) decomposeRoot(ctx context.Context, root, activeRoot, candidateRoot string, diff transaction.DiffSection, disturbed []string, decomposer transaction.OperationDecomposer) ([]transaction.ConfigOperation, error) {
 	if decomposer != nil {
 		return decomposer(ctx, transaction.DecomposeRequest{
-			TransactionID: txID,
-			Root:          diff.Root,
-			ActiveRoot:    activeRoot,
-			CandidateRoot: candidateRoot,
-			Diff:          diff,
+			TransactionID:      p.txID,
+			Root:               diff.Root,
+			ActiveRoot:         activeRoot,
+			CandidateRoot:      candidateRoot,
+			Diff:               diff,
+			DisturbedAddresses: disturbed,
 		})
 	}
 
-	participant, decl, ok := operationDeclForRoot(participants, root)
+	participant, decl, ok := operationDeclForRoot(p.participants, root)
 	if !ok {
 		return nil, nil
 	}
 	if !decl.Decompose {
 		return nil, fmt.Errorf("plugin %s declares config operations for root %s without operation decomposition", participant.Name, root)
 	}
-	if gateway == nil {
+	if p.gateway == nil {
 		return nil, fmt.Errorf("plugin %s declares operation decomposition for root %s but no event gateway is available", participant.Name, root)
 	}
 	payload, err := json.Marshal(transaction.ConfigOperationDecomposeEvent{
-		TransactionID: txID,
-		Root:          root,
-		ActiveRoot:    activeRoot,
-		CandidateRoot: candidateRoot,
-		Diff:          diff,
+		TransactionID:      p.txID,
+		Root:               root,
+		ActiveRoot:         activeRoot,
+		CandidateRoot:      candidateRoot,
+		Diff:               diff,
+		DisturbedAddresses: disturbed,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("marshal operation decompose %s: %w", root, err)
 	}
-	if _, err := gateway.EmitConfigEvent(transaction.EventOperationDecomposeFor(participant.Name), payload); err != nil {
+	if _, err := p.gateway.EmitConfigEvent(transaction.EventOperationDecomposeFor(participant.Name), payload); err != nil {
 		return nil, fmt.Errorf("emit operation decompose %s: %w", root, err)
 	}
-	return waitDecomposeAck(ctx, participant.Name, root, okCh, failedCh)
+	return waitDecomposeAck(ctx, participant.Name, root, p.okCh, p.failedCh)
+}
+
+// bindingRoots returns the roots the second pass asks: the roots with a diff,
+// plus every root that decomposes and has none.
+//
+// A root that decomposes is asked whether it binds a disturbed address,
+// whether or not its own config changed. That is what makes phase 2 reach a
+// binder at all: the commit that moves an address touches the `interface` root
+// alone, and the peer bound to that address is declared in a root with no diff.
+//
+// The answer comes from what each component REGISTERED, in process or through
+// its plugin declaration, so the core names no root and no binder
+// (ai/rules/principles.md).
+func bindingRoots(changedRoots []string, participants []transaction.Participant) []string {
+	seen := make(map[string]struct{}, len(changedRoots))
+	roots := make([]string, 0, len(changedRoots))
+	add := func(root string) {
+		if root == "" {
+			return
+		}
+		if _, exists := seen[root]; exists {
+			return
+		}
+		seen[root] = struct{}{}
+		roots = append(roots, root)
+	}
+	for _, root := range changedRoots {
+		add(root)
+	}
+	for _, root := range transaction.OperationDecomposerRoots() {
+		add(root)
+	}
+	for _, participant := range participants {
+		for _, decl := range participant.ConfigOperations {
+			if decl.Decompose {
+				add(decl.Root)
+			}
+		}
+	}
+	slices.Sort(roots)
+	return roots
+}
+
+// ErrDisturbanceUnsettled reports a second decomposition pass that takes a
+// different set of addresses off the host from the set every binder was told
+// about.
+//
+// It fails the transaction closed. The binders answered for the first set, so
+// a plan that removes an address outside it leaves a binder holding a binding
+// the core said nothing about, which is the failure phase 2 exists to prevent
+// (ai/rules/principles.md). No first-party root reaches it: only `interface`
+// produces addresses, and its decomposition reads the diff and the two trees
+// and never the disturbed set.
+var ErrDisturbanceUnsettled = errors.New("config operation planning disturbs a different address set on the second pass")
+
+// checkDisturbanceSettled reports whether the second pass took the same
+// addresses off the host as the first.
+func checkDisturbanceSettled(disturbed []string, operations []transaction.ConfigOperation) error {
+	settled := transaction.DisturbedAddresses(operations)
+	if slices.Equal(settled, disturbed) {
+		return nil
+	}
+	return fmt.Errorf("%w: first pass %v, second pass %v", ErrDisturbanceUnsettled, disturbed, settled)
+}
+
+// sortedDiffRoots returns the config roots this transaction has a diff on, in
+// a fixed order so two runs plan the same operations in the same sequence.
+func sortedDiffRoots(diffs map[string][]transaction.DiffSection) []string {
+	roots := make([]string, 0, len(diffs))
+	for root := range diffs {
+		roots = append(roots, root)
+	}
+	slices.Sort(roots)
+	return roots
 }
 
 func operationDeclForRoot(participants []transaction.Participant, root string) (transaction.Participant, transaction.ConfigOperationDecl, bool) {

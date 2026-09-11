@@ -1246,6 +1246,11 @@ type ConfigOperationDecomposeInput struct {
 	Active        ConfigSection     `json:"active"`
 	Candidate     ConfigSection     `json:"candidate"`
 	Diff          ConfigDiffSection `json:"diff"`
+	// DisturbedAddresses carries the local addresses this commit takes off
+	// the host. A plugin that binds one of them emits its own stop and its
+	// own start, even when its own config did not change and Diff is empty
+	// (docs/architecture/config/apply-ordering.md).
+	DisturbedAddresses []string `json:"disturbed-addresses,omitempty"`
 }
 
 // ConfigOperationDecomposeOutput is the output for config-operation-decompose.

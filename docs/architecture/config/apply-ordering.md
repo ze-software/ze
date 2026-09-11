@@ -137,24 +137,25 @@ carries less machinery. The design asks for no dual-presence window.
 
 ## What is not built
 
-The four gaps below are the distance between the design above and the code. The
-rest of this page describes the code.
+The five entries below are the distance between the design above and the code.
+The rest of this page describes the code.
 
-**Phase 2 is absent.** A binder emits operations only when its OWN config
-changed. An address that moves between interfaces changes the `interface` root
-and leaves the `bgp` root identical, so nothing stops the peer.
-`decomposeBGPOperations` emits a remove and an add for a peer when
-`activePeer.localAddress != candidatePeer.localAddress`, which is the address
-VALUE changing. A peer whose config bytes are identical returns before that
-test. The session therefore stays up while its address leaves one interface and
-arrives on another.
-<!-- source: internal/component/bgp/plugin/operation.go -- decomposeBGPOperations -->
+**Phase 2 reaches a binder that decomposes.** BGP is the only one. What it does
+for BGP is in "Phases 2 and 5, for BGP" below. For every other binder it does
+nothing, and the next two entries say why.
 
-What happens instead runs outside the transaction, on the kernel's own address
-notifications. `handleAddrRemovedPayload` stops the listener bound to a removed
-address, and `handleAddrAddedPayload` starts it again when the address arrives.
-Neither one stops or starts a peer, and neither is ordered against the commit.
-<!-- source: internal/component/bgp/reactor/reactor_iface.go -- handleAddrAddedPayload, handleAddrRemovedPayload -->
+**A root whose decomposer DECLINES is read as disturbing nothing.** The
+disturbed set is computed from the address operations the plan carries. A root
+that produced none therefore looks quiet. `decomposeIfaceOperations` returns no
+operation at all when ANY key in its diff is one it does not decompose. That is
+the all-or-nothing contract "The current state" describes. So a commit that
+edits an MTU AND moves an address emits no address operation. The core
+establishes no disturbance, and the session stays up while the coarse section
+apply moves the address underneath it. An MTU edit on its own takes the same
+path and is correct there. The two cannot be told apart from outside the
+decomposer. The repair is in `interface`: answer the address
+question for the keys it can read, whatever else the diff carries.
+<!-- source: internal/component/iface/operation.go -- ifaceDiffHasDecomposableChanges -->
 
 **Phases 2 and 5 are out of reach for a binder nobody decomposes.** Both phases
 need one binder to take TWO steps in one commit, a stop before the addresses
@@ -169,11 +170,12 @@ removes the cross-interface edges of an address cycle, which leaves both
 addresses present while they swap. `markDualPresence` labels the creations it
 freed. That is make-before-break, which the requirement does not ask for.
 
-`test/reload/config-apply-ordering-address-swap.ci` asserts the window. It also
-asserts one TCP connection for the whole run. That is the claim that the BGP
-session bound to the moving address never restarted. Under the requirement that
-session is stopped in phase 2 and started in phase 5, so the test states the
-inherited policy rather than the owner's.
+`test/reload/config-apply-ordering-address-swap.ci` asserts the window. It used
+to assert one TCP connection for the whole run. That was the claim that the BGP
+session bound to the moving address never restarted, and it stated the
+inherited policy rather than the owner's. Phase 2 made it false. The test now
+asserts two connections, one before the move and one after. The window
+itself is unchanged, and nothing is bound to the address while it moves.
 <!-- source: internal/component/config/transaction/solver.go -- tryRelaxCycle, markDualPresence -->
 
 **A name check stands in for phase 5.** `sortParticipantsBGPLast` sorts the
@@ -202,13 +204,78 @@ binder's own listen call settles the rest.
 ## The current state
 
 Every section below describes the code as it is today. Read it against "What is
-not built" above, which names the four places where the code and the requirement
+not built" above, which names the places where the code and the requirement
 disagree.
 
 Config reload applied changes surface by surface with no cross-surface order.
 Dependent operations could run in the wrong order. One example is an interface
 added after the BGP peer that binds it. Another is an address removed while a
 peer still binds it. The operation graph replaced that ad-hoc order.
+
+## Phases 2 and 5, for BGP
+
+A commit that disturbs an address stops the BGP sessions bound to it before the
+address leaves the host and starts them after it arrives. The peer's own config
+does not have to change, and in the case the requirement is written for it does
+not change at all.
+
+Three steps produce that, and each is owned by the layer that can answer it.
+
+**The core computes WHICH addresses are disturbed.** `DisturbedAddresses` reads
+the planned operations. It returns every address named by an operation whose
+verb is destroy and whose `Produces` names an address. That is the removal, the
+move between interfaces and the prefix-length change. Each of the three is
+applied by removing the address. An MTU edit emits no address operation, so
+it disturbs nothing.
+<!-- source: internal/component/config/transaction/operation.go -- DisturbedAddresses -->
+
+**The planner carries the set to every root that decomposes.** It decomposes
+the roots that have a diff and computes the set from that plan. Where the set
+is not empty it decomposes again, with the set on
+`DecomposeRequest.DisturbedAddresses`. The second pass asks every root that
+registered a decomposer, not only the roots with a diff: the binder the
+requirement is about has no diff of its own. A commit that disturbs no address
+makes one pass and asks nobody extra. A plugin that declares its decomposition
+receives the set on the same event as its diff.
+<!-- source: internal/component/plugin/server/reload_tx.go -- operationPlannerFromTrees, bindingRoots -->
+
+A binder with no diff is not an affected plugin. It would be outside the
+transaction, where nothing can ask it and nothing can send it the operations it
+answers with. So every running plugin that declares a decomposition joins, with
+no section. `filterDiffs` then finds it no diff, so it receives no verify event,
+no section apply and no coarse node. A commit that disturbs nothing costs it
+nothing.
+<!-- source: internal/component/plugin/server/reload.go -- appendDecomposingPlugins -->
+
+**The owning component decides what STOPPING means.** `decomposeBGPOperations`
+emits a remove-peer and an add-peer for each peer whose local address is in the
+set. That is beside the pair it already emitted for a peer whose address value
+changed. The core never reads the `bgp` root, and `bgp` never reads the
+`interface` root.
+<!-- source: internal/component/bgp/plugin/operation.go -- decomposeBGPOperations, peerBindingDisturbed -->
+
+**The ordering is derived, not declared.** The pair consumes the address. The
+remove-peer therefore runs before the destroy that produces that address, and
+the add-peer after the create that produces it. Those are the two derived edges
+a peer with a changed address has always earned, so phase 2 added no rule.
+
+**A peer whose source address the kernel picks is stopped too.** A peer with
+`connection.local.ip` absent or `auto` binds an address Ze did not choose. Ze
+cannot say whether this commit takes that address away. The fail-safe default
+answers it: the session is stopped and started as soon as any address is
+disturbed. Its two operations declare every disturbed address, so the ordering
+still holds. Ze binds specific addresses everywhere else, so the wildcard
+carve-out frees no BGP session.
+<!-- source: internal/component/bgp/plugin/operation.go -- peerAddressConsumes -->
+
+What phase 2 does NOT cover is in "What is not built" above: a binder nobody
+decomposes, and a root whose decomposer declined to answer.
+
+The kernel-driven path is still there and is not a substitute.
+`handleAddrRemovedPayload` stops the LISTENER bound to a removed address and
+`handleAddrAddedPayload` starts it again. Neither stops a peer, and neither is
+ordered against the commit.
+<!-- source: internal/component/bgp/reactor/reactor_iface.go -- handleAddrAddedPayload, handleAddrRemovedPayload -->
 
 ## The pipeline
 

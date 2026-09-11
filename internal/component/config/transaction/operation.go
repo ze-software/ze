@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -128,12 +129,82 @@ var errOperationRegistryInvalidInput = errors.New("operation registry invalid in
 const maxSettlementTimeout = 60 * time.Second
 
 // DecomposeRequest is passed to component-owned operation decomposers.
+//
+// DisturbedAddresses is what the core establishes about the whole commit
+// rather than about this root: the local addresses the commit takes off the
+// host. A root that binds one of them emits its own stop and its own start,
+// EVEN WHEN ITS OWN CONFIG DID NOT CHANGE, and Diff is empty in exactly that
+// case (docs/architecture/config/apply-ordering.md).
 type DecomposeRequest struct {
-	TransactionID string
-	Root          string
-	ActiveRoot    string
-	CandidateRoot string
-	Diff          DiffSection
+	TransactionID      string
+	Root               string
+	ActiveRoot         string
+	CandidateRoot      string
+	Diff               DiffSection
+	DisturbedAddresses []string
+}
+
+// DisturbedAddresses returns every local address the planned operations take
+// off the host, each named once and sorted.
+//
+// An address is DISTURBED when the commit removes it, when it moves to another
+// interface, or when its prefix length changes. Each of those is applied by
+// removing the address, so each appears here as an operation whose verb is
+// destroy and whose Produces names an address. A change that leaves the
+// address row intact disturbs nothing, which is the MTU edit the requirement
+// names: it emits no address operation at all
+// (docs/architecture/config/apply-ordering.md).
+//
+// The address is named by its IP alone, the way resourceIdentity names it,
+// because the IP is what a binder binds. The prefix length is a property of
+// the address and the interface is where the address lives.
+//
+// This is the whole of what the core establishes. Which binder holds which
+// address, and what stopping a binder means, belong to the component that
+// binds it: the core knows no root's semantics and keeps no list of binders
+// (ai/rules/principles.md).
+func DisturbedAddresses(ops []ConfigOperation) []string {
+	seen := make(map[string]struct{}, len(ops))
+	addresses := make([]string, 0, len(ops))
+	for i := range ops {
+		if ops[i].Verb != VerbDestroy {
+			continue
+		}
+		for _, ref := range ops[i].Produces {
+			if ref.Kind != ResourceAddress {
+				continue
+			}
+			address := normalizeAddress(ref.Address)
+			if address == "" {
+				continue
+			}
+			if _, exists := seen[address]; exists {
+				continue
+			}
+			seen[address] = struct{}{}
+			addresses = append(addresses, address)
+		}
+	}
+	slices.Sort(addresses)
+	return addresses
+}
+
+// OperationDecomposerRoots returns every config root that registered an
+// in-process decomposer, sorted.
+//
+// The planner asks each of them in a commit that disturbs an address, whether
+// or not the root has a diff of its own, because a binder's answer can be
+// decided entirely by what another root does (operationPlannerFromTrees in
+// internal/component/plugin/server/reload_tx.go).
+func OperationDecomposerRoots() []string {
+	operationRegistry.RLock()
+	defer operationRegistry.RUnlock()
+	roots := make([]string, 0, len(operationRegistry.decomposers))
+	for root := range operationRegistry.decomposers {
+		roots = append(roots, root)
+	}
+	slices.Sort(roots)
+	return roots
 }
 
 // OperationDecomposer converts a root-level diff plus active/candidate context
