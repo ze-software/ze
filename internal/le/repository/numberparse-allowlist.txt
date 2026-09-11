@@ -19,7 +19,9 @@
 # Adding a line is how a new parse is justified. Say in the commit message what
 # the value is, and if it IS an AS number, call asn.Parse instead of writing the
 # line. The evidence for the current population is the per-parser enumeration in
-# plan/spec-bgp-as-notation.md, "Every Text-to-AS-Number Parser In The Tree".
+# spec-bgp-as-notation, "Every Text-to-AS-Number Parser In The Tree", summarized
+# in plan/learned/RECURRING-PATTERNS.md, "One text form, a private parser per
+# package".
 #
 # `./le repository check` names every file that differs from this list. Read
 # what it names before you change a line.

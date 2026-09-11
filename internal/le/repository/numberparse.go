@@ -5,8 +5,10 @@
 // product Go is on an allowlist, so a NEW one is justified rather than
 // discovered.
 //
-// The defect it exists for is recorded over seven review rounds of
-// plan/spec-bgp-as-notation.md. An AS number is a 32-bit value an operator
+// The defect it exists for was recorded over seven review rounds of
+// spec-bgp-as-notation, a spec that is now closed. The pattern it names
+// survives in plan/learned/RECURRING-PATTERNS.md, "One text form, a private
+// parser per package". An AS number is a 32-bit value an operator
 // types. The tree grew a private parser for it in eight places: two AS-path
 // readers, four route distinguisher readers, and two `AS<n>` selector readers.
 // Each copy read decimal only, so `1.10` was accepted at one entry point and
@@ -24,8 +26,9 @@
 //  1. An ALLOWLISTED parse that was always meant to be asn.Parse. Nothing
 //     static separates an AS number from a table index. The evidence for the
 //     current population is the per-parser enumeration in
-//     plan/spec-bgp-as-notation.md, "Every Text-to-AS-Number Parser In The
-//     Tree".
+//     spec-bgp-as-notation, "Every Text-to-AS-Number Parser In The Tree",
+//     summarized in plan/learned/RECURRING-PATTERNS.md, "One text form, a
+//     private parser per package".
 //
 //  2. A bit size that crosses a function boundary, so the width is not at the
 //     call. Three product files hold one: `validateUint`

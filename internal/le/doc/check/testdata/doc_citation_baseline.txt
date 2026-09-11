@@ -423,8 +423,6 @@ plan/spec-bgp-as-migration.md	test/plugin/bgp-as-migration-accept-either.ci
 plan/spec-bgp-as-migration.md	test/plugin/bgp-as-migration-ibgp-treatment.ci
 plan/spec-bgp-as-migration.md	test/plugin/bgp-as-migration-send-either.ci
 plan/spec-bgp-as-migration.md	test/plugin/bgp-open-bad-peer-as.ci
-plan/spec-bgp-as-notation.md	internal/core/bgp/attribute/text_test.go
-plan/spec-bgp-as-notation.md	test/ci/bgp-as-notation.ci
 plan/spec-bgp-bfd-strict.md	test/plugin/bgp-bfd-strict.ci
 plan/spec-bgp-deferred-community-name-leaf.md	plan/spec-followup-bgp-feature.md
 plan/spec-bgp-deferred-confederation-otc.md	plan/spec-followup-bgp-feature.md

@@ -509,7 +509,7 @@ completed.
 
 | Spec | Committed | Status |
 |------|-----------|--------|
-| `plan/spec-bgp-as-notation.md` | `c3b6433ba8`, 140 files | `in-progress`. Commit A only, commit B not run |
+| `spec-bgp-as-notation` | `c3b6433ba8`, 140 files | closed 2026-09-11. Commit B removed the spec, so this row names the stem rather than a path |
 | `plan/spec-bgp-bfd-strict.md` | nothing | `in-progress`. Three round-6 issues open |
 | `spec-bgp-update-delay` | closed 2026-09-11 | Closed by an independent closure context: commit A carries the code, the spec and the journal row, commit B removes the spec. The spec file is gone from the tree, so this row names the stem rather than a path |
 
@@ -549,7 +549,7 @@ not survive; its content is the paragraph above.)
    under `tmp/review/`, which is gitignored: see the update at the end, because
    losing it changes what this step costs.
 5. **as-notation, commit B.** Once the three files above are in HEAD, the four red
-   tests go green and removing `plan/spec-bgp-as-notation.md` closes the spec.
+   tests go green and removing the spec file closes it. Done on 2026-09-11.
 
 The four tests knowingly RED until step 5, each named in `c3b6433ba8`:
 `TestPeerRowsFollowTheConfiguredNotation`, `TestHandlerPeerDetailAllPeers`,
