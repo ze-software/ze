@@ -36,6 +36,7 @@ require (
 	github.com/openconfig/goyang v1.6.3
 	github.com/packetcap/go-pcap v0.0.0-20251215121130-f2cf9f991e7c
 	github.com/prometheus/client_golang v1.24.1
+	github.com/prometheus/common v0.70.1
 	github.com/prometheus/procfs v0.22.0
 	github.com/sirupsen/logrus v1.10.2
 	github.com/sivchari/gomu v0.2.1
@@ -226,7 +227,6 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.14 // indirect
 	github.com/pires/go-proxyproto v0.12.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
-	github.com/prometheus/common v0.70.1 // indirect
 	github.com/quasilyte/go-ruleguard v0.4.5 // indirect
 	github.com/quasilyte/go-ruleguard/dsl v0.3.23 // indirect
 	github.com/quasilyte/gogrep v0.5.0 // indirect
