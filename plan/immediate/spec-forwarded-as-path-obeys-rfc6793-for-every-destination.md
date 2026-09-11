@@ -278,7 +278,7 @@ every in-process ingress filter parse a four-octet AS_PATH at two octets.
 - `wireu` gains one exported payload-level collapse that calls the moved rule, and returns the input slice unchanged when nothing is owed.
 - `TranscodeASPath` loses its 2→4 widening arm, which no caller can reach once every source payload is four-octet.
 - `aspath_rewrite.go` and its test are deleted, and the test fixtures that build payloads with `RewriteASPath` are rebuilt against `ASPathEdit.Record`.
-- `recordWithdrawOnly`'s equal-width AS4_PATH drop, and with it the function and its arm of the `Record` dispatch, are deleted: `spans.Has(attribute.AttrAS4Path)` cannot be true for a payload that reached the forward path.
+- `recordWithdrawOnly` was planned for deletion here and SURVIVES (see Deviations): the arm carries the RFC 4271 Section 4.3 no-prepend-on-withdrawal rule as well, and an export filter plugin's raw override still reaches its AS4_PATH drop. The rest of this paragraph describes the plan rather than the tree:
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -441,9 +441,9 @@ every in-process ingress filter parse a four-octet AS_PATH at two octets.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `rfc6793-ingest-collapse` | `test/decode/rfc6793-ingest-collapse.ci` | An operator receives a route from a two-octet peer and reads the AS path Ze holds, asserted as hex, with no AS4_PATH present | |
-| `rfc6793-no-as4path-from-new-speaker` | `test/decode/rfc6793-no-as4path-from-new-speaker.ci` | An operator receives an UPDATE that wrongly carries AS4_PATH on a four-octet session, and the attribute is absent from everything Ze holds and sends | |
-| `rfc6793-narrow-to-old-speaker` | `test/decode/rfc6793-narrow-to-old-speaker.ci` | An operator relays that route to a two-octet peer and reads the AS_TRANS AS_PATH and the derived AS4_PATH Ze put on the wire, asserted as hex | |
+| `rfc6793-ingest-collapse` | `test/plugin/rfc6793-ingest-collapse.ci` | An operator receives a route from a two-octet peer and reads the AS path Ze holds, asserted as hex, with no AS4_PATH present | |
+| `rfc6793-no-as4path-from-new-speaker` | `test/plugin/rfc6793-no-as4path-from-new-speaker.ci` | An operator receives an UPDATE that wrongly carries AS4_PATH on a four-octet session, and the attribute is absent from everything Ze holds and sends | |
+| `rfc6793-narrow-to-old-speaker` | `test/plugin/rfc6793-narrow-to-old-speaker.ci` | An operator relays that route to a two-octet peer and reads the AS_TRANS AS_PATH and the derived AS4_PATH Ze put on the wire, asserted as hex | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -456,7 +456,7 @@ every in-process ingress filter parse a four-octet AS_PATH at two octets.
 - `internal/component/bgp/reactor/reactor_api_relay.go` - `resolveRelaySource` stamps `srcPeer.recvContextID()` onto the wire `buildRelayUpdate` reconstructs from stored `adj_rib_in` bytes. Those bytes are collapsed four-octet ones, so the label becomes `fwdContextIDWithASN4(srcPeer.recvContextID(), true)`, and the two comments in the file asserting the stored bytes are still in the source peer's encoding are corrected in the same edit (`ai/rules/stale-comments.md`). Found by A-1's enumeration on 2026-09-08; without it the relay hands every egress filter a four-octet path labelled two-octet
 - `internal/component/bgp/wireu/aspath_as4.go` - gains the payload-level collapse, or a sibling file beside it, calling the moved rule; `AS4PathForRewrite` loses its `MergeAS4Path` branch and `joinSequences` goes with it, subject to A-4
 - `internal/component/bgp/wireu/aspath_transcode.go` - the 2→4 widening arm is deleted; the 4→2 narrowing arm stays and is now the only direction any caller can reach
-- `internal/component/bgp/wireu/aspath_slot.go` - `recordWithdrawOnly` and its arm of the `Record` dispatch are deleted, because the equal-width AS4_PATH drop cannot fire on a payload that reached the forward path
+- `internal/component/bgp/wireu/aspath_slot.go` - `recordWithdrawOnly` was planned for deletion and SURVIVES: it also carries the RFC 4271 Section 4.3 rule that a withdraw-only UPDATE is not prepended onto, and its AS4_PATH drop stays reachable through an export filter plugin's raw override. The equal-width AS4_PATH drop cannot fire on a payload that reached the forward path
 - `internal/core/bgp/attribute/as4.go` - receives the moved Section 4.2.3 rule beside `MergeAS4Path`, exported, returning the canonical AS_PATH value, the canonical AGGREGATOR value and the discard reason
 - `internal/component/bgp/plugins/rib/storage/attrparse.go` - loses its six unexported copies, and does NOT call the moved rule: post-collapse it reads a canonical four-octet AS_PATH, so its `asn4` parameter is constant and goes with them (A-5). `familyrib.go` and `attrFingerprint` follow the same deletion
 - `internal/perf/allocgate.go` - the ceiling rows for the two new benchmarks, the fast path at 0
@@ -483,9 +483,9 @@ every in-process ingress filter parse a four-octet AS_PATH at two octets.
 - `internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go` - the entry-point tests for AC-1 through AC-3, AC-8 through AC-13
 - `internal/component/bgp/wireu/aspath_collapse.go` - the payload-level collapse, if it does not land in `aspath_as4.go`
 - `internal/component/bgp/wireu/aspath_collapse_test.go` - the value-level and payload-level tests, including the fuzz target and the two benchmarks
-- `test/decode/rfc6793-ingest-collapse.ci` - the functional test for story 1
-- `test/decode/rfc6793-no-as4path-from-new-speaker.ci` - the functional test for story 4
-- `test/decode/rfc6793-narrow-to-old-speaker.ci` - the functional test for story 3
+- `test/plugin/rfc6793-ingest-collapse.ci` - the functional test for story 1
+- `test/plugin/rfc6793-no-as4path-from-new-speaker.ci` - the functional test for story 4
+- `test/plugin/rfc6793-narrow-to-old-speaker.ci` - the functional test for story 3
 - `test/interop/scenarios/as-path-mixed-width-relay-frr/ze.conf` - Ze between a two-octet injector and a four-octet FRR
 - `test/interop/scenarios/as-path-mixed-width-relay-frr/frr.conf` - FRR as the NEW speaker, with `remote-as` carrying the real four-octet ASN and `enforce-first-as` off per neighbor
 - `test/interop/scenarios/as-path-mixed-width-relay-frr/inject.msg` - the raw UPDATE carrying AS_TRANS in AS_PATH and the real AS in AS4_PATH
@@ -511,7 +511,7 @@ broke in the safe direction. `exportFilterForBody` still hands the extractor a
 two-octet body for a two-octet destination, and the operator dry-run still takes
 a width of its own, so the merged branch keeps a caller. What it loses is every
 FORWARDING caller, because no originated body carries an AS4_PATH and nothing
-else survives ingest with one. `recordWithdrawOnly` still goes.
+else survives ingest with one. `recordWithdrawOnly` was planned to go and STAYS: it carries a second rule, and Deviations records the reversal.
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -522,7 +522,7 @@ else survives ingest with one. `recordWithdrawOnly` still goes.
 | CLI commands/flags | N-A | No command changes. The behavior is observable through `show bgp` output that already exists. |
 | CLI grammar (keyword before value) | N-A | No command added. |
 | Editor autocomplete | N-A | No leaf added. |
-| Functional test for new RPC/API | Yes | `test/decode/rfc6793-ingest-collapse.ci`, `test/decode/rfc6793-no-as4path-from-new-speaker.ci`, `test/decode/rfc6793-narrow-to-old-speaker.ci` |
+| Functional test for new RPC/API | Yes | `test/plugin/rfc6793-ingest-collapse.ci`, `test/plugin/rfc6793-no-as4path-from-new-speaker.ci`, `test/plugin/rfc6793-narrow-to-old-speaker.ci` |
 | Pipe completeness | N-A | No command output added. |
 | Env var registration | N-A | No env var added. |
 | Doctor check for runtime dependencies | N-A | No file path, socket, port, kernel module, binary or certificate is added. |
@@ -578,7 +578,7 @@ else survives ingest with one. `recordWithdrawOnly` still goes.
    - Verify: AC-14's grep; `joinSequences` and the `MergeAS4Path` branch STAY (A-4), and the doc comment of `AS4PathForRewrite` is corrected in this phase because it explains itself in terms of an OLD-speaker source the forwarding rails no longer have; `./le verify lint run` clean
 7. **Phase: Functional and interop** - a user reaches the behavior
    - Tests: the three `.ci` files, then the interop scenario with its discrimination walk
-   - Files: `test/decode/*.ci`, the scenario directory, `internal/le/interoplab/bgp/checkers.go`, `internal/le/interoplab/bgp/names.go`
+   - Files: `test/plugin/*.ci`, the scenario directory, `internal/le/interoplab/bgp/checkers.go`, `internal/le/interoplab/bgp/names.go`
    - Verify: revert phase 3, rebuild the Ze container, watch FRR report AS 23456 and the scenario go RED, restore, watch it go GREEN, and record the red
 8. **Phase: Docs and the RFC ledger** - the pages and rows this change makes wrong
    - Tests: `./le docs-to-code index-check`, `./le doc check links`, `./le rfc check`
@@ -663,7 +663,7 @@ else survives ingest with one. `recordWithdrawOnly` still goes.
 ## Known Limitations
 
 - Two encoders still narrow a four-octet path for a two-octet destination: `ASPathEdit.recordTranscode` for an eBGP destination and `wireu.TranscodeASPath` for every other one. Both are CORRECT after this change and both derive their AS4_PATH from the one owner, `as4PathForPath`, so this is duplication rather than divergence. Removing it means lifting `Record` out of the `isEBGP` guard, which the owner's shape did not commission and which this spec deliberately does not do. It needs its own spec.
-- `RFC6793-6-5` (a malformed AS4_AGGREGATOR is not discarded on every path) is narrowed but not closed. The collapse discards a malformed one at ingest, so no relayed payload can carry it, but no RFC 7606 validator is registered for attribute code 18 and `ParseAS4Aggregator`'s only production reachability still returns the error to its caller rather than discarding and continuing. That half is a different surface and needs its own spec.
+- `RFC6793-6-5` is CLOSED, and this line said otherwise until closure. The collapse discards a malformed AS4_AGGREGATOR at ingest and the length is checked where the promotion happens, so no relayed payload can carry one; `rfc/requirements/rfc6793.md` binds both polarities and `rfc/short/rfc6793.md` names only `RFC6793-4.1-3` outstanding.
 - The RIB commit rail (`internal/component/bgp/rib/commit.go`, `packAttributesWithASPath`) is a separate place AS_PATH is written, for routes Ze ORIGINATES rather than relays. It is out of scope: an originated route has no source AS4_PATH to reconstruct from, and its two-octet encoding is already the Section 4.2.2 narrowing this spec leaves alone.
 - An MRT archive and a pcap export both keep recording what the peer sent, and that is a constraint this spec carries rather than an open question (A-7, confirmed). The observers are handed the socket's own `body`; the collapse replaces the payload that storage and the relay read. An implementation that collapses `body` in place would make every archive record Ze's normalization instead, which is why the ACs assert on the observer's bytes as well as on the stored ones.
 
@@ -728,12 +728,158 @@ quoting it; `rfc/short/` is a derived artifact and is never the authority.
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
 
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `attribute.ReconcileASPathFamily` (`internal/core/bgp/attribute/as4.go`): the
+  RFC 6793 Section 4.2.3 rule, moved out of
+  `internal/component/bgp/plugins/rib/storage/attrparse.go` because the reactor
+  is a component and may not import a plugin.
+- `wireu.CollapseAS4Family` (`internal/component/bgp/wireu/aspath_collapse.go`):
+  the payload rewrite that applies it. Answers 0 on the fast path so the caller
+  keeps its own slice.
+- `(*Session).collapseASPathFamily` (`internal/component/bgp/reactor/session_read.go`):
+  called from `processMessage` after `enforceRFC7606`, before the import policy
+  chain, with the context relabelled through `fwdContextIDWithASN4`.
+- Four sites read the received width from the encoding context rather than the
+  negotiated capability, the fourth being `resolveRelaySource`
+  (`reactor_api_relay.go`), found while resolving A-1.
+- The RIB's `asn4` parameter is deleted rather than defaulted: constant once the
+  collapse exists (A-5).
+- `TranscodeASPath` loses its 2 to 4 widening arm and REFUSES the direction.
+  `aspath_rewrite.go` is deleted with the tombstone Section 5.3 clear.
+
+### Bugs Found/Fixed
+- The AS4_PATH emitted after a prepend did not reconstruct when the source's
+  AS4_PATH was shorter than its AS_PATH. Fixed by routing through
+  `attribute.MergeAS4Path`. Covered by
+  `TestASPathSlotPrependedAS4PathReconstructsTheWholePath`.
+- `prependAS4PathValue` treated an absent attribute section as "no AS4_PATH
+  owed". It fails closed, and `TestPrependRecordsNothingWithoutAnAttributeSection`
+  drives it.
+- `CollapseAS4Family` accepted an attribute whose declared length overflowed the
+  attribute section but stopped inside the NLRI, merging NLRI octets into the
+  relayed AS path; and a mis-sized destination buffer was an index panic on the
+  session read goroutine. Both bounded.
+- `selectAggregator` promoted an AS4_AGGREGATOR with no length check on it, so a
+  seven-octet one became the AGGREGATOR of the collapsed payload: one malformed
+  attribute toward every destination. The length is checked where the promotion
+  happens.
+
+### Documentation Updates
+- `docs/architecture/edge-cases/as4.md`: where the reconciliation runs, and the
+  lone-AS4_AGGREGATOR decision with FRR's and BIRD's answers beside ze's.
+- `docs/architecture/wire/attributes.md`: no received AS4_PATH survives ingest;
+  the ATTR_TOMBSTONE row now says the marker is implemented and the Section 5.3
+  egress clear is not.
+- `docs/architecture/encoding-context.md`, `docs/architecture/testing/interop.md`,
+  `docs/functional-tests.md`, `docs/features/rfc-status.md`, `rfc/short/rfc6793.md`.
+
+### Deviations from Plan
+- The `.ci` files went to `test/plugin/`, not `test/plugin/`: the decode dialect
+  has no session and never reaches `processMessage`, so a file there would have
+  been vacuous.
+- `recordWithdrawOnly` was NOT deleted. It also carries the RFC 4271 Section 4.3
+  rule that a withdraw-only UPDATE is not prepended onto, and its AS4_PATH drop
+  is still reachable through an export filter plugin's raw override.
+- `AS4PathForRewrite`'s merged branch and `joinSequences` were NOT deleted (A-4).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The spec first proposed adding a Section 4.2.3 widening arm to the byte transcoder | FRR and BIRD both normalise at ingest and store one canonical path, which is why neither needs that arm. The arm answered a question no other implementation has | Thomas asked how FRR and BIRD do it before approving the design | The spec was re-derived from the ingest collapse; phase 5 then proved a zero-line diff on both forward rails |
+| assumption | The brief predicted the interop RED would show FRR reporting AS 23456 | FRR received nothing at all: the injector announces before FRR connects, so the route arrives through the peer-up replay, where the relay hands the egress a two-octet payload wearing a four-octet label | Running the discrimination walk | Recorded in the commit rather than smoothed over |
+| assumption | The brief placed the `.ci` files in `test/plugin/` and assumed `internal rib` relays | The decode dialect never reaches `processMessage`; the relay is `bgp-rs` plus `bgp-adj-rib-in`, measured twice | Writing the tests | Files moved to `test/plugin/`; journal row on the sibling scenario built on the same false claim |
+| escalation | Deleting `aspath_rewrite.go` was treated as bookkeeping | It was the last caller of the tombstone Section 5.3 clear AND of the tombstone-on-unreadable-AGGREGATOR path. Both had stopped happening when `Record` replaced the rewrite, with four green tests reading as coverage | The phase-6 agent refused the deletion and said why | Thomas ruled the Section 5.3 support removed; the second loss is journalled |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| One reconciliation for every destination | Done | `attribute.ReconcileASPathFamily` | Reached once, at ingest |
+| It obeys Sections 4.1, 4.2.2, 4.2.3 and 6 | Done | `as4.go`, `aspath_collapse.go` | Three gaps closed in `rfc/short/rfc6793.md` |
+| Whatever the destination's session type and width | Done | `session_read.go`, four relabel sites | Proven by a zero-line diff on both forward rails |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1..AC-8 | Done | `aspath_collapse_test.go`, `rfc6793_reconcile_test.go` | Each reconciliation arm through the payload |
+| AC-9 | Done | `BenchmarkCollapseAS4FastPath`, ceiling 0 | Asserted by identity: the fixture's AS_PATH is deliberately unparseable |
+| AC-10..AC-12 | Done | `rfc6793_ingest_collapse_test.go` | Entered through `ForwardUpdate` and `reactorForwardRS` |
+| AC-13 | Done | `TestLoopIngressSeesReconstructedASPath` | Closes a live row in `plan/journal/gate-excludes-part-of-its-population.md` |
+| AC-14 | Done | grep over `internal/`, `cmd/`, `pkg/` | `aspath_rewrite.go` deleted after Thomas ruled on the tombstone support |
+| AC-15 | Done | grep for the Section 4.2.3 construction | One declaration, in `internal/core/bgp/attribute` |
+| AC-16 | Done | `as-path-mixed-width-relay-frr` | Passes, with a recorded red phase |
+| AC-17 | Done | `TestReceivedBytesReachTheObserversUncollapsed` | An archive records the wire, not ze's normalisation |
+| AC-18 | Done | The relay relabel | Found by A-1's enumeration |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `attribute/as4.go`, `wireu/aspath_collapse.go`, `reactor/session_read.go` | Done | The rule, the payload rewrite, the ingest site |
+| `reactor/reactor_notify.go`, `reactor/reactor_api_relay.go` | Done | Two of the four relabel sites |
+| `rib/storage/attrparse.go` and the RIB call sites | Done | Helpers moved out, `asn4` deleted |
+| `wireu/aspath_transcode.go` | Changed | Edited, not deleted: the narrowing arm survives with its caller |
+| `wireu/aspath_rewrite.go` | Done | Deleted, with the tombstone Section 5.3 clear |
+| `wireu/aspath_slot.go` (`recordWithdrawOnly`) | Changed | NOT deleted; it carries a second rule |
+
+### Audit Summary
+- **Total items:** 30
+- **Done:** 27
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| One rail resolves the AS-path family for every forwarded destination | functional | Phase 5 proved a ZERO-line diff on `reactor_api_forward.go` and `forward_rs.go`: the collapse made the question moot rather than the rails being unified |
+| A route from an OLD speaker reaches a NEW peer with the real AS numbers | interop | `INTEROP_SCENARIO=as-path-mixed-width-relay-frr ./le integration interop` returns `passed: 1`. With `CollapseAS4Family` returning 0 before it reads the payload, two rebuilt images go RED at assertion 2, and restoring it returns `passed: 1` on a third |
+| No AS4_PATH is carried between NEW speakers (Section 4.1) | functional | `test/plugin/rfc6793-no-as4path-from-new-speaker.ci`, and the closure of `RFC6793-4.1-6` and `-4.1-7` in `rfc/short/rfc6793.md` |
+| The four-octet fleet pays nothing | benchmark | `BenchmarkCollapseAS4FastPath` at an `internal/perf/allocgate.go` ceiling of 0, enforced by `./le verify deps alloc`, plus AC-9's identity assertion |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| `ASPathEdit.recordAggregator` does not tombstone an AGGREGATOR whose length it cannot read | The behaviour vanished when `Record` replaced the whole-payload rewrite, before this spec. It is a separate defect on a rail this spec proved untouched | Unowned. Row in `plan/journal/unwired-feature.md` |
+| `bgp-aggregator-as4-downgrade-bird` rests on a false claim about `internal rib` relaying | Measured false while building the new scenario; fixing it is a change to another scenario | Unowned. Row in `plan/journal/test-against-broken-path.md` |
+| No originating encoder emits an AS4_PATH | What ze ORIGINATES rather than what it relays, so it shares no fix with this spec | Unowned. Row in `plan/journal/requirement-met-on-the-rails-the-spec-planned.md` |
+| About 25 tags in `rfc6793_reconcile_test.go` carry no discrimination record | They moved with the rule; only the five added here were recorded | Unowned, named here |
+
 ## Review Gate
 
-### Round 1
-| Finding | Severity | File | Resolution |
-|---------|----------|------|------------|
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/forwarded-as-path-obeys-rfc6793-for-every-destination-84ea723f-8e13-4b16-ba76-2cb15a57eb40.md` |
+| `./le spec session review check` | recorded at closure |
+| Rounds | 1 |
+| Reviewer lenses used | false records against the tree first, then the collapse's bounds and fast path, the reconciliation rule, the ingest site's position and the tombstone removal's leftovers |
 
-### Round 2
-| Finding | Severity | File | Resolution |
-|---------|----------|------|------------|
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | AC-13 was recorded Done against `TestLoopIngressSeesReconstructedASPath`, a test that did not exist | this spec's audit, and the TDD table | The test is written. It asks `filter.LoopIngress` the same question twice: over the bytes the peer sent, where ze's own AS hides behind AS_TRANS and the filter accepts, and over the dispatched payload, where it is visible and the filter rejects |
+| 2 | ISSUE | The journal row this work fixes still read `unfixed` and still claimed the reconstruction does not reach `LoopIngress` | `plan/journal/gate-excludes-part-of-its-population.md` | The Fix cell records the closure and names the producer and the test |
+| 3 | ISSUE | Two comments still said the Section 5.3 clear is enforced "in `wireu.rewriteASPathPrepend`", a symbol that no longer exists | `reactor/session_validation.go`, `message/attr_discard.go` | Both say the clear is not performed anywhere, and name Thomas's 2026-09-09 ruling |
+| 4 | ISSUE | The ext-length field was read BEFORE its bound was checked, so an attribute section ending at `off+3` on a payload with no spare capacity slices out of range | `wireu/aspath_collapse.go`, `as4FamilySpans.scan` | The bound moved ahead of the header read, matching `TranscodeASPath`'s order |
+| 5 | ISSUE | `docs/architecture/behavior/fsm-established.md` describes `processMessage` with no collapse step | that page | Landed with this closure |
+| 6 | NOTE | Two closure rows named tests by the wrong name | this spec | Corrected to `TestReceivedBytesReachTheObserversUncollapsed` and `TestASPathSlotPrependedAS4PathReconstructsTheWholePath` |
+| 7 | NOTE | Three planning rows still routed the `.ci` files to `test/decode/` | this spec | Corrected to `test/plugin/`, which Deviations already explained |
+| 8 | NOTE | Three rows still said `recordWithdrawOnly` is deleted | this spec | Each says it survives and why |
+| 9 | NOTE | Known Limitations said `RFC6793-6-5` is narrowed but not closed, while the ledger names only `RFC6793-4.1-3` outstanding | this spec vs `rfc/short/rfc6793.md` | The line says CLOSED and names what closed it |
+
+## Core Insight
+
+When two code paths disagree about a fact, ask whether the fact can be settled
+before either of them sees it. Ze had two forward rails resolving the AS-path
+family and a guard choosing between them, and the obvious repair was to unify
+them. What worked was to leave both untouched and remove the contradiction from
+their input: with the pair collapsed at ingest, no AS4_PATH survives to be
+mishandled, and phase 5's deliverable became PROVING a zero-line diff rather
+than writing one.

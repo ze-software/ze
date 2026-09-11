@@ -51,8 +51,9 @@ type DiscardEntry struct {
 // This is the generation-time derivation only. The marker is stamped at receive
 // time, where the destination is not yet known, so a transitive original yields a
 // transitive marker here. Section 5.3's egress rule (clear the Transitive bit when
-// forwarding to an EBGP peer) is enforced per destination on the EBGP wire path,
-// in wireu.rewriteASPathPrepend, not here.
+// forwarding to an EBGP peer) is NOT enforced anywhere: Thomas removed that
+// support on 2026-09-09 with wireu.rewriteASPathPrepend, the unreached path that
+// had been its only implementation.
 func attrDiscardFlags(originalFlags uint8) uint8 {
 	return 0x80 | (originalFlags & 0x50)
 }

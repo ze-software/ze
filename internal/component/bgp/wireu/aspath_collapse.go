@@ -182,10 +182,16 @@ func (f *as4FamilySpans) scan(payload []byte, attrsStart, attrLen int) error {
 		if off+3 > attrsEnd {
 			return fmt.Errorf("collapse AS4 family: truncated attribute at offset %d: %w", off, ErrUpdateMalformed)
 		}
-		span := attrSpanAt(payload, off)
-		if span.hdrLen == 4 && off+4 > attrsEnd {
+		// The ext-length bound is checked BEFORE the header is read, because
+		// reading it is what consumes the fourth octet: attrSpanAt takes
+		// payload[off+2:off+4] for an extended length, so bounding afterwards
+		// slices past the end when the attribute section ends at off+3 and the
+		// payload has no spare capacity. TranscodeASPath orders the same pair
+		// this way.
+		if attribute.AttributeFlags(payload[off]).IsExtLength() && off+4 > attrsEnd {
 			return fmt.Errorf("collapse AS4 family: truncated ext-length attribute: %w", ErrUpdateMalformed)
 		}
+		span := attrSpanAt(payload, off)
 		if off+span.hdrLen+span.length > attrsEnd {
 			return fmt.Errorf("collapse AS4 family: attribute value overflows the attribute section: %w", ErrUpdateMalformed)
 		}

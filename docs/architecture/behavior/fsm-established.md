@@ -64,9 +64,32 @@ The state-change callback in `peer_run.go`:
 
 `handleUpdate` validates address families and fires
 `fsm.Event(EventUpdateMsg)`. All the real UPDATE work (WireUpdate
-construction, RFC 7606 enforcement, prefix limits, forwarding to
-plugins) already happened in `processMessage` **before** `handleUpdate`
-runs. The one remaining responsibility the RFC assigns to
+construction, RFC 7606 enforcement, the RFC 6793 AS-path reconciliation,
+prefix limits, forwarding to plugins) already happened in
+`processMessage` **before** `handleUpdate` runs.
+
+`processMessage` runs those steps in this order, and the order is a
+contract rather than an accident:
+
+1. Build the `WireUpdate` over the received body at the session's receive
+   context.
+2. `enforceRFC7606`, which judges what the PEER sent and can rewrite the
+   payload or synthesize withdrawals.
+3. `collapseASPathFamily`, which reconciles the AS-path family to
+   four-octet truth once (RFC 6793 Sections 4.1 and 4.2.3) and relabels
+   the payload with a four-octet context. It runs AFTER step 2 so RFC
+   7606 never judges ze's own rewrite, and BEFORE every consumer that
+   reads an AS path: the ingress filters, the forward cache, the RIB and
+   both forward rails.
+4. `validateUpdateFamilies`, then `checkPrefixLimits`.
+5. `onMessageReceived`, which is handed the socket's own body beside the
+   reconciled `WireUpdate`, so an MRT archive and a pcap record the wire
+   rather than the reconciliation.
+
+A step 3 that cannot produce a canonical AS path DROPS the UPDATE and
+keeps the session: RFC 7606 has already found the attributes acceptable,
+so a NOTIFICATION would be ze's verdict rather than the RFC's, and a
+half-rewritten AS path must reach no consumer. The one remaining responsibility the RFC assigns to
 `EventUpdateMsg` is "restart the HoldTimer, if the negotiated HoldTime
 value is non-zero" — and that now happens inside the FSM handler for
 `EventUpdateMsg`, via the `*Timers` reference wired at
@@ -149,6 +172,7 @@ grants no reprieve to a CPU-congested daemon.
 | Message read loop | `internal/component/bgp/reactor/session_read.go` | `readAndProcessMessage`, `processMessage` |
 | Message type handlers | `internal/component/bgp/reactor/session_handlers.go` | `handleUpdate`, `handleKeepalive`, `handleNotification`, `handleRouteRefresh`, `handleUnknownType` |
 | RFC 7606 validation | `internal/component/bgp/reactor/session_read.go` | `processMessage` (calls `enforceRFC7606`) |
+| RFC 6793 AS-path reconciliation at ingest | `internal/component/bgp/reactor/session_read.go` | `collapseASPathFamily` (calls `wireu.CollapseAS4Family`) |
 | Prefix-limit enforcement (RFC 4486 / RFC 7607) | `internal/component/bgp/reactor/session_prefix.go` | `checkPrefixLimits` |
 | Hold/keepalive/send-hold timer callbacks | `internal/component/bgp/reactor/session.go` | `NewSession` |
 | State-change callback into peer run loop | `internal/component/bgp/reactor/peer_run.go` | `fsm.SetCallback` closure |

@@ -31,9 +31,10 @@ import (
 // are written into the wire bytes per draft-mangin-idr-attr-tombstone-00.
 //
 // The marker is stamped here, at receive time, into the shared received wire. The
-// Transitive bit derived here (Section 4.2) is what IBGP peers see. Section 5.3's
-// EBGP-boundary clear is applied per destination on the egress wire path
-// (wireu.rewriteASPathPrepend), where the destination session type is known.
+// Transitive bit derived here (Section 4.2) is what every peer sees. Section
+// 5.3's EBGP-boundary clear is NOT performed: Thomas removed that support on
+// 2026-09-09, along with wireu.rewriteASPathPrepend, the unreached path that had
+// been its only implementation (docs/architecture/wire/attributes.md).
 // Called from processMessage() BEFORE callback dispatch so that malformed
 // UPDATEs are never delivered to plugins as valid routes.
 func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, message.RFC7606Action, error) {

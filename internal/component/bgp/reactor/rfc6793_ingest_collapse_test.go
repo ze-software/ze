@@ -30,6 +30,8 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/reactor/filter"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -868,4 +870,53 @@ func TestReceiveCollapseLogsDiscardedMalformedAS4Path(t *testing.T) {
 	sink.Reset()
 	collapseReceive(t, s, makeUpdateBody(nil, collapseMixedWidthAttrs(), fwdTestNLRI))
 	assert.Empty(t, sink.String(), "a reconciliation that dropped nothing writes nothing")
+}
+
+// TestLoopIngressSeesReconstructedASPath is AC-13, and it is about what the
+// ingress filter can SEE rather than about what the collapse writes.
+//
+// LoopIngress (internal/component/bgp/reactor/filter/loop.go) scans the AS_PATH
+// for ze's own AS at the width its PeerFilterInfo carries, and it never reads
+// an AS4_PATH. So before the collapse, a route whose real path crosses ze's own
+// four-octet AS arrived carrying AS_TRANS in AS_PATH and the real number in
+// AS4_PATH, and the loop check compared 4200000123 against 23456 and saw no
+// loop. The route entered the RIB with ze's own AS hidden in a companion
+// attribute.
+//
+// The test drives the receive path and then asks the filter the same question
+// twice: once over the bytes the peer sent, once over the payload processMessage
+// dispatched. The first answer is the defect and the second is the fix, which is
+// why both halves are asserted rather than only the one that passes.
+//
+// VALIDATES: AC-13.
+// PREVENTS: a route looping through ze's own AS being accepted because the
+// evidence sat in an attribute the loop check does not read.
+func TestLoopIngressSeesReconstructedASPath(t *testing.T) {
+	settings := collapseSettings()
+	settings.LocalAS = collapseRealAS
+	settings.GlobalLocalAS = collapseRealAS
+
+	s, recvCtxID := collapseRecvSession(t, settings, false)
+	body := makeUpdateBody(nil, collapseMixedWidthAttrs(), fwdTestNLRI)
+
+	received := filterapi.PeerFilterInfo{LocalAS: collapseRealAS, ASN4: false}
+	accept, _ := filter.LoopIngress(received, body, nil)
+	assert.True(t, accept,
+		"the received bytes hide ze's own AS behind AS_TRANS, which is why the collapse is needed")
+
+	dispatched := collapseReceive(t, s, body)
+	require.NotNil(t, dispatched, "the receive path dispatched a payload")
+
+	src := filterapi.PeerFilterInfo{LocalAS: collapseRealAS}
+	if ctx := bgpctx.Registry.Get(dispatched.SourceCtxID()); ctx != nil {
+		src.ASN4 = ctx.ASN4()
+	}
+	assert.True(t, src.ASN4,
+		"the collapsed payload is labelled four-octet, which is the width the filter reads it at")
+	assert.NotEqual(t, recvCtxID, dispatched.SourceCtxID(),
+		"the relabel gave the collapsed payload a context of its own")
+
+	accept, _ = filter.LoopIngress(src, dispatched.Payload(), nil)
+	assert.False(t, accept,
+		"ze's own AS is in the reconstructed path, so the route is a loop and the filter says so")
 }
