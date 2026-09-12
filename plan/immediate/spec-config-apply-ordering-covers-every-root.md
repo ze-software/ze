@@ -730,6 +730,114 @@ Reproduction harness: a `go test -overlay` probe under
 which injects a test into `internal/component/config/transaction` without
 editing the tree.
 
+
+---
+
+Round 6, independent reader, 2026-09-12. Findings artifact:
+`tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/review-findings-cao-round6.md`.
+Verdict: **findings** -- 0 BLOCKER, 2 ISSUE, 1 NIT. The gate is NOT clean.
+
+Thomas authorised this round on 2026-09-12, over closing without one, because
+round 5's fix touches the disturbed-set computation phases 2 and 5 both depend
+on and should not be reviewed only by the agent that wrote it. Scope is commit
+`f12047b8b` and what it touched, plus the closing re-verifications: the five
+phases at their producers, the fail-safe direction at every point that decides a
+disturbance or a kind, round 5's own repairs to the record,
+`test/weakened/4c26aef3.md`, and the QEMU evidence. The probes are
+`go test -overlay` runs under `.../scratch/r6probe/` that edit no file in the
+tree.
+
+**The three claims `f12047b8b` makes all hold.** The gate's premise is true and
+complete: `bindDevices` returns nil for a config with no ethernet entry,
+`deviceFor` then reports every other name bound, and `infos` has no other
+consumer in the decomposer. The rejected alternative is unreachable as stated:
+`DisturbedAddresses` reads the set out of destroy operations alone, and
+`applyIfaceOperation` hands a destroy's interface straight to `RemoveAddress`, so
+declaring the disturbance without a guessed device name needs machinery that does
+not exist. The abort leaves nothing half-applied: `TxCoordinator.Execute`
+publishes the abort and answers `StateAborted` before `runOperationPath`, and the
+`pendingCfg` the verify phase left behind is reachable from no later apply,
+because `OnConfigOperationCommit` fires only for an owner of operations in that
+transaction.
+
+| # | Severity | File / symbol | Finding |
+|---|----------|---------------|---------|
+| R6-I-1 | ISSUE | `internal/component/iface/operation.go` `decomposeIfaceListing` | The gate is broader than the hazard and refuses a commit on a DESIGNED path. It keys on "the config carries an ethernet entry" rather than "the listing's absence can change this commit's answer". Where the ethernet entries are identical on both sides their addresses leave BOTH sides equally, so the difference between the sides is unchanged and the refused plan was the correct one. REPRODUCED (`.../scratch/r6probe/run-gate.log`): a commit moving one DUMMY address on a config carrying an unchanged `ethernet eth0` plans as `[interface-add-address-dum0-10.5.0.2_24, interface-remove-address-dum0-10.5.0.1_24, interface-configure]` with `disturbed=[10.5.0.1]` when the listing answers, and is REFUSED with `iface operation decompose listing: iface: backend not ready` when it does not. The counterfactual is measured, not reasoned (`run-cf.log`): with no listing the two sides read `active=map[dum0:10.5.0.1/24]` and `candidate=map[dum0:10.5.0.2/24]`, which is the same difference. `ErrBackendNotReady` is the designed VPP path, produced by `ifacevpp.ensureChannel` before the GoVPP handshake completes, which `applyAndPublish` logs at DEBUG because it "says nothing an operator must act on". So a VPP box refuses every config commit for the whole handshake window, and any transient netlink listing failure refuses every commit on a box with an ethernet entry, which is every production box. It fails CLOSED, so no binder is left holding an address that is gone: that is why this is not a BLOCKER. The narrower gate keeping all of the safety is the diff the decomposer already holds: take the listing when `req.Diff` names an `interface/ethernet/...` key, not when the config carries one |
+| R6-I-2 | ISSUE | `internal/component/config/transaction/orchestrator.go` `Execute`, the `o.operationPlanner` error branch | The abort this fix's safety claim rests on is driven by NO test. Six tests call `SetOperationPlanner` and not one returns a non-nil error, so nothing asserts that a planner error reaches `publishAbort`, answers `StateAborted`, and applies nothing. Five product guards depend on that one branch: `decomposeIfaceListing`, `ifaceDiffHasChanges`, `bgpDiffTouchesPeer`, the two marshal failures in `decomposeRoots`, and `checkDisturbanceSettled`. `TestIfaceOperationDecomposerRefusesAnEthernetMoveItCannotBind` drives the decomposer through `OperationDecomposerFor`, the planner's own lookup, so it proves the refusal; it cannot prove the refusal aborts anything. This is round 1's B-2 shape, and this spec's own Security Review Checklist states the standard: "drive its test from the planner entry point, never from the helper alone". The branch is correct today, read at the producer, which is why this is an ISSUE |
+| R6-N-1 | NIT | `internal/component/config/transaction/orchestrator.go` `publishAbort` | A planning abort is reported to the operator as a VERIFY abort: `publishAbort` emits `EventVerifyAbort` and raises `"config commit aborted during verify"` with `reportKeyPhase: "verify"`, and `Execute` calls it for the planner error too. `ze show errors` sends an operator reading a listing refusal to the phase that passed. Pre-existing and on unmodified lines; the new abort path is what makes it reachable often enough to name |
+
+**The fail-safe direction, at every point.** Seven points decide whether
+something is disturbed or what kind an operation has, and every unknown resolves
+to the stopping answer. `peerBindingDisturbed` treats a peer with no local
+address as disturbed the moment any address moves; `bgpPeerLocalAddress` turns
+`auto`, an absent value and a non-string alike into `""`, which that line reads
+as disturbed; `peerAddressConsumes` makes such a peer declare EVERY disturbed
+address, so its stop is ordered ahead of every removal. `DisturbedAddresses`
+SKIPS a destroy whose address normalizes to `""`, and that is sound rather than a
+hole, because `resourceIdentity` calls the same `normalizeAddress`, so
+`ValidateOperations` refuses exactly the operations the skip would have dropped
+and the transaction aborts. `providesAddressing` reads an operation declaring
+nothing as providing addressing, which is the page's own argument for a coarse
+node. `decomposeIfaceListing` aborts, which is the right direction and the wrong
+breadth (R6-I-1). The wildcard refinement holds with no carve-out in code, and
+its premise is verified: `CreateReactorFromTree` sets no global `ListenAddr` and
+the reactor opens the global listener only when one is set.
+
+**The five phases hold, and phase 2's ethernet hole is closed.** 1, 3, 4 and 5
+are unchanged since round 5 measured them. 2 is repaired: the control arm of
+`TestIfaceOperationDecomposerRefusesAnEthernetMoveItCannotBind` reads
+`DisturbedAddresses == ["10.0.0.9"]` for the eth0-to-eth1 move and both blind
+arms abort, green re-run here at 12 of 12 (`.../scratch/r6-iface.log`). The MTU
+carve-out holds: identical addresses on both sides emit no address operation, so
+the configure operation goes alone and the disturbed set is empty. Ze has no VRF,
+and the page states that as a constraint on the design rather than a claim about
+the code.
+
+**Round 5's repairs to the record hold, and every round is dispositioned.**
+`continue.md` drops both counts and gains the `1f9993071` row; its table is still
+one commit short, of `f12047b8b` itself, which is the recursion R5-N-1 named and
+which no count now claims to be complete. The R3-B-2 disposition row states
+`Target.Kind == "" && len(Produces) == 0`, which is what `providesAddressing`
+does. Rounds 1 to 5 carry a disposition row for every finding id.
+
+**`test/weakened/4c26aef3.md` is unchanged and owes nothing new.** `f12047b8b`
+weakens no test: it adds one and deletes a comment. The verification-debt shard
+gains this commit's row and bumps the two "+N more" counters. Every prose claim
+in the weakened shard re-checked, and the four named replacement tests all
+resolve.
+
+**The QEMU evidence still describes the code, and `f12047b8b` is a no-op for
+both walked files.** Measured rather than reasoned: neither
+`test/reload/config-apply-ordering-address-swap.ci` nor
+`test/reload/config-apply-ordering-mixed-root.ci` carries an `ethernet` stanza,
+both being `dummy` only, so `decomposeIfaceListing` takes its
+`len(active.Ethernet) == 0 && len(candidate.Ethernet) == 0` arm and hands
+`bindDevices` a nil listing, which is what `bindDevices` returned for them
+anyway. No operation, no edge and no rung moves, and neither recorded revert is
+touched. Both files skip on this darwin host and were not re-walked. Lint over
+this package's scope reports six findings, one gofmt and five misspell, in five
+files this commit does not carry (`.../scratch/r6-lint.log`).
+
+**Round 6 disposition, 2026-09-12.** The evidence paths below are under
+`tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/`.
+
+| # | Disposition |
+|---|-------------|
+| R6-I-1 | FIXED by NARROWING the gate. `decomposeIfaceListing` (`internal/component/iface/operation.go`) now takes the listing only where `listingDecidesTheAnswer` reads a diff key it binds a name for, so the designed `ErrBackendNotReady` window costs a commit whose ethernet entries are identical on both sides nothing. The refusal itself is unchanged in direction and in message. The reviewer's suggested predicate is right about the key SHAPE and short in two places, both read at the producer: `diffMapsRecursive` (`internal/component/config/diff.go`) records the key where the two sides diverge, so a whole container added or removed is ONE key with its entries in the value, which a prefix match on `interface/ethernet/` never sees; and `bindDevices` keys its map by the LOGICAL name while `deviceFor` consults it for every kind through `addIfaceAddrs`, so an entry of another kind sharing an ethernet entry's name is unbound with it. The gate asks for the listing on all three. `ifaceDiffHasChanges` became `ifaceDiffKeys`, which answers the keys rather than a bool, so one parse serves both questions. Fenced by `TestIfaceOperationDecomposerPlansWhatTheListingCannotChange` (`internal/component/iface/operation_test.go`), which takes the decomposer from the registry and asserts the blind plan EQUALS the plan with a listing for the reviewer's own dummy move, then refuses the shared-name and whole-container arms. RED `r6i1-red.log` (`iface operation decompose listing: no backend to bind an ethernet selector against`); GREEN `r6i1-green-pkg.log`, the whole package. `TestIfaceOperationDecomposerRefusesAnEthernetMoveItCannotBind` still refuses, in the same run |
+| R6-I-2 | FIXED. `TestExecuteAbortsWhenThePlannerRefuses` (`internal/component/config/transaction/orchestrator_test.go`) drives `TxCoordinator.Execute` with a planner that answers an error, and asserts `StateAborted`, the planner's own error returned, one abort event, and no section apply, no operation apply and no committed event for either participant. Both acks are wired, so a run that ignored the error would commit rather than hang. The five guards reach that branch, each read at its producer: `decomposeIfaceListing` and `ifaceDiffKeys` return through `decomposeIfaceOperations`, `bgpDiffTouchesPeer` through `decomposeBGPOperations`, and both are the registered decomposer `decomposeRoot` calls; the two `marshalOperationRoot` failures return from `decomposeRoots` directly; `checkDisturbanceSettled` returns from `operationPlannerFromTrees` itself. All five land on `o.operationPlanner(...)`'s error in `Execute`. Discrimination: the branch is correct at HEAD, so it was BROKEN on purpose (`ops, _ := o.operationPlanner(...)`, mutation confirmed applied by grep), and the test went RED (`r6i2-mutation-red.log`, the transaction never aborts and the wait times out). Restored from a pristine copy saved before the cut, and GREEN again (`r6i2-restored-green.log`) |
+| R6-N-1 | FIXED. `publishAbort` takes the phase and raises `"config commit aborted during <phase>"` with `reportKeyPhase` set to it, in the vocabulary `abortForShutdown` already used for the same steps: `verify`, `operation planning` for the planner error, `ValidateOperations` and the root-coverage check, `operation ordering` for the graph build and the sort, and `operation verify`. The stream event stays `EventVerifyAbort`, which is what a plugin subscribes to for "this transaction ended before apply". RED `r6i2-red.log` (`detail.phase = verify` on a planning refusal); GREEN `r6i2-green-pkg.log` |
+
+**What the narrowed gate still lets through, and its direction.** Two entries can
+resolve to one DEVICE without sharing a NAME: an `ethernet uplink` with
+`os-name eth3` beside a `dummy eth3`. A diff naming only the dummy takes no
+listing, so the ethernet entry's addresses leave both sides. `desiredState`
+UNIONS both entries into `addrs["eth3"]`, and a removal is `active \ candidate`,
+so dropping the same set from both sides can only ADD removals, never drop one.
+The blind plan is a superset: more disturbance, which is the cheap error in the
+page's own table, and the configure operation re-applies the entry's own
+addresses behind every destroy. Naming the device needs the listing, so no gate
+that runs without one can do better.
+
 ## Phase 5 (2026-09-11): the ordering policy becomes the owner's
 
 The contract for this phase is `docs/architecture/config/apply-ordering.md`,

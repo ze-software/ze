@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config"
 	tx "github.com/ze-software/ze/internal/component/config/transaction"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -160,11 +161,11 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 	if req.Root != configRootInterface {
 		return nil, nil
 	}
-	changed, err := ifaceDiffHasChanges(req.Diff)
+	keys, err := ifaceDiffKeys(req.Diff)
 	if err != nil {
 		return nil, fmt.Errorf("iface operation decompose diff: %w", err)
 	}
-	if !changed {
+	if len(keys) == 0 {
 		return nil, nil
 	}
 	active, err := parseIfaceSections([]sdk.ConfigSection{{Root: configRootInterface, Data: req.ActiveRoot}})
@@ -185,7 +186,7 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 	//
 	// A listing this decomposer cannot take ABORTS the transaction, and
 	// decomposeIfaceListing is where that happens.
-	infos, err := decomposeIfaceListing(active, candidate)
+	infos, err := decomposeIfaceListing(keys, active, candidate)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +261,8 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 }
 
 // decomposeIfaceListing takes the one interface listing that resolves both
-// sides' hardware selectors, and refuses to decompose the root without it.
+// sides' hardware selectors, and refuses to decompose the root without it
+// where the listing decides what this commit answers.
 //
 // Only an ethernet entry carries a selector. A config with none reads no
 // listing and needs none, because every other name is its own kernel device
@@ -283,8 +285,18 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 // guessed, and the executor hands that name straight to the backend. What is
 // left is to apply nothing. The error aborts the transaction before the
 // executor runs, so the running config is what it was.
-func decomposeIfaceListing(active, candidate *ifaceConfig) ([]InterfaceInfo, error) {
-	if len(active.Ethernet) == 0 && len(candidate.Ethernet) == 0 {
+//
+// listingDecidesTheAnswer is what keeps that refusal to the commits it
+// protects. A backend that cannot list is a state Ze designs for: ifacevpp
+// answers ErrBackendNotReady until the GoVPP handshake completes (backend.go),
+// and refusing every commit for that window is a cost the hazard does not
+// carry.
+func decomposeIfaceListing(keys []string, active, candidate *ifaceConfig) ([]InterfaceInfo, error) {
+	boundNames := ethernetNames(active.Ethernet, candidate.Ethernet)
+	if len(boundNames) == 0 {
+		return nil, nil
+	}
+	if !listingDecidesTheAnswer(keys, boundNames) {
 		return nil, nil
 	}
 	b := GetBackend()
@@ -296,6 +308,64 @@ func decomposeIfaceListing(active, candidate *ifaceConfig) ([]InterfaceInfo, err
 		return nil, fmt.Errorf("iface operation decompose listing: %w", err)
 	}
 	return infos, nil
+}
+
+// ethernetNames returns every logical name an ethernet entry carries, on
+// either side. Ethernet is the only kind bindDevices maps, so this is the set
+// of names the listing decides an address for.
+func ethernetNames(active, candidate []ifaceEntry) map[string]bool {
+	names := make(map[string]bool, len(active)+len(candidate))
+	for i := range active {
+		names[active[i].Name] = true
+	}
+	for i := range candidate {
+		names[candidate[i].Name] = true
+	}
+	return names
+}
+
+// listingDecidesTheAnswer reports whether the listing can change the
+// operations this commit produces, given the keys the diff names and the names
+// the listing binds.
+//
+// Without a listing every ethernet entry is unbound and desiredState drops its
+// addresses. The drop is SYMMETRIC: an entry identical on both sides loses the
+// same addresses from both, and the difference between the sides, which is
+// what the operations are derived from, is what it was. So the listing decides
+// the answer only where it binds a name this commit changes.
+//
+// A diff key names the root, then the kind, then the entry:
+// "interface/ethernet/eth0/unit/default/ipv4/address/0" (DiffMaps in
+// internal/component/config/diff.go joins the whole path). Three arms answer
+// it from the key alone:
+//
+//   - the key names the ethernet kind, whatever it says below it;
+//   - the key's entry name is an ethernet entry's name. bindDevices is keyed by
+//     the LOGICAL name and deviceFor reads that map for every kind, so an entry
+//     of another kind sharing an ethernet entry's name is unbound with it;
+//   - the key is too short to name an entry, or is not under this root. The
+//     entry names then sit in the VALUE, which this function does not read, so
+//     it answers that the listing is needed.
+//
+// The diff is what says whether this root changed at all (the caller's first
+// guard), so reading it for which name changed adds no trust it did not have.
+func listingDecidesTheAnswer(keys []string, boundNames map[string]bool) bool {
+	for _, key := range keys {
+		segments := strings.Split(key, config.PathSep)
+		if len(segments) < 3 {
+			return true
+		}
+		if segments[0] != configRootInterface {
+			return true
+		}
+		if segments[1] == zeTypeEthernet {
+			return true
+		}
+		if boundNames[segments[2]] {
+			return true
+		}
+	}
+	return false
 }
 
 // ifaceConfigureOperation is the operation that applies the interface
@@ -380,9 +450,10 @@ func ifaceInterfaceOperation(opType tx.ConfigOperationType, ifaceName, ifaceType
 	}
 }
 
-// ifaceDiffHasChanges reports whether this diff names any key at all, and
-// answers the parse error rather than a verdict when a section will not
-// unmarshal.
+// ifaceDiffKeys returns every config key this diff names, on any side, and
+// answers the parse error rather than a key list when a section will not
+// unmarshal. An empty answer is a root with no diff, and the keys decide which
+// names this commit changes (listingDecidesTheAnswer).
 //
 // A root asked with no diff is the binder case: the planner asks every root
 // that decomposes a second time once an address is disturbed, and this one is
@@ -402,21 +473,21 @@ func ifaceInterfaceOperation(opType tx.ConfigOperationType, ifaceName, ifaceType
 // emit one (buildDiffSections, internal/component/plugin/server/reload_tx.go),
 // so this aborts the transaction rather than guessing on behalf of a plugin
 // that sent something else.
-func ifaceDiffHasChanges(diff tx.DiffSection) (bool, error) {
-	seen := false
+func ifaceDiffKeys(diff tx.DiffSection) ([]string, error) {
+	var keys []string
 	for _, raw := range []string{diff.Added, diff.Removed, diff.Changed} {
 		if raw == "" {
 			continue
 		}
 		var entries map[string]any
 		if err := json.Unmarshal([]byte(raw), &entries); err != nil {
-			return false, err
+			return nil, err
 		}
-		if len(entries) > 0 {
-			seen = true
+		for key := range entries {
+			keys = append(keys, key)
 		}
 	}
-	return seen, nil
+	return keys, nil
 }
 
 func sortedManagedNames(managed map[string]bool) []string {

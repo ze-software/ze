@@ -35,7 +35,7 @@ var tierFn = registry.TopologicalTiers
 // The bus is the operator-visible feed behind `ze show errors`.
 const (
 	reportSourceConfig       = "config"
-	reportCodeCommitAborted  = "commit-aborted"     // verify phase failed
+	reportCodeCommitAborted  = "commit-aborted"     // a phase before apply failed; publishAbort names which
 	reportCodeCommitRollback = "commit-rollback"    // apply phase failed, rollback initiated
 	reportCodeCommitSaveFail = "commit-save-failed" // apply succeeded but config file write failed
 
@@ -236,7 +236,7 @@ func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSect
 		if canceledByShutdown(ctx) {
 			return o.abortForShutdown("verify", err)
 		}
-		o.publishAbort(err.Error())
+		o.publishAbort("verify", err.Error())
 		return &TxResult{State: StateAborted, Err: err}
 	}
 
@@ -253,7 +253,7 @@ func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSect
 			if canceledByShutdown(ctx) {
 				return o.abortForShutdown("operation planning", err)
 			}
-			o.publishAbort(err.Error())
+			o.publishAbort("operation planning", err.Error())
 			return &TxResult{State: StateAborted, Err: err}
 		}
 		// The verb and the declared resources are what the graph orders by,
@@ -261,14 +261,14 @@ func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSect
 		// transaction here, before anything is applied, rather than being
 		// ordered as if it depended on nothing.
 		if err := ValidateOperations(ops); err != nil {
-			o.publishAbort(err.Error())
+			o.publishAbort("operation planning", err.Error())
 			return &TxResult{State: StateAborted, Err: err}
 		}
 		// A participant that decomposed one of its roots and not another is
 		// covered as far as the synthesis below can see, and the root it left
 		// would reach nothing while this transaction committed.
 		if err := o.checkOperationRootCoverage(ops, diffs); err != nil {
-			o.publishAbort(err.Error())
+			o.publishAbort("operation planning", err.Error())
 			return &TxResult{State: StateAborted, Err: err}
 		}
 		return o.runOperationPath(ctx, o.operationNodes(ops, diffs), diffs)
@@ -563,12 +563,12 @@ func (o *TxCoordinator) sectionDiffsFor(diffs map[string][]DiffSection) SectionD
 func (o *TxCoordinator) runOperationPath(ctx context.Context, ops []ConfigOperation, diffs map[string][]DiffSection) *TxResult {
 	graph, err := BuildOperationGraph(ops, ConstraintRules())
 	if err != nil {
-		o.publishAbort(err.Error())
+		o.publishAbort("operation ordering", err.Error())
 		return &TxResult{State: StateAborted, Err: err}
 	}
 	sorted, err := TopologicalSort(graph)
 	if err != nil {
-		o.publishAbort(err.Error())
+		o.publishAbort("operation ordering", err.Error())
 		return &TxResult{State: StateAborted, Err: err}
 	}
 	executor := NewOperationExecutor(o.gateway, o.txID)
@@ -582,7 +582,7 @@ func (o *TxCoordinator) runOperationPath(ctx context.Context, ops []ConfigOperat
 		if canceledByShutdown(ctx) {
 			return o.abortForShutdown("operation verify", err)
 		}
-		o.publishAbort(err.Error())
+		o.publishAbort("operation verify", err.Error())
 		return &TxResult{State: StateAborted, Err: err}
 	}
 	if err := executor.Execute(ctx, sorted); err != nil {
@@ -755,7 +755,15 @@ func (o *TxCoordinator) activeParticipantCount(diffs map[string][]DiffSection) i
 	return count
 }
 
-func (o *TxCoordinator) publishAbort(reason string) {
+// publishAbort ends the transaction with nothing applied and tells the
+// operator which phase refused. Every caller names its own phase, in the words
+// abortForShutdown uses for the same steps: an abort raised under the phase
+// that passed sends an operator reading `ze show errors` to the wrong place.
+//
+// The stream event stays EventVerifyAbort for every phase. It is the event
+// name a plugin subscribes to for "this transaction ended before apply", which
+// is what every caller here means, and the phase is carried by the report.
+func (o *TxCoordinator) publishAbort(phase, reason string) {
 	ev := AbortEvent{TransactionID: o.txID, Reason: reason}
 	payload, err := json.Marshal(ev)
 	if err != nil {
@@ -772,8 +780,8 @@ func (o *TxCoordinator) publishAbort(reason string) {
 		reportSourceConfig,
 		reportCodeCommitAborted,
 		o.txID,
-		"config commit aborted during verify: "+reason,
-		map[string]any{"reason": reason, reportKeyPhase: "verify"},
+		"config commit aborted during "+phase+": "+reason,
+		map[string]any{"reason": reason, reportKeyPhase: phase},
 	)
 }
 

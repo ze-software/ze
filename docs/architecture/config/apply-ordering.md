@@ -296,6 +296,24 @@ with no device would name a device Ze guessed. A config with no ethernet entry
 reads no listing and is unaffected.
 <!-- source: internal/component/iface/operation.go -- decomposeIfaceListing -->
 
+**The refusal covers the commits the listing decides, and no others.** The loss
+of an unbound entry's addresses is SYMMETRIC: an entry identical on both sides
+loses the same addresses from both, so the difference the operations are derived
+from is unchanged, and the plan the refusal would have blocked is the correct
+one. `listingDecidesTheAnswer` reads the keys the diff names and asks for the
+listing on three of them: a key naming the ethernet kind, a key whose entry name
+an ethernet entry also carries (the device map is keyed by the LOGICAL name, so
+an entry of another kind that shares one is unbound with it), and a key too
+short to name an entry, whose names sit in a value this gate does not read.
+
+The breadth matters because a backend that cannot list is a designed state, not
+a fault. `ifacevpp` answers `ErrBackendNotReady` until the GoVPP handshake
+completes. A gate keyed on "the config carries an ethernet entry" refused every
+commit for that whole window, on every box that configures an ethernet
+interface.
+<!-- source: internal/component/iface/operation.go -- listingDecidesTheAnswer -->
+<!-- source: internal/component/iface/backend.go -- ErrBackendNotReady -->
+
 The kernel-driven path is still there and is not a substitute.
 `handleAddrRemovedPayload` stops the LISTENER bound to a removed address and
 `handleAddrAddedPayload` starts it again. Neither stops a peer, and neither is

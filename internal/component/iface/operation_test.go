@@ -572,3 +572,113 @@ func TestIfaceOperationDecomposerRefusesAnEthernetMoveItCannotBind(t *testing.T)
 		})
 	}
 }
+
+// TestIfaceOperationDecomposerPlansWhatTheListingCannotChange runs the commits
+// whose answer does not depend on the listing, on a config that carries an
+// ethernet entry, against a backend that cannot list.
+//
+// The refusal above exists because an unbound ethernet entry loses its
+// addresses from the comparison. The loss is SYMMETRIC: an entry that is
+// identical on both sides loses the same addresses from both, so the
+// difference the operations are derived from is what it was. Refusing there
+// buys nothing and costs every commit made while a backend is still handshaking
+// (ErrBackendNotReady, backend.go), which is a designed state and not a fault.
+//
+// The other two arms are what the listing still decides on a commit that names
+// no ethernet key. bindDevices is keyed by the LOGICAL name and deviceFor reads
+// that map for every kind, so a dummy sharing an ethernet entry's name is
+// unbound with it. And a key that names a whole container carries its entry
+// names in the VALUE, which the gate does not read.
+//
+// VALIDATES: phase 2. The listing is taken when it can change this commit's
+// answer, and the commit is refused only then.
+// PREVENTS: a config commit refused for the whole GoVPP handshake window, on
+// every box that configures an ethernet interface.
+func TestIfaceOperationDecomposerPlansWhatTheListingCannotChange(t *testing.T) {
+	const ethernet = `"ethernet":{"eth0":{"unit":{"default":{"ipv4":{"address":"10.0.0.9/24"}}}}}`
+	dummyMove := tx.DecomposeRequest{
+		TransactionID: "tx-iface-dummy-move",
+		Root:          configRootInterface,
+		ActiveRoot:    `{"interface":{"backend":"test",` + ethernet + `,"dummy":{"dum0":{"unit":{"default":{"ipv4":{"address":"10.5.0.1/24"}}}}}}}`,
+		CandidateRoot: `{"interface":{"backend":"test",` + ethernet + `,"dummy":{"dum0":{"unit":{"default":{"ipv4":{"address":"10.5.0.2/24"}}}}}}}`,
+		Diff: tx.DiffSection{
+			Root:    configRootInterface,
+			Added:   `{"interface/dummy/dum0/unit/default/ipv4/address/0":"10.5.0.2/24"}`,
+			Removed: `{"interface/dummy/dum0/unit/default/ipv4/address/0":"10.5.0.1/24"}`,
+		},
+	}
+
+	decompose, registered := tx.OperationDecomposerFor(configRootInterface)
+	require.True(t, registered, "the planner takes this root's decomposer from the registry")
+
+	listing := &fakeBackend{}
+	listing.ensureMaps()
+	listing.ifaces["eth0"] = fakeIface{name: "eth0", linkType: "device"}
+	listing.ifaces["dum0"] = fakeIface{name: "dum0", linkType: "dummy"}
+	installBackend(t, listing)
+
+	control, err := decompose(context.Background(), dummyMove)
+	require.NoError(t, err)
+	require.Equal(t, []string{"10.5.0.1"}, tx.DisturbedAddresses(control),
+		"the dummy address leaves the host, so the core stops every binder of it")
+
+	installBackend(t, nil)
+	blind, err := decompose(context.Background(), dummyMove)
+	require.NoError(t, err,
+		"the ethernet entry is identical on both sides, so no operation of this commit depends on the listing")
+	assert.Equal(t, operationIDs(control), operationIDs(blind),
+		"the plan without a listing is the plan with one")
+	assert.Equal(t, []string{"10.5.0.1"}, tx.DisturbedAddresses(blind))
+
+	refused := []struct {
+		name    string
+		request tx.DecomposeRequest
+	}{
+		{
+			name: "a dummy sharing an ethernet entry's name is bound by the same listing",
+			request: tx.DecomposeRequest{
+				TransactionID: "tx-iface-shared-name",
+				Root:          configRootInterface,
+				ActiveRoot:    `{"interface":{"backend":"test",` + ethernet + `,"dummy":{"eth0":{"unit":{"default":{"ipv4":{"address":"10.5.0.1/24"}}}}}}}`,
+				CandidateRoot: `{"interface":{"backend":"test",` + ethernet + `,"dummy":{"eth0":{"unit":{"default":{"ipv4":{"address":"10.5.0.2/24"}}}}}}}`,
+				Diff: tx.DiffSection{
+					Root:    configRootInterface,
+					Added:   `{"interface/dummy/eth0/unit/default/ipv4/address/0":"10.5.0.2/24"}`,
+					Removed: `{"interface/dummy/eth0/unit/default/ipv4/address/0":"10.5.0.1/24"}`,
+				},
+			},
+		},
+		{
+			name: "a whole container names its entries in the value",
+			request: tx.DecomposeRequest{
+				TransactionID: "tx-iface-whole-container",
+				Root:          configRootInterface,
+				ActiveRoot:    `{"interface":{"backend":"test",` + ethernet + `}}`,
+				CandidateRoot: `{"interface":{"backend":"test",` + ethernet + `,"dummy":{"dum0":{"unit":{"default":{"ipv4":{"address":"10.5.0.2/24"}}}}}}}`,
+				Diff: tx.DiffSection{
+					Root:  configRootInterface,
+					Added: `{"interface/dummy":{"dum0":{}}}`,
+				},
+			},
+		},
+	}
+	for _, tc := range refused {
+		t.Run(tc.name, func(t *testing.T) {
+			installBackend(t, nil)
+			ops, err := decompose(context.Background(), tc.request)
+			require.Error(t, err,
+				"the listing decides a name this commit changes, so the commit is refused rather than answered")
+			assert.Nil(t, ops)
+		})
+	}
+}
+
+// operationIDs names the operations in order, which is what a plan comparison
+// reads: the ID carries the verb, the device and the address.
+func operationIDs(ops []tx.ConfigOperation) []string {
+	ids := make([]string, 0, len(ops))
+	for i := range ops {
+		ids = append(ids, ops[i].ID)
+	}
+	return ids
+}

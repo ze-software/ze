@@ -2042,3 +2042,99 @@ func TestExecuteRefusesAParticipantCoveredForOneRootAndNotAnother(t *testing.T) 
 		t.Errorf("the refused transaction applied %d operations, want 0", len(applies))
 	}
 }
+
+// TestExecuteAbortsWhenThePlannerRefuses drives the branch every decomposer's
+// refusal arrives on. A planner that answers an error ends the transaction
+// before the executor runs: nothing is applied, no participant is committed,
+// and the operator is told which phase refused.
+//
+// Five product guards answer with that error and reach the operator through
+// this one branch: decomposeIfaceListing and ifaceDiffKeys
+// (internal/component/iface/operation.go), bgpDiffTouchesPeer
+// (internal/component/bgp/plugin/operation.go), the two marshal failures in
+// decomposeRoots and checkDisturbanceSettled
+// (internal/component/plugin/server/reload_tx.go). Each is proven at its own
+// entry point to REFUSE. None of them proved the refusal stops the commit.
+//
+// The phase is half the answer. The abort is published as a VERIFY abort for
+// every caller, so `ze show errors` sent an operator reading a planning
+// refusal to the phase that passed.
+//
+// VALIDATES: phase 2. A refusal to plan aborts before anything is applied, and
+// names the planning phase.
+// PREVENTS: a decomposer's refusal reaching the executor, and an operator sent
+// to the wrong phase by the report that tells them about it.
+func TestExecuteAbortsWhenThePlannerRefuses(t *testing.T) {
+	gw := newTestGateway()
+	participants := []testParticipant{
+		{name: "iface", configRoots: []string{"interface"}},
+		{name: "bgp", configRoots: []string{"bgp"}},
+	}
+	orch := newTestOrchestrator(t, gw, participants)
+	refusal := errors.New("iface operation decompose listing: iface: backend not ready")
+	orch.SetOperationPlanner(func(_ context.Context, _ OperationPlanRequest) ([]ConfigOperation, error) {
+		return nil, refusal
+	})
+	// Both paths out of the planner are acked, so a run that ignored the error
+	// would reach its end and commit. The failure this test fences is that
+	// commit, not a hang on an unanswered event.
+	var operationEvents []string
+	var sectionApplies []string
+	autoAckOperations(gw, "bgp", &operationEvents)
+	autoAckSectionApply(gw, "iface", &sectionApplies)
+
+	diffs := map[string][]DiffSection{
+		"bgp":       {{Root: "bgp", Added: `{"bgp/peer/peer1":{}}`}},
+		"interface": {{Root: "interface", Changed: `{"interface/ethernet/eth0/unit/default/ipv4/address/0":{"old":"10.0.0.9/24","new":"10.0.0.10/24"}}`}},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	resultCh := make(chan *TxResult, 1)
+	go func() { resultCh <- orch.Execute(ctx, diffs) }()
+
+	for i := range participants {
+		waitForEmit(t, gw, EventVerifyFor(participants[i].name))
+		participants[i].respondVerify(gw, orch.TransactionID())
+	}
+
+	var result *TxResult
+	select {
+	case result = <-resultCh:
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for the transaction to abort")
+	}
+
+	if result.State != StateAborted {
+		t.Fatalf("state = %s (err %v), want %s", result.State, result.Err, StateAborted)
+	}
+	if !errors.Is(result.Err, refusal) {
+		t.Fatalf("err = %v, want the planner's own error %v", result.Err, refusal)
+	}
+	for _, event := range []string{
+		EventApplyFor("iface"), EventApplyFor("bgp"),
+		EventOperationApplyFor("iface"), EventOperationApplyFor("bgp"),
+		EventCommitted,
+	} {
+		if emitted := gw.findEmitted(event); len(emitted) != 0 {
+			t.Errorf("the refused transaction emitted %d %s, want 0", len(emitted), event)
+		}
+	}
+	if aborts := gw.findEmitted(EventVerifyAbort); len(aborts) != 1 {
+		t.Errorf("the refused transaction emitted %d abort events, want 1", len(aborts))
+	}
+
+	issue := findReportError(reportCodeCommitAborted, orch.TransactionID())
+	if issue == nil {
+		t.Fatalf("report bus missing commit-aborted entry for tx %s; have %d errors", orch.TransactionID(), len(report.Errors(0)))
+	}
+	if issue.Detail[reportKeyPhase] != "operation planning" {
+		t.Errorf("detail.phase = %v, want %q: the phase that refused, not the one that passed", issue.Detail[reportKeyPhase], "operation planning")
+	}
+	if !strings.Contains(issue.Message, "operation planning") {
+		t.Errorf("the operator message names the wrong phase: %s", issue.Message)
+	}
+	if !strings.Contains(issue.Message, refusal.Error()) {
+		t.Errorf("the operator message drops the reason: %s", issue.Message)
+	}
+}
