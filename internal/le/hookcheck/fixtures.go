@@ -75,11 +75,24 @@ var (
 	// timeout in .claude/settings.json. None of that adds a refusal this
 	// population describes; TestSessionStartLeavesAPresentArtifactAlone
 	// (internal/le/hookruntime/lifecycle_test.go) holds the bound.
+	//
+	// Moved a fourth time, over the four commits of the derived-indexes spec
+	// that landed after the third move: bd11ff12af, 8ae7424594, 6126dad349 and
+	// 940fb364fb. Three producer changes and one comment. A read now asks
+	// whether the artifact is WHOLE rather than whether it is PRESENT, which is
+	// a question a stat cannot settle for a directory (artifactWhole, bash.go).
+	// Session start builds only an artifact whose registration says so, because
+	// the renders are not the same size and the hook's budget is fixed
+	// (derived.SessionStartPolicy, lifecycle.go). An invalidation removes a
+	// directory artifact whole, because os.Remove refuses a directory that holds
+	// anything and such an artifact would otherwise sit there stale
+	// (removeArtifact, postwrite.go). None of the three adds a refusal this
+	// population describes, so no fixture is owed.
 	hookSourcesDigest = [sha256.Size]byte{
-		0x83, 0x52, 0xe2, 0x63, 0x9c, 0x28, 0x51, 0x4a,
-		0x53, 0x0c, 0x5f, 0xf2, 0xef, 0x07, 0x2b, 0x1e,
-		0x09, 0xb9, 0x7f, 0x84, 0x9d, 0xe6, 0x64, 0xf4,
-		0x89, 0x60, 0x9b, 0x67, 0x39, 0xb7, 0xfb, 0x89,
+		0x76, 0x0b, 0x5f, 0xe6, 0x5f, 0xe6, 0xef, 0x54,
+		0x62, 0x63, 0x26, 0x9e, 0x93, 0xbb, 0x11, 0x3b,
+		0x9c, 0xf4, 0x2a, 0x2f, 0xa8, 0x4b, 0xf2, 0xda,
+		0xf8, 0x3f, 0xeb, 0x8f, 0xc4, 0x7c, 0x25, 0x14,
 	}
 )
 
