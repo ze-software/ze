@@ -361,6 +361,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `fib-p4` | FIB route installation via P4 backend |
 | `fib-vpp` | FIB route installation via VPP binary API |
 | `firewall` | Firewall management via nftables |
+| `firewall-domain` | nftables address sets filled from DNS names, re-resolved on each answer TTL |
 | `flowspec-firewall` | Translate BGP FlowSpec routes into nftables firewall rules |
 | `traffic` | Traffic control (TC qdisc/class) via netlink or VPP backend |
 | `cos` | 802.1p class-of-service profile definitions |
