@@ -37,7 +37,7 @@ func TestOSPFNeighborRequestReachesTheSharedKey(t *testing.T) {
 		"eth0",
 		enabledBFD(),
 	)
-	if got := req.Canonical(nil).Key(); got != want {
+	if got := req.Canonical(api.Topology{}).Key(); got != want {
 		t.Fatalf("ospf key = %+v, want %+v (BGP derives this key for the same neighbor)", got, want)
 	}
 }

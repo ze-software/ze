@@ -57,18 +57,18 @@ func seedBestPathFixture(t *testing.T, r *RIBManager) {
 	attrHigh := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref200)
 
 	peerA := storage.NewPeerRIB("192.0.2.1")
-	peerA.Insert(fam, attrLow, shared, true)
+	peerA.Insert(fam, attrLow, shared)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerA
 
 	peerB := storage.NewPeerRIB("192.0.2.2")
-	peerB.Insert(fam, attrHigh, shared, true)
+	peerB.Insert(fam, attrHigh, shared)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.2")] = peerB
 
 	// 172.16.0.0/24 on peer A alone, carrying a community the other prefix
 	// does not, so the two rows differ in their attribute key set.
 	only := []byte{24, 172, 16, 0}
 	attrCommunity := concatBytes(attrLow, testWireCommunity65000100)
-	peerA.Insert(fam, attrCommunity, only, true)
+	peerA.Insert(fam, attrCommunity, only)
 }
 
 // testWireCommunity65000100 carries COMMUNITIES = 65000:100.
@@ -126,7 +126,7 @@ func seedBestPathRows(t testing.TB, r *RIBManager, rows int) *storage.PeerRIB {
 	for i := range rows {
 		nlri := []byte{32, 10, byte(i >> 16), byte(i >> 8), byte(i)}
 		attrs := concatBytes(testWireOriginIGP, wireASPath(base+uint32(i)), testWireNextHop, testWireLocalPref100)
-		peerRIB.Insert(fam, attrs, nlri, true)
+		peerRIB.Insert(fam, attrs, nlri)
 	}
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 	return peerRIB
@@ -264,7 +264,7 @@ func TestBestPipelineHandleSafeOutsideLock(t *testing.T) {
 	nlri := []byte{24, 10, 0, 0}
 	attrs := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrs, nlri, true)
+	peerRIB.Insert(fam, attrs, nlri)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	r.peerMu.RLock()
@@ -451,7 +451,7 @@ func TestBestPipelineWalkSurvivesConcurrentUpdates(t *testing.T) {
 			for i := range rows {
 				nlri := []byte{32, 10, byte(i >> 16), byte(i >> 8), byte(i)}
 				peerRIB.Remove(fam, nlri)
-				peerRIB.Insert(fam, attrs, nlri, true)
+				peerRIB.Insert(fam, attrs, nlri)
 			}
 		}
 	})

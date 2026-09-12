@@ -51,7 +51,7 @@ func seedShowWalkRIB(t testing.TB, peerRIB *storage.PeerRIB) [][]byte {
 	nlris := make([][]byte, showWalkRows)
 	for i := range showWalkRows {
 		nlri := []byte{32, 10, byte(i >> 16), byte(i >> 8), byte(i)}
-		peerRIB.Insert(fam, attrs, nlri, true)
+		peerRIB.Insert(fam, attrs, nlri)
 		nlris[i] = nlri
 	}
 	return nlris
@@ -82,7 +82,7 @@ func walkBesideRIBWriter(t *testing.T, peerRIB *storage.PeerRIB, nlris [][]byte,
 			}
 			for _, nlri := range nlris {
 				peerRIB.Remove(fam, nlri)
-				peerRIB.Insert(fam, attrs, nlri, true)
+				peerRIB.Insert(fam, attrs, nlri)
 			}
 		}
 	})

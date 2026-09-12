@@ -217,7 +217,7 @@ func TestInboundShowWithAttributes(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("*", []string{"received"})), "adj-rib-in", "192.0.2.1")
@@ -252,7 +252,7 @@ func TestInboundShowMinimalAttributes(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("192.0.2.1", []string{"received"})), "adj-rib-in", "192.0.2.1")
@@ -330,8 +330,8 @@ func TestRibStatusEmitsPerPeerRouteCounts(t *testing.T) {
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	// Peer .1: two received routes (Adj-RIB-In) and three advertised (Adj-RIB-Out).
 	in1 := storage.NewPeerRIB("192.0.2.1")
-	in1.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 0, 0}, true)
-	in1.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 0, 1}, true)
+	in1.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 0, 0})
+	in1.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 0, 1})
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = in1
 	r.ribOut[netip.MustParseAddr("192.0.2.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
@@ -342,7 +342,7 @@ func TestRibStatusEmitsPerPeerRouteCounts(t *testing.T) {
 	})
 	// Peer .2: one received route, nothing advertised.
 	in2 := storage.NewPeerRIB("192.0.2.2")
-	in2.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 1, 0}, true)
+	in2.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 1, 0})
 	r.bgpPeers[netip.MustParseAddr("192.0.2.2")] = in2
 
 	status, ok := r.status("").(map[string]any)
@@ -376,9 +376,9 @@ func TestRibStatusFamilyScopedRouteCounts(t *testing.T) {
 
 	// Peer with two received routes in IPv4 and one in IPv6 (Adj-RIB-In).
 	in := storage.NewPeerRIB("192.0.2.1")
-	in.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 0, 0}, true)
-	in.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 0, 1}, true)
-	in.Insert(family.IPv6Unicast, attrBytes, []byte{32, 0x20, 0x01, 0x0d, 0xb8}, true)
+	in.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 0, 0})
+	in.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 0, 1})
+	in.Insert(family.IPv6Unicast, attrBytes, []byte{32, 0x20, 0x01, 0x0d, 0xb8})
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = in
 	// Advertised: two IPv4, one IPv6 (Adj-RIB-Out).
 	r.ribOut[netip.MustParseAddr("192.0.2.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
@@ -438,8 +438,8 @@ func TestInboundShowFamilyFilter(t *testing.T) {
 	nlriIPv6 := []byte{64, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01, 0x00, 0x00} // 2001:db8:1::/64
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(ipv4Family, attrBytes, nlriIPv4, true)
-	peerRIB.Insert(ipv6Family, attrBytes, nlriIPv6, true)
+	peerRIB.Insert(ipv4Family, attrBytes, nlriIPv4)
+	peerRIB.Insert(ipv6Family, attrBytes, nlriIPv6)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	// Without filter: both families
@@ -467,8 +467,8 @@ func TestInboundShowPrefixFilter(t *testing.T) {
 	nlri2 := []byte{24, 172, 16, 0} // 172.16.0.0/24
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlri1, true)
-	peerRIB.Insert(fam, attrBytes, nlri2, true)
+	peerRIB.Insert(fam, attrBytes, nlri1)
+	peerRIB.Insert(fam, attrBytes, nlri2)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	// Filter by prefix (exact prefix string match)

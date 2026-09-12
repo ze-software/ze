@@ -24,7 +24,7 @@ func seedShowRows(t testing.TB, r *RIBManager, rows int) {
 	for i := range rows {
 		// A distinct /32 per row: 10.<a>.<b>.<c>/32.
 		nlri := []byte{32, 10, byte(i >> 16), byte(i >> 8), byte(i)}
-		peerRIB.Insert(fam, attrBytes, nlri, true)
+		peerRIB.Insert(fam, attrBytes, nlri)
 	}
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 }
@@ -154,7 +154,7 @@ func TestShowPipelineOrdersTheSameWithAndWithoutATerminal(t *testing.T) {
 		{peer: "192.0.2.1", nlri: []byte{24, 10, 1, 0}},
 	} {
 		peerRIB := storage.NewPeerRIB(fixture.peer)
-		peerRIB.Insert(family.IPv4Unicast, attrBytes, fixture.nlri, true)
+		peerRIB.Insert(family.IPv4Unicast, attrBytes, fixture.nlri)
 		r.bgpPeers[netip.MustParseAddr(fixture.peer)] = peerRIB
 	}
 

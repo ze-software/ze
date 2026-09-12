@@ -2758,12 +2758,12 @@ func TestGatherCandidatesOnlyBGP(t *testing.T) {
 	attrBytes := []byte{0x40, 0x01, 0x01, 0x00}
 
 	r.bgpPeers[netip.MustParseAddr("10.0.0.1")] = storage.NewPeerRIB("10.0.0.1")
-	r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Insert(ipv4Uni, attrBytes, nlri, true)
+	r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Insert(ipv4Uni, attrBytes, nlri)
 
 	monitorID := redistevents.RegisterProtocol("test-monitor")
 	monitorPeers := make(map[string]*storage.PeerRIB)
 	monitorPeers["10.0.0.2"] = storage.NewPeerRIB("10.0.0.2")
-	monitorPeers["10.0.0.2"].Insert(ipv4Uni, attrBytes, nlri, true)
+	monitorPeers["10.0.0.2"].Insert(ipv4Uni, attrBytes, nlri)
 	r.ribInPool[monitorID] = monitorPeers
 
 	r.peerMu.RLock()
@@ -2782,12 +2782,12 @@ func TestShowIteratesAllProtocols(t *testing.T) {
 	attrBytes := []byte{0x40, 0x01, 0x01, 0x00}
 
 	r.bgpPeers[netip.MustParseAddr("10.0.0.1")] = storage.NewPeerRIB("10.0.0.1")
-	r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 0}, true)
+	r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 0})
 
 	monitorID := redistevents.RegisterProtocol("test-show-monitor")
 	monitorPeers := make(map[string]*storage.PeerRIB)
 	monitorPeers["10.0.0.2"] = storage.NewPeerRIB("10.0.0.2")
-	monitorPeers["10.0.0.2"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 1}, true)
+	monitorPeers["10.0.0.2"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 1})
 	r.ribInPool[monitorID] = monitorPeers
 
 	r.peerMu.RLock()

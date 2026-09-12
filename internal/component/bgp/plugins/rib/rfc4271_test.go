@@ -110,7 +110,7 @@ func TestRFC4271LocRIBNextHopComesFromNextHopAttribute(t *testing.T) {
 	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 
 	withNH := ipv4Prefix(24, 10, 0, 0)
-	r.bgpPeers[peerAddr].Insert(fam, makeAttrBytes([4]byte{192, 168, 1, 1}), withNH, true)
+	r.bgpPeers[peerAddr].Insert(fam, makeAttrBytes([4]byte{192, 168, 1, 1}), withNH)
 	_, ok := r.checkBestPathChange(fam, withNH, false, nil)
 	require.True(t, ok)
 	best, found := loc.Best(fam, netip.MustParsePrefix("10.0.0.0/24"))
@@ -119,7 +119,7 @@ func TestRFC4271LocRIBNextHopComesFromNextHopAttribute(t *testing.T) {
 
 	// Same peer, a prefix announced with ORIGIN only -- no NEXT_HOP attribute.
 	noNH := ipv4Prefix(24, 10, 0, 1)
-	r.bgpPeers[peerAddr].Insert(fam, []byte{0x40, 0x01, 0x01, 0x00}, noNH, true)
+	r.bgpPeers[peerAddr].Insert(fam, []byte{0x40, 0x01, 0x01, 0x00}, noNH)
 	_, ok = r.checkBestPathChange(fam, noNH, false, nil)
 	require.True(t, ok)
 	best, found = loc.Best(fam, netip.MustParsePrefix("10.0.1.0/24"))
@@ -147,7 +147,7 @@ func TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy(t *testing.T) {
 	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
 
-	entry, err := storage.ParseAttributes([]byte{0x40, 0x01, 0x01, 0x00}, true)
+	entry, err := storage.ParseAttributes([]byte{0x40, 0x01, 0x01, 0x00})
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -178,7 +178,7 @@ func TestRFC4271DegreeOfPreferenceNotAHardcodedConstant(t *testing.T) {
 		0x40, 0x01, 0x01, 0x00,
 		0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0xFA, // LOCAL_PREF = 250
 	}
-	entry, err := storage.ParseAttributes(raw, true)
+	entry, err := storage.ParseAttributes(raw)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -205,7 +205,7 @@ func rfc4271MEDAttrs(med byte) []byte {
 func rfc4271MEDCandidate(t *testing.T, r *RIBManager, peer netip.Addr, attrs []byte) *Candidate {
 	t.Helper()
 	r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
-	entry, err := storage.ParseAttributes(attrs, true)
+	entry, err := storage.ParseAttributes(attrs)
 	require.NoError(t, err)
 	t.Cleanup(entry.Release)
 	return r.extractCandidate(peer, peer.String(), entry)

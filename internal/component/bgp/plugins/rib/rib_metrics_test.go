@@ -84,8 +84,8 @@ func TestUpdateMetrics(t *testing.T) {
 	// Populate ribInPool with a peer having routes
 	peerRIB := storage.NewPeerRIB("10.0.0.1")
 	// Insert some routes (use dummy family + wire bytes)
-	peerRIB.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 0, 0}, true)
-	peerRIB.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 0, 1}, true)
+	peerRIB.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 0, 0})
+	peerRIB.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 0, 1})
 	r.bgpPeers[netip.MustParseAddr("10.0.0.1")] = peerRIB
 
 	// Populate ribOut with a peer having routes
@@ -156,10 +156,10 @@ func TestUpdateMetricsMultiplePeers(t *testing.T) {
 
 	// Two peers in ribInPool
 	peer1 := storage.NewPeerRIB("10.0.0.1")
-	peer1.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 0, 0}, true)
+	peer1.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 0, 0})
 	peer2 := storage.NewPeerRIB("10.0.0.2")
-	peer2.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 1, 0}, true)
-	peer2.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 1, 1}, true)
+	peer2.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 1, 0})
+	peer2.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 1, 1})
 	r.bgpPeers[netip.MustParseAddr("10.0.0.1")] = peer1
 	r.bgpPeers[netip.MustParseAddr("10.0.0.2")] = peer2
 
@@ -205,9 +205,9 @@ func TestUpdateMetricsStalePeerCleanup(t *testing.T) {
 
 	// Cycle 1: two peers in ribInPool
 	peer1 := storage.NewPeerRIB("10.0.0.1")
-	peer1.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 0, 0}, true)
+	peer1.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 0, 0})
 	peer2 := storage.NewPeerRIB("10.0.0.2")
-	peer2.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 1, 0}, true)
+	peer2.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 1, 0})
 	r.bgpPeers[netip.MustParseAddr("10.0.0.1")] = peer1
 	r.bgpPeers[netip.MustParseAddr("10.0.0.2")] = peer2
 

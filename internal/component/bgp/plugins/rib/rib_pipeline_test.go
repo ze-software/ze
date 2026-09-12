@@ -67,7 +67,7 @@ func TestRouteItemFromInbound(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	// Use the source iterator
@@ -283,7 +283,7 @@ func TestBuildPipeline(t *testing.T) {
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	tests := []struct {
@@ -369,7 +369,7 @@ func TestShowPipelineBothDirections(t *testing.T) {
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	// Add outbound route
@@ -400,7 +400,7 @@ func TestShowPipelineReceivedScope(t *testing.T) {
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	r.ribOut[netip.MustParseAddr("192.0.2.2")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
@@ -429,7 +429,7 @@ func TestShowPipelineSentScope(t *testing.T) {
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	r.ribOut[netip.MustParseAddr("192.0.2.2")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
@@ -455,7 +455,7 @@ func TestShowPipelineAdvertisedScope(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family.IPv4Unicast, concatBytes(testWireOriginIGP, testWireNextHop), []byte{24, 10, 0, 0}, true)
+	peerRIB.Insert(family.IPv4Unicast, concatBytes(testWireOriginIGP, testWireNextHop), []byte{24, 10, 0, 0})
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	r.ribOut[netip.MustParseAddr("192.0.2.2")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
@@ -495,7 +495,7 @@ func TestShowPipelinePeerFilter(t *testing.T) {
 		"192.0.2.2": {24, 10, 0, 1},
 	} {
 		peerRIB := storage.NewPeerRIB(peer)
-		peerRIB.Insert(family.IPv4Unicast, concatBytes(testWireOriginIGP, testWireNextHop), prefix, true)
+		peerRIB.Insert(family.IPv4Unicast, concatBytes(testWireOriginIGP, testWireNextHop), prefix)
 		r.bgpPeers[netip.MustParseAddr(peer)] = peerRIB
 	}
 
@@ -549,7 +549,7 @@ func TestHandleCommandRibShow(t *testing.T) {
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	status, data, err := r.handleCommand("show bgp rib", "*", nil)
@@ -572,7 +572,7 @@ func TestHandleCommandRibShowCount(t *testing.T) {
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	status, data, err := r.handleCommand("show bgp rib", "*", []string{"count"})
@@ -723,7 +723,7 @@ func TestFilterMatchCrossFieldInEntry(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	// Match on AS-path value "65001"
@@ -791,7 +791,7 @@ func TestShowPipelineCountZeroWithFilter(t *testing.T) {
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	// Path filter for ASN 99999 — no routes have this ASN
@@ -815,7 +815,7 @@ func TestShowPipelineExplicitSentReceived(t *testing.T) {
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	// Add outbound route
@@ -853,13 +853,13 @@ func TestBestPipeline_WithFilter(t *testing.T) {
 	// Peer 1: 10.0.0.0/24 with community 65000:100
 	attr1 := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001, testWireCommunity)
 	peerRIB1 := storage.NewPeerRIB("192.0.2.1")
-	peerRIB1.Insert(fam, attr1, nlri1, true)
+	peerRIB1.Insert(fam, attr1, nlri1)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB1
 
 	// Peer 2: 172.16.0.0/24 with no community (just origin + nexthop)
 	attr2 := concatBytes(testWireOriginIGP, testWireNextHop)
 	peerRIB2 := storage.NewPeerRIB("192.0.2.2")
-	peerRIB2.Insert(fam, attr2, nlri2, true)
+	peerRIB2.Insert(fam, attr2, nlri2)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.2")] = peerRIB2
 
 	// Best pipeline with community filter: should only return the route with 65000:100
@@ -890,8 +890,8 @@ func TestBestPipeline_CountTerminal(t *testing.T) {
 	// Single peer with two prefixes
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlri1, true)
-	peerRIB.Insert(fam, attrBytes, nlri2, true)
+	peerRIB.Insert(fam, attrBytes, nlri1)
+	peerRIB.Insert(fam, attrBytes, nlri2)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	result := r.bestPipeline("*", []string{"count"})
@@ -984,7 +984,7 @@ func TestGraphTerminalViaPipeline(t *testing.T) {
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	result := r.showPipeline("*", []string{"received", "graph"})
@@ -1007,7 +1007,7 @@ func TestGraphTerminalViaBestPipeline(t *testing.T) {
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	result := r.bestPipeline("*", []string{"graph"})
@@ -1285,7 +1285,7 @@ func TestShowJSONContractIsFlatRows(t *testing.T) {
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001, testWireCommunity, testWireMED100, testWireLocalPref100)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	// Outbound route
@@ -1349,8 +1349,8 @@ func TestShowPipesUnchanged(t *testing.T) {
 	fam := family.IPv4Unicast
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001, testWireCommunity, testWireMED100, testWireLocalPref100)
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, []byte{24, 10, 0, 0}, true)   // 10.0.0.0/24
-	peerRIB.Insert(fam, attrBytes, []byte{24, 172, 16, 0}, true) // 172.16.0.0/24
+	peerRIB.Insert(fam, attrBytes, []byte{24, 10, 0, 0})   // 10.0.0.0/24
+	peerRIB.Insert(fam, attrBytes, []byte{24, 172, 16, 0}) // 172.16.0.0/24
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	tests := []struct {
@@ -1489,7 +1489,7 @@ func BenchmarkShowLargeTable(b *testing.B) {
 			peerRIB := storage.NewPeerRIB(peer.String())
 			for i := range 200 {
 				nlri := []byte{24, byte(10 + p), byte(i), 0}
-				peerRIB.Insert(fam, attrBytes, nlri, true)
+				peerRIB.Insert(fam, attrBytes, nlri)
 			}
 			r.bgpPeers[peer] = peerRIB
 		}
@@ -1552,7 +1552,7 @@ func TestShowPipelineConcurrentChurn(t *testing.T) {
 		peer := netip.MustParseAddr("192.0.2." + strconv.Itoa(p+1))
 		peerRIB := storage.NewPeerRIB(peer.String())
 		for i := range routeCount {
-			peerRIB.Insert(fam, attrBytes, []byte{24, byte(10 + p), byte(i), 0}, true)
+			peerRIB.Insert(fam, attrBytes, []byte{24, byte(10 + p), byte(i), 0})
 		}
 		r.bgpPeers[peer] = peerRIB
 	}
@@ -1583,7 +1583,7 @@ func TestShowPipelineConcurrentChurn(t *testing.T) {
 			r.peerMu.Lock()
 			if peerRIB := r.bgpPeers[peer]; peerRIB != nil {
 				peerRIB.Remove(fam, nlri)                  // frees the bundle pool handles
-				peerRIB.Insert(fam, attrBytes, nlri, true) // re-interns
+				peerRIB.Insert(fam, attrBytes, nlri) // re-interns
 			}
 			r.peerMu.Unlock()
 		}
@@ -1613,8 +1613,8 @@ func TestShowRowsAreDeterministic(t *testing.T) {
 	// walk that simply preserved arrival order would fail this.
 	for _, peer := range []string{"198.51.100.7", "192.0.2.1", "203.0.113.9", "192.0.2.2"} {
 		peerRIB := storage.NewPeerRIB(peer)
-		peerRIB.Insert(fam, attrBytes, []byte{24, 10, 0, 0}, true)
-		peerRIB.Insert(fam, attrBytes, []byte{24, 10, 0, 1}, true)
+		peerRIB.Insert(fam, attrBytes, []byte{24, 10, 0, 0})
+		peerRIB.Insert(fam, attrBytes, []byte{24, 10, 0, 1})
 		r.bgpPeers[netip.MustParseAddr(peer)] = peerRIB
 	}
 

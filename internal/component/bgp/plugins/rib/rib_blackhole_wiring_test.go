@@ -85,7 +85,7 @@ func blackholeMemberRIB(t *testing.T, peer netip.Addr, group string,
 func announce(t *testing.T, r *RIBManager, peer netip.Addr, nlri, attrs []byte) (bestChangeEntry, bool) {
 	t.Helper()
 	fam := family.Family{AFI: 1, SAFI: 1}
-	r.bgpPeers[peer].Insert(fam, attrs, nlri, true)
+	r.bgpPeers[peer].Insert(fam, attrs, nlri)
 	return r.checkBestPathChange(fam, nlri, false, nil)
 }
 

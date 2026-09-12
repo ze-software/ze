@@ -65,7 +65,7 @@ func TestRFC4271SelfNextHopRouteIsNotInstalled(t *testing.T) {
 	peerAddr := netip.MustParseAddr(peer)
 
 	self := ipv4Prefix(24, 10, 0, 0)
-	r.bgpPeers[peerAddr].Insert(fam, makeAttrBytes(netip.MustParseAddr(selfAddr).As4()), self, true)
+	r.bgpPeers[peerAddr].Insert(fam, makeAttrBytes(netip.MustParseAddr(selfAddr).As4()), self)
 	_, ok := r.checkBestPathChange(fam, self, false, nil)
 	assert.False(t, ok, "a route naming this speaker as its next hop makes no best path")
 	_, found := loc.Best(fam, netip.MustParsePrefix("10.0.0.0/24"))
@@ -74,7 +74,7 @@ func TestRFC4271SelfNextHopRouteIsNotInstalled(t *testing.T) {
 
 	// The control: the same peer, the same manager, a next hop that is not ours.
 	third := ipv4Prefix(24, 10, 0, 1)
-	r.bgpPeers[peerAddr].Insert(fam, makeAttrBytes([4]byte{192, 168, 1, 1}), third, true)
+	r.bgpPeers[peerAddr].Insert(fam, makeAttrBytes([4]byte{192, 168, 1, 1}), third)
 	_, ok = r.checkBestPathChange(fam, third, false, nil)
 	require.True(t, ok)
 	best, found := loc.Best(fam, netip.MustParsePrefix("10.0.1.0/24"))
@@ -104,9 +104,9 @@ func TestRFC4271SelfNextHopDoesNotShadowASoundAlternative(t *testing.T) {
 	// carry the same attributes, so the tie would be broken by peer address and
 	// 192.0.2.1 sorts first.
 	r.bgpPeers[netip.MustParseAddr(broken)].Insert(fam,
-		makeAttrBytes(netip.MustParseAddr(selfAddr).As4()), nlri, true)
+		makeAttrBytes(netip.MustParseAddr(selfAddr).As4()), nlri)
 	r.bgpPeers[netip.MustParseAddr(sound)].Insert(fam,
-		makeAttrBytes([4]byte{192, 168, 1, 2}), nlri, true)
+		makeAttrBytes([4]byte{192, 168, 1, 2}), nlri)
 
 	_, ok := r.checkBestPathChange(fam, nlri, false, nil)
 	require.True(t, ok, "the sound path is still a best path")
