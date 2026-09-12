@@ -1001,9 +1001,27 @@ wants a human:
 /ze-rfc-audit <rfc>                  # clears STALE: the tagged test itself changed
 ```
 
-No re-render step follows either one. `rfc/audit/` is an input the five derived
-outputs are built from, so `reseal` removes them and the next shell command that
-names one rebuilds it.
+The gate needs no re-render after either one: `./le rfc check` judges the
+summaries, the tags and the audits, and reads no generated page.
+
+The five derived outputs are a separate question, and they need one step.
+`rfc/audit/` and `rfc/discrimination/` are inputs to them, but `reseal` and
+`discriminate-record` write those directories from Go. The invalidation hook
+runs for an agent's `Write` or `Edit` alone (`postInvalidateDerived`,
+`internal/le/hookruntime/postwrite.go`), so it never sees a write a native
+action made. An output the tree happens to hold is therefore left present and
+stale. Run `./le rfc index-update` after either command to re-render the five.
+An output the tree does NOT hold is unaffected: the next shell command that
+names one builds it from the tree as it now stands.
+
+<!-- source: internal/le/hookruntime/postwrite.go -- postInvalidateDerived -->
+<!-- source: internal/le/rfc/register.go -- feedsRFCLedger -->
+
+A run that re-stamped something ends its own report with that command
+(`ResealReport.Text`, `internal/le/rfc/reseal.go`), so the reminder does not
+depend on this page being read.
+
+<!-- source: internal/le/rfc/reseal.go -- ResealReport.Text -->
 
 `SHIFTED` means the tagged unit is byte-identical and only the file around it
 moved. The unit is the enclosing top-level Go function or the whole `.ci`,

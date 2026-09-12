@@ -168,7 +168,7 @@ row is edited. The RFC artifacts move in git; the conformance verdicts they rend
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The model answers every column `collectRFC` parses today: gated, both, one-polarity, annotated, no-test, outstanding, nightly-only, state | `RenderIndex` renders those columns from `RenderInput`, so the values exist before the render | the health page loses a metric and the change is a regression wearing a refactor's clothes | a test asserting the collector's output is byte-identical before and after, over the current tree | unvalidated |
+| A-1 | The model answers every column `collectRFC` parses today: gated, both, one-polarity, annotated, no-test, outstanding, nightly-only, state | `RenderIndex` renders those columns from `RenderInput`, so the values exist before the render | the health page loses a metric and the change is a regression wearing a refactor's clothes | a test asserting the collector's output is byte-identical before and after, over the current tree | confirmed for every VALUE, broken for one ORDER: see AC-1 and the `worst` row in Known Limitations. The test named in Unit Tests was never written, so what confirms the values is the two rollup tests against the model and nothing compares the two collectors |
 | A-2 | `rowsFrom`'s enrolment marker and the ledger's `**enrolled**` State cell mean the same population | `collect_rfc.go` reads enrolment from the ledger ROW deliberately, with a comment saying a second source is how the two diverge | the enrolled population shifts silently and every share moves with it | compare the enrolled count from both routes over the current tree, and assert equality in a test | unvalidated |
 | A-3 | Nothing else parses `ai/RFC-REQUIREMENTS.md` | the breakage sweep found `collectRFC` and its two site consumers | the untracking breaks a surface this spec did not name | `gopls references` plus a grep for the path across `internal/`, `.github/` and `ai/skills/` | unvalidated |
 | A-4 | `reference/rfcs` can be rendered from the model, as `quality/rfc-compliance/` already is | `renderStatusPage` (`internal/le/rfc/render_ledger.go`) is the producer of the page's bytes | the page must stay published from committed bytes, and `docs/features/rfc-status.md` stays tracked | build the site with the file absent and diff the output against the current build | unvalidated |
@@ -203,10 +203,10 @@ row is edited. The RFC artifacts move in git; the conformance verdicts they rend
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `./le test-health update` over the current tree, before and after the reader change | every metric answers the identical value; the page bytes are unchanged |
+| AC-1 | `./le test-health update` over the current tree, before and after the reader change | every metric VALUE is identical. One ORDER moved, and it is the `worst` list inside the proof-density metric's data: `unprovenRows` (`internal/le/testhealth/collect_rfc.go`) sorted with `sort.SliceStable` over whatever order the render produced, and now orders by gated count then name. Three RFCs gate 13 requirements each, so a display slice of ten was a property of the producer rather than of the rows. The new order is total, so the slice is reproducible; `test/health/latest.json` still holds the old one, `structuralFacts` (`internal/le/testhealth/facts.go`) does not read that field, and the next `./le test-health update` rewrites those bytes |
 | AC-2 | `ai/RFC-REQUIREMENTS.md` absent | `./le test-health check`, `./le site facts update` and `./le site build` all succeed |
 | AC-3 | `grep -c` for the pinned ledger header anywhere under `internal/` | answers zero: no code re-parses the rendered ledger |
-| AC-4 | the code index model parsed by `citation` | holds one entry per code path the generator holds: 2,533 today, not 1,902 |
+| AC-4 | a spec naming a source file whose package the index renders as BULLETS, over the real corpus | the audit reports every document that anchors that file. Stated at the consumer because the population claim it replaced cannot be tested: `loadDocumentIndex` IS `docstocode.DocumentsByPath` now, so a test comparing the two compares a function with itself and passes for any population, an empty one included |
 | AC-5 | a spec naming a source file that lives in a package of three or fewer files, whose design doc the spec does not name | the spec write is refused, naming that document |
 | AC-6 | `ai/CODE-TO-DOCS.md` after regeneration | every row carries the full path from the checkout root, in both the bullet and the table shape |
 | AC-7 | `git ls-files` for the five RFC artifacts | answers nothing, and each is reported ignored by `git check-ignore` |
@@ -227,10 +227,10 @@ row is edited. The RFC artifacts move in git; the conformance verdicts they rend
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestTheCollectorAnswersTheSameRowsAsTheRenderedLedger` | `internal/le/testhealth/collect_rfc_test.go` | A-1 and A-2: the model and the render agree, column by column, over the real tree | |
+| `TestTheCollectorAnswersTheSameRowsAsTheRenderedLedger` | `internal/le/testhealth/collect_rfc_test.go` | A-1 and A-2: the model and the render agree, column by column, over the real tree | NEVER WRITTEN, and it cannot be written now. It proved nothing, because it never ran: the name appears in this spec and in no commit. It needed BOTH readers alive to compare them, and the parse it would have read the render with (`rfcRow` and the pinned header in `testhealth.go`) is deleted. It is the test that would have caught the `worst` reorder AC-1 now states, so its absence is what let a claim of byte-identical metrics reach the commit message. What covers the two figures instead is `TestTheModelRollupIsReadFromItsAnnotatedAndNoTestCounts` and `TestTheModelRollupReadsItsOnePolarityCount`, each against the model alone |
 | `TestTestHealthAnswersWithNoRenderedLedgerPresent` | `internal/le/testhealth/collect_rfc_test.go` | the reader no longer needs the file | |
 | `TestTheCollectorStillRefusesAnEmptyEnrolledPopulation` | `internal/le/testhealth/collect_rfc_test.go` | every refusal survived the move | |
-| `TestTheDocumentIndexHoldsEveryCodePath` | `internal/le/spec/citation/anchors_test.go` | AC-4: parsed count equals the generator's count | |
+| `TestTheAuditReportsEveryDocumentOfABulletRenderedPath` | `internal/le/spec/citation/anchors_test.go` | AC-4, at the consumer and over the real corpus. It replaces `TestTheDocumentIndexHoldsEveryCodePath`, which compared `loadDocumentIndex` against `docstocode.DocumentsByPath` after the first became a call to the second | |
 | `TestTheAnchorGuardSeesAFileInASmallPackage` | `internal/le/spec/citation/anchors_test.go` | AC-5: the guard that failed open now fires | |
 | `TestTheCodeIndexRendersFullPathsInBothShapes` | `internal/le/docstocode/codetodocs_report_test.go` | AC-6 | |
 | `TestTheRFCStatusPageRendersWithoutItsCommittedCopy` | `internal/le/site/docs_test.go` | AC-11 | |
@@ -277,6 +277,17 @@ N-A: Scope is tooling. No wire-visible behavior changes.
   the RFC corpus prefix no longer selects a committed ledger
 - `website/AI.md` - declared by `internal/le/site/docs.go` and `redirect.go`: the manifest loses a
   page that is now rendered live
+
+Added in review round 1:
+- `internal/le/rfc/register.go` - the predicate covers the extraction sign-offs, both RFC text
+  trees and the workflow files; the shard directory registers a `Complete`
+- `internal/le/rfc/write.go` - the shards are written first and the ledger last, which is what
+  that `Complete` reads; `ledgerFiles`, `ledgerPaths` and `pruneShards` lose their export
+- `internal/le/rfc/actions.go` - `./le rfc check` no longer advertises ledger freshness
+- `internal/le/derived/derived.go` - the `Complete` question, and `WriteAtomic` publishes 0644
+- `internal/le/hookruntime/bash.go` - `artifactWhole` asks it before skipping a rebuild
+- `docs/functional-tests.md`, `docs/architecture/core-design.md`, `docs/contributing/committing.md`
+- `internal/test/fixture/misc_fixture_runner_rfcledger.go` - the unfinished-directory step
 
 ## Files to Create
 - `test/runner/le-rfc-ledger-is-derived.ci`
@@ -328,7 +339,8 @@ N-A: Scope is tooling. No wire-visible behavior changes.
 2. **Phase: testhealth reads the model**
    - Tests: `TestTestHealthAnswersWithNoRenderedLedgerPresent`, `TestTheCollectorStillRefusesAnEmptyEnrolledPopulation`
    - Files: `internal/le/testhealth/collect_rfc.go`, `testhealth.go`
-   - Verify: AC-1 holds, byte for byte, over the current tree
+   - Verify: AC-1 holds for every metric value over the current tree, and the one order that
+     moved is stated there rather than reported as unchanged
 3. **Phase: the anchor guard sees every path** -- ITS OWN COMMIT (R-1)
    - Tests: `TestTheAnchorGuardSeesAFileInASmallPackage`, `TestTheCodeIndexRendersFullPathsInBothShapes`
    - Files: `internal/le/spec/citation/anchors.go`, `internal/le/docstocode/codetodocs_report.go`
@@ -353,7 +365,7 @@ N-A: Scope is tooling. No wire-visible behavior changes.
 |-------|------------------------------|
 | Completeness | every AC-N has an implementation at file:line |
 | Guard widening | the anchor guard's population goes from 1,902 to the generator's full count, and a test proves a previously invisible case now fires |
-| No number moved | the before/after equality test is over the REAL tree, not a fixture, because a fixture cannot show a divergence between two real derivations |
+| No number moved | the before/after equality test is over the REAL tree, not a fixture, because a fixture cannot show a divergence between two real derivations. FAILED as written: that test was never built, and the review found an ORDER that moved with every number holding still |
 | Fail-closed | every refusal `collectRFC` carried is present after the move, and each still names why a zero is not an answer |
 | Data flow | no reader opens a generated markdown file; `grep -rn "RFC-REQUIREMENTS" internal/` finds only the writer and the registration |
 | Rule: `ai/rules/rfc-compliance.md` | no requirement's classification, level or evidence changes. This spec moves artifacts in git and must not touch a verdict |
@@ -365,7 +377,7 @@ N-A: Scope is tooling. No wire-visible behavior changes.
 | the anchor guard's population | the test asserting parsed count equals `len(index.Refs)` passes |
 | the five artifacts untracked | `git ls-files ai/RFC-REQUIREMENTS.md rfc/requirements rfc/enrolled.txt rfc/not-enrolled.txt docs/features/rfc-status.md` is empty |
 | the site is unchanged | a full `./le site build` diffed against the pre-change build |
-| the published numbers are unchanged | `./le test-health update` produces no diff in the page's metric values |
+| the published numbers are unchanged | `./le test-health update` produces no diff in the page's metric VALUES. The `worst` list's order moved, and AC-1 states what moved and why the new order is the better one |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -394,6 +406,19 @@ N-A: Scope is tooling. No wire-visible behavior changes.
 | The anchor-guard widening is its own commit | fold it into the reader change | it changes the verdict for every spec in a shared checkout at once, so it owes its own message and its own revert |
 
 ## Known Limitations
+- A derived artifact belongs to one of TWO classes, and the design did not say so until this
+  spec's review found out the hard way. An artifact a GREP reads is named by nobody: an unnamed
+  search over an absent one reads nothing and reports nothing, so the session-start hook must
+  build it. An artifact a COMMAND reads is always named on the command line, so
+  `preMaterializeDerived` covers it and the hook must NOT build it. `SessionStartPolicy`
+  (`internal/le/derived/derived.go`) is that declaration, its zero value is invalid so no
+  registration can default into either class by accident, and the three index files are `Build`
+  while the five RFC artifacts are `Defer`.
+  Measured on this checkout: the session-start hook takes 2.0 to 2.7 s with every artifact
+  present, and took 5.32 s against its 5 s timeout when the five RFC artifacts were absent and
+  it rendered 194 shards. With `Defer` it is 2.26 s and 2.14 s in the same state. Absent is the
+  ordinary state, because `feedsRFCLedger` covers `*.go` and every Go edit in any session
+  removes the family.
 - `website/data/repo-facts.json` stays tracked. It is a snapshot of git index state that a build
   cannot re-derive, and `docs/architecture/site-facts.md` argues for committing it.
 - The architecture lists `./le arch-map update` writes into `ai/INSTRUCTIONS.md` stay tracked:
@@ -401,6 +426,19 @@ N-A: Scope is tooling. No wire-visible behavior changes.
 - `ai/rules/TRIGGERS.md`, `ai/rules/CORE.md`, `ai/rules/INDEX.md` and `docs/features/test-health.md`
   stay tracked: zero commits each in the last 200, and `CLAUDE.md` resolves `@ai/rules/CORE.md`
   before any hook could rebuild it.
+- The `worst` list inside the proof-density metric reordered, and `test/health/latest.json` still
+  holds the pre-move order. `structuralFacts` does not read that field, so `./le test-health check`
+  stays green and the next `update` rewrites those bytes with no diff anybody has to approve. Left
+  as it is here on purpose: regenerating the health record is another session's commit, and this
+  one carries no page of it.
+- A DIRECTORY artifact answers `Complete` from a marker its generator writes last, so a member
+  deleted by hand under a finished run still reads as whole. The exact question is the expected
+  member set, which for `rfc/requirements` costs `Collect` plus a render (1.52s of user time over
+  this checkout) to decide whether to run that same render. `./le rfc index-update` restores the
+  directory in one command.
+- A native action that writes a derived artifact's INPUT from Go leaves that artifact present and
+  stale: `postInvalidateDerived` runs for a `Write` or an `Edit` tool call alone. `./le rfc reseal`
+  and `./le rfc discriminate-record` are the two, and each is followed by `./le rfc index-update`.
 
 ## Checklist
 

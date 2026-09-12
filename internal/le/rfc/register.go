@@ -41,36 +41,61 @@ func init() {
 	// The five generated files are DERIVED, so none of them is tracked and no
 	// gate compares a re-render against a committed copy. A write to a file the
 	// render reads deletes them, and a command that names one rebuilds all five
-	// through one IndexUpdate.
+	// through one IndexUpdate. Each of the four is one file, published by one
+	// rename, so its name on disk already means a finished render.
 	//
+	// None of the five is built at SESSION START, and that is a budget
+	// decision this family owes rather than a detail. The hook has a fixed 5
+	// second timeout and spends 2 to 5 of it on its own debt read; rendering
+	// 194 shards inside that took one measured run to 5.32s, and a killed hook
+	// loses the whole session-start message. Every reader of these five NAMES
+	// its path -- a `./le rfc ...` command, a site build -- so
+	// preMaterializeDerived builds them on the command that reads them, which
+	// is the difference from the three documentation indexes
+	// (derived.SessionStartPolicy).
+	for _, path := range []string{ledgerRel, enrolledRel, notEnrolledRel, statusRel} {
+		derived.Register(derived.Artifact{
+			Path:         path,
+			Feeds:        feedsRFCLedger,
+			Rebuild:      rebuildLedger,
+			SessionStart: derived.SessionStartDefer,
+		})
+	}
+
 	// rfc/requirements is registered as the DIRECTORY it is. The set of shards
 	// is derived too: a summary that stops declaring requirements leaves a file
 	// the generator no longer owns, and a directory invalidated whole cannot
 	// keep one.
-	for _, path := range []string{ledgerRel, shardRelDir, enrolledRel, notEnrolledRel, statusRel} {
-		derived.Register(derived.Artifact{
-			Path:    path,
-			Feeds:   feedsRFCLedger,
-			Rebuild: rebuildLedger,
-		})
-	}
+	//
+	// It is also the one artifact here whose presence does not mean it is
+	// whole, which is why it answers Complete for itself.
+	derived.Register(derived.Artifact{
+		Path:         shardRelDir,
+		Feeds:        feedsRFCLedger,
+		Rebuild:      rebuildLedger,
+		Complete:     shardsRendered,
+		SessionStart: derived.SessionStartDefer,
+	})
 }
 
-// feedsRFCLedger reports whether writing path can change what the RFC generator
-// renders.
+// shardsRendered reports whether the run that writes the shards finished.
 //
-// One predicate for all five artifacts, because one render produces all five.
-// The population is the walk NewRenderInput performs: the summaries declare
-// every requirement and every Meta row, the audit and discrimination
-// directories carry the verdicts and the recorded breaks, and a tag carrier
-// holds the evidence. Production Go is in the set because RenderInput.Unscanned
-// reports an `RFC requirement:` comment that no carrier claims, and such a
-// comment can be written in any Go file.
+// The ledger is the LAST file IndexUpdate writes, for this reason alone, so its
+// presence is the marker of a complete run. The directory itself cannot answer:
+// the shards are written one at a time, so it exists from the first of 194 and
+// a reader cannot tell 100 shards from the whole set.
 //
-// Broad on purpose. A predicate that misses a source leaves an artifact on disk
-// that reads as current, and that silent wrong answer is what the byte
-// comparison used to catch. The cost of being broad is a rebuild, which is
-// loud, bounded, and correct.
+// What this does NOT catch is a member deleted by hand under a ledger that is
+// still there. Catching that needs the expected stem set, which is Collect plus
+// a render: about two seconds, paid by every grep that names the directory, to
+// decide whether to run the thing it just did. `./le rfc index-update` restores
+// the directory in one command, and the directory is wholly derived, so the
+// cheaper marker is the trade taken here.
+func shardsRendered(root string) bool {
+	_, err := os.Stat(filepath.Join(root, filepath.FromSlash(ledgerRel)))
+	return err == nil
+}
+
 // rebuildLedger renders the five files for one checkout, and answers nothing
 // for a tree that holds no summaries.
 //
@@ -94,8 +119,39 @@ func rebuildLedger(root string) error {
 	return err
 }
 
+// feedsRFCLedger reports whether writing path can change what the RFC generator
+// renders.
+//
+// One predicate for all five artifacts, because one render produces all five.
+// The population is every walk the render performs, and each directory below
+// names the chain that reaches it:
+//
+//   - rfc/short, through Collect, declares every requirement and every Meta row.
+//   - rfc/audit and rfc/discrimination carry the verdicts and the recorded
+//     breaks, through loadAudits and loadDiscrimination.
+//   - rfc/extraction carries the sign-offs, through renderExtractionTable and
+//     evaluateExtractions, and decides the backlog table.
+//   - rfc/full and rfc/drafts hold each RFC's own text, which the same chain
+//     re-derives through Deriver.Inventory and SourceText: absent, the sign-off
+//     cannot be re-checked and the table reports it unsigned. ai/rules/rfc-compliance.md
+//     tells an agent to fetch a missing text straight into rfc/full/, so this is
+//     a path sessions really write.
+//   - .github/workflows says which native actions CI runs on a SCHEDULE, through
+//     carriers and scheduledWorkflowActions, and that set decides the Nightly-only
+//     column and every row's evidence tier.
+//
+// A tag carrier holds the evidence itself. Production Go is in the set because
+// RenderInput.Unscanned reports an `RFC requirement:` comment that no carrier
+// claims, and such a comment can be written in any Go file.
+//
+// Broad on purpose. A predicate that misses a source leaves an artifact on disk
+// that reads as current, and that silent wrong answer is what the byte
+// comparison used to catch. The cost of being broad is a rebuild, which is
+// loud, bounded, and correct.
 func feedsRFCLedger(_, path string) bool {
-	for _, directory := range [...]string{summaryRel, auditRel, discriminationRel} {
+	for _, directory := range [...]string{
+		summaryRel, auditRel, discriminationRel, extractionRel, fullRel, draftsRel, workflowsRel,
+	} {
 		if strings.HasPrefix(path, directory+"/") {
 			return true
 		}

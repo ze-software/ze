@@ -33,7 +33,7 @@ func ledgerFixture(t *testing.T) (map[string]string, map[string]Meta, string) {
 	if err != nil {
 		t.Fatalf("read the carriers: %v", err)
 	}
-	files, err := LedgerFiles(collected.Metas,
+	files, err := ledgerFiles(collected.Metas,
 		CoverageRows(collected.Requirements, collected.Tags, known))
 	if err != nil {
 		t.Fatalf("render the ledger files: %v", err)

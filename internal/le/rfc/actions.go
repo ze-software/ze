@@ -77,7 +77,9 @@ var actions = leaction.New(area,
 			{Keyword: keyReason, Value: keyReason},
 		},
 		AnswerArgs: discriminateRecordAnswer},
-	leaction.Action{Verb: "check", Why: "verify RFC requirement coverage, evidence strength, public status, audit verdicts, extraction sign-off, and generated ledger freshness without writing",
+	leaction.Action{Verb: "check", Why: "verify RFC requirement coverage, evidence strength, public status, audit " +
+		"verdicts and extraction sign-off, judged from the summaries and the tags and " +
+		"never from a generated page, without writing",
 		Answer: checkAnswer},
 	leaction.Action{Verb: "selftest", Why: "exercise every RFC engine concern against in-process fixtures and report one " +
 		"structured row per property",

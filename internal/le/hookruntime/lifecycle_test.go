@@ -70,19 +70,36 @@ func writeHookFixture(t *testing.T, root, path, content string) {
 	}
 }
 
-// TestSessionStartBuildsEveryRegisteredDerivedArtifact proves the session hook
-// reads the registry rather than a list of names.
+// artifactsWithPolicy answers the registered artifacts under one session-start
+// policy, and fails when there are none: every assertion below is over a
+// population, and an empty one agrees with anything.
+func artifactsWithPolicy(t *testing.T, policy derived.SessionStartPolicy) []derived.Artifact {
+	t.Helper()
+	var held []derived.Artifact
+	for _, artifact := range derived.All() {
+		if artifact.SessionStart == policy {
+			held = append(held, artifact)
+		}
+	}
+	if len(held) == 0 {
+		t.Fatalf("no registered artifact declares policy %d, so this test asserts nothing", policy)
+	}
+	return held
+}
+
+// TestSessionStartBuildsEveryArtifactDeclaredForIt proves the session hook reads
+// the registry rather than a list of names.
 //
 // Two hardcoded os.Stat blocks named ai/DOCS-TO-CODE.md and ai/CODE-TO-DOCS.md
 // until 2026-09-11, so a third artifact was absent at every session start until
 // somebody edited this hook. The assertion is over derived.All(), which is why
 // a fourth artifact moves this test with it and needs no line here.
-func TestSessionStartBuildsEveryRegisteredDerivedArtifact(t *testing.T) {
+//
+// It reads SessionStartBuild alone, because an artifact's policy is now part of
+// its registration and the deferred ones are the sibling test's subject.
+func TestSessionStartBuildsEveryArtifactDeclaredForIt(t *testing.T) {
 	root := derivedFixture(t)
-	artifacts := derived.All()
-	if len(artifacts) == 0 {
-		t.Fatal("the registry is empty, so this test asserts nothing")
-	}
+	artifacts := artifactsWithPolicy(t, derived.SessionStartBuild)
 	for _, artifact := range artifacts {
 		if err := os.Remove(filepath.Join(root, filepath.FromSlash(artifact.Path))); err != nil {
 			t.Fatalf("clear %s: %v", artifact.Path, err)
@@ -99,6 +116,79 @@ func TestSessionStartBuildsEveryRegisteredDerivedArtifact(t *testing.T) {
 			t.Errorf("the hook printed no line for %s:\n%s", artifact.Path, printed)
 		}
 	}
+}
+
+// TestSessionStartRendersNoDeferredArtifact is the budget half, over a tree that
+// CAN render the deferred family.
+//
+// VALIDATES: an artifact registered SessionStartDefer is left absent by a
+// session start, and no line claims it was built.
+// PREVENTS: the 2026-09-11 regression. The five RFC artifacts registered with
+// the three documentation indexes, so the hook rendered 194 shards inside its 5
+// second timeout: measured at 2.68s and 2.03s with all eight present and 5.32s
+// with the five absent. Absent is the common state, because their predicate
+// covers every `*.go` write in every session. A hook killed at its timeout
+// loses the whole session-start message, the BLOCKING LSP notice included.
+//
+// The corpus is what makes this a decision rather than an inability: the last
+// step renders one of the deferred artifacts by hand and requires it to land.
+func TestSessionStartRendersNoDeferredArtifact(t *testing.T) {
+	root := derivedFixture(t)
+	rfcCorpusFixture(t, root)
+	artifacts := artifactsWithPolicy(t, derived.SessionStartDefer)
+	for _, artifact := range artifacts {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(artifact.Path))); !os.IsNotExist(err) {
+			t.Fatalf("%s is in the fixture before the hook ran, so its absence after proves nothing", artifact.Path)
+		}
+	}
+
+	printed := runSessionStart(t, root)
+
+	for _, artifact := range artifacts {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(artifact.Path))); !os.IsNotExist(err) {
+			t.Errorf("the session start rendered %s, which is deferred to the command that names it",
+				artifact.Path)
+		}
+		if strings.Contains(printed, "Built "+artifact.Path) {
+			t.Errorf("the hook reported building a deferred artifact:\n%s", printed)
+		}
+	}
+
+	// The tree can render them. Without this, a fixture that simply cannot
+	// build the family would pass every assertion above.
+	rendered := artifacts[0]
+	if err := rendered.Rebuild(root); err != nil {
+		t.Fatalf("the fixture cannot render %s at all, so nothing above was a decision: %v",
+			rendered.Path, err)
+	}
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(rendered.Path))); err != nil {
+		t.Fatalf("%s does not land in this fixture even when rendered on purpose: %v", rendered.Path, err)
+	}
+}
+
+// rfcCorpusFixture writes the smallest tree the RFC generator renders from: one
+// enrolled summary gating one MUST, that RFC's own text, and the workflow
+// directory the carrier walk reads.
+//
+// The same corpus drives the .ci scenario end to end
+// (internal/test/fixture/misc_fixture_runner_rfcledger.go). It is spelled again
+// here because this package cannot import that one, and both exist to make an
+// absent artifact mean a decision rather than an empty tree.
+func rfcCorpusFixture(t *testing.T, root string) {
+	t.Helper()
+	writeHookFixture(t, root, "docs/features/.keep", "")
+	writeHookFixture(t, root, "rfc/full/rfc9999.txt", "A speaker MUST send the widget.\n")
+	writeHookFixture(t, root, "rfc/drain-budget.txt", "start 2026-07-29\nrate 0\n")
+	writeHookFixture(t, root, ".github/workflows/nightly.yml", "on:\n  schedule:\n    - cron: '0 3 * * *'\n")
+	writeHookFixture(t, root, "rfc/short/rfc9999.md",
+		"# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n"+
+			"| Title | Widgets |\n| Enrolment | enrolled |\n"+
+			"| Enrolment reason | the fixture RFC, gated so the render has a population |\n"+
+			"| Support | bgp-base 10 |\n| Support area | Widgets |\n"+
+			"| Support status | Partial |\n| Support coverage | unit tests |\n"+
+			"| Support remaining | Zero MUST gaps. |\n\n"+
+			"## Compliance Checklist\n\n"+
+			"- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2)\n")
 }
 
 // TestSessionStartLeavesAPresentArtifactAlone bounds what this hook does.

@@ -232,6 +232,15 @@ func hookSessionStart(ctx context, out io.Writer) int {
 	// next hooked write to one of its inputs.
 	// docs/contributing/navigating-the-code.md tells the reader so.
 	for _, artifact := range derived.All() {
+		// The artifact declares whether this hook may render it, because the
+		// budget above is fixed and the renders are not the same size. An
+		// artifact a search reads WITHOUT naming its path has to exist before
+		// that search runs; one every reader NAMES is built by
+		// preMaterializeDerived on the command that names it, and rendering it
+		// here buys nothing for what it spends (derived.SessionStartPolicy).
+		if artifact.SessionStart != derived.SessionStartBuild {
+			continue
+		}
 		if _, err := os.Stat(filepath.Join(ctx.root, filepath.FromSlash(artifact.Path))); !os.IsNotExist(err) {
 			continue
 		}

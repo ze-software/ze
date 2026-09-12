@@ -7,10 +7,13 @@
 package hookruntime
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/derived"
 )
 
 // TestGovernedWriteCatchesEveryInPlaceFlagSpelling drives the pretool-bash hook
@@ -299,6 +302,57 @@ func TestReadingAnAbsentArtifactMaterializesItBeforeTheCommandRuns(t *testing.T)
 	if !strings.Contains(string(body), "internal/core/x") {
 		t.Errorf("the rebuilt map does not describe the fixture tree: %s", body)
 	}
+}
+
+// TestArtifactWholeAsksADirectoryArtifactRatherThanStattingIt drives the
+// decision the rebuild turns on, over each shape an artifact has.
+//
+// VALIDATES: an absent path is not whole; a present file with no question of
+// its own is; a present DIRECTORY is whole only when its own Complete says the
+// run that wrote it finished.
+// PREVENTS: the read a stat licenses. A directory exists from the first of its
+// files, so a run that stopped half way leaves one that is present and short,
+// and the command that follows takes a partial set for the whole answer.
+// test/runner/le-rfc-ledger-is-derived.ci drives the same decision through the
+// shipped binary, over the real RFC generator.
+func TestArtifactWholeAsksADirectoryArtifactRatherThanStattingIt(t *testing.T) {
+	root := t.TempDir()
+	writeHookFixture(t, root, "family/page.md", "# page\n")
+	writeHookFixture(t, root, "family/members/one.md", "# one\n")
+
+	file := derived.Artifact{Path: "family/page.md", Feeds: neverFeeds, Rebuild: neverRebuilds}
+	absent := derived.Artifact{Path: "family/gone.md", Feeds: neverFeeds, Rebuild: neverRebuilds}
+	finished := derived.Artifact{Path: "family/members", Feeds: neverFeeds, Rebuild: neverRebuilds,
+		Complete: func(_ string) bool { return true }}
+	unfinished := derived.Artifact{Path: "family/members", Feeds: neverFeeds, Rebuild: neverRebuilds,
+		Complete: func(_ string) bool { return false }}
+
+	for _, row := range []struct {
+		name     string
+		artifact derived.Artifact
+		want     bool
+	}{
+		{"absent", absent, false},
+		{"a present file answers its own presence", file, true},
+		{"a finished directory", finished, true},
+		{"a directory no run finished", unfinished, false},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			whole, err := artifactWhole(root, row.artifact)
+			if err != nil {
+				t.Fatalf("artifactWhole(%s): %v", row.artifact.Path, err)
+			}
+			if whole != row.want {
+				t.Errorf("artifactWhole(%s) = %v, want %v", row.artifact.Path, whole, row.want)
+			}
+		})
+	}
+}
+
+func neverFeeds(_, _ string) bool { return false }
+
+func neverRebuilds(_ string) error {
+	return errors.New("BUG: this fixture's artifact is never rebuilt")
 }
 
 // TestMaterializingLeavesAPresentArtifactAlone is the other polarity: a read

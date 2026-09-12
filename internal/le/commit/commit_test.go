@@ -705,6 +705,76 @@ func TestACommitChangingAPackageCommentNeedsNoIndex(t *testing.T) {
 	}
 }
 
+// TestATaggedTestNeedsNoLedgerRegeneration is user story 1, and AC-8.
+//
+// VALIDATES: a commit that adds an RFC-tagged test and edits the summary that
+// declares the requirement is prepared with no refusal, carries none of the five
+// RFC outputs, and owes no verification debt for them.
+// PREVENTS: the state every row of plan/journal/concurrent-rfc-gate-stale.md
+// records. The ledger and its 194 shards were tracked, the freshness gate
+// compared a re-render against the committed copy, and an author who added one
+// tagged test had to regenerate the family from a SHARED working tree. That
+// carried other sessions' uncommitted summaries into a tracked page, and the
+// gate then reddened for whoever ran it next. The five are derived now, so the
+// commit owes them nothing.
+func TestATaggedTestNeedsNoLedgerRegeneration(t *testing.T) {
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "commit-derived-ledger-fixture")
+	root := newCommitRepository(t)
+	writeCommitFixture(t, root, "ai/.keep", "")
+	// The tag is ASSEMBLED from rfcTagRequirement, for the reason that constant
+	// states: a literal tag in this file would make the file its own carrier,
+	// and the owner-approval gate would refuse every later edit to it. The
+	// checklist line carries the requirement ID alone, because the polarity
+	// word belongs to the TAG and never to the summary that declares the MUST.
+	requirement := strings.TrimSuffix(rfcTagRequirement, " positive")
+	writeCommitFixture(t, root, "rfc/short/rfc9999.md",
+		"# RFC 9999\n\n- [ ] {must} "+requirement+" -- the thing the tagged test proves\n")
+	writeCommitFixture(t, root, "internal/component/bgp/message/rfc9999_test.go",
+		taggedUnitText("check(1)"))
+
+	prepared, err := Create(root, &Options{
+		Subject: "bgp: the thing the tagged test proves",
+		Files: []string{
+			"rfc/short/rfc9999.md",
+			"internal/component/bgp/message/rfc9999_test.go",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Create refused a commit that adds a tagged test and regenerates nothing: %v", err)
+	}
+
+	// Absence is the criterion below, and an empty population agrees with every
+	// absence, so what the commit DOES carry is checked first.
+	for _, want := range []string{"rfc/short/rfc9999.md", "internal/component/bgp/message/rfc9999_test.go"} {
+		if !slices.Contains(prepared.Added, want) {
+			t.Fatalf("the prepared commit does not carry %s, so nothing below was judged: %v",
+				want, prepared.Added)
+		}
+	}
+
+	// The five outputs, named because their ABSENCE is the criterion. A
+	// prepared population that carried one would be this session publishing a
+	// render of a working tree it shares with about twenty others.
+	derivedOutputs := []string{
+		"ai/RFC-REQUIREMENTS.md", "rfc/requirements", "rfc/enrolled.txt",
+		"rfc/not-enrolled.txt", "docs/features/rfc-status.md",
+	}
+	for _, path := range derivedOutputs {
+		for _, added := range prepared.Added {
+			if added == path || strings.HasPrefix(added, path+"/") {
+				t.Errorf("the prepared commit carries the derived output %s", added)
+			}
+		}
+	}
+	for _, row := range prepared.Debt {
+		for _, path := range derivedOutputs {
+			if strings.Contains(row.Gate, path) || strings.Contains(row.Reason, path) {
+				t.Errorf("the commit owes a gate over a derived output: %#v", row)
+			}
+		}
+	}
+}
+
 // TestStaleIndexOKIsNotAKeyword pins that the override went with its gate.
 //
 // A keyword whose gate is deleted is worse than no keyword: it parses, it is

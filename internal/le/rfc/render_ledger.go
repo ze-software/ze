@@ -99,7 +99,7 @@ func share(count, total int) string {
 	return tb.Str(" (").Str(percent).Str("%)").String()
 }
 
-// LedgerFiles is the three generated files, keyed by their repo-relative path.
+// ledgerFiles is the three generated files, keyed by their repo-relative path.
 //
 // One producer for all three, because they answer one question between them --
 // which summaries are gated, why the rest are not, and what the product claims
@@ -109,7 +109,7 @@ func share(count, total int) string {
 // coverage is the per-RFC polarity partition CoverageRows derives. The public
 // page publishes it beside every support claim, so a caller that has already
 // derived it hands it over rather than deriving it a second time.
-func LedgerFiles(metas map[string]Meta, coverage []CoverageRow) (map[string]string, error) {
+func ledgerFiles(metas map[string]Meta, coverage []CoverageRow) (map[string]string, error) {
 	page, err := renderStatusPage(metas, coverage)
 	if err != nil {
 		return nil, err
@@ -128,7 +128,7 @@ func LedgerFiles(metas map[string]Meta, coverage []CoverageRow) (map[string]stri
 // and a coverage set assembled from a different triple on one of them would
 // publish a Proof column the other cannot reproduce.
 func ledgerFilesFrom(in RenderInput) (map[string]string, error) {
-	return LedgerFiles(in.Metas, CoverageRows(in.Requirements, in.Tags, in.Carriers))
+	return ledgerFiles(in.Metas, CoverageRows(in.Requirements, in.Tags, in.Carriers))
 }
 
 // StatusPage answers the public support page for one checkout: the same bytes
@@ -469,12 +469,14 @@ func statusPageIntro(unrowed, summaries int) string {
 	return tb.String()
 }
 
-// LedgerPaths answers the three generated files, in a fixed order.
+// ledgerPaths answers the three generated files, in a fixed order.
 //
-// The ONE producer of that set. The write emits it, the freshness check
-// compares against it, and a caller that spelled the three paths itself could
-// name a file neither of them owns.
-func LedgerPaths() []string { return []string{enrolledRel, notEnrolledRel, statusRel} }
+// The ONE producer of that set. The write emits it and names it in its report,
+// and a caller that spelled the three paths itself could name a file the write
+// does not own. Both this and ledgerFiles were exported until 2026-09-12, for a
+// freshness check that compared them against committed copies; the three are
+// derived now, so the write is the only caller left.
+func ledgerPaths() []string { return []string{enrolledRel, notEnrolledRel, statusRel} }
 
 // wrapComment breaks one sentence into lines no wider than width, without
 // breaking a word, so a derived meaning renders as a comment block rather than

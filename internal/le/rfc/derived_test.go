@@ -2,6 +2,8 @@
 package rfc
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"testing"
 
@@ -25,38 +27,86 @@ func registeredArtifact(t *testing.T, path string) derived.Artifact {
 // The five generated paths leave git, so each one owes a registration: a write
 // to one of their inputs removes them, and a command that names one rebuilds
 // them. A path that leaves git with no registration is a file nothing writes
-// and nothing reports missing.
+// and nothing reports missing, which is what registeredArtifact refuses.
+//
+// The POPULATION is what it then asserts. A nil predicate and a nil rebuild are
+// not reachable here -- derived.Register panics on either, so the process would
+// not have started -- and an assertion over an unreachable state reads as
+// coverage while testing nothing. What a later edit can still get wrong is
+// registering one of the five against a narrower predicate: one render writes
+// all five, so the five answer to one population or four are rebuilt and one
+// sits there stale.
 func TestTheRFCFamilyIsRegisteredAsDerived(t *testing.T) {
 	for _, path := range []string{ledgerRel, shardRelDir, enrolledRel, notEnrolledRel, statusRel} {
 		artifact := registeredArtifact(t, path)
-		if artifact.Feeds == nil || artifact.Rebuild == nil {
-			t.Errorf("%s registers without a predicate or without a rebuild", path)
+		if !artifact.Feeds(".", summaryRel+"/rfc4271.md") {
+			t.Errorf("%s does not answer to a summary write, and a summary is what renders it", path)
+		}
+		// The shard DIRECTORY is the one member whose presence does not mean it
+		// is whole, so it is the one that answers Complete. A file that took a
+		// question it does not need, or the directory losing the one it does,
+		// each put a stat back where a partial directory reads as the answer.
+		if wants := path == shardRelDir; wants != (artifact.Complete != nil) {
+			t.Errorf("%s carries Complete = %v, and a directory artifact needs one where a file does not",
+				path, artifact.Complete != nil)
 		}
 	}
 }
 
+// TestTheRebuildAnswersNothingForATreeWithNoSummaries pins the refusal the hook
+// path depends on.
+//
+// VALIDATES: rebuildLedger answers nil, and writes nothing, for a tree that
+// holds no rfc/short/.
+// PREVENTS: a scratch checkout in which every shell command naming ai/ or rfc/
+// is blocked by a rebuild that cannot run there.
+//
+// A rebuild runs over whatever root the command was pointed at, and a scratch
+// checkout a test or a fixture created holds no rfc/short/. IndexUpdate REFUSES
+// that tree, correctly, because an explicit run over an empty corpus would
+// prune every shard as an orphan. As a REBUILD that refusal would block an
+// ordinary grep in a tree the artifacts never lived in, so the rebuild answers
+// nothing rather than passing the refusal on.
+func TestTheRebuildAnswersNothingForATreeWithNoSummaries(t *testing.T) {
+	root := t.TempDir()
+	if err := rebuildLedger(root); err != nil {
+		t.Fatalf("rebuildLedger over a tree with no %s: %v", summaryRel, err)
+	}
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(ledgerRel))); !os.IsNotExist(err) {
+		t.Errorf("the rebuild wrote %s for a tree that declares no requirement", ledgerRel)
+	}
+}
+
 // TestTheRFCArtifactsAreFedByEverySourceTheRenderReads states the predicate's
-// population, one case for each walk NewRenderInput performs.
+// population, one case for each walk a render performs.
 //
 // The render reads the summaries, the audit verdicts, the discrimination
-// records, every tag carrier, and the production Go an `RFC requirement:`
-// comment can sit in. A source the predicate misses leaves a stale artifact on
-// disk that reads as current, which is the failure the byte comparison used to
-// catch and nothing else would.
+// records, the extraction sign-offs, each RFC's own text, the workflow files
+// that say which actions CI runs on a schedule, every tag carrier, and the
+// production Go an `RFC requirement:` comment can sit in. A source the
+// predicate misses leaves a stale artifact on disk that reads as current, which
+// is the failure the byte comparison used to catch and nothing else would.
+//
+// Each case names the walk that reaches it, because a case with no producer
+// behind it is a guess that the next reader cannot check.
 func TestTheRFCArtifactsAreFedByEverySourceTheRenderReads(t *testing.T) {
 	artifact := registeredArtifact(t, ledgerRel)
-	feeds := []string{
-		"rfc/short/rfc4271.md",
-		"rfc/audit/rfc4271.json",
-		"rfc/discrimination/rfc4271.json",
-		"internal/component/bgp/message/rfc7606_test.go",
-		"test/plugin/open-hold-time.ci",
-		"internal/component/bgp/reactor/reactor.go",
-		"internal/le/interoplab/ipsec/checkers.go",
+	feeds := map[string]string{
+		"rfc/short/rfc4271.md":                           "Collect: every requirement and every Meta row",
+		"rfc/audit/rfc4271.json":                         "loadAudits: the verdicts and the freshness states",
+		"rfc/discrimination/rfc4271.json":                "loadDiscrimination: the recorded breaks",
+		"rfc/extraction/rfc4271.json":                    "renderExtractionTable -> evaluateExtractions -> LoadExtractions",
+		"rfc/full/rfc4271.txt":                           "evaluateExtractions -> Deriver.Inventory -> SourceText",
+		"rfc/drafts/draft-ietf-idr-bgp-model.txt":        "the same walk, for an RFC enrolled as a draft",
+		".github/workflows/nightly.yml":                  "carriers -> scheduledWorkflowActions -> readWorkflowSources",
+		"internal/component/bgp/message/rfc7606_test.go": "tagCovers: a tag carrier",
+		"test/plugin/open-hold-time.ci":                  "tagCovers: a tag carrier",
+		"internal/component/bgp/reactor/reactor.go":      "unscannedTags: an unclaimed `RFC requirement:` comment",
+		"internal/le/interoplab/ipsec/checkers.go":       "unscannedTags, over native interop Go",
 	}
-	for _, path := range feeds {
+	for path, walk := range feeds {
 		if !artifact.Feeds(".", path) {
-			t.Errorf("%s feeds the RFC render and the predicate says it does not", path)
+			t.Errorf("%s feeds the RFC render through %s and the predicate says it does not", path, walk)
 		}
 	}
 	// The other side. A predicate that answers true for everything invalidates
@@ -66,7 +116,6 @@ func TestTheRFCArtifactsAreFedByEverySourceTheRenderReads(t *testing.T) {
 		"docs/guide/bgp-peering.md",
 		"plan/spec-derived-indexes-answer-a-query.md",
 		"website/blog/posts/reference-from-the-system.md",
-		"rfc/full/rfc4271.txt",
 	} {
 		if artifact.Feeds(".", path) {
 			t.Errorf("%s does not feed the RFC render and the predicate says it does", path)

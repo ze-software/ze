@@ -143,57 +143,126 @@ func repoRoot(t *testing.T) string {
 	return root
 }
 
-// TestTheDocumentIndexHoldsEveryCodePath judges the map this package reads
-// against the map the generator holds, over this checkout.
+// TestTheAuditReportsEveryDocumentOfABulletRenderedPath judges the CONSUMER
+// over this checkout, on the shape the deleted parse could not see.
 //
-// VALIDATES: the audit sees every code path the documentation anchors, with the
-// same documents against each one.
-// PREVENTS: the blind spot a rendered index creates. ai/CODE-TO-DOCS.md renders
-// a package of three files or fewer as bullets and a larger one as a table, and
-// the parse matched the table alone, so 631 of 2,533 entries were invisible to
-// a reader that had no way to know it was reading a quarter short.
-func TestTheDocumentIndexHoldsEveryCodePath(t *testing.T) {
+// VALIDATES: a spec naming a source file whose package renders as BULLETS in
+// ai/CODE-TO-DOCS.md is judged against every document that anchors that file,
+// over the real corpus rather than over a hand-built tree.
+// PREVENTS: the blind spot a rendered index creates. renderCodeIndex writes a
+// package of at most namedInline files as bullets and a larger one as a table
+// (internal/le/docstocode/codetodocs_report.go), and the parse this audit used
+// matched the table alone, so 674 of the tree's 2,537 code paths were invisible
+// to it.
+//
+// It does NOT compare the audit's index against the generator's map. Those are
+// ONE call now (loadDocumentIndex), so a test that compared them would compare a
+// function with itself and would pass for any population, an empty one included.
+// The consumer is where a claim about the population can still be checked.
+func TestTheAuditReportsEveryDocumentOfABulletRenderedPath(t *testing.T) {
 	root := repoRoot(t)
 
 	model, err := docstocode.DocumentsByPath(root)
 	if err != nil {
 		t.Fatalf("build the reverse index: %v", err)
 	}
-	// A generator answering nothing would agree with an empty index, so it is
-	// refused rather than read as agreement.
-	if len(model) == 0 {
-		t.Fatal("the generator answered no code path at all, so nothing was compared")
+	source, documents := bulletRenderedPath(t, model)
+
+	specPath := filepath.Join(t.TempDir(), "spec-bullet-rendered-path.md")
+	// The spec names the SOURCE and no document, so every document that anchors
+	// it is owed as a finding: AuditAnchors drops one the spec already names.
+	body := "## Files to Modify\n- `" + source + "` - the case under test\n"
+	if err := os.WriteFile(specPath, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
 	}
 
-	index, err := loadDocumentIndex(root)
+	report, err := AuditAnchors(root, specPath)
 	if err != nil {
-		t.Fatalf("load the document index: %v", err)
-	}
-	if len(index) != len(model) {
-		t.Errorf("the audit reads %d code path(s); the generator holds %d", len(index), len(model))
+		t.Fatalf("AuditAnchors: %v", err)
 	}
 
-	var missing, different []string
-	for path, documents := range model {
-		held, present := index[path]
-		if !present {
-			missing = append(missing, path)
+	reported := map[string]bool{}
+	for _, finding := range slices.Concat(report.Owners, report.Mentions) {
+		if slices.Contains(finding.Sources, source) {
+			reported[finding.Document] = true
+		}
+	}
+	for _, document := range documents {
+		if !reported[document] {
+			t.Errorf("%s anchors %s and the audit named neither it nor the file's own owner; "+
+				"reported %v", document, source, sortedSet(reported))
+		}
+	}
+}
+
+// bulletRenderedPath answers one real code path the index renders as a bullet,
+// with every document that anchors it.
+//
+// The choice is the FIRST such path in sorted order, so a failure names the same
+// case on every machine. A tree that offers none fails rather than passes: this
+// test's whole subject is that shape, and a silent skip would report a corpus
+// fact as a green assertion (ai/rules/principles.md).
+func bulletRenderedPath(t *testing.T, model map[string][]string) (string, []string) {
+	t.Helper()
+
+	// namedInline, the bound renderCodeIndex switches shape at, restated here
+	// because it is unexported in the package that owns it. A change there
+	// widens the bullet population and can only make this case easier to find.
+	const namedInline = 3
+
+	inPackage := map[string]int{}
+	for path := range model {
+		inPackage[packageOf(path)]++
+	}
+	for _, path := range sortedKeysOf(model) {
+		if inPackage[packageOf(path)] > namedInline {
 			continue
 		}
-		if !reflect.DeepEqual(held, documents) {
-			different = append(different, path)
+		if !slices.ContainsFunc(sourcePrefixes[:], func(prefix string) bool {
+			return strings.HasPrefix(path, prefix)
+		}) {
+			continue
 		}
+		if !slices.ContainsFunc(sourceSuffixes[:], func(suffix string) bool {
+			return strings.HasSuffix(path, suffix)
+		}) {
+			continue
+		}
+		if len(model[path]) == 0 {
+			continue
+		}
+		return path, model[path]
 	}
-	slices.Sort(missing)
-	slices.Sort(different)
-	if len(missing) != 0 {
-		t.Errorf("%d code path(s) the generator holds are absent from the audit's index, first %s",
-			len(missing), strings.Join(missing[:min(3, len(missing))], " "))
+	t.Fatal("no anchored code path in this checkout sits in a package the index renders as bullets, " +
+		"so the shape this test exists for was never exercised")
+	return "", nil
+}
+
+// packageOf is the directory part of a code path, which is what the renderer
+// groups by (packageDir, internal/le/docstocode/codetodocs.go).
+func packageOf(path string) string {
+	if index := strings.LastIndex(path, "/"); index >= 0 {
+		return path[:index]
 	}
-	if len(different) != 0 {
-		t.Errorf("%d code path(s) carry different documents in the two maps, first %s",
-			len(different), strings.Join(different[:min(3, len(different))], " "))
+	return path
+}
+
+func sortedKeysOf(model map[string][]string) []string {
+	keys := make([]string, 0, len(model))
+	for key := range model {
+		keys = append(keys, key)
 	}
+	slices.Sort(keys)
+	return keys
+}
+
+func sortedSet(set map[string]bool) []string {
+	keys := make([]string, 0, len(set))
+	for key := range set {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	return keys
 }
 
 // VALIDATES: a spec naming a source file that lives in a package of three files

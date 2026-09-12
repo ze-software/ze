@@ -674,9 +674,11 @@ func scratchMessage(path string) string {
 // rebuild runs BEFORE the command, so what the command reads describes the tree
 // as it now stands rather than as it stood at the last commit.
 //
-// A PRESENT artifact is left exactly as it is. A read that rewrote it would
+// A WHOLE artifact is left exactly as it is. A read that rewrote it would
 // mutate the tree on every grep, and its content is already correct: the write
-// hook removed it the moment it stopped being correct.
+// hook removed it the moment it stopped being correct. Whole is not the same
+// question as present for a directory artifact, which answers it itself
+// (artifactWhole, derived.Artifact.Complete).
 //
 // A rebuild that fails BLOCKS the command. The alternative is a grep reading a
 // file nobody built, which answers "no match" for a tree the author cannot see,
@@ -700,13 +702,13 @@ func preMaterializeDerived(ctx context) *verdict {
 		if _, err := os.Stat(filepath.Join(ctx.root, filepath.FromSlash(pathDirectory(artifact.Path)))); err != nil {
 			continue
 		}
-		_, err := os.Stat(filepath.Join(ctx.root, filepath.FromSlash(artifact.Path)))
-		if err == nil {
-			continue
-		}
-		if !errors.Is(err, os.ErrNotExist) {
+		whole, err := artifactWhole(ctx.root, artifact)
+		if err != nil {
 			return &verdict{2, "❌ Blocked: " + artifact.Path + " cannot be read: " + err.Error() +
 				"\nIt is derived, so the command would judge a tree nobody rendered."}
+		}
+		if whole {
+			continue
 		}
 		if err := artifact.Rebuild(ctx.root); err != nil {
 			return &verdict{2, "❌ Blocked: " + artifact.Path + " is derived and could not be built: " + err.Error() +
@@ -714,6 +716,28 @@ func preMaterializeDerived(ctx context) *verdict {
 		}
 	}
 	return nil
+}
+
+// artifactWhole reports whether the tree at root holds the artifact WHOLE, and
+// raises when the path cannot be read at all.
+//
+// Two questions, in this order, because the second one presumes the first. The
+// stat answers whether anything is there. The artifact's own Complete then
+// answers whether what is there is the whole of it, which is a question a stat
+// cannot settle for a DIRECTORY: its files are written one at a time, so a run
+// that stopped half way leaves a present, short directory that a reader takes
+// for the whole answer (derived.Artifact.Complete).
+func artifactWhole(root string, artifact derived.Artifact) (bool, error) {
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(artifact.Path))); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	if artifact.Complete == nil {
+		return true, nil
+	}
+	return artifact.Complete(root), nil
 }
 
 // commandNamesArtifact reports whether the command text reaches the artifact,

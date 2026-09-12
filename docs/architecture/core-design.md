@@ -121,11 +121,13 @@ edit anywhere else.
 The registry gives the artifact its lifecycle. A `Write` or an `Edit` to a file
 the predicate accepts REMOVES the artifact. A Bash command that names its path
 REBUILDS it before that command runs, and a session start builds every artifact
-the tree does not hold. Both build only what is ABSENT, so a write that reaches
-an input with no hook in its path leaves the artifact present and stale until
-the next hooked write removes it. Nothing compares a re-render against a
-committed copy,
-because there is no committed copy. Which files are registered is the registry's
+the tree does not hold. Both build only what the tree does not already hold
+WHOLE, so a write that reaches an input with no hook in its path leaves the
+artifact present and stale until the next hooked write removes it. A native
+action writing from Go is such a write: `./le rfc reseal` edits an input of the
+five RFC outputs and no hook sees it, so `./le rfc index-update` follows it.
+Nothing compares a re-render against a committed copy, because there is no
+committed copy. Which files are registered is the registry's
 own answer rather than a list here: `derived.All` enumerates them, and
 `internal/le/discoveryindex`, `internal/le/docstocode` and `internal/le/rfc` are
 the packages that register today.
@@ -138,6 +140,19 @@ files inside it is derived too, because a summary that stops declaring
 requirements leaves a shard the generator no longer owns. `removeArtifact`
 (`internal/le/hookruntime/postwrite.go`) takes such a member whole, so an
 invalidation cannot leave one orphaned file behind and read as current.
+
+A directory is also the case where PRESENT and WHOLE are different questions. A
+file is published with one rename, so its name on disk means the render behind
+it finished. A directory exists from the first of its files, so a run that
+stopped half way leaves a present, short directory. A directory artifact
+therefore answers `Complete` for itself and names what tells it the last run
+finished: `rfc/requirements` reads `ai/RFC-REQUIREMENTS.md`, which `IndexUpdate`
+writes LAST for this reason. A member deleted by hand under a finished run is
+outside that answer, because an exact member set costs the render it would be
+deciding whether to run.
+
+<!-- source: internal/le/derived/derived.go -- Artifact.Complete -->
+<!-- source: internal/le/hookruntime/bash.go -- artifactWhole -->
 
 **A gate reads recorded evidence. A separate verb produces it.** `./le rfc
 check` re-reads a stored proof and compares its fingerprints against the tree;

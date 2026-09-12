@@ -13,6 +13,8 @@
 package derived
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -52,13 +54,14 @@ func refusalOf(artifact Artifact) (message string) {
 	return ""
 }
 
-// validArtifact is a registration with both halves present, so each case below
-// differs from it only in the thing it is about.
+// validArtifact is a registration with every declared half present, so each
+// case below differs from it only in the thing it is about.
 func validArtifact(path string) Artifact {
 	return Artifact{
-		Path:    path,
-		Feeds:   func(_, _ string) bool { return false },
-		Rebuild: func(_ string) error { return nil },
+		Path:         path,
+		Feeds:        func(_, _ string) bool { return false },
+		Rebuild:      func(_ string) error { return nil },
+		SessionStart: SessionStartBuild,
 	}
 }
 
@@ -100,8 +103,13 @@ func TestRegisterRefusesAnUnusablePath(t *testing.T) {
 		{"empty", validArtifact(""), "no output path"},
 		{"absolute", validArtifact("/etc/ze-artifact.md"), "/etc/ze-artifact.md"},
 		{"climbing", validArtifact("ai/../../outside.md"), "ai/../../outside.md"},
-		{"no predicate", Artifact{Path: "ai/x.md", Rebuild: func(_ string) error { return nil }}, "ai/x.md"},
-		{"no rebuild", Artifact{Path: "ai/x.md", Feeds: func(_, _ string) bool { return false }}, "ai/x.md"},
+		{"no predicate", Artifact{Path: "ai/x.md", Rebuild: func(_ string) error { return nil },
+			SessionStart: SessionStartBuild}, "ai/x.md"},
+		{"no rebuild", Artifact{Path: "ai/x.md", Feeds: func(_, _ string) bool { return false },
+			SessionStart: SessionStartBuild}, "ai/x.md"},
+		{"no session-start policy", Artifact{Path: "ai/x.md",
+			Feeds:   func(_, _ string) bool { return false },
+			Rebuild: func(_ string) error { return nil }}, "declares no SessionStart policy"},
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			isolateRegistry(t)
@@ -120,5 +128,29 @@ func TestRegisterRefusesAnUnusablePath(t *testing.T) {
 	isolateRegistry(t)
 	if message := refusalOf(validArtifact("ai/well-formed.md")); message != "" {
 		t.Errorf("a well-formed registration was refused: %s", message)
+	}
+}
+
+// TestWriteAtomicPublishesAReadablePage pins the mode a derived artifact lands
+// with.
+//
+// VALIDATES: an artifact is published world-readable, whatever mode the
+// temporary file it was staged in carried.
+// PREVENTS: the silent permission change a move onto this function makes. Every
+// artifact here stands where a TRACKED file stood, and a checkout gives that
+// file 0644; os.CreateTemp creates at 0600, so the RFC generator's 194 shards
+// and its published status page became unreadable to any reader that is not
+// this user, with no line of the diff saying so.
+func TestWriteAtomicPublishesAReadablePage(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "page.md")
+	if err := WriteAtomic(path, []byte("# page\n")); err != nil {
+		t.Fatalf("WriteAtomic: %v", err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat the published page: %v", err)
+	}
+	if mode := info.Mode().Perm(); mode != 0o644 {
+		t.Errorf("the published page is %04o, and a tracked page it replaces is 0644", mode)
 	}
 }

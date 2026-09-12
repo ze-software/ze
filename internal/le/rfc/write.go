@@ -49,6 +49,13 @@ var stemRE = regexp.MustCompile(`\A[a-z0-9][a-z0-9._-]*\z`)
 // covered by the stale and missing branches, which iterate the rendered stems
 // rather than the directory. Left unguarded on purpose: the failure direction is
 // NOT-deleting.
+//
+// The four limits bound THIS function, which is the prune inside a render. They
+// do not bound the INVALIDATION: the directory is a registered derived artifact
+// and removeArtifact (internal/le/hookruntime/postwrite.go) takes it whole, as
+// /rfc/requirements/ being gitignored whole declares it should. A foreign file
+// under this directory therefore survives every render and none of those
+// removals.
 func prunableShards(tree string, keep map[string]bool) ([]string, error) {
 	dir := treePath(tree, shardRelDir)
 	entries, err := os.ReadDir(dir)
@@ -76,13 +83,14 @@ func prunableShards(tree string, keep map[string]bool) ([]string, error) {
 	return stems, nil
 }
 
-// PruneShards deletes every shard prunableShards names, and answers the deleted
+// pruneShards deletes every shard prunableShards names, and answers the deleted
 // stems.
 //
 // A shard the render no longer produces is a page about an RFC that no longer
 // declares anything, and it reads as current for as long as it sits there. The
-// write owns this directory, so the write removes it.
-func PruneShards(tree string, keep map[string]bool) ([]string, error) {
+// write owns this directory, so the write removes it. Exported until 2026-09-12
+// for the same deleted freshness gate prunableShards names.
+func pruneShards(tree string, keep map[string]bool) ([]string, error) {
 	removed, err := prunableShards(tree, keep)
 	if err != nil {
 		return nil, err
@@ -160,14 +168,11 @@ func IndexUpdate(tree string) (IndexReport, error) {
 	if err != nil {
 		return IndexReport{}, err
 	}
-	if err := writePage(tree, ledgerRel, index); err != nil {
-		return IndexReport{}, err
-	}
-	for _, rel := range LedgerPaths() {
-		if err := writeExact(tree, rel, ledgers[rel]); err != nil {
-			return IndexReport{}, err
-		}
-	}
+	// The SHARDS first and the ledger LAST, because the ledger is the marker
+	// that says this run finished (shardsRendered, register.go). The shard
+	// directory exists from the first of its 194 files, so a run that stopped
+	// half way leaves a present, short directory that a reader takes for the
+	// whole answer. Nothing else depends on the order.
 	for _, stem := range sortedKeysOf(shards) {
 		if err := writePage(tree, shardRel(stem), shards[stem]); err != nil {
 			return IndexReport{}, err
@@ -179,12 +184,20 @@ func IndexUpdate(tree string) (IndexReport, error) {
 	for stem := range shards {
 		keep[stem] = true
 	}
-	removed, err := PruneShards(tree, keep)
+	removed, err := pruneShards(tree, keep)
 	if err != nil {
 		return IndexReport{}, err
 	}
+	for _, rel := range ledgerPaths() {
+		if err := writeExact(tree, rel, ledgers[rel]); err != nil {
+			return IndexReport{}, err
+		}
+	}
+	if err := writePage(tree, ledgerRel, index); err != nil {
+		return IndexReport{}, err
+	}
 	return IndexReport{Ledger: ledgerRel, Shards: len(shards), Deleted: removed,
-		Files: LedgerPaths()}, nil
+		Files: ledgerPaths()}, nil
 }
 
 // refuseToWrite is the destructive-input refusal, with every parse error above

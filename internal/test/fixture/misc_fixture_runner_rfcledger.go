@@ -148,6 +148,31 @@ func leRFCLedgerIsDerivedDriver(ctx context.Context, args []string) error {
 	}
 	fmt.Fprintln(os.Stdout, "read-materialized-the-family") //nolint:errcheck // progress output
 
+	// A render that stopped before its last write. The shards are on disk and
+	// the ledger is not, which is the state IndexUpdate leaves when it fails or
+	// is interrupted: it writes the shards first and the ledger last.
+	//
+	// A stat cannot tell that directory from a whole one, so the hook asked the
+	// artifact instead (derived.Artifact.Complete). Until 2026-09-12 the command
+	// below read a directory nobody finished writing and said nothing.
+	if err := os.Remove(filepath.Join(repo, filepath.FromSlash(rfcLedgerIndexRel))); err != nil {
+		return fmt.Errorf("clear the run marker: %w", err)
+	}
+	// The command names the SHARD alone. It reaches no artifact whose own path
+	// is absent, so a hook that trusted the directory's presence would rebuild
+	// nothing at all.
+	code, said, err = derivedReadHook(ctx, repo, le, "grep -n "+rfcLedgerRequirement+" "+rfcLedgerShardRel)
+	if err != nil {
+		return err
+	}
+	if code != 0 {
+		return fmt.Errorf("the read hook refused a grep of the shard directory with %d:\n%s", code, said)
+	}
+	if _, statErr := os.Stat(filepath.Join(repo, filepath.FromSlash(rfcLedgerIndexRel))); statErr != nil {
+		return fmt.Errorf("a read of a shard directory no run finished left it as it was: %w", statErr)
+	}
+	fmt.Fprintln(os.Stdout, "unfinished-shard-directory-was-rebuilt") //nolint:errcheck // progress output
+
 	// The write half: the tagged test a session adds removes every one of them,
 	// including the shard DIRECTORY, which os.Remove alone could not take.
 	tagged := filepath.Join(repo, filepath.FromSlash(rfcLedgerTestRel))

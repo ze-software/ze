@@ -232,11 +232,13 @@ On `gpg failed to sign` or `cannot open /dev/tty`, ask the user to run
 ## Rebasing onto a diverged main
 
 A rebase of local commits onto a diverged `origin/main` can re-conflict on a
-generated file git still tracks. The RFC ledger, the rendered rules,
-`docs/features/rfc-status.md` and `docs/features/test-health.md` are the ones to
-expect. Rewrite the conflicted file with its own generator at each rebase stop
-and continue. `ai/PACKAGE-MAP.md` is not one of them any more. It is derived and
-untracked, so a rebase cannot conflict on it. Finish the rebase before repairing
+generated file git still tracks. The rendered rules and
+`docs/features/test-health.md` are the ones to expect. Rewrite the conflicted
+file with its own generator at each rebase stop and continue. A DERIVED artifact
+is never one of them: it is untracked, so a rebase cannot conflict on it. Which
+files those are is `derived.All`'s answer rather than a list here, and
+`./le hook-check session-start` prints each one it builds. The RFC ledger and
+its shards left git on 2026-09-11 and joined that set. Finish the rebase before repairing
 bookkeeping, never mid-rebase, then recompute any derived ratchet the rebase
 loosened.
 

@@ -36,14 +36,19 @@ func init() {
 	// registry existed, the session-start hook named them in two hardcoded
 	// os.Stat blocks and rebuilt each only when it was ABSENT, so an index that
 	// existed and no longer matched the tree was never rebuilt.
+	// Both indexes are built at session start, for the reason
+	// derived.SessionStartPolicy states: an unnamed grep is how a reader
+	// reaches them, and the two render in about a second between them.
 	derived.Register(derived.Artifact{
-		Path:    OutputRel,
-		Feeds:   func(_, path string) bool { return IsDesignSource(path) },
-		Rebuild: func(root string) error { _, err := Update(root); return err },
+		Path:         OutputRel,
+		Feeds:        func(_, path string) bool { return IsDesignSource(path) },
+		Rebuild:      func(root string) error { _, err := Update(root); return err },
+		SessionStart: derived.SessionStartBuild,
 	})
 	derived.Register(derived.Artifact{
-		Path:    CodeOutputRel,
-		Feeds:   func(_, path string) bool { return IsAnchorSource(path) },
-		Rebuild: func(root string) error { _, err := UpdateCodeIndex(root); return err },
+		Path:         CodeOutputRel,
+		Feeds:        func(_, path string) bool { return IsAnchorSource(path) },
+		Rebuild:      func(root string) error { _, err := UpdateCodeIndex(root); return err },
+		SessionStart: derived.SessionStartBuild,
 	})
 }

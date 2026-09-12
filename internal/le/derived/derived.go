@@ -23,6 +23,44 @@ import (
 	"sync"
 )
 
+// SessionStartPolicy says whether the session-start hook renders an artifact
+// the tree does not hold.
+//
+// The hook runs under a FIXED 5 second timeout (`.claude/settings.json`), and a
+// hook killed at that timeout loses every artifact after the kill point AND the
+// whole session-start message, the BLOCKING LSP notice and the
+// verification-debt warning included. So the budget is the property each
+// artifact declares against, and there is no Unspecified answer: a generator
+// that says nothing would inherit a render nobody measured, which is exactly
+// how the 5.32s measurement below happened.
+type SessionStartPolicy uint8
+
+const (
+	// SessionStartUnspecified is the zero value and is never valid. Register
+	// refuses it.
+	SessionStartUnspecified SessionStartPolicy = iota
+
+	// SessionStartBuild renders the artifact at session start when the tree
+	// does not hold it. It is for an artifact a search reads WITHOUT naming
+	// its path: `grep -rn ResolveBGPTree` reaches no hook, so an absent index
+	// answers "no match" for a tree the author cannot see. The three
+	// documentation indexes are that class, and they render in about a second
+	// between them.
+	SessionStartBuild
+
+	// SessionStartDefer leaves the artifact absent for preMaterializeDerived
+	// to build. It is for an artifact every reader NAMES: a `./le rfc ...`
+	// command and a site build each name their path, so the read hook covers
+	// them and nothing reads an absent file as an empty answer.
+	//
+	// Measured on this checkout on 2026-09-12, with a le built from the tree:
+	// the hook takes 2.68s and 2.03s with all eight artifacts present, and
+	// 5.32s with the five RFC artifacts absent, against a 5 second timeout.
+	// The family is absent often rather than rarely, because its predicate
+	// covers every `*.go` write in every session.
+	SessionStartDefer
+)
+
 // Artifact is one derived file: where it lives, what feeds it, and how to
 // rebuild it.
 //
@@ -39,6 +77,30 @@ type Artifact struct {
 
 	// Rebuild writes the artifact from the tree at root.
 	Rebuild func(root string) error
+
+	// Complete reports whether root holds this artifact WHOLE. Nil means a stat
+	// of Path is the answer, and a reader takes that answer only after the stat
+	// has already found the path.
+	//
+	// Nil is exact for a single FILE, because WriteAtomic publishes one with a
+	// rename: the name exists only once the render behind it finished. A
+	// DIRECTORY has no such moment. Its files are written one at a time, so the
+	// directory exists from the first of them, and a run that stopped half way
+	// leaves a directory that is present and short. A reader would then take a
+	// partial set for the whole answer, which is the silent wrong value this
+	// package exists to remove (ai/rules/principles.md).
+	//
+	// So a directory artifact MUST answer this itself, and it MUST name the
+	// thing that tells it the last run FINISHED. What it cannot answer cheaply
+	// is a member deleted by hand after a complete run: an exact member set
+	// costs the render it would be deciding whether to run.
+	Complete func(root string) bool
+
+	// SessionStart says whether hookSessionStart renders this artifact when the
+	// tree does not hold it. Every registration states it; the zero value is
+	// refused, because the hook's budget is fixed and a render nobody costed is
+	// how it gets spent.
+	SessionStart SessionStartPolicy
 }
 
 // registry holds every registered artifact, in registration order.
@@ -78,6 +140,14 @@ func Register(artifact Artifact) {
 	}
 	if artifact.Rebuild == nil {
 		panic("BUG: derived.Register(" + artifact.Path + ") with no Rebuild function")
+	}
+	// No default, deliberately. A silent "build it at session start" is what
+	// put a 194-shard render inside a 5 second hook on 2026-09-11, and a
+	// registration that says nothing about the budget is the shape that did it.
+	if artifact.SessionStart == SessionStartUnspecified {
+		panic("BUG: derived.Register(" + artifact.Path + ") declares no SessionStart policy: " +
+			"pass SessionStartBuild when a search that names no path has to find it, " +
+			"and SessionStartDefer when every reader names its path")
 	}
 
 	registry.mutex.Lock()
@@ -137,8 +207,16 @@ func WriteAtomic(path string, content []byte) (err error) {
 	if err = temporary.Close(); err != nil {
 		return fmt.Errorf("close %s: %w", temporaryPath, err)
 	}
-	// No chmod: os.CreateTemp already creates at 0600, which is the mode every
-	// generator wrote before this function existed.
+	// 0644, because a derived artifact stands where a TRACKED file stood and a
+	// checkout gives that file 0644. os.CreateTemp creates at 0600, and every
+	// artifact registered here is a page a person or a tool reads: the RFC
+	// generator wrote 0644 and said so ("a generated page, world-readable by
+	// design") until it moved onto this function on 2026-09-11, at which point
+	// docs/features/rfc-status.md and 194 shards became unreadable to any
+	// reader that is not this user, with nothing saying so.
+	if err = os.Chmod(temporaryPath, 0o644); err != nil { //nolint:gosec // a generated page, world-readable by design
+		return fmt.Errorf("set the mode of %s: %w", temporaryPath, err)
+	}
 	if err = os.Rename(temporaryPath, path); err != nil {
 		return fmt.Errorf("publish %s: %w", path, err)
 	}
