@@ -25,7 +25,7 @@ bgp {
 redistribute {
 	destination bgp {
 		import ebgp {
-			family [ ipv4/unicast ipv4/vpn ];
+			family [ ipv4/unicast ipv4/mpls-vpn ];
 		}
 		import ibgp;
 	}

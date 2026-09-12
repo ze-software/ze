@@ -1,9 +1,11 @@
-# Test: ze config validate accepts redistribute with unknown source at parse time
-# The redistribute-source custom validator does not fire during ze config validate
-# (list key values are not validated by ze:validate at parse time).
-# Unknown sources are caught at daemon startup by ExtractRedistributeRules.
-# This test verifies the YANG structure is valid even with an unregistered source.
-# VALIDATES: AC-4 -- redistribute list structure accepted by YANG parser
+# Test: ze config validate REFUSES a redistribute source no plugin registers
+# The scalar form `import rip;` reaches ExtractRedistributeRules
+# (internal/component/config/loader_redistribute.go), which looks every source
+# up in the registry the plugins fill. rip is not a protocol ze implements, so
+# no plugin registers it and the lookup misses.
+# The refusal names the source and the destination, so an operator learns at
+# validate time rather than at daemon startup.
+# VALIDATES: AC-4 -- a redistribute source outside the registry is refused by name
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer peer1 {
@@ -32,4 +34,5 @@ redistribute {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
-expect=exit:code=0
+expect=exit:code=1
+expect=stdout:contains=redistribute: unknown source "rip" under destination "bgp"
