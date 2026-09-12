@@ -180,10 +180,22 @@ value.
 The binding is what gives the editor an accessible name. An unbound editor
 falls back to its placeholder, which is the leaf's default where the schema
 supplies one, so the field announces itself as a value.
-`TestCapturedLabelsNameAnIDTheSameDocumentCarries` and
-`TestEveryLeafEditorIsNamedByItsLabel` (`markup_contract_test.go`) hold both
-halves: every `for` in a capture names an id that capture writes, and every
-input type in the `fieldInputs` registry carries the binding.
+
+The name is the leaf name alone. The decorative (i) badge and the description
+both sit inside the label, so both are `aria-hidden`, and the editor names the
+description through `aria-describedby` instead (`fieldDescribedBy`, `view.go`).
+A node a `describedby` directly names is read even when it is hidden
+(accname-1.2, step 2A), which is what lets one element be the tooltip a sighted
+operator hovers and the description a reader hears. The tooltip is a real
+element for that reason: it used to be `::after` content on the badge, and
+generated content has no id to name.
+
+Three tests in `markup_contract_test.go` hold the whole contract.
+`TestCapturedLabelsNameAnIDTheSameDocumentCarries` walks every capture and holds
+each `for` to an id that capture writes. `TestEveryLeafEditorIsNamedByItsLabel`
+walks the `fieldInputs` registry, so an editor added later cannot ship without
+either binding. `TestALeafEditorIsNamedByItsLeafAlone` strips the hidden spans
+and reads what is left of the label.
 
 ## Decorators
 

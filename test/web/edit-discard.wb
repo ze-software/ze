@@ -5,4 +5,10 @@
 option=timeout:value=30s
 
 action=open:path=/show/bgp/session/asn/
-expect=element:text=Local Autonomous System Number
+
+# The leaf NAME, which is the editor's accessible name now that its label binds
+# to it (input_wrapper.templ). Asserting the YANG description instead read the
+# name an UNBOUND editor fell back to, so the assertion passed on the markup
+# defect it could not see.
+expect=element:text=local
+expect=element:id=input-bgp-ssession-sasn-slocal

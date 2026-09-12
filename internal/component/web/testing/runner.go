@@ -245,6 +245,16 @@ func (b *Browser) fullSnapshot() (string, error) {
 	return b.runAgentOutput("snapshot")
 }
 
+// scopedSnapshot returns the full accessibility snapshot of one element.
+//
+// Snapshot answers about the whole page and drops static text, so an assertion
+// about a region that is mostly text cannot use it. A breadcrumb is that
+// region: its trailing segment is a span, and the ancestors above it are links
+// only while the page is deeper than one level.
+func (b *Browser) scopedSnapshot(selector string) (string, error) {
+	return b.runAgentOutput("snapshot", "-s", selector)
+}
+
 // Press sends a key press (e.g., "Enter", "Tab", "Escape").
 func (b *Browser) Press(key string) error {
 	if err := b.runAgent("press", key); err != nil {

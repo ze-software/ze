@@ -17,6 +17,9 @@ templ inputEnum(f FieldMeta) {
 		hx-target="closest .ze-field"
 		hx-swap="outerHTML"
 		hx-vals={ fieldHxVals(f.Leaf) }
+		if fieldDescribedBy(f) != "" {
+			aria-describedby={ fieldDescribedBy(f) }
+		}
 	>
 		<option value="">{ enumBlankLabel(f.Default) }</option>
 		for _, opt := range splitFieldOptions(f.Options) {

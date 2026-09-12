@@ -108,7 +108,14 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 				return
 			}
 
+			// nil, because a purpose-built page sources its own content and a
+			// schema walk over its path answers nothing: /show/iface/ names no
+			// schema node at all. The TRAIL is not part of that: it is derived
+			// from the path and from nothing else (buildBreadcrumbs), so every
+			// one of these pages rendered an empty <ol> and the operator lost
+			// the trail on System, Interfaces, IP, L2TP and the tools.
 			data := buildFragmentData(schema, viewTree, nil)
+			data.Breadcrumbs = buildBreadcrumbs(path)
 			data.Username = username
 			data.Insecure = insecure
 			data.Services = PortalServices()

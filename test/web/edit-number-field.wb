@@ -5,4 +5,9 @@
 option=timeout:value=30s
 
 action=open:path=/show/bgp/session/asn/
-expect=element:text=Autonomous System Number
+
+# INTERACTIVE is the claim, so the assertion is the wiring rather than the text:
+# an editor that renders without hx-post draws a box the operator can type into
+# and cannot save from.
+expect=element:id=input-bgp-ssession-sasn-slocal
+expect=html:contains=hx-post="/config/set/bgp/session/asn"

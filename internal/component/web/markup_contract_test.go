@@ -337,8 +337,56 @@ func TestEveryLeafEditorIsNamedByItsLabel(t *testing.T) {
 				"the label does not name the editor")
 			assert.Contains(t, markup, `id="`+want+`"`,
 				"the editor does not carry the id its label names")
+
+			// The description is the editor's DESCRIPTION, not part of its
+			// name. It sits inside the label, so the wrapper hides it and the
+			// editor names it instead. An editor that skips the attribute
+			// leaves its help text reachable by hover alone.
+			describe := fieldDescriptionID(field.Path, field.Leaf)
+			assert.Contains(t, markup, `aria-describedby="`+describe+`"`,
+				"the editor does not name its description")
+			assert.Contains(t, markup, `id="`+describe+`"`,
+				"the wrapper does not carry the description the editor names")
 		})
 	}
+}
+
+// TestALeafEditorIsNamedByItsLeafAlone verifies the accessible name the label
+// computes is the leaf name, and carries neither the decorative badge nor the
+// description.
+//
+// VALIDATES: everything in the label other than the leaf name is aria-hidden.
+// PREVENTS: a reader hearing "pid i PID file path" for a field called pid. The
+// name is what identifies a control, and a description appended to it is read
+// on every visit to the field. Hiding the two spans is what moves the
+// description to aria-describedby, where a reader takes it once and on request.
+func TestALeafEditorIsNamedByItsLeafAlone(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	field := FieldMeta{
+		Leaf: "router-id", Path: "bgp", Type: "string",
+		Description: "Router ID", Decoration: "Example Org",
+	}
+	markup := string(renderer.renderComponent("field_wrapper",
+		fieldWrapper(field, fieldInputFor(field))))
+
+	label := regexp.MustCompile(`(?s)<label[^>]*>(.*?)</label>`).FindStringSubmatch(markup)
+	require.NotNil(t, label, "the wrapper rendered no label")
+
+	// Strip every aria-hidden element, then read what a name computation would
+	// have left. The decoration is deliberately NOT hidden: it annotates the
+	// value the operator is looking at, and it is only ever rendered where a
+	// decorator resolved one.
+	named := regexp.MustCompile(`(?s)<span[^>]*aria-hidden="true"[^>]*>.*?</span>`).ReplaceAllString(label[1], "")
+	named = regexp.MustCompile(`<[^>]*>`).ReplaceAllString(named, "")
+	// A name computation collapses whitespace, so the gap a stripped span
+	// leaves is not a difference. Asserting on the raw text would fail on the
+	// indentation templ writes between elements.
+	named = strings.Join(strings.Fields(named), " ")
+
+	assert.Equal(t, "router-id (Example Org)", named,
+		"the label contributes more than the leaf name and its decoration to the editor's accessible name")
 }
 
 // TestGoldenFixturesCarryNoEmptyClassAttribute verifies no captured component

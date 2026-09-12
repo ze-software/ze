@@ -165,6 +165,41 @@ func fieldInputID(path, leaf string) string {
 	return tb.Reset().Str("input-").Str(fieldInputIDEscaper.Replace(qualified)).String()
 }
 
+// fieldDescriptionID is the DOM id of one leaf's description.
+//
+// A leaf editor names it through aria-describedby, which resolves an id. The
+// description used to be ::after content on the decorative badge, and generated
+// content has no id to name. It also sat inside the label the editor is bound
+// to, so it joined the editor's accessible NAME: a reader heard "pid i PID file
+// path" where the field is called pid.
+//
+// Same derivation as fieldInputID, for the same reason: one page renders one
+// editor per path, and the POST response renders the next, so the two renders
+// have to agree on the id.
+func fieldDescriptionID(path, leaf string) string {
+	var tb textbuf.Buffer
+
+	qualified := tb.Str(path).Byte('/').Str(leaf).String()
+
+	return tb.Reset().Str("describe-").Str(fieldInputIDEscaper.Replace(qualified)).String()
+}
+
+// fieldDescribedBy is the aria-describedby value for one leaf's editor, or the
+// empty string where the leaf declares no description.
+//
+// Every editor asks this rather than testing f.Description itself. The wrapper
+// decides whether to WRITE the description element (input_wrapper.templ), and
+// an editor that pointed at an id the wrapper did not render would name nothing
+// -- which is the defect TestCapturedLabelsNameAnIDTheSameDocumentCarries holds
+// the sibling for= to.
+func fieldDescribedBy(f FieldMeta) string {
+	if f.Description == "" {
+		return ""
+	}
+
+	return fieldDescriptionID(f.Path, f.Leaf)
+}
+
 // fieldHxVals is the hx-vals payload naming the leaf a POST edits. The value
 // itself travels in the form field, so only the leaf name is needed.
 func fieldHxVals(leaf string) string {

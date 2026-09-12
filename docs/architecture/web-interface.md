@@ -138,7 +138,7 @@ The YANG schema drives the entire UI. No hardcoded field lists.
 | `LeafNode` type `TypeIP/IPv4/IPv6` | Text input with pattern validation |
 | `LeafNode` type `TypeString` with `Enums` | Select dropdown |
 | `LeafNode` type `TypeString` | Text input |
-| `LeafNode.Description` | Three renderings of one string. The (i) tooltip on hover, on the field label and the sidebar heading. The `title=` attribute of the label and the input. The placeholder of an input whose leaf is unset and has no default (`fieldPlaceholder`, `view.go`). On the workbench editor the tooltip sits inside the label the editor is bound to, so the description also joins the editor's accessible name (`input_wrapper.templ`) |
+| `LeafNode.Description` | Three renderings of one string. The (i) tooltip on hover, on the field label and the sidebar heading. The `title=` attribute of the label and the input. The placeholder of an input whose leaf is unset and has no default (`fieldPlaceholder`, `view.go`). On the workbench editor it is also the editor's `aria-describedby` target, which is the tooltip element itself (`fieldDescriptionID`, `view.go`) |
 | `ContainerNode.Description` | (i) tooltip on sidebar heading |
 | `ListNode.Description` | (i) tooltip on sidebar heading |
 

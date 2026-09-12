@@ -277,10 +277,22 @@ func checkHead(b *Browser, e *WBExpectation) error {
 	return nil
 }
 
+// breadcrumbSelector scopes a breadcrumb assertion to the breadcrumb.
+const breadcrumbSelector = ".breadcrumb-list"
+
+// checkBreadcrumb judges the breadcrumb, and reads only the breadcrumb.
+//
+// It used to substring-match the page-wide INTERACTIVE snapshot, which carries
+// no static text at all. A breadcrumb's own segment is a span, so on a page one
+// level deep the trail is invisible there and the assertion can only pass by
+// matching something else. test/web/nav-direct-url.wb asserted the trail on
+// /show/bgp/ and was answered by the word BGP inside a YANG description, which
+// is what an editor was accidentally named before its label bound to it. The
+// match is case-insensitive, so nothing marked that as a different kind of hit.
 func checkBreadcrumb(b *Browser, e *WBExpectation) error {
-	snap, err := b.Snapshot()
+	snap, err := b.scopedSnapshot(breadcrumbSelector)
 	if err != nil {
-		return fmt.Errorf("snapshot: %w", err)
+		return fmt.Errorf("snapshot %s: %w", breadcrumbSelector, err)
 	}
 
 	snapLower := strings.ToLower(snap)

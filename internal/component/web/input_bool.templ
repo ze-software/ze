@@ -19,6 +19,9 @@ templ inputBool(f FieldMeta) {
 				hx-vals={ fieldHxValsWith(f.Leaf, "false") }
 				data-tristate
 				data-default={ f.Default }
+				if fieldDescribedBy(f) != "" {
+					aria-describedby={ fieldDescribedBy(f) }
+				}
 			><span class="ze-tristate-thumb"></span></button>
 			<span class="ze-tristate-label">no</span>
 		} else if f.Value == boolFalse {
@@ -33,6 +36,9 @@ templ inputBool(f FieldMeta) {
 				hx-vals={ fieldHxValsWith(f.Leaf, "__default__") }
 				data-tristate
 				data-default={ f.Default }
+				if fieldDescribedBy(f) != "" {
+					aria-describedby={ fieldDescribedBy(f) }
+				}
 			><span class="ze-tristate-thumb"></span></button>
 			<span class="ze-tristate-label ze-tristate-active">no</span>
 		} else {
@@ -47,6 +53,9 @@ templ inputBool(f FieldMeta) {
 				hx-vals={ fieldHxValsWith(f.Leaf, "true") }
 				data-tristate
 				data-default={ f.Default }
+				if fieldDescribedBy(f) != "" {
+					aria-describedby={ fieldDescribedBy(f) }
+				}
 			><span class="ze-tristate-thumb"></span></button>
 			<span class="ze-tristate-label">no</span>
 		}

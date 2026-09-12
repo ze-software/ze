@@ -20,16 +20,20 @@ templ fieldWrapper(f FieldMeta, input templ.Component) {
 		<label class="ze-field-label" for={ fieldInputID(f.Path, f.Leaf) }>
 			{ f.Leaf }
 			if f.Description != "" {
-				// The badge's glyph and its CSS-generated tooltip (style.css,
-				// .ze-field-info::after takes content from data-tooltip) sit
-				// inside the bound label, so both join the editor's accessible
-				// NAME: a reader hears "pid i PID file path". The leaf name
-				// comes first, which is the part that identifies the field, and
-				// the description after it is the field's own help. Moving the
-				// description out of the name means aria-describedby on each
-				// input template, which is its own piece of work
-				// (plan/journal/field-carries-two-meanings.md).
-				<span class="ze-field-info" data-tooltip={ f.Description }>i</span>
+				// Both spans are aria-hidden because both sit INSIDE the label
+				// the editor is bound to, and a label's text is the editor's
+				// accessible NAME. Unhidden, a reader heard "pid i PID file
+				// path" where the field is called pid.
+				//
+				// The glyph is decorative and stays hidden. The description
+				// reaches a reader the way a description should, through the
+				// editor's aria-describedby (fieldDescribedBy, view.go): a node
+				// a describedby DIRECTLY names is read even when it is hidden
+				// (accname-1.2, step 2A), which is what lets one element be the
+				// hover tooltip a sighted operator sees and the description a
+				// reader hears.
+				<span class="ze-field-info" aria-hidden="true">i</span>
+				<span class="ze-field-tooltip" id={ fieldDescriptionID(f.Path, f.Leaf) } aria-hidden="true">{ f.Description }</span>
 			}
 			if f.Decoration != "" {
 				<span class="ze-field-decoration">({ f.Decoration })</span>

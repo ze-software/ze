@@ -18,6 +18,9 @@ templ inputNumber(f FieldMeta) {
 		hx-target="closest .ze-field"
 		hx-swap="outerHTML"
 		hx-vals={ fieldHxVals(f.Leaf) }
+		if fieldDescribedBy(f) != "" {
+			aria-describedby={ fieldDescribedBy(f) }
+		}
 		if f.Min != "" {
 			min={ f.Min }
 		}

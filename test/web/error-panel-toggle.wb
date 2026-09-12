@@ -9,4 +9,8 @@ expect=element:text=Errors
 
 action=click:text=Errors
 action=wait:ms=500
-expect=element:text=Router ID
+
+# The page is still rendering its own content after the click. router-id is the
+# leaf NAME, which is the editor's accessible name; the YANG description this
+# asserted before was the name an unbound editor fell back to.
+expect=element:text=router-id

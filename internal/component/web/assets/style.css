@@ -748,8 +748,10 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   vertical-align: middle;
 }
 
-.ze-field-info::after {
-  content: attr(data-tooltip);
+/* The tooltip is a real element rather than ::after content on the badge. A
+   leaf editor names it through aria-describedby, and aria-describedby resolves
+   an id, which generated content does not have. */
+.ze-field-tooltip {
   position: fixed;
   left: auto;
   top: auto;
@@ -775,7 +777,7 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   transition: opacity 0.15s 0.5s;
 }
 
-.ze-field-info:hover::after {
+.ze-field-info:hover + .ze-field-tooltip {
   opacity: 1;
 }
 
