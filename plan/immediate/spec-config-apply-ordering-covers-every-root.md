@@ -500,7 +500,7 @@ This spec does not answer them from memory.
 | Correctness | The coarse node applies exactly what `runApply` applied for the same participant and the same diffs (A-1) |
 | Naming | New JSON keys are kebab-case: `verb`, `produces`, `consumes` |
 | Naming | The verb values are `create`, `destroy` and `modify` in every surface: Go constant, JSON value, doc table |
-| Data flow | The solver names no root, no component and no operation label. Grep it for the strings `bgp`, `interface`, `peer` and `address` after the change |
+| Data flow | The solver names no ROOT, no PARTICIPANT and no operation LABEL. It reads the verb and the resource kind, so `ResourceAddress` and `ResourceInterface` are expected in `providesAddressing` and are what the phase line is drawn with. Grep it for a root name (`bgp`), a participant name (`rib`, `static`) and an operation label (`add-peer`, `configure-interfaces`) after the change |
 | Correctness | Every sentence in this spec agrees with `docs/architecture/config/apply-ordering.md`, "The requirement". Where it does not, the spec is wrong. This spec was written from a paraphrase, so a sentence that reads correct from inside the spec is exactly the failure mode |
 | Rule: `ai/rules/no-layering.md` | The fallback branch, the nine rules, the seven unused constants and the two produce/consume `ResourceRelation` values are DELETED, not left unreachable. So is make-before-break: `Params.AllowDual`, `markDualPresence`, `tryRelaxCycle`, `isAddressOperation`, `opInterface`, `sortParticipantsBGPLast` and `iface-add-address-before-remove-same-interface` |
 | Rule: `ai/rules/principles.md` | No operation is ordered on a default. A missing verb aborts, and never becomes `modify` |
@@ -870,9 +870,13 @@ the test that fences it.
 
 | # | Disposition |
 |---|-------------|
-| R3-B-1 | FIXED, in the ORDERING and not in the emission. The start is owed: the peer is still configured, and suppressing it would leave the reactor without a peer the config declares, with nothing able to bring it back -- `handleAddrAddedPayload` starts a LISTENER for a peer the reactor still holds, and a later commit that re-adds the address disturbs nothing, so the decomposer is never asked. `addDerivedEdges` gains a third direction: a destroy runs before every create and modify that consumes what it takes away. Fenced by `TestBGPStartsThePeerAfterTheAddressItBindsIsRemoved` and `TestBGPStartsTheAutoSourcePeerAfterTheRemovals` (`internal/component/bgp/plugin/operation_disturbed_test.go`), which drive the real `interface` and `bgp` decomposers, and by a case of `TestBuildOperationGraphDerivedEdgesMatchDeletedRules` |
+| R3-B-1 | FIXED, in the ORDERING and not in the emission. The start is owed: the peer is still configured, and suppressing it would leave the reactor without a peer the config declares, with nothing able to bring it back -- `handleAddrAddedPayload` starts a LISTENER for a peer the reactor still holds, and a later commit that re-adds the address disturbs nothing, so the decomposer is never asked. `addDerivedEdges` gains a third direction: a destroy runs before every create and modify that consumes what it takes away. The MODIFY arm of it is reachable by a third-party binder root only, and the claim that it gives `bgp-modify-peer` an ordering it never had is withdrawn (R4-N-1): `decomposeBGPOperations` emits a modify only where `peerBindingDisturbed` answered false, and `DisturbedAddresses` names every address a destroy produces, so a modify-peer never consumes an address the same commit removes. `bcba32f48e`'s message carries the withdrawn claim and cannot be edited. Fenced by `TestBGPStartsThePeerAfterTheAddressItBindsIsRemoved` and `TestBGPStartsTheAutoSourcePeerAfterTheRemovals` (`internal/component/bgp/plugin/operation_disturbed_test.go`), which drive the real `interface` and `bgp` decomposers, and by a case of `TestBuildOperationGraphDerivedEdgesMatchDeletedRules` |
 | R3-B-2 | FIXED. `providesAddressing` (`solver.go`, renamed from `isAddressingKind`) reads an operation that declares NO kind as providing addressing, so the coarse nodes wait for it. `addsAddressing` now accepts a modify, which is the verb `ifaceConfigureOperation` carries. A declared kind still decides the side it is on, so a binder joins phase 5 by declaring its own kind and no enumeration of binder kinds enters the engine. Fenced by the "after an operation whose kind the engine cannot read" case of `TestTopologicalSortPlacesSectionNodeBetweenAddressingAndBinders` |
 | R3-B-3 | FIXED. `participantsWithoutOperations` sorts the uncovered names again. The sort was removed in round 1 so that `sortParticipantsBGPLast` could decide the order; that function is deleted, and nothing pinned it since. Fenced by `TestParticipantsWithoutOperationsSortsTheCoarseNodes`, and `TestReloadTxAppliesCoarseSectionsBeforeBinderStarts` now passes 50 runs of 50 |
+| R3-B-4 | FIXED in `d4f54da586`. The TDD Test Plan and Boundary Tests tables name tests that exist: `TestTopologicalSortSwapsAddressesBreakBeforeMake`, `TestTopologicalSortRotatesAddressesBreakBeforeMake`, `TestTopologicalSortNonAddressCycleFails` and `TestTopologicalSortPlacesSectionNodeBetweenAddressingAndBinders`. Verified by round 4, which resolved each of the four names |
+| R3-B-5 | FIXED in `d4f54da586`. The fourteen make-before-break sentences are corrected, and AC-4 states the requirement's order: no interface holds both addresses. What survives is in Current Behavior, which describes the tree before this spec. Verified by round 4, which found no residue outside that section |
+| R3-N-1 | FIXED (round 5). The Critical Review Checklist row asked the solver to contain none of `bgp`, `interface`, `peer` and `address`, which `providesAddressing` cannot meet: it reads `ResourceAddress` and `ResourceInterface` to draw the phase line. The row now polices what it was written to police, which is that the solver names no root, no participant and no operation label |
+| R3-N-2 | FIXED (round 5). `continue.md` lists every commit of this spec and names the two QEMU reverts as the tree carries them |
 | R3-I-1 | FIXED. See the R2-I-1 row above: both sentences now describe the flat sum, the "cycle relaxation" sentence and heading are gone, and the `solver.go` source anchor names the placement |
 | R3-I-2 | FIXED. R2-I-1 and R2-N-1 have disposition rows in the round-2 table above |
 | R3-I-3 | FIXED with R3-B-3. The comment says what the function does and why the order is arbitrary but stable |
@@ -892,3 +896,107 @@ one arrives, and only then is the route that binds it installed. Its RED, making
 Each test has one uncovered participant, so the coarse sort orders nothing
 either of them can see. Both tests skip on darwin and were not re-run: this is a
 reading of the change, not a fresh walk.
+
+---
+
+Round 4, independent reader, 2026-09-11. Findings artifact:
+`tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/review-findings-cao-round4.md`.
+Verdict: **findings** -- 2 BLOCKER, 2 ISSUE, 2 NIT. The gate is NOT clean.
+
+Scope is round 3's repairs in `bcba32f48e` and `d4f54da586` and what they
+touched. Every case below drives the REAL `interface` and `bgp` decomposers
+through `OperationDecomposerFor`, then `BuildOperationGraph` and
+`TopologicalSort` with the registered rules, in a `go test -overlay` probe under
+`.../scratch/r4probe/` that edits no file in the tree.
+
+| # | Severity | File / symbol | Finding |
+|---|----------|---------------|---------|
+| R4-B-1 | BLOCKER | `internal/component/iface/operation.go` `ifaceConfigureOperation` and the `configureCreates` branch of `decomposeIfaceOperations`, with `transaction/depgraph.go` `addDerivedEdges` | A phase 5 START earns NO edge when the address it consumes ARRIVES through the configure operation, so it sorts ahead of phase 4. An address on an interface this package has no create primitive for (tunnel, wireguard, xfrm) produces no `add-address`: `configureCreates` skips it, and `ifaceConfigureOperation` declares neither `Produces` nor `Consumes`, so nothing in the graph can be ordered after it. Reproduced (`r4probe/run3.log`, `TestR4CNewXFRMAndPeer`): a new xfrm0 carrying `10.0.0.9/30` with a new passive peer bound to it sorts `[bgp-add-peer-p9, interface-configure]`. `AddPeer` (`bgp/reactor/reactor_peers.go`) then opens the listener for a passive peer, the bind fails because the address is not on the host, and the whole transaction rolls back. This is the hole R3-B-2 repaired for a COARSE node, left open on the decomposed side: `providesAddressing` applies the fail-safe to the section nodes and nothing applies it to a binder start. `decomposeIfaceOperations` states the opposite, that "an address arriving on an interface it creates waits for it" |
+| R4-B-2 | BLOCKER | `internal/component/config/transaction/solver.go` `sectionNodePosition`, `addsAddressing` | A decomposed binder start that sorts BEFORE `interface-configure` runs before EVERY coarse section. `addsAddressing` now accepts a modify with an absent kind, which `interface-configure` is, and four constraint rules put that operation after every resource operation, so `addressingDone` advances past it and any binder start already sorted is left ahead of the coarse nodes. Reproduced (`r4probe/run6.log`, `TestR4FPeerEditPlusAddressAdd`) on an ordinary config -- change a peer's hold-time, add an address on another interface -- as `[bgp-modify-peer-p1, interface-add-address-dum1-10.0.0.5_24, interface-configure, section-apply-gr, section-apply-rib, section-apply-rpki]`, and again on an address swap with two peers (`run5.log`), where one peer starts before the coarse sections and the other after. `docs/architecture/config/apply-ordering.md` publishes the guarantee this breaks: "Inside phase 5 it runs BEFORE the decomposed starts ... the `bgp` root's peers start after the plugins that configure the RIB, the graceful-restart state and the filters have applied their sections." R2-B-2's disposition calls this fixed; its fence, `TestReloadTxAppliesCoarseSectionsBeforeBinderStarts`, carries no addressing operation and cannot see the case |
+| R4-I-1 | ISSUE | this spec's `## Review Gate`, round 3 disposition table | `R3-B-4`, `R3-B-5` (both BLOCKER), `R3-N-1` and `R3-N-2` have no disposition row. This is the omission round 3 itself raised as R3-I-2 about round 2. The two BLOCKERs WERE repaired in `d4f54da586`, verified here, so the gap is the record. The two NITs are not repaired |
+| R4-I-2 | ISSUE | this spec's Critical Review Checklist, `continue.md` | R3-N-1 and R3-N-2 are still live. The checklist still requires the solver to name none of `bgp`, `interface`, `peer`, `address`, which `providesAddressing` makes unmeetable by reading `ResourceAddress` and `ResourceInterface`. `continue.md` still lists four commits where six exist, and still names the two QEMU reverts as a `tryRelaxCycle` returning the unreduced edge set and a reinstated uncovered-participant condition, neither of which exists |
+| R4-N-1 | NIT | `bcba32f48e`'s message and the `R3-B-1` disposition row | Both claim the third derived edge "also gives a modify-peer the ordering it never had against the removal of the address it binds". No first-party decomposition reaches it: `decomposeBGPOperations` emits `bgp-modify-peer` only where `peerBindingDisturbed` answered false, and `DisturbedAddresses` names every address a destroy produces, so a modify-peer never consumes an address this commit removes |
+| R4-N-2 | NIT | `test/weakened/4c26aef3.md` | The file ends "The table below carries every row in this file." above a table header with no rows. The row loss is by design, because `PruneLanded` drops rows that landed in an earlier commit, so what is left is the sentence |
+
+**Round 3's repairs, verified at the producer.** The third derived edge holds:
+probed on the real decomposers, a delete of a bound address now sorts
+`[bgp-remove-peer-p1, interface-remove-address, interface-configure,
+bgp-add-peer-p1]`, and an `auto`-source peer takes the same order. It closes no
+cycle: the only edge whose head is a destroy is `edgeConsumeBeforeDestroy`,
+whose tail is also a destroy, and no first-party rule points a non-destroy at a
+destroy, so every cycle lies wholly inside the destroys and the new edge, which
+always runs destroy to non-destroy, can lie on none. A hostile rule ordering a
+create ahead of a destroy does close one, and `TopologicalSort` answers
+`ErrOperationCycle` with nothing applied. `providesAddressing` holds for a
+coarse node. `participantsWithoutOperations` sorts, the comment matches, 25 runs
+of the two fence tests are green, and nothing else reads participant order to
+decide an applied order. Both diff predicates answer the parse error, both
+decomposers abort, and no plugin can trigger it because the diff sections are
+built by the core from a `map[string]any` (`buildDiffSections`). The spec
+correction leaves no make-before-break residue outside Current Behavior, which
+describes the tree before the change.
+
+**The QEMU evidence for `mixed-root` still holds under the moved order.**
+`assertMixedRootOrder` reads three kernel notifications only, and
+`interface-configure` produces none of its own on that config because the
+operations have already reached the end state it applies. The recorded RED that
+makes `sectionNodePosition` answer 0 still puts the static section before both
+addresses; the other RED is untouched. Not re-walked: this is a reading.
+
+**The five phases.** 1, 2 and 3 hold for `bgp`, at `decomposeBGPOperations`,
+`peerBindingDisturbed` with the second planner pass, and
+`decomposeIfaceOperations` with `iface-remove-address-before-add-address`. 4 is
+PARTLY, because an address the configure operation applies can be ordered
+against nothing (R4-B-1). 5 is NO, by R4-B-1 and R4-B-2.
+
+**Round 4 disposition, 2026-09-12.** Both BLOCKERs had ONE cause: the configure
+operation declared nothing, so nothing in the graph could be ordered against
+what it does, and the solver carried a special case for it instead. The repair
+is in three parts, and the evidence paths below are under
+`tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/`.
+
+| # | Disposition |
+|---|-------------|
+| R4-B-1 | FIXED at the declaration. `ifaceConfigureOperation` takes the interfaces `decomposeIfaceOperations` lets it create and the addresses that arrive on them, and declares both in `Produces`. `addDerivedEdges` derives the produce-before-consume edge from the DECLARATION rather than from the verb, so a modify that produces a resource is ordered exactly as a create is. The reviewer's own probe answers the other way now: `TestR4CNewXFRMAndPeer` sorts `[interface-configure, bgp-add-peer-p9]` (`r5-probe.log`). Fenced by `TestIfaceConfigureOperationDeclaresTheAddressingItCreates` (`internal/component/iface/operation_test.go`), which drives the real decomposer and sorts the graph, and by `TestBuildOperationGraphDerivesModifyProducerBeforeConsumer`. RED `r5-red-iface.log`, `r5-red-tx.log`; GREEN `r5-green-1.log`, `r5-green-2.log` |
+| R4-B-2 | FIXED in the SORT, because no single insertion point can satisfy both of `placeSectionNodes`'s bounds while the order interleaves phase 4 and phase 5. `operationPhase` (`solver.go`) puts an operation on one of three rungs, a stop, the addressing, and a start, and `kahnSort` drains the lowest rung that has a ready operation, so those three fall in that order over the whole commit and not only over the operations one resource relates. Phases 3 and 4 share the addressing rung on purpose: which removal precedes which addition is stated by `iface-remove-address-before-add-address` as an EDGE, a rung would state it a second time, and the edge is what holds against a rule pointing the other way. It is a tie-break and not an edge: an operation joins its rung only once every edge into it has run, so no dependency is overridden and no cycle can be closed. `TestR4FPeerEditPlusAddressAdd` now sorts `[interface-add-address-dum1, interface-configure, section-apply-gr, section-apply-rib, section-apply-rpki, bgp-modify-peer-p1]`, and `TestR4ESwapWithBGPSiblings` puts both peer starts after all three sections (`r5-probe.log`). Fenced by `TestTopologicalSortOrdersThePhasesTheEdgesLeaveFree`, and the fence R4-B-2 called blind, `TestReloadTxAppliesCoarseSectionsBeforeBinderStarts`, now carries an addressing operation the binder start does not consume. RED `r5-red-tx.log` and `r5-server-red.log` (`[op-binder-start, op-add-addressing, subsystem-a, subsystem-b]` under a `kahnSort` with the phase queues disabled); GREEN `r5-server-green.log` |
+| R4-I-1 | FIXED. The round-3 disposition table gains rows for R3-B-4, R3-B-5, R3-N-1 and R3-N-2, and this table is round 4's |
+| R4-I-2 | FIXED. The Critical Review Checklist row now polices what it was written to police: no ROOT, no PARTICIPANT and no operation LABEL in the solver, with `ResourceAddress` and `ResourceInterface` named as expected. `continue.md` lists all fifteen commits and takes each file's DISCRIMINATION header as the authority on its reverts |
+| R4-N-1 | FIXED. The R3-B-1 row withdraws the claim that the third edge gives `bgp-modify-peer` an ordering it never had, and says the modify arm is reachable by a third-party binder root only. `bcba32f48e`'s message carries the withdrawn claim and cannot be edited |
+| R4-N-2 | FIXED. `test/weakened/4c26aef3.md` says the rows landed and `PruneLanded` dropped them, so the empty table is the design. The same paragraph's claim that the two QEMU walks are outstanding is corrected, because both were walked on 2026-09-11 |
+
+**The absent-kind branch of `providesAddressing` survives, and it is narrower.**
+It reads an operation that declares NOTHING, no target kind and no produced
+resource, and `interface-configure` is no longer that operation. Deleting it
+would flip the engine's fail-safe for an opaque third-party operation from
+provider to binder, which is the direction "The fail-safe default" of
+`docs/architecture/config/apply-ordering.md` costs at a binder holding an
+address that is gone. It is still reached first-party by a configure operation
+that creates nothing, an MTU edit for example, and by an address arriving on an
+EXISTING device of a type this package cannot create, which the decomposer
+leaves to the configure operation undeclared and the phase rank then orders.
+
+**What the new edge was tried against.** Five shapes, driven through the real
+decomposers where they could be (`r5-adversarial.log`): an address moving onto a
+device the configure operation creates, two such devices trading addresses, a
+destroy that consumes an address the configure operation produces (no edge, the
+destroy consumer is excluded), a third-party consumer of a modified peer (edge,
+no cycle), and a third-party `add-address` on the interface the configure
+operation creates. Only the last closes a cycle, no first-party decomposition
+emits it, and `TopologicalSort` answers `ErrOperationCycle` with nothing
+applied.
+
+**The QEMU evidence still describes the code, and each recorded revert was
+re-measured on the real decomposers.** `mixed-root` reads three kernel
+notifications and its static section is still the only coarse node, placed after
+both address operations. In `address-swap` every peer operation keeps the edges
+it had, and the rungs agree with them. The revert both files share, unregistering
+`iface-remove-address-before-add-address`, still lands the addition first on both
+shapes, which is what makes each of them RED: measured at the decomposers in
+`r5-rulecheck.log`, where the renumber sorts
+`[add-address-zdual0-10.93.0.1, remove-address-zdual0-10.92.0.1, ...]` and the
+swap sorts both additions ahead of both removals. That measurement is why phases
+3 and 4 share one rung: a rung of their own would have enforced the order the
+revert removes, and both recorded REDs would have gone green with the defect
+present. `sectionNodePosition` answering 0 still puts the section at the head.
+Both tests skip on darwin and were not re-run: the ORDER is measured here, the
+kernel's answer to it is the reading.

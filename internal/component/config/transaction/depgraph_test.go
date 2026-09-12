@@ -381,3 +381,41 @@ func TestBuildOperationGraphRejectsDuplicateOperationID(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "duplicate operation id")
 }
+
+// TestBuildOperationGraphDerivesModifyProducerBeforeConsumer verifies that an
+// operation which declares a resource in Produces runs before what consumes
+// it, whatever its verb. A modify used to start no edge at all, so the one
+// operation that creates a resource while modifying a whole section -- the
+// `interface` root's configure operation -- ordered nothing after itself and
+// every binder of the address it creates sorted ahead of it.
+//
+// VALIDATES: phases 4 and 5. A modify that produces an address runs before the
+// peer that binds it.
+// PREVENTS: a peer started against an address that arrives through an
+// operation the graph reads as owning nothing, which fails the bind and rolls
+// the transaction back.
+func TestBuildOperationGraphDerivesModifyProducerBeforeConsumer(t *testing.T) {
+	t.Parallel()
+
+	ops := []ConfigOperation{
+		fixturePeer("peer-add", testOpAddPeer, VerbCreate, "203.0.113.1", "192.0.2.1"),
+		{ID: "interface-configure", Type: testOpSetProperty, Verb: VerbModify,
+			Produces: []ResourceRef{
+				{Kind: ResourceInterface, Name: "xfrm0"},
+				{Kind: ResourceAddress, Address: "192.0.2.1/32"},
+			}},
+		fixturePeer("peer-remove", testOpRemovePeer, VerbDestroy, "203.0.113.2", "192.0.2.1"),
+	}
+
+	graph, err := BuildOperationGraph(ops, nil)
+	require.NoError(t, err)
+
+	assert.True(t, graph.HasEdge("interface-configure", "peer-add"),
+		"the address arrives through the configure operation, so the peer that binds it waits for it")
+	assert.False(t, graph.HasEdge("interface-configure", "peer-remove"),
+		"a destroy needs the resource to still exist, never to have just been created")
+
+	sorted, err := TopologicalSort(graph)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"peer-remove", "interface-configure", "peer-add"}, operationIDs(sorted))
+}

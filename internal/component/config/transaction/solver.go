@@ -20,6 +20,11 @@ var ErrOperationCycle = errors.New("operation dependency cycle")
 // each address with a single edge between them, and no cycle to break
 // (docs/architecture/config/apply-ordering.md).
 //
+// Where the edges leave two operations free, the requirement's phases decide
+// which goes first: every stop, then the addressing this commit moves, then
+// every start. The edges still win, because an operation is only considered
+// once everything it waits for has run (operationPhase).
+//
 // The last step places the coarse section-apply nodes, which carry no edge and
 // which the graph therefore orders against nothing.
 func TopologicalSort(graph *OperationGraph) ([]ConfigOperation, error) {
@@ -120,7 +125,7 @@ func sectionNodePosition(ops []ConfigOperation) int {
 func addsAddressing(op *ConfigOperation) bool {
 	switch op.Verb {
 	case VerbCreate, VerbModify:
-		return providesAddressing(op.Target.Kind)
+		return providesAddressing(op)
 	default:
 		return false
 	}
@@ -135,39 +140,101 @@ func addsAddressing(op *ConfigOperation) bool {
 func startsABinder(op *ConfigOperation) bool {
 	switch op.Verb {
 	case VerbCreate, VerbModify:
-		return !providesAddressing(op.Target.Kind)
+		return !providesAddressing(op)
 	default:
 		return false
 	}
 }
 
-// providesAddressing reports whether kind names a resource of the ADDRESSING
-// layer: the local addresses a commit moves, and the interfaces that carry
-// them. It is the line the requirement's phases draw. Phases 3 and 4 remove and
-// add the addressing, and phase 5 starts what binds it.
+// providesAddressing reports whether op belongs to the ADDRESSING layer: the
+// local addresses a commit moves, and the interfaces that carry them. It is the
+// line the requirement's phases draw. Phases 3 and 4 remove and add the
+// addressing, and phase 5 starts what binds it.
 //
-// This is the only place the engine reads a resource kind for anything but
-// identity. A root that PROVIDES addressing declares one of these two kinds,
-// which is what `interface` does today. A root that BINDS addressing declares
-// its own kind and lands on the phase 5 side with no edit here, which is what
-// `bgp` does with ResourcePeer.
+// It reads what the operation DECLARES, and nothing else: the kind it targets,
+// and the kinds it produces. The second is what `interface` says with its
+// configure operation, which targets no resource and produces the devices it
+// has no create primitive for and the addresses that arrive on them. A root
+// that BINDS addressing declares its own kind and lands on the phase 5 side
+// with no edit here, which is what `bgp` does with ResourcePeer. These are the
+// only places the engine reads a resource kind for anything but identity.
 //
-// An operation that declares NO kind at all is read as PROVIDING, because the
-// engine cannot establish what it does and the requirement answers that with
-// "If it is not easy to establish what action will lead to what, be safe and
-// deconf/reconf" (docs/architecture/config/apply-ordering.md, "The fail-safe
-// default"). The two errors cost different things. Reading a provider as a
-// binder puts every coarse section BEFORE the addresses it binds, which is the
-// failure the requirement exists to prevent; reading a binder as a provider
-// puts those sections after it, which costs one session restart. The same
-// default on the same absence is what peerBindingDisturbed takes when a peer
-// declares no local address (internal/component/bgp/plugin/operation.go).
-func providesAddressing(kind ResourceKind) bool {
+// An operation that declares NOTHING -- no target kind and no produced
+// resource -- is read as PROVIDING, because the engine cannot establish what it
+// does and the requirement answers that with "If it is not easy to establish
+// what action will lead to what, be safe and deconf/reconf"
+// (docs/architecture/config/apply-ordering.md, "The fail-safe default"). The
+// two errors cost different things. Reading a provider as a binder puts every
+// coarse section BEFORE the addresses it binds, which is the failure the
+// requirement exists to prevent; reading a binder as a provider puts those
+// sections after it, which costs one session restart. The same default on the
+// same absence is what peerBindingDisturbed takes when a peer declares no local
+// address (internal/component/bgp/plugin/operation.go).
+func providesAddressing(op *ConfigOperation) bool {
+	if addressingKind(op.Target.Kind) {
+		return true
+	}
+	for i := range op.Produces {
+		if addressingKind(op.Produces[i].Kind) {
+			return true
+		}
+	}
+	return op.Target.Kind == "" && len(op.Produces) == 0
+}
+
+// addressingKind reports whether one resource kind names addressing.
+func addressingKind(kind ResourceKind) bool {
 	switch kind {
-	case ResourceAddress, ResourceInterface, "":
+	case ResourceAddress, ResourceInterface:
 		return true
 	default:
 		return false
+	}
+}
+
+// The requirement's phases, grouped into the three rungs the solver can decide
+// from a verb and a resource kind alone
+// (docs/architecture/config/apply-ordering.md, "The five phases").
+//
+// Phases 1 and 2 are one rung: both stop a binder, and both run before the
+// addressing moves. Phases 3 and 4 are one rung as well, because WHICH removal
+// precedes WHICH addition is a fact about two addresses on one host rather than
+// about a verb, and the `iface` rule states it as an edge
+// (iface-remove-address-before-add-address). A rung would say it a second time
+// and the edge would still be the one that holds against a rule pointing the
+// other way.
+const (
+	phaseStopBinder = iota
+	phaseAddressing
+	phaseStartBinder
+	phaseCount
+)
+
+// operationPhase returns the rung op belongs to.
+//
+// The graph states what one operation needs from another, and it states nothing
+// about two operations that share no resource. The requirement does: a commit
+// stops its binders, moves its addressing, then starts its binders, whether or
+// not one peer happens to bind one address. Without this the free operations
+// came out in the order the planner handed them over, so a peer whose hold-time
+// changed sorted ahead of an address another interface was gaining, and ahead of
+// every coarse section placed after that address.
+//
+// The line between a binder and the addressing is the one providesAddressing
+// already draws for the coarse nodes, so the rung reads the same declaration
+// rather than a vocabulary of its own.
+//
+// A coarse section-apply node declares nothing, so it lands on the addressing
+// rung here. Its real position is a placement placeSectionNodes takes after the
+// sort.
+func operationPhase(op *ConfigOperation) int {
+	switch {
+	case op.Verb == VerbDestroy && !providesAddressing(op):
+		return phaseStopBinder
+	case startsABinder(op):
+		return phaseStartBinder
+	default:
+		return phaseAddressing
 	}
 }
 
@@ -184,6 +251,14 @@ func appendSectionNodes(result, sorted []ConfigOperation) []ConfigOperation {
 	return result
 }
 
+// kahnSort returns the operations in an order every edge permits, taking the
+// ready operation of the lowest phase first.
+//
+// One queue for each phase is what makes the phase order a tie-break rather
+// than an edge. An operation joins its queue only once every edge into it has
+// run, so the graph still decides what is possible and the phase only decides
+// which of the possible operations goes next. A tie-break cannot close a cycle,
+// which is why the requirement's order costs no reload that sorted before it.
 func kahnSort(graph *OperationGraph, edges []OperationEdge) (sorted []ConfigOperation, remainingIDs []string) {
 	out := make(map[string][]OperationEdge, len(graph.operations))
 	for _, edge := range edges {
@@ -197,23 +272,30 @@ func kahnSort(graph *OperationGraph, edges []OperationEdge) (sorted []ConfigOper
 		indegree[edge.ToID]++
 	}
 
-	queue := make([]string, 0, len(graph.operations))
+	var queues [phaseCount][]string
+	ready := func(op *ConfigOperation) {
+		phase := operationPhase(op)
+		queues[phase] = append(queues[phase], op.ID)
+	}
 	for i := range graph.operations {
 		op := &graph.operations[i]
 		if indegree[op.ID] == 0 {
-			queue = append(queue, op.ID)
+			ready(op)
 		}
 	}
 
 	sorted = make([]ConfigOperation, 0, len(graph.operations))
-	for len(queue) > 0 {
-		id := queue[0]
-		queue = queue[1:]
+	for {
+		id, found := popLowestPhase(&queues)
+		if !found {
+			break
+		}
 		sorted = append(sorted, graph.byID[id])
 		for _, edge := range out[id] {
 			indegree[edge.ToID]--
 			if indegree[edge.ToID] == 0 {
-				queue = append(queue, edge.ToID)
+				next := graph.byID[edge.ToID]
+				ready(&next)
 			}
 		}
 	}
@@ -233,4 +315,19 @@ func kahnSort(graph *OperationGraph, edges []OperationEdge) (sorted []ConfigOper
 		}
 	}
 	return sorted, remainingIDs
+}
+
+// popLowestPhase takes the first operation of the lowest phase that has one,
+// and reports whether it found any. Inside one phase the order is the order the
+// operations became ready, so one commit sorts the same way twice.
+func popLowestPhase(queues *[phaseCount][]string) (id string, found bool) {
+	for phase := range queues {
+		if len(queues[phase]) == 0 {
+			continue
+		}
+		id = queues[phase][0]
+		queues[phase] = queues[phase][1:]
+		return id, true
+	}
+	return "", false
 }

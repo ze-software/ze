@@ -419,3 +419,47 @@ func TestTopologicalSortSectionNodeJoinsAnAddressSwapWithoutACycle(t *testing.T)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"remove-B-2", "remove-A-1", "add-A-2", "add-B-1", "section-apply-firewall"}, operationIDs(sorted))
 }
+
+// TestTopologicalSortOrdersThePhasesTheEdgesLeaveFree verifies that the
+// requirement's phases are the order of the WHOLE commit, and not only of the
+// operations one resource relates. The edges order what depends on something.
+// Everything else the graph leaves free, and free used to mean the order the
+// planner happened to hand over: a peer whose hold-time changed sorted ahead of
+// the address another interface was gaining, and therefore ahead of every
+// coarse section placed after that address.
+//
+// The two addressing operations below share a rung, and the rule that states
+// phases 3 and 4 is what orders them, which is why it is passed to the graph.
+//
+// VALIDATES: phases 1 to 5 over four operations no derived edge relates.
+// PREVENTS: a binder started before the addressing of a commit is in place, and
+// a coarse section applied after the binder it has to configure first
+// (docs/architecture/config/apply-ordering.md, "The five phases").
+func TestTopologicalSortOrdersThePhasesTheEdgesLeaveFree(t *testing.T) {
+	t.Parallel()
+
+	ops := []ConfigOperation{
+		{ID: "bgp-modify-peer", Type: testOpAddPeer, Verb: VerbModify, Target: ResourceRef{Kind: ResourcePeer, Peer: "edge"},
+			Produces: []ResourceRef{{Kind: ResourcePeer, Peer: "edge"}}},
+		{ID: "iface-add-address", Type: testOpAddAddress, Verb: VerbCreate, Target: ResourceRef{Kind: ResourceAddress, Interface: "dum1", Address: "10.0.0.5/24"},
+			Produces: []ResourceRef{{Kind: ResourceAddress, Address: "10.0.0.5/24"}}},
+		{ID: "bgp-remove-peer", Type: testOpRemovePeer, Verb: VerbDestroy, Target: ResourceRef{Kind: ResourcePeer, Peer: "gone"},
+			Produces: []ResourceRef{{Kind: ResourcePeer, Peer: "gone"}}},
+		{ID: "iface-remove-address", Type: testOpRemoveAddress, Verb: VerbDestroy, Target: ResourceRef{Kind: ResourceAddress, Interface: "dum2", Address: "10.0.0.9/24"},
+			Produces: []ResourceRef{{Kind: ResourceAddress, Address: "10.0.0.9/24"}}},
+		{ID: "section-apply-rib", Owner: "rib", Type: OperationSectionApply},
+	}
+
+	graph, err := BuildOperationGraph(ops, survivingAddressRule())
+	require.NoError(t, err)
+
+	sorted, err := TopologicalSort(graph)
+	require.NoError(t, err)
+	assert.Equal(t, []string{
+		"bgp-remove-peer",
+		"iface-remove-address",
+		"iface-add-address",
+		"section-apply-rib",
+		"bgp-modify-peer",
+	}, operationIDs(sorted))
+}

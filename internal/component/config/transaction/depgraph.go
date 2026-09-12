@@ -102,13 +102,14 @@ func (g *OperationGraph) addEdge(fromID, toID, ruleID string, seenEdge map[strin
 }
 
 // addDerivedEdges adds one edge for every producer and consumer pair sharing a
-// resource identity. The verbs decide the direction, and the two directions
-// mirror each other:
+// resource identity. The declarations decide which pairs exist and the verb
+// decides the direction, in three forms that mirror each other:
 //
-//   - A create makes its resource available, so it runs BEFORE every operation
-//     that consumes the resource. A consumer that destroys is excluded: it needs
-//     the resource to still exist, never to have just been created, and an edge
-//     to it would order a teardown behind an unrelated creation.
+//   - An operation that produces a resource makes it available, so it runs
+//     BEFORE every operation that consumes the resource. A consumer that
+//     destroys is excluded: it needs the resource to still exist, never to have
+//     just been created, and an edge to it would order a teardown behind an
+//     unrelated creation.
 //   - A destroy takes the resource away, so every destroy that consumes the
 //     resource runs BEFORE it. That keeps an address alive until the last peer
 //     bound to it is gone.
@@ -120,9 +121,14 @@ func (g *OperationGraph) addEdge(fromID, toID, ruleID string, seenEdge map[strin
 //     starts, binds the address, and the address is removed under it
 //     (docs/architecture/config/apply-ordering.md, "The five phases").
 //
-// A modify neither creates nor destroys, so it produces no edge of its own. It
-// still consumes, which is what puts a modification after the create of what it
-// binds.
+// A modify that declares no Produces starts no edge, and it still consumes,
+// which is what puts a modification after the create of what it binds. A modify
+// that DOES produce is ordered exactly as a create is: the `interface` root
+// applies a whole section with one modify, and the devices it has no create
+// primitive for, plus the addresses that arrive on them, come into existence
+// through it (ifaceConfigureOperation in internal/component/iface/operation.go).
+// Reading the verb rather than the declaration left every binder of one of
+// those addresses with nothing to wait for.
 //
 // An entry with no identity matches nothing. ValidateOperations refuses one
 // before a transaction reaches this point, and the check is repeated here
@@ -134,18 +140,9 @@ func (g *OperationGraph) addDerivedEdges(ops []ConfigOperation, seenEdge map[str
 
 	for i := range ops {
 		from := &ops[i]
-		switch from.Verb {
-		case VerbCreate:
-			for k := range from.Produces {
-				identity := resourceIdentity(&from.Produces[k])
-				for _, j := range consumers[identity] {
-					if j == i || ops[j].Verb == VerbDestroy {
-						continue
-					}
-					g.addEdge(from.ID, ops[j].ID, edgeProduceBeforeConsume, seenEdge)
-				}
-			}
-		case VerbDestroy:
+		produceRule := edgeProduceBeforeConsume
+		if from.Verb == VerbDestroy {
+			produceRule = edgeDestroyBeforeConsume
 			for k := range from.Consumes {
 				identity := resourceIdentity(&from.Consumes[k])
 				for _, j := range producers[identity] {
@@ -155,19 +152,15 @@ func (g *OperationGraph) addDerivedEdges(ops []ConfigOperation, seenEdge map[str
 					g.addEdge(from.ID, ops[j].ID, edgeConsumeBeforeDestroy, seenEdge)
 				}
 			}
-			for k := range from.Produces {
-				identity := resourceIdentity(&from.Produces[k])
-				for _, j := range consumers[identity] {
-					if j == i || ops[j].Verb == VerbDestroy {
-						continue
-					}
-					g.addEdge(from.ID, ops[j].ID, edgeDestroyBeforeConsume, seenEdge)
+		}
+		for k := range from.Produces {
+			identity := resourceIdentity(&from.Produces[k])
+			for _, j := range consumers[identity] {
+				if j == i || ops[j].Verb == VerbDestroy {
+					continue
 				}
+				g.addEdge(from.ID, ops[j].ID, produceRule, seenEdge)
 			}
-		case VerbModify:
-			// A modify makes no resource and takes none away, so it starts no
-			// edge. It is reached as the far end of a create's edge, through
-			// what it consumes.
 		}
 	}
 }

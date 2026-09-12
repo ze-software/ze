@@ -74,8 +74,9 @@ func init() {
 	// The configure operation applies the END state of the whole root, so it
 	// is safe only once every operation that moves one resource has run. One
 	// rule for each operation this root emits says that. They are placement
-	// rather than a produce and consume fact: the configure operation owns no
-	// resource, so no declaration can order it.
+	// rather than a produce and consume fact: the configure operation targets
+	// no resource, and what it declares in Produces orders what BINDS the
+	// addressing it creates, never the four operations below.
 	//
 	// Run it before a destroy and it takes an address off the host at a
 	// position the graph chose for something else, which is the disturbance
@@ -201,7 +202,13 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 	// on one of them waits for the same operation: an add-address operation
 	// would name a device that does not exist yet, and it earns no edge to
 	// the create because there is no create operation to earn it from.
+	//
+	// configureProduces is what the configure operation declares for them. A
+	// binder of one of those addresses is ordered after it by the derived
+	// edge that declaration earns, which is the ordering an operation naming
+	// no resource could never have (ifaceConfigureOperation).
 	configureCreates := make(map[string]bool)
+	var configureProduces []tx.ResourceRef
 	for _, ifaceName := range sortedManagedNames(candidateManaged) {
 		if activeManaged[ifaceName] {
 			continue
@@ -209,17 +216,19 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 		ifType := candidate.ifaceType(ifaceName)
 		if !ifaceTypeSupportsOperations(ifType) {
 			configureCreates[ifaceName] = true
+			configureProduces = append(configureProduces, tx.ResourceRef{Kind: tx.ResourceInterface, Name: ifaceName})
 			continue
 		}
 		ops = append(ops, ifaceInterfaceOperation(operationAddInterface, ifaceName, ifType))
 	}
 
 	for _, ifaceName := range sortedAddressIfaces(candidateAddrs) {
-		if configureCreates[ifaceName] {
-			continue
-		}
 		for _, cidr := range sortedAddressCIDRs(candidateAddrs[ifaceName]) {
 			if activeAddrs[ifaceName][cidr] {
+				continue
+			}
+			if configureCreates[ifaceName] {
+				configureProduces = append(configureProduces, tx.ResourceRef{Kind: tx.ResourceAddress, Address: cidr})
 				continue
 			}
 			ops = append(ops, ifaceAddressOperation(operationAddAddress, ifaceName, cidr))
@@ -250,7 +259,7 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 		ops = append(ops, ifaceInterfaceOperation(operationRemoveInterface, ifaceName, ifType))
 	}
 
-	return append(ops, ifaceConfigureOperation()), nil
+	return append(ops, ifaceConfigureOperation(configureProduces)), nil
 }
 
 // ifaceConfigureOperation is the operation that applies the interface
@@ -258,17 +267,27 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 // operations above have no primitive for, so this root leaves nothing for a
 // coarse section apply to pick up.
 //
-// It targets no resource and declares neither Produces nor Consumes, because
-// it owns none: it reads the host and applies the candidate config to it. It
-// therefore earns no derived edge, and the two rules registered in init() are
-// what put it after the operations that move a resource.
-func ifaceConfigureOperation() tx.ConfigOperation {
+// It targets no resource, because it applies a section rather than one thing.
+// It DECLARES the addressing it creates all the same: the devices this package
+// has no create primitive for, a tunnel, a wireguard device or an xfrm device,
+// and the addresses that arrive on one of them. An operation that declared
+// nothing was an operation nothing could be ordered against, and a peer bound
+// to such an address sorted ahead of the operation that creates it, so the
+// bind failed on an address the host did not have yet and the transaction
+// rolled back (docs/architecture/config/apply-ordering.md, "The five phases").
+//
+// It declares no Consumes, and it declares nothing for the devices it DELETES.
+// A modify that named a resource in Produces would say it makes that resource
+// available, which is the wrong direction for a deletion; the four placement
+// rules registered in init() are what keep it behind every destroy.
+func ifaceConfigureOperation(produces []tx.ResourceRef) tx.ConfigOperation {
 	return tx.ConfigOperation{
-		ID:    textbuf.Join([]string{componentNameInterface, "configure"}, "-"),
-		Root:  configRootInterface,
-		Owner: componentNameInterface,
-		Type:  operationConfigureIfaces,
-		Verb:  tx.VerbModify,
+		ID:       textbuf.Join([]string{componentNameInterface, "configure"}, "-"),
+		Root:     configRootInterface,
+		Owner:    componentNameInterface,
+		Type:     operationConfigureIfaces,
+		Verb:     tx.VerbModify,
+		Produces: produces,
 	}
 }
 

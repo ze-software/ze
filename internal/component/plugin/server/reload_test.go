@@ -1358,8 +1358,17 @@ func TestReloadTxVerifyReceivesFullSubtree(t *testing.T) {
 // any root with any name, and the three participants below register in an
 // order that would defeat a name check and a slice sort alike.
 //
+// The commit also ADDS addressing the binder start does not consume, which is
+// the case a version of this test without any could not see. The two
+// operations are then free of each other, the decomposer hands the binder
+// start over first, and the coarse nodes are placed after the last addressing
+// addition: the binder start ran ahead of every section until the solver took
+// the requirement's phases as its order (operationPhase in
+// internal/component/config/transaction/solver.go).
+//
 // VALIDATES: phase 5 of the requirement. A binder starts after the plugins
-// that configure the subsystems it uses have applied their sections.
+// that configure the subsystems it uses have applied their sections, and after
+// the addressing of the same commit.
 // PREVENTS: a peer coming up against an unconfigured RIB, which is what the
 // deleted name sort was standing in for, and which a coarse node placed after
 // the peer operation reintroduces.
@@ -1374,6 +1383,13 @@ func TestReloadTxAppliesCoarseSectionsBeforeBinderStarts(t *testing.T) {
 			ID: "op-binder-start", Root: root, Owner: binder,
 			Type: testOpSetProperty, Verb: transaction.VerbCreate,
 			Target: transaction.ResourceRef{Kind: testResourceSysctl, Name: "session"},
+		}, {
+			// The label is this root's own, so no settlement rule waits on a
+			// kernel event for it. The KIND is what puts it in phase 4.
+			ID: "op-add-addressing", Root: root, Owner: binder,
+			Type: testOpSetProperty, Verb: transaction.VerbCreate,
+			Target:   transaction.ResourceRef{Kind: transaction.ResourceInterface, Name: "zdum0"},
+			Produces: []transaction.ResourceRef{{Kind: transaction.ResourceInterface, Name: "zdum0"}},
 		}}, nil
 	}))
 
@@ -1397,12 +1413,12 @@ func TestReloadTxAppliesCoarseSectionsBeforeBinderStarts(t *testing.T) {
 
 	err := s.ReloadConfig(context.Background(), newTree)
 	require.NoError(t, err)
-	require.Eventually(t, func() bool { return len(order.snapshot()) == 3 }, 2*time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return len(order.snapshot()) == 4 }, 2*time.Second, 10*time.Millisecond)
 
 	calls := order.snapshot()
-	require.Len(t, calls, 3)
-	assert.Equal(t, []string{"subsystem-a", "subsystem-b", "op-binder-start"}, calls,
-		"the coarse sections apply before the operation that starts the binder; got order %v", calls)
+	require.Len(t, calls, 4)
+	assert.Equal(t, []string{"op-add-addressing", "subsystem-a", "subsystem-b", "op-binder-start"}, calls,
+		"the addressing arrives, then the coarse sections apply, then the binder starts; got order %v", calls)
 }
 
 // TestReloadUsesRegisteredOperationDecomposer verifies that production reload

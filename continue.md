@@ -503,16 +503,29 @@ and both are documented at the producer as well as here.
 
 ## State
 
-Four commits are in HEAD. The spec is `in-progress` in `plan/immediate/` and is
-claimed by session `cbc36cee`. Every assumption A-1 to A-7 is closed, and the
-Integration and Documentation checklists are answered with evidence.
+Fifteen commits are in HEAD, oldest first. The spec is `in-progress` in
+`plan/immediate/` and is claimed by session `cbc36cee`. Every assumption A-1 to
+A-7 is closed, and the Integration and Documentation checklists are answered
+with evidence. Review round 4 is dispositioned and round 5's repairs are
+uncommitted.
 
 | Commit | What it made true |
 |--------|-------------------|
+| `ff5a5adbd` | The spec, stating that the ordering reaches only two config roots |
 | `a6ea1ad0b` | Every participant with a diff is a node in the operation graph. The section-apply fallback and its `Info` line are deleted |
 | `6ffcdaf25` | The plugin ABI holds no operation label. Ordering reads a verb (`create`, `destroy`, `modify`) and the target's `ResourceKind`. A verbless operation aborts |
 | `e3ab3dd1d` | Edges derive from declared `produces` and `consumes`. The nine hand-written produce/consume rules are deleted |
 | `bbe42da682` | A rolled-back peer returns as the reactor had it. AC-7 is proven. The address-swap and mixed-root tests land written and UNPROVEN |
+| `0dd83eb44` | The handoff of this spec, in `continue.md` |
+| `bd8d632b0` | The dual-presence window is demonstrated rather than asserted |
+| `29d0fb392` | A coarse root node is placed between phases 4 and 5, not left to a slice tie-break |
+| `5d49ea61c` | One apply deadline, summed over participants the ordered path applies one at a time |
+| `d6d85ee29` | `docs/architecture/config/apply-ordering.md` carries the owner's words, and keeps the design and the code apart |
+| `284620ac2` | A peer is stopped before the address under it moves, and started after it returns. Phases 2 and 5, for `bgp` |
+| `f9cf246e49` | The apply order removes before it adds. Make-before-break is deleted |
+| `9b07614064` | The peer stop and restart is proven on a kernel, in QEMU |
+| `d4f54da58` | The spec states the requirement rather than the paraphrase it was written from (R3-B-4, R3-B-5) |
+| `bcba32f48e` | A binder starts in the world the removals leave: the third derived edge, the fail-safe for an unreadable kind, and the coarse sort (R3-B-1 to R3-B-3) |
 
 ## What the change found, and it is the reason the spec existed
 
@@ -539,24 +552,24 @@ because the thing that would have reported it was the thing that was off.
 ## TO DO, in order. The first item is the only real work
 
 1. ~~**The QEMU discrimination walk for two tests.**~~ DONE, 2026-09-11. Both
-   pairs hold, in the QEMU guest on runtime kernel 7.2 as root. `address-swap`
-   reddens under a `tryRelaxCycle` returning the unreduced edge set with `config
-   verify failed: operation dependency cycle`; `mixed-root` reddens under the
-   reinstated uncovered-participant condition, installing the route before its
-   address so the kernel answers `network is unreachable`. Both go green on
-   restore, 11 of 11 steps each. Evidence:
+   pairs hold, in the QEMU guest on runtime kernel 7.2 as root. Each file's
+   DISCRIMINATION header names its own two reverts, and it is the authority.
+   `address-swap` reddens under the pre-`284620ac2` early return in
+   `decomposeBGPOperations`, which leaves the session up across the move, and
+   under unregistering `iface-remove-address-before-add-address`, which lands
+   the swap make-before-break. `mixed-root` reddens under that same rule
+   unregistered, and under `sectionNodePosition` answering 0, which installs the
+   static route before its gateway's prefix exists. Both go green on restore,
+   11 of 11 steps each. Evidence:
    `tmp/session/2026-09-08-cbc36cee-.../scratch/cao/qemu-walk-clean.log`, the
-   four `WALK` banners at lines 53, 177, 216 and 308. D4 is closed. The original
-   instructions are kept below because they name the route, which nothing else
-   records:
+   four `WALK` banners at lines 53, 177, 216 and 308. D4 is closed. The route is
+   kept below because nothing else records it:
    Both carry `option=needs-linux:caps=net-admin` and skip on darwin.
    `./le qemu netns-test` does NOT cover the reload suite: its selector is
    `firewall,policy,ospf,ospfv3,pppoe` (`internal/le/qemu/actions.go`). The route
    is `./le qemu run` with the reload suite as its command, per
-   `docs/architecture/testing/qemu-integration.md`. The reverts are named in the
-   spec: for `address-swap`, make `tryRelaxCycle` return the unreduced edge set;
-   for `mixed-root`, reinstate the uncovered-participant condition that
-   `a6ea1ad0b` deleted. Both halves of a pair MUST come from one tree.
+   `docs/architecture/testing/qemu-integration.md`. Both halves of a pair MUST
+   come from one tree.
 2. **`./le verify worktree` green on a committed tree.** A Goal Gate. Three
    verification-debt rows are open under `plan/verification-debt/4c26aef3.md`.
 3. **The Review Gate**, `/ze-review` looped to zero BLOCKER and zero ISSUE,

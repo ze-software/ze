@@ -269,6 +269,17 @@ add-address operation would name a device that does not exist yet. Every
 address LEAVING the host still becomes an operation, whatever carries the
 interface, because that operation is what the core reads the disturbance out
 of.
+
+The configure operation DECLARES those two cases in `Produces`: the devices it
+creates, and the addresses that arrive on them. That declaration is what orders
+a binder after them, because the graph derives an edge from a producer and a
+consumer pair and reads no label. An operation that declared nothing could be
+ordered by nothing, so a peer bound to an address arriving on a new xfrm device
+sorted ahead of the operation that creates it, the bind failed on an address
+the host did not have, and the transaction rolled back. It declares nothing for
+the devices it DELETES: a produced resource is one the operation makes
+available, which is the wrong direction for a deletion, and the four placement
+rules are what keep it behind every destroy.
 <!-- source: internal/component/iface/operation.go -- decomposeIfaceOperations, ifaceConfigureOperation -->
 
 The kernel-driven path is still there and is not a substitute.
@@ -279,12 +290,14 @@ ordered against the commit.
 
 ## The pipeline
 
-`BuildOperationGraph` builds the graph. `TopologicalSort` orders it. The
-executor runs `Verify`, then `Execute`, then `Commit`.
+`BuildOperationGraph` builds the graph. `TopologicalSort` orders it, taking the
+ready operation of the lowest phase first, so a stop, an addressing change and a
+start fall in that order over the whole commit and not only over the operations
+one resource relates. The executor runs `Verify`, then `Execute`, then `Commit`.
 
 <!-- source: internal/component/config/transaction/operation.go -- Operation, the graph foundation -->
 <!-- source: internal/component/config/transaction/depgraph.go -- BuildOperationGraph -->
-<!-- source: internal/component/config/transaction/solver.go -- TopologicalSort, cycle relaxation -->
+<!-- source: internal/component/config/transaction/solver.go -- TopologicalSort, kahnSort, operationPhase -->
 <!-- source: internal/component/config/transaction/executor.go -- Verify, Execute, Commit, rollback -->
 
 ## The decisions
@@ -296,10 +309,16 @@ through `init()`. Remove a component and its operation handling goes with it.
 **An ordering fact is DECLARED by the operation, and only what no declaration
 can state is written as a rule.** Each operation names the resources it owns in
 `Produces` and the resources it needs in `Consumes`, and the graph derives one
-edge per producer and consumer pair over the same resource identity: a create
-runs before what consumes it, and a destroy runs after every destroy that
-consumes it. Nine hand-written rules said exactly that for two roots, and each
-one had to spell the other root's operation labels to say it. They are deleted.
+edge per producer and consumer pair over the same resource identity: whatever
+produces a resource runs before what consumes it, and a destroy runs after every
+destroy that consumes it. Nine hand-written rules said exactly that for two
+roots, and each one had to spell the other root's operation labels to say it.
+They are deleted.
+
+The declaration decides that, and the verb does not. A modify that produces a
+resource is ordered exactly as a create is, because one operation can apply a
+whole section and bring a device or an address into existence while it does so,
+which is what the `interface` root's configure operation does.
 
 One rule survives, in `iface`, and it states a fact about two operations over
 DIFFERENT resources, which no pair of declarations can carry: every address the
@@ -348,18 +367,16 @@ decomposed starts, because a binder has to find the subsystems it uses already
 configured: the `bgp` root's peers start after the plugins that configure the
 RIB, the graceful-restart state and the filters have applied their sections.
 
-That order is derived from the verb and the resource kind every operation
+That order is derived from the verb and the resource kinds every operation
 already declares. `providesAddressing` is the only place the engine reads a kind
 for anything but identity: a root that PROVIDES addressing declares `address` or
-`interface`, and a root that BINDS it declares its own kind and lands on the
-phase 5 side with no edit to the engine.
+`interface`, as the kind it targets or as a kind it produces, and a root that
+BINDS it declares its own kind and lands on the phase 5 side with no edit to the
+engine.
 
-An operation that declares NO kind is read as PROVIDING addressing, which is
-the fail-safe default applied to the engine's own reading. `interface` applies
-everything it has no create primitive for with one such operation, and a
-tunnel, a wireguard device, an xfrm device and the addresses that arrive on one
-are created by it, so a coarse node placed before it would be applied before
-the addressing it binds exists. The two errors cost what "The fail-safe
+An operation that declares NOTHING, neither a target kind nor a produced
+resource, is read as PROVIDING addressing, which is the fail-safe default
+applied to the engine's own reading. The two errors cost what "The fail-safe
 default" above says they cost: reading a provider as a binder puts every coarse
 section before the addresses, which is the failure the requirement exists to
 prevent, and reading a binder as a provider costs one session restart.
@@ -378,10 +395,27 @@ it once the sort is done. A coarse node stands for a whole participant section,
 so it names no resource and nothing in the graph can state where it goes; an
 edge invented for it would join cycles the operator never wrote.
 
-The two bounds cross only where a binder start sorts ahead of an address the
-commit adds, which no edge can produce for a binder that declares the address it
-binds. The addressing bound wins there, because a binder started before its
-address is the failure the requirement exists to prevent.
+One insertion point can satisfy both bounds only because the sort puts every
+addressing addition ahead of every binder start. The graph orders what one
+resource relates and says nothing about the rest, so a peer whose hold-time
+changed used to sort ahead of an address another interface was gaining, and
+therefore ahead of every coarse section placed after that address. The phase the
+sort takes its next operation by is what closed that. `operationPhase` puts an
+operation on one of three rungs, a stop, the addressing, and a start, and
+`kahnSort` drains the lowest rung that has a ready operation. An operation joins
+its rung only once every edge into it has run, so a rung never overrides a
+dependency and never closes a cycle.
+
+Phases 3 and 4 share the addressing rung, because which removal precedes which
+addition is a fact about two addresses on one host rather than about a verb, and
+the one surviving constraint rule states it as an edge. A rung would state it a
+second time, and the edge is the one that holds against a rule pointing the
+other way.
+
+The two bounds can still cross where an EDGE holds a binder start ahead of an
+address the commit adds, which no first-party declaration produces. The
+addressing bound wins there, because a binder started before its address is the
+failure the requirement exists to prevent.
 <!-- source: internal/component/config/transaction/solver.go -- placeSectionNodes, sectionNodePosition -->
 <!-- source: internal/component/iface/operation.go -- iface-owned decomposition -->
 <!-- source: internal/component/bgp/plugin/operation.go -- BGP-owned decomposition -->

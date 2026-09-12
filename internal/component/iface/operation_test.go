@@ -334,8 +334,8 @@ func TestIfaceOperationsDeclareProduceAndConsume(t *testing.T) {
 		"an address needs the interface it sits on")
 
 	assert.Equal(t, operationConfigureIfaces, ops[2].Type)
-	assert.Empty(t, ops[2].Produces, "the configure operation owns no resource")
-	assert.Empty(t, ops[2].Consumes, "so it earns no derived edge, and two placement rules order it")
+	assert.Empty(t, ops[2].Produces, "a dummy has a create primitive, so the configure operation creates no addressing here")
+	assert.Empty(t, ops[2].Consumes, "it needs nothing another operation makes, and the placement rules order it")
 
 	removed, err := decomposeIfaceOperations(context.Background(), tx.DecomposeRequest{
 		TransactionID: "tx-iface-declares-remove",
@@ -380,7 +380,7 @@ func TestIfaceConstraintRulesStateOnlyWhatNoPairCan(t *testing.T) {
 		ifaceAddressOperation(operationRemoveAddress, "dum1", "10.0.0.9/24"),
 		ifaceAddressOperation(operationRemoveAddress, "dum0", "10.0.0.1/24"),
 		ifaceInterfaceOperation(operationAddInterface, "dum1", zeTypeDummy),
-		ifaceConfigureOperation(),
+		ifaceConfigureOperation(nil),
 	}
 
 	graph, err := tx.BuildOperationGraph(ops, tx.ConstraintRules())
@@ -391,7 +391,7 @@ func TestIfaceConstraintRulesStateOnlyWhatNoPairCan(t *testing.T) {
 	assert.True(t, graph.HasEdge("interface-remove-address-dum1-10.0.0.9_24", "interface-add-address-dum1-10.0.0.1_24"),
 		"phases 3 and 4: every address the commit removes goes before any address it adds, on one interface as across two")
 
-	configure := ifaceConfigureOperation().ID
+	configure := ifaceConfigureOperation(nil).ID
 	assert.True(t, graph.HasEdge("interface-remove-address-dum0-10.0.0.1_24", configure),
 		"the configure operation applies the end state, so it follows every address destroy")
 	assert.True(t, graph.HasEdge("interface-add-address-dum1-10.0.0.1_24", configure),
@@ -426,4 +426,68 @@ func TestIfaceOperationDecomposerRefusesADiffItCannotParse(t *testing.T) {
 	require.Error(t, err, "a diff section that will not parse must not be answered as no change")
 	assert.Contains(t, err.Error(), "decompose diff")
 	assert.Nil(t, ops)
+}
+
+// TestIfaceConfigureOperationDeclaresTheAddressingItCreates verifies that the
+// configure operation names the interfaces it brings up and the addresses that
+// arrive on them, so that every binder of one of those addresses is ordered
+// after it.
+//
+// An xfrm device, a tunnel and a wireguard device have no create primitive in
+// this package, so the configure operation creates them and the addresses on
+// them ride the same operation. It used to declare nothing at all, and a
+// declaration is the only thing the graph can order against: a passive peer
+// bound to such an address sorted BEFORE the operation that creates it,
+// startListenerForAddressPort failed to bind an address the host did not have
+// yet, and the whole transaction rolled back.
+//
+// VALIDATES: phases 4 and 5. The configure operation produces the addressing it
+// creates, and the peer that binds it sorts after it.
+// PREVENTS: a binder started against an address that does not exist, which is
+// the failure the requirement exists to prevent
+// (docs/architecture/config/apply-ordering.md, "The five phases").
+func TestIfaceConfigureOperationDeclaresTheAddressingItCreates(t *testing.T) {
+	ops, err := decomposeIfaceOperations(context.Background(), tx.DecomposeRequest{
+		TransactionID: "tx-iface-configure-declares",
+		Root:          configRootInterface,
+		ActiveRoot:    `{"interface":{"backend":"test"}}`,
+		CandidateRoot: `{"interface":{"backend":"test","xfrm":{"xfrm0":{"if-id":"42","unit":{"default":{"ipv4":{"address":["10.0.0.9/30"]}}}}}}}`,
+		Diff: tx.DiffSection{
+			Root:  configRootInterface,
+			Added: `{"interface/xfrm/xfrm0":{}}`,
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, ops, 1, "an xfrm device and its address are both applied by the configure operation")
+
+	configure := ops[0]
+	assert.Equal(t, operationConfigureIfaces, configure.Type)
+	assert.Equal(t, []tx.ResourceRef{
+		{Kind: tx.ResourceInterface, Name: "xfrm0"},
+		{Kind: tx.ResourceAddress, Address: "10.0.0.9/30"},
+	}, configure.Produces,
+		"it owns the device it creates and the address that arrives on it")
+
+	peer := tx.ConfigOperation{
+		ID:       "bgp-add-peer-p9",
+		Owner:    "bgp",
+		Type:     "add-peer",
+		Verb:     tx.VerbCreate,
+		Target:   tx.ResourceRef{Kind: tx.ResourcePeer, Peer: "p9"},
+		Produces: []tx.ResourceRef{{Kind: tx.ResourcePeer, Peer: "p9"}},
+		Consumes: []tx.ResourceRef{{Kind: tx.ResourceAddress, Address: "10.0.0.9"}},
+	}
+
+	graph, err := tx.BuildOperationGraph(append([]tx.ConfigOperation{peer}, ops...), tx.ConstraintRules())
+	require.NoError(t, err)
+	assert.True(t, graph.HasEdge(configure.ID, peer.ID),
+		"the peer binds an address this operation creates, so it waits for it")
+
+	sorted, err := tx.TopologicalSort(graph)
+	require.NoError(t, err)
+	ids := make([]string, 0, len(sorted))
+	for i := range sorted {
+		ids = append(ids, sorted[i].ID)
+	}
+	assert.Equal(t, []string{configure.ID, peer.ID}, ids)
 }
