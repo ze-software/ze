@@ -56,6 +56,11 @@ func reporterTestDetected() *ddosevent.AttackDetected {
 // It is a RACE-DETECTOR test: it makes no assertion about the values, because
 // the interleaving is what is under test. Under `-race` it fails if any of the
 // five writers stops taking the lock.
+//
+// test-asserts-nothing: the oracle is the race detector. The five goroutines
+// write the incident state concurrently, so every value this test could read
+// afterwards is a legal outcome of some interleaving. A writer that stops
+// taking the lock is reported by -race and by nothing else.
 func TestReporterStateIsOrderedAgainstAConfigApply(t *testing.T) {
 	srv := reporterTestServer(t)
 	var rep reporter

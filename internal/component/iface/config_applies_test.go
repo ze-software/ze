@@ -32,6 +32,11 @@ func TestConfigAppliesCounterIsRegisteredAndCounts(t *testing.T) {
 
 // VALIDATES: countConfigApply is safe before any registry is bound, which is
 // the state a daemon is in until ConfigureMetrics runs.
+//
+// test-asserts-nothing: the oracle is the absence of a panic. countConfigApply
+// reads ifaceMetricsPtr and returns without producing a value, so an unbound
+// registry has no observable result to compare. A load that stops checking for
+// nil dereferences it here and the test dies on that panic.
 func TestConfigAppliesCounterSurvivesAnUnboundRegistry(t *testing.T) {
 	ifaceMetricsPtr.Store(nil)
 	countConfigApply()
