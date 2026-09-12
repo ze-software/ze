@@ -36,9 +36,13 @@ func init() {
 	// re-render against a committed copy. A write to a file it takes text from
 	// deletes it, and a command that names it rebuilds it before that command
 	// runs.
+	// Built at session start: a reader greps the map without naming it
+	// (`grep -rn ResolveBGPTree`), so an absent map answers "no match" for a
+	// tree nobody could see was missing it (derived.SessionStartPolicy).
 	derived.Register(derived.Artifact{
-		Path:    OutputRel,
-		Feeds:   func(_, path string) bool { return IsSourcePath(path) },
-		Rebuild: func(root string) error { _, err := Update(root); return err },
+		Path:         OutputRel,
+		Feeds:        func(_, path string) bool { return IsSourcePath(path) },
+		Rebuild:      func(root string) error { _, err := Update(root); return err },
+		SessionStart: derived.SessionStartBuild,
 	})
 }
