@@ -1,157 +1,125 @@
 # Ze
 
-**[ze-software.net](https://ze-software.net)**
+Ze is an open-source configuration and protocol engine written in Go. The network
+operating system built on it speaks BGP, manages Linux network interfaces, and
+programs the forwarding table. Operators use a shared configuration model through
+an SSH CLI or a web editor.
 
-> **Pre-release.** Ze is under active development and has not been released yet. The core BGP engine works, and it is covered by 20,000+ unit tests, 1,600+ functional tests, 70+ fuzz targets, chaos replay and 100+ Docker interop scenarios which run it against FRR, BIRD and GoBGP. I keep OpenBGPd, FreeRtr, RustyBGP and rustbgpd images alongside those, for comparison. Some of the more advanced features are still incomplete, and the API and the config syntax may change before a release.
+> **Pre-release.** Ze has not been released yet. Some features are incomplete or
+> experimental, and APIs and configuration syntax can change. The
+> [feature inventory](docs/features.md) records their status. A lab is the right
+> place to evaluate Ze before putting it on a live network.
 
-Ze is an open-source configuration and protocol engine. The network operating system I built on it speaks BGP, manages Linux network interfaces, programs the FIB and serves its own configuration over SSH and a web UI.
+I wrote [ExaBGP](https://github.com/Exa-Networks/exabgp), and its users are the
+people I had in mind while building Ze. The aim is to keep programmable routing
+and add control of the device around it, with one configuration for the protocols
+and the system they run on.
 
-None of that is in the core. The core is a supervisor which holds a message bus, a config provider and a plugin manager, and it knows nothing about BGP or about any other protocol. BGP, interface management and the rest of it register themselves as subsystems and plugins. Each one arrives with its own YANG and augments the configuration tree at the point where it belongs.
+## Start Here
 
-The CLI, the completion, the validation, the web editor and the MCP tools are all derived from that schema. A subsystem which declares its model gets every one of them without any code of its own.
+| To explore | Start with |
+|------------|------------|
+| A first BGP session | [Quick Start](docs/guide/quickstart.md) |
+| A network lab | [netlab and containerlab](docs/guide/netlab.md) |
+| An existing ExaBGP deployment | [Migration guide](docs/exabgp/exabgp-migration.md) |
+| A dedicated device or VM | [Appliance guide](docs/guide/appliance.md) |
 
-A plugin can be a Go module compiled into the binary, and its YANG is loaded with the rest so the daemon holds the running config to it. It can also be a separate process written in whatever language suits you, and that shape only gets half of this today. `ze schema` runs the plugin with `--yang` and shows you its config model, while the daemon's own validator is still built from the compiled-in modules alone.
+## What Ze Includes
 
-There is also an MCP server, which exposes every feature the running daemon has, plugins included, so an AI assistant can ask what this particular instance can do and then operate it.
+Features depend on the build and configuration. The guides describe how to use
+each area, and the [feature inventory](docs/features.md) distinguishes supported,
+experimental, and partial implementations.
 
-I wrote [ExaBGP](https://github.com/Exa-Networks/exabgp), and its users are the people I had in mind while building this. They get the same programmability, on a stack which also configures the device and which was written from the start for update rates ExaBGP was never meant to carry.
+| Area | Guides |
+|------|--------|
+| Routing | [BGP](docs/features/bgp-protocol.md), [route injection](docs/guide/route-injection.md), [OSPF](docs/guide/ospf.md), and [RPKI validation](docs/guide/rpki.md) |
+| Linux networking | [Interfaces](docs/features/interfaces.md), [static routes](docs/guide/static-routes.md), [firewall](docs/guide/firewall.md), and [IPsec](docs/guide/ipsec.md) |
+| Configuration and operations | [Configuration](docs/guide/configuration.md), [CLI](docs/guide/cli.md), [command reference](docs/guide/command-reference.md), and [operations](docs/guide/operations.md) |
+| Automation and visibility | [Plugins](docs/plugin-development/), [MCP](docs/guide/mcp/overview.md), [monitoring](docs/guide/monitoring.md), and [looking glass](docs/guide/looking-glass.md) |
 
-### Components
+## Build from Source
 
-| Component | Role |
-|-----------|------|
-| BGP engine | TCP connections, FSM, message parsing, capability negotiation |
-| Interfaces | Linux network management: ethernet, bridge, VLAN, tunnels, WireGuard, DHCP, NTP |
-| FIB | Route installation into the kernel forwarding table (netlink) or VPP data plane |
-| Config | YANG-modeled configuration with commit, rollback, and live reload |
-| CLI | SSH-accessible interactive editor and command shell |
-| Web UI | Browser-based configuration editor and admin dashboard |
-| Looking glass | Peer status and route viewer, [birdwatcher](https://github.com/alice-lg/birdwatcher)-compatible API |
-| Telemetry | Prometheus metrics export with optional Basic Auth and Netdata-compatible OS collectors |
-| MCP | Model Context Protocol server for AI tool integration |
+Development requires Go 1.27 or newer on Linux or macOS. Linux is the platform for
+the network operating system's kernel features.
 
-### Plugins
+```bash
+git clone https://github.com/ze-software/ze.git
+cd ze
+./ze --help
+```
 
-| Type | Plugins |
-|------|---------|
-| Storage | bgp-rib, bgp-adj-rib-in, bgp-persist |
-| Policy | bgp-rs, bgp-filter-community, bgp-role |
-| Resilience | bgp-gr, bgp-watchdog, bgp-route-refresh |
-| Validation | bgp-rpki, bgp-rpki-decorator |
-| Capabilities | bgp-aigp, bgp-hostname, bgp-llnh, bgp-softver |
-| Address families | bgp-nlri-vpn, bgp-nlri-evpn, bgp-nlri-flowspec, bgp-nlri-ls, bgp-nlri-labeled, bgp-nlri-vpls, bgp-nlri-mvpn, bgp-nlri-rtc, bgp-nlri-mup |
+On a fresh checkout, the `./ze` launcher builds the daemon before it runs the
+command. It derives the feature tags from [feature-gates.txt](feature-gates.txt),
+so there is no tag list to maintain by hand. Later invocations reuse the existing
+binary.
 
-IPv4/IPv6 unicast and multicast are built into the engine. See [Feature Inventory](docs/features.md) for details.
+The [Quick Start guide](docs/guide/quickstart.md) covers credentials, an example
+configuration, and commands to start Ze and inspect its peers. The
+[Ubuntu installation guide](docs/guide/ubuntu-build-install.md) covers a
+systemd installation.
 
 ### Build Only What You Run
 
-Thirty-six subsystems compile out behind `ze_<feature>` build tags, the BGP engine among them. If you leave a tag off, that code is not in the binary at all, which keeps the image small and the attack surface with it, and a config which selects a subsystem you compiled out is rejected as unknown rather than silently ignored. Build a custom binary with `go build -tags`, as shown below. The list of gates is declared once in `feature-gates.txt`; `./le feature-tags write` updates every derived tag list.
+Subsystems have `ze_<feature>` build tags. A custom build can omit BGP or an
+operator interface along with its registered schema. The
+[architecture guide](docs/architecture.md) explains the component boundaries,
+and the feature manifest names the packages behind each tag.
 
-```bash
-CGO_ENABLED=0 go build -tags 'ze_core ze_ssh ze_ospf' ./cmd/ze   # an OSPF-only router, no BGP
-```
+## Architecture and Plugins
 
-That build is 39 MB where the full binary is 83 MB, and none of the 1,201 BGP reactor symbols are linked into it.
+The core is a protocol-independent supervisor. It manages subsystem lifecycles
+through a message bus, a configuration provider, and a plugin manager. Protocols
+and system features register themselves and contribute their own YANG modules.
 
-### Wire Performance
+Those modules form a shared configuration schema for validation and the editors.
+The Model Context Protocol (MCP) server derives tools from the running daemon's
+command catalog, so AI clients can discover its available commands.
 
-| Aspect | Detail |
-|--------|--------|
-| Parsing | Lazy via offset iterators, no upfront deserialization |
-| Forwarding | Zero-copy when source and destination share encoding context |
-| Encoding | Buffer-first: all wire writes into pooled, bounded buffers |
-| Dedup | Per-attribute-type pools with refcounted handles |
+Plugins can be compiled Go modules or separate processes. Compiled plugins
+contribute their YANG to the daemon's configuration validator. External plugins
+can expose a model through `ze schema`, but that model does not automatically
+extend the daemon's validator.
 
-### ExaBGP
+The [architecture overview](docs/architecture.md) describes the runtime and BGP
+wire design. The [plugin development guide](docs/plugin-development/) covers
+the SDK and process protocol.
 
-Existing ExaBGP plugins run unchanged through a bridge, and `ze config migrate` converts ExaBGP configs.
+## From ExaBGP
 
-If you run ExaBGP, I would appreciate it if you could put your own config through `ze config migrate` and tell me what it gets wrong. At this stage that is the feedback which decides what I work on next. You can open an issue, or find me on [Discord](https://discord.gg/T8s7CjPDne).
+`ze exabgp migrate` converts ExaBGP configuration files, and `ze exabgp plugin`
+provides a bridge for existing process scripts. The
+[migration guide](docs/exabgp/exabgp-migration.md) documents the syntax and API
+differences to check when moving a deployment.
 
-### Testing
+If you run ExaBGP, I would appreciate reports from your own configurations and
+process scripts. A report that shows what failed and what ExaBGP did with the
+same input gives me something concrete to fix. You can use the
+[issue tracker](https://github.com/ze-software/ze/issues) or
+[Discord](https://discord.gg/T8s7CjPDne).
 
-| Type | Scope |
-|------|-------|
-| Unit tests | 20,000+ test functions as of 2026-07 |
-| Linting | 26 linters |
-| Functional tests | 1,460+ `.ci` files and 160+ `.et` editor tests: config parsing, wire encoding, plugin behavior, reloads, UI/editor flows, L2TP, firewall, and web |
-| Fuzz testing | 70+ targets covering external input parsing as of 2026-07 |
-| Chaos testing | Deterministic replay with [configurable scenarios](docs/guide/chaos-testing.md) |
-| RFC requirement gate | 2,900+ MUST-level requirements across 168 enrolled RFCs, drafts, and specifications, each proven by a positive and a negative test or annotated with a recorded reason, and every RFC carrying a gap flagged on the status ledger. See [how compliance is enforced](https://github.com/ze-software/ze/wiki/rfc-implementation) and the [RFC status ledger](docs/features/rfc-status.md) |
+## Testing and Project Status
 
-### Deployment
+The [testing overview](https://ze-software.net/quality/) explains the unit,
+functional, fuzz, mutation, and chaos tests, plus Linux checks under QEMU.
+The [interop guide](docs/architecture/testing/interop.md) describes scenarios
+against other implementations, including FRR, BIRD, and GoBGP.
 
-Ze runs as a daemon on any Linux, under systemd or under whatever else you use to supervise processes, and it also builds into a dedicated appliance image with [gokrazy](https://gokrazy.org) for hardware you never intend to log into. Both are the same binary reading the same config.
+The [RFC requirement ledger](https://ze-software.net/quality/rfc-compliance/)
+publishes requirements and their test evidence, including gaps. These records
+help evaluate the current implementation. They do not replace deployment
+experience.
 
-| Mode | Description |
-|------|-------------|
-| Any Linux | Standard daemon, integrates with systemd, journald, and your existing tooling. See [Operations](docs/guide/operations.md) |
-| Appliance | Immutable boot image for N100 mini PCs or VMs: read-only root, no shell, automatic supervision. See [VM Appliance](docs/guide/appliance.md) |
+### AI-Assisted Development
 
-The config, the plugins and the hardware are yours. There is no per-instance license to buy, no vendor portal, and nothing in the binary which phones home.
+Ze is developed with AI coding assistants. I decide the architecture, the
+tradeoffs, and what the code must preserve. Tests and independent review are
+part of that process. I explain the reasoning in
+[AI slop is the wrong test](https://ze-software.net/blog/ai-slop-is-the-wrong-test/).
 
-## Quick Start
+## Contributing and License
 
-```bash
-git clone https://github.com/ze-software/ze.git && cd ze
-CGO_ENABLED=0 go build -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' -o bin/ze ./cmd/ze
-bin/ze init             # set up SSH credentials (once)
-bin/ze config import router.conf  # or: ze config edit
-bin/ze start
-```
+Bug reports and contributions are welcome through the
+[contribution process](CONTRIBUTING.md). A
+[Contributor License Agreement](CLA.md) applies to contributions.
 
-Requires **Go 1.27+** on a macOS or Linux development host. Windows is not a supported development platform. See the [Quick Start guide](docs/guide/quickstart.md).
-
-## I Want To...
-
-| Task | Start here |
-|------|-----------|
-| Try Ze for the first time | [Quick Start](docs/guide/quickstart.md) |
-| Announce routes to my upstream | [Route Injection](docs/guide/route-injection.md) |
-| Migrate from ExaBGP | [ExaBGP Migration](docs/exabgp/exabgp-migration.md) |
-| Monitor BGP sessions | [Monitoring](docs/guide/monitoring.md) |
-| Restart without dropping routes | [Graceful Restart](docs/guide/graceful-restart.md) |
-| Validate routes against RPKI | [RPKI](docs/guide/rpki.md) |
-| Write a plugin (Go, Python, Rust) | [Plugin Development](docs/plugin-development/) |
-| Understand the internals | [Architecture](docs/architecture.md) |
-| Build a route server at an IXP | [Route Reflection](docs/guide/route-reflection.md) (please don't, not yet) |
-| Run Ze in production | [Operations](docs/guide/operations.md) |
-| Build a dedicated network appliance | [VM Appliance](docs/guide/appliance.md) |
-| Compare Ze with other daemons | [Comparison](docs/comparison.md) |
-
-## Documentation
-
-| | |
-|-|-|
-| **[Architecture](docs/architecture.md)** | One-page overview: components, data flow, key abstractions |
-| **[User Guide](docs/guide/)** | Configuration, plugins, operations, and feature guides |
-| **[Design Document](docs/DESIGN.md)** | Full design rationale, wire format details, performance analysis |
-| **[Feature Inventory](docs/features.md)** | Protocols, attributes, capabilities, CLI commands |
-| **[RFC Compliance](https://github.com/ze-software/ze/wiki/rfc-implementation)** | How each MUST-level requirement is bound to tests, and where the gaps are published |
-| **[Command Reference](docs/guide/command-reference.md)** | All shell and runtime commands |
-| **[Plugin Development](docs/plugin-development/)** | Writing external plugins, IPC protocol, SDK |
-| **[Comparison](docs/comparison.md)** | Ze vs FRR, BIRD, GoBGP, OpenBGPd, and others |
-
-## An AI-Assisted Project
-
-Ze is written with Claude Code, which is what made a ground-up BGP rewrite possible for one person. I decide the architecture, the tradeoffs and what the code is never allowed to break, and Claude turns that into implementation. My time is limited, and I would rather spend it on the judgement than on typing out the hundredth attribute codec.
-
-That is also why the test counts above are what they are. Code does not become correct by having been generated, so it has to pass the narrow check and then the wider gate before it belongs here, and building those gates is most of what I do. The longer version of this argument is in [AI slop is the wrong test](https://ze-software.net/blog/ai-slop-is-the-wrong-test/).
-
-Contributors using Claude Code have 28 project-specific slash commands for specs, implementation, review and testing. See the [Claude Code cheat sheet](docs/contributing/claude-code-cheatsheet.md).
-
-## License and Contributions
-
-[GNU Affero General Public License v3.0](LICENSE)
-
-Contributions are welcome if they follow the [contribution process](CONTRIBUTING.md). A [Contributor License Agreement](CLA.md) applies.
-
-## Links
-
-| | |
-|-|-|
-| **Repo** | [github.com/ze-software/ze](https://github.com/ze-software/ze) |
-| **Issues** | [github.com/ze-software/ze/issues](https://github.com/ze-software/ze/issues) |
-| **Wiki** | [github.com/ze-software/ze/wiki](https://github.com/ze-software/ze/wiki) |
-| **Discord** | [discord.gg/T8s7CjPDne](https://discord.gg/T8s7CjPDne) |
-| **ExaBGP** | [github.com/Exa-Networks/exabgp](https://github.com/Exa-Networks/exabgp) |
+Ze is licensed under the [GNU Affero General Public License v3.0](LICENSE).
