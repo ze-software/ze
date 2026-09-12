@@ -459,3 +459,44 @@ func TestInvocationStartFailureIsSetupError(t *testing.T) {
 		t.Fatalf("report/code = %#v/%d", report, code)
 	}
 }
+
+// TestEveryValueSlotRefusesAnOptionWithoutStartingTheRun proves that a
+// dash-leading word never becomes the value a keyword introduced, and that the
+// refusal happens before the orchestrator is reached.
+//
+// VALIDATES: AC-5 -- a dash-leading token in a value slot is refused by name,
+// in this area's own parser as well as in the shared one.
+// PREVENTS: the burn `./le stress-repro run suite -help` started on 2026-09-11,
+// measured at about 943% CPU for twenty minutes. The word was read as the suite
+// name, nothing validated it, and the load generator started.
+//
+// The Answer assertion reads the PAYLOAD as well as the code. A setup failure
+// inside the orchestrator also answers 2, which would make the code alone
+// vacuous. A refusal at the parser answers a nil payload. Anything that reached
+// the run answers a Report. The two binaries are pointed at paths that do not
+// exist, so a run that starts stops at ensureBinaries instead of burning.
+func TestEveryValueSlotRefusesAnOptionWithoutStartingTheRun(t *testing.T) {
+	for _, args := range [][]string{
+		{"suite", "-help"},
+		{"suite", "-h"},
+		{"suite", "-xh"},
+		{"suite", "--help"},
+		{"suite", "bgp", "test", "-x"},
+		{"suite", "bgp", "tags", "--tags"},
+	} {
+		if _, err := parseOptions(args); err == nil {
+			t.Errorf("parseOptions accepted an option as a value: %v", args)
+		}
+	}
+
+	absent := filepath.Join(t.TempDir(), "no-such-binary")
+	t.Setenv("ZE_BIN", absent)
+	t.Setenv("ZE_TEST_BIN", absent)
+	payload, code := Answer([]string{runAction, "suite", "-help"})
+	if code != 2 {
+		t.Errorf("Answer(run suite -help) = %d, want 2", code)
+	}
+	if payload != nil {
+		t.Errorf("Answer(run suite -help) reached the orchestrator and answered %#v, want a refusal", payload)
+	}
+}

@@ -513,9 +513,14 @@ verify run runs.
 the admission slot, so one heavy job runs while the peers queue, and it tees the
 child's merged output to the job log.
 
-Everything after the `command` keyword is the child's argv, passed through
-unchanged (`parseRun`, `internal/le/job/answer.go`; `Admission.Run`,
-`internal/le/job/job.go`). The command adds no build tags, no `-race`, no
+Everything after the `command` keyword is the child's argv, and `job` passes it
+through unchanged (`parseRun`, `internal/le/job/answer.go`; `Admission.Run`,
+`internal/le/job/job.go`). The DISPATCHER reads the line first. It answers a
+trailing `help`, `--help`, `-h` or `-help` with a usage page, and it does not
+run the child (`asksForUsage`, `internal/le/leroot/dispatch.go`). Every other
+option travels on, so `command echo -html=cover.out` reaches the child.
+
+The command adds no build tags, no `-race`, no
 package pattern and no timeout of its own, so write each of them yourself. The
 `PKG=` and `RUN=` spellings belong to `./le fuzz`, which declares them as
 argument aliases; `go test` reads `PKG=./x` as an import path and refuses it.

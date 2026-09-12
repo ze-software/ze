@@ -102,6 +102,16 @@ func parseOptions(args []string) (Options, error) {
 			}
 			value := args[0]
 			args = args[1:]
+			// An option is never the value a keyword introduced. This parser
+			// forwards nothing to a child. `ai/rules/cli.md` bans every flag
+			// from le's grammar. So a dash-leading word here is an option the
+			// developer got wrong. Reading it as data is what started the burn.
+			// `run suite -help` set suite to the cluster, and the load
+			// generator ran for twenty minutes (2026-09-11).
+			if leaction.IsOption(value) {
+				return Options{}, fmt.Errorf(
+					"%s cannot take %q, because a value never begins with a dash", key, value)
+			}
 			switch key {
 			case "suite":
 				if seenSuite {

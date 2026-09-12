@@ -315,8 +315,13 @@ func (l List) UsageText(verb string) (string, bool) {
 // takes, and the operator typed it as data. The same line ending in `--help`
 // answers false. A dash-leading word is an option, and no value slot holds one
 // (IsOption). The caller then renders usage for a help spelling, and
-// parseArguments refuses every other option and answers 2. No slot on the line
-// takes an option as data.
+// parseArguments refuses every other option and answers 2.
+//
+// That holds for every slot of an area that DISPATCHES through its table. An
+// area that declares one and parses the line itself never reaches
+// parseArguments. Its own parser owns the refusal there, and `worktree` has
+// none: it still reads `update path -xh` as a path
+// (plan/spec-le-every-area-dispatches-through-one-table.md).
 //
 // A verb this listing does not hold answers false. The listing is what the area
 // published, and a word this table cannot read is not a word this table can
@@ -387,11 +392,12 @@ const helpWord = "help"
 // `-letters` is a CLUSTER of one-letter short options.
 //
 // So `-help` is not "help with one dash". It decomposes to `-h`, `-e`, `-l` and
-// `-p`: a help request, then three options that do not exist. IsHelpArg reads
-// it as the question for that reason, and by its exact spelling rather than by
-// its shape.
+// `-p`: a help request, then three options that do not exist. That is not why
+// IsHelpArg answers it. `-html` decomposes the same way and IsHelpArg excludes
+// it. `-help` is in that closed set on an owner ruling, and because Go's own
+// tools take it. A reader who types it asks for help either way.
 //
-// That rule bans every other flag from le's grammar. le has no option for a
+// GNU syntax bans every other flag from le's grammar. le has no option for a
 // cluster to carry, and no action takes a value that starts with a dash. A
 // dash-leading word in a value slot is an option the operator got wrong, never
 // the text they meant.

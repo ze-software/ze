@@ -15,6 +15,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/leaction"
 )
 
 // findingDetails answers each finding's detail string. Cases use it when they
@@ -627,20 +629,79 @@ func TestTheGrowthRowsAreOrderedByHabitNumber(t *testing.T) {
 
 // ─── The command surface ────────────────────────────────────────────────────
 
-func TestTheNamedFileFormNeedsAKeywordBeforeEachPath(t *testing.T) {
-	got, err := namedFiles([]string{"file", "docs/a.md", "file", "docs/b.md"})
-	if err != nil {
-		t.Fatalf("the typed form was refused: %v", err)
+// TestCheckDeclaresTheFileKeywordItEnforces holds the published table to the
+// grammar the action really takes.
+//
+// VALIDATES: AC-8 -- requiredness and the keyword set are PUBLISHED, so a
+// reader learns what `check` takes without an invocation of it.
+// PREVENTS: `check` published as a zero-argument action while Answer read
+// `file <path>` behind the dispatcher, which made `le ste check --help` print
+// a usage line naming no keyword at all (review round 5).
+func TestCheckDeclaresTheFileKeywordItEnforces(t *testing.T) {
+	var declared []leaction.Parameter
+	for _, row := range Actions().Actions {
+		if row.Verb == "check" {
+			declared = row.Parameters
+		}
 	}
-	if len(got) != 2 || got[0] != "docs/a.md" || got[1] != "docs/b.md" {
-		t.Errorf("want both paths, got %v", got)
+	if len(declared) != 1 {
+		t.Fatalf("check publishes %d parameter(s), want the one it takes: %v", len(declared), declared)
 	}
+	if declared[0].Keyword != fileKeyword || declared[0].Value == "" {
+		t.Errorf("check publishes %+v, want the keyword %q naming its value", declared[0], fileKeyword)
+	}
+	if declared[0].Requirement != leaction.Optional {
+		t.Errorf("check publishes file as %v; a bare check reads the changed set, so the keyword is optional", declared[0].Requirement)
+	}
+	if !declared[0].Repeat {
+		t.Error("check publishes file as given once; a commit names every one of its files")
+	}
+}
 
-	if _, err := namedFiles([]string{"docs/a.md"}); err == nil {
-		t.Error("a bare path in a positional slot must be refused")
+// TestCheckIsDispatchedThroughItsOwnTable proves the declaration is the thing
+// that runs, rather than a second parser behind it.
+//
+// VALIDATES: AC-5 -- an option is refused in every value slot of an area that
+// declares a table.
+// PREVENTS: `./le ste check file -xh` answering 0 with "no habit grew in 0
+// changed document(s)": a path named `-xh` that no file matched, reported as
+// success over nothing (review round 5).
+func TestCheckIsDispatchedThroughItsOwnTable(t *testing.T) {
+	for _, args := range [][]string{
+		{"check", "file", "-xh"},
+		{"check", "file", "--help", "file", "docs/a.md"},
+		{"check", "file"},
+		{"check", "docs/a.md"},
+		{"check", "file", "docs/a.md", "stray"},
+	} {
+		payload, code := Answer(args)
+		if code != 2 {
+			t.Errorf("Answer(%v) = %d, want the usage refusal 2", args, code)
+		}
+		if payload != nil {
+			t.Errorf("Answer(%v) answered %#v, want a refusal with no payload", args, payload)
+		}
 	}
-	if _, err := namedFiles([]string{"file"}); err == nil {
-		t.Error("a keyword with no value must be refused")
+}
+
+// TestEveryNamedFileReachesTheRatchet keeps the repeated keyword carrying every
+// path the commit named, which is the whole reason `check` takes one.
+//
+// The exit code is not asserted. These are tracked files a peer session CAN
+// have edited, so the ratchet answers 0 or 3 and both are correct. What this
+// proves is that both paths were EXAMINED, which `file -xh` never was.
+func TestEveryNamedFileReachesTheRatchet(t *testing.T) {
+	payload, _ := Answer([]string{
+		"check",
+		"file", "docs/contributing/writing-style.md",
+		"file", "docs/contributing/committing.md",
+	})
+	report, ok := payload.(CheckReport)
+	if !ok {
+		t.Fatalf("check answered %T, want a CheckReport", payload)
+	}
+	if report.FilesExamined != 2 {
+		t.Errorf("the ratchet examined %d file(s), want both the invocation named", report.FilesExamined)
 	}
 }
 

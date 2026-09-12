@@ -82,6 +82,29 @@ A single-verb area still has a verb, and several of them do take keywords, so
 four that declare their own `ActionList` are the clearest case: that type is a
 second declaration of the same fact `leaction` already holds.
 
+## A third group: an area that publishes a table it does not dispatch through
+
+Measured 2026-09-12, during round 5 of `plan/spec-le-publishes-its-command-surface.md`.
+That spec wired 69 areas to `RegisterActions`, publishing 276 verbs. Probing
+every verb with an undeclared keyword, and then reading the REFUSAL VOICE to
+tell `leaction`'s own words from an area's, found four areas whose table and
+dispatch disagree. This is worse than publishing nothing, because the manifest
+states a grammar the area does not honour, and a reader who trusts it is misled
+rather than merely unserved.
+
+| Area | What is false | State |
+|------|---------------|-------|
+| `ste` | `check` published zero-argument while `Answer` hand-parsed `file <path>`, so `./le ste check file -xh` answered `OK` at exit 0 having examined no document | FIXED in that spec: `check` declares `file`, and dispatch goes through `AnswerArgs` |
+| `worktree` | `update` is published zero-argument while `Answer` hand-parses `path <path>` and `all`. `--help` names no keyword, and `update path -xh` reaches `updater.One` with the option as a path | open |
+| `functional` | `list`, `gating` and `select` are published but absent from the sweep table, so `./le functional list zzprobe` refuses the verb the manifest advertises | open |
+| `doc wiring` | publishes one truthful zero-argument verb; its own `changed-file <path>` and `dry-run` grammar is unpublished. A gap rather than a false claim | open |
+
+The three open rows are this spec's, and they carry a lesson for its own
+migration: declaring a table is not the deliverable. Dispatching through it is.
+A migration that adds a table and leaves the hand-parser in place reproduces
+exactly this defect, so each area's acceptance is that an undeclared keyword is
+refused by `leaction`'s own parser, proven by probe rather than by reading.
+
 ## Required Reading
 
 ### Architecture Docs

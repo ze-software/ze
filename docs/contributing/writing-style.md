@@ -627,7 +627,7 @@ smallest complete config that carries it. Build the binary and run
 | `./le ste check` | The gate. It fails when a habit grew in a file you changed |
 | `./le ste review` | The whole tree, for a rewriting session |
 | `./le ste check file <path>...` | Named files |
-| `./le ste check file <scratch>/msg.txt` | A commit message or a PR body, written to a file first. `namedFiles` in `internal/le/ste/actions.go` takes paths only, and the package reads no stdin |
+| `./le ste check file <scratch>/msg.txt` | A commit message or a PR body, written to a file first. `check` declares `file <path>` as its one keyword (`internal/le/ste/actions.go`), which repeats and takes paths only. The package reads no stdin |
 
 The gate compares each file against its own version at HEAD. Legacy prose in a
 file you touch costs nothing, and the sentence you add is what goes red. No

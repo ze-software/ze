@@ -1,8 +1,10 @@
 // Design: docs/architecture/core-design.md -- the ste area
 // Overview: ste.go -- the checker behind each action
 //
-// The action table owns dispatch, listing, help, and write metadata. The check
-// action also accepts the scoped `file <path>` form.
+// The action table owns dispatch, listing, help, and write metadata, and it
+// owns the scoped `file <path>` form of check as well. Every word of this
+// area's grammar is declared in the table below, so the manifest publishes it
+// and one parser reads it.
 package ste
 
 import (
@@ -25,7 +27,14 @@ var actions = leaction.New(area,
 	leaction.Action{Verb: "check", Why: "no ASD-STE100 habit grew against HEAD in a changed file. HEAD is the baseline, " +
 		"so legacy prose stays until someone rewrites it, no baseline file exists to re-bless, " +
 		"and the one way to green is to fix the prose",
-		Answer: func() (any, int) { return checkAnswer(nil) }},
+		Parameters: []leaction.Parameter{{
+			Keyword: fileKeyword, Value: "path",
+			// Optional: a check that names no file reads the changed set from
+			// git, which is what the gate runs. Repeat: the commit helper names
+			// every file of the commit, one keyword for each.
+			Requirement: leaction.Optional, Repeat: true,
+		}},
+		AnswerArgs: checkNamed},
 	leaction.Action{Verb: "review", Why: "every ASD-STE100 finding in the tree, with file:line and the fix",
 		Answer: reviewAnswer},
 	leaction.Action{Verb: "review-changed", Why: "the same findings, over the files this working tree changed",
@@ -42,53 +51,16 @@ func Subs() string { return actions.Subs() }
 // kind before a free-form path (ai/rules/cli.md).
 const fileKeyword = "file"
 
-// Answer is the `le ste` command.
-//
-// Only `check` accepts values. It checks named files from one commit, as the
-// commit helper requires. All other actions go to leaction, which refuses
-// values after verbs that accept none.
-func Answer(args []string) (any, int) {
-	if len(args) > 1 && args[0] == "check" {
-		named, err := namedFiles(args[1:])
-		if err != nil {
-			leaction.ReportError(err)
-			return nil, 1
-		}
-		return checkAnswer(named)
-	}
-	return actions.Answer(args)
-}
+// Answer is the `le ste` command. Every action dispatches through the table,
+// which reads the keywords, refuses an option in a value slot, and renders the
+// grammar for a help word.
+func Answer(args []string) (any, int) { return actions.Answer(args) }
 
-// namedFiles reads `file <path>` repeated, and refuses anything else.
-//
-// Argument count is bounded because each keyword consumes one later word.
-func namedFiles(args []string) ([]string, error) {
-	var named []string
-	for index := 0; index < len(args); index++ {
-		if args[index] != fileKeyword {
-			return nil, unknownKeyword(args[index])
-		}
-		if index+1 >= len(args) {
-			return nil, missingValue()
-		}
-		named = append(named, args[index+1])
-		index++
-	}
-	return named, nil
-}
-
-// unknownKeyword refuses a word this action does not take. A path in an untyped
-// positional slot is what the CLI rule bans, so the keyword is named rather
-// than guessed at.
-func unknownKeyword(got string) error {
-	var tb textbuf.Buffer
-	return errors.New(tb.Str("unknown keyword ").Quoted(got).
-		Str("; say file <path>, once for each file of the commit").String())
-}
-
-// missingValue refuses a `file` keyword with nothing after it.
-func missingValue() error {
-	return errors.New("the keyword \"file\" needs a path after it")
+// checkNamed runs the ratchet over the files the invocation named, or over the
+// changed set when it named none. Values answers nothing for an absent keyword,
+// which is the population a bare check already read.
+func checkNamed(args leaction.Arguments) (any, int) {
+	return checkAnswer(args.Values(fileKeyword))
 }
 
 // readDocument answers the bytes of one document, or nil when the path has
