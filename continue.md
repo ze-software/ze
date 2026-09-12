@@ -209,8 +209,11 @@ Closed, spec file removed:
 
 Product work in HEAD, spec still open: OSPF auto-cost (`aca27077f`, `4b9e49342`,
 `db3f18b0b`, `5a9522302`), ddos local `max-mitigation-duration` (`80ec03b03`,
-`4008c0c98`, `b11fa5c23`, `d7104cb7b`, `c23134ce1`), IPsec dataplane inspection
-(`03a77aa12`).
+`4008c0c98`, `b11fa5c23`, `d7104cb7b`, `c23134ce1`).
+
+**CLOSED on 2026-09-12: `spec-ipsec-dataplane-inspection`** (`13ebb566e`,
+`b9f7cadeb`). Section 2 below is spent for that spec and is kept only as the
+record of what it was waiting for.
 
 ## 2. The three open specs, in the order to take them
 
@@ -233,13 +236,13 @@ and is NOT yet in the spec. Its ISSUE 27 goes with it: the guide's exposure tabl
 is wrong in both directions, since a cold p99 cache leaves PPS detection undelayed
 while a never-run box has no armed BPS trigger for about 390 seconds.
 
-**`spec-ipsec-dataplane-inspection` — nothing has run.** The two `.ci`
-(`test/ipsec/ipsec-show-dataplane-kernel.ci`, `ipsec-show-sa-counters.ci`) and the
-`dataplane-readback` strongSwan scenario were written in `03a77aa12` and have
-never executed, because the tree would not build. That blocker has cleared:
-`GOOS=linux go build -o bin/<name> ./cmd/ze` exits 0. Run all three, do the
-vacuity walk on each, and replace the spec lines that say they are owed a run.
-Their assertions are claims until then.
+**`spec-ipsec-dataplane-inspection` — SPENT, closed on 2026-09-12.** What this
+section asked for was done. The two `.ci` (`test/ipsec/ipsec-show-dataplane-kernel.ci`,
+`ipsec-show-sa-counters.ci`) and the `dataplane-readback` strongSwan scenario ran
+on 2026-09-11, each red with `ListSAs` emptied and green restored, in a QEMU
+guest on the runtime kernel. The two AC-2 repairs the closure review found were
+walked red and green on 2026-09-12, and the whole change landed at `13ebb566e`
+with the spec removed at `b9f7cadeb`.
 
 ## 3. Decisions Thomas made, so they are not re-opened
 
@@ -334,8 +337,8 @@ About 18 GB was freed: 33 pre-today session scratch directories and 103 stale
    run `/ze-close` on it. It is one audit away from done.
 2. Claim the ddos spec, paste the round 5 section into its Review Gate, fix the
    BLOCKER and correct the exposure table, then run round 6 and close.
-3. Claim the ipsec spec and RUN its three artifacts before touching anything else in
-   it. Nothing about that spec is proven until they do.
+3. ~~Claim the ipsec spec and RUN its three artifacts.~~ Done. The spec closed on
+   2026-09-12 at `13ebb566e` and `b9f7cadeb`.
 4. Put the `cost` leaf question to Thomas when the OSPF spec closes, not later.
 
 ## 8. Update, 2026-09-09: the OSPF closure was started and stopped
