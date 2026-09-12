@@ -338,14 +338,45 @@ func (b *Browser) Fill(text, value string) error {
 		return fmt.Errorf("no input with text containing %q in snapshot:\n%s", text, snap)
 	}
 
-	return b.runAgent("fill", ref, value)
+	return b.fill(ref, value)
 }
 
 // fillID fills an input by its HTML id attribute using a CSS selector.
 func (b *Browser) fillID(id, value string) error {
 	var tb textbuf.Buffer
-	sel := tb.Byte('#').Str(id).String()
-	return b.runAgent("fill", sel, value)
+	return b.fill(tb.Byte('#').Str(id).String(), value)
+}
+
+// fill types value into the element selector names, and refuses a target that
+// did not take it.
+//
+// agent-browser fills a div, a span and a label the same way it fills an input:
+// it reports success and stores the text nowhere. Nothing then posts, so the
+// page the next step reads is the page before the fill, and the run fails
+// wherever the missing value is finally asserted -- which reads as the product
+// losing the edit. test/web/interface-mac-override.wb spent months red that
+// way, on `fill:id=field-address`: the leaf editor's wrapper DIV carries
+// field-<leaf> and its input carries input-<path> (view.go, fieldInputID), so
+// the id named a real element that cannot hold a value.
+//
+// Reading the value back is what separates the two. A div answers "" to
+// `get value`, with exit 0, which is the silent zero the assertion below turns
+// into a refusal that names the selector.
+func (b *Browser) fill(selector, value string) error {
+	if err := b.runAgent("fill", selector, value); err != nil {
+		return err
+	}
+
+	stored, err := b.runAgentOutput("get", "value", selector)
+	if err != nil {
+		return fmt.Errorf("read back %s after fill: %w", selector, err)
+	}
+	if strings.TrimRight(stored, "\n") != value {
+		return fmt.Errorf("fill %s did not take: the element holds %q, not %q"+
+			" -- name the input itself, not a wrapper that cannot hold a value",
+			selector, strings.TrimRight(stored, "\n"), value)
+	}
+	return nil
 }
 
 // hover finds an element by text and hovers.

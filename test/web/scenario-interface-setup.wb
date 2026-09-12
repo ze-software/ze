@@ -20,10 +20,19 @@ action=wait:ms=1000
 expect=element:text=web-eth0
 expect=element:text=Review & Commit
 
+# The leaf editor names its INPUT after the whole path (fieldInputID,
+# internal/component/web/view.go) and keeps field-<leaf> for the wrapper div,
+# which holds no value.
 action=open:path=/show/interface/ethernet/web-eth0/
 action=wait
-expect=element:id=field-mtu
-action=fill:id=field-mtu:value=1500
+expect=element:id=input-interface-sethernet-sweb--eth0-smtu
+action=fill:id=input-interface-sethernet-sweb--eth0-smtu:value=9000
 action=click:text=Save
 action=wait:ms=1000
-expect=element:text=Review & Commit
+
+# The DIFF, not the presence of the commit bar. Creating the interface already
+# made the bar visible, so "Review & Commit" is true whether or not this edit
+# saved anything. 9000 rather than 1500 for the same reason: 1500 is the YANG
+# default, so the tree reads the same whether the POST landed or not.
+action=open:path=/config/diff
+expect=html:contains=mtu 9000

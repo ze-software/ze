@@ -19,15 +19,22 @@ action=wait:ms=1000
 expect=element:text=web-mac0
 
 # The MAC override is a nested container (YANG mac/address), so it is edited on
-# the interface's mac sub-page where the "address" leaf renders as field-address,
-# not on the flat detail page.
+# the interface's mac sub-page, not on the flat detail page. The leaf editor
+# names its INPUT after the whole path (fieldInputID, internal/component/web/
+# view.go) and keeps field-<leaf> for the wrapper div, which holds no value.
 action=open:path=/show/interface/ethernet/web-mac0/mac/
 action=wait
-expect=element:id=field-address
-action=fill:id=field-address:value=02:42:ac:11:00:02
+expect=element:id=input-interface-sethernet-sweb--mac0-smac-saddress
+action=fill:id=input-interface-sethernet-sweb--mac0-smac-saddress:value=02:42:ac:11:00:02
 action=click:text=Save
 action=wait:ms=1000
-expect=element:text=Review & Commit
+
+# The DIFF, not the presence of the commit bar. Creating the interface already
+# made the bar visible, so "Review & Commit" is true whether or not this page
+# saved anything. The editor's own pending set is what only an accepted POST
+# reaches.
+action=open:path=/config/diff
+expect=html:contains=mac address 02:42:ac:11:00:02
 
 # Reload the mac sub-page and confirm the override persisted.
 action=open:path=/show/interface/ethernet/web-mac0/mac/
