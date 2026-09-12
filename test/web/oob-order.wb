@@ -35,7 +35,14 @@ action=wait:ms=3000
 
 # The out-of-band error reached its list.
 expect=html:contains=class="error-item"
-expect=element:text=invalid uint32
+# The validator's own sentence. It moved when AS numbers stopped going through
+# a bare uint32 parse: config.ValidateValue now refuses this through the AS
+# number parser, which names the field and the two forms it accepts instead of
+# the Go type it failed to fit. Asserting the sentence rather than the status
+# is the point of this step: a toast carrying only "Error 400" tells an
+# operator nothing about what to type instead.
+expect=element:text=invalid AS number
+expect=element:text=99999999999
 
 # The main content reached the refused field, so the target was not blanked.
 expect=html:contains=error-fragment-message

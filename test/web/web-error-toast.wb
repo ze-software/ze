@@ -28,7 +28,14 @@ action=wait:ms=3000
 # The operator is told. notification.js reads the refusal body and raises a
 # retained toast carrying the status and the validator's own sentence.
 expect=element:text=Error 400
-expect=element:text=invalid uint32
+# The validator's own sentence. It moved when AS numbers stopped going through
+# a bare uint32 parse: config.ValidateValue now refuses this through the AS
+# number parser, which names the field and the two forms it accepts instead of
+# the Go type it failed to fit. Asserting the sentence rather than the status
+# is the point of this step: a toast carrying only "Error 400" tells an
+# operator nothing about what to type instead.
+expect=element:text=invalid AS number
+expect=element:text=99999999999
 
 # htmx 4 swaps every response but 204 and 304, so the error fragment lands in
 # the field that was refused. htmx 2 swaps no 4xx at all, which is why this step

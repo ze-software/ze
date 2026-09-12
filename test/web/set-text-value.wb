@@ -7,4 +7,12 @@ option=timeout:value=30s
 action=open:path=/show/environment/daemon/
 action=fill:text=zeuser:value=testadmin
 action=wait:ms=2000
-expect=element:text=testadmin
+
+# ACCEPTED, not merely typed. The snapshot is an accessibility tree: a textbox
+# renders its accessible NAME or nothing, never its value, so asserting the
+# typed text could never pass here. It would also have been the wrong question.
+# A browser shows what you typed whether or not anything was posted, so the
+# proof that the edit reached the editor tree is the state only a POST
+# produces: the field carries the set tag, and the commit bar counts the change.
+expect=html:contains=ze-field-tag-set
+expect=element:text=1 pending change

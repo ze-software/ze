@@ -9,4 +9,11 @@ expect=element:text=Local Autonomous System Number
 
 action=fill:text=Local Autonomous System Number:value=65001
 action=wait:ms=2000
-expect=element:text=65001
+
+# ACCEPTED, not merely typed, for the reason set-text-value.wb records: the
+# accessibility snapshot carries a textbox's name and never its value, and a
+# typed value proves nothing was posted anyway. The set tag and the pending
+# count are what a POST leaves behind, and they are what a number field failing
+# to accept its input would not produce.
+expect=html:contains=ze-field-tag-set
+expect=element:text=1 pending change
