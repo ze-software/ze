@@ -9,6 +9,7 @@ package webtesting
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -298,14 +299,35 @@ func extractWBKind(s string) string {
 	return kind
 }
 
+// wbKeyBoundary matches the ':' that STARTS another key, spelled `:<key>=`.
+// A key is lower-case with digits and hyphens, which is every key this format
+// defines: text, value, id, path, ms, contains, not-contains, not-text, not-id.
+var wbKeyBoundary = regexp.MustCompile(`:([a-z][a-z0-9-]*)=`)
+
 // parseWBKV splits "kind:key1=val1:key2=val2" into a map (excluding the kind).
+//
+// A VALUE may itself contain ':'. A MAC address, an IPv6 literal, a clock time
+// and a URL all do, so the separator cannot be every colon: it is a colon that
+// starts another key. Splitting on every colon truncated
+// `value=02:42:ac:11:00:02` to `02` and DROPPED the rest, because the trailing
+// segments carry no '=' and the loop skipped them in silence. Nothing was red:
+// the action set a shorter value and the assertion looked for a shorter string,
+// so the test still ran and proved less than it says
+// (plan/journal/gate-excludes-part-of-its-population.md).
+//
+// The ambiguity this cannot remove is a value that itself contains `:word=`.
+// The format has no quoting, so such a value still splits, and a test that
+// needs one needs the format to gain quoting first. Every value this repository
+// writes today is unambiguous under the rule above.
 func parseWBKV(s string) map[string]string {
 	m := make(map[string]string)
-	parts := strings.Split(s, ":")
-	for _, p := range parts[1:] { // skip kind
-		if k, v, ok := strings.Cut(p, "="); ok {
-			m[k] = v
+	boundaries := wbKeyBoundary.FindAllStringSubmatchIndex(s, -1)
+	for i, boundary := range boundaries {
+		end := len(s)
+		if i+1 < len(boundaries) {
+			end = boundaries[i+1][0]
 		}
+		m[s[boundary[2]:boundary[3]]] = s[boundary[1]:end]
 	}
 	return m
 }

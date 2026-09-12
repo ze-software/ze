@@ -377,3 +377,59 @@ func TestURLExpectationReadsTheAddressBar(t *testing.T) {
 		t.Errorf("commands = %v, want a `get url` command", cmds)
 	}
 }
+
+// TestParseWBKVKeepsAColonBearingValue pins the separator rule.
+//
+// VALIDATES: a value carrying ':' arrives whole, and two keys on one line are
+// still split from each other.
+// PREVENTS: the silent truncation this parser shipped with. Splitting on every
+// colon cut `value=02:42:ac:11:00:02` down to `02` and dropped the remaining
+// segments, because they carry no '=' and the loop skipped them without a word.
+// The .wb file still ran: it typed a shorter value and asserted a shorter
+// string, so the MAC override test proved nothing about a MAC and no gate could
+// see it.
+func TestParseWBKVKeepsAColonBearingValue(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		in   string
+		want map[string]string
+	}{
+		{
+			name: "a MAC value survives whole",
+			in:   "fill:id=field-address:value=02:42:ac:11:00:02",
+			want: map[string]string{"id": "field-address", "value": "02:42:ac:11:00:02"},
+		},
+		{
+			name: "so does one at the end of an expectation",
+			in:   "html:contains=02:42:ac:11:00:02",
+			want: map[string]string{"contains": "02:42:ac:11:00:02"},
+		},
+		{
+			name: "a hyphenated key is a key",
+			in:   "html:not-contains=error-panel collapsed",
+			want: map[string]string{"not-contains": "error-panel collapsed"},
+		},
+		{
+			name: "a path keeps its slashes and takes no key from them",
+			in:   "open:path=/show/interface/ethernet/web-mac0/mac/",
+			want: map[string]string{"path": "/show/interface/ethernet/web-mac0/mac/"},
+		},
+		{
+			name: "a kind with no pairs answers nothing",
+			in:   "wait",
+			want: map[string]string{},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := parseWBKV(tc.in)
+			if len(got) != len(tc.want) {
+				t.Fatalf("parseWBKV(%q) = %v, want %v", tc.in, got, tc.want)
+			}
+			for key, want := range tc.want {
+				if got[key] != want {
+					t.Errorf("parseWBKV(%q)[%q] = %q, want %q", tc.in, key, got[key], want)
+				}
+			}
+		})
+	}
+}
