@@ -5,7 +5,11 @@
 option=timeout:value=30s
 
 action=open:path=/show/environment/daemon/
-action=fill:text=zeuser:value=testadmin
+# By the editor's own id. Finding it by "zeuser" found it through its
+# PLACEHOLDER, which was the accessible name only while the label was unbound;
+# the placeholder is also the DEFAULT here, so the selector went stale the
+# moment the schema changed it.
+action=fill:id=input-environment-sdaemon-suser:value=testadmin
 action=wait:ms=2000
 
 # ACCEPTED, not merely typed. The snapshot is an accessibility tree: a textbox

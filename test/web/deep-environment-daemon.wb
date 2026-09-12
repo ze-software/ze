@@ -5,5 +5,17 @@
 option=timeout:value=30s
 
 action=open:path=/show/environment/daemon/
-expect=element:text=PID file path
-expect=element:text=zeuser
+
+# By the editor's own id, which is derived from the whole path (fieldInputID,
+# internal/component/web/view.go). The id is what proves the leaf reached this
+# page under the path it belongs to: a leaf rendered at the wrong depth, or a
+# container the walk stopped short of, cannot produce it.
+expect=element:id=input-environment-sdaemon-spid
+expect=element:id=input-environment-sdaemon-suser
+
+# The leaf NAME, which is the editor's accessible name once the label binds to
+# it (input_wrapper.templ). Asserting the YANG description or the default here
+# would pass on a placeholder alone, and a placeholder renders whether or not
+# the editor is reachable.
+expect=element:text=pid
+expect=element:text=user

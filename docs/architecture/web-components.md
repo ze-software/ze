@@ -171,6 +171,20 @@ rather than a file nobody added above.
 `fieldWrapper` takes the editor as a component, so the frame is one balanced
 element rather than the start and end pair it replaced.
 
+Its label names the editor through `for`, and the id it uses is the editor's
+own: `fieldInputID` derives one from the whole config path (`view.go`). The
+wrapper `div` carries `field-<leaf>` instead, and that id belongs to no
+control. A `for` over the wrapper binds the label to an element that holds no
+value.
+
+The binding is what gives the editor an accessible name. An unbound editor
+falls back to its placeholder, which is the leaf's default where the schema
+supplies one, so the field announces itself as a value.
+`TestCapturedLabelsNameAnIDTheSameDocumentCarries` and
+`TestEveryLeafEditorIsNamedByItsLabel` (`markup_contract_test.go`) hold both
+halves: every `for` in a capture names an id that capture writes, and every
+input type in the `fieldInputs` registry carries the binding.
+
 ## Decorators
 
 Leaves with the `ze:decorate` YANG extension show enriched display text alongside their value. The decorator name in the YANG schema (e.g., `ze:decorate "asn-name"`) maps to a registered `Decorator` implementation that resolves the annotation at render time.

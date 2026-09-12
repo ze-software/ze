@@ -34,6 +34,30 @@ templ workbenchForm(v WorkbenchFormData) {
 							>
 							<label for={ "field-" + f.Name } class={ wbFormLabelClass(f.Required) }>{ f.Label }</label>
 						</div>
+					} else if f.Type == "list" {
+						// A list is SEVERAL inputs, and a label names exactly
+						// one labelable control. So the group carries the id
+						// field-<name>, which is where every other type puts
+						// it, and takes its name from a span through
+						// aria-labelledby. A label for= over this drew a
+						// binding to nothing: no element carried the id at all,
+						// so the heading focused nothing and each member input
+						// was unnamed (TestCapturedLabelsNameAnIDTheSameDocumentCarries).
+						<span id={ "label-" + f.Name } class={ wbFormLabelClass(f.Required) }>{ f.Label }</span>
+						<div
+							class="wb-form-list"
+							id={ "field-" + f.Name }
+							role="group"
+							aria-labelledby={ "label-" + f.Name }
+						>
+							for _, item := range f.Items {
+								<div class="wb-form-list-item">
+									<input type="text" name={ f.Name + "[]" } value={ item } readonly>
+									<button type="button" class="wb-form-list-remove" aria-label="Remove">x</button>
+								</div>
+							}
+							<button type="button" class="wb-form-list-add">+ Add item</button>
+						</div>
 					} else {
 						<label for={ "field-" + f.Name } class={ wbFormLabelClass(f.Required) }>{ f.Label }</label>
 						switch f.Type {
@@ -98,16 +122,6 @@ templ workbenchForm(v WorkbenchFormData) {
 										disabled
 									}
 								>
-							case "list":
-								<div class="wb-form-list">
-									for _, item := range f.Items {
-										<div class="wb-form-list-item">
-											<input type="text" name={ f.Name + "[]" } value={ item } readonly>
-											<button type="button" class="wb-form-list-remove" aria-label="Remove">x</button>
-										</div>
-									}
-									<button type="button" class="wb-form-list-add">+ Add item</button>
-								</div>
 							default:
 								<input
 									type="text"

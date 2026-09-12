@@ -5,5 +5,13 @@
 option=timeout:value=30s
 
 action=open:path=/show/environment/daemon/
-expect=element:text=PID file path
-expect=element:text=zeuser
+
+# A leaf with a YANG default renders it two ways, and both are asserted because
+# each can break alone: the placeholder carries the value the daemon will use,
+# and the badge says it came from the schema rather than the operator
+# (fieldPlaceholder and fieldValueTag, internal/component/web/).
+expect=html:contains=placeholder="zeuser"
+expect=html:contains=ze-field-tag-default
+
+# A leaf with no default gets its description instead, and no badge.
+expect=html:contains=placeholder="PID file path"

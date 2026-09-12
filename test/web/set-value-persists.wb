@@ -5,10 +5,16 @@
 option=timeout:value=30s
 
 action=open:path=/show/environment/bgp/
-expect=element:text=120
 
-# Set openwait to 999
-action=fill:text=120:value=999
+# The YANG default, which renders as the editor's placeholder and nowhere else
+# until the operator sets the leaf. Asserting it here is what makes the last
+# line mean something: 999 has to REPLACE a rendered 120.
+expect=html:contains=placeholder="120"
+
+# Set openwait to 999, by the editor's own id. Finding it by "120" found it
+# through that same placeholder.
+expect=element:id=input-environment-sbgp-sopenwait
+action=fill:id=input-environment-sbgp-sopenwait:value=999
 action=wait:ms=2000
 
 # Navigate to root

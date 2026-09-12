@@ -43,6 +43,9 @@ var idAttrPattern = regexp.MustCompile(`\bid="([^"]*)"`)
 // classAttrPattern finds one class attribute in rendered markup.
 var classAttrPattern = regexp.MustCompile(`\bclass="([^"]*)"`)
 
+// forAttrPattern finds one label for attribute in rendered markup.
+var forAttrPattern = regexp.MustCompile(`\bfor="([^"]*)"`)
+
 // markupHasClass reports whether any element in markup carries the class.
 //
 // It reads the classes inside a class attribute rather than matching the whole
@@ -251,6 +254,91 @@ func TestCapturedTableRowsCoverTheirHeader(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Positive(t, scanned, "no table row was scanned; the capture directory holds no table")
+}
+
+// TestCapturedLabelsNameAnIDTheSameDocumentCarries verifies every label points
+// at an element that is there.
+//
+// VALIDATES: each for= in a capture names an id the same capture writes.
+// PREVENTS: a label bound to nothing, which announces itself nowhere. A
+// for= that names no element is not an error in any browser: the label simply
+// stops focusing its control, and the control loses its accessible NAME and
+// falls back to its placeholder. The leaf editor spent that state undetected.
+// Its label carried no for= at all, so a textbox was named after the YANG
+// description, or after the DEFAULT VALUE where the schema supplies one, and
+// four .wb tests found their field by that name. One of them, on the wrapper
+// div that carries field-<leaf> rather than the input that carries
+// input-<path>, filled an element that holds no value and posted nothing
+// (plan/journal/field-carries-two-meanings.md).
+//
+// The captures are the population because a label and its input are written by
+// two different templates: fieldWrapper draws the label, and the input comes in
+// as a component from the registry (field_input.go). No single component
+// renders both, so only a composed document can answer.
+func TestCapturedLabelsNameAnIDTheSameDocumentCarries(t *testing.T) {
+	root := filepath.Join("testdata", "golden")
+
+	scanned := 0
+
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || !strings.HasSuffix(path, ".html") {
+			return nil
+		}
+
+		body, readErr := os.ReadFile(path) //nolint:gosec // a test reading its own fixtures
+		if readErr != nil {
+			return readErr
+		}
+
+		ids := make(map[string]bool)
+		for _, match := range idAttrPattern.FindAllStringSubmatch(string(body), -1) {
+			ids[match[1]] = true
+		}
+
+		for _, match := range forAttrPattern.FindAllStringSubmatch(string(body), -1) {
+			scanned++
+			assert.True(t, ids[match[1]],
+				"%s: a label names for=%q and the document carries no element with that id", path, match[1])
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+	assert.Positive(t, scanned, "no label was scanned; the capture directory holds no bound label")
+}
+
+// TestEveryLeafEditorIsNamedByItsLabel verifies the generic YANG leaf editor
+// carries the binding, for every input type the registry serves.
+//
+// VALIDATES: fieldWrapper writes for= naming the id its input writes, across
+// the whole fieldInputs registry.
+// PREVENTS: a new input type shipping unbound. The wrapper and the input are
+// separate templates, so a component added to the registry inherits the label
+// and can still disagree with it about the id. Both derive it from
+// fieldInputID, and this is what holds them to that.
+func TestEveryLeafEditorIsNamedByItsLabel(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	for name := range fieldInputs {
+		t.Run(name, func(t *testing.T) {
+			field := FieldMeta{
+				Leaf: "router-id", Path: "bgp", Type: name,
+				Description: "Router ID", Options: "one,two",
+			}
+			markup := string(renderer.renderComponent("field_wrapper",
+				fieldWrapper(field, fieldInputFor(field))))
+
+			want := fieldInputID(field.Path, field.Leaf)
+			assert.Contains(t, markup, `for="`+want+`"`,
+				"the label does not name the editor")
+			assert.Contains(t, markup, `id="`+want+`"`,
+				"the editor does not carry the id its label names")
+		})
+	}
 }
 
 // TestGoldenFixturesCarryNoEmptyClassAttribute verifies no captured component

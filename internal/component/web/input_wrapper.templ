@@ -9,9 +9,26 @@ package web
 // only the caller balances was the reason the old markup could half-render.
 templ fieldWrapper(f FieldMeta, input templ.Component) {
 	<div class="ze-field" id={ "field-" + f.Leaf }>
-		<label class="ze-field-label">
+		// for= binds the label to the editor, which is what gives the editor an
+		// accessible NAME. Without it a textbox falls back to its placeholder,
+		// so a snapshot reader and a screen reader both hear the YANG
+		// description, or the default value, where the leaf name belongs, and
+		// clicking the label focuses nothing. The id is the editor's own
+		// (view.go, fieldInputID), never the wrapper's field-<leaf>: the
+		// wrapper holds no value, and a .wb that fills it posts nothing
+		// (plan/journal/field-carries-two-meanings.md).
+		<label class="ze-field-label" for={ fieldInputID(f.Path, f.Leaf) }>
 			{ f.Leaf }
 			if f.Description != "" {
+				// The badge's glyph and its CSS-generated tooltip (style.css,
+				// .ze-field-info::after takes content from data-tooltip) sit
+				// inside the bound label, so both join the editor's accessible
+				// NAME: a reader hears "pid i PID file path". The leaf name
+				// comes first, which is the part that identifies the field, and
+				// the description after it is the field's own help. Moving the
+				// description out of the name means aria-describedby on each
+				// input template, which is its own piece of work
+				// (plan/journal/field-carries-two-meanings.md).
 				<span class="ze-field-info" data-tooltip={ f.Description }>i</span>
 			}
 			if f.Decoration != "" {
