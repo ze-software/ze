@@ -238,6 +238,13 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// the site to render the status page live, and two hand-maintained pins
 	// moved for other sessions' summary edits. The digest is over HEAD's own
 	// blobs, so it is resealed in the commit AFTER the one that changes them.
+	//
+	// This seal also ABSORBS six commits that changed production bytes here
+	// since c95fe8301f set the previous one and did not reseal: 456bf8fc13,
+	// 33a7876b29, 6fb9cd8814, 5837fd3247, 5d497dcc9f and 2bea012491. This note
+	// does not vouch for those six. It records that they are inside the value,
+	// so a reader who bisects a behavior change through this constant knows the
+	// seal moved for more than the work its subject names.
 	const want = "f9a2722b71aeecdde4d749a5bec87acb00aada4c626eee92f3b3fc80b23ee22e"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the

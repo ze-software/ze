@@ -338,7 +338,9 @@ func TestGapCountPopulationSurvivesTheMove(t *testing.T) {
 	//
 	// 57 since 2026-09-09: RFC 2516's Remaining cell was rewritten when its last
 	// MUST gap closed, and it now opens "No MUST gap remains gated", which spells
-	// no digit before MUST. The row left the population because the gap it
+	// no SPELLED number before MUST, which is what gapCountRE reads
+	// (check_status.go: one through ninety-nine, never a digit). The row left
+	// the population because the gap it
 	// counted is gone, which is the one shrink this test wants to see argued
 	// rather than absorbed.
 	//

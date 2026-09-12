@@ -394,6 +394,51 @@ Added in review round 1:
 | Lint failure | Fix inline. If architectural → DESIGN |
 | Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+## Review Gate
+
+Round 1 scope: the whole of `8ae7424594`, two lenses. Round 2 scope: the round 1
+fixes, which are `bd11ff12af`. Round 3 scope: the round 2 fixes, which are
+`aa868e5da1`, `f6150cae7c` and `13413c2d6c`. Every round ran on Opus 5 in a
+context that did not produce the work.
+
+| Round | Scope | BLOCKER | ISSUE | NOTE | Recorded |
+|-------|-------|---------|-------|------|----------|
+| 1 | whole diff, two lenses | 2 | 8 | 5 | fixed in `bd11ff12af` |
+| 2 | the round 1 fixes | 1 | 2 | 2 | fixed in `aa868e5da1`, `f6150cae7c`, `13413c2d6c` |
+| 3 | the round 2 fixes | 0 | 0 | 4 | CLEAN, loop closed |
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/derived-indexes-answer-a-query-ce8ca907-f5a8-42ae-8448-e021346de13d.md` |
+| `./le spec session review check` | clean: `review_gate: OK (0 code files, clean, hashes match ...)` |
+| Rounds | 3 |
+| Reviewer lenses used | round 1 logic+wiring and security+edge-cases; round 2 the fixes plus a build of HEAD's own content; round 3 the fixes plus the comment claims they make |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | the session-start hook rendered 194 shards and took 5.32s against a 5s timeout | `hookSessionStart` over the `derived` registry | `SessionStartPolicy` (`internal/le/derived/derived.go`), `Defer` for the five RFC artifacts, in `bd11ff12af` |
+| 2 | BLOCKER | HEAD panicked at `init` on every `le` command: a registration passed no policy | `internal/le/discoveryindex/register.go`, omitted from `bd11ff12af`'s file list | `aa868e5da1` |
+| 3 | ISSUE | AC-1 claimed every metric identical while one order had moved | `unprovenRows` (`internal/le/testhealth/collect_rfc.go`) | AC-1 and Known Limitations rewritten to state it |
+| 4 | ISSUE | a spec under `plan/` feeds the RFC ledger and the predicate did not say so | `feedsRFCLedger` (`internal/le/rfc/register.go`) | `f6150cae7c` |
+| 5 | ISSUE | two hand-maintained pins moved for other sessions' summary edits | `internal/le/rfc/native_fixture_test.go` | `f6150cae7c`, then resealed in `13413c2d6c` |
+| 6 | ISSUE | a shard DIRECTORY answered present while no run had finished writing it | `shardsRendered` (`internal/le/rfc/register.go`) | `Complete` on the artifact, proven by the fourth marker of `le-rfc-ledger-is-derived` |
+
+The rounds table above carries the per-round counts. The six rows here are the findings whose
+fix changed PRODUCT code; the remainder were claims in this spec's own prose and in comments,
+corrected in place, and `ai/rules/planning.md` says such a finding never earns another round.
+
+Round 2's BLOCKER is the one worth carrying forward: HEAD panicked on every `le`
+invocation, because `bd11ff12af` committed the `SessionStartUnspecified` refusal
+and left the registration that needed a policy in the working tree. A
+hand-written commit file list is an unchecked claim about which edits belong
+together, and no gate in the set builds `cmd/ze` from HEAD content and runs it,
+so every check stayed green while HEAD was unbuildable. Row in
+`plan/journal/tree-state-claim-published-unverified.md`.
+
+Round 3's notes were taken rather than deferred: the reseal comment now says
+which six commits it absorbs without vouching for them, and the gap-count
+comment now names the SPELLED-number predicate `gapCountRE` actually reads.
 
 ## Design Insights
 
@@ -479,3 +524,199 @@ Added in review round 1:
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- `collectRFC` reads the requirement MODEL. `modelRows` (`internal/le/testhealth/collect_rfc.go`)
+  calls `rfc.CoverageRows`, the same call `renderRollup` (`internal/le/rfc/sections.go`) makes to
+  render the ledger's rollup, and takes enrolment from `rfc.Collected.Enrolled`
+  (`internal/le/rfc/coverage.go`). The pinned ledger header, `rfcRow` and `rfcStateEnrolled` are
+  deleted from `internal/le/testhealth/testhealth.go`.
+- `loadDocumentIndex` (`internal/le/spec/citation/anchors.go`) IS `docstocode.DocumentsByPath`.
+  No markdown parse of a rendered index remains on that path.
+- `renderCodeIndex` (`internal/le/docstocode/codetodocs_report.go`) writes the full path from the
+  checkout root in BOTH shapes, the bullet form for a package of `namedInline` files or fewer and
+  the table form above it.
+- The five RFC artifacts are ignored and untracked, registered in `internal/le/derived` from
+  `internal/le/rfc/register.go`, and the shard directory carries `Complete: shardsRendered` so a
+  half-written render is rebuilt rather than trusted.
+- `SessionStartPolicy` (`internal/le/derived/derived.go`) declares which class an artifact is in,
+  with an invalid zero value so no registration defaults into either.
+- `internal/le/site/docs.go` publishes `reference/rfcs` from a live producer through
+  `liveDocSources[rfcStatusSource]`, so the page needs no committed bytes.
+- `test/runner/le-rfc-ledger-is-derived.ci` walks the whole loop over a scratch checkout.
+
+### Bugs Found/Fixed
+- HEAD was unbuildable for about twenty minutes: `bd11ff12af` committed the
+  `SessionStartUnspecified` refusal and left `internal/le/discoveryindex/register.go` in the
+  working tree, so that registration passed no policy and every `le` command panicked at `init`.
+  Fixed in `aa868e5da1`. Row in `plan/journal/tree-state-claim-published-unverified.md`.
+- `docs/contributing/navigating-the-code.md` taught the reader that the code index is keyed by
+  BASENAME and that the package heading disambiguates it. AC-6 made that false. Repaired in this
+  commit, with a `<!-- source: ... renderCodeIndex -->` anchor.
+
+### Documentation Updates
+- `docs/architecture/core-design.md` -- the derived registry, and the two consumer shapes
+  `SessionStartPolicy` separates (`bd11ff12af`, `f6150cae7c`).
+- `docs/contributing/rfc-conformance-gates.md`, `docs/contributing/gh-pages.md`,
+  `docs/functional-tests.md`, `test/health/README.md`, `docs/contributing/committing.md`,
+  `docs/architecture/testing/verify-freshness-scope.md` (`8ae7424594`, `bd11ff12af`).
+- `ai/skills/ze-rfc.md`, `ai/skills/ze-rfc-audit.md`, `ai/rules/testing.md` and the rule point
+  `reindex-after-moving-a-tagged-test.md` (`8ae7424594`).
+- `docs/contributing/navigating-the-code.md` -- this commit.
+- `./le doc check verify` exits 1 over the whole tree, on 8 YANG/RPC summary rules and 5 source
+  anchors, none of them in a file this spec changed. `docs/architecture/core-design.md` is named,
+  for the `internal/le/leroot/dispatch.go` anchor that lists `usageSections`, and that anchor
+  dates to `86d20cd93ba` (2026-08-31): another session's in-flight `leroot` refactor renamed the
+  symbol, with `dispatch.go` still dirty and `manifest.go` untracked.
+
+### Deviations from Plan
+- `TestTheCollectorAnswersTheSameRowsAsTheRenderedLedger` was never written, and cannot be now.
+  It needed both readers alive to compare them and the render parse is deleted.
+- AC-1 was planned as "every metric identical". One ORDER moved. `unprovenRows` sorted with
+  `sort.SliceStable` over the render's order and now orders by gated count then name. The values
+  are unchanged.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1 was reported as "every metric value and order identical" | one order moved: the `worst` list inside the proof-density metric | review round 1, reading `unprovenRows` against the render it replaced | AC-1 rewritten to state what moved and why the new order is total; `test/health/latest.json` left for the next `./le test-health update` |
+| approach | commit A's file list was written by hand and omitted one file | `internal/le/discoveryindex/register.go` needed the same edit, and HEAD panicked at `init` without it | review round 2, by `git archive HEAD` into a scratch tree, building, and running the binary | fixed in `aa868e5da1`; row in `plan/journal/tree-state-claim-published-unverified.md` |
+| escalation | the Documentation Update Checklist answered Yes for `docs/contributing/navigating-the-code.md` and no phase edited it | the page still taught BASENAME keying, which AC-6 made false | closure step 4, grepping the page for the claim AC-6 changed | fixed here with a source anchor. A Yes in that checklist is a promise, and nothing in the gate set reads it back |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| no machine re-parses a rendered index | Done | `modelRows` (`internal/le/testhealth/collect_rfc.go`), `loadDocumentIndex` (`internal/le/spec/citation/anchors.go`) | `grep` for `rfcRow`, `rfcTableHeader` and `rfcStateEnrolled` under `internal/le/testhealth/` is empty |
+| the anchor audit sees a file in a small package | Done | `AuditAnchors` reading `docstocode.DocumentsByPath` | `TestTheAnchorGuardSeesAFileInASmallPackage` |
+| the code index is greppable by path | Done | `renderCodeIndex` (`internal/le/docstocode/codetodocs_report.go`) | both shapes emit the path, not the basename |
+| the RFC ledger family leaves git | Done | `.gitignore`, `internal/le/rfc/register.go` | `git ls-files` over the five answers nothing |
+| a session-start hook must not pay for an artifact a command names | Done | `SessionStartPolicy` (`internal/le/derived/derived.go`) | zero value invalid; measured 2.26s with `Defer` against 5.32s without |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Changed | `TestTheModelRollupIsReadFromItsAnnotatedAndNoTestCounts`, `TestTheModelRollupReadsItsOnePolarityCount` | every VALUE identical, one ORDER moved; the AC row states it |
+| AC-2 | Done | `TestTestHealthAnswersWithNoRenderedLedgerPresent`, `TestTheDocVerifyStageNoLongerJudgesTheRFCLedger` | |
+| AC-3 | Done | `grep` for the pinned header under `internal/` is empty | the surviving `RFC-REQUIREMENTS` hits are the WRITER and fixtures |
+| AC-4 | Done | `TestTheAuditReportsEveryDocumentOfABulletRenderedPath` | stated at the consumer, over the real corpus |
+| AC-5 | Done | `TestTheAnchorGuardSeesAFileInASmallPackage` | |
+| AC-6 | Done | `TestTheCodeIndexRendersFullPathsInBothShapes` | `renderCodeIndex` writes the path in both branches |
+| AC-7 | Done | `git ls-files` empty; `git check-ignore -v` names a `.gitignore` line for each of the five | |
+| AC-8 | Done | `TestATaggedTestNeedsNoLedgerRegeneration` | |
+| AC-9 | Done | `TestTheDocVerifyStageNoLongerJudgesTheRFCLedger`; `grep` for `RFC-REQUIREMENTS` under `internal/le/verify/` and in `docverify.go` is empty | |
+| AC-10 | Done | `internal/le/rfc/actions.go`, the `check` verb's own `Why` | coverage, evidence strength, public status, audit verdicts, extraction sign-off |
+| AC-11 | Done | `TestTheRFCStatusPageRendersWithoutItsCommittedCopy` | with `TestADerivedDocsSourceThatAnswersNothingIsRefused` for the empty answer |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestTheCollectorAnswersTheSameRowsAsTheRenderedLedger` | Skipped | - | impossible after the parse was deleted; see Work Not Done |
+| `TestTestHealthAnswersWithNoRenderedLedgerPresent` | Done | `internal/le/testhealth/testhealth_test.go` | |
+| `TestTheCollectorStillRefusesAnEmptyEnrolledPopulation` | Done | `internal/le/testhealth/testhealth_test.go` | |
+| `TestTheAuditReportsEveryDocumentOfABulletRenderedPath` | Done | `internal/le/spec/citation/anchors_test.go` | |
+| `TestTheAnchorGuardSeesAFileInASmallPackage` | Done | `internal/le/spec/citation/anchors_test.go` | |
+| `TestTheCodeIndexRendersFullPathsInBothShapes` | Done | `internal/le/docstocode/codetodocs_test.go` | |
+| `TestTheRFCStatusPageRendersWithoutItsCommittedCopy` | Done | `internal/le/site/docs_test.go` | |
+| `TestATaggedTestNeedsNoLedgerRegeneration` | Done | `internal/le/commit/commit_test.go` | |
+| `le-rfc-ledger-is-derived` | Done, RED under the registered action | `test/runner/le-rfc-ledger-is-derived.ci` | green against an `le` built from the source under test; red under `./le functional runner`, which drives the shared `bin/le`. See Pre-Commit Verification |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/testhealth/collect_rfc.go`, `testhealth.go` | Done | |
+| `internal/le/rfc/ledger.go` | Changed | the model is reached through `rfc.CoverageRows` and `rfc.Collected`, not a new export on `ledger.go` |
+| `internal/le/spec/citation/anchors.go` | Done | |
+| `internal/le/docstocode/codetodocs_report.go`, `codetodocs.go` | Done | |
+| `internal/le/site/docs.go`, `docsmanifest.go`, `redirect.go`, `llmsdata.go`, `docs_test.go` | Done | |
+| `test/runner/le-rfc-ledger-is-derived.ci` | Done | |
+| `internal/le/derived/derived.go`, `internal/le/rfc/register.go`, `internal/le/discoveryindex/register.go` | Added | `SessionStartPolicy`, not in the plan; review round 1 found the hook cost |
+
+### Audit Summary
+- **Total items:** 30
+- **Done:** 27
+- **Partial:** 0
+- **Skipped:** 1 (`TestTheCollectorAnswersTheSameRowsAsTheRenderedLedger`, impossible rather than deferred)
+- **Changed:** 2 (AC-1's order, `ledger.go` reached through `coverage.go`)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| no production code reads a rendered index as a data format | functional + unit | `TestTestHealthAnswersWithNoRenderedLedgerPresent` and `TestTheDocVerifyStageNoLongerJudgesTheRFCLedger` pass with the five files removed from the tree under test; a grep for `rfcRow`, `rfcTableHeader` and `rfcStateEnrolled` under `internal/le/testhealth/` answers nothing |
+| the anchor audit is no longer blind to a quarter of the tree | unit, over the real corpus | `TestTheAuditReportsEveryDocumentOfABulletRenderedPath` runs against the checkout's own index rather than a fixture, and `TestTheAnchorGuardSeesAFileInASmallPackage` exercises the case that was invisible |
+| a grep of the code index answers one file | unit | `TestTheCodeIndexRendersFullPathsInBothShapes`, with the boundary at `namedInline` and one above it |
+| the RFC ledger family stops churning the git history | functional | `test/runner/le-rfc-ledger-is-derived.ci`, six markers over a scratch checkout: the gate judges with none of the five present, a read builds them, a read of an unfinished shard directory rebuilds it, a tagged-test write removes the directory too, and the next read names the new test in the shard. Exit 0 against an `le` built from the source under test, logged at `tmp/session/2026-09-11-ce8ca907-f5a8-42ae-8448-e021346de13d/scratch/fixture-fresh.log` |
+| the published RFC status page survives the untracking | unit | `TestTheRFCStatusPageRendersWithoutItsCommittedCopy` proves the page carries the live producer's bytes and NOT the generated file's title; `TestADerivedDocsSourceThatAnswersNothingIsRefused` proves an empty producer is refused rather than published |
+| the session-start hook does not pay for an artifact a command names | measurement | 2.0-2.7s with every artifact present, 5.32s against a 5s timeout with the five absent, 2.26s and 2.14s in that same state once they declare `SessionStartDefer` (`docs/architecture/core-design.md`) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| `TestTheCollectorAnswersTheSameRowsAsTheRenderedLedger`, the byte-identical comparison of the two collectors | it needs BOTH readers alive to compare, and the render parse it would have read is deleted. Writing it now compares the model with itself | nobody, because it is impossible rather than deferred. What covers the figures instead is `TestTheModelRollupIsReadFromItsAnnotatedAndNoTestCounts` and `TestTheModelRollupReadsItsOnePolarityCount` |
+| a fresh `le` for the runner fixtures | `nativeLEBinary` (`internal/test/fixture/misc_fixture_runner_scope.go`) resolves `bin/le` under `ZE_REPO_ROOT` and nothing refreshes it, so `le-rfc-ledger-is-derived` reads red under `./le functional runner`. The repair is that function's, it changes the verdict of all thirteen runner scenarios, and it is not this spec's surface | `plan/journal/stale-artifact-reused.md`, ninth `bin/le` row. A class that collects rows earns its fix in a deliberate pass, and this one now has nine |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/runner/le-rfc-ledger-is-derived.ci` | yes | `ls -la` answers a 1.3K file written 2026-09-12 01:02 |
+| `internal/test/fixture/misc_fixture_runner_rfcledger.go` | yes | holds `leRFCLedgerIsDerivedDriver` and its six markers |
+| the five RFC artifacts, as TRACKED files | no, by design | `git ls-files` over `ai/RFC-REQUIREMENTS.md`, `rfc/requirements`, `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and `docs/features/rfc-status.md` prints nothing |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-3 | no code re-parses the rendered ledger | a grep for `rfcRow`, `rfcTableHeader` and `rfcStateEnrolled` under `internal/le/testhealth/` is empty, and so is a grep for the pinned table header across `internal/` |
+| AC-6 | both render shapes carry the full path | `renderCodeIndex` writes the same `path` variable in the bullet branch and in the table branch |
+| AC-7 | the five are untracked and ignored | `git check-ignore -v` names a `.gitignore` line for each of the five |
+| AC-9 | no stage byte-compares an RFC artifact | a grep for `RFC-REQUIREMENTS` under `internal/le/verify/` and in `internal/le/doc/wiring/docverify.go` is empty |
+| AC-10 | `./le rfc check` still reports every arm | `internal/le/rfc/actions.go`, the `check` verb's own `Why` |
+| AC-1, AC-2, AC-4, AC-5, AC-8, AC-11 | the named tests pass | `./le --name close-ce8ca907 job run label closure-unit command go test -count=1 -run '<the twelve names>' ...` over `testhealth`, `spec/citation`, `docstocode`, `site`, `commit`, `doc/wiring` and `rfc`: exit 0, `ok` on all nine packages |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le test-health check` with `ai/RFC-REQUIREMENTS.md` absent | `TestTestHealthAnswersWithNoRenderedLedgerPresent` | yes: the test asserts the collector's own bytes never name the path |
+| a spec write naming a file in a package of three or fewer files | `TestTheAnchorGuardSeesAFileInASmallPackage` | yes |
+| `./le site build` with `docs/features/rfc-status.md` absent | `TestTheRFCStatusPageRendersWithoutItsCommittedCopy` | yes: it replaces the live producer and asserts the published page carries the producer's heading and NOT the file's title |
+| a session adds a tagged test and runs the gate | `test/runner/le-rfc-ledger-is-derived.ci` | read, not inferred: six `expect=stdout:contains=` lines, one per marker the driver prints, and each marker sits after the assertion it reports. Exit 0 against a current `le` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken, in one dimension | every VALUE holds; the `worst` ORDER moved. Mistake Log row, AC-1, Known Limitations |
+| A-2 | confirmed, and the question dissolved | there is no second route left. `modelRows` reads `collected.Enrolled` and `renderRollup` (`internal/le/rfc/sections.go`) prints `**enrolled**` from the same `Enrolled` map. One declaration |
+| A-3 | confirmed | a grep for `RFC-REQUIREMENTS` across `.github/`, `scripts/` and `Makefile` finds nothing. The remaining hits are the WRITER (`render.go`, `write.go`), test fixtures, and prose in `ai/skills/ze-rfc.md`, `ze-rfc-audit.md` and `ze-weekly-update.md`, none of which parses it |
+| A-4 | confirmed | `liveDocSources[rfcStatusSource]` exists, and `TestTheRFCStatusPageRendersWithoutItsCommittedCopy` fails loudly if it does not |
+| A-5 | confirmed, and stronger than planned | `renderCodeIndex` has exactly two branches on `len(files) <= namedInline` and both write the path. The parser it was an assumption about is deleted, so there is no shape left to be blind to |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| 3. CLI command added/changed | a grep of `docs/guide/command-reference.md` for `rfc check`, `test-health` and `index-update` finds nothing, so the page never named the deleted arms | yes |
+| 6. user guide page | `docs/contributing/navigating-the-code.md` taught BASENAME keying; repaired here against `renderCodeIndex`. `docs/contributing/rfc-conformance-gates.md` updated in `8ae7424594` | yes |
+| 9. RFC behavior | no `rfc/short/` `## Meta` row changed: the artifacts moved in git and no verdict moved | yes |
+| 10. test infrastructure | `docs/functional-tests.md` and `test/health/README.md` updated in `8ae7424594` and `bd11ff12af` | yes |
+| 12. internal architecture | `docs/architecture/core-design.md` carries the derived registry and both consumer classes (`bd11ff12af`, `f6150cae7c`); `docs/contributing/gh-pages.md` carries the live page route | yes |
+| 15. registered inventory | the `derived` registrations sit in each generator's own package (`internal/le/rfc/register.go`, `internal/le/discoveryindex/register.go`); `docs/guide/status.md` enumerates no `le` verb, so nothing there to move | yes |
+| 16. source anchors on changed files | `./le doc check verify` names 5 anchor failures, none in a file this spec changed. The one in `docs/architecture/core-design.md` dates to `86d20cd93ba` (2026-08-31) and broke on another session's in-flight `leroot` rename | yes |
+| 17. examples of this workflow | `ai/skills/ze-rfc.md` now says never to commit a generated ledger file | yes |
+
+## Core Insight
+
+A derived artifact has TWO consumer shapes and they need opposite treatment at session start.
+An artifact a GREP reads is named by nobody, so an unnamed search over an absent one reads
+nothing and REPORTS nothing: the hook must build it. An artifact a COMMAND reads is always named
+on the command line, so the Bash hook already covers it and the session start must not pay for
+it. The distinction was implicit, three registrations happened to be on the correct side of it,
+and the fourth looked identical and was not. The repair is that the class is DECLARED
+(`SessionStartPolicy`) with an invalid zero value, so a new registration cannot default into
+either side. It is `ai/rules/principles.md` applied to a registry: a zero another branch relies
+on is a guard, and a guard has to be named.
