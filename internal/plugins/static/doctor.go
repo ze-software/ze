@@ -136,13 +136,37 @@ func checkFIBWriter(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic
 	if fibBackendConfigured(tree) {
 		return nil
 	}
-	dataPlane := iface.BackendNameFromTree(tree.ToMap())
+	return fibWriterDiagnostics(iface.BackendNameFromTree(tree.ToMap()))
+}
+
+// fibWriterDiagnostics judges one resolved data-plane name, and answers nothing
+// for a build that supplies none.
+//
+// The empty name is never something an operator wrote. BackendNameFromTree
+// (internal/component/iface/register.go) falls back to defaultBackendName for a
+// config that names no backend, and that constant is "netlink" on Linux and ""
+// on every other platform (internal/component/iface/default_other.go). Reading
+// the empty name as a data plane nothing programs made this check answer about
+// the MACHINE running `ze doctor` instead of the config in front of it: the
+// same static config was clean on the Linux host that serves it and reported
+// unroutable on a developer's macOS checkout
+// (plan/journal/gate-verdict-depends-on-the-machine.md).
+//
+// Silence is the accurate answer rather than a missing one, and it is the whole
+// of what this guard decides. A build with no data plane at all holds no
+// opinion about which data plane a config should select, so there is nothing
+// here to tell an operator. Where a build HAS one, the name is non-empty and
+// every config reaches the lookup below.
+func fibWriterDiagnostics(dataPlane string) []rpc.DoctorCheckDiagnostic {
+	if dataPlane == "" {
+		return nil
+	}
 	if _, resolved := registry.PluginForDataPlane(dataPlane); resolved {
 		return nil
 	}
 	var tb textbuf.Buffer
 	tb.Str("a static route is declared in the main table, and no FIB plugin programs the ")
-	tb.Str(dataPlaneName(dataPlane)).Str(" data plane this config selects at `interface { backend }`; ")
+	tb.Str(dataPlane).Str(" data plane this config selects at `interface { backend }`; ")
 	tb.Str("the system RIB selects the route and nothing writes it, so it would never reach ")
 	tb.Str("the data plane. Name a backend Ze programs, or add the `fib { ... }` block for ")
 	tb.Str("the one you want")
@@ -151,16 +175,6 @@ func checkFIBWriter(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic
 		Severity: "error",
 		Message:  tb.String(),
 	}}
-}
-
-// dataPlaneName gives the message a noun for a data plane the config never
-// named. An empty name is what a build with no default backend answers, and
-// "the (none) data plane" reads as a defect in Ze rather than in the config.
-func dataPlaneName(dataPlane string) string {
-	if dataPlane == "" {
-		return "unnamed"
-	}
-	return dataPlane
 }
 
 // fibBackendConfigured reports whether the config declares a backend under

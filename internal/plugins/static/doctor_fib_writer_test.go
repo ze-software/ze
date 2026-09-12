@@ -159,3 +159,38 @@ func TestFIBWriterCheckReportsAnEmptyFIBBlock(t *testing.T) {
 		t.Fatalf("check reported %d diagnostics for an empty fib block, want 1: %+v", len(diags), diags)
 	}
 }
+
+// TestFIBWriterCheckIsSilentWhereTheBuildSuppliesNoDataPlane pins the guard
+// that keeps this check's verdict a fact about the CONFIG.
+//
+// VALIDATES: an empty resolved data-plane name produces no diagnostic.
+// PREVENTS: `ze doctor` reporting a static config unroutable because of the
+// machine it runs on. defaultBackendName is "netlink" on Linux and "" on every
+// other platform (internal/component/iface/default_other.go), so before this
+// guard the same config was clean on the Linux host that serves it and an error
+// on a developer's macOS checkout, and both the unit case above and
+// test/ui/doctor-static-no-fib-block.ci were red on darwin alone.
+//
+// It drives fibWriterDiagnostics rather than checkFIBWriter, because the state
+// under test is one the tree cannot express: BackendNameFromTree maps an absent
+// and an empty `backend` leaf onto the build's default, so no config reaches
+// the empty name on a Linux build and the case would go untested there.
+func TestFIBWriterCheckIsSilentWhereTheBuildSuppliesNoDataPlane(t *testing.T) {
+	if diags := fibWriterDiagnostics(""); len(diags) != 0 {
+		t.Fatalf("a build with no default data plane reported %d diagnostics: %+v", len(diags), diags)
+	}
+	// The other polarity, on the same function: a NAMED data plane nothing
+	// programs is still the state this check exists to report, so the guard
+	// above cannot be read as switching the check off.
+	const dataPlane = "p4-runtime"
+	if _, ok := registry.PluginForDataPlane(dataPlane); ok {
+		t.Fatalf("a plugin programs %q, so this config is not the unwritable one", dataPlane)
+	}
+	diags := fibWriterDiagnostics(dataPlane)
+	if len(diags) != 1 {
+		t.Fatalf("a named data plane with no writer reported %d diagnostics, want 1: %+v", len(diags), diags)
+	}
+	if !strings.Contains(diags[0].Message, dataPlane) {
+		t.Errorf("the message does not name the data plane it is about: %q", diags[0].Message)
+	}
+}
