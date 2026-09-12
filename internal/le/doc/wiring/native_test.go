@@ -17,6 +17,7 @@ import (
 	"github.com/a-h/templ/cmd/templ/generatecmd"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/le/leaction"
 )
 
 func nativeGitTree(t *testing.T, files map[string]string) string {
@@ -274,13 +275,18 @@ func TestTemplOrphanActionPreservesFixtureOutputAndCodes(t *testing.T) {
 
 // VALIDATES: the action has one explicit verb and takes no value.
 func TestTemplOrphanActionUsesExplicitVerbAndRefusesAValue(t *testing.T) {
-	list := zeroArgumentActions.Actions()
-	if len(list.Actions) != 1 {
-		t.Fatalf("actions = %d, want 1", len(list.Actions))
+	list := actions.Actions()
+	var row leaction.Row
+	for _, published := range list.Actions {
+		if published.Verb == templOrphanVerb {
+			row = published
+		}
 	}
-	row := list.Actions[0]
 	if row.Verb != templOrphanVerb {
-		t.Errorf("verb = %q, want %q", row.Verb, templOrphanVerb)
+		t.Fatalf("the area publishes %v, and none of them is %q", list.Actions, templOrphanVerb)
+	}
+	if len(row.Parameters) != 0 {
+		t.Errorf("the exact action declares %v, and it takes no value", row.Parameters)
 	}
 	if _, code := Answer([]string{row.Verb, "unexpected"}); code != 2 {
 		t.Errorf("a value after the exact action returned %d, want 2", code)

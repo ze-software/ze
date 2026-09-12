@@ -211,6 +211,21 @@ func (a Area) verbOf(act Action) string {
 	return act.Verb
 }
 
+// Holds reports whether this area declares the named action.
+//
+// An area whose bare command line means one of its own verbs asks this before
+// it supplies that verb. The word a developer typed is then read by the table
+// rather than by a second parser, and `le doc wiring check` and `le doc wiring`
+// are one action.
+func (a Area) Holds(verb string) bool {
+	for _, act := range a.actions {
+		if a.verbOf(act) == verb {
+			return true
+		}
+	}
+	return false
+}
+
 // TakesArguments reports whether the named action declares a closed keyword
 // grammar. An area that sweeps several actions on one command line asks this
 // to tell an action's VALUES from the next action's NAME: `render name term`
@@ -755,4 +770,22 @@ func (a Area) Sweep(args []string, policy SweepPolicy) (any, int) {
 		}
 	}
 	return sweep, code
+}
+
+// AnswerOrSweep dispatches one command line through this table, for an area
+// whose actions can be named together.
+//
+// A line naming ONE action is that action's own, and it answers that action's
+// own payload. A line naming SEVERAL is a sweep. An action that declares
+// keywords takes the rest of the line as its grammar, so it answers alone
+// whatever follows it.
+//
+// The split is here rather than in each area because it is one statement about
+// one grammar. An area that read the line itself to decide would be the second
+// parser this library exists to remove.
+func (a Area) AnswerOrSweep(args []string, policy SweepPolicy) (any, int) {
+	if len(args) <= 1 || a.TakesArguments(args[0]) {
+		return a.Answer(args)
+	}
+	return a.Sweep(args, policy)
 }

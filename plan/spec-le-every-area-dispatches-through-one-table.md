@@ -89,21 +89,30 @@ That spec wired 69 areas to `RegisterActions`, publishing 276 verbs. Probing
 every verb with an undeclared keyword, and then reading the REFUSAL VOICE to
 tell `leaction`'s own words from an area's, found four areas whose table and
 dispatch disagree. This is worse than publishing nothing, because the manifest
-states a grammar the area does not honour, and a reader who trusts it is misled
+states a grammar the area does not honor, and a reader who trusts it is misled
 rather than merely unserved.
+
+The probe was by hand, and by hand it found four of five. The fifth,
+`test-chaos`, was found by `TestEveryPublishedVerbIsDispatchedThroughItsOwnTable`
+(`internal/le/actions_test.go`), which asks the same question of every published
+verb of every area rather than of the verbs a reader thought to type. Every row
+below is now closed, and the ratchet is what holds them closed.
 
 | Area | What is false | State |
 |------|---------------|-------|
 | `ste` | `check` published zero-argument while `Answer` hand-parsed `file <path>`, so `./le ste check file -xh` answered `OK` at exit 0 having examined no document | FIXED in that spec: `check` declares `file`, and dispatch goes through `AnswerArgs` |
-| `worktree` | `update` is published zero-argument while `Answer` hand-parses `path <path>` and `all`. `--help` names no keyword, and `update path -xh` reaches `updater.One` with the option as a path | open |
-| `functional` | `list`, `gating` and `select` are published but absent from the sweep table, so `./le functional list zzprobe` refuses the verb the manifest advertises | open |
-| `doc wiring` | RECLASSIFIED in round 6. Not a gap: `parseOptions` (`internal/le/doc/wiring/docwiring.go`) hand-parses `changed-file <path>` and `dry-run` with no dash refusal, so `./le doc wiring changed-file -xh dry-run` answers `No wiring/doc/inventory checks needed` at exit 0. That is the same silent success `ste check file -xh` gave, and round 5 mis-read it as a missing publication | open |
+| `worktree` | `update` is published zero-argument while `Answer` hand-parses `path <path>` and `all`. `--help` names no keyword, and `update path -xh` reaches `updater.One` with the option as a path | FIXED in that spec: `update` declares `path`, and `./le worktree update path -xh` answers 2 |
+| `functional` | `list`, `gating` and `select` are published but absent from the sweep table, so `./le functional list zzprobe` refuses the verb the manifest advertises | FIXED in that spec: the three are rows of the one table, and `./le functional list zzprobe` refuses `zzprobe` and names all 35 verbs |
+| `doc wiring` | RECLASSIFIED in round 6. Not a gap: `parseOptions` (`internal/le/doc/wiring/docwiring.go`) hand-parses `changed-file <path>` and `dry-run` with no dash refusal, so `./le doc wiring changed-file -xh dry-run` answers `No wiring/doc/inventory checks needed` at exit 0. That is the same silent success `ste check file -xh` gave, and round 5 mis-read it as a missing publication | FIXED in that spec, twice. The dash refusal came with the `check` action, and then `Answer` was supplying `check` to every line, so the published verb reached the keyword parser as an unknown keyword and `./le doc wiring check` was unreachable. `Area.Holds` now decides which line already names a verb |
+| `test-chaos` | Found by the ratchet, not by a probe. `all` is published in the listing and appended to the help hint, while the table holds only the three tools, so `./le test-chaos zzprobe` printed a help line that left `all` out | FIXED in that spec: `all` is a row whose body sweeps the three, and the listing, the hint and the refusal all read the table |
 
-The three open rows are this spec's, and they carry a lesson for its own
-migration: declaring a table is not the deliverable. Dispatching through it is.
-A migration that adds a table and leaves the hand-parser in place reproduces
-exactly this defect, so each area's acceptance is that an undeclared keyword is
-refused by `leaction`'s own parser, proven by probe rather than by reading.
+Every row is closed, and they carry a lesson for this spec's own migration:
+declaring a table is not the deliverable. Dispatching through it is. A migration
+that adds a table and leaves the hand-parser in place reproduces exactly this
+defect, so each area's acceptance is that an undeclared keyword is refused by
+`leaction`'s own parser, and
+`TestEveryPublishedVerbIsDispatchedThroughItsOwnTable` now asserts that for
+every verb of every area rather than for the verbs a reader thought to type.
 
 ## Required Reading
 

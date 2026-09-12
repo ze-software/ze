@@ -3,13 +3,19 @@
 // Related: report.go -- what the verb answers
 //
 // actions.go defines the action table.
-// internal/le/leaction supplies the shared dispatch, listing, help line, and two refusals.
+// internal/le/leaction supplies the shared dispatch, listing, help line, and every refusal.
 //
 // This area has one verb with a keyword before its value.
 // `le worktree update` updates the current checkout.
 // `le worktree update path <path>` updates a named checkout.
 // `le worktree update all` updates every linked worktree in this repository.
-// The shell command instead used either a bare path or --all, which conflicts with the CLI grammar (ai/rules/cli.md).
+// The shell command took either a bare path or --all. Both conflict with the
+// CLI grammar (ai/rules/cli.md).
+//
+// Both keywords are DECLARED in the table below, so one parser reads the line.
+// The verb published zero parameters until 2026-09-12 and read `path` and `all`
+// itself. `le worktree update path -xh` therefore handed the option to git as a
+// checkout path instead of refusing it.
 
 package worktree
 
@@ -44,7 +50,13 @@ var actions = leaction.New(area,
 		Why: "rebase a linked worktree onto main, stashing and restoring its uncommitted work." +
 			" Refuses the main working tree and a checkout with no branch",
 		Writes: true,
-		Answer: updateHere,
+		Parameters: []leaction.Parameter{
+			// Optional: naming neither keyword updates the checkout the
+			// command was typed in, which is the form the shell half had.
+			{Keyword: pathKeyword, Value: "path", Requirement: leaction.Optional},
+			{Keyword: allKeyword},
+		},
+		AnswerArgs: update,
 	},
 )
 
@@ -55,32 +67,28 @@ func Actions() leaction.List { return actions.Actions() }
 // Subs is the one-line hint help renders under the command.
 func Subs() string { return actions.Subs() }
 
-// Answer is the `le worktree` command.
-//
-// The update's own keywords are read here rather than by leaction, which
-// dispatches on the verb alone. Reaching them means the verb resolved, so a
-// refusal below is about the keyword and says so.
-func Answer(args []string) (any, int) {
-	if len(args) <= 1 {
-		return actions.Answer(args)
-	}
-	if args[0] != actions.Actions().Actions[0].Verb {
-		return actions.Answer(args)
-	}
-	return update(args[1:])
-}
+// Answer is the `le worktree` command. Every word of the line is read by the
+// table above, which refuses an undeclared keyword and an option standing where
+// a path goes.
+func Answer(args []string) (any, int) { return actions.Answer(args) }
 
-// update reads the keywords and runs the right shape of update.
+// update runs the shape of update the keywords name.
 //
-// The command reads keywords before it resolves the repository.
-// An unsupported word is a usage error that needs no git command or checkout.
-// This order also prevents a mistyped keyword from touching an unintended tree.
-func update(args []string) (any, int) {
-	all := len(args) == 1 && args[0] == allKeyword
-	named := len(args) == 2 && args[0] == pathKeyword
-	if !all && !named {
+// leaction has already read the line, so no git command and no checkout has
+// been reached yet. That order is what stops a mistyped keyword from touching
+// an unintended tree.
+func update(args leaction.Arguments) (any, int) {
+	all := args.Has(allKeyword)
+	named := args.Has(pathKeyword)
+	if all && named {
+		// Each keyword names a different population, so a line carrying both
+		// asks for two updates and states neither.
 		leaction.ReportError(errUsage())
 		return nil, 2
+	}
+
+	if !all && !named {
+		return updateHere()
 	}
 
 	updater, err := here()
@@ -92,7 +100,7 @@ func update(args []string) (any, int) {
 	if all {
 		return answer(updater.All())
 	}
-	result, err := updater.One(args[1])
+	result, err := updater.One(args.One(pathKeyword))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1

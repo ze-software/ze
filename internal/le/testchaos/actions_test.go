@@ -188,17 +188,15 @@ func TestNamedToolFailureKeepsItsReportAndCode(t *testing.T) {
 		return report, failureCode
 	}
 
+	// A line naming ONE action answers that action's own payload, so the report
+	// the tool produced is what the caller holds, unwrapped.
 	answer, code := answerWith(tc, run, []string{"cli-unit"})
 	if code != failureCode {
 		t.Fatalf("answer code = %d, want tool code %d", code, failureCode)
 	}
-	sweep, ok := answer.(leaction.Sweep)
-	if !ok || len(sweep.Ran) != 1 {
-		t.Fatalf("answer = %#v, want one-action sweep", answer)
-	}
-	report, ok := sweep.Ran[0].Answer.(gaterun.ActionReport)
+	report, ok := answer.(gaterun.ActionReport)
 	if !ok {
-		t.Fatalf("action answer type = %T, want gaterun.ActionReport", sweep.Ran[0].Answer)
+		t.Fatalf("answer = %#v, want the tool's own gaterun.ActionReport", answer)
 	}
 	wantCommand := []string{
 		"go", "test", "-timeout", "7m", "-tags", "ze_core ze_bgp ze_chaos", "./cmd/ze",

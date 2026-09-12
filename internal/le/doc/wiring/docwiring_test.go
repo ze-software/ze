@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/leaction"
 )
 
 func TestExportedSymbolsReadsEachDeclarationForm(t *testing.T) {
@@ -377,27 +379,36 @@ func TestReportIsStructuredDataWithKebabCaseKeys(t *testing.T) {
 }
 
 func TestTheGrammarTakesEveryValueBehindAKeyword(t *testing.T) {
-	opts, code, ok := parseOptions([]string{"changed-file", "dry-run", "changed-file", "b.go"})
-	if !ok || code != 0 {
-		t.Fatalf("a legal command line was refused with %d", code)
-	}
 	// The first `changed-file` consumes exactly one word, so a file NAMED like a
-	// keyword is still a legal value.
+	// keyword is still a legal value. leaction parses the line, and this reads
+	// what the action makes of the keywords it was handed.
+	opts := optionsFrom(leaction.Arguments{changedFileKeyword: {"dry-run", "b.go"}})
 	if len(opts.Changed) != 2 || opts.Changed[0] != "dry-run" || opts.Changed[1] != "b.go" {
 		t.Errorf("the changed files are %v", opts.Changed)
 	}
 	if opts.DryRun {
 		t.Error("a value read as a flag")
 	}
+	if !optionsFrom(leaction.Arguments{dryRunKeyword: {""}}).DryRun {
+		t.Error("the dry-run switch was not read")
+	}
+}
 
-	if _, code, ok := parseOptions([]string{"changed-file"}); ok || code == 0 {
-		t.Error("a keyword with nothing after it was accepted")
-	}
-	if _, code, ok := parseOptions([]string{"make", "false"}); ok || code == 0 {
-		t.Error("the removed process-runner option was accepted")
-	}
-	if _, code, ok := parseOptions([]string{"a.go"}); ok || code == 0 {
-		t.Error("a bare value was accepted")
+// VALIDATES: AC-5 -- the router dispatches through the table it publishes, so
+// every refusal is the published grammar's own.
+// PREVENTS: the parser this package used to carry, which took `-xh` as a
+// changed file and answered "No wiring/doc/inventory checks needed" at exit 0.
+func TestTheRouterRefusesEveryLineItsPublishedGrammarCannotRead(t *testing.T) {
+	for _, refused := range [][]string{
+		{changedFileKeyword},
+		{"make", "false"},
+		{"a.go"},
+		{changedFileKeyword, "-xh", dryRunKeyword},
+		{checkVerb, changedFileKeyword, "-xh"},
+	} {
+		if payload, code := Answer(refused); code != 2 {
+			t.Errorf("%v answered %d with payload %v, want 2", refused, code, payload)
+		}
 	}
 }
 
@@ -610,5 +621,42 @@ func TestEveryDelegatedTargetIsAnsweredHereOrDeclaredAFork(t *testing.T) {
 	}
 	if got, want := len(goActions), len(actionOrderList())-1; got != want {
 		t.Fatalf("native target table has %d rows, want %d", got, want)
+	}
+}
+
+// TestCheckDeclaresTheKeywordsItEnforces holds the grammar `check` publishes,
+// which is what the deleted TestTheGrammarTakesEveryValueBehindAKeyword held
+// about the hand parser it drove.
+//
+// VALIDATES: changed-file repeats and takes a value, so a caller names every
+// file of a commit one keyword each, and a path spelled like a keyword is that
+// keyword's value rather than a flag.
+// PREVENTS: changed-file losing Repeat, which would refuse the second keyword
+// and leave a commit's later files unexamined; and dry-run gaining a value,
+// which would read the next path as its argument.
+func TestCheckDeclaresTheKeywordsItEnforces(t *testing.T) {
+	var declared []leaction.Parameter
+	for _, row := range Actions().Actions {
+		if row.Verb == checkVerb {
+			declared = row.Parameters
+		}
+	}
+	if len(declared) != 2 {
+		t.Fatalf("check publishes %d parameter(s), want the two it takes: %v", len(declared), declared)
+	}
+
+	changed := declared[0]
+	if changed.Keyword != changedFileKeyword || changed.Value == "" {
+		t.Errorf("check publishes %+v first, want %q naming its value", changed, changedFileKeyword)
+	}
+	if !changed.Repeat {
+		t.Error("check publishes changed-file as given once; a commit names every one of its files")
+	}
+	if changed.Requirement != leaction.Optional {
+		t.Errorf("check publishes changed-file as %v; naming no file reads the changed set from git", changed.Requirement)
+	}
+
+	if dryRun := declared[1]; dryRun.Keyword != dryRunKeyword || dryRun.Value != "" {
+		t.Errorf("check publishes %+v second, want %q as a switch that takes no value", dryRun, dryRunKeyword)
 	}
 }

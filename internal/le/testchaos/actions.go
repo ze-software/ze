@@ -9,7 +9,6 @@ package testchaos
 import (
 	"strconv"
 
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 	"github.com/ze-software/ze/internal/le/leaction"
@@ -19,9 +18,9 @@ import (
 // Area is the root command name.
 const Area = "test-chaos"
 
-// allVerb runs all three actions. It is dispatched beside the table rather than
-// declared in it, because a table row would appear in its own expansion and
-// would sweep itself.
+// allVerb runs all three actions. It is a row of the table like they are, so
+// one word means one thing wherever it is read. The listing, the help hint and
+// the refusal all name it.
 const allVerb = "all"
 
 const (
@@ -129,9 +128,15 @@ type actionRunner func(
 
 // table builds one invocation's action table. The resolved toolchain is shared
 // by all selected actions, so the sweep reads the checkout once.
+//
+// `all` is a row like the three tools. No refusal can name a verb the listing
+// publishes and the table does not hold. `le test-chaos zzprobe` named the
+// three tools and left `all` out of the help it printed. Its body sweeps the
+// three by name, so nothing restates the list.
 func table(tc gotoolchain.Toolchain, run actionRunner) leaction.Area {
 	declared := Table()
-	actions := make([]leaction.Action, 0, len(declared))
+	actions := make([]leaction.Action, 0, len(declared)+1)
+	tools := make([]string, 0, len(declared))
 	for _, action := range declared {
 		actions = append(actions, leaction.Action{
 			Verb:   action.Verb,
@@ -139,8 +144,21 @@ func table(tc gotoolchain.Toolchain, run actionRunner) leaction.Area {
 			Writes: action.Writes,
 			Answer: actionAnswer(tc, run, action),
 		})
+		tools = append(tools, action.Verb)
 	}
-	return leaction.New(Area, actions...)
+
+	// The area is captured rather than rebuilt. `all` sweeps the very table it
+	// is a row of, and a second New would declare that table twice.
+	var area leaction.Area
+	actions = append(actions, leaction.Action{
+		Verb: allVerb,
+		Why:  "all three actions above, in table order, whatever any of them answers",
+		Answer: func() (any, int) {
+			return area.Sweep(tools, leaction.RunEveryAction)
+		},
+	})
+	area = leaction.New(Area, actions...)
+	return area
 }
 
 // actionAnswer runs one external tool and preserves its output and exit code.
@@ -153,24 +171,13 @@ func actionAnswer(tc gotoolchain.Toolchain, run actionRunner, action Action) fun
 // metadataOnly supplies command metadata without reading the checkout.
 func metadataOnly() leaction.Area { return table(gotoolchain.Toolchain{}, nil) }
 
-// Actions returns the command surface as structured data. The listing carries
-// `all` beside the three tools, because that is where a bare command line lands
+// Actions returns the command surface as structured data, which is the table
+// and nothing beside it. `all` is the last row, where a bare command line lands
 // and where every other action states its reason.
-func Actions() leaction.List {
-	list := metadataOnly().Actions()
-	list.Actions = append(list.Actions, leaction.Row{
-		Verb: allVerb,
-		Why:  "all three actions above, in table order, whatever any of them answers",
-	})
-	return list
-}
+func Actions() leaction.List { return metadataOnly().Actions() }
 
-// Subs returns the help hint derived from the action table. `all` is appended
-// as a bare word so the hint stays a verb table a reader can complete against.
-func Subs() string {
-	var tb textbuf.Buffer
-	return tb.Str(metadataOnly().Subs()).Str(" | ").Str(allVerb).String()
-}
+// Subs returns the help hint derived from the action table, `all` included.
+func Subs() string { return metadataOnly().Subs() }
 
 // Answer is the `le test-chaos` command. A bare command lists the actions and
 // runs nothing; `test-chaos all` is the run it used to start. Named actions run
@@ -200,22 +207,9 @@ func Answer(args []string) (any, int) {
 // answerWith is the resolved half of Answer. The runner parameter lets tests
 // observe the exact process boundary without substituting repository logic.
 //
-// `all` expands from the same table that dispatches every named selection, so
-// the run list and the listing cannot disagree about what "all" means. The
-// expansion happens in place, which keeps `all` a word the area holds wherever
-// a developer types it.
+// One table dispatches, lists, helps and refuses, so nothing here reads the
+// command line. A line naming one action runs that action. A line naming
+// several sweeps them in the order they were typed.
 func answerWith(tc gotoolchain.Toolchain, run actionRunner, args []string) (any, int) {
-	area := table(tc, run)
-	rows := area.Actions().Actions
-	selected := make([]string, 0, len(args))
-	for _, name := range args {
-		if name != allVerb {
-			selected = append(selected, name)
-			continue
-		}
-		for _, row := range rows {
-			selected = append(selected, row.Verb)
-		}
-	}
-	return area.Sweep(selected, leaction.RunEveryAction)
+	return table(tc, run).AnswerOrSweep(args, leaction.RunEveryAction)
 }

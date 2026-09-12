@@ -416,7 +416,7 @@ func TestBuildCommandsCarryTheTagsTheRunnerBuildsWith(t *testing.T) {
 
 func TestWebSessionBuildsChaosForBareAndAliasVerbs(t *testing.T) {
 	for _, verb := range []string{"web", "web-test"} {
-		current := newSession(gotoolchain.Toolchain{}, []string{verb})
+		current := newSession([]string{verb})
 		if !current.chaos {
 			t.Errorf("%q did not request the chaos dashboard binary", verb)
 		}

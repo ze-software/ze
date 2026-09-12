@@ -10,8 +10,6 @@
 package docwiring
 
 import (
-	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -26,9 +24,32 @@ const name = "doc wiring"
 
 const actionRerun = "./le doc wiring"
 
-// zeroArgumentActions holds exact actions that share this area but do not run
-// the changed-file router.
-var zeroArgumentActions = leaction.New(name,
+// checkVerb names the changed-file router, which is what a bare command line
+// runs. The whole area is one table. The router's two keywords are declared
+// beside the action they belong to, not read by a parser of this package's own.
+const checkVerb = "check"
+
+// The keywords the router takes. Each types the value that follows it, so a
+// path that happens to spell a keyword is still a path.
+const (
+	changedFileKeyword = "changed-file"
+	dryRunKeyword      = "dry-run"
+)
+
+// actions is the whole command surface.
+var actions = leaction.New(name,
+	leaction.Action{
+		Verb: checkVerb,
+		Why: "run every wiring, documentation, command and inventory check the changed files select." +
+			" Naming no file reads the changed set from git, which is what the gate runs",
+		Parameters: []leaction.Parameter{
+			// Optional: a run that names no file asks git for the changed set.
+			// Repeat: a caller names every file of a commit, one keyword each.
+			{Keyword: changedFileKeyword, Value: "path", Requirement: leaction.Optional, Repeat: true},
+			{Keyword: dryRunKeyword},
+		},
+		AnswerArgs: answerRouter,
+	},
 	leaction.Action{
 		Verb:   templOrphanVerb,
 		Why:    "report a .templ source outside internal/ or a generated templ Go file whose source is absent",
@@ -54,28 +75,48 @@ type checker struct {
 
 // Answer is the `le doc wiring` command.
 //
-// The templ-orphans action is exact and takes no arguments. A bare command and
-// the changed-file and dry-run keywords retain the router contract.
+// A bare command line runs the router, and so does a line opening with one of
+// the router's keywords. Both are the `check` action, so the verb is supplied
+// here and ONE parser reads the rest of the line. The bare spelling stays the
+// command a reader copies: `internal/le/verify/engine` runs the structural
+// stage as `le doc wiring`, and every failure group prints that rerun line.
+//
+// The table decides which line is which. A word the area declares is a verb.
+// It travels as it stands, so `le doc wiring check` runs the action the bare
+// line runs. Comparing the word against the verbs by hand is what made `check`
+// unreachable. The line grew a second `check`, and the keyword parser refused
+// the published verb.
 func Answer(args []string) (any, int) {
-	if len(args) > 0 {
-		if args[0] == templOrphanVerb {
-			return zeroArgumentActions.Answer(args)
-		}
+	if len(args) > 0 && actions.Holds(args[0]) {
+		return actions.Answer(args)
 	}
 
-	opts, code, ok := parseOptions(args)
-	if !ok {
-		return nil, code
-	}
+	line := make([]string, 0, len(args)+1)
+	line = append(line, checkVerb)
+	line = append(line, args...)
+	return actions.Answer(line)
+}
 
+// answerRouter runs the router over the files the invocation named.
+func answerRouter(args leaction.Arguments) (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
 		reportError(err)
 		return nil, 2
 	}
 
-	report, code := Run(root, opts)
+	report, code := Run(root, optionsFrom(args))
 	return report, code
+}
+
+// optionsFrom reads the parsed keywords as what the operator asked for. Values
+// answers nothing for an absent keyword, which is the whole-tree population a
+// bare command already read.
+func optionsFrom(args leaction.Arguments) Options {
+	return Options{
+		Changed: args.Values(changedFileKeyword),
+		DryRun:  args.Has(dryRunKeyword),
+	}
 }
 
 // Run judges one tree and answers the report plus the exit code.
@@ -225,64 +266,12 @@ func reportError(err error) {
 	tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI output
 }
 
-// parseOptions reads the keywords this command takes. Each keyword that carries
-// a value consumes exactly one word after it, so a path that spells a keyword
-// is still a legal value.
-func parseOptions(args []string) (Options, int, bool) {
-	opts := Options{}
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "dry-run":
-			opts.DryRun = true
-		case "changed-file":
-			if i+1 >= len(args) {
-				return opts, refuseMissingValue(args[i]), false
-			}
-			i++
-			opts.Changed = append(opts.Changed, args[i])
-		default:
-			return opts, refuseKeyword(args[i]), false
-		}
-	}
-	return opts, 0, true
-}
-
-func refuseKeyword(got string) int {
-	var tb textbuf.Buffer
-	tb.Str("error: ").Str(name).Str(": no such keyword: ").Quoted(got).Byte('\n').StdErr() //nolint:errcheck // CLI output
-	fmt.Fprintln(os.Stderr, usageLine())                                                   //nolint:errcheck // CLI output
-	return 1
-}
-
-func refuseMissingValue(keyword string) int {
-	var tb textbuf.Buffer
-	tb.Str("error: ").Str(name).Byte(' ').Str(keyword).Str(" needs a value").Byte('\n').StdErr() //nolint:errcheck // CLI output
-	fmt.Fprintln(os.Stderr, usageLine())                                                         //nolint:errcheck // CLI output
-	return 1
-}
-
-// usageLine states the whole grammar, which is what a developer needs after a
-// refusal.
-func usageLine() string {
-	var tb textbuf.Buffer
-	return tb.Str("usage: le ").Str(name).
-		Str(" [changed-file <path>]... [dry-run] [| json | yaml | table]\n").
-		Str("       le ").Str(name).Byte(' ').Str(templOrphanVerb).
-		Str(" [| json | yaml | table]").String()
-}
-
-// Actions answers the action table this area declared, which is the exact
-// action above. The changed-file router is parsed by hand, so the manifest
-// publishes the one action and Subs still names the router's keywords, until
-// plan/spec-le-every-area-dispatches-through-one-table.md folds the router into
-// the same table.
-func Actions() leaction.List { return zeroArgumentActions.Actions() }
+// Actions answers the command surface as data. The listing, the Subs line help
+// renders, the manifest and the test that checks them all read one table.
+func Actions() leaction.List { return actions.Actions() }
 
 // Subs is the one-line hint help renders under the command.
-func Subs() string {
-	var tb textbuf.Buffer
-	return tb.Str("changed-file <path> | dry-run | ").Str(templOrphanVerb).String()
-}
+func Subs() string { return actions.Subs() }
 
 // leAnswer keeps the registered handler's type honest against leroot.Answer.
 var _ leroot.Answer = Answer

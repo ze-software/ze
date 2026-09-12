@@ -41,10 +41,19 @@ const gatingVerb = "gating"
 // widened says which package it could not answer for.
 const selectVerb = "select"
 
-// session is one invocation of the functional area: the toolchain it derived,
-// and the isolated binary set it builds at most once.
+// session is one invocation of the functional area. It holds the checkout and
+// the toolchain it derives at most once, and the isolated binary set it builds
+// at most once.
+//
+// Each is derived on first use rather than before dispatch, because three of
+// this area's actions need neither. `list` reads the suite table, and `select`
+// reads the checkout and answers which suites a gating run would start. An
+// operator asking either question waits on no Go toolchain probe.
 type session struct {
+	root    string
+	found   bool
 	tc      gotoolchain.Toolchain
+	probed  bool
 	set     BinarySet
 	built   bool
 	warmed  bool
@@ -52,6 +61,36 @@ type session struct {
 	chaos   bool
 	buildFn func() (BinarySet, error)
 	warmFn  func() error
+}
+
+// checkout answers the repository root this invocation runs against.
+func (s *session) checkout() (string, error) {
+	if s.found {
+		return s.root, nil
+	}
+	root, err := lepath.Root()
+	if err != nil {
+		return "", err
+	}
+	s.root, s.found = root, true
+	return root, nil
+}
+
+// toolchain answers the Go toolchain this invocation runs its suites with.
+func (s *session) toolchain() (gotoolchain.Toolchain, error) {
+	if s.probed {
+		return s.tc, nil
+	}
+	root, err := s.checkout()
+	if err != nil {
+		return gotoolchain.Toolchain{}, err
+	}
+	tc, err := gotoolchain.New(root)
+	if err != nil {
+		return gotoolchain.Toolchain{}, err
+	}
+	s.tc, s.probed = tc, true
+	return tc, nil
 }
 
 // binaries answers the set this invocation runs against, building it on first
@@ -90,10 +129,60 @@ func (s *session) release() {
 	}
 }
 
-// table builds this invocation's action table: one row per suite and the
-// verifier-only ExaBGP action.
+// areaActions are the three actions that name a RUN LIST or a listing rather
+// than a suite. They open the table because they are the three a reader who
+// typed the area name is looking for.
+//
+// They are rows like every suite is a row. Reading them beside the table made
+// the area publish three verbs its dispatch did not hold. `le functional list
+// zzprobe` answered "no such action in functional: list", and the help every
+// refusal prints named the 32 suites and left these three out.
+func areaActions(s *session) []leaction.Action {
+	return []leaction.Action{
+		{Verb: listVerb, Why: "every suite and its budget", Answer: s.runList},
+		{Verb: gatingVerb, Why: "every gating suite, under its own budget", Answer: s.runGating},
+		{Verb: selectVerb,
+			Why:    "the suites a gating run would start for this checkout, and why the rest are absent",
+			Answer: s.runSelect},
+	}
+}
+
+// runList answers the suite table, and reads neither the checkout nor the
+// toolchain to do it.
+func (s *session) runList() (any, int) { return Catalog(), 0 }
+
+// runSelect answers the run list a gating run would start for this checkout,
+// and runs nothing. An operator whose run started fewer suites than they
+// expected reads here which suites the suite map ruled out and why.
+func (s *session) runSelect() (any, int) {
+	root, err := s.checkout()
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
+	plan, err := planRun(root)
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
+	return plan.Report, 0
+}
+
+// runGating runs the gating suites under their own budgets.
+func (s *session) runGating() (any, int) {
+	tc, err := s.toolchain()
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
+	return runGating(tc)
+}
+
+// table builds this invocation's action table: the three area actions, one row
+// per suite, and the verifier-only ExaBGP action.
 func table(s *session) leaction.Area {
-	rows := make([]leaction.Action, 0, len(Suites)+1)
+	rows := make([]leaction.Action, 0, len(Suites)+len(areaActions(s))+1)
+	rows = append(rows, areaActions(s)...)
 	for _, suite := range Suites {
 		rows = append(rows, leaction.Action{
 			Verb:   suite.Name,
@@ -112,6 +201,11 @@ func table(s *session) leaction.Area {
 // suiteRunner answers the action that runs one suite under its own cap.
 func (s *session) suiteRunner(suite Suite) func() (any, int) {
 	return func() (any, int) {
+		tc, err := s.toolchain()
+		if err != nil {
+			leaction.ReportError(err)
+			return nil, 1
+		}
 		if suite.Warm {
 			if err := s.warm(); err != nil {
 				leaction.ReportError(err)
@@ -123,13 +217,13 @@ func (s *session) suiteRunner(suite Suite) func() (any, int) {
 			leaction.ReportError(err)
 			return nil, 1
 		}
-		covers, err := coverRoot(s.tc.Root)
+		covers, err := coverRoot(tc.Root)
 		if err != nil {
 			leaction.ReportError(err)
 			return nil, 1
 		}
-		cover, reduce := suiteCoverage(s.tc, suite, covers)
-		code, seconds := Execute(s.tc, suite, set, cover)
+		cover, reduce := suiteCoverage(tc, suite, covers)
+		code, seconds := Execute(tc, suite, set, cover)
 		reduce()
 		return SuiteRun{
 			Suite:   suite.Name,
@@ -142,31 +236,18 @@ func (s *session) suiteRunner(suite Suite) func() (any, int) {
 }
 
 func (s *session) runExaBGP() (any, int) {
-	return runExaBGP(context.Background(), s.tc.Root, nil)
+	root, err := s.checkout()
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
+	return runExaBGP(context.Background(), root, nil)
 }
 
-// areaVerbs are the two keywords Answer reads before the suite table. The table
-// cannot hold them, because `gating` sweeps the suites and a sweepable `gating`
-// would sweep itself. Declaring them here stops the listing and the help hint
-// from disagreeing about what they do.
-func areaVerbs() []leaction.Row {
-	return []leaction.Row{
-		{Verb: listVerb, Why: "every suite and its budget"},
-		{Verb: gatingVerb, Why: "every gating suite, under its own budget"},
-		{Verb: selectVerb, Why: "the suites a gating run would start for this checkout, and why the rest are absent"},
-	}
-}
-
-// Actions answers the command surface as data, and is what a bare command
-// line prints. The two area verbs come first because they are the two a reader
-// who typed the area name is looking for.
-func Actions() leaction.List {
-	suites := table(&session{}).Actions()
-	return leaction.List{
-		Area:    Area,
-		Actions: append(areaVerbs(), suites.Actions...),
-	}
-}
+// Actions answers the command surface as data, and is what a bare command line
+// prints. It is the table and nothing beside it, so a verb a reader sees here
+// is a verb this area dispatches.
+func Actions() leaction.List { return table(&session{}).Actions() }
 
 // Subs is the one-line hint help renders under the command.
 //
@@ -175,13 +256,18 @@ func Actions() leaction.List {
 // list of 32 names is not a useful hint. The next keyword reveals those names.
 func Subs() string {
 	var tb textbuf.Buffer
-	for _, verb := range areaVerbs() {
-		tb.Str(verb.Verb).Str(" (").Str(verb.Why).Str(") | ")
+	for _, action := range areaActions(&session{}) {
+		tb.Str(action.Verb).Str(" (").Str(action.Why).Str(") | ")
 	}
 	return tb.Str("<suite>-test | exabgp-test").String()
 }
 
 // Answer is the `le functional` command.
+//
+// One table dispatches, lists, helps and refuses, so nothing here reads the
+// command line. A line naming one action runs that action. A line naming
+// several sweeps them in the order they were typed, and stops at the first
+// failure.
 func Answer(args []string) (any, int) {
 	// A bare command line answers the verbs and builds nothing (owner directive,
 	// 2026-09-02). A developer who types the area name starts no run and waits
@@ -191,46 +277,15 @@ func Answer(args []string) (any, int) {
 	if len(args) == 0 {
 		return Actions(), 0
 	}
-	if len(args) == 1 && args[0] == listVerb {
-		return Catalog(), 0
-	}
 
-	root, err := lepath.Root()
-	if err != nil {
-		leaction.ReportError(err)
-		return nil, 1
-	}
-
-	// `select` answers before the toolchain is probed, because it builds
-	// nothing and a reader asking which suites would run must not wait on a Go
-	// toolchain to hear it.
-	if len(args) == 1 && args[0] == selectVerb {
-		plan, err := planRun(root)
-		if err != nil {
-			leaction.ReportError(err)
-			return nil, 1
-		}
-		return plan.Report, 0
-	}
-
-	tc, err := gotoolchain.New(root)
-	if err != nil {
-		leaction.ReportError(err)
-		return nil, 1
-	}
-
-	if len(args) == 1 && args[0] == gatingVerb {
-		return runGating(tc)
-	}
-
-	current := newSession(tc, args)
+	current := newSession(args)
 	defer current.release()
-	return table(current).Sweep(args, leaction.StopAtFirstFailure)
+	return table(current).AnswerOrSweep(args, leaction.StopAtFirstFailure)
 }
 
 // newSession reads the whole command line before anything runs.
 // The binary set therefore carries the label and chaos dashboard for the named suites.
-func newSession(tc gotoolchain.Toolchain, args []string) *session {
+func newSession(args []string) *session {
 	named := make([]Suite, 0, len(args))
 	for _, verb := range args {
 		if suite, ok := suiteForVerb(verb); ok {
@@ -238,7 +293,7 @@ func newSession(tc gotoolchain.Toolchain, args []string) *session {
 		}
 	}
 
-	current := &session{tc: tc, label: "functional"}
+	current := &session{label: "functional"}
 	if len(named) == 1 {
 		current.label = named[0].Name
 	}
