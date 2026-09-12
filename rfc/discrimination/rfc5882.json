@@ -49,7 +49,7 @@
       "rid": "RFC5882-4.4-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc5882_shared_key_test.go::TestOSPFNeighborRequestReachesTheSharedKey",
-      "unit-sha": "a5290e21f2d144d8",
+      "unit-sha": "0c6d0e3afcdd783b",
       "claim-sha": "136f3a0888189201",
       "route": "revert",
       "producer": "internal/plugins/ospf/bfd_client.go::bfdRequestForNeighbor",

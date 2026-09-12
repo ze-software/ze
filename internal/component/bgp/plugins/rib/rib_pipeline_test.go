@@ -1582,7 +1582,7 @@ func TestShowPipelineConcurrentChurn(t *testing.T) {
 			nlri := []byte{24, byte(10 + p), byte(iter % routeCount), 0}
 			r.peerMu.Lock()
 			if peerRIB := r.bgpPeers[peer]; peerRIB != nil {
-				peerRIB.Remove(fam, nlri)                  // frees the bundle pool handles
+				peerRIB.Remove(fam, nlri)            // frees the bundle pool handles
 				peerRIB.Insert(fam, attrBytes, nlri) // re-interns
 			}
 			r.peerMu.Unlock()
