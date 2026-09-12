@@ -830,6 +830,21 @@ func TestAnOptionIsRefusedInAValueSlotAnywhereOnTheLine(t *testing.T) {
 		}
 	}
 
+	// The LAST word is a value slot too. A help spelling there asks what the
+	// action takes, and every other option is refused like any other.
+	got = nil
+	page := captureStderr(t, func() {
+		if _, code := area.Answer([]string{"run", "command", "ls", "timeout", "-xh"}); code != 2 {
+			t.Errorf("a trailing -xh in a value slot answered %d, want 2", code)
+		}
+	})
+	if got != nil {
+		t.Errorf("a trailing -xh in a value slot ran the action with %#v", got)
+	}
+	if !strings.Contains(page, `keyword "timeout" cannot take "-xh"`) {
+		t.Errorf("a trailing -xh was refused with %q", page)
+	}
+
 	got = nil
 	if _, code := area.Answer([]string{"run", "command", helpWord, "keep-alive"}); code != 0 {
 		t.Errorf("the bare word in a non-trailing value slot answered %d, want 0", code)

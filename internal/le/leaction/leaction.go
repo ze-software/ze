@@ -314,8 +314,9 @@ func (l List) UsageText(verb string) (string, bool) {
 // `replace file <path> old beta new help` answers true: `help` is what `new`
 // takes, and the operator typed it as data. The same line ending in `--help`
 // answers false. A dash-leading word is an option, and no value slot holds one
-// (IsOption). An option EARLIER on the line is refused by parseArguments. The
-// two together leave no slot that takes an option as data.
+// (IsOption). The caller then renders usage for a help spelling, and
+// parseArguments refuses every other option and answers 2. No slot on the line
+// takes an option as data.
 //
 // A verb this listing does not hold answers false. The listing is what the area
 // published, and a word this table cannot read is not a word this table can
@@ -386,7 +387,9 @@ const helpWord = "help"
 // `-letters` is a CLUSTER of one-letter short options.
 //
 // So `-help` is not "help with one dash". It decomposes to `-h`, `-e`, `-l` and
-// `-p`: a help request, then three options that do not exist.
+// `-p`: a help request, then three options that do not exist. IsHelpArg reads
+// it as the question for that reason, and by its exact spelling rather than by
+// its shape.
 //
 // That rule bans every other flag from le's grammar. le has no option for a
 // cluster to carry, and no action takes a value that starts with a dash. A
@@ -400,18 +403,29 @@ func IsOption(word string) bool {
 }
 
 // IsHelpArg reports whether a word asks for usage rather than naming an action
-// or a value. The bare word `help` asks it. `--help` asks it as a long option.
-// A short cluster that OPENS with `h` asks it too. The first option in that
-// cluster is the help option, and the rest do not exist, so `-h` and `-help`
-// are one question (IsOption).
+// or a value. The set is CLOSED and holds four spellings: the bare word, the
+// long option, the short option, and the one-dash form Go's own tools take.
+// Each one is a help request in some vocabulary. An area that swallows one
+// costs the reader a page they did not want. It never costs them a silent
+// no-op over the work they asked for.
+//
+// A rule of SHAPE was tried here and removed. Reading any cluster that carries
+// `h` as the question swallowed `le job run label x command echo
+// -html=cover.out`. That answered 0 with a help page and never ran the child
+// (review round 4). The shape was too narrow as well: `-xh` carries the help
+// option, and it still reached the area as data.
+//
+// No shape repairs that. A table-less area publishes no grammar, so le cannot
+// tell its OWN option from one the reader forwards to a child. Checking every
+// letter against le's declared options would refuse `command prog -xyz`, which
+// is argv forwarding itself. So the test is four exact words, and every other
+// option travels on
+// (plan/spec-le-every-area-dispatches-through-one-table.md).
 //
 // leroot dispatches on the same answer, so the vocabulary is declared here and
 // read there.
 func IsHelpArg(word string) bool {
-	if word == helpWord || word == "--help" {
-		return true
-	}
-	return IsOption(word) && word[1] == 'h'
+	return word == helpWord || word == "--help" || word == "-h" || word == "-help"
 }
 
 // Answer is the area's command. The action and each parameter are closed
@@ -430,8 +444,9 @@ func (a Area) Answer(args []string) (any, int) {
 		// word is the value a keyword introduced: `new help` is the text `new`
 		// takes. To swallow that line is to answer 0 and run nothing, which no
 		// caller can tell from the work it asked for (ai/rules/principles.md).
-		// An option is never that value, in this slot or in any earlier one:
-		// here it renders usage, and parseArguments refuses it anywhere else.
+		// An option is never that value. One of the four help spellings renders
+		// usage here. Every other one falls through to parseArguments, which
+		// refuses it and answers 2, in this slot and in every earlier one.
 		if len(args) > 1 && IsHelpArg(args[len(args)-1]) && !trailingIsValue(act.Parameters, args[1:]) {
 			return nil, a.actionUsage(act)
 		}

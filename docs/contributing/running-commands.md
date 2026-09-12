@@ -40,8 +40,16 @@ internal` refuses and reads no path. `./le source-rewrite replace file <path>
 old beta new --help apply` refuses and writes nothing. Only the bare word,
 which carries no dash, can be data.
 
-A trailing help option asks the question in every area, whatever it spells.
+Four spellings ask for help, and the set is closed: `help`, `--help`, `-h` and
+`-help`. A trailing one of the four asks the question in every area, so
 `./le stress-repro run suite -help` prints a page and starts no burn.
+
+Every other option travels on. An area with a table refuses it. An area
+without one hands it to the child, so `./le job run label x command echo
+-html=cover.out` prints `-html=cover.out`.
+
+A shape rule cannot replace the four words. A table-less area publishes no
+grammar, so le cannot tell its own option from one you forward to a child.
 
 <!-- source: internal/le/leroot/manifest.go -- Manifest -->
 <!-- source: internal/le/leroot/dispatch.go -- Dispatch, helpTrailing -->
@@ -50,8 +58,8 @@ A trailing help option asks the question in every area, whatever it spells.
 An area that hand-rolls its own dispatch registers no table. The manifest then
 carries its description and not its grammar, and `--help` answers its node page.
 A trailing help word is read as a question there, because the dispatcher has no
-grammar to read it against. A value spelled `help`, or spelled as a help option,
-is therefore unreachable as the last word of such an area's line.
+grammar to read it against. A value spelled `help`, `--help`, `-h` or `-help` is
+therefore unreachable as the last word of such an area's line.
 `internal/le/actions_test.go` names those areas and refuses a new one.
 
 Any OTHER option reaches such an area, because the dispatcher cannot read it as

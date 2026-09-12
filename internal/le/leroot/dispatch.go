@@ -199,18 +199,16 @@ func helpAsked(program string, words []string) int {
 // `le source-rewrite replace file <path> old beta new help` types `help` as the
 // text `new` takes.
 //
-// Every help OPTION asks the question here, in every area. `--help` asks it as
-// a long option. `-h` and `-help` ask it as a short cluster that opens with the
-// help option (leaction.IsHelpArg). `ai/rules/cli.md` bans a flag from being a
-// value, so no area's grammar means one as data. `le stress-repro run suite
-// -help` renders a page rather than the burn.
+// Four spellings ask the question here, in every area, and the set is closed:
+// `help`, `--help`, `-h` and `-help` (leaction.IsHelpArg). `le stress-repro run
+// suite -help` therefore renders a page rather than the burn.
 //
-// An option that is NOT the help question reaches the area. Where the area
-// declared a table, its parser refuses the option by name and answers 2
-// (leaction.parseArguments). Where it declared none, the dispatcher has no
-// grammar to read, so the area's own parser decides. `le job run label x
-// command bin/ze-test bgp encode --list` hands `--list` to the child, which is
-// what `command <argv...>` means.
+// Every other option reaches the area. Where the area declared a table, its
+// parser refuses the option by name and answers 2 (leaction.parseArguments).
+// Where it declared none, the dispatcher has no grammar to read, so the area's
+// own parser decides. `le job run label x command bin/ze-test bgp encode
+// --list` hands `--list` to the child, which is what `command <argv...>` means,
+// and so does `command echo -html=cover.out`.
 //
 // The area's registered table is what tells a value from a question, so an area
 // that registered one is asked. An area that registered none publishes no

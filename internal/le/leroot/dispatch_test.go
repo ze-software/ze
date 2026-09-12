@@ -518,13 +518,17 @@ func TestAnOptionIsRefusedInAValueSlotAnywhereOnTheLine(t *testing.T) {
 	}
 }
 
-// VALIDATES: a trailing option that is NOT the help question reaches an area
-// that published no action table, which is what `command <argv...>` means: the
-// words after that keyword are the child's, and le does not read them.
+// VALIDATES: a trailing option that is NOT one of the four help spellings
+// reaches an area that published no action table. That is what `command
+// <argv...>` means: the words after the keyword are the child's. The four
+// spellings still stop before the area.
 // PREVENTS: the help guard swallowing `le job run label encode-list command
 // bin/ze-test bgp encode --list`, the recipe docs/contributing/testing.md
-// prints. The dispatcher has no grammar for a table-less area, so a word it
-// cannot read as a question is the area's to judge.
+// prints. It also prevents `le job run label x command echo -html=cover.out`
+// answering 0 with the page and no child, which review round 4 measured. An
+// option that only LOOKS like a help request is a child's option. A table-less
+// area publishes no grammar, so nothing tells le's own line from a forwarded
+// one.
 func TestATrailingOptionThatIsNotTheQuestionReachesATableLessArea(t *testing.T) {
 	const forwarder = "argv-forwarding-probe"
 	var carried []string
@@ -537,7 +541,12 @@ func TestATrailingOptionThatIsNotTheQuestionReachesATableLessArea(t *testing.T) 
 	})
 	RegisterShape(forwarder, command.ShapeDoc)
 
-	for _, option := range []string{"--list", "-count=1", "-6", "-1"} {
+	for _, option := range []string{
+		"--list", "-count=1", "-6", "-1",
+		// Round 4: each of these opens with `h` or carries one, and each is a
+		// child's option rather than a help request.
+		"-html=cover.out", "-host", "-headers", "-xh", "-xyz=1",
+	} {
 		carried = nil
 		code := 1
 		out := captureStdout(t, func() {
