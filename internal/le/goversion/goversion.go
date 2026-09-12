@@ -86,9 +86,14 @@ const (
 	goModFile = "go.mod"
 	// moduleImage is the image name a carrier of this module builds on.
 	moduleImage = "golang"
-	// imagePrefix is the cheap test that keeps the Go walk off every string
+	// ImagePrefix is the cheap test that keeps the Go walk off every string
 	// literal in the repository. minorOf is what decides the rest.
-	imagePrefix = moduleImage + ":"
+	//
+	// It is exported because a test elsewhere asks the same question of a
+	// Dockerfile line, and a second copy of the literal would be both a second
+	// declaration of the image name and a carrier this gate then judges: a
+	// needle carries no tag, so it reads as an image with an unreadable one.
+	ImagePrefix = moduleImage + ":"
 	// wholeContext is the COPY source that brings the whole build context, and
 	// with it this module, into a stage.
 	wholeContext = "."
@@ -438,7 +443,7 @@ func imageLiterals(rel, body string) []literal {
 			// readable image, so there is nothing here to judge.
 			continue
 		}
-		if !strings.Contains(value, imagePrefix) {
+		if !strings.Contains(value, ImagePrefix) {
 			continue
 		}
 		out = append(out, literal{Value: value, Line: set.Position(position).Line})

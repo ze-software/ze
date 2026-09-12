@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/le/goversion"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/interoplab/bgp"
 	"github.com/ze-software/ze/internal/le/interoplab/ipsec"
@@ -65,8 +66,13 @@ func TestZeDockerfilesCarryNoCompiler(t *testing.T) {
 			if strings.Contains(trimmed, "go build") {
 				t.Errorf("%s:%d compiles inside the image: %s", match, number, trimmed)
 			}
-			if strings.HasPrefix(strings.ToUpper(trimmed), "FROM ") && strings.Contains(trimmed, "golang:") {
-				t.Errorf("%s:%d names a golang base image: %s", match, number, trimmed)
+			// The needle comes from the Go version gate rather than from a
+			// literal here, which keeps one declaration of the image name and
+			// keeps this line off that gate's carrier walk.
+			if strings.HasPrefix(strings.ToUpper(trimmed), "FROM ") {
+				if strings.Contains(trimmed, goversion.ImagePrefix) {
+					t.Errorf("%s:%d names a golang base image: %s", match, number, trimmed)
+				}
 			}
 		}
 	}
